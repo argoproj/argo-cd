@@ -1092,7 +1092,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	}, &v1alpha1.ApplicationSet{}, client)
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]any{{
-		"commitSHA":               commitSHAReturnValue,
+		"git.commitSHA":           commitSHAReturnValue,
 		"path":                    "some",
 		"path.basename":           "some",
 		"path.basenameNormalized": "some",
@@ -1171,7 +1171,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_va
 	}, client)
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]any{{
-		"commitSHA": "commit-sha",
+		"git": map[string]any{"commitSHA": "commit-sha"},
 		"path": map[string]any{
 			"basename":           "some",
 			"basenameNormalized": "some",

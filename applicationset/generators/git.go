@@ -248,9 +248,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 	for _, objectFound := range objectsFound {
 		params := map[string]any{}
 
-		params["commitSHA"] = commitSHA
-
 		if useGoTemplate {
+			params["git"] = map[string]any{"commitSHA": commitSHA}
 			maps.Copy(params, objectFound)
 
 			paramPath := map[string]any{}
@@ -267,6 +266,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 				params["path"] = paramPath
 			}
 		} else {
+			params["git.commitSHA"] = commitSHA
 			flat, err := flatten.Flatten(objectFound, "", flatten.DotStyle)
 			if err != nil {
 				return nil, fmt.Errorf("error flattening object: %w", err)
@@ -346,9 +346,9 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 	res := make([]map[string]any, len(requestedApps))
 	for i, a := range requestedApps {
 		params := make(map[string]any, 5)
-		params["commitSHA"] = commitSHA
 
 		if useGoTemplate {
+			params["git"] = map[string]any{"commitSHA": commitSHA}
 			paramPath := map[string]any{}
 			paramPath["path"] = a
 			paramPath["basename"] = path.Base(a)
@@ -360,6 +360,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 				params["path"] = paramPath
 			}
 		} else {
+			params["git.commitSHA"] = commitSHA
 			pathParamName := "path"
 			if appSetGenerator.Git.PathParamPrefix != "" {
 				pathParamName = appSetGenerator.Git.PathParamPrefix + "." + pathParamName

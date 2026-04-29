@@ -46,7 +46,7 @@ foo:
 			},
 			want: []map[string]any{
 				{
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "path/dir",
 					"path.basename":           "dir",
 					"path.filename":           "file_name.yaml",
@@ -79,7 +79,7 @@ foo:
 			},
 			want: []map[string]any{
 				{
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"foo.bar":                 "baz",
 					"path":                    "path/dir",
 					"path.basename":           "dir",
@@ -103,7 +103,7 @@ foo:
 			},
 			want: []map[string]any{
 				{
-					"commitSHA":                      "commit-sha",
+					"git.commitSHA":                  "commit-sha",
 					"foo.bar":                        "baz",
 					"myRepo.path":                    "path/dir",
 					"myRepo.path.basename":           "dir",
@@ -128,7 +128,7 @@ foo:
 			},
 			want: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"values": map[string]string{
 						"somekey": "dir",
 					},
@@ -161,7 +161,7 @@ foo:
 			},
 			want: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"foo": map[string]any{
 						"bar": "baz",
 					},
@@ -195,7 +195,7 @@ foo:
 			},
 			want: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"foo": map[string]any{
 						"bar": "baz",
 					},
@@ -262,16 +262,16 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
-					"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1",
+					"git.commitSHA": "commit-sha",
+					"path":          "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1",
 				},
 				{
-					"commitSHA": "commit-sha",
-					"path":      "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2",
+					"git.commitSHA": "commit-sha",
+					"path":          "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2",
 				},
 				{
-					"commitSHA": "commit-sha",
-					"path":      "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3",
+					"git.commitSHA": "commit-sha",
+					"path":          "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3",
 				},
 			},
 			expectedError: nil,
@@ -288,9 +288,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]any{
-				{"commitSHA": "commit-sha", "myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
-				{"commitSHA": "commit-sha", "myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
-				{"commitSHA": "commit-sha", "myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
+				{"git.commitSHA": "commit-sha", "myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
+				{"git.commitSHA": "commit-sha", "myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
+				{"git.commitSHA": "commit-sha", "myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
 			},
 			expectedError: nil,
 		},
@@ -305,12 +305,12 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
-					"path":      "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2",
+					"git.commitSHA": "commit-sha",
+					"path":          "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2",
 				},
 				{
-					"commitSHA": "commit-sha",
-					"path":      "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3",
+					"git.commitSHA": "commit-sha",
+					"path":          "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3",
 				},
 			},
 			expectedError: nil,
@@ -328,16 +328,16 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
-					"path":      "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
+					"git.commitSHA": "commit-sha",
+					"path":          "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
 				},
 				{
-					"commitSHA": "commit-sha",
-					"path":      "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2",
+					"git.commitSHA": "commit-sha",
+					"path":          "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2",
 				},
 				{
-					"commitSHA": "commit-sha",
-					"path":      "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3",
+					"git.commitSHA": "commit-sha",
+					"path":          "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3",
 				},
 			},
 			expectedError: nil,
@@ -355,16 +355,16 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
-					"path":      "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
+					"git.commitSHA": "commit-sha",
+					"path":          "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
 				},
 				{
-					"commitSHA": "commit-sha",
-					"path":      "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2",
+					"git.commitSHA": "commit-sha",
+					"path":          "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2",
 				},
 				{
-					"commitSHA": "commit-sha",
-					"path":      "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3",
+					"git.commitSHA": "commit-sha",
+					"path":          "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3",
 				},
 			},
 			expectedError: nil,
@@ -384,11 +384,11 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			expected: []map[string]any{
 				{
-					"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "commitSHA": "commit-sha",
+					"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "git.commitSHA": "commit-sha",
 					"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
 				},
 				{
-					"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "commitSHA": "commit-sha",
+					"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "git.commitSHA": "commit-sha",
 					"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2",
 				},
 			},
@@ -486,7 +486,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "app1",
 						"basename":           "app1",
@@ -497,7 +497,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "app2",
 						"basename":           "app2",
@@ -508,7 +508,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "app_3",
 						"basename":           "app_3",
@@ -534,7 +534,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"myRepo": map[string]any{
 						"path": map[string]any{
 							"path":               "app1",
@@ -547,7 +547,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"myRepo": map[string]any{
 						"path": map[string]any{
 							"path":               "app2",
@@ -560,7 +560,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"myRepo": map[string]any{
 						"path": map[string]any{
 							"path":               "app_3",
@@ -587,7 +587,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "p1/app2",
 						"basename":           "app2",
@@ -599,7 +599,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "p1/p2/app3",
 						"basename":           "app3",
@@ -627,7 +627,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "app1",
 						"basename":           "app1",
@@ -638,7 +638,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "app2",
 						"basename":           "app2",
@@ -649,7 +649,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "p2/app3",
 						"basename":           "app3",
@@ -676,7 +676,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "app1",
 						"basename":           "app1",
@@ -687,7 +687,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "app2",
 						"basename":           "app2",
@@ -698,7 +698,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "p2/app3",
 						"basename":           "app3",
@@ -834,7 +834,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
 					"key3":                    "123",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -847,7 +847,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
@@ -900,7 +900,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
 					"key3":                    "123",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -915,7 +915,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
@@ -979,7 +979,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -992,7 +992,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1035,7 +1035,7 @@ cluster:
 					"key1":                    "val1",
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1048,7 +1048,7 @@ cluster:
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
@@ -1083,7 +1083,7 @@ cluster:
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1096,7 +1096,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1282,7 +1282,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithNewGlobbing(t *testing.
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
 					"key3":                    "123",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1327,7 +1327,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithNewGlobbing(t *testing.
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "p1",
 					"path.basename":           "p1",
 					"path[0]":                 "p1",
@@ -1370,7 +1370,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/engineering/prod",
 					"path.basename":           "prod",
 					"path[0]":                 "cluster-config",
@@ -1410,7 +1410,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "some-path",
 					"path.basename":           "some-path",
 					"path[0]":                 "some-path",
@@ -1448,7 +1448,7 @@ env: testing
 			expected: []map[string]any{
 				{
 					"env":                     "staging",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-charts/cluster1/mychart",
 					"path.filenameNormalized": "values.yaml",
 					"path[0]":                 "cluster-charts",
@@ -1460,7 +1460,7 @@ env: testing
 				},
 				{
 					"env":                     "prod",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-charts/cluster1/myotherchart",
 					"path.filenameNormalized": "values.yaml",
 					"path[0]":                 "cluster-charts",
@@ -1633,7 +1633,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithOldGlobbing(t *testing.
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
 					"key3":                    "123",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1678,7 +1678,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithOldGlobbing(t *testing.
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "p1",
 					"path.basename":           "p1",
 					"path[0]":                 "p1",
@@ -1721,7 +1721,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "cluster-config/engineering/prod",
 					"path.basename":           "prod",
 					"path[0]":                 "cluster-config",
@@ -1759,7 +1759,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "some-path",
 					"path.basename":           "some-path",
 					"path[0]":                 "some-path",
@@ -1771,7 +1771,7 @@ cluster:
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
-					"commitSHA":               "commit-sha",
+					"git.commitSHA":           "commit-sha",
 					"path":                    "some-path/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "some-path",
@@ -1965,8 +1965,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 							"key2_2_1": "val2_2_1",
 						},
 					},
-					"key3":      float64(123),
-					"commitSHA": "commit-sha",
+					"key3": float64(123),
+					"git":  map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2040,7 +2040,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 							"one": "two",
 						},
 					},
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "p1",
 						"basename":           "p1",
@@ -2173,8 +2173,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"key2_2_1": "val2_2_1",
 						},
 					},
-					"key3":      float64(123),
-					"commitSHA": "commit-sha",
+					"key3": float64(123),
+					"git":  map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2193,7 +2193,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/staging",
 						"basename":           "staging",
@@ -2263,7 +2263,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"one": "two",
 						},
 					},
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2282,7 +2282,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2335,7 +2335,7 @@ cluster:
 							"key2_2_1": "val2_2_1",
 						},
 					},
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2354,7 +2354,7 @@ cluster:
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/staging",
 						"basename":           "staging",
@@ -2397,7 +2397,7 @@ cluster:
 							"one": "two",
 						},
 					},
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2416,7 +2416,7 @@ cluster:
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
-					"commitSHA": "commit-sha",
+					"git": map[string]any{"commitSHA": "commit-sha"},
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2532,8 +2532,8 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			},
 			callGetDirectories: true,
 			expected: []map[string]any{{
-				"commitSHA": "commit-sha",
-				"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
+				"git.commitSHA": "commit-sha",
+				"path":          "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
 			}},
 			expectedError: nil,
 		},
@@ -2569,8 +2569,8 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			},
 			callGetDirectories: false,
 			expected: []map[string]any{{
-				"commitSHA": "commit-sha",
-				"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
+				"git.commitSHA": "commit-sha",
+				"path":          "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
 			}},
 			expectedError: errors.New("error getting project project: appprojects.argoproj.io \"project\" not found"),
 		},
@@ -2612,8 +2612,8 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected: []map[string]any{{
-				"commitSHA": "commit-sha",
-				"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
+				"git.commitSHA": "commit-sha",
+				"path":          "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
 			}},
 			expectedProject: new("project"),
 			expectedError:   nil,
@@ -2649,8 +2649,8 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected: []map[string]any{{
-				"commitSHA": "commit-sha",
-				"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
+				"git.commitSHA": "commit-sha",
+				"path":          "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
 			}},
 			expectedProject: new(""),
 			expectedError:   nil,

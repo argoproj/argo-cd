@@ -1527,7 +1527,7 @@ func TestGitDirectoryGeneratorCommitSHAParamNonExistentRevision(t *testing.T) {
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        repoURL,
-							TargetRevision: "{{commitSHA}}",
+							TargetRevision: "{{git.commitSHA}}",
 							Path:           "{{path}}",
 						},
 						Destination: v1alpha1.ApplicationDestination{
@@ -1595,7 +1595,7 @@ func TestGitFilesGeneratorCommitSHAParamNonExistentRevision(t *testing.T) {
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-							TargetRevision: "{{commitSHA}}",
+							TargetRevision: "{{git.commitSHA}}",
 							Path:           "guestbook",
 						},
 						Destination: v1alpha1.ApplicationDestination{
@@ -1672,7 +1672,7 @@ func TestGitDirectoryGeneratorCommitSHAParam(t *testing.T) {
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        repoURL,
-							TargetRevision: "{{commitSHA}}",
+							TargetRevision: "{{git.commitSHA}}",
 							Path:           "{{path}}",
 						},
 						Destination: v1alpha1.ApplicationDestination{
@@ -1749,7 +1749,7 @@ func TestGitDirectoryGeneratorGoTemplateCommitSHAParam(t *testing.T) {
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        repoURL,
-							TargetRevision: "{{.commitSHA}}",
+							TargetRevision: "{{.git.commitSHA}}",
 							Path:           "{{.path.path}}",
 						},
 						Destination: v1alpha1.ApplicationDestination{
@@ -1825,7 +1825,7 @@ func TestGitFilesGeneratorCommitSHAParam(t *testing.T) {
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-							TargetRevision: "{{commitSHA}}",
+							TargetRevision: "{{git.commitSHA}}",
 							Path:           "guestbook",
 						},
 						Destination: v1alpha1.ApplicationDestination{
@@ -1902,7 +1902,7 @@ func TestGitFilesGeneratorGoTemplateCommitSHAParam(t *testing.T) {
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-							TargetRevision: "{{.commitSHA}}",
+							TargetRevision: "{{.git.commitSHA}}",
 							Path:           "guestbook",
 						},
 						Destination: v1alpha1.ApplicationDestination{
