@@ -706,15 +706,11 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 }
 
 // bbServerAPITimeout is the timeout for outbound Bitbucket Server REST API calls made during
-// webhook processing. It matches the analogous timeout used for Bitbucket Cloud API calls.
-// 10 seconds gives enough headroom for a single paginated sequence of /changes requests while
-// keeping the overall webhook handler responsive.
+// webhook processing.
 const bbServerAPITimeout = 10 * time.Second
 
 // fetchBBServerChangedFiles calls the Bitbucket Server REST API to obtain the set of changed
-// files and whether the push touched the repository's default branch. The context (and its
-// cancel) are fully contained inside this function so they are never leaked via a deferred
-// cancel on the caller's stack.
+// files and whether the push touched the repository's default branch. 
 func (a *ArgoCDWebhookHandler) fetchBBServerChangedFiles(httpCloneURL, projectKey, repoSlug, fromHash, toHash, revision string) ([]string, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), bbServerAPITimeout)
 	defer cancel()
@@ -759,6 +755,13 @@ func extractBBServerBaseURL(cloneURL string) (string, error) {
 	}
 	if u.Scheme == "" || u.Host == "" {
 		return "", fmt.Errorf("invalid Bitbucket Server clone URL '%s': missing scheme or host", cloneURL)
+	}
+	// Bitbucket Server clone URLs always contain "/scm/" as the separator between the
+	// server base path and the project/repo path. Everything before "/scm/" is the
+	// server base URL, which may include a subpath when Bitbucket is deployed under a
+	// context path (e.g. https://mycompany.com/bitbucket/scm/... → https://mycompany.com/bitbucket).
+	if idx := strings.Index(u.Path, "/scm/"); idx >= 0 {
+		return u.Scheme + "://" + u.Host + u.Path[:idx], nil
 	}
 	return u.Scheme + "://" + u.Host, nil
 }

@@ -2002,6 +2002,11 @@ func TestExtractBBServerBaseURL(t *testing.T) {
 			expected: "https://bitbucketserver",
 		},
 		{
+			name:     "bitbucket server deployed under a subpath",
+			cloneURL: "https://mycompany.com/bitbucket/scm/myproject/test-repo.git",
+			expected: "https://mycompany.com/bitbucket",
+		},
+		{
 			name:        "invalid URL missing host",
 			cloneURL:    "/scm/myproject/test-repo.git",
 			expectedErr: "invalid Bitbucket Server clone URL",
