@@ -285,12 +285,13 @@ spec:
   generators:
   - scmProvider:
       bitbucket:
-        # The workspace id (slug).  
+        # The workspace id (slug).
         owner: "example-owner"
-        # The user to use for basic authentication with an app password.
-        user: "example-user"
         # If true, scan every branch of every repository. If false, scan only the main branch. Defaults to false.
         allBranches: true
+        # Credentials for Basic authentication (App Password). Either appPasswordRef or bearerToken is required.
+        # The user to use for basic authentication with an app password.
+        user: "example-user"
         # Reference to a Secret containing an app password.
         appPasswordRef:
           secretName: appPassword
@@ -299,12 +300,38 @@ spec:
   # ...
 ```
 
-* `owner`: The workspace ID (slug) to use when looking up repositories.
-* `user`: The user to use for authentication to the Bitbucket API V2 at bitbucket.org.
-* `allBranches`: By default (false) the template will only be evaluated for the main branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
-* `appPasswordRef`: A `Secret` name and key containing the bitbucket app password to use for requests.
+For service principals (workspace access tokens, OAuth consumer client-credential tokens) that have no user membership context, use `bearerToken` instead:
 
-This SCM provider does not yet support label filtering
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - scmProvider:
+      bitbucket:
+        # The workspace id (slug).
+        owner: "example-owner"
+        # If true, scan every branch of every repository. If false, scan only the main branch. Defaults to false.
+        allBranches: true
+        # Credentials for Bearer Token authentication. Either appPasswordRef or bearerToken is required.
+        bearerToken:
+          # Reference to a Secret containing the bearer token.
+          tokenRef:
+            secretName: bitbucket-bearer-token
+            key: token
+  template:
+  # ...
+```
+
+* `owner`: The workspace ID (slug) to use when looking up repositories.
+* `allBranches`: By default (false) the template will only be evaluated for the main branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
+* `user`: The user to use for authentication. Required when using `appPasswordRef`.
+* `appPasswordRef`: A `Secret` name and key containing the Bitbucket app password to use for requests.
+* `bearerToken.tokenRef`: A `Secret` name and key containing the bearer token (workspace access token or OAuth consumer token) to use for requests. Use this instead of `appPasswordRef` for service principals — app passwords require a user account with workspace membership, while bearer tokens work for tokens scoped directly to the workspace.
+
+This SCM provider does not yet support label filtering.
 
 Available clone protocols are `ssh` and `https`.
 
