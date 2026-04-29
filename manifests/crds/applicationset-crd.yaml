@@ -22168,6 +22168,8 @@ spec:
                     type: string
                   rollingSync:
                     properties:
+                      groupKey:
+                        type: string
                       steps:
                         items:
                           properties:
@@ -23091,6 +23093,8 @@ spec:
                   properties:
                     application:
                       type: string
+                    group:
+                      type: string
                     lastTransitionTime:
                       format: date-time
                       type: string
@@ -23106,6 +23110,7 @@ spec:
                       type: array
                   required:
                   - application
+                  - group
                   - message
                   - status
                   - step

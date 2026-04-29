@@ -95,7 +95,8 @@ type ApplicationSetStrategy struct {
 	DeletionOrder string `json:"deletionOrder,omitempty" protobuf:"bytes,3,opt,name=deletionOrder"`
 }
 type ApplicationSetRolloutStrategy struct {
-	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
+	Steps    []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
+	GroupKey string                      `json:"groupKey,omitempty" protobuf:"bytes,2,opt,name=groupKey"`
 }
 
 type ApplicationSetRolloutStep struct {
@@ -912,6 +913,8 @@ type ApplicationSetApplicationStatus struct {
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 	// TargetRevision tracks the desired revisions the Application should be synced to.
 	TargetRevisions []string `json:"targetRevisions" protobuf:"bytes,6,opt,name=targetrevisions"`
+	// Group tracks which group this Application has
+	Group string `json:"group" protobuf:"bytes,7,opt,name=group"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet

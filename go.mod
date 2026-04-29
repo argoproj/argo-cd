@@ -129,6 +129,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
+require k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
+
 require (
 	cloud.google.com/go/auth v0.15.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
@@ -311,7 +313,6 @@ require (
 	k8s.io/gengo/v2 v2.0.0-20250604051438-85fd79dbfd9f // indirect
 	k8s.io/kube-aggregator v0.34.0 // indirect
 	k8s.io/kubernetes v1.34.2 // indirect
-	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect

@@ -236,6 +236,9 @@ message ApplicationSetApplicationStatus {
 
   // TargetRevision tracks the desired revisions the Application should be synced to.
   repeated string targetrevisions = 6;
+
+  // Group tracks which group this Application has
+  optional string group = 7;
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
@@ -337,6 +340,8 @@ message ApplicationSetRolloutStep {
 
 message ApplicationSetRolloutStrategy {
   repeated ApplicationSetRolloutStep steps = 1;
+
+  optional string groupKey = 2;
 }
 
 // ApplicationSetSpec represents a class of application set state.

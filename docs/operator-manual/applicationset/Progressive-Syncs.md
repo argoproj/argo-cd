@@ -190,18 +190,21 @@ spec:
       steps:
         - matchExpressions:
             - key: envLabel
+              groupKey: envGroupLabel
               operator: In
               values:
                 - env-dev
           #maxUpdate: 100%  # if undefined, all applications matched are updated together (default is 100%)
         - matchExpressions:
             - key: envLabel
+              groupKey: envGroupLabel
               operator: In
               values:
                 - env-qa
           maxUpdate: 0 # if 0, no matched applications will be updated
         - matchExpressions:
             - key: envLabel
+              groupKey: envGroupLabel
               operator: In
               values:
                 - env-prod
