@@ -31,7 +31,7 @@ type CleanupFunc func()
 type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 
 type Kubectl interface {
-	ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error)
+	ManageResources(config *rest.Config) (ResourceOperations, func(), error)
 	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
@@ -277,7 +277,7 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 	return resourceIf.Delete(ctx, name, deleteOptions)
 }
 
-func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error) {
+func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, func(), error) {
 	f, err := os.CreateTemp(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %w", err)
