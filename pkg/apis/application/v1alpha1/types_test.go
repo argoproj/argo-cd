@@ -104,6 +104,81 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 	}
 }
 
+func TestAppProject_IsCredentialPermittedForAnySource(t *testing.T) {
+	testData := []struct {
+		name        string
+		projSources []string
+		credURL     string
+		isPermitted bool
+	}{{
+		name:        "wildcard permits any credential",
+		projSources: []string{"*"},
+		credURL:     "reg.example.com",
+		isPermitted: true,
+	}, {
+		name:        "exact match permits credential",
+		projSources: []string{"reg.example.com"},
+		credURL:     "reg.example.com",
+		isPermitted: true,
+	}, {
+		name:        "credential URL is prefix of sourceRepo",
+		projSources: []string{"reg.example.com/org/charts"},
+		credURL:     "reg.example.com",
+		isPermitted: true,
+	}, {
+		name:        "credential URL is prefix of multiple sourceRepos",
+		projSources: []string{"https://github.com/test/repo.git", "reg.example.com/org/charts"},
+		credURL:     "reg.example.com",
+		isPermitted: true,
+	}, {
+		name:        "OCI sourceRepo with credential prefix",
+		projSources: []string{"oci://reg.example.com/org/charts"},
+		credURL:     "reg.example.com",
+		isPermitted: true,
+	}, {
+		name:        "OCI credential URL matches OCI sourceRepo",
+		projSources: []string{"oci://reg.example.com/org/charts"},
+		credURL:     "oci://reg.example.com",
+		isPermitted: true,
+	}, {
+		name:        "credential URL does not match any sourceRepo",
+		projSources: []string{"https://github.com/test/repo.git"},
+		credURL:     "reg.example.com",
+		isPermitted: false,
+	}, {
+		name:        "credential URL is more specific than sourceRepo",
+		projSources: []string{"reg.example.com"},
+		credURL:     "reg.example.com/org/charts",
+		isPermitted: false,
+	}, {
+		name:        "partial hostname match should not permit",
+		projSources: []string{"reg.example.com-evil/org/charts"},
+		credURL:     "reg.example.com",
+		isPermitted: false,
+	}, {
+		name:        "deny pattern does not permit credential",
+		projSources: []string{"!reg.example.com/org/charts"},
+		credURL:     "reg.example.com",
+		isPermitted: false,
+	}, {
+		name:        "empty sourceRepos does not permit credential",
+		projSources: []string{},
+		credURL:     "reg.example.com",
+		isPermitted: false,
+	}}
+
+	for _, data := range testData {
+		t.Run(data.name, func(t *testing.T) {
+			proj := AppProject{
+				Spec: AppProjectSpec{
+					SourceRepos: data.projSources,
+				},
+			}
+			assert.Equal(t, data.isPermitted, proj.IsCredentialPermittedForAnySource(data.credURL))
+		})
+	}
+}
+
 func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	t.Parallel()
 
