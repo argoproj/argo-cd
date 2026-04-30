@@ -542,7 +542,7 @@ message ApplicationSourceHelm {
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
 
-  // Version is the Helm version to use for templating ("3")
+  // Version is the Helm version to use for templating ("3" or "4")
   optional string version = 6;
 
   // PassCredentials pass credentials to all domains (Helm's --pass-credentials)
