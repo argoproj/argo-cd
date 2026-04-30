@@ -2259,6 +2259,37 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if deploymentInfo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", a.QualifiedName(), rollbackReq.GetId())
 	}
+
+	if a.Spec.SourceHydrator != nil {
+		if deploymentInfo.Revision == "" {
+			return nil, status.Errorf(codes.FailedPrecondition,
+				"application %s history entry %d has no hydrated revision",
+				a.QualifiedName(), rollbackReq.GetId())
+		}
+		op := v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Revision: deploymentInfo.Revision,
+			},
+			InitiatedBy: v1alpha1.OperationInitiator{Username: session.Username(ctx)},
+			Info: []*v1alpha1.Info{
+				{
+					Name:  "IsRollback",
+					Value: "true",
+				},
+			},
+		}
+		appName := rollbackReq.GetName()
+		appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())
+		appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
+		a, err = argo.SetAppOperation(appIf, appName, &op)
+		if err != nil {
+			return nil, fmt.Errorf("error setting app operation: %w", err)
+		}
+		s.logAppEvent(ctx, a, argo.EventReasonOperationStarted,
+			fmt.Sprintf("initiated source hydrator rollback to %d", rollbackReq.GetId()))
+		return a, nil
+	}
+
 	if deploymentInfo.Source.IsZero() && deploymentInfo.Sources.IsZero() {
 		// Since source type was introduced to history starting with v0.12, and is now required for
 		// rollback, we cannot support rollback to revisions deployed using Argo CD v0.11 or below
