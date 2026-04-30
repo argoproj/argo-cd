@@ -1041,6 +1041,45 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		assert.True(t, patched)
 	})
 
+	t.Run("CascadingDeleteClearsDeletionApprovedAnnotation", func(t *testing.T) {
+		app := newFakeApp()
+		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
+		app.DeletionTimestamp = &now
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		app.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: now.Time.Add(time.Second).Format(time.RFC3339)}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
+
+		annotationCleared := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patchAction, ok := action.(kubetesting.PatchAction)
+			if ok {
+				var patchBody map[string]any
+				err = json.Unmarshal(patchAction.GetPatch(), &patchBody)
+				require.NoError(t, err)
+				if metadata, ok := patchBody["metadata"].(map[string]any); ok {
+					if annotations, ok := metadata["annotations"].(map[string]any); ok {
+						if deletionApproved, exists := annotations[synccommon.AnnotationDeletionApproved]; exists && deletionApproved == nil {
+							annotationCleared = true
+						}
+					}
+				}
+			}
+			return defaultReactor.React(action)
+		})
+
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		assert.True(t, annotationCleared)
+	})
+
 	// Ensure any stray resources irregularly labeled with instance label of app are not deleted upon deleting,
 	// when app project restriction is in place
 	t.Run("ProjectRestrictionEnforced", func(t *testing.T) {
