@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
@@ -233,6 +234,157 @@ spec:
 			yamlExpected, err := yaml.Marshal(tc.expectedApp)
 			require.NoError(t, err)
 			assert.YAMLEq(t, string(yamlExpected), string(yamlFound))
+		})
+	}
+}
+
+func Test_helmSourcesHaveNullValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		app      *v1alpha1.Application
+		expected bool
+	}{
+		{
+			name: "no helm source",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "helm source without valuesObject",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "helm source with valuesObject without nulls",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							ValuesObject: &runtime.RawExtension{
+								Raw: []byte(`{"memory":"64Mi"}`),
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "helm source with valuesObject with top-level null",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							ValuesObject: &runtime.RawExtension{
+								Raw: []byte(`{"cpu":null,"memory":"64Mi"}`),
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "helm source with valuesObject with nested null",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							ValuesObject: &runtime.RawExtension{
+								Raw: []byte(`{"recommender":{"resources":{"limits":{"cpu":null,"memory":"64Mi"}}}}`),
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "multi-source with null in one source",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								ValuesObject: &runtime.RawExtension{
+									Raw: []byte(`{"key":"value"}`),
+								},
+							},
+						},
+						{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								ValuesObject: &runtime.RawExtension{
+									Raw: []byte(`{"key":null}`),
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "string containing null word is not a false positive",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							ValuesObject: &runtime.RawExtension{
+								Raw: []byte(`{"message":"this is not null at all"}`),
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := helmSourcesHaveNullValues(tt.app)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func Test_jsonContainsNull(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		json     string
+		expected bool
+	}{
+		{"empty object", `{}`, false},
+		{"no nulls", `{"a":"b"}`, false},
+		{"top-level null", `{"a":null}`, true},
+		{"nested null", `{"a":{"b":null}}`, true},
+		{"null in array", `{"a":[null]}`, true},
+		{"deeply nested null", `{"a":{"b":{"c":{"d":null}}}}`, true},
+		{"string with null word", `{"a":"null"}`, false},
+		{"number value", `{"a":0}`, false},
+		{"boolean false", `{"a":false}`, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := jsonContainsNull([]byte(tt.json))
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

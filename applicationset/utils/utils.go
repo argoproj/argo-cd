@@ -208,16 +208,6 @@ func (r *Render) deeplyReplaceWithFilter(destination, original reflect.Value, re
 		}
 		for _, key := range original.MapKeys() {
 			originalValue := original.MapIndex(key)
-			if originalValue.Kind() != reflect.String && isNillable(originalValue) && originalValue.IsNil() {
-				continue
-			}
-			// New gives us a pointer, but again we want the value
-			copyValue := reflect.New(originalValue.Type()).Elem()
-
-			if err := r.deeplyReplaceWithFilter(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions, filter); err != nil {
-				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
-				return err
-			}
 
 			// Keys can be templated as well as values (e.g. to template something into an annotation).
 			if key.Kind() == reflect.String {
@@ -227,6 +217,20 @@ func (r *Render) deeplyReplaceWithFilter(destination, original reflect.Value, re
 					return err
 				}
 				key = reflect.ValueOf(templatedKey)
+			}
+
+			// Preserve nil map values (e.g. null in Helm valuesObject used to unset chart defaults).
+			// Previously these were skipped, which silently dropped null values from the rendered output.
+			if originalValue.Kind() != reflect.String && isNillable(originalValue) && originalValue.IsNil() {
+				destination.SetMapIndex(key, reflect.Zero(originalValue.Type()))
+				continue
+			}
+			// New gives us a pointer, but again we want the value
+			copyValue := reflect.New(originalValue.Type()).Elem()
+
+			if err := r.deeplyReplaceWithFilter(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions, filter); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+				return err
 			}
 
 			destination.SetMapIndex(key, copyValue)

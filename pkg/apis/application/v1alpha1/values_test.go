@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestValues_SetString(t *testing.T) {
@@ -79,4 +80,78 @@ func TestValues_SetString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValues_NullPreservation(t *testing.T) {
+	t.Run("ValuesYAML preserves null values from JSON", func(t *testing.T) {
+		source := &ApplicationSourceHelm{
+			ValuesObject: &runtime.RawExtension{
+				Raw: []byte(`{"recommender":{"resources":{"limits":{"cpu":null,"memory":"64Mi"}}}}`),
+			},
+		}
+		yamlOutput := string(source.ValuesYAML())
+		assert.Contains(t, yamlOutput, "cpu: null", "null values should be preserved in YAML output")
+		assert.Contains(t, yamlOutput, "memory: 64Mi")
+	})
+
+	t.Run("SetValuesString preserves null values in nested objects", func(t *testing.T) {
+		source := &ApplicationSourceHelm{}
+		err := source.SetValuesString(`{"limits": {"cpu": null, "memory": "64Mi"}}`)
+		require.NoError(t, err)
+
+		yamlOutput := source.ValuesString()
+		assert.Contains(t, yamlOutput, "cpu: null", "null values should be preserved after SetValuesString")
+		assert.Contains(t, yamlOutput, "memory: 64Mi")
+	})
+
+	t.Run("SetValuesString preserves null values from YAML input", func(t *testing.T) {
+		source := &ApplicationSourceHelm{}
+		yamlInput := "limits:\n  cpu: null\n  memory: 64Mi"
+		err := source.SetValuesString(yamlInput)
+		require.NoError(t, err)
+
+		yamlOutput := source.ValuesString()
+		assert.Contains(t, yamlOutput, "cpu: null", "null values should be preserved from YAML input")
+		assert.Contains(t, yamlOutput, "memory: 64Mi")
+	})
+
+	t.Run("ValuesYAML with raw JSON containing null produces valid YAML for Helm", func(t *testing.T) {
+		source := &ApplicationSourceHelm{
+			ValuesObject: &runtime.RawExtension{
+				Raw: []byte(`{"podDisruptionBudget":{"enabled":true,"maxUnavailable":1,"minAvailable":null}}`),
+			},
+		}
+		yamlOutput := string(source.ValuesYAML())
+		assert.Contains(t, yamlOutput, "minAvailable: null")
+		assert.Contains(t, yamlOutput, "maxUnavailable: 1")
+		assert.Contains(t, yamlOutput, "enabled: true")
+	})
+
+	t.Run("ValuesIsEmpty returns false when values contain only null entries", func(t *testing.T) {
+		source := &ApplicationSourceHelm{
+			ValuesObject: &runtime.RawExtension{
+				Raw: []byte(`{"cpu":null}`),
+			},
+		}
+		assert.False(t, source.ValuesIsEmpty(), "values with null entries should not be considered empty")
+	})
+
+	t.Run("round-trip JSON marshal/unmarshal preserves null values", func(t *testing.T) {
+		source := &ApplicationSourceHelm{
+			ValuesObject: &runtime.RawExtension{
+				Raw: []byte(`{"limits":{"cpu":null,"memory":"64Mi"}}`),
+			},
+		}
+
+		data, err := source.ValuesObject.MarshalJSON()
+		require.NoError(t, err)
+		assert.Contains(t, string(data), "null")
+
+		err = source.ValuesObject.UnmarshalJSON(data)
+		require.NoError(t, err)
+
+		yamlOutput := string(source.ValuesYAML())
+		assert.Contains(t, yamlOutput, "cpu: null",
+			"null values should survive JSON round-trip, got: %s", yamlOutput)
+	})
 }
