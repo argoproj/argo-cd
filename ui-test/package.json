@@ -11,7 +11,7 @@
   },
   "author": "Keith Chong",
   "license": "Apache-2.0",
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@11.0.2",
   "dependencies": {
     "@types/selenium-webdriver": "^4.1.28",
     "assert": "^2.1.0",

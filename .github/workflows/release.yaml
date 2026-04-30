@@ -253,13 +253,7 @@ jobs:
 
           generator -p . -o /tmp
 
-          # When ui/ should use in-repo pnpm for `pnpm sbom` (11+):
-          #   1. In ui/package.json set "packageManager" to a pnpm 11+ release (e.g. pnpm@11.0.0), then from ./ui run
-          #      `pnpm install` and commit the resulting ui/pnpm-lock.yaml so release CI's pnpm/action-setup matches.
-          #   2. Delete hack/generate-ui-pnpm-sbom.sh and remove the ./hack/generate-ui-pnpm-sbom.sh line below.
-          #   3. Uncomment:
-          # pnpm --dir ./ui sbom --sbom-format spdx --prod > /tmp/bom-ui-pnpm.spdx.json
-          ./hack/generate-ui-pnpm-sbom.sh --write /tmp/bom-ui-pnpm.spdx.json
+          pnpm --dir ./ui sbom --sbom-format spdx --prod > /tmp/bom-ui-pnpm.spdx.json
 
           if [[ -n "${DOCKER_IMAGE:-}" ]]; then
             bom generate -o /tmp/bom-docker-image.spdx -i "${DOCKER_IMAGE}"
