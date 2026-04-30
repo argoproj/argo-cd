@@ -18,8 +18,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
@@ -211,13 +211,16 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 // It is then merged with the live state and re-assigned to predictedLive. This means that any
 // fields not managed by the specified manager will be reverted with their state from live, including any webhook mutations.
 // If the given predictedLive does not have the managedFields, an error will be returned.
-func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
+func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser gescheme.GVKParser, manager string) (*unstructured.Unstructured, error) {
 	plManagedFields := predictedLive.GetManagedFields()
 	if len(plManagedFields) == 0 {
 		return nil, fmt.Errorf("predictedLive for resource %s/%s must have the managedFields", predictedLive.GetKind(), predictedLive.GetName())
 	}
 	gvk := predictedLive.GetObjectKind().GroupVersionKind()
-	pt := gvkParser.Type(gvk)
+	pt, err := gvkParser.Type(gvk)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind %s: %w", gvk, err)
+	}
 	if pt == nil {
 		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind: %s", gvk)
 	}
@@ -359,7 +362,7 @@ func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error
 
 // StructuredMergeDiff will calculate the diff using the structured-merge-diff
 // k8s library (https://github.com/kubernetes-sigs/structured-merge-diff).
-func StructuredMergeDiff(config, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*DiffResult, error) {
+func StructuredMergeDiff(config, live *unstructured.Unstructured, gvkParser gescheme.GVKParser, manager string) (*DiffResult, error) {
 	if live != nil && config != nil {
 		params := &SMDParams{
 			config:    config,
@@ -372,18 +375,35 @@ func StructuredMergeDiff(config, live *unstructured.Unstructured, gvkParser *man
 	return handleResourceCreateOrDeleteDiff(config, live)
 }
 
+// gvkParserAdapter wraps a scheme.GVKParser to satisfy the fieldmanager's
+// gvkParser interface (which does not return errors). Errors are discarded
+// and surfaced as nil, which the type converter reports as "no corresponding
+// type". This is acceptable for the version-conversion path; the primary
+// diff path handles errors directly from scheme.GVKParser.
+type gvkParserAdapter struct {
+	parser gescheme.GVKParser
+}
+
+func (a gvkParserAdapter) Type(gvk schema.GroupVersionKind) *typed.ParseableType {
+	pt, _ := a.parser.Type(gvk)
+	return pt
+}
+
 // SMDParams defines the parameters required by the structuredMergeDiff
 // function
 type SMDParams struct {
 	config    *unstructured.Unstructured
 	live      *unstructured.Unstructured
-	gvkParser *managedfields.GvkParser
+	gvkParser gescheme.GVKParser
 	manager   string
 }
 
 func structuredMergeDiff(p *SMDParams) (*DiffResult, error) {
 	gvk := p.config.GetObjectKind().GroupVersionKind()
-	pt := gescheme.ResolveParseableType(gvk, p.gvkParser)
+	pt, err := gescheme.ResolveParseableType(gvk, p.gvkParser)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind %s: %w", gvk, err)
+	}
 	if pt == nil {
 		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind: %s", gvk)
 	}
@@ -437,7 +457,7 @@ func structuredMergeDiff(p *SMDParams) (*DiffResult, error) {
 func apply(tvConfig, tvLive *typed.TypedValue, p *SMDParams) (*typed.TypedValue, error) {
 	// Build the structured-merge-diff Updater
 	updater := merge.Updater{
-		Converter: fieldmanager.NewVersionConverter(p.gvkParser, scheme.Scheme, p.config.GroupVersionKind().GroupVersion()),
+		Converter: fieldmanager.NewVersionConverter(gvkParserAdapter{p.gvkParser}, scheme.Scheme, p.config.GroupVersionKind().GroupVersion()),
 	}
 
 	// Build a list of managers and which API version they own

@@ -1,0 +1,6 @@
+apiVersion: conversion.example.com/v2
+kind: Example
+metadata:
+  name: test-example-v2
+spec:
+  newField: test-value-v2

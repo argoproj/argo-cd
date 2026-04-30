@@ -65,7 +65,7 @@ func (DeducedTypeConverter) TypedToObject(value *typed.TypedValue) (runtime.Obje
 }
 
 type typeConverter struct {
-	parser *managedfields.GvkParser
+	parser gvkParser
 }
 
 var _ TypeConverter = &typeConverter{}

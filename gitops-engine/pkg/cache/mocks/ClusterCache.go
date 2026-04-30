@@ -10,8 +10,7 @@ import (
 	mock "github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/managedfields"
-	"k8s.io/kubectl/pkg/util/openapi"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 )
 
 // NewClusterCache creates a new instance of ClusterCache. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -248,19 +247,19 @@ func (_c *ClusterCache_GetClusterInfo_Call) RunAndReturn(run func() cache.Cluste
 }
 
 // GetGVKParser provides a mock function for the type ClusterCache
-func (_mock *ClusterCache) GetGVKParser() *managedfields.GvkParser {
+func (_mock *ClusterCache) GetGVKParser() scheme.GVKParser {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetGVKParser")
 	}
 
-	var r0 *managedfields.GvkParser
-	if returnFunc, ok := ret.Get(0).(func() *managedfields.GvkParser); ok {
+	var r0 scheme.GVKParser
+	if returnFunc, ok := ret.Get(0).(func() scheme.GVKParser); ok {
 		r0 = returnFunc()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*managedfields.GvkParser)
+			r0 = ret.Get(0).(scheme.GVKParser)
 		}
 	}
 	return r0
@@ -283,12 +282,12 @@ func (_c *ClusterCache_GetGVKParser_Call) Run(run func()) *ClusterCache_GetGVKPa
 	return _c
 }
 
-func (_c *ClusterCache_GetGVKParser_Call) Return(gvkParser *managedfields.GvkParser) *ClusterCache_GetGVKParser_Call {
+func (_c *ClusterCache_GetGVKParser_Call) Return(gvkParser scheme.GVKParser) *ClusterCache_GetGVKParser_Call {
 	_c.Call.Return(gvkParser)
 	return _c
 }
 
-func (_c *ClusterCache_GetGVKParser_Call) RunAndReturn(run func() *managedfields.GvkParser) *ClusterCache_GetGVKParser_Call {
+func (_c *ClusterCache_GetGVKParser_Call) RunAndReturn(run func() scheme.GVKParser) *ClusterCache_GetGVKParser_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -357,52 +356,6 @@ func (_c *ClusterCache_GetManagedLiveObjs_Call) Return(resourceKeyToUnstructured
 }
 
 func (_c *ClusterCache_GetManagedLiveObjs_Call) RunAndReturn(run func(targetObjs []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)) *ClusterCache_GetManagedLiveObjs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetOpenAPISchema provides a mock function for the type ClusterCache
-func (_mock *ClusterCache) GetOpenAPISchema() openapi.Resources {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetOpenAPISchema")
-	}
-
-	var r0 openapi.Resources
-	if returnFunc, ok := ret.Get(0).(func() openapi.Resources); ok {
-		r0 = returnFunc()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(openapi.Resources)
-		}
-	}
-	return r0
-}
-
-// ClusterCache_GetOpenAPISchema_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOpenAPISchema'
-type ClusterCache_GetOpenAPISchema_Call struct {
-	*mock.Call
-}
-
-// GetOpenAPISchema is a helper method to define mock.On call
-func (_e *ClusterCache_Expecter) GetOpenAPISchema() *ClusterCache_GetOpenAPISchema_Call {
-	return &ClusterCache_GetOpenAPISchema_Call{Call: _e.mock.On("GetOpenAPISchema")}
-}
-
-func (_c *ClusterCache_GetOpenAPISchema_Call) Run(run func()) *ClusterCache_GetOpenAPISchema_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *ClusterCache_GetOpenAPISchema_Call) Return(resources openapi.Resources) *ClusterCache_GetOpenAPISchema_Call {
-	_c.Call.Return(resources)
-	return _c
-}
-
-func (_c *ClusterCache_GetOpenAPISchema_Call) RunAndReturn(run func() openapi.Resources) *ClusterCache_GetOpenAPISchema_Call {
 	_c.Call.Return(run)
 	return _c
 }
