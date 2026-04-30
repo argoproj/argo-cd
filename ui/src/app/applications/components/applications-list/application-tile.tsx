@@ -85,26 +85,29 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 {managedByURLInvalid ? (
                                     <button
                                         type='button'
-                                        className='managed-by-url-invalid'
+                                        className='applications-list__icon-action managed-by-url-invalid'
                                         onClick={handleExternalLinkClick}
                                         style={{cursor: 'not-allowed'}}
                                         title={MANAGED_BY_URL_INVALID_TEXT}>
-                                        <i className='fa fa-external-link-alt' />
+                                        <i className='fa fa-window-maximize' />
                                     </button>
                                 ) : (
-                                    <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
-                                        <i className='fa fa-external-link-alt' />
+                                    <button
+                                        type='button'
+                                        className='applications-list__icon-action'
+                                        onClick={handleExternalLinkClick}
+                                        title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
+                                        <i className='fa fa-window-maximize' />
                                     </button>
                                 )}
                                 <button
                                     title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
-                                    className='large-text-height'
+                                    className='applications-list__icon-action'
                                     onClick={handleFavoriteToggle}>
                                     <i
-                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-fw' : 'far fa-star fa-fw'}
                                         style={{
                                             cursor: 'pointer',
-                                            margin: '-1px 0px 0px 7px',
                                             color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
                                         }}
                                     />

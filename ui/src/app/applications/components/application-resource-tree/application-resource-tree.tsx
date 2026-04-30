@@ -514,41 +514,45 @@ function renderPodGroup(
                         {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                         {healthState != null && <HealthStatusIcon state={healthState} />}
                         {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
-                        {appNode && !rootNode && (
-                            <Consumer>
-                                {ctx => {
-                                    // For nested applications, use the node's data to construct the URL
-                                    const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
-                                    const managedByURL = getManagedByURLFromNode(node);
-                                    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
-                                    if (managedByURLInvalid) {
+                        <span className='application-resource-tree__node-link-actions'>
+                            {appNode && !rootNode && (
+                                <Consumer>
+                                    {ctx => {
+                                        // For nested applications, use the node's data to construct the URL
+                                        const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                        const managedByURL = getManagedByURLFromNode(node);
+                                        const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                        if (managedByURLInvalid) {
+                                            return (
+                                                <span
+                                                    role='link'
+                                                    aria-disabled={true}
+                                                    className='application-resource-tree__node-link-action application-resource-tree__node-link-action--invalid'
+                                                    style={{cursor: 'not-allowed'}}
+                                                    onClick={e => e.stopPropagation()}
+                                                    title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                                    <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                                </span>
+                                            );
+                                        }
                                         return (
-                                            <span
-                                                role='link'
-                                                aria-disabled={true}
-                                                style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
-                                                onClick={e => e.stopPropagation()}
-                                                title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                                <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
-                                            </span>
+                                            <a
+                                                href={linkInfo.url}
+                                                target={linkInfo.isExternal ? '_blank' : undefined}
+                                                rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                                className='application-resource-tree__node-link-action'
+                                                onClick={e => {
+                                                    e.stopPropagation();
+                                                }}
+                                                title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
+                                                <i className='fa fa-window-maximize' />
+                                            </a>
                                         );
-                                    }
-                                    return (
-                                        <a
-                                            href={linkInfo.url}
-                                            target={linkInfo.isExternal ? '_blank' : undefined}
-                                            rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
-                                            onClick={e => {
-                                                e.stopPropagation();
-                                            }}
-                                            title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                            <i className='fa fa-external-link-alt' />
-                                        </a>
-                                    );
-                                }}
-                            </Consumer>
-                        )}
-                        <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
+                                    }}
+                                </Consumer>
+                            )}
+                            <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
+                        </span>
                     </span>
                     {childCount > 0 && (
                         <>
@@ -838,41 +842,45 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
-                    {appNode && !rootNode && (
-                        <Consumer>
-                            {ctx => {
-                                // For nested applications, use the node's data to construct the URL
-                                const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
-                                const managedByURL = getManagedByURLFromNode(node);
-                                const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
-                                if (managedByURLInvalid) {
+                    <span className='application-resource-tree__node-link-actions'>
+                        {appNode && !rootNode && (
+                            <Consumer>
+                                {ctx => {
+                                    // For nested applications, use the node's data to construct the URL
+                                    const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                    const managedByURL = getManagedByURLFromNode(node);
+                                    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                    if (managedByURLInvalid) {
+                                        return (
+                                            <span
+                                                role='link'
+                                                aria-disabled={true}
+                                                className='application-resource-tree__node-link-action application-resource-tree__node-link-action--invalid'
+                                                style={{cursor: 'not-allowed'}}
+                                                onClick={e => e.stopPropagation()}
+                                                title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                                <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                            </span>
+                                        );
+                                    }
                                     return (
-                                        <span
-                                            role='link'
-                                            aria-disabled={true}
-                                            style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
-                                            onClick={e => e.stopPropagation()}
-                                            title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                            <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
-                                        </span>
+                                        <a
+                                            href={linkInfo.url}
+                                            target={linkInfo.isExternal ? '_blank' : undefined}
+                                            rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                            className='application-resource-tree__node-link-action'
+                                            onClick={e => {
+                                                e.stopPropagation();
+                                            }}
+                                            title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
+                                            <i className='fa fa-window-maximize' />
+                                        </a>
                                     );
-                                }
-                                return (
-                                    <a
-                                        href={linkInfo.url}
-                                        target={linkInfo.isExternal ? '_blank' : undefined}
-                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
-                                        onClick={e => {
-                                            e.stopPropagation();
-                                        }}
-                                        title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                        <i className='fa fa-external-link-alt' />
-                                    </a>
-                                );
-                            }}
-                        </Consumer>
-                    )}
-                    <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
+                                }}
+                            </Consumer>
+                        )}
+                        <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
+                    </span>
                 </div>
                 {childCount > 0 && (
                     <div

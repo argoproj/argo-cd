@@ -73,12 +73,11 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                         <div className='columns small-2'>
                             <div>
                                 <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                    <button onClick={handleFavoriteToggle}>
+                                    <button className='applications-list__icon-action applications-table__favorite-button' onClick={handleFavoriteToggle}>
                                         <i
-                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-fw' : 'far fa-star fa-fw'}
                                             style={{
                                                 cursor: 'pointer',
-                                                marginRight: '7px',
                                                 color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
                                             }}
                                         />
@@ -93,7 +92,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     <div className='row'>
                         <div className='columns small-2' />
                         <div className='show-for-xxlarge columns small-4'>Name:</div>
-                        <div className='columns small-12 xxlarge-6'>
+                        <div className='columns small-12 xxlarge-6 applications-table__name-cell'>
                             <Tooltip
                                 content={
                                     <>
@@ -108,11 +107,11 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                             </Tooltip>
                             <button
                                 type='button'
-                                className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
+                                className={`applications-list__icon-action${managedByURLInvalid ? ' managed-by-url-invalid' : ''}`}
                                 onClick={handleExternalLinkClick}
-                                style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
+                                style={{cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
                                 title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                                <i className='fa fa-external-link-alt' />
+                                <i className='fa fa-window-maximize' />
                             </button>
                         </div>
                     </div>
