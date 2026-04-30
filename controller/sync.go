@@ -2,10 +2,12 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -13,6 +15,8 @@ import (
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
 	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
@@ -78,7 +82,57 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
-	return ops, cleanup, nil
+
+	wrappedOps := &secretNormalizingApplier{
+		inner:                ops,
+		sensitiveAnnotations: m.settingsMgr.GetSensitiveAnnotations(),
+	}
+
+	return wrappedOps, cleanup, nil
+}
+
+// secretNormalizingApplier wraps a KubeApplier to normalize Secret data
+type secretNormalizingApplier struct {
+	inner                gitopsDiff.KubeApplier
+	sensitiveAnnotations map[string]bool
+}
+
+func (s *secretNormalizingApplier) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+	result, err := s.inner.ApplyResource(ctx, obj, dryRunStrategy, force, validate, serverSideApply, manager)
+	if err != nil {
+		return result, err
+	}
+
+	isCoreSecret := obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == ""
+	if dryRunStrategy != cmdutil.DryRunServer || !isCoreSecret {
+		return result, nil
+	}
+
+	trimmedResult := strings.TrimSpace(result)
+	if !strings.HasPrefix(trimmedResult, "{") {
+		return result, nil
+	}
+
+	resultObj := &unstructured.Unstructured{}
+	if err := json.Unmarshal([]byte(result), resultObj); err != nil {
+		return result, nil
+	}
+
+	// Apply hideSecretData
+	if resultObj.GetKind() == kube.SecretKind && resultObj.GroupVersionKind().Group == "" {
+		_, normalized, err := gitopsDiff.HideSecretData(obj, resultObj, s.sensitiveAnnotations)
+		if err != nil {
+			return result, fmt.Errorf("error normalizing secret data: %w", err)
+		}
+
+		normalizedBytes, err := json.Marshal(normalized)
+		if err != nil {
+			return result, fmt.Errorf("error marshaling normalized secret: %w", err)
+		}
+		return string(normalizedBytes), nil
+	}
+
+	return result, nil
 }
 
 func NewOperationState(operation v1alpha1.Operation) *v1alpha1.OperationState {
