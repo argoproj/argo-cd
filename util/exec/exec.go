@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -24,7 +25,17 @@ var (
 	timeout      time.Duration
 	fatalTimeout time.Duration
 	Unredacted   = Redact(nil)
+	// ansiEscapeRegex matches ANSI escape sequences (CSI-style, e.g. "\x1b[1;31m")
+	// produced by tools that assume a color-capable terminal. These bytes render
+	// as garbage like "^[[1;31m" in the UI, so they are stripped from captured
+	// command output before it is surfaced in errors or logs. See issue #4770.
+	ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]`)
 )
+
+// stripAnsi removes ANSI escape sequences from s.
+func stripAnsi(s string) string {
+	return ansiEscapeRegex.ReplaceAllString(s, "")
+}
 
 type ExecRunOpts struct {
 	// Redactor redacts tokens from the output
@@ -262,12 +273,13 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		return strings.TrimSuffix(output, "\n"), err
 	case err := <-done:
 		if err != nil {
-			output := stdout.String()
+			stderrStr := stripAnsi(stderr.String())
+			output := stripAnsi(stdout.String())
 			if opts.CaptureStderr {
-				output += stderr.String()
+				output += stderrStr
 			}
 			logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
-			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(stderr.String())))
+			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(stderrStr)))
 			if !opts.SkipErrorLogging {
 				logCtx.Error(err.Error())
 			}
