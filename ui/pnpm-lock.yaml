@@ -29,7 +29,7 @@ importers:
         version: 6.1.6(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
       argo-ui:
         specifier: git+https://github.com/argoproj/argo-ui.git
-        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12)
+        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/9d99b0005295ea49bccf139923e13598d8cda9d2(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12)
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -267,7 +267,7 @@ importers:
         version: 9.1.2(eslint@9.31.0)
       eslint-plugin-prettier:
         specifier: ^5.1.3
-        version: 5.5.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@9.31.0))(eslint@9.31.0)(prettier@3.6.2)
+        version: 5.5.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@9.31.0))(eslint@9.31.0)(prettier@3.8.3)
       eslint-plugin-react:
         specifier: ^7.37.2
         version: 7.37.5(eslint@9.31.0)
@@ -302,8 +302,8 @@ importers:
         specifier: ^8.5.10
         version: 8.5.10
       prettier:
-        specifier: ^3.2.5
-        version: 3.6.2
+        specifier: ^3.8.3
+        version: 3.8.3
       raw-loader:
         specifier: ^0.5.1
         version: 0.5.1
@@ -2173,8 +2173,8 @@ packages:
   arg@4.1.3:
     resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba:
-    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba}
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/9d99b0005295ea49bccf139923e13598d8cda9d2:
+    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/9d99b0005295ea49bccf139923e13598d8cda9d2}
     version: 1.0.0
     peerDependencies:
       '@types/react': ^16.9.3
@@ -4523,8 +4523,8 @@ packages:
     resolution: {integrity: sha512-GbK2cP9nraSSUF9N2XwUwqfzlAFlMNYYl+ShE/V+H8a9uNl/oUqB1w2EL54Jh0OlyRSd8RfWYJ3coVS4TROP2w==}
     engines: {node: '>=6.0.0'}
 
-  prettier@3.6.2:
-    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
+  prettier@3.8.3:
+    resolution: {integrity: sha512-7igPTM53cGHMW8xWuVTydi2KO233VFiTNyF5hLJqpilHfmn8C8gPf+PS7dUT64YcXFbiMGZxS9pCSxL/Dxm/Jw==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -7879,7 +7879,7 @@ snapshots:
 
   arg@4.1.3: {}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12):
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/9d99b0005295ea49bccf139923e13598d8cda9d2(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12):
     dependencies:
       '@fortawesome/fontawesome-free': 6.7.2
       '@tippy.js/react': 3.1.1(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
@@ -8873,10 +8873,10 @@ snapshots:
     dependencies:
       eslint: 9.31.0
 
-  eslint-plugin-prettier@5.5.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@9.31.0))(eslint@9.31.0)(prettier@3.6.2):
+  eslint-plugin-prettier@5.5.1(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@9.31.0))(eslint@9.31.0)(prettier@3.8.3):
     dependencies:
       eslint: 9.31.0
-      prettier: 3.6.2
+      prettier: 3.8.3
       prettier-linter-helpers: 1.0.0
       synckit: 0.11.8
     optionalDependencies:
@@ -10695,7 +10695,7 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier@3.6.2: {}
+  prettier@3.8.3: {}
 
   pretty-error@4.0.0:
     dependencies:
