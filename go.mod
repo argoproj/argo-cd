@@ -120,7 +120,7 @@ require (
 	k8s.io/client-go v0.34.0
 	k8s.io/code-generator v0.34.0
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b
+	k8s.io/kube-openapi v0.0.0-20260427204847-8949caaa1199
 	k8s.io/kubectl v0.34.0
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.6.0
