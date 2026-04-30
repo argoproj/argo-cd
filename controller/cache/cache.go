@@ -604,6 +604,8 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		c.lock.RUnlock()
 
 		if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
+			gvk := ref.GroupVersionKind()
+			c.metricsServer.IncClusterEventsIgnoredCount(cluster.Server, gvk.Group, gvk.Kind)
 			// Additional check for debug level so we don't need to evaluate the
 			// format string in case of non-debug scenarios
 			if log.GetLevel() >= log.DebugLevel {
