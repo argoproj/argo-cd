@@ -224,7 +224,9 @@ spec:
           port: 80
 ```
 
-## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
+## [kubernetes/ingress-nginx (DEPRECATED)](https://github.com/kubernetes/ingress-nginx)
+
+[ingress-nginx](https://github.com/kubernetes/ingress-nginx/) is retired, and was archived on March 24, 2026. This section can still be used as a reference for other Ingress Controllers.
 
 ### Option 1: SSL-Passthrough
 
@@ -370,6 +372,70 @@ The obvious disadvantage to this approach is that this technique requires two se
 the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows TLS termination to
 happen at the ingress controller.
 
+## [F5 NGINX Ingress Controller](https://docs.nginx.com/nginx-ingress-controller/)
+
+To properly support ArgoCD, this Ingress Controller must be configured with HTTP/2 support, via its [ConfigMap](https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/configmap-resource/#listeners).
+
+After having that configuration, you can terminate SSL at the Ingress and have two ingresses, one for HTTP and one for GRPC, with different domains:
+
+HTTP/HTTPS Ingress:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-http-ingress
+  namespace: argocd
+  annotations:
+    nginx.org/redirect-to-https: "true"
+spec:
+  ingressClassName: f5-nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: http
+    host: argocd.example.com
+  tls:
+  - hosts:
+    - argocd.example.com
+    secretName: argocd-ingress-http
+```
+
+gRPC Ingress:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-grpc-ingress
+  namespace: argocd
+  annotations:
+    nginx.org/grpc-services: argocd-server
+spec:
+  ingressClassName: f5-nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
+    host: grpc.argocd.example.com
+  tls:
+  - hosts:
+    - grpc.argocd.example.com
+    secretName: argocd-ingress-grpc
+```
+
+The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
+`--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 ## [Traefik (v3.0)](https://docs.traefik.io/)
 
