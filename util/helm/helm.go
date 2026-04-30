@@ -15,6 +15,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/config"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 )
 
@@ -82,6 +83,14 @@ func (h *helm) DependencyBuild() error {
 		h.cmd.IsHelmOci = isHelmOci
 	}()
 
+	// Collect CA paths from repos before processing (same lookup as helm repo add uses)
+	var caPaths []string
+	for i := range h.repos {
+		if caPath := h.repos[i].GetCAPath(); caPath != "" {
+			caPaths = append(caPaths, caPath)
+		}
+	}
+
 	for i := range h.repos {
 		repo := h.repos[i]
 		if repo.EnableOci {
@@ -109,7 +118,15 @@ func (h *helm) DependencyBuild() error {
 		}
 	}
 	h.repos = nil
-	_, err := h.cmd.dependencyBuild(h.insecure)
+
+	// Create combined CA bundle from ConfigMap-resolved paths
+	caFilePath, caFileCloser, err := writeCombinedCAFile(caPaths)
+	if err != nil {
+		return fmt.Errorf("failed to create combined CA bundle: %w", err)
+	}
+	defer utilio.Close(caFileCloser)
+
+	_, err = h.cmd.dependencyBuild(h.insecure, caFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to build helm dependencies: %w", err)
 	}
