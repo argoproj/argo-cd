@@ -18,6 +18,8 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	"k8s.io/kubectl/pkg/cmd/create"
+	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
@@ -277,42 +279,7 @@ func TestOutputModeJSON(t *testing.T) {
 
 func TestApplyOptionsConfiguration(t *testing.T) {
 	// Test that newApplyOptions correctly configures all ApplyOptions fields
-
-	t.Run("serverSideApply=false sets ServerSideApply=false and ForceConflicts=false", func(t *testing.T) {
-		k, cmdMocks := newTestKubectlResourceOperations(t)
-
-		var capturedOpts *apply.ApplyOptions
-		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
-			capturedOpts = args[0].(*apply.ApplyOptions)
-		}).Return(nil)
-
-		ssa := false
-		obj := testingutils.NewPod()
-		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, ssa, "")
-		require.NoError(t, err)
-
-		assert.False(t, capturedOpts.ServerSideApply)
-		assert.False(t, capturedOpts.ForceConflicts)
-	})
-
-	t.Run("serverSideApply=true sets ServerSideApply=true and ForceConflicts=true", func(t *testing.T) {
-		k, cmdMocks := newTestKubectlResourceOperations(t)
-
-		var capturedOpts *apply.ApplyOptions
-		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
-			capturedOpts = args[0].(*apply.ApplyOptions)
-		}).Return(nil)
-
-		ssa := true
-		obj := testingutils.NewPod()
-		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, ssa, "test-manager")
-		require.NoError(t, err)
-
-		assert.True(t, capturedOpts.ServerSideApply)
-		assert.True(t, capturedOpts.ForceConflicts)
-	})
-
-	t.Run("DryRunStrategy is correctly set", func(t *testing.T) {
+	t.Run("general options are correctly set", func(t *testing.T) {
 		testCases := []struct {
 			name     string
 			strategy cmdutil.DryRunStrategy
@@ -332,58 +299,83 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 				}).Return(nil)
 
 				obj := testingutils.NewPod()
-				_, err := k.ApplyResource(t.Context(), obj, tc.strategy, false, false, false, "")
+				_, err := k.ApplyResource(t.Context(), obj, tc.strategy, false, false, false, "test-manager")
 				require.NoError(t, err)
 
 				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
+				assert.Equal(t, "test-manager", capturedOpts.FieldManager)
+				assert.True(t, capturedOpts.Overwrite)
+				assert.True(t, capturedOpts.OpenAPIPatch)
+				assert.False(t, capturedOpts.ServerSideApply)
+				assert.False(t, capturedOpts.ForceConflicts)
 			})
 		}
 	})
 
-	t.Run("FieldManager is correctly set", func(t *testing.T) {
-		k, cmdMocks := newTestKubectlResourceOperations(t)
+	t.Run("serverSideApply=true sets ServerSideApply=true and ForceConflicts=true", func(t *testing.T) {
+		testCases := []struct {
+			name          string
+			strategy      cmdutil.DryRunStrategy
+			expectedError string
+		}{
+			{"DryRunNone", cmdutil.DryRunNone, ""},
+			{"DryRunClient", cmdutil.DryRunClient, "error validating options: --dry-run=client doesn't work with --server-side"},
+			{"DryRunServer", cmdutil.DryRunServer, ""},
+		}
 
-		var capturedOpts *apply.ApplyOptions
-		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
-			capturedOpts = args[0].(*apply.ApplyOptions)
-		}).Return(nil)
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
 
-		obj := testingutils.NewPod()
-		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, false, "test-manager")
-		require.NoError(t, err)
+				var capturedOpts *apply.ApplyOptions
+				if tc.expectedError == "" {
+					cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+						capturedOpts = args[0].(*apply.ApplyOptions)
+					}).Return(nil)
+				}
 
-		assert.Equal(t, "test-manager", capturedOpts.FieldManager)
+				ssa := true
+				obj := testingutils.NewPod()
+				_, err := k.ApplyResource(t.Context(), obj, tc.strategy, false, false, ssa, "test-manager")
+
+				if tc.expectedError == "" {
+					require.NoError(t, err)
+					assert.True(t, capturedOpts.ServerSideApply)
+					assert.True(t, capturedOpts.ForceConflicts)
+				} else {
+					require.Error(t, err)
+					assert.Contains(t, err.Error(), tc.expectedError)
+				}
+			})
+		}
 	})
 
 	t.Run("force=true sets DeleteOptions.ForceDeletion", func(t *testing.T) {
-		k, cmdMocks := newTestKubectlResourceOperations(t)
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+		}{
+			{"DryRunNone", cmdutil.DryRunNone},
+			{"DryRunClient", cmdutil.DryRunClient},
+			{"DryRunServer", cmdutil.DryRunServer},
+		}
 
-		var capturedOpts *apply.ApplyOptions
-		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
-			capturedOpts = args[0].(*apply.ApplyOptions)
-		}).Return(nil)
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
 
-		obj := testingutils.NewPod()
-		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, true, false, false, "")
-		require.NoError(t, err)
+				var capturedOpts *apply.ApplyOptions
+				cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*apply.ApplyOptions)
+				}).Return(nil)
 
-		assert.True(t, capturedOpts.DeleteOptions.ForceDeletion)
-	})
+				obj := testingutils.NewPod()
+				_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, true, false, false, "")
+				require.NoError(t, err)
 
-	t.Run("Overwrite and OpenAPIPatch are always true", func(t *testing.T) {
-		k, cmdMocks := newTestKubectlResourceOperations(t)
-
-		var capturedOpts *apply.ApplyOptions
-		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
-			capturedOpts = args[0].(*apply.ApplyOptions)
-		}).Return(nil)
-
-		obj := testingutils.NewPod()
-		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, false, "")
-		require.NoError(t, err)
-
-		assert.True(t, capturedOpts.Overwrite)
-		assert.True(t, capturedOpts.OpenAPIPatch)
+				assert.True(t, capturedOpts.DeleteOptions.ForceDeletion)
+			})
+		}
 	})
 
 	t.Run("outputModeJSON returns JSONPrinter", func(t *testing.T) {
@@ -410,5 +402,105 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 
 		// Verify ShowManagedFields is set to true for JSON output
 		assert.True(t, capturedOpts.PrintFlags.JSONYamlPrintFlags.ShowManagedFields)
+	})
+}
+
+func TestCreateOptionsConfiguration(t *testing.T) {
+	// Test that newCreateOptions correctly configures all CreateOptions fields
+
+	t.Run("general options are correctly set", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+		}{
+			{"DryRunNone", cmdutil.DryRunNone},
+			{"DryRunClient", cmdutil.DryRunClient},
+			{"DryRunServer", cmdutil.DryRunServer},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
+
+				var capturedOpts *create.CreateOptions
+				cmdMocks.On("Create", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*create.CreateOptions)
+				}).Return(nil)
+
+				obj := testingutils.NewPod()
+				_, err := k.CreateResource(t.Context(), obj, tc.strategy, false)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
+				assert.NotEmpty(t, capturedOpts.FilenameOptions.Filenames)
+				assert.NotNil(t, capturedOpts.PrintObj)
+			})
+		}
+	})
+}
+
+func TestReplaceOptionsConfiguration(t *testing.T) {
+	// Test that newReplaceOptions correctly configures all ReplaceOptions fields
+
+	t.Run("general options are correctly set", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+		}{
+			{"DryRunNone", cmdutil.DryRunNone},
+			{"DryRunClient", cmdutil.DryRunClient},
+			{"DryRunServer", cmdutil.DryRunServer},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
+
+				var capturedOpts *replace.ReplaceOptions
+				cmdMocks.On("Replace", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*replace.ReplaceOptions)
+				}).Return(nil)
+
+				obj := testingutils.NewPod()
+				obj.SetNamespace("test-namespace")
+				_, err := k.ReplaceResource(t.Context(), obj, tc.strategy, false)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
+				assert.False(t, capturedOpts.DeleteOptions.ForceDeletion)
+				assert.NotEmpty(t, capturedOpts.DeleteOptions.Filenames)
+				assert.Equal(t, "test-namespace", capturedOpts.Namespace)
+				assert.NotNil(t, capturedOpts.PrintObj)
+			})
+		}
+	})
+
+	t.Run("force=true sets DeleteOptions.ForceDeletion correctly", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+			expected bool
+		}{
+			{"DryRunNone", cmdutil.DryRunNone, true},
+			{"DryRunClient", cmdutil.DryRunClient, false},
+			{"DryRunServer", cmdutil.DryRunServer, false},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
+
+				var capturedOpts *replace.ReplaceOptions
+				cmdMocks.On("Replace", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*replace.ReplaceOptions)
+				}).Return(nil)
+
+				obj := testingutils.NewPod()
+				_, err := k.ReplaceResource(t.Context(), obj, tc.strategy, true)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.expected, capturedOpts.DeleteOptions.ForceDeletion)
+			})
+		}
 	})
 }
