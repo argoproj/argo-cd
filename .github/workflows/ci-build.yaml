@@ -584,6 +584,8 @@ jobs:
             *) echo "unsupported uname -m=$ARCH" >&2; exit 1 ;;
           esac
           NODE_VER="${{ steps.setup-node.outputs.node-version }}"
+          # setup-node output is often v24.15.0; toolcache dirs use 24.15.0
+          NODE_VER="${NODE_VER#v}"
           NODE_DIR="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}/node/${NODE_VER}/${NODE_ARCH}/bin"
           test -x "${NODE_DIR}/node" || { echo "missing ${NODE_DIR}/node" >&2; ls -la "$(dirname "$NODE_DIR")" >&2 || true; exit 1; }
           echo "$NODE_DIR" >> "$GITHUB_PATH"
