@@ -22,6 +22,25 @@ func TestGenerateListParams(t *testing.T) {
 		}, {
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
 			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
+		}, {
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "test", "syncPrune": true, "number": 123, "values": {"innerBool": false}}`)}},
+			expected: []map[string]any{
+				{
+					"name":             "test",
+					"syncPrune":        "true",
+					"number":           "123",
+					"values.innerBool": "false",
+				},
+			},
+		}, {
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "test", "float": 1.5, "nullable": null}`)}},
+			expected: []map[string]any{
+				{
+					"name":     "test",
+					"float":    "1.5",
+					"nullable": "",
+				},
+			},
 		},
 	}
 
@@ -46,6 +65,44 @@ func TestGenerateListParams(t *testing.T) {
 	}
 }
 
+func TestGenerateListParamsError(t *testing.T) {
+	testCases := []struct {
+		name     string
+		elements []apiextensionsv1.JSON
+	}{
+		{
+			name:     "nested array",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster", "tags": ["prod", "us-east"]}`)}},
+		},
+		{
+			name:     "nested object",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster", "nested": {"key": "value"}}`)}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			listGenerator := NewListGenerator()
+
+			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+			}
+
+			_, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+				List: &argoprojiov1alpha1.ListGenerator{
+					Elements: testCase.elements,
+				},
+			}, &applicationSetInfo, nil)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "nested objects and arrays are not supported in non-GoTemplate mode")
+		})
+	}
+}
+
 func TestGenerateListParamsGoTemplate(t *testing.T) {
 	testCases := []struct {
 		elements []apiextensionsv1.JSON
@@ -57,6 +114,9 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 		}, {
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
 			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": map[string]any{"foo": "bar"}}},
+		}, {
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "test", "float": 1.5, "nullable": null}`)}},
+			expected: []map[string]any{{"name": "test", "float": 1.5, "nullable": nil}},
 		},
 	}
 

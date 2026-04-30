@@ -58,18 +58,18 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 						return nil, errors.New("error parsing values map")
 					}
 					for k, v := range values {
-						value, ok := v.(string)
-						if !ok {
-							return nil, fmt.Errorf("error parsing value as string %w", err)
+						val, err := getParamValue(v, k)
+						if err != nil {
+							return nil, err
 						}
-						params["values."+k] = value
+						params["values."+k] = val
 					}
 				} else {
-					v, ok := value.(string)
-					if !ok {
-						return nil, fmt.Errorf("error parsing value as string %w", err)
+					val, err := getParamValue(value, key)
+					if err != nil {
+						return nil, err
 					}
-					params[key] = v
+					params[key] = val
 				}
 				res[i] = params
 			}
@@ -87,4 +87,17 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 	}
 
 	return res, nil
+}
+
+func getParamValue(value any, key string) (string, error) {
+	switch v := value.(type) {
+	case string:
+		return v, nil
+	case bool, float64, int, int64:
+		return fmt.Sprintf("%v", v), nil
+	case nil:
+		return "", nil
+	default:
+		return "", fmt.Errorf("unsupported value type %T for key %q: nested objects and arrays are not supported in non-GoTemplate mode", value, key)
+	}
 }
