@@ -1418,11 +1418,11 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 		}
 
 		if impersonationEnforced {
-			return nil, fmt.Errorf("no matching service account found for destination server %s and namespace %s", a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+			return nil, fmt.Errorf("no matching service account found for destination server %s and namespace %s", cluster.Server, a.Spec.Destination.Namespace)
 		}
 
 		// Service Account is not enforced
-		log.Infof("no matching service account found for impersonation for app %s/%s (project: %s, server: %s, namespace: %s), falling back to controller service account", a.Namespace, a.Name, p.Name, a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+		log.Infof("no matching service account found for impersonation for app %s/%s (project: %s, server: %s, namespace: %s), falling back to controller service account", a.Namespace, a.Name, p.Name, cluster.Server, a.Spec.Destination.Namespace)
 		return config, nil
 	}
 

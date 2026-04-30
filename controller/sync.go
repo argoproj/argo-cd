@@ -302,12 +302,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 
 			if impersonationEnforced {
 				state.Phase = common.OperationError
-				state.Message = fmt.Sprintf("no matching service account found for destination server %s and namespace %s", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+				state.Message = fmt.Sprintf("no matching service account found for destination server %s and namespace %s", destCluster.Server, app.Spec.Destination.Namespace)
 				return
 			}
 
 			// Non-enforced mode: log info and continue with controller SA
-			logEntry.Infof("no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+			logEntry.Infof("no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
 		} else {
 			logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
 			// set the impersonation headers.
