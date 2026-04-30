@@ -379,6 +379,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -878,6 +880,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -1287,6 +1291,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -1786,6 +1792,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -2196,6 +2204,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -2695,6 +2705,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -3083,6 +3095,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -3582,6 +3596,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -3995,6 +4011,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -4494,6 +4512,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -4903,6 +4923,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -5402,6 +5424,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -5812,6 +5836,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -6311,6 +6337,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -6699,6 +6727,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -7198,6 +7228,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -7594,6 +7626,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -8093,6 +8127,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -8716,6 +8752,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -9215,6 +9253,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -9835,6 +9875,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -10335,6 +10377,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -10738,6 +10782,8 @@ spec:
                                     ref:
                                       type: string
                                     repoURL:
+                                      type: string
+                                    tagPrefix:
                                       type: string
                                     targetRevision:
                                       type: string
@@ -11238,6 +11284,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -11653,6 +11701,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -12152,6 +12202,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -12561,6 +12613,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -13060,6 +13114,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -13470,6 +13526,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -13969,6 +14027,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -14357,6 +14417,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -14856,6 +14918,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -15252,6 +15316,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -15751,6 +15817,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -16374,6 +16442,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -16873,6 +16943,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -17493,6 +17565,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -17993,6 +18067,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -18401,6 +18477,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -18900,6 +18978,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -19295,6 +19375,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -19794,6 +19876,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -20417,6 +20501,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -20916,6 +21002,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -21536,6 +21624,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -22036,6 +22126,8 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      tagPrefix:
+                                        type: string
                                       targetRevision:
                                         type: string
                                     required:
@@ -22516,6 +22608,8 @@ spec:
                           ref:
                             type: string
                           repoURL:
+                            type: string
+                          tagPrefix:
                             type: string
                           targetRevision:
                             type: string
@@ -23016,6 +23110,8 @@ spec:
                             ref:
                               type: string
                             repoURL:
+                              type: string
+                            tagPrefix:
                               type: string
                             targetRevision:
                               type: string
