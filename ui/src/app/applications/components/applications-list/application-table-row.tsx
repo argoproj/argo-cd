@@ -150,6 +150,14 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     )}
                     <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
                     <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                    {app.metadata.labels?.['argocd.argoproj.io/orphaned-by-applicationset'] && (
+                        <>
+                            <br />
+                            <a className='warning'>
+                                <i className='fa fa-exclamation-triangle' /> Orphaned
+                            </a>
+                        </>
+                    )}
                     <DropDownMenu
                         anchor={() => (
                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

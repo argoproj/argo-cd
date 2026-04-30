@@ -192,6 +192,10 @@ const (
 	LabelKeyAppName = "app.kubernetes.io/name"
 	// LabelKeyAutoLabelClusterInfo if set to true will automatically add extra labels from the cluster info (currently it only adds a k8s version label)
 	LabelKeyAutoLabelClusterInfo = "argocd.argoproj.io/auto-label-cluster-info"
+	// LabelKeyOrphanedByApplicationSet is set on Application objects that are no longer produced by
+	// an ApplicationSet generator but are preserved by a create-only sync policy. The label value
+	// is the name of the owning ApplicationSet.
+	LabelKeyOrphanedByApplicationSet = "argocd.argoproj.io/orphaned-by-applicationset"
 	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
