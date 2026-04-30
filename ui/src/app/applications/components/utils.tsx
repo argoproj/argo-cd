@@ -646,14 +646,19 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
                 iconClassName: action.iconClass,
                 action: async () => {
                     const confirmed = false;
-                    const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
+                    const resourceLabel = `${resource.kind}/${resource.name}${resource.namespace ? ` (${resource.namespace})` : ' (cluster-scoped)'}`;
+                    const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action on ${resourceLabel}?`;
                     await apis.popup.prompt(
                         title,
                         api => (
                             <div>
                                 {!action.params && (
                                     <div className='argo-form-row'>
-                                        <div> Are you sure you want to perform {action.name} action?</div>
+                                        <div>
+                                            {' '}
+                                            Are you sure you want to perform <strong>{action.name}</strong> on <strong>{resource.kind}</strong>/<kbd>{resource.name}</kbd>
+                                            {resource.namespace ? ` (${resource.namespace})` : ' (cluster-scoped)'}?
+                                        </div>
                                     </div>
                                 )}
                                 {action.params &&
