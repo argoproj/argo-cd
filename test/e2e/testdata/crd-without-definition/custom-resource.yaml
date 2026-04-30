@@ -1,0 +1,15 @@
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: test-rabbitmq
+  annotations:
+    # This annotation tells ArgoCD to skip dry-run validation
+    # which allows the sync to proceed even when the CRD is not registered
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
