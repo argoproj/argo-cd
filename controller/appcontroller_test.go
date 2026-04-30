@@ -194,6 +194,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
+		false,
 		[]string{},
 		[]string{},
 		[]string{},
