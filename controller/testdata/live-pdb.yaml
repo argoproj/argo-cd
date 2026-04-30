@@ -1,0 +1,15 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: coredns
+  namespace: kube-system
+  labels:
+    eks.amazonaws.com/component: coredns
+  annotations:
+    argocd.argoproj.io/tracking-id: "coredns-wrapper:policy/PodDisruptionBudget:kube-system/coredns"
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      eks.amazonaws.com/component: coredns
+      k8s-app: kube-dns
