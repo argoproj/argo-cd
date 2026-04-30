@@ -1132,6 +1132,10 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 		if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
 			log.WithError(err).Warn("Failed to finalize project deletion")
 		}
+	} else if origProj.DeletionTimestamp == nil && !origProj.HasFinalizer() {
+		if err := ctrl.addProjectFinalizer(origProj.DeepCopy()); err != nil {
+			log.WithError(err).Warn("Failed to add project finalizer")
+		}
 	}
 	return processNext
 }
@@ -1152,6 +1156,18 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProjec
 	}
 	log.Infof("Cannot remove project '%s' finalizer as is referenced by %d applications", proj.Name, appsCount)
 	return nil
+}
+
+func (ctrl *ApplicationController) addProjectFinalizer(proj *appv1.AppProject) error {
+	proj.AddFinalizer()
+	var patch []byte
+	patch, _ = json.Marshal(map[string]any{
+		"metadata": map[string]any{
+			"finalizers": proj.Finalizers,
+		},
+	})
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(context.Background(), proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return err
 }
 
 func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject) error {
@@ -2567,11 +2583,23 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
+
+				if oldOK && newOK && oldApp.Spec.GetProject() != newApp.Spec.GetProject() {
+					ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, oldApp.Spec.GetProject()))
+					ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, newApp.Spec.GetProject()))
+				}
 			},
 			DeleteFunc: func(obj any) {
-				if !ctrl.canProcessApp(obj) {
+				delApp, delOK := obj.(*appv1.Application)
+				if !delOK {
+					if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+						delApp, delOK = tombstone.Obj.(*appv1.Application)
+					}
+				}
+				if !delOK || !ctrl.canProcessApp(delApp) {
 					return
 				}
+
 				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
 				// key function.
 				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
@@ -2579,10 +2607,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					// for deletes, we immediately add to the refresh queue
 					ctrl.appRefreshQueue.Add(key)
 				}
-				delApp, delOK := obj.(*appv1.Application)
-				if err == nil && delOK {
-					ctrl.clusterSharding.DeleteApp(delApp)
-				}
+
+				ctrl.clusterSharding.DeleteApp(delApp)
+				ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, delApp.Spec.GetProject()))
 			},
 		},
 	)

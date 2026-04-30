@@ -2337,6 +2337,26 @@ func TestProjectErrorToCondition(t *testing.T) {
 	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 }
 
+func TestProcessProjectQueueItem_AddsFinalizer(t *testing.T) {
+	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{proj}}, nil)
+	ctrl.projectRefreshQueue.Add(test.FakeArgoCDNamespace + "/default")
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.AppProject{}, nil
+	})
+
+	ctrl.processProjectQueueItem()
+
+	finalizers, _, _ := unstructured.NestedStringSlice(receivedPatch, "metadata", "finalizers")
+	assert.Contains(t, finalizers, "resources-finalizer.argocd.argoproj.io")
+}
+
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	app := newFakeApp()
 	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
