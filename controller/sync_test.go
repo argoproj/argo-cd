@@ -896,7 +896,6 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		// when
 		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
-		// then, there should be an error saying no match was found
 		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
