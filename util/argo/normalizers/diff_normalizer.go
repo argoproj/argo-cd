@@ -159,7 +159,11 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			})
 		}
 		for _, pathExpression := range ignore[i].JQPathExpressions {
-			jqDeletionQuery, err := gojq.Parse(fmt.Sprintf("del(%s)", pathExpression))
+			// Use delpaths([path(...)]) instead of del() to properly handle array
+			// iterators like .spec.rules[].backendRefs[].weight. The path() function
+			// resolves iterators into concrete paths, and delpaths() removes them.
+			// This is path-scoped and works for both simple paths and nested arrays.
+			jqDeletionQuery, err := gojq.Parse(fmt.Sprintf("delpaths([path(%s)])", pathExpression))
 			if err != nil {
 				return nil, err
 			}
