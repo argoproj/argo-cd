@@ -2173,6 +2173,60 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }
 
+func TestIsImpersonationEnforced(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then IsImpersonationEnforced() must return true (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	enforced, err := settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"with no argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, IsImpersonationEnforced() must return an error")
+
+	// When there is no enforcement flag present in the argocd-cm,
+	// Then IsImpersonationEnforced() must return true (default value) and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"with empty argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user disables enforcement explicitly,
+	// Then IsImpersonationEnforced() must return false and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "false",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.False(t, enforced,
+		"when user disables enforcement in argocd-cm config map, IsImpersonationEnforced() must return false")
+	require.NoError(t, err,
+		"when user disables enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user enables enforcement explicitly,
+	// Then IsImpersonationEnforced() must return true and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "true",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"when user enables enforcement in argocd-cm config map, IsImpersonationEnforced() must return true")
+	require.NoError(t, err,
+		"when user enables enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user sets enforcement to an invalid value,
+	// Then IsImpersonationEnforced() must return true (default value) and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "something",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"when user specify invalid value for enforcement in argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.NoError(t, err,
+		"when user specify invalid value for enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+}
+
 func TestIsInClusterEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsInClusterEnabled() must return true (default value) and an error with appropriate error message.
