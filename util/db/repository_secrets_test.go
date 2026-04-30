@@ -937,6 +937,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 		GithubAppId:                123,
 		GithubAppInstallationId:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
+		Depth:                      1,
 	}
 	s = testee.repoCredsToSecret(creds, s)
 	assert.Equal(t, []byte(creds.URL), s.Data["url"])
@@ -953,6 +954,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds}, s.Labels)
+	assert.Equal(t, []byte(strconv.FormatInt(creds.Depth, 10)), s.Data["depth"])
 }
 
 func TestRepoWriteCredsToSecret(t *testing.T) {
@@ -997,6 +999,55 @@ func TestRepoWriteCredsToSecret(t *testing.T) {
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite}, s.Labels)
 }
 
+func TestSecretToRepoCreds(t *testing.T) {
+	sharedSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
+			},
+		},
+		Data: map[string][]byte{
+			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+			"username": []byte("test-user"),
+			"password": []byte("test-pass"),
+			"depth":    []byte("1"),
+		},
+	}
+
+	sharedSecretWithIncorrectDepth := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
+			},
+		},
+		Data: map[string][]byte{
+			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+			"username": []byte("test-user"),
+			"password": []byte("test-pass"),
+			"depth":    []byte("1s"),
+		},
+	}
+
+	backend := &secretsRepositoryBackend{}
+
+	_, err := backend.secretToRepoCred(sharedSecretWithIncorrectDepth)
+	require.Error(t, err)
+
+	creds, err := backend.secretToRepoCred(sharedSecret)
+	require.NoError(t, err)
+	ecreds := &appsv1.RepoCreds{
+		URL:      "git@github.com:argoproj/argo-cd.git",
+		Username: "test-user",
+		Password: "test-pass",
+		Depth:    1,
+	}
+	assert.Equal(t, ecreds, creds)
+}
+
 func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 	// Create a single shared secret that will be accessed concurrently
 	sharedSecret := &corev1.Secret{
@@ -1011,6 +1062,7 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
 			"username": []byte("test-user"),
 			"password": []byte("test-pass"),
+			"depth":    []byte("1"),
 		},
 	}
 
@@ -1019,6 +1071,7 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 		URL:      "git@github.com:argoproj/argo-cd.git",
 		Username: "test-user",
 		Password: "test-pass",
+		Depth:    1,
 	}
 
 	backend := &secretsRepositoryBackend{}

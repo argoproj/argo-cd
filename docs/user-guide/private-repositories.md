@@ -286,6 +286,10 @@ In order for Argo CD to use a credential template for any given repository, the 
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
 
 > [!NOTE]
+> You can also specify the `--depth` flag to enable shallow cloning for repositories using this credential template. Valid values for `depth` are positive integers (e.g. `1`, `10`). A value of `1` performs a shallow clone with only the latest commit. If not specified (or set to `0`), a full clone is performed.
+> If a `depth` value is specified in a repository `Secret` (with `argocd.argoproj.io/secret-type: repository`), it takes precedence over the value defined in the credential template.
+
+> [!NOTE]
 > Repositories that require authentication can be added using CLI or Web UI without specifying credentials only after a matching repository credential has been set up
 
 > [!NOTE]
@@ -311,6 +315,10 @@ repository 'https://docker-build/repos/argocd-example-apps' added
 # Will fail, because it will not use the template (has own creds)
 $ argocd repo add https://docker-build/repos/example-apps-part-two --username test --password invalid
 FATA[0000] rpc error: code = Unknown desc = authentication required
+
+# Setup a credential template with shallow clone depth
+$ argocd repocreds add https://docker-build/repos/argocd --username test --password test --depth 1
+repository credentials for 'https://docker-build/repos/argocd/' added
 ```
 
 ## Self-signed & Untrusted TLS Certificates
