@@ -5768,6 +5768,9 @@
         "statusBadgeRootUrl": {
           "type": "string"
         },
+        "ssoAutoLogin": {
+          "type": "boolean"
+        },
         "syncWithReplaceAllowed": {
           "type": "boolean"
         },
