@@ -447,6 +447,15 @@ func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams 
 }
 
 func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+	if k.outputMode == outputModeJSON {
+		if dryRunStrategy != cmdutil.DryRunServer {
+			return nil, fmt.Errorf("invalid dry run strategy used with JSON output. : %d, expected %d", dryRunStrategy, cmdutil.DryRunServer)
+		}
+		if !serverSideApply {
+			return nil, errors.New("invalid Apply strategy used with JSON output. Must use server-side apply")
+		}
+	}
+
 	o, err := newApplyOptionsCommon(k.config, k.fact, ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
 	if err != nil {
 		return nil, err
@@ -457,12 +466,6 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 
 		// For server-side diff (outputModeJSON), use JSON printer
 		if k.outputMode == outputModeJSON {
-			if o.DryRunStrategy != cmdutil.DryRunServer {
-				return nil, fmt.Errorf("invalid dry run strategy used with JSON output. : %d, expected %d", o.DryRunStrategy, cmdutil.DryRunServer)
-			}
-			if !serverSideApply {
-				return nil, errors.New("invalid Apply strategy used with JSON output. Must use server-side apply")
-			}
 			// managedFields are required by server-side diff to identify
 			// changes made by mutation webhooks.
 			o.PrintFlags.JSONYamlPrintFlags.ShowManagedFields = true
@@ -500,6 +503,11 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 }
 
 func (k *kubectlResourceOperations) newCreateOptions(ioStreams genericiooptions.IOStreams, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (*create.CreateOptions, error) {
+	// JSON output mode is only supported for Apply operations
+	if k.outputMode == outputModeJSON {
+		return nil, errors.New("invalid output mode: CreateResource is not supported with JSON output mode")
+	}
+
 	o := create.NewCreateOptions(ioStreams)
 
 	recorder, err := o.RecordFlags.ToRecorder()
@@ -538,6 +546,11 @@ func (k *kubectlResourceOperations) newCreateOptions(ioStreams genericiooptions.
 }
 
 func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericiooptions.IOStreams, fileName string, namespace string, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*replace.ReplaceOptions, error) {
+	// JSON output mode is only supported for Apply operations
+	if k.outputMode == outputModeJSON {
+		return nil, errors.New("invalid output mode: ReplaceResource is not supported with JSON output mode")
+	}
+
 	o := replace.NewReplaceOptions(ioStreams)
 
 	recorder, err := o.RecordFlags.ToRecorder()

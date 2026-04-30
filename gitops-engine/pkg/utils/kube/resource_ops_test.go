@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/mocks"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/cmd/apply"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
@@ -118,5 +120,156 @@ func TestAuthReconcileUsage(t *testing.T) {
 		ssa := false
 		_, err := k.ApplyResource(t.Context(), role, cmdutil.DryRunNone, false, false, ssa, "")
 		require.NoError(t, err)
+	})
+}
+
+func TestOutputModeLog(t *testing.T) {
+	// Test normal flow operations with outputModeLog
+
+	t.Run("CreateResource with outputModeLog", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.CreateResource(t.Context(), obj, cmdutil.DryRunNone, false)
+		require.NoError(t, err)
+	})
+
+	t.Run("ReplaceResource with outputModeLog", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Replace", mock.Anything, mock.Anything).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ReplaceResource(t.Context(), obj, cmdutil.DryRunNone, false)
+		require.NoError(t, err)
+	})
+
+	t.Run("ApplyResource with outputModeLog and client-side apply", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Apply", mock.Anything).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, false, "test-manager")
+		require.NoError(t, err)
+	})
+
+	t.Run("ApplyResource with outputModeLog and server-side apply", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Apply", mock.Anything).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, true, "test-manager")
+		require.NoError(t, err)
+	})
+}
+
+func TestOutputModeJSON(t *testing.T) {
+	// Test JSON output mode operations
+
+	t.Run("CreateResource with outputModeJSON should fail", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.CreateResource(t.Context(), obj, cmdutil.DryRunServer, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "CreateResource is not supported with JSON output mode")
+	})
+
+	t.Run("ReplaceResource with outputModeJSON should fail", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.ReplaceResource(t.Context(), obj, cmdutil.DryRunServer, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ReplaceResource is not supported with JSON output mode")
+	})
+
+	t.Run("ApplyResource with outputModeJSON without Dry run", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, true, "test-manager")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid dry run strategy used with JSON output")
+	})
+
+	t.Run("ApplyResource with outputModeJSON requires DryRunServer", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunClient, false, false, true, "test-manager")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid dry run strategy used with JSON output")
+	})
+
+	t.Run("ApplyResource with outputModeJSON requires server-side apply", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, false, "test-manager")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid Apply strategy used with JSON output")
+	})
+
+	t.Run("ApplyResource with outputModeJSON return object", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		jsonObj, err := json.Marshal(obj)
+		require.NoError(t, err)
+
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			applyOpts := args[0].(*apply.ApplyOptions)
+			_, err := applyOpts.Out.Write(jsonObj)
+			require.NoError(t, err)
+		}).Return(nil)
+
+		result, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, true, "test-manager")
+		require.NoError(t, err)
+		assert.JSONEq(t, string(jsonObj), result)
+	})
+
+	t.Run("ApplyResource with outputModeJSON with object and stderr returns object", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		jsonObj, err := json.Marshal(obj)
+		require.NoError(t, err)
+
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			applyOpts := args[0].(*apply.ApplyOptions)
+			_, err := applyOpts.Out.Write(jsonObj)
+			require.NoError(t, err)
+
+			// add an stderr message that should not be returned in the result
+			_, err = applyOpts.ErrOut.Write([]byte("error message"))
+			require.NoError(t, err)
+		}).Return(nil)
+
+		result, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, true, "test-manager")
+		require.NoError(t, err)
+		assert.JSONEq(t, string(jsonObj), result)
+	})
+
+	t.Run("ApplyResource with outputModeJSON without object with a stderr returns error", func(t *testing.T) {
+		obj := testingutils.NewPod()
+
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			applyOpts := args[0].(*apply.ApplyOptions)
+
+			_, err := applyOpts.ErrOut.Write([]byte("error message"))
+			require.NoError(t, err)
+		}).Return(nil)
+
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, true, "test-manager")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error message")
 	})
 }
