@@ -107,9 +107,9 @@ Returns commit metadata. The commit must belong to the application source reposi
 * `Tags []string` - Associated tags
 
 <hr>
-**`repo.GetAppDetails() AppDetail`**
+**`repo.GetAppDetails(sourceIndex?) AppDetail`**
 
-Returns application details. `AppDetail` fields:
+Returns application details for the specified source. For single-source applications, omit the argument or use `0`. For multi-source applications, pass the zero-based index of the source to inspect (e.g. `(call .repo.GetAppDetails 1)` for the second source). This allows retrieving Helm parameters from the Helm chart source when the first source is a values repository. `AppDetail` fields:
 
 * `Type string` - AppDetail type
 * `Helm HelmAppSpec` - Helm details

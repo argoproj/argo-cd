@@ -41,8 +41,8 @@ func (_m *Service) EXPECT() *Service_Expecter {
 }
 
 // GetAppDetails provides a mock function for the type Service
-func (_mock *Service) GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error) {
-	ret := _mock.Called(ctx, app)
+func (_mock *Service) GetAppDetails(ctx context.Context, app *v1alpha1.Application, sourceIndex int) (*shared.AppDetail, error) {
+	ret := _mock.Called(ctx, app, sourceIndex)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAppDetails")
@@ -50,18 +50,18 @@ func (_mock *Service) GetAppDetails(ctx context.Context, app *v1alpha1.Applicati
 
 	var r0 *shared.AppDetail
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application) (*shared.AppDetail, error)); ok {
-		return returnFunc(ctx, app)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, int) (*shared.AppDetail, error)); ok {
+		return returnFunc(ctx, app, sourceIndex)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application) *shared.AppDetail); ok {
-		r0 = returnFunc(ctx, app)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, int) *shared.AppDetail); ok {
+		r0 = returnFunc(ctx, app, sourceIndex)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*shared.AppDetail)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1alpha1.Application) error); ok {
-		r1 = returnFunc(ctx, app)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1alpha1.Application, int) error); ok {
+		r1 = returnFunc(ctx, app, sourceIndex)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -76,11 +76,12 @@ type Service_GetAppDetails_Call struct {
 // GetAppDetails is a helper method to define mock.On call
 //   - ctx context.Context
 //   - app *v1alpha1.Application
-func (_e *Service_Expecter) GetAppDetails(ctx interface{}, app interface{}) *Service_GetAppDetails_Call {
-	return &Service_GetAppDetails_Call{Call: _e.mock.On("GetAppDetails", ctx, app)}
+//   - sourceIndex int
+func (_e *Service_Expecter) GetAppDetails(ctx interface{}, app interface{}, sourceIndex interface{}) *Service_GetAppDetails_Call {
+	return &Service_GetAppDetails_Call{Call: _e.mock.On("GetAppDetails", ctx, app, sourceIndex)}
 }
 
-func (_c *Service_GetAppDetails_Call) Run(run func(ctx context.Context, app *v1alpha1.Application)) *Service_GetAppDetails_Call {
+func (_c *Service_GetAppDetails_Call) Run(run func(ctx context.Context, app *v1alpha1.Application, sourceIndex int)) *Service_GetAppDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -90,9 +91,14 @@ func (_c *Service_GetAppDetails_Call) Run(run func(ctx context.Context, app *v1a
 		if args[1] != nil {
 			arg1 = args[1].(*v1alpha1.Application)
 		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -103,7 +109,7 @@ func (_c *Service_GetAppDetails_Call) Return(appDetail *shared.AppDetail, err er
 	return _c
 }
 
-func (_c *Service_GetAppDetails_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)) *Service_GetAppDetails_Call {
+func (_c *Service_GetAppDetails_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application, sourceIndex int) (*shared.AppDetail, error)) *Service_GetAppDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }
