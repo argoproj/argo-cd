@@ -20,7 +20,7 @@ Establish a guideline using an issue-first approach. The intent is to protect th
 * **No orphan PRs:** PRs should be associated with a GitHub issue that maintainers approved during triage.
 * **Risk mitigation:** Triage checks that the idea matches project strategy so contributors and reviewers do not spend time on work that may be rejected.
 * **Transparency:** Triage is performed openly on GitHub; the community is encouraged to participate.
-* **Order:** Issues are generally triaged in First-In-First-Out (FIFO) order. Business-critical or security fixes may take priority.
+* **Order:** Issues are generally triaged in First-In-First-Out (FIFO) order. Regressions or issues materially impacting core user workflows may take priority.
 * **Rotation:** Triage is handled by two Argo CD maintainers rotating weekly; rotation is defined in the contributor meeting.
 * **Prioritization:** Triage gives maintainers visibility into requested features and bug fixes and supports clear prioritization of new issues.
 
