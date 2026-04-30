@@ -2252,19 +2252,17 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// and parameter overrides are different from our most recent sync operation.
 	alreadyAttempted, lastAttemptedRevisions, lastAttemptedPhase := alreadyAttemptedSync(app, desiredRevisions, shouldCompareRevisions)
 	ts.AddCheckpoint("already_attempted_sync_ms")
+	// When selfHeal is enabled, a failed attempt at the same revision may still proceed into the self-heal path
 	if alreadyAttempted {
-		if !lastAttemptedPhase.Successful() {
-			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s and will not retry for %s", lastAttemptedRevisions, desiredRevisions)
-			message := fmt.Sprintf("Failed last sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
-			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
-		}
 		if !app.Spec.SyncPolicy.Automated.GetSelfHeal() {
+			if !lastAttemptedPhase.Successful() {
+				logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s and will not retry for %s", lastAttemptedRevisions, desiredRevisions)
+				message := fmt.Sprintf("Failed last sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
+				return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
+			}
 			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
 			return nil, 0
 		}
-		// Self heal will trigger a new sync operation when the desired state changes and cause the application to
-		// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
-		// when the revisions have not changed, and where the previous sync to these revision was successful
 		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
 			op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
 		}
