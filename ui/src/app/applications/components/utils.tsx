@@ -1758,9 +1758,13 @@ export function getContainerName(pod: any, containerIndex: number | null): strin
     if (containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
         return pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container'];
     }
-    const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
-    const container = containers[containerIndex || 0];
-    return container.name;
+    const containers = (pod.spec?.containers || []).concat(pod.spec?.initContainers || []);
+    if (containers.length === 0) {
+        return '';
+    }
+    const idx = containerIndex ?? 0;
+    const container = containers[idx] ?? containers[0];
+    return container?.name ?? '';
 }
 
 export function isYoungerThanXMinutes(pod: any, x: number): boolean {

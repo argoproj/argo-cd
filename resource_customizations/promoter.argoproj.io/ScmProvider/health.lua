@@ -1,3 +1,20 @@
+-- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#scmprovider
+-- Promoter finalizers: https://gitops-promoter.readthedocs.io/en/latest/debugging/finalizers/
+
+local function formatDeletingWithFinalizers(base, finalizers, catalog)
+    if not finalizers then
+        return base
+    end
+    local parts = { base }
+    for _, f in ipairs(finalizers) do
+        local e = catalog[f]
+        if e then
+            table.insert(parts, f .. ": " .. e.wait .. " Risk if removed manually: " .. e.risk)
+        end
+    end
+    return table.concat(parts, " ")
+end
+
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing SCM provider"
@@ -6,7 +23,16 @@ hs.message = "Initializing SCM provider"
 
 if obj.metadata.deletionTimestamp then
     hs.status = "Progressing"
-    hs.message = "ScmProvider is being deleted"
+    hs.message = formatDeletingWithFinalizers(
+        "ScmProvider is being deleted.",
+        obj.metadata.finalizers,
+        {
+            ["scmprovider.promoter.argoproj.io/finalizer"] = {
+                wait = "Waiting until no GitRepository in this namespace still references this provider.",
+                risk = "GitRepository objects can reference a provider that no longer exists.",
+            },
+        }
+    )
     return hs
 end
 
