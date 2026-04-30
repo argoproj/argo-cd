@@ -364,6 +364,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+      # pnpm must exist before setup-node when using cache: pnpm (setup-node invokes pnpm to locate the store).
+      - name: Install pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: ui/package.json
       - name: Setup NodeJS
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -371,10 +376,6 @@ jobs:
           node-version: '24.15.0'
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
-      - name: Install pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-        with:
-          package_json_file: ui/package.json
       - name: Install node dependencies
         run: |
           cd ui && pnpm i --frozen-lockfile
@@ -649,7 +650,9 @@ jobs:
           head -n 20 ui/pnpm-lock.yaml || true
           echo "::endgroup::"
       - name: Run E2E server and wait for it being available
-        timeout-minutes: 30
+        # Cap the whole step (background make + health wait). Keep above the poll
+        # budget below so the job fails with our message instead of a generic timeout.
+        timeout-minutes: 6
         run: |
           set -x
           # Something is weird in GH runners -- there's a phantom listener for
@@ -658,10 +661,13 @@ jobs:
           # instead.
           make start-e2e-local COVERAGE_ENABLED=true 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-server.log &
           count=1
+          # 30 * 10s ≈ 5 min max in failed curls after the first attempt.
           until curl -f http://127.0.0.1:8088/healthz; do
             sleep 10;
-            if test $count -ge 180; then
-              echo "Timeout"
+            if test $count -ge 30; then
+              echo "Timeout waiting for http://127.0.0.1:8088/healthz (${count} attempts, ~5m of 10s sleeps after first failure)"
+              echo "---- tail /tmp/e2e-server.log ----"
+              tail -200 /tmp/e2e-server.log || true
               exit 1
             fi
             count=$((count+1))
