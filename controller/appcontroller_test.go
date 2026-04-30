@@ -3400,7 +3400,7 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 
 func TestShouldClearDeletionApprovedAnnotation(t *testing.T) {
 	startedAt := metav1.NewTime(time.Now().Add(-time.Minute).Truncate(time.Second))
-	confirmedAt := startedAt.Time.Add(time.Second)
+	confirmedAt := startedAt.Add(time.Second)
 
 	t.Run("returns true when sync succeeded with confirmed deletion and confirm-required resource", func(t *testing.T) {
 		app := newFakeApp()
@@ -3551,7 +3551,7 @@ func TestClearDeletionApprovedAnnotation(t *testing.T) {
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, nil, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, app.Name)
 		})
 
@@ -3566,7 +3566,7 @@ func TestClearDeletionApprovedAnnotation(t *testing.T) {
 
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		expectedErr := errors.New("patch failed")
-		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, nil, expectedErr
 		})
 
