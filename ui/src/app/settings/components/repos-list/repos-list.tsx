@@ -8,6 +8,7 @@ import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotific
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {RepoDetails} from '../repo-details/repo-details';
+import {CREDENTIALS_COLUMN_LABEL, CredentialTemplateStatus, CredentialTemplateUrl} from './repos-list.helpers';
 
 require('./repos-list.scss');
 
@@ -986,17 +987,17 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                     <div className='argo-table-list__head'>
                                         <div className='row'>
                                             <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                            <div className='columns small-3'>CREDS</div>
+                                            <div className='columns small-3'>{CREDENTIALS_COLUMN_LABEL}</div>
                                         </div>
                                     </div>
                                     {creds.map(repo => (
                                         <div className='argo-table-list__row' key={repo.url}>
                                             <div className='row'>
                                                 <div className='columns small-9'>
-                                                    <i className='icon argo-icon-git' /> <Repo url={repo.url} />
+                                                    <CredentialTemplateUrl url={repo.url} />
                                                 </div>
                                                 <div className='columns small-3'>
-                                                    -
+                                                    <CredentialTemplateStatus />
                                                     <DropDownMenu
                                                         anchor={() => (
                                                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
@@ -1101,17 +1102,17 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
                                                 <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                                <div className='columns small-3'>CREDS</div>
+                                                <div className='columns small-3'>{CREDENTIALS_COLUMN_LABEL}</div>
                                             </div>
                                         </div>
                                         {creds.map(repo => (
                                             <div className='argo-table-list__row' key={repo.url}>
                                                 <div className='row'>
                                                     <div className='columns small-9'>
-                                                        <i className='icon argo-icon-git' /> <Repo url={repo.url} />
+                                                        <CredentialTemplateUrl url={repo.url} />
                                                     </div>
                                                     <div className='columns small-3'>
-                                                        -
+                                                        <CredentialTemplateStatus />
                                                         <DropDownMenu
                                                             anchor={() => (
                                                                 <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
