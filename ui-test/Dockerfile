@@ -21,6 +21,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 COPY pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
 RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 
 COPY . .

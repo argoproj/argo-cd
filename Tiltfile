@@ -262,6 +262,7 @@ local_resource(
     deps = [
         'ui/package.json',
         'ui/pnpm-lock.yaml',
+        'ui/pnpm-workspace.yaml',
     ],
     allow_parallel=True,
 )
@@ -275,7 +276,7 @@ docker_build(
     only=['ui'],
     live_update=[
         sync('ui', '/app/ui'),
-        run('sh -c "cd /app/ui && pnpm install --frozen-lockfile"', trigger=['/app/ui/package.json', '/app/ui/pnpm-lock.yaml']),
+        run('sh -c "cd /app/ui && pnpm install --frozen-lockfile"', trigger=['/app/ui/package.json', '/app/ui/pnpm-lock.yaml', '/app/ui/pnpm-workspace.yaml']),
     ],
 )
 
