@@ -94,8 +94,8 @@ importers:
         specifier: ^16.9.3
         version: 16.14.0(react@16.14.0)
       react-form:
-        specifier: 2.16.3
-        version: 2.16.3(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
+        specifier: 4.0.1
+        version: 4.0.1(prop-types@15.8.1)(react@16.14.0)
       react-ga:
         specifier: ^2.7.0
         version: 2.7.0(prop-types@15.8.1)(react@16.14.0)
@@ -218,8 +218,8 @@ importers:
         specifier: ^16.8.2
         version: 16.9.25(@types/react@16.14.65)
       '@types/react-form':
-        specifier: ^2.16.0
-        version: 2.16.15
+        specifier: ^4.0.6
+        version: 4.0.6
       '@types/react-helmet':
         specifier: ^6.1.6
         version: 6.1.11
@@ -1801,8 +1801,8 @@ packages:
     peerDependencies:
       '@types/react': ^16.9.3
 
-  '@types/react-form@2.16.15':
-    resolution: {integrity: sha512-uyonTWluQD07Nzf+lBpzr7kkNyd2bFD/y75WReZ+0/Fe9V6smQjJ1tEUV8v6OpMuO5arojRCTtCc5tsDhbzMaw==}
+  '@types/react-form@4.0.6':
+    resolution: {integrity: sha512-gbwxd3fx1O8kuZfgWiQoU4J/gJS4HBJjyH0q4b33TOWBBR06jzVfLFYIHOQq2G5V6k0y0Rv+TzlWuNW/7j3S3w==}
 
   '@types/react-helmet@6.1.11':
     resolution: {integrity: sha512-0QcdGLddTERotCXo3VFlUSWO3ztraw8nZ6e3zJSgG7apwV5xt+pJUS8ewPBqT4NYB1optGLprNQzFleIY84u/g==}
@@ -4642,6 +4642,12 @@ packages:
       react: ^15.6.1 || 16
       react-dom: ^15.6.1 || 16
 
+  react-form@4.0.1:
+    resolution: {integrity: sha512-vhsCuBLZJYjm6vd8TBxIhIWeB/8Jg4mmmiR3Zj+1zIGBM39qJf1CLqekadLp0J9NeW0EsZxUnBtbmEnMeZ/7Pw==}
+    peerDependencies:
+      prop-types: ^15.5.4
+      react: ^16.8.3
+
   react-ga@2.7.0:
     resolution: {integrity: sha512-AjC7UOZMvygrWTc2hKxTDvlMXEtbmA0IgJjmkhgmQQ3RkXrWR11xEagLGFGaNyaPnmg24oaIiaNPnEoftUhfXA==}
     peerDependencies:
@@ -7431,7 +7437,7 @@ snapshots:
     dependencies:
       '@types/react': 16.14.65
 
-  '@types/react-form@2.16.15':
+  '@types/react-form@4.0.6':
     dependencies:
       '@types/react': 16.14.65
 
@@ -10818,6 +10824,11 @@ snapshots:
       redux: 3.7.2
       redux-logger: 3.0.6
       redux-thunk: 2.4.2(redux@3.7.2)
+
+  react-form@4.0.1(prop-types@15.8.1)(react@16.14.0):
+    dependencies:
+      prop-types: 15.8.1
+      react: 16.14.0
 
   react-ga@2.7.0(prop-types@15.8.1)(react@16.14.0):
     dependencies:
