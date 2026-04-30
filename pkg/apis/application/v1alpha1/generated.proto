@@ -2448,14 +2448,17 @@ message SCMProviderGeneratorBitbucket {
   // Bitbucket workspace to scan. Required.
   optional string owner = 1;
 
-  // Bitbucket user to use when authenticating.  Should have a "member" role to be able to read all repositories and branches.  Required
+  // Bitbucket user to use when authenticating with app password auth. Required when using appPasswordRef.
   optional string user = 2;
 
-  // The app password to use for the user.  Required. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
+  // The app password to use for the user. Required when using app password auth. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
   optional SecretRef appPasswordRef = 3;
 
   // Scan all branches instead of just the main branch.
   optional bool allBranches = 4;
+
+  // Bearer token for workspace, project, or repository access tokens. Mutually exclusive with user/appPasswordRef.
+  optional BearerTokenBitbucketCloud bearerToken = 5;
 }
 
 // SCMProviderGeneratorBitbucketServer defines connection info specific to Bitbucket Server.

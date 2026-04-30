@@ -10413,13 +10413,16 @@
         "appPasswordRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
         },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucketCloud"
+        },
         "owner": {
           "description": "Bitbucket workspace to scan. Required.",
           "type": "string"
         },
         "user": {
-          "type": "string",
-          "title": "Bitbucket user to use when authenticating.  Should have a \"member\" role to be able to read all repositories and branches.  Required"
+          "description": "Bitbucket user to use when authenticating with app password auth. Required when using appPasswordRef.",
+          "type": "string"
         }
       }
     },
