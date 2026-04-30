@@ -3363,10 +3363,9 @@ func TestShouldClearDeletionApprovedAnnotation(t *testing.T) {
 	startedAt := metav1.NewTime(time.Now().Add(-time.Minute))
 	confirmedAt := startedAt.Time.Add(time.Second)
 
-	t.Run("returns true when sync succeeded with confirmed deletion and confirm-required resource", func(t *testing.T) {
+	t.Run("returns true when sync succeeded with confirmed deletion", func(t *testing.T) {
 		app := newFakeApp()
 		app.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: confirmedAt.Format(time.RFC3339)}
-		app.Status.Resources = []v1alpha1.ResourceStatus{{RequiresDeletionConfirmation: true}}
 
 		state := &v1alpha1.OperationState{
 			Phase: synccommon.OperationSucceeded,
@@ -3382,7 +3381,6 @@ func TestShouldClearDeletionApprovedAnnotation(t *testing.T) {
 	t.Run("guard cases return false", func(t *testing.T) {
 		baseApp := newFakeApp()
 		baseApp.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: confirmedAt.Format(time.RFC3339)}
-		baseApp.Status.Resources = []v1alpha1.ResourceStatus{{RequiresDeletionConfirmation: true}}
 
 		baseState := &v1alpha1.OperationState{
 			Phase: synccommon.OperationSucceeded,
@@ -3438,15 +3436,6 @@ func TestShouldClearDeletionApprovedAnnotation(t *testing.T) {
 				app: func() *v1alpha1.Application {
 					app := baseApp.DeepCopy()
 					app.Annotations[synccommon.AnnotationDeletionApproved] = startedAt.Time.Add(-time.Second).Format(time.RFC3339)
-					return app
-				}(),
-				state: baseState.DeepCopy(),
-			},
-			{
-				name: "no resources requiring confirmation",
-				app: func() *v1alpha1.Application {
-					app := baseApp.DeepCopy()
-					app.Status.Resources = []v1alpha1.ResourceStatus{{RequiresDeletionConfirmation: false}}
 					return app
 				}(),
 				state: baseState.DeepCopy(),

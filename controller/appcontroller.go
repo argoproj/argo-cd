@@ -1436,17 +1436,7 @@ func shouldClearDeletionApprovedAnnotation(app *appv1.Application, state *appv1.
 		return false
 	}
 
-	if state.StartedAt.IsZero() || !app.IsDeletionConfirmed(state.StartedAt.Time) {
-		return false
-	}
-
-	for _, resource := range app.Status.Resources {
-		if resource.RequiresDeletionConfirmation {
-			return true
-		}
-	}
-
-	return false
+	return !state.StartedAt.IsZero() && app.IsDeletionConfirmed(state.StartedAt.Time)
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
