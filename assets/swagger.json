@@ -818,7 +818,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "type": "object"
             }
           },
           "default": {
@@ -2291,7 +2291,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "type": "object"
             }
           },
           "default": {
@@ -3126,7 +3126,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "type": "object"
             }
           },
           "default": {
@@ -6035,6 +6035,14 @@
         }
       }
     },
+    "protobufNullValue": {
+      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\nThe JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value.",
+      "type": "string",
+      "default": "NULL_VALUE",
+      "enum": [
+        "NULL_VALUE"
+      ]
+    },
     "repocredsRepoCredsResponse": {
       "type": "object",
       "title": "RepoCredsResponse is a response to most repository credentials requests"
@@ -6401,109 +6409,6 @@
         }
       }
     },
-    "v1Event": {
-      "description": "Event is a report of an event somewhere in the cluster.  Events\nhave a limited retention time and triggers and messages may evolve\nwith time.  Event consumers should not rely on the timing of an event\nwith a given Reason reflecting a consistent underlying trigger, or the\ncontinued existence of events with that Reason.  Events should be\ntreated as informative, best-effort, supplemental data.",
-      "type": "object",
-      "properties": {
-        "action": {
-          "type": "string",
-          "title": "What action was taken/failed regarding to the Regarding object.\n+optional"
-        },
-        "count": {
-          "type": "integer",
-          "format": "int32",
-          "title": "The number of times this event has occurred.\n+optional"
-        },
-        "eventTime": {
-          "$ref": "#/definitions/v1MicroTime"
-        },
-        "firstTimestamp": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "involvedObject": {
-          "$ref": "#/definitions/v1ObjectReference"
-        },
-        "lastTimestamp": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "message": {
-          "type": "string",
-          "title": "A human-readable description of the status of this operation.\nTODO: decide on maximum length.\n+optional"
-        },
-        "metadata": {
-          "$ref": "#/definitions/v1ObjectMeta"
-        },
-        "reason": {
-          "type": "string",
-          "title": "This should be a short, machine understandable string that gives the reason\nfor the transition into the object's current status.\nTODO: provide exact specification for format.\n+optional"
-        },
-        "related": {
-          "$ref": "#/definitions/v1ObjectReference"
-        },
-        "reportingComponent": {
-          "type": "string",
-          "title": "Name of the controller that emitted this Event, e.g. `kubernetes.io/kubelet`.\n+optional"
-        },
-        "reportingInstance": {
-          "type": "string",
-          "title": "ID of the controller instance, e.g. `kubelet-xyzf`.\n+optional"
-        },
-        "series": {
-          "$ref": "#/definitions/v1EventSeries"
-        },
-        "source": {
-          "$ref": "#/definitions/v1EventSource"
-        },
-        "type": {
-          "type": "string",
-          "title": "Type of this event (Normal, Warning), new types could be added in the future\n+optional"
-        }
-      }
-    },
-    "v1EventList": {
-      "description": "EventList is a list of events.",
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "title": "List of events",
-          "items": {
-            "$ref": "#/definitions/v1Event"
-          }
-        },
-        "metadata": {
-          "$ref": "#/definitions/v1ListMeta"
-        }
-      }
-    },
-    "v1EventSeries": {
-      "description": "EventSeries contain information on series of events, i.e. thing that was/is happening\ncontinuously for some time.",
-      "type": "object",
-      "properties": {
-        "count": {
-          "type": "integer",
-          "format": "int32",
-          "title": "Number of occurrences in this series up to the last heartbeat time"
-        },
-        "lastObservedTime": {
-          "$ref": "#/definitions/v1MicroTime"
-        }
-      }
-    },
-    "v1EventSource": {
-      "description": "EventSource contains information for an event.",
-      "type": "object",
-      "properties": {
-        "component": {
-          "type": "string",
-          "title": "Component from which the event is generated.\n+optional"
-        },
-        "host": {
-          "type": "string",
-          "title": "Node name on which the event is generated.\n+optional"
-        }
-      }
-    },
     "v1FieldsV1": {
       "description": "FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:<name>', where <name> is the name of a field in a struct, or key in a map\n'v:<value>', where <value> is the exact json formatted value of a list item\n'i:<index>', where <index> is position of a item in a list\n'k:<keys>', where <keys> is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in sigs.k8s.io/structured-merge-diff\n+protobuf.options.(gogoproto.goproto_stringer)=false",
       "type": "object",
@@ -6659,22 +6564,6 @@
         }
       }
     },
-    "v1MicroTime": {
-      "description": "MicroTime is version of Time with microsecond level precision.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
-      "type": "object",
-      "properties": {
-        "nanos": {
-          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context.",
-          "type": "integer",
-          "format": "int32"
-        },
-        "seconds": {
-          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
-          "type": "integer",
-          "format": "int64"
-        }
-      }
-    },
     "v1NodeSwapStatus": {
       "description": "NodeSwapStatus represents swap memory information.",
       "type": "object",
@@ -6813,40 +6702,6 @@
         "uid": {
           "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids\n+optional",
           "type": "string"
-        }
-      }
-    },
-    "v1ObjectReference": {
-      "description": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\n\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+structType=atomic",
-      "type": "object",
-      "properties": {
-        "apiVersion": {
-          "type": "string",
-          "title": "API version of the referent.\n+optional"
-        },
-        "fieldPath": {
-          "type": "string",
-          "title": "If referring to a piece of an object instead of an entire object, this string\nshould contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].\nFor example, if the object reference is to a container within a pod, this would take on a value like:\n\"spec.containers{name}\" (where \"name\" refers to the name of the container that triggered\nthe event) or if no container name is specified \"spec.containers[2]\" (container with\nindex 2 in this pod). This syntax is chosen only to have some well-defined way of\nreferencing a part of an object.\nTODO: this design is not final and this field is subject to change in the future.\n+optional"
-        },
-        "kind": {
-          "type": "string",
-          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+optional"
-        },
-        "name": {
-          "type": "string",
-          "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names\n+optional"
-        },
-        "namespace": {
-          "type": "string",
-          "title": "Namespace of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/\n+optional"
-        },
-        "resourceVersion": {
-          "type": "string",
-          "title": "Specific resourceVersion to which this reference is made, if any.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
-        },
-        "uid": {
-          "type": "string",
-          "title": "UID of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids\n+optional"
         }
       }
     },
