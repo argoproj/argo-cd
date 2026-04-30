@@ -5,8 +5,8 @@ FROM docker.io/library/redis:8.6.2@sha256:832d7785830f3f4b559300e6191fc914b15642
 # architecture, so we create a symlink here to facilitate copying.
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
-# Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:22.9.0@sha256:8398ea18b8b72817c84af283f72daed9629af2958c4f618fe6db4f453c5c9328 AS node
+# Please make sure to also check the contained Node version (pnpm 11 needs Node >= 22.13, incl. node:sqlite) when upgrading this image's version
+FROM docker.io/library/node:24.15.0@sha256:e9891237dfbb1de60ce19e9ff9fac5d73ad9c37da303ad72ff2a425ad1057e71 AS node
 
 FROM docker.io/library/golang:1.26.2@sha256:b54cbf583d390341599d7bcbc062425c081105cc5ef6d170ced98ef9d047c716 AS golang
 
