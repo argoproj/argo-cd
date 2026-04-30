@@ -1,0 +1,14 @@
+discoveryTests:
+  - inputPath: testdata/ready.yaml
+    result:
+      - name: pause
+        disabled: false
+      - name: unpause
+        disabled: true
+
+  - inputPath: testdata/paused.yaml
+    result:
+      - name: pause
+        disabled: true
+      - name: unpause
+        disabled: false

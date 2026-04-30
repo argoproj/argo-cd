@@ -2,7 +2,8 @@ apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDB
 metadata:
   name: cluster
-spec: {}
+spec:
+  pause: false
 status:
   mongos:
     ready: 3
