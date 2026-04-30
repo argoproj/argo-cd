@@ -32,6 +32,7 @@ func newTestKubectlResourceOperations(t *testing.T) (*kubectlResourceOperations,
 		getClientFunc: func() (kubernetes.Interface, error) {
 			return kubefake.NewSimpleClientset(), nil
 		},
+		outputMode: outputModeLog,
 	}
 	return k, cmdMocks
 }
