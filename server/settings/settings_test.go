@@ -114,4 +114,29 @@ func TestSettingsServer(t *testing.T) {
 		assert.NotNil(t, resp.ResourceOverrides)
 		assert.NotEmpty(t, resp.ResourceOverrides["*/*"])
 	})
+
+	t.Run("TestGetUiDefaultTheme", func(t *testing.T) {
+		settingsServer := newServer(map[string]string{
+			"ui.defaulttheme": "dark",
+		})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "dark", resp.UiDefaultTheme)
+	})
+
+	t.Run("TestGetUiDefaultThemeAuto", func(t *testing.T) {
+		settingsServer := newServer(map[string]string{
+			"ui.defaulttheme": "auto",
+		})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "auto", resp.UiDefaultTheme)
+	})
+
+	t.Run("TestGetUiDefaultThemeNotSet", func(t *testing.T) {
+		settingsServer := newServer(map[string]string{})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.Empty(t, resp.UiDefaultTheme)
+	})
 }

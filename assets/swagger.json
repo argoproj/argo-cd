@@ -5789,6 +5789,9 @@
         "uiCssURL": {
           "type": "string"
         },
+        "uiDefaultTheme": {
+          "type": "string"
+        },
         "url": {
           "type": "string"
         },
