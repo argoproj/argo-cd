@@ -495,13 +495,29 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	}
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.Error(t, err)
+	kustomizeSource = v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./components", "./components_no_kustomization"},
+		IgnoreMissingComponents: false,
+	}
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.Error(t, err)
+
+	// `kustomize edit add component` works if the directory exists even if there is no kustomization.yaml inside,
+	// but then `kustomize build` fails
+	// Reset the kustomize app so we don't let components_no_kustomization in the kustomization.yaml
+	appPath, err = testDataDir(t, kustomization6)
+	require.NoError(t, err)
+	kustomize = NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource = v1alpha1.ApplicationSourceKustomize{
-		Components:              []string{"./components", "./missing-components"},
+		Components:              []string{"./components", "./missing-components", "./components_no_kustomization"},
 		IgnoreMissingComponents: true,
 	}
 	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.NoError(t, err)
+	for _, o := range objs {
+		assert.NotEqual(t, "notproduced", o.GetName())
+	}
 	obj := objs[0]
 	assert.Equal(t, "nginx-deployment", obj.GetName())
 	assert.Equal(t, map[string]string{
