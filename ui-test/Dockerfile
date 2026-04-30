@@ -21,6 +21,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 COPY pnpm-lock.yaml ./
+# Upon bumping this version, update the pnpm version in pnpm/action-setup steps in CI
 RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 
 COPY . .
