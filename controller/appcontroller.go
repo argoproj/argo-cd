@@ -1318,7 +1318,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		logCtx.Infof("Successfully deleted %d resources", len(objs))
 		if deletionApproved {
 			if err := ctrl.clearDeletionApprovedAnnotation(app); err != nil {
-				return err
+				logCtx.WithError(err).Warn("Failed to clear deletion approved annotation")
 			}
 		}
 		app.UnSetCascadedDeletion()
@@ -1435,8 +1435,18 @@ func shouldClearDeletionApprovedAnnotation(app *appv1.Application, state *appv1.
 	if state == nil || !state.Phase.Successful() || state.Operation.Sync == nil || state.Operation.Sync.DryRun {
 		return false
 	}
-
-	return !state.StartedAt.IsZero() && app.IsDeletionConfirmed(state.StartedAt.Time)
+	if len(state.Operation.Sync.Resources) > 0 {
+		return false
+	}
+	if state.StartedAt.IsZero() || !app.IsDeletionConfirmed(state.StartedAt.Time) {
+		return false
+	}
+	for _, resource := range app.Status.Resources {
+		if resource.RequiresDeletionConfirmation {
+			return true
+		}
+	}
+	return false
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
