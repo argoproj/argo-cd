@@ -506,7 +506,7 @@ start-e2e: test-tools-image
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local dep-ui-local cli-local
+start-e2e-local: mod-vendor-local dep-ui-local build-ui-local cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
@@ -665,6 +665,10 @@ dep-ui: test-tools-image
 .PHONY: dep-ui-local
 dep-ui-local:
 	cd ui && pnpm install --frozen-lockfile
+
+.PHONY: build-ui-local
+build-ui-local:
+	cd ui && pnpm build
 
 .PHONY: run-pnpm
 run-pnpm: test-tools-image

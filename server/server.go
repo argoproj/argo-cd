@@ -1484,9 +1484,40 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 				}
 				w.Header().Set("Cache-Control", cacheControl)
 			}
-			http.FileServer(server.staticAssets).ServeHTTP(w, r)
+			http.FileServer(exposedFileSystem{server.staticAssets}).ServeHTTP(w, r)
 		}
 	}
+}
+
+// exposedFileSystem wraps http.FileSystem to disable directory listing
+type exposedFileSystem struct {
+	fs http.FileSystem
+}
+
+func (efs exposedFileSystem) Open(name string) (http.File, error) {
+	f, err := efs.fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if s.IsDir() {
+		// Check if index.html exists inside the directory
+		index := filepath.Join(name, "index.html")
+		indexFile, err := efs.fs.Open(index)
+		if err != nil {
+			// No index.html → close the dir and return 404
+			_ = f.Close()
+			return nil, os.ErrNotExist
+		}
+		_ = indexFile.Close()
+	}
+
+	return f, nil
 }
 
 var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
