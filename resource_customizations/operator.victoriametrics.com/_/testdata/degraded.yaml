@@ -1,0 +1,11 @@
+apiVersion: operator.victoriametrics.com/v1
+kind: VLCluster
+metadata:
+  name: example
+  namespace: monitoring
+  generation: 4
+spec: {}
+status:
+  observedGeneration: 4
+  updateStatus: failed
+  reason: "failed to reconcile vmstorage: statefulset rollout timed out"

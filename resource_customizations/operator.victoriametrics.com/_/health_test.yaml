@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All components are operational"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: "rolling out new replicas"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for the operator to observe the latest generation"
+    inputPath: testdata/progressing-generation.yaml
+  - healthStatus:
+      status: Degraded
+      message: "failed to reconcile vmstorage: statefulset rollout timed out"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Reconciliation is paused"
+    inputPath: testdata/suspended.yaml
