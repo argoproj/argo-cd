@@ -6,7 +6,7 @@
   "scripts": {
     "start": "webpack-dev-server --config ./src/app/webpack.config.js --mode development",
     "docker": "./scripts/build_docker.sh",
-    "build": "find ./dist -type f -not -name gitkeep -delete && webpack --config ./src/app/webpack.config.js --mode production",
+    "build": "webpack --config ./src/app/webpack.config.js --mode production",
     "lint": "tsc --noEmit --project ./src/app && eslint",
     "lint:fix": "eslint --fix",
     "test": "jest"
@@ -72,7 +72,7 @@
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-react": "^7.18.6",
     "@babel/preset-typescript": "^7.7.2",
-    "@codecov/webpack-plugin": "^0.0.1-beta.10",
+    "@codecov/webpack-plugin": "^2.0.1",
     "@eslint/js": "^9.1.1",
     "@types/classnames": "^2.2.3",
     "@types/cookie": "^0.5.1",
@@ -102,7 +102,8 @@
     "babel-jest": "^29.7.0",
     "babel-loader": "^8.0.6",
     "codecov": "^3.8.3",
-    "copy-webpack-plugin": "^6.1.1",
+    "copy-webpack-plugin": "^12.0.2",
+    "css-loader": "^7.1.4",
     "esbuild-loader": "^4.3.0",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
@@ -119,18 +120,17 @@
     "popper.js": "^1.16.1",
     "postcss": "^8.5.10",
     "prettier": "^3.2.5",
-    "raw-loader": "^0.5.1",
     "react-test-renderer": "16.8.3",
     "sass": "^1.49.9",
     "sass-loader": "^14.2.1",
-    "source-map-loader": "^0.2.3",
-    "style-loader": "^1",
+    "source-map-loader": "^5.0.0",
+    "style-loader": "^4.0.0",
     "ts-jest": "^29.1.2",
     "ts-node": "10.9.2",
     "typescript": "^4.9.5",
     "typescript-eslint": "^7.8.0",
     "webpack": "^5.105.4",
-    "webpack-cli": "^4.9.2",
-    "webpack-dev-server": "^4.7.4"
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.2.3"
   }
 }
