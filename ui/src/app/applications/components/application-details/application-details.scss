@@ -121,10 +121,18 @@ $header: 120px;
             &::before {
                 font-size: 1.5em;
             }
+
+            .theme-dark & {
+                color: $argo-color-gray-4;
+            }
         }
         i.selected {
             cursor: default;
             color: $argo-color-gray-7;
+
+            .theme-dark & {
+                color: $white-color;
+            }
         }
     }
 

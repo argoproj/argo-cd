@@ -10,6 +10,10 @@
     border-radius: 25px;
     border: $border-width solid white;
 
+    .theme-dark & {
+        border-color: $dark-theme-background-2;
+    }
+
     &__segment {
         &__fill {
             height: $height - (2 * $border-width);
@@ -28,5 +32,9 @@
 
     &__segment:not(:first-child) {
         border-left: 3px solid white;
+
+        .theme-dark & {
+            border-left-color: $dark-theme-background-2;
+        }
     }
 }
