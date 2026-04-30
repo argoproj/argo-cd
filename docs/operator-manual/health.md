@@ -159,6 +159,8 @@ resources specially so they always appear **Progressing** while still present in
   **`Pending deletion: `** followed by that string. If there is no custom health script, or Lua returns an **empty**
   `hs.message`, the message is simply **`Pending deletion`**. Do **not** add your own `Pending deletion:` prefix in
   Lua unless you intend it to appear twice in the UI (`Pending deletion: Pending deletion: …`).
+* If the custom health **script fails** (runtime error) while the resource is terminating, health remains **`Progressing`**
+  with message **`Pending deletion. Error from health check: `** followed by the error text.
 
 ### Best practices: finalizers and messages in `health.lua`
 
