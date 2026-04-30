@@ -46,8 +46,8 @@ importers:
         specifier: ^2.30.0
         version: 2.30.0
       deepmerge:
-        specifier: ^3.2.0
-        version: 3.3.0
+        specifier: ^4.3.1
+        version: 4.3.1
       foundation-sites:
         specifier: ^6.8.1
         version: 6.9.0(jquery@3.7.1)(what-input@5.2.12)
@@ -2715,10 +2715,6 @@ packages:
 
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
-
-  deepmerge@3.3.0:
-    resolution: {integrity: sha512-GRQOafGHwMHpjPx9iCvTgpu9NojZ49q794EEL94JVEw6VaeA8XTUyBKvAkOOjBX9oJNiV6G3P+T+tihFjo2TqA==}
-    engines: {node: '>=0.10.0'}
 
   deepmerge@4.3.1:
     resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
@@ -7312,7 +7308,7 @@ snapshots:
 
   '@types/deepmerge@2.2.3':
     dependencies:
-      deepmerge: 3.3.0
+      deepmerge: 4.3.1
 
   '@types/eslint-scope@3.7.7':
     dependencies:
@@ -8530,8 +8526,6 @@ snapshots:
       regexp.prototype.flags: 1.5.4
 
   deep-is@0.1.4: {}
-
-  deepmerge@3.3.0: {}
 
   deepmerge@4.3.1: {}
 
