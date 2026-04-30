@@ -1696,6 +1696,8 @@ type RevisionMetadata struct {
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 	// References contains references to information that's related to this commit in some way.
 	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	// SHA is the commit hash for this revision.
+	SHA string `json:"sha,omitempty" protobuf:"bytes,7,opt,name=sha"`
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository

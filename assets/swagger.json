@@ -10277,6 +10277,10 @@
             "$ref": "#/definitions/v1alpha1RevisionReference"
           }
         },
+        "sha": {
+          "description": "SHA is the commit hash for this revision.",
+          "type": "string"
+        },
         "signatureInfo": {
           "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
           "type": "string"

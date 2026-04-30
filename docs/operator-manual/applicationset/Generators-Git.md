@@ -67,6 +67,7 @@ spec:
 
 The generator parameters are:
 
+- `{{.git.commitSHA}}`: Resolved commit hash for the given revision.
 - `{{.path.path}}`: The directory paths within the Git repository that match the `path` wildcard.
 - `{{index .path.segments n}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
 - `{{.path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
@@ -76,8 +77,8 @@ The generator parameters are:
 > The right-most path name always becomes `{{.path.basename}}`. For example, for `- path: /one/two/three/four`, `{{.path.basename}}` is `four`.
 
 > [!NOTE]
-> If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. 
-> E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `.myRepo.path` instead of `.path`. Using this option is necessary 
+> If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator.
+> E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `.myRepo.path` instead of `.path`. Using this option is necessary
 > in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
 Whenever a new Helm chart/Kustomize YAML/Application/plain subdirectory is added to the Git repository, the ApplicationSet controller will detect this change and automatically deploy the resulting manifests within new `Application` resources.
@@ -129,7 +130,7 @@ This example excludes the `exclude-helm-guestbook` directory from the list of di
 >
 > If a directory matches at least one `exclude` pattern, it will be excluded. Or, said another way, *exclude rules take precedence over include rules.*
 >
-> As a corollary, which directories are included/excluded is not affected by the order of `path`s in the `directories` field list (because, as above, exclude rules always take precedence over include rules). 
+> As a corollary, which directories are included/excluded is not affected by the order of `path`s in the `directories` field list (because, as above, exclude rules always take precedence over include rules).
 
 For example, with these directories:
 
@@ -332,6 +333,7 @@ As with other generators, clusters *must* already be defined within Argo CD, in 
 
 In addition to the flattened key/value pairs from the configuration file, the following generator parameters are provided:
 
+- `{{.git.commitSHA}}`: Resolved commit hash for the given revision.
 - `{{.path.path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
 - `{{index .path.segments n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index .path.segments 0: clusters`, `index .path.segments 1: clusterA`
 - `{{.path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
@@ -340,16 +342,16 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 - `{{.path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
 
 > [!NOTE]
-> The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}` 
-> will be `four`. The filename can always be accessed using `{{.path.filename}}`. 
+> The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}`
+> will be `four`. The filename can always be accessed using `{{.path.filename}}`.
 
 > [!NOTE]
-> If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. 
-> E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary 
+> If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator.
+> E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary
 > in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
 > [!NOTE]
-> The default behavior of the Git file generator is very greedy. 
+> The default behavior of the Git file generator is very greedy.
 > Please see [Git File Generator Globbing](./Generators-Git-File-Globbing.md) for more information.
 
 ### Exclude files
@@ -450,7 +452,7 @@ You can customize this interval per ApplicationSet using
 > If this value exceeds the configured Git Polling Interval, the
 > Git generator might not see files or directories from new commits
 > until the previous cache entry expires.
-> 
+
 ## The `argocd.argoproj.io/application-set-refresh` Annotation
 
 Setting the `argocd.argoproj.io/application-set-refresh` annotation
@@ -543,7 +545,7 @@ After saving, please restart the ApplicationSet pod for the changes to take effe
 
 ## Repository credentials for ApplicationSets
 If your [ApplicationSets](index.md) uses a repository where you need credentials to be able to access it _and_ if the
-ApplicationSet project field is templated (i.e. the `project` field of the ApplicationSet contains `{{ ... }}`), you need to add the repository as a "non project scoped" repository.  
+ApplicationSet project field is templated (i.e. the `project` field of the ApplicationSet contains `{{ ... }}`), you need to add the repository as a "non project scoped" repository.
 - When doing that through the UI, set this to a **blank** value in the dropdown menu.
 - When doing that through the CLI, make sure you **DO NOT** supply the parameter `--project` ([argocd repo add docs](../../user-guide/commands/argocd_repo_add.md))
 - When doing that declaratively, make sure you **DO NOT** have `project:` defined under `stringData:` ([complete yaml example](../argocd-repositories-yaml.md))
