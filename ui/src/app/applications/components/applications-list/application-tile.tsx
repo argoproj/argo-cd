@@ -5,6 +5,7 @@ import {Cluster} from '../../../shared/components';
 import {ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
+import {ApplicationIcon} from '../application-icon/application-icon';
 import * as AppUtils from '../utils';
 import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
 import {isValidManagedByURL} from '../../../shared/utils';
@@ -27,7 +28,6 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
     const favList = pref.appList.favoritesAppList || [];
 
     const source = getAppDefaultSource(app);
-    const isOci = source?.repoURL?.startsWith('oci://');
     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const healthStatus = app.status.health.status;
@@ -74,7 +74,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
                         <div className={app.status.summary?.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
-                            <i className={'icon argo-icon-' + (source?.chart != null ? 'helm' : isOci ? 'oci applications-tiles__item__small' : 'git')} />
+                            <ApplicationIcon app={app} size='medium' />
                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>
                             </Tooltip>
