@@ -3606,6 +3606,166 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 	}
 }
 
+func TestShouldClearDeletionApprovedAnnotation(t *testing.T) {
+	startedAt := metav1.NewTime(time.Now().Add(-time.Minute))
+	confirmedAt := startedAt.Time.Add(time.Second)
+
+	t.Run("returns true when sync succeeded with confirmed deletion and confirm-required resource", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: confirmedAt.Format(time.RFC3339)}
+		app.Status.Resources = []v1alpha1.ResourceStatus{{RequiresDeletionConfirmation: true}}
+
+		state := &v1alpha1.OperationState{
+			Phase: synccommon.OperationSucceeded,
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+			},
+			StartedAt: startedAt,
+		}
+
+		assert.True(t, shouldClearDeletionApprovedAnnotation(app, state))
+	})
+
+	t.Run("guard cases return false", func(t *testing.T) {
+		baseApp := newFakeApp()
+		baseApp.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: confirmedAt.Format(time.RFC3339)}
+		baseApp.Status.Resources = []v1alpha1.ResourceStatus{{RequiresDeletionConfirmation: true}}
+
+		baseState := &v1alpha1.OperationState{
+			Phase: synccommon.OperationSucceeded,
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+			},
+			StartedAt: startedAt,
+		}
+
+		tests := []struct {
+			name  string
+			app   *v1alpha1.Application
+			state *v1alpha1.OperationState
+		}{
+			{name: "nil state", app: baseApp.DeepCopy(), state: nil},
+			{
+				name: "unsuccessful phase",
+				app:  baseApp.DeepCopy(),
+				state: &v1alpha1.OperationState{
+					Phase:     synccommon.OperationFailed,
+					Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+					StartedAt: startedAt,
+				},
+			},
+			{
+				name: "nil sync operation",
+				app:  baseApp.DeepCopy(),
+				state: &v1alpha1.OperationState{
+					Phase:     synccommon.OperationSucceeded,
+					Operation: v1alpha1.Operation{},
+					StartedAt: startedAt,
+				},
+			},
+			{
+				name: "dry run sync",
+				app:  baseApp.DeepCopy(),
+				state: &v1alpha1.OperationState{
+					Phase:     synccommon.OperationSucceeded,
+					Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{DryRun: true}},
+					StartedAt: startedAt,
+				},
+			},
+			{
+				name: "zero started at",
+				app:  baseApp.DeepCopy(),
+				state: &v1alpha1.OperationState{
+					Phase:     synccommon.OperationSucceeded,
+					Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+				},
+			},
+			{
+				name: "deletion not confirmed for startedAt",
+				app: func() *v1alpha1.Application {
+					app := baseApp.DeepCopy()
+					app.Annotations[synccommon.AnnotationDeletionApproved] = startedAt.Time.Add(-time.Second).Format(time.RFC3339)
+					return app
+				}(),
+				state: baseState.DeepCopy(),
+			},
+			{
+				name: "no resources requiring confirmation",
+				app: func() *v1alpha1.Application {
+					app := baseApp.DeepCopy()
+					app.Status.Resources = []v1alpha1.ResourceStatus{{RequiresDeletionConfirmation: false}}
+					return app
+				}(),
+				state: baseState.DeepCopy(),
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				assert.False(t, shouldClearDeletionApprovedAnnotation(tc.app, tc.state))
+			})
+		}
+	})
+}
+
+func TestClearDeletionApprovedAnnotation(t *testing.T) {
+	t.Run("no-op when annotation is absent", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{"other": "value"}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		err := ctrl.clearDeletionApprovedAnnotation(app)
+		require.NoError(t, err)
+
+		patchedApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, getErr)
+		assert.NotContains(t, patchedApp.Annotations, synccommon.AnnotationDeletionApproved)
+	})
+
+	t.Run("patches application and removes annotation when present", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: time.Now().Format(time.RFC3339)}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		err := ctrl.clearDeletionApprovedAnnotation(app)
+		require.NoError(t, err)
+
+		patchedApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, getErr)
+		assert.NotContains(t, patchedApp.Annotations, synccommon.AnnotationDeletionApproved)
+	})
+
+	t.Run("ignores not found errors", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: time.Now().Format(time.RFC3339)}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, nil, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, app.Name)
+		})
+
+		err := ctrl.clearDeletionApprovedAnnotation(app)
+		require.NoError(t, err)
+	})
+
+	t.Run("returns non-notfound patch errors", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: time.Now().Format(time.RFC3339)}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		expectedErr := errors.New("patch failed")
+		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, nil, expectedErr
+		})
+
+		err := ctrl.clearDeletionApprovedAnnotation(app)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, expectedErr)
+	})
+}
+
 func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 	t.Run("persistReconciliationStatus deletes only refresh annotation", func(t *testing.T) {
 		app := newFakeApp()
