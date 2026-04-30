@@ -580,6 +580,11 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	// save the accessToken in memory for later use
 	sub := jwtutil.StringField(claims, "sub")
+
+	// Invalidate cached groups from previous sessions so a fresh login picks up updated memberships
+	_ = a.clientCache.Delete(FormatUserInfoResponseCacheKey(sub))
+	_ = a.clientCache.Delete(FormatAzureGroupsOverageResponseCacheKey(sub))
+
 	err = a.SetValueInEncryptedCache(ctx, FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
@@ -881,12 +886,14 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
 }
 
-// SetGroupsFromUserInfo takes a claims object and adds groups claim from userinfo endpoint if available
-// This is required by some SSO implementations as they don't provide the groups claim in the ID token
-// If querying the UserInfo endpoint fails, we return an error to indicate the session is invalid
-// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
-// otherwise this would cause a panic
-func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
+// SetGroupsClaimFromEndpoint takes a claims object and adds groups claim from either:
+// - the UserInfo endpoint if enabled
+// - the Microsoft Graph API if Azure groups overage claim is detected and enabled
+// This is required by some SSO implementations as they don't provide the groups claim in the ID token.
+// If querying the endpoint fails, we return an error to indicate the session is invalid.
+// We assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+// otherwise this would cause a panic.
+func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
 	var groupClaims jwt.MapClaims
 	var ok bool
 	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
@@ -896,19 +903,36 @@ func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims
 			}
 		}
 	}
+
 	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
-		if unauthorized {
-			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+	if iss != sessionManagerClaimsIssuer {
+		// Path 1: UserInfo endpoint
+		if a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+			userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+			if unauthorized {
+				return groupClaims, fmt.Errorf("error while querying userinfo endpoint: %w", err)
+			}
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+			}
+			if groupClaims["sub"] != userInfo["sub"] {
+				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			}
+			groupClaims["groups"] = userInfo["groups"]
+			return groupClaims, nil
 		}
-		if err != nil {
-			return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+
+		// Path 2: Azure AD groups overage claim resolution via Microsoft Graph API
+		if a.settings.AzureUserGroupOverageClaimEnabled() && a.settings.AzureGraphAPIEndpoint() != "" {
+			groups, err := a.GetUserGroupsFromAzureOverageClaim(ctx, groupClaims, a.settings.AzureGraphAPIEndpoint())
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching groups from Azure overage claim: %w", err)
+			}
+			if len(groups) > 0 {
+				groupClaims["groups"] = groups
+			}
+			return groupClaims, nil
 		}
-		if groupClaims["sub"] != userInfo["sub"] {
-			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
-		}
-		groupClaims["groups"] = userInfo["groups"]
 	}
 
 	return groupClaims, nil

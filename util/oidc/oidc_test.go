@@ -1269,7 +1269,7 @@ func TestGetUserInfo(t *testing.T) {
 	}
 }
 
-func TestSetGroupsFromUserInfo(t *testing.T) {
+func TestSetGroupsClaimFromEndpoint(t *testing.T) {
 	tests := []struct {
 		name           string
 		inputClaims    jwt.MapClaims // function input
@@ -1323,7 +1323,7 @@ userInfoPath: /`,
 			a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
 			require.NoError(t, err, "failed creating clientapp")
 
-			// prepoluate cache to predict what the GetUserInfo function will return to the SetGroupsFromUserInfo function (without having to mock the userinfo response)
+			// prepoluate cache to predict what the GetUserInfo function will return to the SetGroupsClaimFromEndpoint function (without having to mock the userinfo response)
 			encryptionKey, err := cdSettings.GetServerEncryptionKey()
 			require.NoError(t, err, "failed obtaining encryption key from settings")
 
@@ -1349,7 +1349,7 @@ userInfoPath: /`,
 				require.NoError(t, err, "failed setting item to in-memory cache")
 			}
 
-			receivedClaims, err := a.SetGroupsFromUserInfo(t.Context(), tt.inputClaims, "argocd")
+			receivedClaims, err := a.SetGroupsClaimFromEndpoint(t.Context(), tt.inputClaims, "argocd")
 			if tt.expectError {
 				require.Error(t, err)
 			} else {

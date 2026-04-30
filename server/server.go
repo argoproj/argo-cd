@@ -1578,7 +1578,7 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	finalClaims := claims
 	oidcConfig := server.settings.OIDCConfig()
 	if oidcConfig != nil || server.settings.IsDexConfigured() {
-		updatedClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
+		updatedClaims, err := server.ssoClientApp.SetGroupsClaimFromEndpoint(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
