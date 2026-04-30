@@ -1,0 +1,14 @@
+apiVersion: dscinitialization.opendatahub.io/v1
+kind: DSCInitialization
+metadata:
+  name: default-dsci
+spec:
+  applicationsNamespace: opendatahub
+status:
+  phase: Error
+  errorMessage: "failed to configure monitoring"
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: Error
+      message: "failed to configure monitoring"
