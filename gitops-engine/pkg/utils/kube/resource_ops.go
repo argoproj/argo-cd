@@ -398,7 +398,16 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	})
 }
 
-func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+	if k.outputMode == outputModeJSON {
+		if dryRunStrategy != cmdutil.DryRunServer {
+			return nil, fmt.Errorf("invalid dry run strategy used with JSON output. : %d, expected %d", dryRunStrategy, cmdutil.DryRunServer)
+		}
+		if !serverSideApply {
+			return nil, errors.New("invalid Apply strategy used with JSON output. Must use server-side apply")
+		}
+	}
+
 	flags := apply.NewApplyFlags(ioStreams)
 	o := &apply.ApplyOptions{
 		IOStreams:         ioStreams,
@@ -410,7 +419,7 @@ func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams 
 		OpenAPIPatch:      true,
 		ServerSideApply:   serverSideApply,
 	}
-	dynamicClient, err := dynamic.NewForConfig(config)
+	dynamicClient, err := dynamic.NewForConfig(k.config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
@@ -419,47 +428,27 @@ func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create delete flags: %w", err)
 	}
-	o.OpenAPIGetter = fact
+	o.OpenAPIGetter = k.fact
 	o.DryRunStrategy = dryRunStrategy
 	o.FieldManager = manager
 	validateDirective := metav1.FieldValidationIgnore
 	if validate {
 		validateDirective = metav1.FieldValidationStrict
 	}
-	o.Validator, err = fact.Validator(validateDirective)
+	o.Validator, err = k.fact.Validator(validateDirective)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create validator: %w", err)
 	}
-	o.Builder = fact.NewBuilder()
-	o.Mapper, err = fact.ToRESTMapper()
+	o.Builder = k.fact.NewBuilder()
+	o.Mapper, err = k.fact.ToRESTMapper()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create restmapper: %w", err)
 	}
 
-	o.DeleteOptions.Filenames = []string{fileName}
 	o.Namespace = obj.GetNamespace()
+	o.DeleteOptions.Filenames = []string{fileName}
 	o.DeleteOptions.ForceDeletion = force
-	o.DryRunStrategy = dryRunStrategy
-	if manager != "" {
-		o.FieldManager = manager
-	}
-	return o, nil
-}
-
-func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
-	if k.outputMode == outputModeJSON {
-		if dryRunStrategy != cmdutil.DryRunServer {
-			return nil, fmt.Errorf("invalid dry run strategy used with JSON output. : %d, expected %d", dryRunStrategy, cmdutil.DryRunServer)
-		}
-		if !serverSideApply {
-			return nil, errors.New("invalid Apply strategy used with JSON output. Must use server-side apply")
-		}
-	}
-
-	o, err := newApplyOptionsCommon(k.config, k.fact, ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
-	if err != nil {
-		return nil, err
-	}
+	o.ForceConflicts = serverSideApply
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = operation
@@ -490,10 +479,6 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 			}
 		}
 		return o.PrintFlags.ToPrinter()
-	}
-
-	if serverSideApply {
-		o.ForceConflicts = true
 	}
 
 	if err := o.Validate(); err != nil {
