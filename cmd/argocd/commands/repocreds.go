@@ -95,6 +95,12 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 		Use:     "add REPOURL",
 		Short:   "Add git repository connection parameters",
 		Example: repocredsAddExamples,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			if repo.Depth < 0 {
+				return fmt.Errorf("--depth must be >= 0, got %d", repo.Depth)
+			}
+			return nil
+		},
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
