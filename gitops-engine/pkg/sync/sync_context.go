@@ -847,8 +847,8 @@ func (sc *syncContext) removeHookFinalizer(task *syncTask) error {
 	}
 
 	// The cached live object may be stale in the controller cache, and the actual object may have been updated in the meantime,
-	// and Kubernetes API will return a conflict error on the Update call.
-	// In that case, we need to get the latest version of the object and retry the update.
+	// and Kubernetes API will return a conflict error on the patch call.
+	// In that case, we need to get the latest version of the object and retry the patch.
 	//nolint:wrapcheck // wrap inside the retried function instead
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		mutated := removeFinalizerMutation(task.liveObj)
@@ -856,9 +856,9 @@ func (sc *syncContext) removeHookFinalizer(task *syncTask) error {
 			return nil
 		}
 
-		updateErr := sc.updateResource(task)
-		if apierrors.IsConflict(updateErr) {
-			sc.log.WithValues("task", task).V(1).Info("Retrying hook finalizer removal due to conflict on update")
+		patchErr := sc.patchResourceFinalizers(task)
+		if apierrors.IsConflict(patchErr) {
+			sc.log.WithValues("task", task).V(1).Info("Retrying hook finalizer removal due to conflict on patch")
 			liveObj, err := sc.getResource(task)
 			if apierrors.IsNotFound(err) {
 				sc.log.WithValues("task", task).V(1).Info("Resource is already deleted")
@@ -867,13 +867,13 @@ func (sc *syncContext) removeHookFinalizer(task *syncTask) error {
 				return fmt.Errorf("failed to get resource: %w", err)
 			}
 			task.liveObj = liveObj
-		} else if apierrors.IsNotFound(updateErr) {
+		} else if apierrors.IsNotFound(patchErr) {
 			// If the resource is already deleted, it is a no-op
 			sc.log.WithValues("task", task).V(1).Info("Resource is already deleted")
 			return nil
 		}
-		if updateErr != nil {
-			return fmt.Errorf("failed to update resource: %w", updateErr)
+		if patchErr != nil {
+			return fmt.Errorf("failed to patch resource finalizers: %w", patchErr)
 		}
 		return nil
 	})
@@ -1520,6 +1520,46 @@ func (sc *syncContext) updateResource(task *syncTask) error {
 	if err != nil {
 		return fmt.Errorf("failed to update resource: %w", err)
 	}
+	return nil
+}
+
+
+func (sc *syncContext) patchResourceFinalizers(task *syncTask) error {
+	sc.log.WithValues("task", task).V(1).Info("Patching resource finalizers")
+
+	resIf, err := sc.getResourceIf(task, "patch")
+	if err != nil {
+		return err
+	}
+
+	finalizers := task.liveObj.GetFinalizers()
+
+	var patchOps []map[string]interface{}
+
+	for i, f := range finalizers {
+		if f == hook.HookFinalizer {
+			patchOps = append(patchOps, map[string]interface{}{
+				"op":   "remove",
+				"path": fmt.Sprintf("/metadata/finalizers/%d", i),
+			})
+		}
+	}
+
+	// nothing to remove
+	if len(patchOps) == 0 {
+		return nil
+	}
+
+	patchBytes, err := json.Marshal(patchOps)
+	if err != nil {
+		return fmt.Errorf("failed to marshal finalizers patch: %w", err)
+	}
+
+	_, err = resIf.Patch(context.TODO(), task.name(), types.JSONPatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to patch resource finalizers: %w", err)
+	}
+
 	return nil
 }
 
