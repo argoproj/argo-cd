@@ -72,6 +72,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 		account         string
 		currentPassword string
 		newPassword     string
+		stdin           bool
 	)
 	command := &cobra.Command{
 		Use:   "update-password",
@@ -87,6 +88,13 @@ has appropriate RBAC permissions to change other accounts.
 
 	# Update the password for user foobar
 	argocd account update-password --account foobar
+
+	# Non-interactively update a password by piping it to stdin (useful for
+	# scripting). --current-password is required because only the new
+	# password is read from stdin. Avoid 'echo' with a literal password —
+	# it ends up in shell history. Read from a variable or file instead:
+	printf '%s' "$NEW_PASSWORD" | argocd account update-password \
+	    --stdin --current-password "$OLD_PASSWORD"
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -94,6 +102,9 @@ has appropriate RBAC permissions to change other accounts.
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
+			}
+			if err := validateUpdatePasswordFlags(stdin, currentPassword, newPassword); err != nil {
+				log.Fatal(err)
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, usrIf := acdClient.NewAccountClientOrDie()
@@ -115,7 +126,11 @@ has appropriate RBAC permissions to change other accounts.
 
 			if newPassword == "" {
 				var err error
-				newPassword, err = cli.ReadAndConfirmPassword(account)
+				if stdin {
+					newPassword, err = cli.ReadPasswordFromStdin()
+				} else {
+					newPassword, err = cli.ReadAndConfirmPassword(account)
+				}
 				errors.CheckError(err)
 			}
 
@@ -152,7 +167,25 @@ has appropriate RBAC permissions to change other accounts.
 	command.Flags().StringVar(&currentPassword, "current-password", "", "Password of the currently logged on user")
 	command.Flags().StringVar(&newPassword, "new-password", "", "New password you want to update to")
 	command.Flags().StringVar(&account, "account", "", "An account name that should be updated. Defaults to current user account")
+	command.Flags().BoolVar(&stdin, "stdin", false, "Read the new password from stdin (single read, no confirmation). Requires --current-password.")
 	return command
+}
+
+// validateUpdatePasswordFlags rejects flag combinations that would otherwise
+// silently surprise the caller (e.g. --stdin combined with --new-password,
+// where --stdin is dead code) or leave the command waiting on a TTY in a
+// non-interactive context (--stdin without --current-password).
+func validateUpdatePasswordFlags(stdin bool, currentPassword, newPassword string) error {
+	if !stdin {
+		return nil
+	}
+	if newPassword != "" {
+		return fmt.Errorf("--stdin cannot be combined with --new-password")
+	}
+	if currentPassword == "" {
+		return fmt.Errorf("--current-password is required when --stdin is used")
+	}
+	return nil
 }
 
 func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
