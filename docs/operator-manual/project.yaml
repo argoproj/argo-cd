@@ -117,3 +117,16 @@ spec:
   # Applications to reside in. Details: https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/
   sourceNamespaces:
   - "argocd-apps-*"
+
+  # Source Integrity declares criteria for application source repositories, such as cryptographic signing, etc.
+  # https://argo-cd.readthedocs.io/en/latest/user-guide/source-integrity/
+  sourceIntegrity:
+    git:
+      policies:
+        - repos:
+            - url: 'https://github.com/foo/*'
+            - url: '!https://github.com/foo/bar.git'
+          gpg:
+            mode: strict
+            keys:
+              - "D56C4FCA57A46444"
