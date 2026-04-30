@@ -2989,6 +2989,18 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			if err != nil {
 				return nil, fmt.Errorf("error unmarshaling live state for %s/%s: %w", liveResource.Kind, liveResource.Name, err)
 			}
+			if liveObj.GetName() != liveResource.Name {
+				return nil, fmt.Errorf("name mismatch: expected %s, got %s", liveResource.Name, liveObj.GetName())
+			}
+			if liveObj.GetNamespace() != liveResource.Namespace {
+				return nil, fmt.Errorf("namespace mismatch: expected %s, got %s", liveResource.Namespace, liveObj.GetNamespace())
+			}
+			if liveObj.GroupVersionKind().Group != liveResource.Group {
+				return nil, fmt.Errorf("group mismatch: expected %s, got %s", liveResource.Group, liveObj.GroupVersionKind().Group)
+			}
+			if liveObj.GroupVersionKind().Kind != liveResource.Kind {
+				return nil, fmt.Errorf("kind mismatch: expected %s, got %s", liveResource.Kind, liveObj.GroupVersionKind().Kind)
+			}
 			liveObjs = append(liveObjs, liveObj)
 		} else {
 			liveObjs = append(liveObjs, nil)
@@ -3008,6 +3020,13 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	diffResults, err := argodiff.StateDiffs(liveObjs, targetObjs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error performing state diffs: %w", err)
+	}
+	managedResources := make([]*v1alpha1.ResourceDiff, 0)
+	err = s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &managedResources)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting managed resources: %w", err)
 	}
 
 	// Convert StateDiffs results to ResourceDiff format for API response
@@ -3051,16 +3070,64 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 				i, len(q.GetLiveResources()), len(targetObjs))
 		}
 
+		found := false
+		for _, item := range managedResources {
+			if item.Kind == kind && item.Group == group && item.Namespace == namespace && item.Name == name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, status.Errorf(codes.PermissionDenied, "%s %s %s not found as part of application %s", kind, group, name, a.Name)
+		}
+
 		// Create ResourceDiff with StateDiffs results
 		// TargetState = PredictedLive (what the target should be after applying)
 		// LiveState = NormalizedLive (current normalized live state)
+		targetState := string(diffRes.PredictedLive)
+		liveState := string(diffRes.NormalizedLive)
+
+		if kind == kube.SecretKind && group == "" {
+			var targetObj, liveObj *unstructured.Unstructured
+			if len(diffRes.PredictedLive) > 0 && string(diffRes.PredictedLive) != "null" {
+				targetObj = &unstructured.Unstructured{}
+				if err := json.Unmarshal(diffRes.PredictedLive, targetObj); err != nil {
+					return nil, fmt.Errorf("error unmarshaling predicted live for secret masking: %w", err)
+				}
+			}
+			if len(diffRes.NormalizedLive) > 0 && string(diffRes.NormalizedLive) != "null" {
+				liveObj = &unstructured.Unstructured{}
+				if err := json.Unmarshal(diffRes.NormalizedLive, liveObj); err != nil {
+					return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
+				}
+			}
+			maskedTarget, maskedLive, err := diff.HideSecretData(targetObj, liveObj, s.settingsMgr.GetSensitiveAnnotations())
+			if err != nil {
+				return nil, fmt.Errorf("error masking secret data: %w", err)
+			}
+			if maskedTarget != nil {
+				data, err := json.Marshal(maskedTarget)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling masked target state: %w", err)
+				}
+				targetState = string(data)
+			}
+			if maskedLive != nil {
+				data, err := json.Marshal(maskedLive)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling masked live state: %w", err)
+				}
+				liveState = string(data)
+			}
+		}
+
 		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
 			Group:           group,
 			Kind:            kind,
 			Namespace:       namespace,
 			Name:            name,
-			TargetState:     string(diffRes.PredictedLive),
-			LiveState:       string(diffRes.NormalizedLive),
+			TargetState:     targetState,
+			LiveState:       liveState,
 			Diff:            "", // Diff string is generated client-side
 			Hook:            hook,
 			Modified:        diffRes.Modified,
