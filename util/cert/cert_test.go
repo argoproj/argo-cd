@@ -396,6 +396,7 @@ func TestValidHostnames(t *testing.T) {
 		".localhost":                         false,
 		"local_host":                         true,
 		"localhost.local_domain":             true,
+		"_default_ca_fallback_":              true,
 	}
 
 	for hostName, valid := range hostNames {
@@ -420,6 +421,7 @@ func TestValidFQDNs(t *testing.T) {
 		"local_host":                         false,
 		"localhost.local_domain":             false,
 		"localhost.local_domain.":            false,
+		"_default_ca_fallback_":              false,
 	}
 
 	for hostName, valid := range hostNames {
@@ -507,6 +509,57 @@ func TestGetCertificateForConnect(t *testing.T) {
 		assert.Empty(t, certs)
 		assert.ErrorContains(t, err, "no certificates found")
 	})
+
+	t.Run("Success with the default certificate", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(temppath, DefaultCatchAllCertificateKey), cert, 0o666)
+		require.NoError(t, err)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certs, err := GetCertificateForConnect("127.0.0.1")
+		require.NoError(t, err)
+		assert.Len(t, certs, 1)
+	})
+
+	t.Run("Per-server cert invalid does not fall back to default", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		require.NoError(t, err)
+		// Write invalid data for the per-server cert
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("not a cert"), 0o666)
+		require.NoError(t, err)
+		// Write a valid default cert
+		err = os.WriteFile(path.Join(temppath, DefaultCatchAllCertificateKey), cert, 0o666)
+		require.NoError(t, err)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certs, err := GetCertificateForConnect("127.0.0.1")
+		require.Error(t, err)
+		assert.Empty(t, certs)
+		assert.ErrorContains(t, err, "no certificates found")
+	})
+
+	t.Run("Per-server and default both exist returns per-server", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0o666)
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(temppath, DefaultCatchAllCertificateKey), cert, 0o666)
+		require.NoError(t, err)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certs, err := GetCertificateForConnect("127.0.0.1")
+		require.NoError(t, err)
+		assert.Len(t, certs, 1)
+	})
+
+	t.Run("No per-server cert and no default returns nil", func(t *testing.T) {
+		temppath := t.TempDir()
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certs, err := GetCertificateForConnect("127.0.0.1")
+		require.NoError(t, err)
+		assert.Nil(t, certs)
+	})
 }
 
 func TestGetCertBundlePathForRepository(t *testing.T) {
@@ -544,6 +597,45 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		require.NoError(t, err)
 		assert.Empty(t, certpath)
+	})
+	t.Run("Per-server cert invalid does not fall back to default", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("not a cert"), 0o666)
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(temppath, DefaultCatchAllCertificateKey), cert, 0o666)
+		require.NoError(t, err)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
+		require.NoError(t, err)
+		assert.Empty(t, certpath)
+	})
+
+	t.Run("Success with default cert and no per-server cert", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(temppath, DefaultCatchAllCertificateKey), cert, 0o666)
+		require.NoError(t, err)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
+		require.NoError(t, err)
+		assert.Equal(t, path.Join(temppath, DefaultCatchAllCertificateKey), certpath)
+	})
+
+	t.Run("Success with per-server cert and default cert (returns per-server cert)", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0o666)
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(temppath, DefaultCatchAllCertificateKey), cert, 0o666)
+		require.NoError(t, err)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
+		require.NoError(t, err)
+		assert.Equal(t, path.Join(temppath, "127.0.0.1"), certpath)
 	})
 }
 
