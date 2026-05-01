@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -1937,7 +1938,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	assert.True(t, compRes.revisionsMayHaveChanges)
 }
 
-func Test_normalizeClusterScopeTracking(t *testing.T) {
+func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -1947,7 +1948,7 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	c := &cachemocks.ClusterCache{}
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
 	var called bool
-	err := normalizeClusterScopeTracking([]*unstructured.Unstructured{obj}, c, func(u *unstructured.Unstructured) error {
+	_, _, err := NormalizeTargetObjects(test.FakeDestNamespace, []*unstructured.Unstructured{obj}, &resourceInfoProviderStub{}, func(u *unstructured.Unstructured) error {
 		// We expect that the normalization function will call this callback with an obj that has had the namespace set
 		// to empty.
 		called = true
@@ -1956,6 +1957,164 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, called, "normalization function should have called the callback function")
+}
+
+func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
+	// Create three cluster-scoped objects with the same Group/Kind/Name
+	// Using cluster-scoped to work with resourceInfoProviderStub
+	obj1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"get"}, Resources: []string{"pods"}},
+		},
+	})
+	obj2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"list"}, Resources: []string{"pods"}},
+		},
+	})
+	obj3 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"watch"}, Resources: []string{"pods"}},
+		},
+	})
+
+	result, conditions, err := NormalizeTargetObjects(
+		test.FakeDestNamespace,
+		[]*unstructured.Unstructured{obj1, obj2, obj3},
+		&resourceInfoProviderStub{},
+		func(_ *unstructured.Unstructured) error {
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	// Should only keep the last object
+	assert.Len(t, result, 1, "should deduplicate to one object")
+	// Verify it's the last object by checking the rules
+	rules, found, err := unstructured.NestedSlice(result[0].Object, "rules")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Len(t, rules, 1)
+	rule := rules[0].(map[string]any)
+	verbs := rule["verbs"].([]any)
+	assert.Equal(t, "watch", verbs[0], "should keep the last duplicate")
+
+	// Should have one condition warning about duplication
+	require.Len(t, conditions, 1, "should have one duplication warning")
+	assert.Equal(t, v1alpha1.ApplicationConditionRepeatedResourceWarning, conditions[0].Type)
+	assert.Contains(t, conditions[0].Message, "appeared 3 times")
+	assert.Contains(t, conditions[0].Message, "rbac.authorization.k8s.io/ClusterRole//my-cluster-role")
+}
+
+func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
+	// Create two objects with the same generateName
+	obj1 := kube.MustToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-pod-",
+			Namespace:    "default",
+		},
+	})
+	obj2 := kube.MustToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-pod-",
+			Namespace:    "default",
+		},
+	})
+
+	result, conditions, err := NormalizeTargetObjects(
+		test.FakeDestNamespace,
+		[]*unstructured.Unstructured{obj1, obj2},
+		&resourceInfoProviderStub{},
+		func(_ *unstructured.Unstructured) error {
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	// Both objects should be present because they get synthetic names (test-pod-0, test-pod-1)
+	assert.Len(t, result, 2, "should keep all objects with different synthetic names")
+	assert.Empty(t, conditions, "should have no duplication warnings for generateName objects")
+}
+
+func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
+	// Create a namespaced resource without namespace set
+	obj := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-config",
+			// No namespace specified
+		},
+		Data: map[string]string{"key": "value"},
+	})
+
+	trackingCalled := false
+	expectedNamespace := "my-app-namespace"
+
+	// Custom info provider that reports ConfigMaps as namespaced
+	namespacedProvider := &namespacedResourceInfoProvider{namespaced: true}
+
+	result, conditions, err := NormalizeTargetObjects(
+		expectedNamespace,
+		[]*unstructured.Unstructured{obj},
+		namespacedProvider,
+		func(u *unstructured.Unstructured) error {
+			// Verify namespace was set before tracking callback
+			assert.Equal(t, expectedNamespace, u.GetNamespace(), "namespace should be set before tracking callback")
+			trackingCalled = true
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	assert.Empty(t, conditions, "should have no conditions")
+	require.Len(t, result, 1, "should have one result")
+
+	// Verify namespace was set
+	assert.Equal(t, expectedNamespace, result[0].GetNamespace(), "namespace should be set on result")
+
+	// Verify tracking callback was called
+	assert.True(t, trackingCalled, "tracking callback should have been called")
+}
+
+// namespacedResourceInfoProvider is a test helper that returns a fixed namespaced status
+type namespacedResourceInfoProvider struct {
+	namespaced bool
+}
+
+func (n *namespacedResourceInfoProvider) IsNamespaced(_ schema.GroupKind) (bool, error) {
+	return n.namespaced, nil
 }
 
 func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {

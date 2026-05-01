@@ -713,7 +713,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Repo:                            repo,
 			Revision:                        source.TargetRevision,
 			AppLabelKey:                     appInstanceLabelKey,
-			AppName:                         a.Name,
+			AppName:                         a.InstanceName(s.ns),
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
