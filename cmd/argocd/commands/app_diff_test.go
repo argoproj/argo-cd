@@ -645,7 +645,7 @@ func TestNewTargetManifestProvider(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, result, 2)
 		assert.Equal(t, "Deployment", result[0].GetKind())
-		assert.Equal(t, "Service", result[1].GetKind())
+		assert.Equal(t, "Secret", result[1].GetKind())
 	})
 
 	t.Run("Empty items", func(t *testing.T) {
