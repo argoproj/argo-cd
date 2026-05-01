@@ -2572,26 +2572,26 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},
-		DeleteFunc: func(obj any) {
-			// Unwrap DeletedFinalStateUnknown tombstones
-			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-				obj = tombstone.Obj
-			}
-			if !ctrl.canProcessApp(obj) {
-				return
-			}
-			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-			// key function.
-			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil {
-				// for deletes, we immediately add to the refresh queue
-				ctrl.appRefreshQueue.Add(key)
-			}
-			delApp, delOK := obj.(*appv1.Application)
-			if err == nil && delOK {
-				ctrl.clusterSharding.DeleteApp(delApp)
-			}
-		},
+			DeleteFunc: func(obj any) {
+				// Unwrap DeletedFinalStateUnknown tombstones
+				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+					obj = tombstone.Obj
+				}
+				if !ctrl.canProcessApp(obj) {
+					return
+				}
+				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+				// key function.
+				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+				if err == nil {
+					// for deletes, we immediately add to the refresh queue
+					ctrl.appRefreshQueue.Add(key)
+				}
+				delApp, delOK := obj.(*appv1.Application)
+				if err == nil && delOK {
+					ctrl.clusterSharding.DeleteApp(delApp)
+				}
+			},
 		},
 	)
 	if err != nil {
