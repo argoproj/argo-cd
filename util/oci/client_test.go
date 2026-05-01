@@ -189,7 +189,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("error resolving oci repo from digest, sha256:nonexistentdigest: not found"),
+			expectedError: errors.New("error resolving oci manifest for digest sha256:nonexistentdigest: sha256:nonexistentdigest: not found"),
 		},
 		{
 			name: "extraction with helm chart",
@@ -765,6 +765,56 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
+	// Regression test for https://github.com/argoproj/argo-cd/issues/27521:
+	// DigestMetadata must work on any replica without relying on a local tar
+	// populated by a prior Extract.
+	pushManifest := func(t *testing.T, store *memory.Store, annotations map[string]string) string {
+		t.Helper()
+		configBlob := []byte("config")
+		configDesc := content.NewDescriptorFromBytes("application/vnd.cncf.helm.config.v1+json", configBlob)
+		manifestBlob, err := json.Marshal(imagev1.Manifest{
+			Versioned:   specs.Versioned{SchemaVersion: 2},
+			Config:      configDesc,
+			Annotations: annotations,
+		})
+		require.NoError(t, err)
+		manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
+		require.NoError(t, store.Push(t.Context(), configDesc, bytes.NewReader(configBlob)))
+		require.NoError(t, store.Push(t.Context(), manifestDesc, bytes.NewReader(manifestBlob)))
+		require.NoError(t, store.Tag(t.Context(), manifestDesc, manifestDesc.Digest.String()))
+		return manifestDesc.Digest.String()
+	}
+
+	t.Run("succeeds without any local tar cache", func(t *testing.T) {
+		store := memory.New()
+		annotations := map[string]string{
+			"org.opencontainers.image.version": "1.2.3",
+			"org.opencontainers.image.authors": "me@example.com",
+		}
+		sha := pushManifest(t, store, annotations)
+
+		// Note: no WithImagePaths — there is no local cache directory at all,
+		// mirroring a repo-server replica that never ran Extract for this digest.
+		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil,
+			WithEventHandlers(fakeEventHandlers(t, "repo")))
+
+		manifest, err := c.DigestMetadata(t.Context(), sha)
+		require.NoError(t, err)
+		require.NotNil(t, manifest)
+		assert.Equal(t, annotations, manifest.Annotations)
+	})
+
+	t.Run("propagates not-found errors from the remote", func(t *testing.T) {
+		store := memory.New()
+		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil,
+			WithEventHandlers(fakeEventHandlers(t, "repo")))
+
+		_, err := c.DigestMetadata(t.Context(), "sha256:0000000000000000000000000000000000000000000000000000000000000000")
+		require.Error(t, err)
+	})
 }
 
 func TestNewClientUsesHTTP2(t *testing.T) {

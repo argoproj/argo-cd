@@ -470,11 +470,14 @@ func newLocalClientSideProvider(
 }
 
 // newTargetManifestProvider creates a provider that extracts target manifests from ManagedResources
-func newTargetManifestProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
+func newTargetManifestProvider(liveState *application.ManagedResourcesResponse, excludeSecret bool) manifestProvider {
 	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
 		targetManifests := make([]*unstructured.Unstructured, 0, len(liveState.Items))
 		for i := range liveState.Items {
 			res := liveState.Items[i]
+			if excludeSecret && res.Kind == kube.SecretKind && res.Group == "" {
+				continue
+			}
 			target := &unstructured.Unstructured{}
 			err := json.Unmarshal([]byte(res.TargetState), &target)
 			if err != nil {
@@ -755,7 +758,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if compareDesired {
 					errors.Fatal(errors.ErrorGeneric, "--compare-desired cannot be specified when no target manifests are provided (use --local, --revision, or --revisions)")
 				}
-				getTargetManifests = newTargetManifestProvider(liveState)
+				getTargetManifests = newTargetManifestProvider(liveState, excludeSecret)
 			}
 
 			// Wrap target manifest provider with normalization since the manifest are have not been applied to kubernetes
@@ -765,10 +768,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			var getLiveManifests manifestProvider
 			if compareDesired {
 				// When comparing desired states, use target manifests from ManagedResources
-				getLiveManifests = newNormalizeTargetManifestsProvider(newTargetManifestProvider(liveState), app, argoSettings, infoProvider)
+				getLiveManifests = newNormalizeTargetManifestsProvider(newTargetManifestProvider(liveState, excludeSecret), app, argoSettings, infoProvider)
 			} else {
 				// Default: compare against live cluster state
-				getLiveManifests = newLiveManifestProvider(liveState)
+				getLiveManifests = newLiveManifestProvider(liveState, excludeSecret)
 			}
 
 			// Create diff strategy based on --server-side-diff flag
