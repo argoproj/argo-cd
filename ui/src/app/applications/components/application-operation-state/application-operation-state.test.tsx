@@ -84,6 +84,20 @@ describe('ApplicationOperationState', () => {
             metadata: {
                 ...baseApp.metadata,
                 deletionTimestamp
+            },
+            status: {
+                ...baseApp.status,
+                resources: [
+                    {
+                        group: '',
+                        version: 'v1',
+                        kind: 'Service',
+                        namespace: 'repro-target',
+                        name: 'guestbook-ui',
+                        status: 'Synced',
+                        health: {status: 'Progressing'}
+                    }
+                ]
             }
         };
         const component = renderer.create(<ApplicationOperationState application={deletingApp} operationState={baseOperationStateWithResources} />);
@@ -93,12 +107,17 @@ describe('ApplicationOperationState', () => {
         expect(text).toContain('Delete');
         expect(text).toContain('STARTED AT');
 
+        expect(text).toContain('"RESOURCES"');
+        expect(text).toContain('guestbook-ui');
+        expect(text).toContain('repro-target');
+
         expect(text).not.toContain('successfully synced (all tasks run)');
         expect(text).not.toContain('automated sync policy');
         expect(text).not.toContain('abc1234567890');
         expect(text).not.toContain('service/guestbook-ui created');
-        expect(text).not.toContain('FINISHED AT');
-        expect(text).not.toContain('REVISION');
-        expect(text).not.toContain('INITIATED BY');
+        expect(text).not.toContain('"FINISHED AT"');
+        expect(text).not.toContain('"REVISION"');
+        expect(text).not.toContain('"INITIATED BY"');
+        expect(text).not.toContain('"RESULT"');
     });
 });

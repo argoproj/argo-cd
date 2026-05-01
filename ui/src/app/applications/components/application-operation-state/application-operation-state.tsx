@@ -349,6 +349,53 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     </div>
                 </React.Fragment>
             )}
+            {isDeleting && application.status.resources && application.status.resources.length > 0 && (
+                <React.Fragment>
+                    <label style={{display: 'block', marginBottom: '1em'}}>RESOURCES</label>
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns large-2 small-3'>KIND</div>
+                                <div className='columns large-2 small-3'>NAMESPACE</div>
+                                <div className='columns large-3 small-3'>NAME</div>
+                                <div className='columns large-2 small-3 show-for-large'>STATUS</div>
+                                <div className='columns large-3'>HEALTH</div>
+                            </div>
+                        </div>
+                        {application.status.resources.map((res, i) => {
+                            const kindLabel = (res.group ? `${res.group}/` : '') + (res.version || '') + `/${res.kind}`;
+                            return (
+                                <div className='argo-table-list__row' key={i}>
+                                    <div className='row'>
+                                        <div className='columns large-2 small-3' title={kindLabel}>
+                                            {kindLabel}
+                                        </div>
+                                        <div className='columns large-2 small-3' title={res.namespace}>
+                                            {res.namespace || '-'}
+                                        </div>
+                                        <div className='columns large-3 small-3' title={res.name}>
+                                            {res.name}
+                                        </div>
+                                        <div className='columns large-2 small-3 show-for-large' title={res.status}>
+                                            <utils.ComparisonStatusIcon status={res.status} resource={res} /> {res.status}
+                                        </div>
+                                        <div className='columns large-3'>
+                                            {res.health ? (
+                                                <span>
+                                                    <utils.HealthStatusIcon state={res.health} /> {res.health.status}
+                                                    {res.health.message && <HelpIcon title={res.health.message} />}
+                                                </span>
+                                            ) : (
+                                                <>{'-'}</>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </React.Fragment>
+            )}
         </div>
     );
 };
