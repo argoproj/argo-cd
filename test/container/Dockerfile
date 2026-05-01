@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.6.2@sha256:d372cf7cd5ab47fb6ad1a73c45ea1104d6f3fa11cc833ff0b3ac997890b4ccec AS redis
+FROM docker.io/library/redis:8.6.2@sha256:832d7785830f3f4b559300e6191fc914b15642c1935252338825cf4332200148 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -8,7 +8,7 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:22.9.0@sha256:8398ea18b8b72817c84af283f72daed9629af2958c4f618fe6db4f453c5c9328 AS node
 
-FROM docker.io/library/golang:1.26.2@sha256:5f3787b7f902c07c7ec4f3aa91a301a3eda8133aa32661a3b3a3a86ab3a68a36 AS golang
+FROM docker.io/library/golang:1.26.2@sha256:b54cbf583d390341599d7bcbc062425c081105cc5ef6d170ced98ef9d047c716 AS golang
 
 FROM docker.io/library/registry:3.1@sha256:8a7c1aae9db5028cbc1cfe83e5969d270a50e8bc0b72eef3cc5657542ec383c9 AS registry
 

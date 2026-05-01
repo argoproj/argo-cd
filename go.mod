@@ -17,13 +17,13 @@ require (
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
 	github.com/argoproj/notifications-engine v0.5.1-0.20260213231747-1dbe3de712f8
 	github.com/argoproj/pkg/v2 v2.0.1
-	github.com/aws/aws-sdk-go-v2 v1.41.6
-	github.com/aws/aws-sdk-go-v2/config v1.32.16
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.15
-	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.13
-	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.11
-	github.com/aws/aws-sdk-go-v2/service/sts v1.42.0
-	github.com/aws/smithy-go v1.25.0
+	github.com/aws/aws-sdk-go-v2 v1.41.7
+	github.com/aws/aws-sdk-go-v2/config v1.32.17
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.16
+	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.14
+	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.12
+	github.com/aws/aws-sdk-go-v2/service/sts v1.42.1
+	github.com/aws/smithy-go v1.25.1
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
@@ -39,7 +39,7 @@ require (
 	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/expr-lang/expr v1.17.8
 	github.com/felixge/httpsnoop v1.0.4
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
 	// DO NOT BUMP UNTIL go-git/go-git#1551 is fixed
 	github.com/go-git/go-git/v5 v5.14.0
@@ -73,8 +73,8 @@ require (
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/jeremywohl/flatten v1.0.2-0.20211013061545-07e4a09fb8e4
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.95
-	github.com/mattn/go-isatty v0.0.21
+	github.com/ktrysmt/go-bitbucket v0.9.98
+	github.com/mattn/go-isatty v0.0.22
 	github.com/mattn/go-zglob v0.0.6
 	github.com/microsoft/azure-devops-go-api/azuredevops/v7 v7.1.1-0.20241014080628-3045bdf43455
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
@@ -86,7 +86,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/r3labs/diff/v3 v3.0.2
-	github.com/redis/go-redis/v9 v9.18.0
+	github.com/redis/go-redis/v9 v9.19.0
 	github.com/robfig/cron/v3 v3.0.2-0.20210106135023-bc59245fe10e
 	github.com/sirupsen/logrus v1.9.4
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
@@ -154,16 +154,16 @@ require (
 	github.com/PagerDuty/go-pagerduty v1.8.0 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20240116134246-a8cbe886bab0 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.22 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.22 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.22 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.23 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.22 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.0.10 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.23 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.23 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.23 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.24 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.23 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.0.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.38.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.30.16 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.20 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.30.17 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.21 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -175,7 +175,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/davidmz/go-pageant v1.0.2 // indirect
 	github.com/desertbit/timer v1.0.1 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
