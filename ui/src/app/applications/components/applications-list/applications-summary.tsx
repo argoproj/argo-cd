@@ -4,7 +4,7 @@ const PieChart = require('react-svg-piechart').default;
 import {COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
-import {ComparisonStatusIcon, HealthStatusIcon, HydrateOperationPhaseIcon, getAppSetHealthStatus} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, HydrateOperationPhaseIcon} from '../utils';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -13,12 +13,6 @@ healthColors.set('Suspended', COLORS.health.suspended);
 healthColors.set('Healthy', COLORS.health.healthy);
 healthColors.set('Degraded', COLORS.health.degraded);
 healthColors.set('Missing', COLORS.health.missing);
-
-const appSetHealthColors = new Map<models.HealthStatusCode, string>();
-appSetHealthColors.set('Unknown', COLORS.health.unknown);
-appSetHealthColors.set('Healthy', COLORS.health.healthy);
-appSetHealthColors.set('Degraded', COLORS.health.degraded);
-appSetHealthColors.set('Progressing', COLORS.health.progressing);
 
 const syncColors = new Map<models.SyncStatusCode, string>();
 syncColors.set('Unknown', COLORS.sync.unknown);
@@ -31,68 +25,43 @@ hydratorColors.set('Hydrated', COLORS.operation.success);
 hydratorColors.set('Failed', COLORS.operation.failed);
 hydratorColors.set('None', COLORS.sync.unknown);
 
-export const ApplicationsSummary = ({applications}: {applications: models.AbstractApplication[]}) => {
-    const onAppsPath = !window.location.pathname.includes('applicationsets');
-
+export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
     const sync = new Map<string, number>();
+    applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
     const health = new Map<string, number>();
+    applications.forEach(app => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
     const hydrator = new Map<string, number>();
+    applications.forEach(app => {
+        const phase = app.status.sourceHydrator?.currentOperation?.phase || 'None';
+        hydrator.set(phase, (hydrator.get(phase) || 0) + 1);
+    });
 
-    if (onAppsPath) {
-        const apps = applications as models.Application[];
-        apps.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
-        apps.forEach(app => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
-        apps.forEach(app => {
-            const phase = app.status.sourceHydrator?.currentOperation?.phase || 'None';
-            hydrator.set(phase, (hydrator.get(phase) || 0) + 1);
-        });
-    } else {
-        const appSets = applications as models.ApplicationSet[];
-        appSets.forEach(appSet => {
-            const status = getAppSetHealthStatus(appSet);
-            health.set(status, (health.get(status) || 0) + 1);
-        });
-    }
+    const attributes = [
+        {title: 'APPLICATIONS', value: applications.length},
+        {title: 'SYNCED', value: applications.filter(app => app.status.sync.status === 'Synced').length},
+        {title: 'HEALTHY', value: applications.filter(app => app.status.health.status === 'Healthy').length},
+        {title: 'HYDRATED', value: applications.filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length},
+        {title: 'CLUSTERS', value: new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name)).size},
+        {title: 'NAMESPACES', value: new Set(applications.map(app => app.spec.destination.namespace)).size}
+    ];
 
-    const attributes = onAppsPath
-        ? [
-              {title: 'APPLICATIONS', value: applications.length},
-              {title: 'SYNCED', value: (applications as models.Application[]).filter(app => app.status.sync.status === 'Synced').length},
-              {title: 'HEALTHY', value: (applications as models.Application[]).filter(app => app.status.health.status === 'Healthy').length},
-              {title: 'HYDRATED', value: (applications as models.Application[]).filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length},
-              {title: 'CLUSTERS', value: new Set((applications as models.Application[]).map(app => app.spec.destination.server || app.spec.destination.name)).size},
-              {title: 'NAMESPACES', value: new Set((applications as models.Application[]).map(app => app.spec.destination.namespace)).size}
-          ]
-        : [
-              {title: 'APPLICATIONSETS', value: applications.length},
-              {title: 'HEALTHY', value: (applications as models.ApplicationSet[]).filter(app => getAppSetHealthStatus(app) === 'Healthy').length}
-          ];
-
-    const charts = onAppsPath
-        ? [
-              {
-                  title: 'Sync',
-                  data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
-                  legend: syncColors as Map<string, string>
-              },
-              {
-                  title: 'Health',
-                  data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
-                  legend: healthColors as Map<string, string>
-              },
-              {
-                  title: 'Hydrator',
-                  data: Array.from(hydrator.keys()).map(key => ({title: key, value: hydrator.get(key), color: hydratorColors.get(key)})),
-                  legend: hydratorColors as Map<string, string>
-              }
-          ]
-        : [
-              {
-                  title: 'Health',
-                  data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: appSetHealthColors.get(key as models.HealthStatusCode)})),
-                  legend: appSetHealthColors as Map<string, string>
-              }
-          ];
+    const charts = [
+        {
+            title: 'Sync',
+            data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
+            legend: syncColors as Map<string, string>
+        },
+        {
+            title: 'Health',
+            data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
+            legend: healthColors as Map<string, string>
+        },
+        {
+            title: 'Hydrator',
+            data: Array.from(hydrator.keys()).map(key => ({title: key, value: hydrator.get(key), color: hydratorColors.get(key)})),
+            legend: hydratorColors as Map<string, string>
+        }
+    ];
 
     return (
         <div className='white-box applications-list__summary'>
