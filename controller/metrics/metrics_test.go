@@ -324,7 +324,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	mockDB := mocks.NewArgoDB(t)
 	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
 	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, mockDB)
 	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -473,7 +473,7 @@ func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -499,6 +499,189 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appSyncTotal, body)
+}
+
+func newFakeProjLister(ctx context.Context, projects ...*argoappv1.AppProject) (context.CancelFunc, applister.AppProjectLister) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var objs []runtime.Object
+	for _, p := range projects {
+		objs = append(objs, p)
+	}
+	appClientset := appclientset.NewSimpleClientset(objs...)
+	factory := appinformer.NewSharedInformerFactoryWithOptions(appClientset, 0, appinformer.WithNamespace("argocd"), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
+	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	go projInformer.Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
+		log.Fatal("Timed out waiting for caches to sync")
+	}
+	return cancel, factory.Argoproj().V1alpha1().AppProjects().Lister()
+}
+
+func TestSyncWindowMetric(t *testing.T) {
+	// Create a project with an active deny sync window (every minute, 24h duration = always active)
+	proj := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "important-project",
+			Namespace: "argocd",
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:       "deny",
+					Schedule:   "* * * * *",
+					Duration:   "24h",
+					Applications: []string{"*"},
+					ManualSync: true,
+					TimeZone:   "UTC",
+				},
+			},
+		},
+	}
+
+	cancelApp, appLister := newFakeLister(t.Context(), fakeApp)
+	defer cancelApp()
+	cancelProj, projLister := newFakeProjLister(t.Context(), proj)
+	defer cancelProj()
+
+	mockDB := mocks.NewArgoDB(t)
+	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
+	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
+
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, projLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	require.NoError(t, err)
+
+	expectedResponse := `
+# HELP argocd_app_sync_window Information about active sync windows affecting an application. Value is 1 when a sync window is active.
+# TYPE argocd_app_sync_window gauge
+argocd_app_sync_window{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",duration="24h",manual_sync="true",name="my-app",namespace="argocd",project="important-project",schedule="* * * * *",time_zone="UTC",window_kind="deny"} 1
+`
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assertMetricsPrinted(t, expectedResponse, body)
+}
+
+func TestSyncWindowMetricNoActiveWindow(t *testing.T) {
+	// Create a project with a sync window that will never be active (schedule in past, short duration)
+	proj := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "important-project",
+			Namespace: "argocd",
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:         "allow",
+					Schedule:     "0 0 1 1 *", // Jan 1st at midnight only
+					Duration:     "1h",
+					Applications: []string{"*"},
+					ManualSync:   false,
+				},
+			},
+		},
+	}
+
+	cancelApp, appLister := newFakeLister(t.Context(), fakeApp)
+	defer cancelApp()
+	cancelProj, projLister := newFakeProjLister(t.Context(), proj)
+	defer cancelProj()
+
+	mockDB := mocks.NewArgoDB(t)
+	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
+	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
+
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, projLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	// Should NOT contain any sync window metric since no window is active
+	assert.NotContains(t, body, "argocd_app_sync_window{")
+}
+
+func TestSyncWindowMetricNilProjLister(t *testing.T) {
+	// When projLister is nil (e.g., in tests), sync window metrics should not be emitted
+	cancelApp, appLister := newFakeLister(t.Context(), fakeApp)
+	defer cancelApp()
+
+	mockDB := mocks.NewArgoDB(t)
+	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
+	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
+
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.NotContains(t, body, "argocd_app_sync_window{")
+}
+
+func TestSyncWindowMetricMultipleWindows(t *testing.T) {
+	// Create a project with two active sync windows matching the same app
+	proj := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "important-project",
+			Namespace: "argocd",
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:         "deny",
+					Schedule:     "* * * * *",
+					Duration:     "24h",
+					Applications: []string{"*"},
+					ManualSync:   false,
+					TimeZone:     "UTC",
+				},
+				{
+					Kind:         "allow",
+					Schedule:     "* * * * *",
+					Duration:     "24h",
+					Applications: []string{"my-app"},
+					ManualSync:   true,
+					TimeZone:     "Europe/London",
+				},
+			},
+		},
+	}
+
+	cancelApp, appLister := newFakeLister(t.Context(), fakeApp)
+	defer cancelApp()
+	cancelProj, projLister := newFakeProjLister(t.Context(), proj)
+	defer cancelProj()
+
+	mockDB := mocks.NewArgoDB(t)
+	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
+	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
+
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, projLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	require.NoError(t, err)
+
+	expectedResponse := `
+argocd_app_sync_window{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",duration="24h",manual_sync="false",name="my-app",namespace="argocd",project="important-project",schedule="* * * * *",time_zone="UTC",window_kind="deny"} 1
+argocd_app_sync_window{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",duration="24h",manual_sync="true",name="my-app",namespace="argocd",project="important-project",schedule="* * * * *",time_zone="Europe/London",window_kind="allow"} 1
+`
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assertMetricsPrinted(t, expectedResponse, body)
 }
 
 // assertMetricsPrinted asserts every line in the expected lines appears in the body
@@ -527,7 +710,7 @@ func TestMetricsSyncDuration(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	t.Run("metric is not generated during Operation Running.", func(t *testing.T) {
@@ -568,7 +751,7 @@ func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	appReconcileMetrics := `
@@ -602,7 +785,7 @@ func TestOrphanedResourcesMetric(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -628,7 +811,7 @@ func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -666,7 +849,7 @@ func TestWorkqueueMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -697,7 +880,7 @@ func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, nil, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	expectedMetrics := `

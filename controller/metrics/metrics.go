@@ -69,6 +69,13 @@ var (
 		nil,
 	)
 
+	descAppSyncWindow = prometheus.NewDesc(
+		"argocd_app_sync_window",
+		"Information about active sync windows affecting an application. Value is 1 when a sync window is active.",
+		append(descAppDefaultLabels, "dest_server", "dest_namespace", "window_kind", "schedule", "duration", "manual_sync", "time_zone"),
+		nil,
+	)
+
 	syncCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_total",
@@ -159,7 +166,7 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, projLister applister.AppProjectLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -185,7 +192,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db)
+	registry := NewAppRegistry(appLister, projLister, appFilter, appLabels, appConditions, db)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -356,6 +363,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 
 type appCollector struct {
 	store         applister.ApplicationLister
+	projLister    applister.AppProjectLister
 	appFilter     func(obj any) bool
 	appLabels     []string
 	appConditions []string
@@ -363,9 +371,10 @@ type appCollector struct {
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, projLister applister.AppProjectLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
+		projLister:    projLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
@@ -374,9 +383,9 @@ func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj a
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, projLister applister.AppProjectLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
+	registry.MustRegister(NewAppCollector(appLister, projLister, appFilter, appLabels, appConditions, db))
 	return registry
 }
 
@@ -389,6 +398,7 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppConditions
 	}
 	ch <- descAppInfo
+	ch <- descAppSyncWindow
 }
 
 // Collect implements the prometheus.Collector interface
@@ -411,6 +421,7 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 			destServer = destCluster.Server
 		}
 		c.collectApps(ch, app, destServer)
+		c.collectSyncWindows(ch, app, destServer)
 	}
 }
 
@@ -470,5 +481,55 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		for conditionType, count := range conditionCount {
 			addGauge(descAppConditions, float64(count), conditionType)
 		}
+	}
+}
+
+func (c *appCollector) collectSyncWindows(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string) {
+	if c.projLister == nil {
+		return
+	}
+
+	projName := app.Spec.GetProject()
+	proj, err := c.projLister.AppProjects(app.Namespace).Get(projName)
+	if err != nil {
+		log.Warnf("Failed to get project %s for application %s: %v", projName, app.Name, err)
+		return
+	}
+
+	windows := proj.Spec.SyncWindows
+	if !windows.HasWindows() {
+		return
+	}
+
+	matchingWindows := windows.Matches(app)
+	if matchingWindows == nil || !matchingWindows.HasWindows() {
+		return
+	}
+
+	activeWindows, err := matchingWindows.Active()
+	if err != nil {
+		log.Warnf("Failed to evaluate active sync windows for application %s: %v", app.Name, err)
+		return
+	}
+	if activeWindows == nil || !activeWindows.HasWindows() {
+		return
+	}
+
+	for _, w := range *activeWindows {
+		ch <- prometheus.MustNewConstMetric(
+			descAppSyncWindow,
+			prometheus.GaugeValue,
+			1,
+			app.Namespace,
+			app.Name,
+			projName,
+			destServer,
+			app.Spec.Destination.Namespace,
+			w.Kind,
+			w.Schedule,
+			w.Duration,
+			strconv.FormatBool(w.ManualSync),
+			w.TimeZone,
+		)
 	}
 }

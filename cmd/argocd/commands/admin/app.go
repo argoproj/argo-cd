@@ -386,7 +386,7 @@ func reconcileApplications(
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
-	server, err := metrics.NewMetricsServer("", appLister, func(_ any) bool {
+	server, err := metrics.NewMetricsServer("", appLister, projLister, func(_ any) bool {
 		return true
 	}, func(_ *http.Request) error {
 		return nil
