@@ -355,11 +355,15 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
-                                <div className='columns large-2 small-3'>KIND</div>
-                                <div className='columns large-2 small-3'>NAMESPACE</div>
-                                <div className='columns large-3 small-3'>NAME</div>
-                                <div className='columns large-2 small-3 show-for-large'>STATUS</div>
-                                <div className='columns large-3'>HEALTH</div>
+                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>SYNC WAVE</div>
+                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
+                                <div className='columns large-1 show-for-large'>NAMESPACE</div>
+                                <div className='columns large-2 small-2'>NAME</div>
+                                <div className='columns large-1 small-2'>STATUS</div>
+                                <div className='columns large-1 small-2'>HEALTH</div>
+                                <div className='columns large-1 show-for-large'>HOOK</div>
+                                <div className='columns large-3 small-4'>MESSAGE</div>
+                                <div className='columns large-1 small-2'>IMAGES</div>
                             </div>
                         </div>
                         {application.status.resources.map((res, i) => {
@@ -367,19 +371,22 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             return (
                                 <div className='argo-table-list__row' key={i}>
                                     <div className='row'>
-                                        <div className='columns large-2 small-3' title={kindLabel}>
-                                            {kindLabel}
+                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
+                                            {res.syncWave || '0'}
                                         </div>
-                                        <div className='columns large-2 small-3' title={res.namespace}>
+                                        <div className='columns large-1 show-for-large'>
+                                            <span title={kindLabel}>{kindLabel}</span>
+                                        </div>
+                                        <div className='columns large-1 show-for-large' title={res.namespace}>
                                             {res.namespace || '-'}
                                         </div>
-                                        <div className='columns large-3 small-3' title={res.name}>
+                                        <div className='columns large-2 small-2' title={res.name}>
                                             {res.name}
                                         </div>
-                                        <div className='columns large-2 small-3 show-for-large' title={res.status}>
+                                        <div className='columns large-1 small-2' title={res.status}>
                                             <utils.ComparisonStatusIcon status={res.status} resource={res} /> {res.status}
                                         </div>
-                                        <div className='columns large-3'>
+                                        <div className='columns large-1 small-2'>
                                             {res.health ? (
                                                 <span>
                                                     <utils.HealthStatusIcon state={res.health} /> {res.health.status}
@@ -389,6 +396,11 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                                 <>{'-'}</>
                                             )}
                                         </div>
+                                        <div className='columns large-1 show-for-large'>-</div>
+                                        <div className='columns large-3 small-4' title={res.health?.message}>
+                                            <div className='application-operation-state__message'>{res.health?.message || '-'}</div>
+                                        </div>
+                                        <div className='columns large-1 small-2'>-</div>
                                     </div>
                                 </div>
                             );
