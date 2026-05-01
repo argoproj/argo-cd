@@ -10,10 +10,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/kube"
 
 	"github.com/argoproj/pkg/v2/grpc/http"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-
-	//nolint:staticcheck
-	"github.com/golang/protobuf/proto"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )

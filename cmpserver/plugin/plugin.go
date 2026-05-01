@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -36,6 +36,7 @@ const cmpTimeoutBuffer = 100 * time.Millisecond
 
 // Service implements ConfigManagementPluginService interface
 type Service struct {
+	apiclient.UnimplementedConfigManagementPluginServiceServer
 	initConstants CMPServerInitConstants
 }
 
@@ -436,7 +437,7 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 	return repoResponse, nil
 }
 
-func (s *Service) CheckPluginConfiguration(_ context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
+func (s *Service) CheckPluginConfiguration(_ context.Context, _ *emptypb.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
 	isDiscoveryConfigured := s.isDiscoveryConfigured()
 	response := &apiclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: isDiscoveryConfigured, ProvideGitCreds: s.initConstants.PluginConfig.Spec.ProvideGitCreds}
 

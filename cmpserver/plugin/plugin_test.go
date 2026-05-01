@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
@@ -868,7 +868,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		resp, err := f.service.CheckPluginConfiguration(t.Context(), &empty.Empty{})
+		resp, err := f.service.CheckPluginConfiguration(t.Context(), &emptypb.Empty{})
 
 		// then
 		require.NoError(t, err)
@@ -881,7 +881,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		resp, err := f.service.CheckPluginConfiguration(t.Context(), &empty.Empty{})
+		resp, err := f.service.CheckPluginConfiguration(t.Context(), &emptypb.Empty{})
 
 		// then
 		require.NoError(t, err)

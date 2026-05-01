@@ -17,7 +17,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/protobuf/types/known/emptypb"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
@@ -290,14 +290,14 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		conn, versionIf, err := c.NewVersionClient()
 		if err == nil {
 			defer utilio.Close(conn)
-			_, err = versionIf.Version(context.Background(), &empty.Empty{})
+			_, err = versionIf.Version(context.Background(), &emptypb.Empty{})
 		}
 		if err != nil {
 			c.GRPCWeb = true
 			conn, versionIf := c.NewVersionClientOrDie()
 			defer utilio.Close(conn)
 
-			_, err := versionIf.Version(context.Background(), &empty.Empty{})
+			_, err := versionIf.Version(context.Background(), &emptypb.Empty{})
 			if err == nil {
 				log.Warnf("Failed to invoke grpc call. Use flag --grpc-web in grpc calls. To avoid this warning message, use flag --grpc-web.")
 			} else {
@@ -322,19 +322,22 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	var clientID string
 	var issuerURL string
 	var scopes []string
+	// NOTE: OidcConfig is a protoc-gen-go camelCase field name (replacing the previous gogo/protobuf
+	// customname OIDCConfig). CliClientID and ClientID preserve the ID acronym since the proto field
+	// names end in uppercase "ID" (cliClientID, clientID).
 	switch {
-	case set.OIDCConfig != nil && set.OIDCConfig.Issuer != "":
-		if set.OIDCConfig.CLIClientID != "" {
-			clientID = set.OIDCConfig.CLIClientID
+	case set.OidcConfig != nil && set.OidcConfig.Issuer != "":
+		if set.OidcConfig.CliClientID != "" {
+			clientID = set.OidcConfig.CliClientID
 		} else {
-			clientID = set.OIDCConfig.ClientID
+			clientID = set.OidcConfig.ClientID
 		}
-		issuerURL = set.OIDCConfig.Issuer
-		scopes = oidcutil.GetScopesOrDefault(set.OIDCConfig.Scopes)
+		issuerURL = set.OidcConfig.Issuer
+		scopes = oidcutil.GetScopesOrDefault(set.OidcConfig.Scopes)
 	case set.DexConfig != nil && len(set.DexConfig.Connectors) > 0:
 		clientID = common.ArgoCDCLIClientAppID
 		scopes = append(oidcutil.GetScopesOrDefault(nil), common.DexFederatedScope)
-		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
+		issuerURL = fmt.Sprintf("%s%s", set.Url, common.DexAPIEndpoint)
 	default:
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
 	}

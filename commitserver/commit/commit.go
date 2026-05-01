@@ -24,6 +24,7 @@ const (
 
 // Service is the service that handles commit requests.
 type Service struct {
+	apiclient.UnimplementedCommitServiceServer
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
 }

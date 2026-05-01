@@ -50,6 +50,7 @@ import (
 )
 
 type Server struct {
+	applicationset.UnimplementedApplicationSetServiceServer
 	ns                       string
 	db                       db.ArgoDB
 	enf                      *rbac.Enforcer

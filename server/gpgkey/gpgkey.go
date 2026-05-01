@@ -15,6 +15,7 @@ import (
 
 // Server provides a service of type GPGKeyService
 type Server struct {
+	gpgkeypkg.UnimplementedGPGKeyServiceServer
 	db  db.ArgoDB
 	enf *rbac.Enforcer
 }

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 
@@ -179,7 +179,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		return nil, nil, false, fmt.Errorf("error dialing to cmp-server for plugin %s: %w", fileName, err)
 	}
 
-	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
+	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &emptypb.Empty{})
 	if err != nil {
 		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
 		utilio.Close(conn)
