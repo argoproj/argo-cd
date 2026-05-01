@@ -1330,12 +1330,8 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 // isRepositorySecret reports whether obj is a repository credential secret
 // (argocd.argoproj.io/secret-type=repository). Only repository credential changes
 // need to invalidate the project cache; cluster changes flow through the cluster
-// informer. Unwraps cache.DeletedFinalStateUnknown tombstones for DeleteFunc handlers.
-// Unknown types return false (fail-closed).
+// informer. Unknown types return false (fail-closed).
 func isRepositorySecret(obj any) bool {
-	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
 	repoSelector := labels.SelectorFromSet(labels.Set{common.LabelKeySecretType: common.LabelValueSecretTypeRepository})
 	if s, ok := obj.(metav1.Object); ok {
 		return repoSelector.Matches(labels.Set(s.GetLabels()))
@@ -1346,12 +1342,8 @@ func isRepositorySecret(obj any) bool {
 // isSettingsObject reports whether obj carries app.kubernetes.io/part-of=argocd,
 // the label that identifies secrets and configmaps that participate in ArgoCD's
 // settings system (OIDC config, webhook secrets, $secretName:key template references).
-// Unwraps cache.DeletedFinalStateUnknown tombstones for DeleteFunc handlers.
 // Unknown types return false (fail-closed).
 func isSettingsObject(obj any) bool {
-	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
 	settingsSelector := labels.SelectorFromSet(labels.Set{"app.kubernetes.io/part-of": "argocd"})
 	if s, ok := obj.(metav1.Object); ok {
 		return settingsSelector.Matches(labels.Set(s.GetLabels()))
@@ -1361,12 +1353,8 @@ func isSettingsObject(obj any) bool {
 
 // isArgoCDConfigMap reports whether obj is the argocd-cm ConfigMap. Only argocd-cm
 // carries settings that affect project cache validity (the "globalProjects" key, read
-// by GetGlobalProjectsSettings). Unwraps cache.DeletedFinalStateUnknown tombstones for
-// DeleteFunc handlers. Unknown types return false (fail-closed).
+// by GetGlobalProjectsSettings). Unknown types return false (fail-closed).
 func isArgoCDConfigMap(obj any) bool {
-	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
 	if metaObj, ok := obj.(metav1.Object); ok {
 		return metaObj.GetName() == common.ArgoCDConfigMapName
 	}
@@ -1410,6 +1398,10 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 			}
 		},
 		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
 			if isArgoCDConfigMap(obj) {
 				mgr.onRepoOrClusterChanged()
 			}
@@ -1435,6 +1427,10 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 			}
 		},
 		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
 			if isRepositorySecret(obj) {
 				mgr.onRepoOrClusterChanged()
 			}
@@ -1450,7 +1446,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	_, err = clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(_, _ any) { mgr.onRepoOrClusterChanged() },
 		AddFunc:    func(_ any) { mgr.onRepoOrClusterChanged() },
-		DeleteFunc: func(_ any) { mgr.onRepoOrClusterChanged() },
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				//nolint:ineffassign,staticcheck // obj unwrapped for consistency but not used
+				obj = tombstone.Obj
+			}
+			mgr.onRepoOrClusterChanged()
+		},
 	})
 	if err != nil {
 		log.Error(err)

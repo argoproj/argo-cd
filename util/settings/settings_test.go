@@ -20,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -2463,22 +2462,6 @@ func TestIsRepositorySecret(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "tombstone wrapping repository secret matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping non-repository secret does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
-			},
-			expected: false,
-		},
-		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
 			expected: false,
@@ -2523,22 +2506,7 @@ func TestIsSettingsObject(t *testing.T) {
 			}},
 			expected: true,
 		},
-		{
-			name: "tombstone wrapping labeled secret matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping unlabeled secret does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
-			},
-			expected: false,
-		},
+
 		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
@@ -2570,24 +2538,6 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 			obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDRBACConfigMapName,
 			}},
-			expected: false,
-		},
-		{
-			name: "tombstone wrapping argocd-cm matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name: common.ArgoCDConfigMapName,
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping other configmap does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name: common.ArgoCDRBACConfigMapName,
-				}},
-			},
 			expected: false,
 		},
 		{
