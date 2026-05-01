@@ -603,7 +603,7 @@ func (m *nativeGitClient) FetchSparseBlobs(revision string, paths []string) erro
 	revListArgs := append([]string{"rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--"}, paths...)
 	objectList, err := m.runCmd(ctx, revListArgs...)
 	if err != nil {
-		log.Warnf("Failed to list objects for sparse paths, checkout will lazy-fetch: %v", err)
+		log.Warnf("Failed to list objects for sparse paths; falling back to on-demand lazy fetching from the promisor remote during checkout: %v", err)
 		return nil // Non-fatal: checkout will still work via lazy fetching
 	}
 
@@ -627,7 +627,7 @@ func (m *nativeGitClient) FetchSparseBlobs(revision string, paths []string) erro
 		end := min(i+batchSize, len(missingBlobs))
 		batch := missingBlobs[i:end]
 		if err := m.runCredentialedCmd(ctx, slices.Concat([]string{"fetch", "origin"}, batch)...); err != nil {
-			log.Warnf("Batch blob pre-fetch failed (batch %d-%d of %d), checkout will lazy-fetch: %v", i, end, len(missingBlobs), err)
+			log.Warnf("Sparse-checkout blob pre-fetch failed for batch %d-%d of %d; falling back to on-demand lazy fetching from the promisor remote during checkout: %v", i, end, len(missingBlobs), err)
 			return nil // Non-fatal: checkout will still work via lazy fetching
 		}
 	}

@@ -400,7 +400,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     // Connect a new repository or create a repository credentials for SSH repositories
     const connectSSHRepo = async (params: NewSSHRepoParams) => {
         if (credsTemplate.current) {
-            createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, write: params.write});
+            createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, write: params.write, sparsePaths: params.sparsePaths});
         } else {
             setConnecting(true);
             try {

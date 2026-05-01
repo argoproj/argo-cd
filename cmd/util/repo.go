@@ -34,7 +34,6 @@ type RepoOptions struct {
 	AzureServicePrincipalClientSecret string
 	AzureActiveDirectoryEndpoint      string
 	SparsePaths                       []string
-
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {

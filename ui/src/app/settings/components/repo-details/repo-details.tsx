@@ -128,7 +128,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
 
     return (
         <EditablePanel
-            values={repo}
+            values={newRepo}
             validate={input => ({
                 username: !input.username && input.password && 'Username is required if password is given.',
                 password: !input.password && input.username && 'Password is required if username is given.',
@@ -142,7 +142,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 params.password = input.password || '';
                 params.bearerToken = input.bearerToken || '';
                 params.depth = input.depth || 0;
-                params.sparsePaths = input.sparsePaths.join(',') || '';
+                params.sparsePaths = input.sparsePaths || '';
                 save(params);
             }}
             title='CONNECTED REPOSITORY'

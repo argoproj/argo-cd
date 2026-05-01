@@ -205,9 +205,9 @@ func (s *Service) Init() error {
 				keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathSHA})
 				if err != nil {
 					log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
+				} else {
+					s.gitRepoPaths.Add(string(keyData), fullPath)
 				}
-
-				s.gitRepoPaths.Add(string(keyData), fullPath)
 			}
 		}
 		utilio.Close(closer)
