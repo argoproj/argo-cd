@@ -300,7 +300,7 @@ func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, f
 		fact:   fact,
 		tracer: k.Tracer,
 		log:    k.Log,
-		commandFacade: &realKubectlCommandFacade{
+		optionsRunner: &realKubectlOptionsRunner{
 			onKubectlRun: k.OnKubectlRun,
 		},
 	}, cleanup, nil
@@ -326,7 +326,7 @@ func ManageServerSideDiffDryRuns(config *rest.Config, tracer tracing.Tracer, log
 		fact:   fact,
 		tracer: tracer,
 		log:    log,
-		commandFacade: &realKubectlCommandFacade{
+		optionsRunner: &realKubectlOptionsRunner{
 			onKubectlRun: onKubectlRun,
 		},
 	}, cleanup, nil

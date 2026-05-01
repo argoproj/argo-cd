@@ -18,17 +18,17 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
-func newTestKubectlResourceOperations(t *testing.T) (*kubectlResourceOperations, *mocks.KubectlCommandFacade) {
+func newTestKubectlResourceOperations(t *testing.T) (*kubectlResourceOperations, *mocks.KubectlOptionsRunner) {
 	t.Helper()
 
-	cmdMocks := mocks.NewKubectlCommandFacade(t)
+	cmdMocks := mocks.NewKubectlOptionsRunner(t)
 
 	k := &kubectlResourceOperations{
 		config:        &rest.Config{},
 		log:           logr.Discard(),
 		tracer:        &tracing.NopTracer{},
 		fact:          cmdutil.NewFactory(cmdutil.NewMatchVersionFlags(genericclioptions.NewConfigFlags(true))),
-		commandFacade: cmdMocks,
+		optionsRunner: cmdMocks,
 		getClientFunc: func() (kubernetes.Interface, error) {
 			return kubefake.NewSimpleClientset(), nil
 		},
@@ -77,7 +77,7 @@ func TestAuthReconcileWithMissingNamespace(t *testing.T) {
 
 func TestAuthReconcileUsage(t *testing.T) {
 	// This test verifies that the rbacReconcile logic is correctly applied based on the operation type
-	// and server-side apply setting. It uses the facade pattern to track kubectl command executions.
+	// and server-side apply setting.
 
 	role := testingutils.NewRole()
 

@@ -45,21 +45,21 @@ type ResourceOperations interface {
 	UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
 }
 
-// kubectlCommandFacade abstracts the execution of kubectl command options
+// KubectlOptionsRunner abstracts the execution of kubectl command options
 // Handles the different Run() method signatures and kubectl execution hooks
-type KubectlCommandFacade interface {
+type KubectlOptionsRunner interface {
 	Apply(opts *apply.ApplyOptions) error
 	Create(opts *create.CreateOptions, fact cmdutil.Factory, cmd *cobra.Command) error
 	Replace(opts *replace.ReplaceOptions, fact cmdutil.Factory) error
 	AuthReconcile(opts *auth.ReconcileOptions) error
 }
 
-// realKubectlCommandFacade is the production implementation of kubectlCommandFacade
-type realKubectlCommandFacade struct {
+// realKubectlOptionsRunner is the implementation of KubectlOptionsRunner calling underlying kubectl command.
+type realKubectlOptionsRunner struct {
 	onKubectlRun OnKubectlRunFunc
 }
 
-func (f *realKubectlCommandFacade) Apply(opts *apply.ApplyOptions) error {
+func (f *realKubectlOptionsRunner) Apply(opts *apply.ApplyOptions) error {
 	cleanup, err := f.processKubectlRun("apply")
 	if err != nil {
 		return err
@@ -68,7 +68,7 @@ func (f *realKubectlCommandFacade) Apply(opts *apply.ApplyOptions) error {
 	return opts.Run()
 }
 
-func (f *realKubectlCommandFacade) Create(opts *create.CreateOptions, fact cmdutil.Factory, cmd *cobra.Command) error {
+func (f *realKubectlOptionsRunner) Create(opts *create.CreateOptions, fact cmdutil.Factory, cmd *cobra.Command) error {
 	cleanup, err := f.processKubectlRun("create")
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (f *realKubectlCommandFacade) Create(opts *create.CreateOptions, fact cmdut
 	return opts.RunCreate(fact, cmd)
 }
 
-func (f *realKubectlCommandFacade) Replace(opts *replace.ReplaceOptions, fact cmdutil.Factory) error {
+func (f *realKubectlOptionsRunner) Replace(opts *replace.ReplaceOptions, fact cmdutil.Factory) error {
 	cleanup, err := f.processKubectlRun("replace")
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func (f *realKubectlCommandFacade) Replace(opts *replace.ReplaceOptions, fact cm
 	return opts.Run(fact)
 }
 
-func (f *realKubectlCommandFacade) AuthReconcile(opts *auth.ReconcileOptions) error {
+func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) error {
 	cleanup, err := f.processKubectlRun("auth")
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (f *realKubectlCommandFacade) AuthReconcile(opts *auth.ReconcileOptions) er
 	return opts.RunReconcile()
 }
 
-func (f *realKubectlCommandFacade) processKubectlRun(cmd string) (CleanupFunc, error) {
+func (f *realKubectlOptionsRunner) processKubectlRun(cmd string) (CleanupFunc, error) {
 	if f.onKubectlRun != nil {
 		return f.onKubectlRun(cmd)
 	}
@@ -109,7 +109,7 @@ type kubectlResourceOperations struct {
 	log           logr.Logger
 	tracer        tracing.Tracer
 	fact          cmdutil.Factory
-	commandFacade KubectlCommandFacade
+	optionsRunner KubectlOptionsRunner
 }
 
 // This is an implementation specific for doing server-side diff dry runs. Implements the KubeApplier interface.
@@ -118,7 +118,7 @@ type kubectlServerSideDiffDryRunApplier struct {
 	log           logr.Logger
 	tracer        tracing.Tracer
 	fact          cmdutil.Factory
-	commandFacade KubectlCommandFacade
+	optionsRunner KubectlOptionsRunner
 }
 
 type commandExecutor func(ioStreams genericiooptions.IOStreams, fileName string) error
@@ -277,7 +277,7 @@ func (k *kubectlResourceOperations) rbacReconcile(ctx context.Context, obj *unst
 			return err
 		}
 
-		return k.commandFacade.AuthReconcile(authReconcileOptions)
+		return k.optionsRunner.AuthReconcile(authReconcileOptions)
 	})
 }
 
@@ -308,7 +308,7 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 			return err
 		}
 
-		return k.commandFacade.Replace(replaceOptions, k.fact)
+		return k.optionsRunner.Replace(replaceOptions, k.fact)
 	})
 }
 
@@ -332,7 +332,7 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 			_ = command.Flags().Set("validate", "true")
 		}
 
-		return k.commandFacade.Create(createOptions, k.fact, command)
+		return k.optionsRunner.Create(createOptions, k.fact, command)
 	})
 }
 
@@ -382,7 +382,7 @@ func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(_ context.Context, ob
 		if err != nil {
 			return err
 		}
-		return k.commandFacade.Apply(applyOpts)
+		return k.optionsRunner.Apply(applyOpts)
 	})
 }
 
@@ -423,7 +423,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 		if err != nil {
 			return fmt.Errorf("error writing reconcile output to stdout: %w", err)
 		}
-		return k.commandFacade.Apply(applyOpts)
+		return k.optionsRunner.Apply(applyOpts)
 	})
 }
 
