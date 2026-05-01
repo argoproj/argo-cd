@@ -1,4 +1,4 @@
-FROM docker.io/library/node:23.0.0@sha256:9d09fa506f5b8465c5221cbd6f980e29ae0ce9a3119e2b9bc0842e6a3f37bb59 as node
+FROM docker.io/library/node:24.14.1@sha256:80fc934952c8f1b2b4d39907af7211f8a9fff1a4c2cf673fb49099292c251cec as node
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     software-properties-common 
@@ -19,7 +19,9 @@ RUN dpkg-divert --add --rename --divert /opt/google/chrome/google-chrome.real /o
 
 WORKDIR /usr/src/app
 COPY package*.json ./
-COPY yarn.lock ./
-RUN yarn install && yarn cache clean
+
+COPY pnpm-lock.yaml ./
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
+
 COPY . .
 

@@ -160,6 +160,13 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .split(',')
                                 .filter(item => !!item);
                         }
+                        if (params.get('targetRevision') != null) {
+                            viewPref.targetRevisionFilter = params
+                                .get('targetRevision')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
                         if (params.get('cluster') != null) {
                             viewPref.clustersFilter = params
                                 .get('cluster')
@@ -473,6 +480,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
+                targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
                 annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),

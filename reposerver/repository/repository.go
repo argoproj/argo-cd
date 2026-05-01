@@ -15,10 +15,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	gosync "sync"
 	"time"
 
 	"github.com/TomOnTime/utfutil"
+	"github.com/bmatcuk/doublestar/v4"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
+	gocache "github.com/patrickmn/go-cache"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
@@ -95,6 +98,8 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
+	// stores cached symlink validation results
+	symlinksState *gocache.Cache
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
 }
@@ -156,6 +161,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		ociPaths:           ociRandomizedPaths,
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
+		symlinksState:      gocache.New(12*time.Hour, time.Hour),
 	}
 }
 
@@ -395,7 +401,7 @@ func (s *Service) runRepoOperation(
 		defer utilio.Close(closer)
 
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(ociPath)
+			err := s.checkOutOfBoundsSymlinks(ociPath, revision, settings.noCache)
 			if err != nil {
 				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
@@ -436,7 +442,7 @@ func (s *Service) runRepoOperation(
 		}
 		defer utilio.Close(closer)
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath)
+			err := s.checkOutOfBoundsSymlinks(chartPath, revision, settings.noCache)
 			if err != nil {
 				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
@@ -465,7 +471,7 @@ func (s *Service) runRepoOperation(
 	defer utilio.Close(closer)
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
+		err := s.checkOutOfBoundsSymlinks(gitClient.Root(), revision, settings.noCache, ".git")
 		if err != nil {
 			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
@@ -589,6 +595,25 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 	return repoRefs, nil
 }
 
+// checkOutOfBoundsSymlinks validates symlinks and caches validation result in memory
+func (s *Service) checkOutOfBoundsSymlinks(rootPath string, version string, noCache bool, skipPaths ...string) error {
+	key := rootPath + "/" + version + "/" + strings.Join(skipPaths, ",")
+	ok := false
+	var checker any
+	if !noCache {
+		checker, ok = s.symlinksState.Get(key)
+	}
+
+	if !ok {
+		checker = gosync.OnceValue(func() error {
+			return apppathutil.CheckOutOfBoundsSymlinks(rootPath, skipPaths...)
+		})
+		s.symlinksState.Set(key, checker, gocache.DefaultExpiration)
+	}
+
+	return checker.(func() error)()
+}
+
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 	var err error
@@ -655,6 +680,13 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		case err := <-promise.errCh:
 			return nil, err
 		}
+	}
+
+	// Convert typed errors to gRPC status codes so callers can use status.Code()
+	// rather than string matching.
+	var globNoMatch *GlobNoMatchError
+	if errors.As(err, &globNoMatch) {
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	return res, err
 }
@@ -857,7 +889,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 						// Symlink check must happen after acquiring lock.
 						if !s.initConstants.AllowOutOfBoundsSymlinks {
-							err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
+							err := s.checkOutOfBoundsSymlinks(gitClient.Root(), commitSHA, q.NoCache, ".git")
 							if err != nil {
 								oobError := &apppathutil.OutOfBoundsSymlinkError{}
 								if errors.As(err, &oobError) {
@@ -1301,7 +1333,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		return nil, "", fmt.Errorf("error getting helm repos: %w", err)
 	}
 
-	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials)
+	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
 	if err != nil {
 		return nil, "", fmt.Errorf("error initializing helm app object: %w", err)
 	}
@@ -1376,18 +1408,54 @@ func getResolvedValueFiles(
 	gitRepoPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
 ) ([]pathutil.ResolvedFilePath, error) {
+	// Pre-collect resolved paths for all explicit (non-glob) entries. This allows glob
+	// expansion to skip files that also appear explicitly, so the explicit entry controls
+	// the final position. For example, with ["*.yaml", "c.yaml"], c.yaml is excluded from
+	// the glob expansion and placed at the end where it was explicitly listed.
+	explicitPaths := make(map[pathutil.ResolvedFilePath]struct{})
+	for _, rawValueFile := range rawValueFiles {
+		referencedSource := getReferencedSource(rawValueFile, refSources)
+		var resolved pathutil.ResolvedFilePath
+		var err error
+		if referencedSource != nil {
+			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+		} else {
+			resolved, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
+		}
+		if err != nil {
+			continue // resolution errors will be surfaced in the main loop below
+		}
+		if !isGlobPath(string(resolved)) {
+			explicitPaths[resolved] = struct{}{}
+		}
+	}
+
 	var resolvedValueFiles []pathutil.ResolvedFilePath
+	seen := make(map[pathutil.ResolvedFilePath]struct{})
+	appendUnique := func(p pathutil.ResolvedFilePath) {
+		if _, ok := seen[p]; !ok {
+			seen[p] = struct{}{}
+			resolvedValueFiles = append(resolvedValueFiles, p)
+		}
+	}
 	for _, rawValueFile := range rawValueFiles {
 		isRemote := false
 		var resolvedPath pathutil.ResolvedFilePath
 		var err error
 
 		referencedSource := getReferencedSource(rawValueFile, refSources)
+		// effectiveRoot is the repository root used for the symlink boundary check
+		// on glob matches. For ref-source paths this is the external repo's checkout
+		// directory; for local paths it is the main repo root.
+		effectiveRoot := repoRoot
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
 			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
+			}
+			if refRepoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
+				effectiveRoot = refRepoPath
 			}
 		} else {
 			// This will resolve val to an absolute path (or a URL)
@@ -1397,6 +1465,38 @@ func getResolvedValueFiles(
 			}
 		}
 
+		// If the resolved path contains a glob pattern, expand it to all matching files.
+		// doublestar.FilepathGlob is used (consistent with AppSet generators) because it supports
+		// ** for recursive matching in addition to all standard glob patterns (*,?,[).
+		// Matches are returned in lexical order, which determines helm's merge precedence
+		// (later files override earlier ones). Glob patterns are only expanded for local files;
+		// remote value file URLs (e.g. https://...) are passed through as-is.
+		// If the glob matches no files and ignoreMissingValueFiles is true, skip it silently.
+		// Otherwise, return an error — consistent with how missing non-glob value files are handled.
+		if !isRemote && isGlobPath(string(resolvedPath)) {
+			matches, err := doublestar.FilepathGlob(string(resolvedPath))
+			if err != nil {
+				return nil, fmt.Errorf("error expanding glob pattern %q: %w", rawValueFile, err)
+			}
+			if len(matches) == 0 {
+				if ignoreMissingValueFiles {
+					log.Debugf(" %s values file glob matched no files", rawValueFile)
+					continue
+				}
+				return nil, &GlobNoMatchError{Pattern: rawValueFile}
+			}
+			if err := verifyGlobMatchesWithinRoot(matches, effectiveRoot); err != nil {
+				return nil, fmt.Errorf("glob pattern %q: %w", rawValueFile, err)
+			}
+			for _, match := range matches {
+				// Skip files that are also listed explicitly - they will be placed
+				// at their explicit position rather than the glob's position.
+				if _, isExplicit := explicitPaths[pathutil.ResolvedFilePath(match)]; !isExplicit {
+					appendUnique(pathutil.ResolvedFilePath(match))
+				}
+			}
+			continue
+		}
 		if !isRemote {
 			_, err = os.Stat(string(resolvedPath))
 			if os.IsNotExist(err) {
@@ -1407,8 +1507,9 @@ func getResolvedValueFiles(
 			}
 		}
 
-		resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
+		appendUnique(resolvedPath)
 	}
+	log.Infof("resolved value files: %v", resolvedValueFiles)
 	return resolvedValueFiles, nil
 }
 
@@ -1473,6 +1574,61 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 		} else if strings.HasPrefix(ociPrefix+repoURL, cred.URL) {
 			cred.EnableOCI = true
 			return cred
+		}
+	}
+	return nil
+}
+
+// GlobNoMatchError is returned when a glob pattern in valueFiles matches no files.
+// It is a runtime condition (the files may be added later), not a spec error.
+type GlobNoMatchError struct {
+	Pattern string
+}
+
+func (e *GlobNoMatchError) Error() string {
+	return fmt.Sprintf("values file glob %q matched no files", e.Pattern)
+}
+
+// isGlobPath reports whether path contains any glob metacharacters
+// supported by doublestar: *, ?, or [. The ** pattern is covered by *.
+func isGlobPath(path string) bool {
+	return strings.ContainsAny(path, "*?[")
+}
+
+// verifyGlobMatchesWithinRoot resolves symlinks for each glob match and verifies
+// that the resolved target is within effectiveRoot. It protects against symlinks
+// inside the repository that point to targets outside it.
+//
+// doublestar.FilepathGlob uses os.Lstat, so it returns the path of the symlink
+// itself (which lives inside the repo) rather than the symlink target. If the
+// target is outside the repo, Helm would still follow the link and read the
+// external file. This function catches that case before the paths reach Helm.
+//
+// Both effectiveRoot and each match are canonicalized via filepath.EvalSymlinks
+// so the prefix comparison is correct on systems where the working directory is
+// itself under a symlink chain (e.g. /var -> /private/var on macOS).
+func verifyGlobMatchesWithinRoot(matches []string, effectiveRoot string) error {
+	absRoot, err := filepath.Abs(effectiveRoot)
+	if err != nil {
+		return fmt.Errorf("error resolving repo root: %w", err)
+	}
+	canonicalRoot, err := filepath.EvalSymlinks(absRoot)
+	if err != nil {
+		return fmt.Errorf("error resolving symlinks in repo root: %w", err)
+	}
+	requiredRootPath := canonicalRoot
+	if !strings.HasSuffix(requiredRootPath, string(os.PathSeparator)) {
+		requiredRootPath += string(os.PathSeparator)
+	}
+	for _, match := range matches {
+		realMatch, err := filepath.EvalSymlinks(match)
+		if err != nil {
+			return fmt.Errorf("error resolving symlink for glob match %q: %w", match, err)
+		}
+		// Allow the match to resolve exactly to the root (realMatch+sep == requiredRootPath)
+		// or to any path beneath it (HasPrefix).
+		if realMatch+string(os.PathSeparator) != requiredRootPath && !strings.HasPrefix(realMatch, requiredRootPath) {
+			return fmt.Errorf("glob match %q resolved to outside repository root", match)
 		}
 	}
 	return nil
@@ -2287,7 +2443,7 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 	if err != nil {
 		return err
 	}
-	h, err := helm.NewHelmApp(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials)
+	h, err := helm.NewHelmApp(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
 	if err != nil {
 		return err
 	}
@@ -2574,20 +2730,30 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
+	metadata, err := s.cache.GetOCIMetadata(q.Repo.Repo, q.Revision)
+	if err == nil {
+		log.Infof("oci metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
+		return metadata, nil
+	}
+	if errors.Is(err, cache.ErrCacheMiss) {
+		log.Infof("oci metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
+	} else {
+		log.Warnf("oci metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
+	}
+
 	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
-	metadata, err := client.DigestMetadata(ctx, q.Revision)
+	manifest, err := client.DigestMetadata(ctx, q.Revision)
 	if err != nil {
 		s.metricsServer.IncOCIDigestMetadataCounter(q.Repo.Repo, q.Revision)
 		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", q.Revision, err)
 	}
 
-	a := metadata.Annotations
-
-	return &v1alpha1.OCIMetadata{
+	a := manifest.Annotations
+	metadata = &v1alpha1.OCIMetadata{
 		CreatedAt: a["org.opencontainers.image.created"],
 		Authors:   a["org.opencontainers.image.authors"],
 		// TODO: add this field at a later stage
@@ -2596,7 +2762,9 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 		SourceURL:   a["org.opencontainers.image.source"],
 		Version:     a["org.opencontainers.image.version"],
 		Description: a["org.opencontainers.image.description"],
-	}, nil
+	}
+	_ = s.cache.SetOCIMetadata(q.Repo.Repo, q.Revision, metadata)
+	return metadata, nil
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
@@ -2925,13 +3093,8 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	}
-	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
+	_, revision, err := s.newClientResolveRevision(repo, ambiguousRevision, git.WithCache(s.cache, !q.NoRevisionCache))
 	if err != nil {
-		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-	}
-	revision, err := gitClient.LsRemote(ambiguousRevision)
-	if err != nil {
-		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
 	return &apiclient.ResolveRevisionResponse{

@@ -83,6 +83,11 @@ func TestBadSymlinks3(t *testing.T) {
 	assert.Equal(t, "badlink", oobError.File)
 }
 
+func TestBadSymlinksExcluded(t *testing.T) {
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink", "badlink")
+	assert.NoError(t, err)
+}
+
 // No absolute symlinks allowed
 func TestAbsSymlink(t *testing.T) {
 	const testDir = "./testdata/abslink"
