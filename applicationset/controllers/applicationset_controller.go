@@ -76,6 +76,9 @@ const (
 	ReconcileRequeueOnValidationError = time.Minute * 3
 	ReverseDeletionOrder              = "Reverse"
 	AllAtOnceDeletionOrder            = "AllAtOnce"
+	revisionAndSpecChangedMsg         = "Application has pending changes (revision and spec differ), setting status to Waiting"
+	revisionChangedMsg                = "Application has pending changes, setting status to Waiting"
+	specChangedMsg                    = "Application has pending changes (spec differs), setting status to Waiting"
 )
 
 var defaultPreservedFinalizers = []string{
@@ -1043,7 +1046,7 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, error) {
 	appDependencyList, appStepMap := r.buildAppDependencyList(logCtx, appset, desiredApplications)
 
-	_, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, appStepMap)
+	_, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
@@ -1220,9 +1223,15 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 }
 
 // check the status of each Application's status and promote Applications to the next status if needed
-func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
+
+	// Build a map of desired applications for quick lookup
+	desiredAppsMap := make(map[string]*argov1alpha1.Application)
+	for i := range desiredApplications {
+		desiredAppsMap[desiredApplications[i].Name] = &desiredApplications[i]
+	}
 
 	for _, app := range applications {
 		appHealthStatus := app.Status.Health.Status
@@ -1258,10 +1267,27 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		newAppStatus := currentAppStatus.DeepCopy()
 		newAppStatus.Step = strconv.Itoa(getAppStep(newAppStatus.Application, appStepMap))
 
-		if !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions()) {
-			// A new version is available in the application and we need to re-sync the application
+		revisionsChanged := !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions())
+
+		// Check if the desired Application spec differs from the current Application spec
+		specChanged := false
+		if desiredApp, ok := desiredAppsMap[app.Name]; ok {
+			// Compare the desired spec with the current spec to detect non-Git changes
+			// This will catch changes to generator parameters like image tags, helm values, etc.
+			specChanged = !cmp.Equal(desiredApp.Spec, app.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{}))
+		}
+
+		if revisionsChanged || specChanged {
 			newAppStatus.TargetRevisions = app.Status.GetRevisions()
-			newAppStatus.Message = "Application has pending changes, setting status to Waiting"
+
+			switch {
+			case revisionsChanged && specChanged:
+				newAppStatus.Message = revisionAndSpecChangedMsg
+			case revisionsChanged:
+				newAppStatus.Message = revisionChangedMsg
+			default:
+				newAppStatus.Message = specChangedMsg
+			}
 			newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
 			newAppStatus.LastTransitionTime = &now
 		}

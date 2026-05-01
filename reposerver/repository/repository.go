@@ -1377,7 +1377,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		return nil, "", fmt.Errorf("error getting helm repos: %w", err)
 	}
 
-	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials)
+	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
 	if err != nil {
 		return nil, "", fmt.Errorf("error initializing helm app object: %w", err)
 	}
@@ -2484,7 +2484,7 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 	if err != nil {
 		return err
 	}
-	h, err := helm.NewHelmApp(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials)
+	h, err := helm.NewHelmApp(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
 	if err != nil {
 		return err
 	}
@@ -2771,20 +2771,30 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
+	metadata, err := s.cache.GetOCIMetadata(q.Repo.Repo, q.Revision)
+	if err == nil {
+		log.Infof("oci metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
+		return metadata, nil
+	}
+	if errors.Is(err, cache.ErrCacheMiss) {
+		log.Infof("oci metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
+	} else {
+		log.Warnf("oci metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
+	}
+
 	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
-	metadata, err := client.DigestMetadata(ctx, q.Revision)
+	manifest, err := client.DigestMetadata(ctx, q.Revision)
 	if err != nil {
 		s.metricsServer.IncOCIDigestMetadataCounter(q.Repo.Repo, q.Revision)
 		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", q.Revision, err)
 	}
 
-	a := metadata.Annotations
-
-	return &v1alpha1.OCIMetadata{
+	a := manifest.Annotations
+	metadata = &v1alpha1.OCIMetadata{
 		CreatedAt: a["org.opencontainers.image.created"],
 		Authors:   a["org.opencontainers.image.authors"],
 		// TODO: add this field at a later stage
@@ -2793,7 +2803,9 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 		SourceURL:   a["org.opencontainers.image.source"],
 		Version:     a["org.opencontainers.image.version"],
 		Description: a["org.opencontainers.image.description"],
-	}, nil
+	}
+	_ = s.cache.SetOCIMetadata(q.Repo.Repo, q.Revision, metadata)
+	return metadata, nil
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
@@ -3177,13 +3189,8 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	}
-	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
+	_, revision, err := s.newClientResolveRevision(repo, ambiguousRevision, git.WithCache(s.cache, !q.NoRevisionCache))
 	if err != nil {
-		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-	}
-	revision, err := gitClient.LsRemote(ambiguousRevision)
-	if err != nil {
-		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
 	return &apiclient.ResolveRevisionResponse{

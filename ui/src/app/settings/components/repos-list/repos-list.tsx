@@ -21,6 +21,7 @@ interface NewSSHRepoParams {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
     sparsePaths: string;
@@ -43,6 +44,7 @@ export interface NewHTTPSRepoParams {
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
     insecureOCIForceHttp: boolean;
+    depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
@@ -64,6 +66,7 @@ interface NewGitHubAppRepoParams {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
     sparsePaths: string;
@@ -74,6 +77,22 @@ interface NewGoogleCloudSourceRepoParams {
     name: string;
     url: string;
     gcpServiceAccountKey: string;
+    proxy: string;
+    noProxy: string;
+    project?: string;
+    depth?: number;
+    // write should be true if saving as a write credential.
+    write: boolean;
+}
+
+interface NewAzureServicePrincipalRepoParams {
+    type: string;
+    name: string;
+    url: string;
+    azureServicePrincipalClientId: string;
+    azureServicePrincipalClientSecret: string;
+    azureServicePrincipalTenantId: string;
+    azureActiveDirectoryEndpoint: string;
     proxy: string;
     noProxy: string;
     project?: string;
@@ -129,11 +148,25 @@ interface NewGoogleCloudSourceRepoCredsParams {
     write: boolean;
 }
 
+interface NewAzureServicePrincipalRepoCredsParams {
+    url: string;
+    azureServicePrincipalClientId: string;
+    azureServicePrincipalClientSecret: string;
+    azureServicePrincipalTenantId: string;
+    azureActiveDirectoryEndpoint: string;
+    proxy: string;
+    noProxy: string;
+    project?: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
+}
+
 export enum ConnectionMethod {
     SSH = 'via SSH',
     HTTPS = 'via HTTP/HTTPS',
     GITHUBAPP = 'via GitHub App',
-    GOOGLECLOUD = 'via Google Cloud'
+    GOOGLECLOUD = 'via Google Cloud',
+    AZURESERVICEPRINCIPAL = 'via Azure Service Principal'
 }
 
 export const ReposList = ({match, location}: RouteComponentProps) => {
@@ -173,8 +206,15 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                             {method.toUpperCase()} <i className='fa fa-caret-down' />
                         </p>
                     )}
-                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD].map(
-                        (connectMethod: ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD) => ({
+                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
+                        (
+                            connectMethod:
+                                | ConnectionMethod.SSH
+                                | ConnectionMethod.HTTPS
+                                | ConnectionMethod.GITHUBAPP
+                                | ConnectionMethod.GOOGLECLOUD
+                                | ConnectionMethod.AZURESERVICEPRINCIPAL
+                        ) => ({
                             title: connectMethod.toUpperCase(),
                             action: () => {
                                 onSelection(connectMethod);
@@ -192,7 +232,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     };
 
     const onChooseDefaultValues = (): FormValues => {
-        return {type: 'git', ghType: 'GitHub', write: false, sparsePaths: ''};
+        return {type: 'git', ghType: 'GitHub', azureType: 'Azure Public Cloud', write: false, sparsePaths: ''};
     };
 
     const onValidateErrors = (params: FormValues): FormErrors => {
@@ -200,7 +240,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             case ConnectionMethod.SSH:
                 const sshValues = params as NewSSHRepoParams;
                 return {
-                    url: !sshValues.url && 'Repository URL is required'
+                    url: !sshValues.url && 'Repository URL is required',
+                    depth: sshValues.depth != undefined && sshValues.depth < 0 && 'Depth must be a non-negative number'
                 };
             case ConnectionMethod.HTTPS:
                 const validURLValues = params as NewHTTPSRepoParams;
@@ -215,20 +256,33 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     tlsClientCertKey: !validURLValues.tlsClientCertKey && validURLValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
                     bearerToken:
                         (validURLValues.password && validURLValues.bearerToken && 'Either the password or the bearer token must be set, but not both.') ||
-                        (validURLValues.bearerToken && validURLValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories.')
+                        (validURLValues.bearerToken && validURLValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories.'),
+                    depth: validURLValues.depth != undefined && validURLValues.depth < 0 && 'Depth must be a non-negative number'
                 };
             case ConnectionMethod.GITHUBAPP:
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
                     url: (!githubAppValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
-                    githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
+                    githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required',
+                    depth: githubAppValues.depth != undefined && githubAppValues.depth < 0 && 'Depth must be a non-negative number'
                 };
             case ConnectionMethod.GOOGLECLOUD:
                 const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
                 return {
                     url: (!googleCloudValues.url && 'Repo URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTP/HTTPS URL'),
-                    gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required'
+                    gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required',
+                    depth: googleCloudValues.depth != undefined && googleCloudValues.depth < 0 && 'Depth must be a non-negative number'
+                };
+            case ConnectionMethod.AZURESERVICEPRINCIPAL:
+                const azureServicePrincipalValues = params as NewAzureServicePrincipalRepoParams;
+                return {
+                    url:
+                        (!azureServicePrincipalValues.url && 'Repository URL is required') ||
+                        (credsTemplate && !isHTTPOrHTTPSUrl(azureServicePrincipalValues.url) && 'Not a valid HTTP/HTTPS URL'),
+                    azureServicePrincipalClientId: !azureServicePrincipalValues.azureServicePrincipalClientId && 'Azure Service Principal Client ID is required',
+                    azureServicePrincipalClientSecret: !azureServicePrincipalValues.azureServicePrincipalClientSecret && 'Azure Service Principal Client Secret is required',
+                    azureServicePrincipalTenantId: !azureServicePrincipalValues.azureServicePrincipalTenantId && 'Azure Service Principal Tenant ID is required'
                 };
         }
     };
@@ -280,6 +334,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 return connectGitHubAppRepo(params as NewGitHubAppRepoParams);
             case ConnectionMethod.GOOGLECLOUD:
                 return connectGoogleCloudSourceRepo(params as NewGoogleCloudSourceRepoParams);
+            case ConnectionMethod.AZURESERVICEPRINCIPAL:
+                return connectAzureServicePrincipalRepo(params as NewAzureServicePrincipalRepoParams);
         }
     };
 
@@ -310,9 +366,9 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         return url.replace('https://', '').replace('oci://', '');
     };
 
-    // only connections of git type which is not via GitHub App are updatable
+    // only connections of git type which are not via GitHub App or Azure Service Principal are updatable
     const isRepoUpdatable = (repo: models.Repository) => {
-        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppID;
+        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppID && !repo.azureServicePrincipalClientId;
     };
 
     // Forces a reload of configured repositories, circumventing the cache
@@ -464,7 +520,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         }
     };
 
-    // Connect a new repository or create a repository credentials for GitHub App repositories
+    // Connect a new repository or create a repository credentials for Google Cloud Source repositories
     const connectGoogleCloudSourceRepo = async (params: NewGoogleCloudSourceRepoParams) => {
         if (credsTemplate.current) {
             createGoogleCloudSourceCreds({
@@ -485,6 +541,40 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect Google Cloud Source repository' e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                setConnecting(false);
+            }
+        }
+    };
+
+    // Connect a new repository or create a repository credentials for Azure Service Principal repositories
+    const connectAzureServicePrincipalRepo = async (params: NewAzureServicePrincipalRepoParams) => {
+        if (credsTemplate.current) {
+            createAzureServicePrincipalCreds({
+                url: params.url,
+                azureServicePrincipalClientId: params.azureServicePrincipalClientId,
+                azureServicePrincipalClientSecret: params.azureServicePrincipalClientSecret,
+                azureServicePrincipalTenantId: params.azureServicePrincipalTenantId,
+                azureActiveDirectoryEndpoint: params.azureActiveDirectoryEndpoint,
+                proxy: params.proxy,
+                noProxy: params.noProxy,
+                write: params.write
+            });
+        } else {
+            setConnecting(true);
+            try {
+                if (params.write) {
+                    await services.repos.createAzureServicePrincipalWrite(params);
+                } else {
+                    await services.repos.createAzureServicePrincipal(params);
+                }
+                repoLoader.current.reload();
+                setConnectRepo(false);
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to connect Azure Service Principal repository' e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -556,6 +646,23 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to create Google Cloud Source credentials' e={e} />,
+                type: NotificationType.Error
+            });
+        }
+    };
+
+    const createAzureServicePrincipalCreds = async (params: NewAzureServicePrincipalRepoCredsParams) => {
+        try {
+            if (params.write) {
+                await services.repocreds.createAzureServicePrincipalWrite(params);
+            } else {
+                await services.repocreds.createAzureServicePrincipal(params);
+            }
+            credsLoader.current.reload();
+            setConnectRepo(false);
+        } catch (e) {
+            ctx.notifications.show({
+                content: <ErrorNotification title='Unable to create Azure Service Principal credentials' e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -1114,6 +1221,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                </div>
                                                 {formApi.getFormState().values.write === false && (
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
@@ -1218,6 +1329,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
                                                 </div>
+                                                {formApi.getFormState().values.type === 'git' && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                    </div>
+                                                )}
                                                 {formApi.getFormState().values.type === 'git' && formApi.getFormState().values.write === false && (
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
@@ -1292,6 +1409,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                </div>
                                                 {formApi.getFormState().values.write === false && (
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Sparse paths (comma-separated)' field='sparsePaths' component={Text} />
@@ -1311,6 +1432,63 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='GCP service account key' field='gcpServiceAccountKey' component={TextArea} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                </div>
+                                            </div>
+                                        )}
+                                        {method === ConnectionMethod.AZURESERVICEPRINCIPAL && (
+                                            <div className='white-box'>
+                                                <p>CONNECT REPO USING AZURE SERVICE PRINCIPAL</p>
+                                                <div className='argo-form-row'>
+                                                    <FormField
+                                                        formApi={formApi}
+                                                        label='Type'
+                                                        field='azureType'
+                                                        component={FormSelect}
+                                                        componentProps={{options: ['Azure Public Cloud', 'Azure Other Cloud']}}
+                                                    />
+                                                </div>
+                                                {formApi.getFormState().values.azureType === 'Azure Other Cloud' && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Azure Active Directory Endpoint (e.g. https://login.microsoftonline.de)'
+                                                            field='azureActiveDirectoryEndpoint'
+                                                            component={Text}
+                                                        />
+                                                    </div>
+                                                )}
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='AzureTenant ID' field='azureServicePrincipalTenantId' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Azure Client ID' field='azureServicePrincipalClientId' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Azure Client Secret' field='azureServicePrincipalClientSecret' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
+                                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />

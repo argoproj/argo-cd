@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/argoproj/argo-cd/v3/util/templates"
 
@@ -217,9 +217,9 @@ func reconstructObject(extracted []any, fields []string, depth int) map[string]a
 func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, showName bool, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	if showName {
-		fmt.Fprintf(w, "FIELD\tRESOURCE NAME\tVALUE\n")
+		fmt.Fprint(w, "FIELD\tRESOURCE NAME\tVALUE\n")
 	} else {
-		fmt.Fprintf(w, "FIELD\tVALUE\n")
+		fmt.Fprint(w, "FIELD\tVALUE\n")
 	}
 
 	for i, o := range *objs {
@@ -479,7 +479,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	switch output {
 	case "tree=detailed":
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
+		fmt.Fprint(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
 
 		if !orphaned || listAll {
 			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
@@ -491,7 +491,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			printDetailedTreeViewAppResourcesOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
 		}
 	case "tree":
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
+		fmt.Fprint(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
 		if !orphaned || listAll {
 			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)

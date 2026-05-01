@@ -693,7 +693,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 		}
 
 		if deny || !deny && !allow && inactiveAllows {
-			s, err := windows.CanSync(true)
+			s, err := windows.CanSync(true, nil)
 			if err == nil && s {
 				status = "Manual Allowed"
 			} else {
@@ -757,7 +757,7 @@ func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 }
 
 func printAppConditions(w io.Writer, app *argoappv1.Application) {
-	_, _ = fmt.Fprintf(w, "CONDITION\tMESSAGE\tLAST TRANSITION\n")
+	_, _ = fmt.Fprint(w, "CONDITION\tMESSAGE\tLAST TRANSITION\n")
 	for _, item := range app.Status.Conditions {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", item.Type, item.Message, item.LastTransitionTime)
 	}
@@ -829,7 +829,7 @@ func printHelmParams(helm *argoappv1.ApplicationSourceHelm) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	if helm != nil {
 		fmt.Println()
-		_, _ = fmt.Fprintf(w, "NAME\tVALUE\n")
+		_, _ = fmt.Fprint(w, "NAME\tVALUE\n")
 		for _, p := range helm.Parameters {
 			_, _ = fmt.Fprintf(w, "%s\t%s\n", p.Name, truncateString(p.Value, paramLenLimit))
 		}
@@ -1365,7 +1365,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				serverSideDiff = hasServerSideDiffAnnotation
 			} else if serverSideDiff && !hasServerSideDiffAnnotation {
 				// Flag explicitly set to true, but app annotation is not set
-				fmt.Fprintf(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
+				fmt.Fprint(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
 			}
 
 			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
@@ -1418,7 +1418,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					diffOption.serversideRes = res
 				} else {
-					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
+					fmt.Fprint(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
 					conn, clusterIf := clientset.NewClusterClientOrDie()
 					defer utilio.Close(conn)
 					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
@@ -2104,7 +2104,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // printAppResources prints the resources of an application in a tabwriter table
 func printAppResources(w io.Writer, app *argoappv1.Application) {
-	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
+	_, _ = fmt.Fprint(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
 	for _, res := range getResourceStates(app, nil) {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health, res.Hook, res.Message)
 	}
@@ -2112,7 +2112,7 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 
 func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tMESSAGE\n")
+	_, _ = fmt.Fprint(w, "KIND/NAME\tSTATUS\tHEALTH\tMESSAGE\n")
 	for uid := range parentNodes {
 		treeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
 	}
@@ -2121,7 +2121,7 @@ func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMap
 
 func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tAGE\tMESSAGE\tREASON\n")
+	fmt.Fprint(w, "KIND/NAME\tSTATUS\tHEALTH\tAGE\tMESSAGE\tREASON\n")
 	for uid := range parentNodes {
 		detailedTreeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
 	}
@@ -2334,7 +2334,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				if app.Spec.HasMultipleSources() {
 					if revision != "" {
-						log.Fatal("argocd cli does not work on multi-source app with --revision flag. Use --revisions and --source-position instead.")
+						log.Fatal("argocd cli does not work on multi-source app with --revision flag. Use --revisions and --source-positions instead.")
 						return
 					}
 
@@ -2453,7 +2453,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 					if !foundDiffs {
-						fmt.Printf("====== No Differences found ======\n")
+						fmt.Print("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
 						return
 					}
@@ -2737,6 +2737,50 @@ func (a *AppWithLock) GetApp() *argoappv1.Application {
 	return a.app
 }
 
+// checkAppWaitConditions evaluates whether an application currently matches the
+// conditions requested by `argocd app wait`. It returns whether the conditions
+// are met (ready) and whether a sync/refresh operation is still in progress.
+// It does not mutate any state — callers are responsible for any side effects
+// such as triggering a status refresh before printing the final summary.
+func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (ready, operationInProgress bool) {
+	if app.Operation != nil {
+		// if it just got requested
+		operationInProgress = true
+	} else if app.Status.OperationState != nil {
+		if app.Status.OperationState.FinishedAt == nil {
+			// if it is not finished yet
+			operationInProgress = true
+		} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
+			// if it is just finished and we need to wait for controller to reconcile app once after syncing
+			operationInProgress = true
+		}
+	}
+
+	// LastSuccessfulOperation is only populated after a successful hydration,
+	// so it can be nil while CurrentOperation is set. Guard against the nil
+	// dereference before comparing the two.
+	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
+		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
+		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+
+	if len(selectedResources) > 0 {
+		ready = true
+		for _, state := range getResourceStates(app, selectedResources) {
+			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+				ready = false
+				break
+			}
+		}
+	} else {
+		// Wait on the application as a whole
+		ready = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status), app.Operation, hydrationFinished)
+	}
+
+	return ready, operationInProgress
+}
+
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
@@ -2864,53 +2908,34 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// See: https://github.com/argoproj/argo-cd/issues/5592
 	finalOperationState := appWithLock.GetApp().Status.OperationState
 
+	// If the application already matches the desired wait conditions, return
+	// immediately. Without this, the subsequent watch would block until the
+	// command timeout because the event stream only delivers messages when
+	// the application CR changes — if nothing needs to change, no events
+	// arrive. Skip the early return for --delete, which needs an actual
+	// Deleted event from the watch. See https://github.com/argoproj/argo-cd/issues/12211.
+	if !watch.delete {
+		if ready, operationInProgress := checkAppWaitConditions(app, watch, selectedResources); ready && (!operationInProgress || !watch.operation) {
+			app = printFinalStatus(app)
+			return app, finalOperationState, nil
+		}
+	}
+
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, appWithLock.GetApp().ResourceVersion)
 	for appEvent := range appEventCh {
 		appWithLock.SetApp(&appEvent.Application)
 		app = appWithLock.GetApp()
 
 		finalOperationState = app.Status.OperationState
-		operationInProgress := false
 
 		if watch.delete && appEvent.Type == k8swatch.Deleted {
 			fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
 			return nil, nil, nil
 		}
 
-		// consider the operation is in progress
-		if app.Operation != nil {
-			// if it just got requested
-			operationInProgress = true
-			if !app.Operation.DryRun() {
-				refresh = true
-			}
-		} else if app.Status.OperationState != nil {
-			if app.Status.OperationState.FinishedAt == nil {
-				// if it is not finished yet
-				operationInProgress = true
-			} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
-				// if it is just finished and we need to wait for controller to reconcile app once after syncing
-				operationInProgress = true
-			}
-		}
-
-		hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil && app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated && app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) && app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
-
-		var selectedResourcesAreReady bool
-
-		// If selected resources are included, wait only on those resources, otherwise wait on the application as a whole.
-		if len(selectedResources) > 0 {
-			selectedResourcesAreReady = true
-			for _, state := range getResourceStates(app, selectedResources) {
-				resourceIsReady := checkResourceStatus(watch, state.Health, state.Status, appEvent.Application.Operation, hydrationFinished)
-				if !resourceIsReady {
-					selectedResourcesAreReady = false
-					break
-				}
-			}
-		} else {
-			// Wait on the application as a whole
-			selectedResourcesAreReady = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status), appEvent.Application.Operation, hydrationFinished)
+		selectedResourcesAreReady, operationInProgress := checkAppWaitConditions(app, watch, selectedResources)
+		if app.Operation != nil && !app.Operation.DryRun() {
+			refresh = true
 		}
 
 		if selectedResourcesAreReady && (!operationInProgress || !watch.operation) {
@@ -2973,7 +2998,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string, sour
 			source.Helm.AddParameter(*newParam)
 		}
 	default:
-		log.Fatalf("Parameters can only be set against Helm applications")
+		log.Fatal("Parameters can only be set against Helm applications")
 	}
 }
 
@@ -3028,13 +3053,13 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	}
 	for i, key := range varHistoryKeys {
 		_, _ = fmt.Fprintf(w, "SOURCE\t%s\n", key)
-		_, _ = fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
+		_, _ = fmt.Fprint(w, "ID\tDATE\tREVISION\n")
 		for _, history := range varHistory[key] {
 			_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", history.id, history.date, history.revision)
 		}
 		// Add a newline if it's not the last iteration
 		if i < len(varHistoryKeys)-1 {
-			_, _ = fmt.Fprintf(w, "\n")
+			_, _ = fmt.Fprint(w, "\n")
 		}
 	}
 	_ = w.Flush()
