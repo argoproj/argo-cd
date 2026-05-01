@@ -688,6 +688,14 @@ func TestListCluster(t *testing.T) {
 			},
 		},
 		{
+			name: "no filter - returns all clusters",
+			q:    &cluster.ClusterListQuery{},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster, quxCluster},
+			},
+		},
+		{
 			name: "filter by label selector - single label",
 			q:    &cluster.ClusterListQuery{Selector: "env=prod"},
 			want: &appv1.ClusterList{
@@ -712,6 +720,22 @@ func TestListCluster(t *testing.T) {
 			},
 		},
 		{
+			name: "filter by label selector - set-based in operator",
+			q:    &cluster.ClusterListQuery{Selector: "env in (prod,staging)"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster},
+			},
+		},
+		{
+			name: "filter by label selector - key existence",
+			q:    &cluster.ClusterListQuery{Selector: "env"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster},
+			},
+		},
+		{
 			name: "filter by label selector - no match",
 			q:    &cluster.ClusterListQuery{Selector: "env=dev"},
 			want: &appv1.ClusterList{
@@ -725,15 +749,7 @@ func TestListCluster(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "filter by label selector - cluster with no labels against positive selector",
-			q:    &cluster.ClusterListQuery{Selector: "env=prod"},
-			want: &appv1.ClusterList{
-				ListMeta: metav1.ListMeta{},
-				Items:    []appv1.Cluster{fooCluster, bazCluster},
-			},
-		},
-		{
-			name: "filter by label selector - cluster with no labels matches negation selector",
+			name: "filter by label selector - key absence",
 			q:    &cluster.ClusterListQuery{Selector: "!env"},
 			want: &appv1.ClusterList{
 				ListMeta: metav1.ListMeta{},

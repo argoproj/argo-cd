@@ -164,10 +164,13 @@ func TestClusterListLabelSelector(t *testing.T) {
 		[]byte(`{"labels":{"e2e-env":"production"}}`)...)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_ = fixture.DoHttpJsonRequest("PUT",
+		err := fixture.DoHttpJsonRequest("PUT",
 			fmt.Sprintf("/api/v1/clusters/%s?updatedFields=labels", clusterURL),
 			&cluster,
 			[]byte(`{"labels":{}}`)...)
+		if err != nil {
+			t.Logf("cleanup: failed to reset cluster labels: %v", err)
+		}
 	})
 
 	// Matching selector returns the cluster
