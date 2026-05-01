@@ -240,6 +240,30 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         });
     }
 
+    const filteredDeletionResources: models.ResourceStatus[] = isDeleting
+        ? (application.status.resources || []).filter(r => {
+              if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
+                  return true;
+              }
+              let pass = true;
+              if (filters.length !== 0 && !filters.includes(r.status)) {
+                  pass = false;
+              }
+              if (pass && healthFilters.length !== 0 && !healthFilters.includes(r.health?.status)) {
+                  pass = false;
+              }
+              if (pass && messageFilters.length !== 0) {
+                  pass = messageFilters.some(filter => {
+                      if (filter === 'Changed') {
+                          return r.health?.message?.toLowerCase().includes('configured');
+                      }
+                      return r.health?.message?.toLowerCase().includes(filter.toLowerCase());
+                  });
+              }
+              return pass;
+          })
+        : [];
+
     return (
         <div>
             <div className='white-box'>
@@ -351,7 +375,19 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             )}
             {isDeleting && application.status.resources && application.status.resources.length > 0 && (
                 <React.Fragment>
-                    <label style={{display: 'block', marginBottom: '1em'}}>RESOURCES</label>
+                    <div style={{display: 'flex'}}>
+                        <label style={{display: 'block', marginBottom: '1em'}}>RESOURCES</label>
+                        <div style={{marginLeft: 'auto'}}>
+                            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
+                            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
+                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' style={{marginRight: '5px'}} />
+                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
+                                <div style={{display: 'inline-block'}}>
+                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
+                                </div>
+                            </Tooltip>
+                        </div>
+                    </div>
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
@@ -366,45 +402,49 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 <div className='columns large-1 small-2'>IMAGES</div>
                             </div>
                         </div>
-                        {application.status.resources.map((res, i) => {
-                            const kindLabel = (res.group ? `${res.group}/` : '') + (res.version || '') + `/${res.kind}`;
-                            return (
-                                <div className='argo-table-list__row' key={i}>
-                                    <div className='row'>
-                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
-                                            {res.syncWave || '0'}
+                        {filteredDeletionResources.length > 0 ? (
+                            filteredDeletionResources.map((res, i) => {
+                                const kindLabel = (res.group ? `${res.group}/` : '') + (res.version || '') + `/${res.kind}`;
+                                return (
+                                    <div className='argo-table-list__row' key={i}>
+                                        <div className='row'>
+                                            <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
+                                                {res.syncWave || '0'}
+                                            </div>
+                                            <div className='columns large-1 show-for-large'>
+                                                <span title={kindLabel}>{kindLabel}</span>
+                                            </div>
+                                            <div className='columns large-1 show-for-large' title={res.namespace}>
+                                                {res.namespace || '-'}
+                                            </div>
+                                            <div className='columns large-2 small-2' title={res.name}>
+                                                {res.name}
+                                            </div>
+                                            <div className='columns large-1 small-2' title={res.status}>
+                                                <utils.ComparisonStatusIcon status={res.status} resource={res} /> {res.status}
+                                            </div>
+                                            <div className='columns large-1 small-2'>
+                                                {res.health ? (
+                                                    <span>
+                                                        <utils.HealthStatusIcon state={res.health} /> {res.health.status}
+                                                        {res.health.message && <HelpIcon title={res.health.message} />}
+                                                    </span>
+                                                ) : (
+                                                    <>{'-'}</>
+                                                )}
+                                            </div>
+                                            <div className='columns large-1 show-for-large'>-</div>
+                                            <div className='columns large-3 small-4' title={res.health?.message}>
+                                                <div className='application-operation-state__message'>{res.health?.message || '-'}</div>
+                                            </div>
+                                            <div className='columns large-1 small-2'>-</div>
                                         </div>
-                                        <div className='columns large-1 show-for-large'>
-                                            <span title={kindLabel}>{kindLabel}</span>
-                                        </div>
-                                        <div className='columns large-1 show-for-large' title={res.namespace}>
-                                            {res.namespace || '-'}
-                                        </div>
-                                        <div className='columns large-2 small-2' title={res.name}>
-                                            {res.name}
-                                        </div>
-                                        <div className='columns large-1 small-2' title={res.status}>
-                                            <utils.ComparisonStatusIcon status={res.status} resource={res} /> {res.status}
-                                        </div>
-                                        <div className='columns large-1 small-2'>
-                                            {res.health ? (
-                                                <span>
-                                                    <utils.HealthStatusIcon state={res.health} /> {res.health.status}
-                                                    {res.health.message && <HelpIcon title={res.health.message} />}
-                                                </span>
-                                            ) : (
-                                                <>{'-'}</>
-                                            )}
-                                        </div>
-                                        <div className='columns large-1 show-for-large'>-</div>
-                                        <div className='columns large-3 small-4' title={res.health?.message}>
-                                            <div className='application-operation-state__message'>{res.health?.message || '-'}</div>
-                                        </div>
-                                        <div className='columns large-1 small-2'>-</div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        ) : (
+                            <div style={{textAlign: 'center', marginTop: '2em', fontSize: '20px'}}>No Resources match filter</div>
+                        )}
                     </div>
                 </React.Fragment>
             )}
