@@ -74,7 +74,7 @@ argocd account [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd account bcrypt](argocd_account_bcrypt.md)	 - Generate bcrypt hash for any password
 * [argocd account can-i](argocd_account_can-i.md)	 - Can I
 * [argocd account delete-token](argocd_account_delete-token.md)	 - Deletes account token
