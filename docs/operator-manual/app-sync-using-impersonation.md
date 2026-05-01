@@ -1,9 +1,9 @@
 # Application Sync using impersonation
 
 > [!WARNING]
-> **Alpha Feature (Since 2.13.0)**
+> **Beta Feature (Since v3.5.0)**
 >
-> This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
+> This is a [beta-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta)
 > feature that allows you to control the service account used for the sync operation. The configured service account
 > could have lesser privileges required for creating resources compared to the highly privileged access required for
 > the control plane operations.
@@ -20,7 +20,7 @@ By default, application syncs in Argo CD have the same privileges as the Argo CD
 Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature, as it is disabled by default.
 
 > [!NOTE]
-> This feature is considered alpha as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
+> This feature is considered beta. While the API is stable, some implementation details may change as we gather feedback from users before promoting it to stable status.
 
 ### What is Impersonation
 
