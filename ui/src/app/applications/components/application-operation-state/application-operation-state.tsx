@@ -55,86 +55,105 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
     const [messageFilters, setMessageFilters] = React.useState([]);
 
-    const operationAttributes = [
-        {title: 'OPERATION', value: utils.getOperationType(application)},
-        {title: 'PHASE', value: operationState.phase},
-        ...(operationState.message
-            ? [
-                  {
-                      title: 'MESSAGE',
-                      value: (
-                          <pre
-                              style={{
-                                  whiteSpace: 'pre-wrap',
-                                  wordBreak: 'break-word',
-                                  margin: 0,
-                                  fontFamily: 'inherit'
-                              }}>
-                              {utils.formatOperationMessage(operationState.message)}
-                          </pre>
-                      )
-                  }
-              ]
-            : []),
-        {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt} />},
-        {
-            title: 'DURATION',
-            value: (
-                <Ticker>
-                    {time => (
-                        <Duration durationS={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000} />
-                    )}
-                </Ticker>
-            )
-        }
-    ];
+    // Argo CD does not record cascading deletion as an Operation in `status.operationState`,
+    // so during a stuck delete the panel would otherwise render the previous sync's data.
+    const isDeleting = utils.getOperationType(application) === 'Delete';
+    const deletionTimestamp = application.metadata.deletionTimestamp;
 
-    if (operationState.finishedAt && operationState.phase !== 'Running') {
-        operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={operationState.finishedAt} />});
-    } else if (operationState.phase !== 'Terminating') {
-        operationAttributes.push({
-            title: '',
-            value: (
-                <button
-                    className='argo-button argo-button--base'
-                    onClick={async () => {
-                        const confirmed = await ctx.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
-                        if (confirmed) {
-                            try {
-                                await services.applications.terminateOperation(application.metadata.name, application.metadata.namespace);
-                            } catch (e) {
-                                ctx.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to terminate operation' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
+    const operationAttributes: {title: string; value: React.ReactNode}[] = isDeleting
+        ? [
+              {title: 'OPERATION', value: utils.getOperationType(application)},
+              {title: 'PHASE', value: models.OperationPhases.Running},
+              {title: 'STARTED AT', value: <Timestamp date={deletionTimestamp} />},
+              {
+                  title: 'DURATION',
+                  value: <Ticker>{time => <Duration durationS={moment(time).diff(moment(deletionTimestamp)) / 1000} />}</Ticker>
+              }
+          ]
+        : [
+              {title: 'OPERATION', value: utils.getOperationType(application)},
+              {title: 'PHASE', value: operationState.phase},
+              ...(operationState.message
+                  ? [
+                        {
+                            title: 'MESSAGE',
+                            value: (
+                                <pre
+                                    style={{
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                        margin: 0,
+                                        fontFamily: 'inherit'
+                                    }}>
+                                    {utils.formatOperationMessage(operationState.message)}
+                                </pre>
+                            )
                         }
-                    }}>
-                    Terminate
-                </button>
-            )
-        });
-    }
-    if (operationState.syncResult) {
-        operationAttributes.push({
-            title: 'REVISION',
-            value: (
-                <div>
-                    <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
-                    {utils.getAppDefaultOperationSyncRevisionExtra(application)}
-                </div>
-            )
-        });
-    }
-    let initiator = '';
-    if (operationState.operation.initiatedBy) {
-        if (operationState.operation.initiatedBy.automated) {
-            initiator = 'automated sync policy';
-        } else {
-            initiator = operationState.operation.initiatedBy.username;
+                    ]
+                  : []),
+              {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt} />},
+              {
+                  title: 'DURATION',
+                  value: (
+                      <Ticker>
+                          {time => (
+                              <Duration
+                                  durationS={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000}
+                              />
+                          )}
+                      </Ticker>
+                  )
+              }
+          ];
+
+    if (!isDeleting) {
+        if (operationState.finishedAt && operationState.phase !== 'Running') {
+            operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={operationState.finishedAt} />});
+        } else if (operationState.phase !== 'Terminating') {
+            operationAttributes.push({
+                title: '',
+                value: (
+                    <button
+                        className='argo-button argo-button--base'
+                        onClick={async () => {
+                            const confirmed = await ctx.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
+                            if (confirmed) {
+                                try {
+                                    await services.applications.terminateOperation(application.metadata.name, application.metadata.namespace);
+                                } catch (e) {
+                                    ctx.apis.notifications.show({
+                                        content: <ErrorNotification title='Unable to terminate operation' e={e} />,
+                                        type: NotificationType.Error
+                                    });
+                                }
+                            }
+                        }}>
+                        Terminate
+                    </button>
+                )
+            });
         }
+        if (operationState.syncResult) {
+            operationAttributes.push({
+                title: 'REVISION',
+                value: (
+                    <div>
+                        <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
+                        {utils.getAppDefaultOperationSyncRevisionExtra(application)}
+                    </div>
+                )
+            });
+        }
+        let initiator = '';
+        if (operationState.operation.initiatedBy) {
+            if (operationState.operation.initiatedBy.automated) {
+                initiator = 'automated sync policy';
+            } else {
+                initiator = operationState.operation.initiatedBy.username;
+            }
+        }
+        operationAttributes.push({title: 'INITIATED BY', value: initiator || 'Unknown'});
     }
-    operationAttributes.push({title: 'INITIATED BY', value: initiator || 'Unknown'});
 
     const resultAttributes: {title: string; value: string}[] = [];
     const syncResult = operationState.syncResult;
@@ -233,7 +252,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     ))}
                 </div>
             </div>
-            {syncResult && syncResult.resources && syncResult.resources.length > 0 && (
+            {!isDeleting && syncResult && syncResult.resources && syncResult.resources.length > 0 && (
                 <React.Fragment>
                     <div style={{display: 'flex'}}>
                         <label style={{display: 'block', marginBottom: '1em'}}>RESULT</label>
