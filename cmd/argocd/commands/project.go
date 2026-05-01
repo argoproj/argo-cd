@@ -720,7 +720,7 @@ func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg
 	return command
 }
 
-// NewProjectAllowNamespaceResourceCommand returns a new instance of an `deny-cluster-resources` command
+// NewProjectAllowNamespaceResourceCommand returns a new instance of an `allow-namespace-resource` command
 func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "allow-namespace-resource PROJECT GROUP KIND"
 	desc := "Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list"
