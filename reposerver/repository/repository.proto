@@ -101,6 +101,8 @@ message ManifestResponse {
     string verifyResult = 7;
     // Commands is the list of commands used to hydrate the manifests
     repeated string commands = 8;
+    // HelmLookupWarnings reports template files that invoke the unsupported Helm `lookup` function.
+    repeated string helmLookupWarnings = 9;
 }
 
 message ListRefsRequest {

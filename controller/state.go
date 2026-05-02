@@ -996,6 +996,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 	}
 
+	// Surface Helm `lookup` warnings from the repo-server as Application conditions.
+	for _, manifestInfo := range manifestInfos {
+		if manifestInfo == nil {
+			continue
+		}
+		for _, warning := range manifestInfo.HelmLookupWarnings {
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionHelmLookupNotSupported,
+				Message:            warning,
+				LastTransitionTime: &now,
+			})
+		}
+	}
+
 	compRes := comparisonResult{
 		syncStatus:              syncStatus,
 		healthStatus:            healthStatus,
@@ -1025,6 +1039,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		v1alpha1.ApplicationConditionSharedResourceWarning:   true,
 		v1alpha1.ApplicationConditionRepeatedResourceWarning: true,
 		v1alpha1.ApplicationConditionExcludedResourceWarning: true,
+		v1alpha1.ApplicationConditionHelmLookupNotSupported:  true,
 	})
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()

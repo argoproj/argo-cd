@@ -575,6 +575,16 @@ is stable between each comparison. For example:
 argocd app set redis -p password=abc123
 ```
 
+## The `lookup` Function
+
+> [!WARNING]
+> Argo CD does **not** currently support the Helm [`lookup`](https://helm.sh/docs/chart_template_guide/functions_and_pipelines/#using-the-lookup-function) function.
+>
+> Manifests are rendered by invoking `helm template`, which is not connected to a Kubernetes cluster. Per Helm's own documentation, `lookup` always returns an empty value in this mode. Depending on how the chart handles that, the rendered output may contain empty fields or whatever fallback value the chart defines, and in either case the resulting manifests are likely to be incorrect.
+
+Argo CD scans Helm charts for `lookup` usage during rendering. When it finds a call, the repo-server emits a log warning and the application controller surfaces a `HelmLookupNotSupportedWarning` condition on the Application, visible in the UI and CLI.
+
+
 ## Build Environment
 
 Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters.

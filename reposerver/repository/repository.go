@@ -1222,7 +1222,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, []string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1231,7 +1231,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	kubeVersion, err := parseKubeVersion(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion))
 	if err != nil {
-		return nil, "", fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
+		return nil, "", nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 	}
 
 	templateOpts := &helm.TemplateOpts{
@@ -1260,7 +1260,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
-			return nil, "", fmt.Errorf("error resolving helm value files: %w", err)
+			return nil, "", nil, fmt.Errorf("error resolving helm value files: %w", err)
 		}
 
 		templateOpts.Values = resolvedValueFiles
@@ -1268,7 +1268,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if !appHelm.ValuesIsEmpty() {
 			rand, err := uuid.NewRandom()
 			if err != nil {
-				return nil, "", fmt.Errorf("error generating random filename for Helm values file: %w", err)
+				return nil, "", nil, fmt.Errorf("error generating random filename for Helm values file: %w", err)
 			}
 			p := path.Join(os.TempDir(), rand.String())
 			defer func() {
@@ -1279,7 +1279,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}()
 			err = os.WriteFile(p, appHelm.ValuesYAML(), 0o644)
 			if err != nil {
-				return nil, "", fmt.Errorf("error writing helm values file: %w", err)
+				return nil, "", nil, fmt.Errorf("error writing helm values file: %w", err)
 			}
 			templateOpts.ExtraValues = pathutil.ResolvedFilePath(p)
 		}
@@ -1298,12 +1298,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
 				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
 				if err != nil {
-					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
+					return nil, "", nil, fmt.Errorf("error resolving set-file path: %w", err)
 				}
 			} else {
 				resolvedPath, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
 				if err != nil {
-					return nil, "", fmt.Errorf("error resolving helm value file path: %w", err)
+					return nil, "", nil, fmt.Errorf("error resolving helm value file path: %w", err)
 				}
 			}
 			templateOpts.SetFile[p.Name] = resolvedPath
@@ -1330,12 +1330,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
 	if err != nil {
-		return nil, "", fmt.Errorf("error getting helm repos: %w", err)
+		return nil, "", nil, fmt.Errorf("error getting helm repos: %w", err)
 	}
 
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
 	if err != nil {
-		return nil, "", fmt.Errorf("error initializing helm app object: %w", err)
+		return nil, "", nil, fmt.Errorf("error initializing helm app object: %w", err)
 	}
 
 	defer h.Dispose()
@@ -1343,7 +1343,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	out, command, err := h.Template(templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
-			return nil, "", err
+			return nil, "", nil, err
 		}
 
 		err = runHelmBuild(appPath, h)
@@ -1363,22 +1363,47 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 
 			if len(reposNotPermitted) > 0 {
-				return nil, "", status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+				return nil, "", nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
 			}
 
-			return nil, "", err
+			return nil, "", nil, err
 		}
 
 		out, command, err = h.Template(templateOpts)
 		if err != nil {
-			return nil, "", err
+			return nil, "", nil, err
 		}
 	}
 	objs, err := kube.SplitYAML([]byte(out))
 
 	redactedCommand := redactPaths(command, gitRepoPaths, templateOpts.ExtraValues)
 
-	return objs, redactedCommand, err
+	lookupWarnings := buildLookupWarnings(appPath, q.AppName)
+
+	return objs, redactedCommand, lookupWarnings, err
+}
+
+// buildLookupWarnings returns one warning message per template file using the
+// Helm `lookup` function. Detection is best-effort and never returns an error.
+func buildLookupWarnings(appPath, appName string) []string {
+	hits, err := helm.DetectLookupUsage(appPath)
+	if err != nil {
+		log.WithField("application", appName).WithError(err).Debug("failed to scan chart for Helm lookup usage")
+		return nil
+	}
+	if len(hits) == 0 {
+		return nil
+	}
+	warnings := make([]string, 0, len(hits))
+	for _, hit := range hits {
+		msg := fmt.Sprintf("Helm 'lookup' function detected in %s; Argo CD renders charts with `helm template` which has no cluster connection, so `lookup` returns empty values and the chart may not render correctly.", hit)
+		warnings = append(warnings, msg)
+		log.WithFields(log.Fields{
+			"application":  appName,
+			"templateFile": hit,
+		}).Warn("Helm 'lookup' function detected; chart may not render correctly")
+	}
+	return warnings
 }
 
 // redactPaths removes temp repo paths, since those paths are randomized (and therefore not helpful for the user) and
@@ -1695,11 +1720,12 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}
 
 	var commands []string
+	var helmLookupWarnings []string
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, command, helmLookupWarnings, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
@@ -1784,9 +1810,10 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}
 
 	return &apiclient.ManifestResponse{
-		Manifests:  manifests,
-		SourceType: string(appSourceType),
-		Commands:   commands,
+		Manifests:          manifests,
+		SourceType:         string(appSourceType),
+		Commands:           commands,
+		HelmLookupWarnings: helmLookupWarnings,
 	}, nil
 }
 
