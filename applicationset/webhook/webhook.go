@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
+	"github.com/go-playground/webhooks/v6/bitbucket"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
@@ -51,6 +52,7 @@ type prGeneratorInfo struct {
 	Azuredevops *prGeneratorAzuredevopsInfo
 	Github      *prGeneratorGithubInfo
 	Gitlab      *prGeneratorGitlabInfo
+	Bitbucket   *prGeneratorBitbucketInfo
 }
 
 type prGeneratorAzuredevopsInfo struct {
@@ -86,8 +88,20 @@ func appSetParserOptions() webhook.ParserOptions {
 		},
 		GitHubEvents: []github.Event{github.PushEvent, github.PullRequestEvent, github.PingEvent},
 		GitLabEvents: []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
-		GHCR:         true,
+		BitbucketEvents: []bitbucket.Event{
+			bitbucket.RepoPushEvent,
+			bitbucket.PullRequestCreatedEvent,
+			bitbucket.PullRequestUpdatedEvent,
+			bitbucket.PullRequestMergedEvent,
+			bitbucket.PullRequestDeclinedEvent,
+		},
+		GHCR: true,
 	}
+}
+
+type prGeneratorBitbucketInfo struct {
+	Owner string
+	Repo  string
 }
 
 func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
@@ -225,6 +239,14 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			Repo:    repo,
 			Project: project,
 		}
+	case bitbucket.PullRequestCreatedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestUpdatedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestMergedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestDeclinedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
 	default:
 		return nil
 	}
@@ -364,6 +386,16 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 		if gen.AzureDevOps.Repo != info.Azuredevops.Repo {
+			return false
+		}
+		return true
+	}
+
+	if gen.Bitbucket != nil && info.Bitbucket != nil {
+		if !strings.EqualFold(gen.Bitbucket.Owner, info.Bitbucket.Owner) {
+			return false
+		}
+		if !strings.EqualFold(gen.Bitbucket.Repo, info.Bitbucket.Repo) {
 			return false
 		}
 		return true
@@ -571,6 +603,13 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 	}
 
 	return false
+}
+
+func bitbucketPRInfo(repo bitbucket.Repository) *prGeneratorBitbucketInfo {
+	return &prGeneratorBitbucketInfo{
+		Owner: repo.Owner.NickName,
+		Repo:  repo.Name,
+	}
 }
 
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
