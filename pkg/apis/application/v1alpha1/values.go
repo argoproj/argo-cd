@@ -79,7 +79,9 @@ func (s *ApplicationSource) LogString() string {
 	if s.Helm == nil || s.Helm.ValuesObject == nil {
 		return s.String()
 	}
-	sourceCopy := s.DeepCopy()
+	sourceCopy := *s
+	helmCopy := *s.Helm
+	sourceCopy.Helm = &helmCopy
 	sourceCopy.Helm.Values = s.Helm.ValuesString()
 	sourceCopy.Helm.ValuesObject = nil
 	return sourceCopy.String()
