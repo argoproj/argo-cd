@@ -936,7 +936,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			innerRes := &cache.CachedManifestResponse{}
 			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID)
 			if cacheErr != nil && !errors.Is(cacheErr, cache.ErrCacheMiss) {
-				logCtx.Warnf("manifest cache get error %s: %v", appSourceCopy.String(), cacheErr)
+				logCtx.Warnf("manifest cache get error %s: %v", appSourceCopy.LogString(), cacheErr)
 				ch.errCh <- cacheErr
 				return
 			}
@@ -955,7 +955,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID)
 
 			if cacheErr != nil {
-				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
+				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.LogString(), cacheErr)
 				ch.errCh <- cacheErr
 				return
 			}
@@ -978,7 +978,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	manifestGenResult.VerifyResult = opContext.verificationResult
 	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID)
 	if err != nil {
-		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
+		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.LogString(), cacheKey, err)
 	}
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
@@ -1012,9 +1012,9 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						// We can now try again, so reset the cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
 						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.LogString(), cacheKey, err)
 						}
-						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), cacheKey)
+						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.LogString(), cacheKey)
 						return false, nil, nil
 					}
 				}
@@ -1027,15 +1027,15 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						// We can now try again, so reset the error cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
 						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.LogString(), cacheKey, err)
 						}
-						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), cacheKey)
+						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.LogString(), cacheKey)
 						return false, nil, nil
 					}
 				}
 
 				// Otherwise, manifest generation is still paused
-				log.Infof("manifest error cache hit: %s/%s", q.ApplicationSource.String(), cacheKey)
+				log.Infof("manifest error cache hit: %s/%s", q.ApplicationSource.LogString(), cacheKey)
 
 				// nolint:staticcheck // Error message constant is very old, best not to lowercase the first letter.
 				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
@@ -1048,7 +1048,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					res.NumberOfCachedResponsesReturned++
 					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID)
 					if err != nil {
-						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.LogString(), cacheKey, err)
 					}
 				}
 
@@ -1057,18 +1057,18 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 
 			// Otherwise we are not yet in the manifest generation error state, and not enough consecutive errors have
 			// yet occurred to put us in that state.
-			log.Infof("manifest error cache miss: %s/%s", q.ApplicationSource.String(), cacheKey)
+			log.Infof("manifest error cache miss: %s/%s", q.ApplicationSource.LogString(), cacheKey)
 			return false, res.ManifestResponse, nil
 		}
 
-		log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), cacheKey)
+		log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.LogString(), cacheKey)
 		return true, res.ManifestResponse, nil
 	}
 
 	if !errors.Is(err, cache.ErrCacheMiss) {
-		log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
+		log.Warnf("manifest cache error %s: %v", q.ApplicationSource.LogString(), err)
 	} else {
-		log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), cacheKey)
+		log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.LogString(), cacheKey)
 	}
 
 	return false, nil, nil

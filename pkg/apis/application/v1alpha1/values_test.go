@@ -1,10 +1,12 @@
 package v1alpha1
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestValues_SetString(t *testing.T) {
@@ -79,4 +81,66 @@ func TestValues_SetString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplicationSourceHelm_LogString(t *testing.T) {
+	t.Run("nil receiver returns nil", func(t *testing.T) {
+		var h *ApplicationSourceHelm
+		assert.Equal(t, "nil", h.LogString())
+	})
+
+	t.Run("no ValuesObject falls back to String()", func(t *testing.T) {
+		h := &ApplicationSourceHelm{ReleaseName: "my-release"}
+		assert.Equal(t, h.String(), h.LogString())
+	})
+
+	t.Run("ValuesObject raw bytes are rendered as YAML not integers", func(t *testing.T) {
+		h := &ApplicationSourceHelm{
+			ValuesObject: &runtime.RawExtension{Raw: []byte(`{"image":{"tag":"v1.2.3"}}`)},
+		}
+		logStr := h.LogString()
+		// should not contain raw byte integers like "[123 34 ...]"
+		assert.NotContains(t, logStr, "[123")
+		// should contain the YAML-rendered values
+		assert.Contains(t, logStr, "image:")
+		// ValuesObject field should be absent in the output
+		assert.NotContains(t, logStr, "ValuesObject:&runtime.RawExtension")
+	})
+}
+
+func TestApplicationSource_LogString(t *testing.T) {
+	t.Run("nil receiver returns nil", func(t *testing.T) {
+		var s *ApplicationSource
+		assert.Equal(t, "nil", s.LogString())
+	})
+
+	t.Run("no Helm section falls back to String()", func(t *testing.T) {
+		s := &ApplicationSource{RepoURL: "https://github.com/org/repo", Path: "charts/app"}
+		assert.Equal(t, s.String(), s.LogString())
+	})
+
+	t.Run("Helm without ValuesObject falls back to String()", func(t *testing.T) {
+		s := &ApplicationSource{
+			RepoURL: "https://github.com/org/repo",
+			Helm:    &ApplicationSourceHelm{ReleaseName: "my-app"},
+		}
+		assert.Equal(t, s.String(), s.LogString())
+	})
+
+	t.Run("ValuesObject raw bytes are rendered as YAML not integers", func(t *testing.T) {
+		s := &ApplicationSource{
+			RepoURL: "registry-1.docker.io",
+			Chart:   "my-chart",
+			Helm: &ApplicationSourceHelm{
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`{"replicaCount":2,"image":{"tag":"latest"}}`)},
+			},
+		}
+		logStr := s.LogString()
+		// must not contain raw byte integers
+		assert.False(t, strings.Contains(logStr, "[123"), "log output must not contain raw byte integers, got: %s", logStr)
+		// must contain the YAML representation
+		assert.Contains(t, logStr, "replicaCount")
+		// ValuesObject binary field must not appear
+		assert.NotContains(t, logStr, "ValuesObject:&runtime.RawExtension")
+	})
 }
