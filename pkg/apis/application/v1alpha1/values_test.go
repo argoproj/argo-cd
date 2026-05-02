@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -137,7 +136,7 @@ func TestApplicationSource_LogString(t *testing.T) {
 		}
 		logStr := s.LogString()
 		// must not contain raw byte integers
-		assert.False(t, strings.Contains(logStr, "[123"), "log output must not contain raw byte integers, got: %s", logStr)
+		assert.NotContains(t, logStr, "[123", "log output must not contain raw byte integers, got: %s", logStr)
 		// must contain the YAML representation
 		assert.Contains(t, logStr, "replicaCount")
 		// ValuesObject binary field must not appear
