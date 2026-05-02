@@ -463,7 +463,7 @@ annotation after reconciliation.
 
 To eliminate the polling delay, the ApplicationSet webhook
 server can be configured to receive webhook events. ApplicationSet
-supports Git webhook notifications from GitHub and GitLab. The
+supports Git webhook notifications from GitHub, GitLab, and Bitbucket Cloud. The
 following explains how to configure a Git webhook for GitHub, but the
 same process should be applicable to other providers.
 
@@ -537,6 +537,9 @@ stringData:
 
   # gitlab webhook secret
   webhook.gitlab.secret: shhhh! it's a gitlab secret
+
+  # bitbucket cloud webhook UUID (from the webhook settings page)
+  webhook.bitbucket.uuid: your-webhook-uuid
 ```
 
 After saving, please restart the ApplicationSet pod for the changes to take effect.

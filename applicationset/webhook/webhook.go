@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
+	"github.com/go-playground/webhooks/v6/bitbucket"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
@@ -39,6 +40,7 @@ type WebhookHandler struct {
 	github         *github.Webhook
 	gitlab         *gitlab.Webhook
 	azuredevops    *azuredevops.Webhook
+	bitbucket      *bitbucket.Webhook
 	ghcr           *webhook.GHCRParser
 	client         client.Client
 	generators     map[string]generators.Generator
@@ -55,6 +57,7 @@ type prGeneratorInfo struct {
 	Azuredevops *prGeneratorAzuredevopsInfo
 	Github      *prGeneratorGithubInfo
 	Gitlab      *prGeneratorGitlabInfo
+	Bitbucket   *prGeneratorBitbucketInfo
 }
 
 type prGeneratorAzuredevopsInfo struct {
@@ -78,6 +81,11 @@ type ociGeneratorInfo struct {
 	Tag         string
 }
 
+type prGeneratorBitbucketInfo struct {
+	Owner string
+	Repo  string
+}
+
 func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
@@ -96,11 +104,16 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	if err != nil {
 		return nil, fmt.Errorf("unable to init Azure DevOps webhook: %w", err)
 	}
+	bitbucketHandler, err := bitbucket.New(bitbucket.Options.UUID(argocdSettings.GetWebhookBitbucketUUID()))
+	if err != nil {
+		return nil, fmt.Errorf("unable to init Bitbucket webhook: %w", err)
+	}
 
 	webhookHandler := &WebhookHandler{
 		github:      githubHandler,
 		gitlab:      gitlabHandler,
 		azuredevops: azuredevopsHandler,
+		bitbucket:   bitbucketHandler,
 		ghcr:        webhook.NewGHCRParser(argocdSettings.GetWebhookGitHubSecret()),
 		client:      client,
 		generators:  generators,
@@ -180,6 +193,14 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
+	case r.Header.Get("X-Hook-UUID") != "":
+		payload, err = h.bitbucket.Parse(r,
+			bitbucket.RepoPushEvent,
+			bitbucket.PullRequestCreatedEvent,
+			bitbucket.PullRequestUpdatedEvent,
+			bitbucket.PullRequestMergedEvent,
+			bitbucket.PullRequestDeclinedEvent,
+		)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -232,6 +253,14 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
+	case bitbucket.RepoPushPayload:
+		if len(payload.Push.Changes) == 0 || payload.Push.Changes[0].New.Name == "" {
+			return nil
+		}
+		webURL = payload.Repository.Links.HTML.Href
+		revision = payload.Push.Changes[0].New.Name
+		// Default branch is not included in the push payload; treat all pushes as potentially touching HEAD.
+		touchedHead = true
 	default:
 		return nil
 	}
@@ -297,6 +326,14 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			Repo:    repo,
 			Project: project,
 		}
+	case bitbucket.PullRequestCreatedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestUpdatedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestMergedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestDeclinedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
 	default:
 		return nil
 	}
@@ -454,6 +491,16 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 		if gen.AzureDevOps.Repo != info.Azuredevops.Repo {
+			return false
+		}
+		return true
+	}
+
+	if gen.Bitbucket != nil && info.Bitbucket != nil {
+		if !strings.EqualFold(gen.Bitbucket.Owner, info.Bitbucket.Owner) {
+			return false
+		}
+		if !strings.EqualFold(gen.Bitbucket.Repo, info.Bitbucket.Repo) {
 			return false
 		}
 		return true
@@ -661,6 +708,13 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 	}
 
 	return false
+}
+
+func bitbucketPRInfo(repo bitbucket.Repository) *prGeneratorBitbucketInfo {
+	return &prGeneratorBitbucketInfo{
+		Owner: repo.Owner.NickName,
+		Repo:  repo.Name,
+	}
 }
 
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
