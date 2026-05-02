@@ -105,6 +105,20 @@ func TestApplicationSourceHelm_LogString(t *testing.T) {
 		// ValuesObject field should be absent in the output
 		assert.NotContains(t, logStr, "ValuesObject:&runtime.RawExtension")
 	})
+
+	t.Run("ValuesObject with YAML-encoded bytes is rendered readably", func(t *testing.T) {
+		// Some call sites construct RawExtension.Raw directly from YAML rather
+		// than JSON; ValuesString() falls back to string(Raw) when JSONToYAML
+		// fails, so the log output should still be human-readable.
+		h := &ApplicationSourceHelm{
+			ValuesObject: &runtime.RawExtension{Raw: []byte("image:\n  tag: v1.2.3\n")},
+		}
+		logStr := h.LogString()
+		assert.NotContains(t, logStr, "[105", "log output must not contain raw byte integers, got: %s", logStr)
+		assert.Contains(t, logStr, "image:")
+		assert.Contains(t, logStr, "tag: v1.2.3")
+		assert.NotContains(t, logStr, "ValuesObject:&runtime.RawExtension")
+	})
 }
 
 func TestApplicationSource_LogString(t *testing.T) {
@@ -140,6 +154,24 @@ func TestApplicationSource_LogString(t *testing.T) {
 		// must contain the YAML representation
 		assert.Contains(t, logStr, "replicaCount")
 		// ValuesObject binary field must not appear
+		assert.NotContains(t, logStr, "ValuesObject:&runtime.RawExtension")
+	})
+
+	t.Run("ValuesObject with YAML-encoded bytes is rendered readably", func(t *testing.T) {
+		// Some call sites construct RawExtension.Raw directly from YAML rather
+		// than JSON; ValuesString() falls back to string(Raw) when JSONToYAML
+		// fails, so the log output should still be human-readable.
+		s := &ApplicationSource{
+			RepoURL: "registry-1.docker.io",
+			Chart:   "my-chart",
+			Helm: &ApplicationSourceHelm{
+				ValuesObject: &runtime.RawExtension{Raw: []byte("replicaCount: 2\nimage:\n  tag: latest\n")},
+			},
+		}
+		logStr := s.LogString()
+		assert.NotContains(t, logStr, "[114", "log output must not contain raw byte integers, got: %s", logStr)
+		assert.Contains(t, logStr, "replicaCount")
+		assert.Contains(t, logStr, "tag: latest")
 		assert.NotContains(t, logStr, "ValuesObject:&runtime.RawExtension")
 	})
 }
