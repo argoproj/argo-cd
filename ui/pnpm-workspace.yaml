@@ -1,0 +1,13 @@
+# These are required for `make run-pnpm-local`
+allowBuilds:
+  '@parcel/watcher': true
+  core-js: true
+  esbuild: true
+
+# Key order matches ui/pnpm-lock.yaml top-level `overrides` (pnpm compares this on --frozen-lockfile).
+overrides:
+  '@types/react': ^16.9.3
+  '@types/react-dom': ^16.8.2
+  normalize-url: 4.5.1
+  rxjs: 6.6.7
+  formidable: 2.1.3
