@@ -1012,7 +1012,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						// We can now try again, so reset the cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
 						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.LogString(), cacheKey, err)
+							log.Warnf("manifest cache delete error %s/%s: %v", q.ApplicationSource.LogString(), cacheKey, err)
 						}
 						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.LogString(), cacheKey)
 						return false, nil, nil
@@ -1027,7 +1027,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						// We can now try again, so reset the error cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
 						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.LogString(), cacheKey, err)
+							log.Warnf("manifest cache delete error %s/%s: %v", q.ApplicationSource.LogString(), cacheKey, err)
 						}
 						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.LogString(), cacheKey)
 						return false, nil, nil
