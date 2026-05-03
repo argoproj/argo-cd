@@ -141,18 +141,10 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 		}
 	}
 
-	generation, err := cluster.HashIdentity()
-	if err != nil {
-		// Fail-open: notify watchers of the generation field of a potential change in case hash generation failed
-		generation = cluster.Info.Generation + 1
-
-		log.Warnf("Failed to get cluster generation: %v", err)
-	}
-
 	clusterInfo := appv1.ClusterInfo{
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
-		Generation:        generation,
+		Generation:        cluster.HashIdentity(cluster.Info.Generation + 1),
 	}
 
 	if info != nil {
