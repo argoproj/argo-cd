@@ -13,7 +13,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -178,8 +177,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 // not start the local server.
 func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, clientConfig clientcmd.ClientConfig) (func(), error) {
 	if clientConfig == nil {
-		flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
-		clientConfig = cli.AddKubectlFlagsToSet(flags)
+		clientConfig = newClientConfig(clientOpts.KubeOverrides)
 	}
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
@@ -318,7 +316,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
 	ctx := c.Context()
 
-	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
+	ctxStr := resolveKubeContextName(opts, c)
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
 	_, err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, nil)
@@ -330,4 +328,39 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 		log.Fatal(err)
 	}
 	return client
+}
+
+// newClientConfig creates a new clientcmd.ClientConfig based on the provided overrides.
+func newClientConfig(overrides *clientcmd.ConfigOverrides) clientcmd.ClientConfig {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+
+	configOverrides := clientcmd.ConfigOverrides{}
+	if overrides != nil {
+		configOverrides = *overrides
+	}
+
+	return clientcmd.NewInteractiveDeferredLoadingClientConfig(
+		loadingRules,
+		&configOverrides,
+		os.Stdin,
+	)
+}
+
+// resolveKubeContextName determines the kube context name and updates the client options with the resolved context if necessary.
+func resolveKubeContextName(opts *apiclient.ClientOptions, c *cobra.Command) string {
+	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
+	if ctxStr != "" {
+		if opts.KubeOverrides == nil {
+			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
+		}
+		opts.KubeOverrides.CurrentContext = ctxStr
+		return ctxStr
+	}
+
+	if opts.KubeOverrides != nil {
+		return opts.KubeOverrides.CurrentContext
+	}
+
+	return ""
 }
