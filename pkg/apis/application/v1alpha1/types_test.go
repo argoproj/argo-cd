@@ -4992,8 +4992,7 @@ func TestCluster_HashIdentity(t *testing.T) {
 				},
 			},
 		}
-		hash, err := cluster.HashIdentity()
-		require.NoError(t, err)
+		hash := cluster.HashIdentity(0)
 		require.NotZero(t, hash, "hash should not be zero")
 	})
 
@@ -5001,15 +5000,13 @@ func TestCluster_HashIdentity(t *testing.T) {
 		cluster := &Cluster{
 			Server: "https://minimal.example.com",
 		}
-		hash, err := cluster.HashIdentity()
-		require.NoError(t, err)
+		hash := cluster.HashIdentity(0)
 		require.NotZero(t, hash)
 	})
 
 	t.Run("empty cluster produces hash", func(t *testing.T) {
 		cluster := &Cluster{}
-		hash, err := cluster.HashIdentity()
-		require.NoError(t, err)
+		hash := cluster.HashIdentity(0)
 		require.NotZero(t, hash)
 	})
 
@@ -5022,10 +5019,8 @@ func TestCluster_HashIdentity(t *testing.T) {
 				BearerToken: "token123",
 			},
 		}
-		hash1, err1 := cluster.HashIdentity()
-		hash2, err2 := cluster.HashIdentity()
-		require.NoError(t, err1)
-		require.NoError(t, err2)
+		hash1 := cluster.HashIdentity(0)
+		hash2 := cluster.HashIdentity(0)
 		assert.Equal(t, hash1, hash2, "identical clusters should produce identical hashes")
 	})
 
@@ -5042,8 +5037,8 @@ func TestCluster_HashIdentity(t *testing.T) {
 			Name:   "same-name",
 			Config: ClusterConfig{},
 		}
-		hash1, _ := base.HashIdentity()
-		hash2, _ := different.HashIdentity()
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
 		assert.NotEqual(t, hash1, hash2)
 	})
 
@@ -5060,8 +5055,8 @@ func TestCluster_HashIdentity(t *testing.T) {
 			Name:   "same-name",
 			Config: ClusterConfig{},
 		}
-		hash1, _ := base.HashIdentity()
-		hash2, _ := different.HashIdentity()
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
 		assert.NotEqual(t, hash1, hash2)
 	})
 
@@ -5078,8 +5073,8 @@ func TestCluster_HashIdentity(t *testing.T) {
 			Name:   "different-name",
 			Config: ClusterConfig{},
 		}
-		hash1, _ := base.HashIdentity()
-		hash2, _ := different.HashIdentity()
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
 		assert.NotEqual(t, hash1, hash2)
 	})
 
@@ -5116,10 +5111,8 @@ func TestCluster_HashIdentity(t *testing.T) {
 				BearerToken: "token123",
 			},
 		}
-		hash1, err1 := cluster1.HashIdentity()
-		hash2, err2 := cluster2.HashIdentity()
-		require.NoError(t, err1)
-		require.NoError(t, err2)
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
 		assert.Equal(t, hash1, hash2, "clusters with same identity fields but different non-identity fields should have same hash")
 	})
 
@@ -5140,8 +5133,8 @@ func TestCluster_HashIdentity(t *testing.T) {
 				BearerToken: "token2",
 			},
 		}
-		hash1, _ := base.HashIdentity()
-		hash2, _ := different.HashIdentity()
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
 		assert.NotEqual(t, hash1, hash2)
 	})
 }
