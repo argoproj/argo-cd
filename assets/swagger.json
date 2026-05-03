@@ -8308,6 +8308,11 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "generation": {
+          "type": "string",
+          "format": "uint64",
+          "title": "Generation is an opaque value which tracks changes to the desired configuration of a Cluster"
+        },
         "serverVersion": {
           "type": "string",
           "title": "ServerVersion contains information about the Kubernetes version of the cluster"

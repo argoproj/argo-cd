@@ -953,6 +953,9 @@ message ClusterInfo {
 
   // APIVersions contains list of API versions supported by the cluster
   repeated string apiVersions = 5;
+
+  // Generation is an opaque value which tracks changes to the desired configuration of a Cluster
+  optional uint64 generation = 6;
 }
 
 // ClusterList is a collection of Clusters.

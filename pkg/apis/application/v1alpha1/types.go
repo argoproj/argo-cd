@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -42,6 +39,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v3/util/hash"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
@@ -2384,6 +2383,23 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 
+func (c *Cluster) HashIdentity() (uint64, error) {
+	// Include only fields which are static identifiers or represent the desired state of the Cluster
+	identityWindow := Cluster{
+		ID:     c.ID,
+		Server: c.Server,
+		Name:   c.Name,
+		Config: c.Config,
+	}
+
+	result, err := hash.ObjectHash(identityWindow)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode cluster for hashing: %w", err)
+	}
+
+	return result, nil
+}
+
 // ClusterInfo contains information about the cluster
 type ClusterInfo struct {
 	// ConnectionState contains information about the connection to the cluster
@@ -2396,6 +2412,8 @@ type ClusterInfo struct {
 	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
 	// APIVersions contains list of API versions supported by the cluster
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,5,opt,name=apiVersions"`
+	// Generation is an opaque value which tracks changes to the desired configuration of a Cluster
+	Generation uint64 `json:"generation,omitempty" protobuf:"bytes,6,opt,name=generation"`
 }
 
 func (c *ClusterInfo) GetKubeVersion() string {
@@ -3369,13 +3387,12 @@ func (w *SyncWindow) HashIdentity() (uint64, error) {
 		// ManualSync and Description are excluded as they don't affect window identity
 	}
 
-	var windowBuffer bytes.Buffer
-	enc := gob.NewEncoder(&windowBuffer)
-	err := enc.Encode(identityWindow)
+	result, err := hash.ObjectHash(identityWindow)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
 	}
-	return xxhash.Sum64(windowBuffer.Bytes()), nil
+
+	return result, nil
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
