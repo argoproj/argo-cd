@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
-	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -43,6 +40,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/transport"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v3/util/hash"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
@@ -67,11 +66,11 @@ import (
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 type Application struct {
-	metav1.TypeMeta   `json:",inline"`                                       // Common: shared with ApplicationSet
-	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"` // Common: shared with ApplicationSet
-	Spec              ApplicationSpec                                        `json:"spec" protobuf:"bytes,2,opt,name=spec"`                     // Common: shared with ApplicationSet (different type)
-	Status            ApplicationStatus                                      `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`       // Common: shared with ApplicationSet (different type)
-	Operation         *Operation                                             `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"` // Application-only: not in ApplicationSet
+	metav1.TypeMeta   `json:",inline"`                                                                     // Common: shared with ApplicationSet
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`                               // Common: shared with ApplicationSet
+	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`                     // Common: shared with ApplicationSet (different type)
+	Status            ApplicationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`       // Common: shared with ApplicationSet (different type)
+	Operation         *Operation        `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"` // Application-only: not in ApplicationSet
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -2432,6 +2431,23 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 
+func (c *Cluster) HashIdentity() (uint64, error) {
+	// Include only fields which are static identifiers or represent the desired state of the Cluster
+	identityWindow := Cluster{
+		ID:     c.ID,
+		Server: c.Server,
+		Name:   c.Name,
+		Config: c.Config,
+	}
+
+	result, err := hash.ObjectHash(identityWindow)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode cluster for hashing: %w", err)
+	}
+
+	return result, nil
+}
+
 // ClusterInfo contains information about the cluster
 type ClusterInfo struct {
 	// ConnectionState contains information about the connection to the cluster
@@ -2444,6 +2460,8 @@ type ClusterInfo struct {
 	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
 	// APIVersions contains list of API versions supported by the cluster
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,5,opt,name=apiVersions"`
+	// Generation is an opaque value which tracks changes to the desired configuration of a Cluster
+	Generation uint64 `json:"generation,omitempty" protobuf:"bytes,6,opt,name=generation"`
 }
 
 func (c *ClusterInfo) GetKubeVersion() string {
@@ -3481,13 +3499,12 @@ func (w *InlineSyncWindow) HashIdentity() (uint64, error) {
 		// ManualSync and Description are excluded as they don't affect window identity
 	}
 
-	var windowBuffer bytes.Buffer
-	enc := gob.NewEncoder(&windowBuffer)
-	err := enc.Encode(identityWindow)
+	result, err := hash.ObjectHash(identityWindow)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
 	}
-	return xxhash.Sum64(windowBuffer.Bytes()), nil
+
+	return result, nil
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
