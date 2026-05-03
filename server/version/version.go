@@ -3,8 +3,8 @@ package version
 import (
 	"context"
 
-	"google.golang.org/protobuf/types/known/emptypb"
 	"github.com/google/go-jsonnet"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/version"

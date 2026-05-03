@@ -20,9 +20,8 @@ import (
 	_ "k8s.io/code-generator/cmd/client-gen"
 	_ "k8s.io/code-generator/cmd/deepcopy-gen"
 	_ "k8s.io/code-generator/cmd/defaulter-gen"
-	// go-to-protobuf is invoked with --only-idl to generate .proto IDL files from Go types.
-	// It no longer invokes protoc-gen-gogo; the resulting .proto is then compiled with protoc-gen-go.
 	_ "k8s.io/code-generator/cmd/go-to-protobuf"
+	_ "k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo"
 	_ "k8s.io/code-generator/cmd/informer-gen"
 	_ "k8s.io/code-generator/cmd/lister-gen"
 

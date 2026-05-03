@@ -232,7 +232,7 @@ func appMetadataRequest(appName, appRelPath string, env []string, checksum strin
 				AppName:    appName,
 				AppRelPath: appRelPath,
 				Checksum:   checksum,
-				Size:      size,
+				Size:       size,
 				Env:        toEnvEntry(env),
 			},
 		},

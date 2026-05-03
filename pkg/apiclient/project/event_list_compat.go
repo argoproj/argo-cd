@@ -1,8 +1,8 @@
 package project
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // eventListMessage wraps *corev1.EventList so it satisfies the proto.Message interface

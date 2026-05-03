@@ -34,9 +34,8 @@ go_mod_install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
 go_mod_install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
 
 # k8s tools to codegen .proto files, client libraries, and helpers from types.go
-# go-to-protobuf is invoked with --only-idl (see hack/generate-proto.sh) so protoc-gen-gogo is
-# no longer needed as a build tool; generated.pb.go is produced by protoc-gen-go instead.
 go_mod_install k8s.io/code-generator/cmd/go-to-protobuf
+go_mod_install k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
 go_mod_install k8s.io/code-generator/cmd/client-gen
 go_mod_install k8s.io/code-generator/cmd/deepcopy-gen
 go_mod_install k8s.io/code-generator/cmd/defaulter-gen
