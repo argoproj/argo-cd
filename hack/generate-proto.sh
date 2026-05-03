@@ -66,7 +66,11 @@ rm -rf "${GOPATH}/src/k8s.io/api" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "$
 rm -rf "${GOPATH}/src/k8s.io/apiextensions-apiserver" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apiextensions-apiserver" "${GOPATH}/src/k8s.io"
 
 # Use --only-idl so that go-to-protobuf only generates the .proto IDL files without invoking
-# protoc-gen-gogo. The .pb.go file is then generated in the next step using protoc-gen-go.
+# protoc-gen-gogo. generated.pb.go is NOT regenerated here: the kubernetes type-generation
+# approach (protoc-gen-gogo) adds methods to *existing* Go types, whereas protoc-gen-go always
+# emits new struct declarations that would duplicate the types in types.go / app_project_types.go
+# / applicationset_types.go, breaking go/types checking and silencing controller-gen.
+# The committed generated.pb.go (gogo-generated) is the stable source of truth.
 go-to-protobuf \
     --only-idl \
     --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
@@ -81,17 +85,6 @@ go-to-protobuf \
     --proto-import="${PROJECT_ROOT}"/vendor \
     --proto-import="${protoc_include}" \
     --output-dir="${GOPATH}/src/"
-
-# Generate pkg/apis/application/v1alpha1/generated.pb.go from the IDL using protoc-gen-go.
-# This replaces the legacy protoc-gen-gogo step that was previously embedded inside go-to-protobuf.
-# The resulting file uses the standard google.golang.org/protobuf runtime (no gogo/protobuf).
-protoc \
-    -I"${PROJECT_ROOT}" \
-    -I"${protoc_include}" \
-    -I./vendor \
-    -I"$GOPATH"/src \
-    --go_out=paths=import:"$GOPATH"/src \
-    "${GOPATH}/src/github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto"
 
 # go mod vendor after modifying generated code
 go mod vendor
