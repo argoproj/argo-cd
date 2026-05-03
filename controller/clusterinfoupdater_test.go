@@ -251,7 +251,7 @@ func TestGetUpdatedClusterInfo_Generation(t *testing.T) {
 
 		info := updater.getUpdatedClusterInfo(t.Context(), nil, cluster, nil, metav1.Now())
 
-		assert.Greater(t, info.Generation, uint64(0), "generation should be set to a positive value")
+		assert.Positive(t, info.Generation, "generation should be set to a positive value")
 	})
 
 	t.Run("falls back to existing generation plus one when cluster has existing generation", func(t *testing.T) {
@@ -271,7 +271,7 @@ func TestGetUpdatedClusterInfo_Generation(t *testing.T) {
 
 		info := updater.getUpdatedClusterInfo(t.Context(), nil, cluster, nil, metav1.Now())
 
-		assert.Greater(t, info.Generation, uint64(0), "generation should be set")
+		assert.Positive(t, info.Generation, "generation should be set")
 	})
 
 	t.Run("different clusters produce different generations", func(t *testing.T) {
