@@ -862,3 +862,79 @@ func TestCreateDeepLinksObject_ManagedByURL(t *testing.T) {
 		require.False(t, exists)
 	})
 }
+
+func TestClusterOperations_SetGenerationInCache(t *testing.T) {
+	t.Run("Create sets generation in cache", func(t *testing.T) {
+		testNamespace := "default"
+		localCluster := &appv1.Cluster{
+			Name:       "my-cluster-name",
+			Server:     "https://my-cluster-server",
+			Namespaces: []string{testNamespace},
+			Config: appv1.ClusterConfig{
+				TLSClientConfig: appv1.TLSClientConfig{
+					Insecure: true,
+				},
+			},
+		}
+		clientset := getClientset(nil, testNamespace)
+		db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+		cache := newServerInMemoryCache()
+		server := NewServer(db, newNoopEnforcer(), cache, &kubetest.MockKubectlCmd{})
+
+		created, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
+			Cluster: localCluster,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, created)
+
+		var clusterInfo appv1.ClusterInfo
+		err = cache.GetClusterInfo(localCluster.Server, &clusterInfo)
+		require.NoError(t, err)
+		assert.Greater(t, clusterInfo.Generation, uint64(0), "generation should be set to a positive value")
+	})
+
+	t.Run("Update sets generation in cache", func(t *testing.T) {
+		db := &dbmocks.ArgoDB{}
+		cache := newServerInMemoryCache()
+
+		existingCluster := &appv1.Cluster{
+			Name:       "minikube",
+			Server:     "https://127.0.0.1",
+			Namespaces: []string{"default", "kube-system"},
+			Config: appv1.ClusterConfig{
+				TLSClientConfig: appv1.TLSClientConfig{
+					Insecure: true,
+				},
+			},
+			Info: appv1.ClusterInfo{
+				Generation: 42,
+			},
+		}
+
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1").Return(existingCluster, nil)
+		db.EXPECT().UpdateCluster(mock.Anything, mock.Anything).Return(existingCluster, nil)
+
+		server := NewServer(db, newNoopEnforcer(), cache, &kubetest.MockKubectlCmd{})
+
+		updated, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{
+			Cluster: &appv1.Cluster{
+				Server: "https://127.0.0.1",
+				Name:   "minikube",
+				Config: appv1.ClusterConfig{
+					TLSClientConfig: appv1.TLSClientConfig{
+						Insecure: true,
+					},
+				},
+			},
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, updated)
+
+		var clusterInfo appv1.ClusterInfo
+		err = cache.GetClusterInfo("https://127.0.0.1", &clusterInfo)
+		require.NoError(t, err)
+		assert.Greater(t, clusterInfo.Generation, uint64(0), "generation should be set to a positive value")
+	})
+}
+
