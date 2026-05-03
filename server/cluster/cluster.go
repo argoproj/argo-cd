@@ -192,7 +192,6 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		},
 		Generation: generation,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error setting cluster info in cache: %w", err)
 	}
@@ -361,7 +360,6 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		},
 		Generation: generation,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 	}
@@ -490,7 +488,6 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 			},
 			Generation: generation,
 		})
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 		}

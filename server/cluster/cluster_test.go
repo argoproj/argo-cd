@@ -890,7 +890,7 @@ func TestClusterOperations_SetGenerationInCache(t *testing.T) {
 		var clusterInfo appv1.ClusterInfo
 		err = cache.GetClusterInfo(localCluster.Server, &clusterInfo)
 		require.NoError(t, err)
-		assert.Greater(t, clusterInfo.Generation, uint64(0), "generation should be set to a positive value")
+		assert.Positive(t, clusterInfo.Generation, "generation should be set to a positive value")
 	})
 
 	t.Run("Update sets generation in cache", func(t *testing.T) {
@@ -934,7 +934,6 @@ func TestClusterOperations_SetGenerationInCache(t *testing.T) {
 		var clusterInfo appv1.ClusterInfo
 		err = cache.GetClusterInfo("https://127.0.0.1", &clusterInfo)
 		require.NoError(t, err)
-		assert.Greater(t, clusterInfo.Generation, uint64(0), "generation should be set to a positive value")
+		assert.Positive(t, clusterInfo.Generation, "generation should be set to a positive value")
 	})
 }
-

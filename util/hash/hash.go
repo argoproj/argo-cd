@@ -20,7 +20,6 @@ func ObjectHash(obj any) (uint64, error) {
 
 	enc := gob.NewEncoder(&buffer)
 	err := enc.Encode(obj)
-
 	if err != nil {
 		return 0, err
 	}
