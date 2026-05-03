@@ -111,33 +111,6 @@ The `message` field of the template definition allows creating a basic notificat
 fields to create complex notifications. For example using service-specific you can add blocks and attachments for Slack, subject for Email or URL path, and body for Webhook.
 See corresponding service [documentation](services/overview.md) for more information.
 
-## Change the timezone
-
-You can change the timezone to show in notifications as follows.
-
-1. Call time functions.
-
-    ```
-    {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}
-    ```
-
-2. Set the `TZ` environment variable on the argocd-notifications-controller container.
-
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: argocd-notifications-controller
-    spec:
-      template:
-        spec:
-          containers:
-          - name: argocd-notifications-controller
-            env:
-            - name: TZ
-              value: Asia/Tokyo
-    ```
-
 ## Functions
 
 Templates have access to the set of built-in functions such as the functions of the [Sprig](https://masterminds.github.io/sprig/) package
