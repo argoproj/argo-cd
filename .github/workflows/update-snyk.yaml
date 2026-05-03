@@ -24,28 +24,28 @@ jobs:
         uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
         with:
           egress-policy: block
+          # The entries are grouped according to their platforms
           # there is a lot of requests snyk does when checking docker images:
           # (d2glxqk2uabbnd|d5l0dvt14r5h8).cloudfront.net are part of aws ecr
           # api.snapcraft.io is for ubuntu snap applications
           allowed-endpoints: >
-            api.github.com:443
             github.com:443
-            downloads.snyk.io:443
+            api.github.com:443
+            pkg-containers.githubusercontent.com:443
             api.snyk.io:443
-            quay.io:443
+            downloads.snyk.io:443
             registry.npmjs.org:443
             proxy.golang.org:443
-            storage.googleapis.com:443
             sum.golang.org:443
+            storage.googleapis.com:443
+            quay.io:443
+            cdn01.quay.io:443
             ghcr.io:443
-            pkg-containers.githubusercontent.com:443
             public.ecr.aws:443
             d2glxqk2uabbnd.cloudfront.net:443
-            cdn01.quay.io:443
-            api.snapcraft.io:443
-            registry-1.docker.io:443
             d5l0dvt14r5h8.cloudfront.net:443
             registry-1.docker.io:443
+            auth.docker.io:443
             api.snapcraft.io:443
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
