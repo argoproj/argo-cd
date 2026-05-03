@@ -177,20 +177,13 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		}
 	}
 
-	generation, err := clust.HashIdentity()
-	if err != nil {
-		generation = 0
-
-		log.Warnf("Failed to get cluster generation: %v", err)
-	}
-
 	err = s.cache.SetClusterInfo(c.Server, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
 			ModifiedAt: &metav1.Time{Time: time.Now()},
 		},
-		Generation: generation,
+		Generation: clust.HashIdentity(0),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error setting cluster info in cache: %w", err)
@@ -344,21 +337,13 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 	}
 
-	generation, err := q.Cluster.HashIdentity()
-	if err != nil {
-		// Fail-open: notify watchers of the generation field of a potential change in case hash generation failed
-		generation = q.Cluster.Info.Generation + 1
-
-		log.Warnf("Failed to get cluster generation: %v", err)
-	}
-
 	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
 			ModifiedAt: &metav1.Time{Time: time.Now()},
 		},
-		Generation: generation,
+		Generation: q.Cluster.HashIdentity(q.Cluster.Info.Generation + 1),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
@@ -472,21 +457,13 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 			return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 		}
 
-		generation, err := clust.HashIdentity()
-		if err != nil {
-			// Fail-open: notify watchers of the generation field of a potential change in case hash generation failed
-			generation = clust.Info.Generation + 1
-
-			log.Warnf("Failed to get cluster generation: %v", err)
-		}
-
 		err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
 			ServerVersion: serverVersion,
 			ConnectionState: appv1.ConnectionState{
 				Status:     appv1.ConnectionStatusSuccessful,
 				ModifiedAt: &metav1.Time{Time: time.Now()},
 			},
-			Generation: generation,
+			Generation: clust.HashIdentity(clust.Info.Generation + 1),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)

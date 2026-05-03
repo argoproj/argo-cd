@@ -41,7 +41,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/hash"
-
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -2402,7 +2401,7 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 
-func (c *Cluster) HashIdentity() (uint64, error) {
+func (c *Cluster) HashIdentity(defaultValue uint64) uint64 {
 	// Include only fields which are static identifiers or represent the desired state of the Cluster
 	identityWindow := Cluster{
 		ID:     c.ID,
@@ -2413,10 +2412,11 @@ func (c *Cluster) HashIdentity() (uint64, error) {
 
 	result, err := hash.ObjectHash(identityWindow)
 	if err != nil {
-		return 0, fmt.Errorf("failed to encode cluster for hashing: %w", err)
+		log.Warnf("failed to encode cluster for hashing: %v", err)
+		return defaultValue
 	}
 
-	return result, nil
+	return result
 }
 
 // ClusterInfo contains information about the cluster
