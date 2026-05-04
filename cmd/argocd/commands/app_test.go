@@ -2352,7 +2352,7 @@ type fakeSettingsServiceClient struct{}
 
 func (f fakeSettingsServiceClient) Get(_ context.Context, _ *settingspkg.SettingsQuery, _ ...grpc.CallOption) (*settingspkg.Settings, error) {
 	return &settingspkg.Settings{
-		URL: "http://localhost:8080",
+		Url: "http://localhost:8080",
 	}, nil
 }
 

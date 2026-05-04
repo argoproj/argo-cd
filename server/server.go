@@ -30,14 +30,13 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
-	golang_proto "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/gorilla/handlers"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
@@ -59,6 +58,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	golang_proto "google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -556,9 +556,6 @@ func (server *ArgoCDServer) Init(ctx context.Context) {
 }
 
 // Run runs the API Server
-// We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
-// k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
-// golang/protobuf).
 func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1171,11 +1168,9 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 
 	// HTTP 1.1+JSON Server
-	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
-	// NOTE: if a marshaller option is not supplied, grpc-gateway will default to the jsonpb from
-	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
-	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
-	// we use our own Marshaler
+	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call.
+	// A custom JSONMarshaler is supplied so that we have control over JSON marshaling behavior
+	// (e.g. supporting types such as time.Time with custom MarshalJSON/UnmarshalJSON methods).
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
 	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)

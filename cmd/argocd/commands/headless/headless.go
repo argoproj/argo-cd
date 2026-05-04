@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"google.golang.org/protobuf/types/known/emptypb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -164,7 +164,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 		return fmt.Errorf("failed to create version client: %w", err)
 	}
 	defer utilio.Close(closer)
-	_, err = versionClient.Version(ctx, &empty.Empty{})
+	_, err = versionClient.Version(ctx, &emptypb.Empty{})
 	if err != nil {
 		return fmt.Errorf("failed to get version: %w", err)
 	}

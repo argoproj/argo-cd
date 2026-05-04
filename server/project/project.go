@@ -43,6 +43,7 @@ const (
 
 // Server provides a Project service
 type Server struct {
+	project.UnimplementedProjectServiceServer
 	ns            string
 	enf           *rbac.Enforcer
 	policyEnf     *rbacpolicy.RBACPolicyEnforcer

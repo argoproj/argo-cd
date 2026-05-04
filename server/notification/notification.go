@@ -11,6 +11,7 @@ import (
 
 // Server provides an Application service
 type Server struct {
+	notification.UnimplementedNotificationServiceServer
 	apiFactory api.Factory
 }
 

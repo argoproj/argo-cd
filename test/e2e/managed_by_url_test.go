@@ -172,7 +172,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check that the link uses the current instance URL as fallback
-			expectedLink := settings.URL + "/applications/" + app.Name
+			expectedLink := settings.Url + "/applications/" + app.Name
 			found := false
 			for _, link := range links.Items {
 				if link.Url != nil && *link.Url == expectedLink {

@@ -16,7 +16,11 @@ PROJECT_ROOT=$(
 )
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 GOPATH=$(go env GOPATH)
-GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
+# The module path is github.com/argoproj/argo-cd/v3. With paths=import, protoc-gen-go writes files
+# under GOPATH/src/<go_package>. We create a symlink for the full module path (including /v3 suffix)
+# so that output paths such as GOPATH/src/github.com/argoproj/argo-cd/v3/pkg/apiclient/... resolve
+# into the correct locations inside the project tree.
+GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd/v3"
 
 # output tool versions
 go version
@@ -57,12 +61,18 @@ else
 fi
 
 # go-to-protobuf expects dependency proto files to be in $GOPATH/src. Copy them there.
-rm -rf "${GOPATH}/src/github.com/gogo/protobuf" && mkdir -p "${GOPATH}/src/github.com/gogo" && cp -r "${PROJECT_ROOT}/vendor/github.com/gogo/protobuf" "${GOPATH}/src/github.com/gogo"
 rm -rf "${GOPATH}/src/k8s.io/apimachinery" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apimachinery" "${GOPATH}/src/k8s.io"
 rm -rf "${GOPATH}/src/k8s.io/api" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/api" "${GOPATH}/src/k8s.io"
 rm -rf "${GOPATH}/src/k8s.io/apiextensions-apiserver" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apiextensions-apiserver" "${GOPATH}/src/k8s.io"
 
+# Use --only-idl so that go-to-protobuf only generates the .proto IDL files without invoking
+# protoc-gen-gogo. generated.pb.go is NOT regenerated here: the kubernetes type-generation
+# approach (protoc-gen-gogo) adds methods to *existing* Go types, whereas protoc-gen-go always
+# emits new struct declarations that would duplicate the types in types.go / app_project_types.go
+# / applicationset_types.go, breaking go/types checking and silencing controller-gen.
+# The committed generated.pb.go (gogo-generated) is the stable source of truth.
 go-to-protobuf \
+    --only-idl \
     --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
     --packages="$(
         IFS=,
@@ -76,25 +86,14 @@ go-to-protobuf \
     --proto-import="${protoc_include}" \
     --output-dir="${GOPATH}/src/"
 
-# go-to-protobuf modifies vendored code. Re-vendor code so it's available for subsequent steps.
+# go mod vendor after modifying generated code
 go mod vendor
 
-# Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
-# server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
-# interchangeably. The difference in the options are:
-# 1. protoc-gen-go - official golang/protobuf
-#GOPROTOBINARY=go
-# 2. protoc-gen-gofast - fork of golang golang/protobuf. Faster code generation
-#GOPROTOBINARY=gofast
-# 3. protoc-gen-gogofast - faster code generation and gogo extensions and flexibility in controlling
-# the generated go code (e.g. customizing field names, nullable fields)
-GOPROTOBINARY=gogofast
-
-# Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
+# Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go) using grpc-gateway v2 toolchain.
+# protoc-gen-go + protoc-gen-go-grpc replace the old protoc-gen-gogofast.
+# protoc-gen-grpc-gateway (v2) replaces the old protoc-gen-grpc-gateway (v1).
+# protoc-gen-openapiv2 replaces the old protoc-gen-swagger.
 MOD_ROOT=${GOPATH}/pkg/mod
-grpc_gateway_version=$(go list -m github.com/grpc-ecosystem/grpc-gateway | awk '{print $NF}' | head -1)
-GOOGLE_PROTO_API_PATH=${MOD_ROOT}/github.com/grpc-ecosystem/grpc-gateway@${grpc_gateway_version}/third_party/googleapis
-GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
 PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" -or -path '*/commitserver/*' -and -name "*.proto" -or -path '*/util/askpass/*' -and -name "*.proto" \) | sort)
 for i in ${PROTO_FILES}; do
     protoc \
@@ -102,16 +101,15 @@ for i in ${PROTO_FILES}; do
         -I"${protoc_include}" \
         -I./vendor \
         -I"$GOPATH"/src \
-        -I"${GOOGLE_PROTO_API_PATH}" \
-        -I"${GOGO_PROTOBUF_PATH}" \
-        --${GOPROTOBINARY}_out=plugins=grpc:"$GOPATH"/src \
-        --grpc-gateway_out=logtostderr=true:"$GOPATH"/src \
-        --swagger_out=logtostderr=true:. \
+        --go_out=paths=import:"$GOPATH"/src \
+        --go-grpc_out=paths=import:"$GOPATH"/src \
+        --grpc-gateway_out=paths=import,logtostderr=true:"$GOPATH"/src \
+        --openapiv2_out=logtostderr=true:. \
         "$i"
 done
 
 # This file is generated but should not be checked in.
-rm util/askpass/askpass.swagger.json
+rm -f util/askpass/askpass.openapiv2.json
 
 [ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
 [ -L ./v3 ] && rm -rf v3
@@ -137,7 +135,7 @@ EOF
 
     rm -f "${SWAGGER_OUT}"
 
-    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ >"${COMBINED_SWAGGER}"
+    find "${SWAGGER_ROOT}" -name '*.openapiv2.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ >"${COMBINED_SWAGGER}"
     jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title) |
       # The "array" and "map" fields have custom unmarshaling. Modify the swagger to reflect this.
       .definitions.v1alpha1ApplicationSourcePluginParameter.properties.array = {"description":"Array is the value of an array type parameter.","type":"array","items":{"type":"string"}} |
@@ -157,6 +155,8 @@ EOF
 # clean up generated swagger files (should come after collect_swagger)
 clean_swagger() {
     SWAGGER_ROOT="$1"
+    find "${SWAGGER_ROOT}" -name '*.openapiv2.json' -delete
+    # Also remove legacy *.swagger.json files produced by the old protoc-gen-swagger toolchain.
     find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
 }
 

@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -868,7 +868,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		resp, err := f.service.CheckPluginConfiguration(t.Context(), &empty.Empty{})
+		resp, err := f.service.CheckPluginConfiguration(t.Context(), &emptypb.Empty{})
 
 		// then
 		require.NoError(t, err)
@@ -881,7 +881,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		resp, err := f.service.CheckPluginConfiguration(t.Context(), &empty.Empty{})
+		resp, err := f.service.CheckPluginConfiguration(t.Context(), &emptypb.Empty{})
 
 		// then
 		require.NoError(t, err)
