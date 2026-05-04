@@ -4,14 +4,36 @@ if obj.status ~= nil then
     local numDegraded = 0
     local numPending = 0
     local msg = ""
+
+    -- Check if this is a manual approval scenario where InstallPlanPending is expected
+    -- and the operator is already installed (upgrade pending, not initial install)
+    local isManualApprovalPending = false
+    if obj.spec ~= nil and obj.spec.installPlanApproval == "Manual" then
+      for _, condition in pairs(obj.status.conditions) do
+        if condition.type == "InstallPlanPending" and condition.status == "True" and condition.reason == "RequiresApproval" then
+          -- Only treat as expected healthy state if the operator is already installed
+          -- (installedCSV is present), meaning this is an upgrade pending approval
+          if obj.status.installedCSV ~= nil then
+            isManualApprovalPending = true
+          end
+          break
+        end
+      end
+    end
+
     for i, condition in pairs(obj.status.conditions) do
-      msg = msg .. i .. ": " .. condition.type .. " | " .. condition.status .. "\n"
-      if condition.type == "InstallPlanPending" and condition.status == "True" then
-        numPending = numPending + 1
-      elseif (condition.type == "InstallPlanMissing" and condition.reason ~= "ReferencedInstallPlanNotFound") then
-        numDegraded = numDegraded + 1
-      elseif (condition.type == "CatalogSourcesUnhealthy" or condition.type == "InstallPlanFailed" or condition.type == "ResolutionFailed") and condition.status == "True" then
-        numDegraded = numDegraded + 1
+      -- Skip InstallPlanPending condition when manual approval is pending (expected behavior)
+      if isManualApprovalPending and condition.type == "InstallPlanPending" then
+        -- Do not include in message or count as pending
+      else
+        msg = msg .. i .. ": " .. condition.type .. " | " .. condition.status .. "\n"
+        if condition.type == "InstallPlanPending" and condition.status == "True" then
+          numPending = numPending + 1
+        elseif (condition.type == "InstallPlanMissing" and condition.reason ~= "ReferencedInstallPlanNotFound") then
+          numDegraded = numDegraded + 1
+        elseif (condition.type == "CatalogSourcesUnhealthy" or condition.type == "InstallPlanFailed" or condition.type == "ResolutionFailed") and condition.status == "True" then
+          numDegraded = numDegraded + 1
+        end
       end
     end
 
@@ -20,9 +42,17 @@ if obj.status ~= nil then
     if obj.status.state == nil  then
       numPending = numPending + 1
       msg = msg .. ".status.state not yet known\n"
-    elseif obj.status.state == "" or obj.status.state == "UpgradeAvailable" or obj.status.state == "UpgradePending" then
+    elseif obj.status.state == "" or obj.status.state == "UpgradeAvailable" then
       numPending = numPending + 1
       msg = msg .. ".status.state is '" .. obj.status.state .. "'\n"
+    elseif obj.status.state == "UpgradePending" then
+      -- UpgradePending with manual approval is expected behavior, treat as healthy
+      if isManualApprovalPending then
+        msg = msg .. ".status.state is 'AtLatestKnown'\n"
+      else
+        numPending = numPending + 1
+        msg = msg .. ".status.state is '" .. obj.status.state .. "'\n"
+      end
     elseif obj.status.state == "UpgradeFailed" then
       numDegraded = numDegraded + 1
       msg = msg .. ".status.state is '" .. obj.status.state .. "'\n"
