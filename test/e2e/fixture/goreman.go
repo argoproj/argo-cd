@@ -32,16 +32,16 @@ const (
 )
 
 // StartProcess allows you to start a procress that is not running
-func StartProcess(proc string) error {
-	log.Infof("starting process: %s", proc)
-	cmd := exec.CommandContext(context.Background(), procfileBinary, "run", "start", proc)
+func StartProcess(process string) error {
+	log.Infof("starting process: %s", process)
+	cmd := exec.CommandContext(context.Background(), procfileBinary, "run", "start", process)
 	return cmd.Run()
 }
 
 // StartProcessWithEnv updates the .env file that is created for the e2e tests with the provided
 // values and then restarts the component.
 // At the moment this only supports the application controller
-func StartProcessWithEnv(proc string, env map[string]string) error {
+func StartProcessWithEnv(process string, env map[string]string) error {
 	var envVariables strings.Builder
 	fields := make(log.Fields, len(env))
 	for k, v := range env {
@@ -49,19 +49,19 @@ func StartProcessWithEnv(proc string, env map[string]string) error {
 		fields[k] = v
 	}
 
-	log.WithFields(fields).Infof("starting process with env: %s", proc)
+	log.WithFields(fields).Infof("starting process with env: %s", process)
 
 	err := os.WriteFile(e2eEnvVariableFilePath, []byte(envVariables.String()), 0o644)
 	if err != nil {
 		return err
 	}
 
-	return StartProcess(proc)
+	return StartProcess(process)
 }
 
 // StopProcess stops the specified process and resets it's environment variables
-func StopProcess(proc string) error {
-	log.Infof("stopping process: %s", proc)
+func StopProcess(process string) error {
+	log.Infof("stopping process: %s", process)
 	// Delete env file if it exists in tmp dir
 	if _, err := os.Stat(e2eEnvVariableFilePath); err == nil {
 		err := os.Remove(e2eEnvVariableFilePath)
@@ -70,12 +70,12 @@ func StopProcess(proc string) error {
 		}
 	}
 
-	cmd := exec.CommandContext(context.Background(), procfileBinary, "run", "stop", proc)
+	cmd := exec.CommandContext(context.Background(), procfileBinary, "run", "stop", process)
 	return cmd.Run()
 }
 
 // IsProcessRunning checks to see if the process is running
-func IsProcessRunning(proc string) (bool, error) {
+func IsProcessRunning(process string) (bool, error) {
 	cmd := exec.CommandContext(context.Background(), procfileBinary, "run", "status")
 	output, err := cmd.Output()
 	if err != nil {
@@ -85,7 +85,7 @@ func IsProcessRunning(proc string) (bool, error) {
 	sc := bufio.NewScanner(bytes.NewReader(output))
 	for sc.Scan() {
 		t := sc.Text()
-		if len(t) > 1 && t[1:] == proc {
+		if len(t) > 1 && t[1:] == process {
 			return t[0] == '*', nil
 		}
 	}
@@ -93,24 +93,24 @@ func IsProcessRunning(proc string) (bool, error) {
 }
 
 // RestartProcess restarts a procress with or without new environment variables
-func RestartProcess(proc string, env map[string]string) error {
+func RestartProcess(process string, env map[string]string) error {
 	startFunc := func() error {
-		return StartProcess(proc)
+		return StartProcess(process)
 	}
 	if env != nil {
 		startFunc = func() error {
-			return StartProcessWithEnv(proc, env)
+			return StartProcessWithEnv(process, env)
 		}
 	}
 
-	if running, err := IsProcessRunning(proc); !running {
+	if running, err := IsProcessRunning(process); !running {
 		if err != nil {
 			return err
 		}
 		return startFunc()
 	}
 
-	err := StopProcess(proc)
+	err := StopProcess(process)
 	if err != nil {
 		return err
 	}
