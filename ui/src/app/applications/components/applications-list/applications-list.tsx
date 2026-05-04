@@ -193,6 +193,13 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
+                        if (params.get('repo') != null) {
+                            viewPref.reposFilter = params
+                                .get('repo')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
                         return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
                     })
                 )
@@ -481,6 +488,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
+                repo: newPref.reposFilter.map(encodeURIComponent).join(','),
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
                 annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),

@@ -79,7 +79,7 @@ for version in $versions; do
   cp "$argocd_dir/.snyk" .snyk
 
   # || [ $? == 1 ] ignores errors due to vulnerabilities.
-  snyk test --all-projects --exclude=docs,site,ui-test --org=argoproj --policy-path=.snyk --sarif-file-output=/tmp/argocd-test.sarif --json-file-output=/tmp/argocd-test.json || [ $? == 1 ]
+  snyk test --all-projects --exclude=docs,site --org=argoproj --policy-path=.snyk --sarif-file-output=/tmp/argocd-test.sarif --json-file-output=/tmp/argocd-test.json || [ $? == 1 ]
   snyk-to-html -i /tmp/argocd-test.json -o "$argocd_dir/docs/snyk/$version/argocd-test.html"
   { echo "|    | Critical | High | Medium | Low |"
     echo "|---:|:--------:|:----:|:------:|:---:|"
