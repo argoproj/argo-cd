@@ -256,7 +256,7 @@ export class App extends React.Component<
                     </Helmet>
                     <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '12px'}}>
                         <Spinner show={true} />
-                        <span style={{color: '#6d7f8b'}}>Loading…</span>
+                        <span style={{color: '#6d7f8b'}}>Checking session…</span>
                     </div>
                 </React.Fragment>
             );
