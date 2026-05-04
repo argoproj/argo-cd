@@ -6,8 +6,11 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
 	"text/tabwriter"
 
+	"github.com/Masterminds/semver/v3"
+	"github.com/golang/protobuf/ptypes/empty"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 
 	"github.com/mattn/go-isatty"
@@ -27,6 +30,51 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
+
+// minServerVersionForAppSetDryRun is the first Argo CD server release that
+// honors --dry-run on `appset create` (introduced by commit 70755aa3c5d, first
+// shipped in v2.13.0). Older servers ignore the DryRun flag in the create
+// request and silently apply the change while the CLI happily prints
+// "(dry-run)" — see https://github.com/argoproj/argo-cd/issues/21911.
+const minServerVersionForAppSetDryRun = "2.13.0"
+
+// requireAppSetDryRunSupport returns an error when the connected server is too
+// old to honor `--dry-run` on `appset create`, so the CLI fails loudly instead
+// of silently applying a destructive change.
+func requireAppSetDryRunSupport(ctx context.Context, argocdClient argocdclient.Client, c *cobra.Command) error {
+	conn, versionIf := argocdClient.NewVersionClientOrDie()
+	defer utilio.Close(conn)
+
+	v, err := versionIf.Version(ctx, &empty.Empty{})
+	if err != nil || v == nil {
+		return nil
+	}
+	return checkAppSetDryRunSupportedByVersion(v.Version)
+}
+
+// checkAppSetDryRunSupportedByVersion reports whether the supplied server
+// version string supports `appset create --dry-run`. An empty or unparseable
+// string returns nil — we'd rather not block on a malformed response from a
+// healthy server, since the only contract we are enforcing here is "fail loud
+// on confirmed-old servers".
+func checkAppSetDryRunSupportedByVersion(serverVersion string) error {
+	if serverVersion == "" {
+		return nil
+	}
+	serverVer, err := semver.NewVersion(strings.TrimPrefix(serverVersion, "v"))
+	if err != nil {
+		return nil
+	}
+	minVer := semver.MustParse(minServerVersionForAppSetDryRun)
+	if serverVer.LessThan(minVer) {
+		return fmt.Errorf(
+			"--dry-run for \"appset create\" requires Argo CD server %s or later, but the server is %s; "+
+				"older servers ignore the dry-run flag and apply the change. "+
+				"Upgrade the server, downgrade the CLI to match, or omit --dry-run",
+			minServerVersionForAppSetDryRun, serverVersion)
+	}
+	return nil
+}
 
 var appSetExample = templates.Examples(`
 	# Get an ApplicationSet.
@@ -183,6 +231,12 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name, AppsetNamespace: appset.Namespace})
 				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
 					errors.CheckError(err)
+				}
+
+				if dryRun {
+					if err := requireAppSetDryRunSupport(ctx, argocdClient, c); err != nil {
+						errors.CheckError(err)
+					}
 				}
 
 				appSetCreateRequest := applicationset.ApplicationSetCreateRequest{
