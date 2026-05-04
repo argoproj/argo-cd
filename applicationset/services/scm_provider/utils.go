@@ -49,7 +49,18 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 	return outFilters, nil
 }
 
-func matchFilter(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter) (bool, error) {
+// matchFilter checks whether a repo matches a filter. When enableCrossStage is true, the phase
+// parameter controls which conditions are evaluated, allowing mixed filters to be checked in
+// both the repo and branch phases. When enableCrossStage is false, all conditions are checked
+// regardless of phase (legacy behavior).
+func matchFilter(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter, phase FilterType, enableCrossStage bool) (bool, error) {
+	if enableCrossStage {
+		return matchFilterCrossStage(ctx, provider, repo, filter, phase)
+	}
+	return matchFilterLegacy(ctx, provider, repo, filter)
+}
+
+func matchFilterLegacy(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter) (bool, error) {
 	if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
 		return false, nil
 	}
@@ -59,8 +70,7 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 	}
 
 	if filter.LabelMatch != nil {
-		found := slices.ContainsFunc(repo.Labels, filter.LabelMatch.MatchString)
-		if !found {
+		if !slices.ContainsFunc(repo.Labels, filter.LabelMatch.MatchString) {
 			return false, nil
 		}
 	}
@@ -93,7 +103,56 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 	return true, nil
 }
 
-func ListRepos(ctx context.Context, provider SCMProviderService, filters []argoprojiov1alpha1.SCMProviderGeneratorFilter, cloneProtocol string) ([]*Repository, error) {
+func matchFilterCrossStage(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter, phase FilterType) (bool, error) {
+	// Repo-phase conditions: only check when phase is FilterTypeRepo or FilterTypeUndefined
+	if phase == FilterTypeRepo || phase == FilterTypeUndefined {
+		if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
+			return false, nil
+		}
+
+		if filter.LabelMatch != nil {
+			if !slices.ContainsFunc(repo.Labels, filter.LabelMatch.MatchString) {
+				return false, nil
+			}
+		}
+	}
+
+	// Branch-phase conditions: only check when phase is FilterTypeBranch or FilterTypeUndefined
+	if phase == FilterTypeBranch || phase == FilterTypeUndefined {
+		if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(repo.Branch) {
+			return false, nil
+		}
+
+		if len(filter.PathsExist) != 0 {
+			for _, path := range filter.PathsExist {
+				path = strings.TrimRight(path, "/")
+				hasPath, err := provider.RepoHasPath(ctx, repo, path)
+				if err != nil {
+					return false, err
+				}
+				if !hasPath {
+					return false, nil
+				}
+			}
+		}
+		if len(filter.PathsDoNotExist) != 0 {
+			for _, path := range filter.PathsDoNotExist {
+				path = strings.TrimRight(path, "/")
+				hasPath, err := provider.RepoHasPath(ctx, repo, path)
+				if err != nil {
+					return false, err
+				}
+				if hasPath {
+					return false, nil
+				}
+			}
+		}
+	}
+
+	return true, nil
+}
+
+func ListRepos(ctx context.Context, provider SCMProviderService, filters []argoprojiov1alpha1.SCMProviderGeneratorFilter, cloneProtocol string, enableCrossStageFiltering bool) ([]*Repository, error) {
 	compiledFilters, err := compileFilters(filters)
 	if err != nil {
 		return nil, err
@@ -102,9 +161,9 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 	if err != nil {
 		return nil, err
 	}
-	repoFilters := getApplicableFilters(compiledFilters)[FilterTypeRepo]
+	repoFilters := getApplicableFilters(compiledFilters, enableCrossStageFiltering)[FilterTypeRepo]
 	if len(repoFilters) == 0 {
-		repos, err := getBranches(ctx, provider, repos, compiledFilters)
+		repos, err := getBranches(ctx, provider, repos, compiledFilters, enableCrossStageFiltering)
 		if err != nil {
 			return nil, err
 		}
@@ -113,7 +172,7 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 	filteredRepos := make([]*Repository, 0, len(repos))
 	for _, repo := range repos {
 		for _, filter := range repoFilters {
-			matches, err := matchFilter(ctx, provider, repo, filter)
+			matches, err := matchFilter(ctx, provider, repo, filter, FilterTypeRepo, enableCrossStageFiltering)
 			if err != nil {
 				return nil, err
 			}
@@ -124,14 +183,14 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 		}
 	}
 
-	repos, err = getBranches(ctx, provider, filteredRepos, compiledFilters)
+	repos, err = getBranches(ctx, provider, filteredRepos, compiledFilters, enableCrossStageFiltering)
 	if err != nil {
 		return nil, err
 	}
 	return repos, nil
 }
 
-func getBranches(ctx context.Context, provider SCMProviderService, repos []*Repository, compiledFilters []*Filter) ([]*Repository, error) {
+func getBranches(ctx context.Context, provider SCMProviderService, repos []*Repository, compiledFilters []*Filter, enableCrossStageFiltering bool) ([]*Repository, error) {
 	reposWithBranches := []*Repository{}
 	for _, repo := range repos {
 		reposFilled, err := provider.GetBranches(ctx, repo)
@@ -140,14 +199,14 @@ func getBranches(ctx context.Context, provider SCMProviderService, repos []*Repo
 		}
 		reposWithBranches = append(reposWithBranches, reposFilled...)
 	}
-	branchFilters := getApplicableFilters(compiledFilters)[FilterTypeBranch]
+	branchFilters := getApplicableFilters(compiledFilters, enableCrossStageFiltering)[FilterTypeBranch]
 	if len(branchFilters) == 0 {
 		return reposWithBranches, nil
 	}
 	filteredRepos := make([]*Repository, 0, len(reposWithBranches))
 	for _, repo := range reposWithBranches {
 		for _, filter := range branchFilters {
-			matches, err := matchFilter(ctx, provider, repo, filter)
+			matches, err := matchFilter(ctx, provider, repo, filter, FilterTypeBranch, enableCrossStageFiltering)
 			if err != nil {
 				return nil, err
 			}
@@ -161,18 +220,40 @@ func getBranches(ctx context.Context, provider SCMProviderService, repos []*Repo
 }
 
 // getApplicableFilters returns a map of filters separated by type.
-func getApplicableFilters(filters []*Filter) map[FilterType][]*Filter {
+// When enableCrossStage is true, filters are categorized based on their actual conditions,
+// and a filter with both repo-level and branch-level conditions is added to both groups
+// to ensure proper AND logic across filter phases.
+// When enableCrossStage is false, filters are categorized by their FilterType field (legacy behavior).
+func getApplicableFilters(filters []*Filter, enableCrossStage bool) map[FilterType][]*Filter {
 	filterMap := map[FilterType][]*Filter{
 		FilterTypeBranch: {},
 		FilterTypeRepo:   {},
 	}
-	for _, filter := range filters {
-		switch filter.FilterType {
-		case FilterTypeBranch:
-			filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
-		case FilterTypeRepo:
-			filterMap[FilterTypeRepo] = append(filterMap[FilterTypeRepo], filter)
+
+	if enableCrossStage {
+		for _, filter := range filters {
+			hasRepoConditions := filter.RepositoryMatch != nil || filter.LabelMatch != nil
+			hasBranchConditions := filter.BranchMatch != nil ||
+				len(filter.PathsExist) > 0 ||
+				len(filter.PathsDoNotExist) > 0
+
+			if hasRepoConditions {
+				filterMap[FilterTypeRepo] = append(filterMap[FilterTypeRepo], filter)
+			}
+			if hasBranchConditions {
+				filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
+			}
+		}
+	} else {
+		for _, filter := range filters {
+			switch filter.FilterType {
+			case FilterTypeBranch:
+				filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
+			case FilterTypeRepo:
+				filterMap[FilterTypeRepo] = append(filterMap[FilterTypeRepo], filter)
+			}
 		}
 	}
+
 	return filterMap
 }
