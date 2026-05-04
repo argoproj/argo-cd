@@ -38,32 +38,55 @@ import (
 // "(dry-run)" — see https://github.com/argoproj/argo-cd/issues/21911.
 const minServerVersionForAppSetDryRun = "2.13.0"
 
-// requireAppSetDryRunSupport returns an error when the connected server is too
-// old to honor `--dry-run` on `appset create`, so the CLI fails loudly instead
-// of silently applying a destructive change.
-func requireAppSetDryRunSupport(ctx context.Context, argocdClient argocdclient.Client, c *cobra.Command) error {
+// requireAppSetDryRunSupport returns an error when the connected server cannot
+// be confirmed to honor `--dry-run` on `appset create`, so the CLI fails
+// loudly instead of silently applying a destructive change. The function
+// fails closed: if the Version RPC errors out or the server reports an empty
+// / unparseable version string we treat that as "could not confirm support"
+// rather than "supported", since the destructive failure mode is much worse
+// than the false-positive failure mode (an honest server that briefly hiccups
+// on the version RPC).
+func requireAppSetDryRunSupport(ctx context.Context, argocdClient argocdclient.Client) error {
 	conn, versionIf := argocdClient.NewVersionClientOrDie()
 	defer utilio.Close(conn)
 
 	v, err := versionIf.Version(ctx, &empty.Empty{})
-	if err != nil || v == nil {
-		return nil
+	if err != nil {
+		return fmt.Errorf(
+			"--dry-run for \"appset create\" requires confirming the server is %s or later, "+
+				"but the server version could not be retrieved: %w. "+
+				"Older servers ignore the dry-run flag and apply the change; refusing to proceed",
+			minServerVersionForAppSetDryRun, err)
+	}
+	if v == nil {
+		return fmt.Errorf(
+			"--dry-run for \"appset create\" requires confirming the server is %s or later, "+
+				"but the server returned an empty version response. "+
+				"Older servers ignore the dry-run flag and apply the change; refusing to proceed",
+			minServerVersionForAppSetDryRun)
 	}
 	return checkAppSetDryRunSupportedByVersion(v.Version)
 }
 
 // checkAppSetDryRunSupportedByVersion reports whether the supplied server
 // version string supports `appset create --dry-run`. An empty or unparseable
-// string returns nil — we'd rather not block on a malformed response from a
-// healthy server, since the only contract we are enforcing here is "fail loud
-// on confirmed-old servers".
+// string fails closed (returns an error) so we don't silently allow a
+// destructive --dry-run against a server we couldn't identify.
 func checkAppSetDryRunSupportedByVersion(serverVersion string) error {
 	if serverVersion == "" {
-		return nil
+		return fmt.Errorf(
+			"--dry-run for \"appset create\" requires confirming the server is %s or later, "+
+				"but the server returned an empty version string. "+
+				"Older servers ignore the dry-run flag and apply the change; refusing to proceed",
+			minServerVersionForAppSetDryRun)
 	}
 	serverVer, err := semver.NewVersion(strings.TrimPrefix(serverVersion, "v"))
 	if err != nil {
-		return nil
+		return fmt.Errorf(
+			"--dry-run for \"appset create\" requires confirming the server is %s or later, "+
+				"but the server reported an unparseable version %q. "+
+				"Older servers ignore the dry-run flag and apply the change; refusing to proceed",
+			minServerVersionForAppSetDryRun, serverVersion)
 	}
 	minVer := semver.MustParse(minServerVersionForAppSetDryRun)
 	if serverVer.LessThan(minVer) {
@@ -214,6 +237,15 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				os.Exit(1)
 			}
 
+			// Confirm the server is new enough to honor --dry-run on appset create.
+			// Done once before iterating: server version doesn't change inside a
+			// single CLI invocation, so this RPC need not run per ApplicationSet.
+			if dryRun {
+				if err := requireAppSetDryRunSupport(ctx, argocdClient); err != nil {
+					errors.CheckError(err)
+				}
+			}
+
 			for _, appset := range appsets {
 				if appset.Name == "" {
 					errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset))
@@ -231,12 +263,6 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name, AppsetNamespace: appset.Namespace})
 				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
 					errors.CheckError(err)
-				}
-
-				if dryRun {
-					if err := requireAppSetDryRunSupport(ctx, argocdClient, c); err != nil {
-						errors.CheckError(err)
-					}
 				}
 
 				appSetCreateRequest := applicationset.ApplicationSetCreateRequest{

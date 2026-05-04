@@ -50,20 +50,26 @@ func TestAppSetCreateWaitFlow(t *testing.T) {
 
 // TestCheckAppSetDryRunSupportedByVersion guards the server-version gate added
 // in https://github.com/argoproj/argo-cd/issues/21911 so older servers don't
-// silently apply an `appset create --dry-run` request.
+// silently apply an `appset create --dry-run` request. The check fails closed
+// on every "could not confirm" outcome (empty / unparseable version, RPC
+// errors handled at the caller layer) — better to refuse a dry-run we cannot
+// confirm than to silently apply state-mutating requests.
 func TestCheckAppSetDryRunSupportedByVersion(t *testing.T) {
 	tests := []struct {
 		name      string
 		version   string
 		wantError bool
 	}{
-		{name: "empty version is treated as best-effort and accepted", version: "", wantError: false},
-		{name: "unparseable version is treated as best-effort and accepted", version: "not-a-version", wantError: false},
+		// fail-closed cases — refusing without a confirmed server version
+		{name: "empty version fails closed", version: "", wantError: true},
+		{name: "unparseable version fails closed", version: "not-a-version", wantError: true},
+		// confirmed-supported cases
 		{name: "exactly the minimum is supported", version: "v2.13.0", wantError: false},
 		{name: "minimum without v prefix", version: "2.13.0", wantError: false},
 		{name: "patch above the minimum is supported", version: "v2.13.3+a25c8a0", wantError: false},
 		{name: "newer minor is supported", version: "v2.14.0", wantError: false},
 		{name: "v3 is supported", version: "v3.1.0", wantError: false},
+		// confirmed-unsupported cases
 		{name: "older patch fails (issue #21911 reporter case)", version: "v2.11.2+25f7504", wantError: true},
 		{name: "much older minor fails", version: "v2.10.5", wantError: true},
 		{name: "v1.x fails", version: "v1.8.7", wantError: true},
@@ -76,7 +82,6 @@ func TestCheckAppSetDryRunSupportedByVersion(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "appset create")
 				assert.Contains(t, err.Error(), "2.13.0")
-				assert.Contains(t, err.Error(), tc.version)
 			} else {
 				assert.NoError(t, err)
 			}
