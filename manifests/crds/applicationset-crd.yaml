@@ -9411,6 +9411,8 @@ spec:
                                     type: object
                                   cloneProtocol:
                                     type: string
+                                  enableCrossStageFiltering:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
@@ -17069,6 +17071,8 @@ spec:
                                     type: object
                                   cloneProtocol:
                                     type: string
+                                  enableCrossStageFiltering:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
@@ -21112,6 +21116,8 @@ spec:
                           type: object
                         cloneProtocol:
                           type: string
+                        enableCrossStageFiltering:
+                          type: boolean
                         filters:
                           items:
                             properties:

@@ -420,6 +420,22 @@ spec:
 * `labelMatch`: A regexp matched against repository labels. If any label matches, the repository is included.
 * `branchMatch`: A regexp matched against branch names.
 
+### Cross-stage filtering
+
+Filters are evaluated in two sequential phases: repo-phase (`repositoryMatch`, `labelMatch`) and branch-phase (`branchMatch`, `pathsExist`, `pathsDoNotExist`). When a single filter combines conditions from both phases (e.g., `repositoryMatch` + `pathsExist`), the default behavior classifies the filter by the last-set condition, silently dropping the other.
+
+To enforce all conditions across both phases, set `enableCrossStageFiltering: true` on the `scmProvider`:
+
+```yaml
+- scmProvider:
+    enableCrossStageFiltering: true
+    filters:
+      - repositoryMatch: ^myapp
+        pathsExist: [kubernetes/kustomization.yaml]
+```
+
+This opt-in field defaults to `false` to preserve backward compatibility.
+
 ## Template
 
 As with all generators, several parameters are generated for use within the `ApplicationSet` resource template.

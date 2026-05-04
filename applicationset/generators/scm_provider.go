@@ -235,7 +235,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	// Find all the available repos.
-	repos, err := scm_provider.ListRepos(ctx, provider, providerConfig.Filters, providerConfig.CloneProtocol)
+	repos, err := scm_provider.ListRepos(ctx, provider, providerConfig.Filters, providerConfig.CloneProtocol, providerConfig.EnableCrossStageFiltering)
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %w", err)
 	}

@@ -10319,6 +10319,10 @@
           "description": "Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers\nnecessarily support all protocols.",
           "type": "string"
         },
+        "enableCrossStageFiltering": {
+          "description": "EnableCrossStageFiltering enables proper AND logic for filters that combine repo-level conditions\n(repositoryMatch, labelMatch) with branch-level conditions (branchMatch, pathsExist, pathsDoNotExist).\nWhen true, a single filter with both repo-level and branch-level conditions will enforce all conditions.\nWhen false (default), legacy behavior is preserved where mixed filters may only apply to one phase.",
+          "type": "boolean"
+        },
         "filters": {
           "description": "Filters for which repos should be considered.",
           "type": "array",
