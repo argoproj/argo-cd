@@ -220,12 +220,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 width,
                 height,
                 overflow: 'scroll',
-                minWidth: isWrapped ? 'fit-content' : '100%'
+                minWidth: '100%'
             }}>
             <div
                 style={{
                     width: '100%',
-                    minWidth: isWrapped ? 'fit-content' : '100%'
+                    minWidth: '100%'
                 }}>
                 {logs.map((log, lineNum) => {
                     const {podNameContent, timestampContent, logContent} = renderLog(log, lineNum, prefs.appDetails.darkMode);
@@ -234,6 +234,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             key={lineNum}
                             style={{
                                 whiteSpace: isWrapped ? 'normal' : 'pre',
+                                overflowWrap: isWrapped ? 'break-word' : 'normal',
                                 lineHeight: '1.5rem',
                                 backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
                                 padding: '1px 8px',
