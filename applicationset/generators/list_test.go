@@ -142,3 +142,81 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 		assert.ElementsMatch(t, testCase.expected, got)
 	}
 }
+
+func TestGenerateListParamsYaml(t *testing.T) {
+	testCases := []struct {
+		name         string
+		elementsYaml string
+		goTemplate   bool
+		expected     []map[string]any
+		expectedErr  string
+	}{
+		{
+			name:         "primitives",
+			elementsYaml: "- name: test\n  syncPrune: true\n  number: 123",
+			expected: []map[string]any{
+				{
+					"name":      "test",
+					"syncPrune": "true",
+					"number":    "123",
+				},
+			},
+		},
+		{
+			name:         "values",
+			elementsYaml: "- name: test\n  values:\n    foo: bar",
+			expected: []map[string]any{
+				{
+					"name":       "test",
+					"values.foo": "bar",
+				},
+			},
+		},
+		{
+			name:         "go template",
+			elementsYaml: "- name: test\n  number: 123\n  values:\n    foo: bar",
+			goTemplate:   true,
+			expected: []map[string]any{
+				{
+					"name":   "test",
+					"number": float64(123),
+					"values": map[string]any{"foo": "bar"},
+				},
+			},
+		},
+		{
+			name:         "nested error",
+			elementsYaml: "- name: test\n  nested: {foo: bar}",
+			expectedErr:  "not supported",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			listGenerator := NewListGenerator()
+
+			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					GoTemplate: testCase.goTemplate,
+				},
+			}
+
+			got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+				List: &argoprojiov1alpha1.ListGenerator{
+					ElementsYaml: testCase.elementsYaml,
+				},
+			}, &applicationSetInfo, nil)
+
+			if testCase.expectedErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), testCase.expectedErr)
+			} else {
+				require.NoError(t, err)
+				assert.ElementsMatch(t, testCase.expected, got)
+			}
+		})
+	}
+}
