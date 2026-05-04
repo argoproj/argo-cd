@@ -69,25 +69,20 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
-		// app should be attempted to auto-synced once and marked with error after failed attempt detected
+		// app should be attempted to auto-synced and fail; with selfHeal enabled, the controller
+		// retries via self-heal instead of giving up with a SyncError condition
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
-		When().
-		// Trigger refresh again to make sure controller notices previously failed sync attempt before expectation timeout expires
-		Refresh(RefreshTypeNormal).
-		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(Condition(ApplicationConditionSyncError, "Failed last sync attempt")).
 		When().
-		// SyncError condition should be removed after successful sync
+		// Fix the bad value - self-heal allows the app to recover automatically
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 1}]`).
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		When().
-		// Trigger refresh twice to make sure controller notices successful attempt and removes condition
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
