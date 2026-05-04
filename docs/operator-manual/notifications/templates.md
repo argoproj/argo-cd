@@ -113,30 +113,8 @@ See corresponding service [documentation](services/overview.md) for more informa
 
 ## Change the timezone
 
-You can change the timezone to show in notifications as follows.
-
-1. Call time functions.
-
-    ```
-    {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}
-    ```
-
-2. Set the `TZ` environment variable on the argocd-notifications-controller container.
-
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: argocd-notifications-controller
-    spec:
-      template:
-        spec:
-          containers:
-          - name: argocd-notifications-controller
-            env:
-            - name: TZ
-              value: Asia/Tokyo
-    ```
+To change the timezone used when formatting time values in notifications, see
+[Configuring the local timezone](#configuring-the-local-timezone).
 
 ## Functions
 
