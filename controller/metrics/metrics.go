@@ -69,6 +69,13 @@ var (
 		nil,
 	)
 
+	descAppSyncWindow = prometheus.NewDesc(
+		"argocd_app_sync_window",
+		"Whether any sync window currently applies to the application. 1 if at least one sync window is active, 0 otherwise.",
+		descAppDefaultLabels,
+		nil,
+	)
+
 	syncCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_total",
@@ -158,8 +165,12 @@ var (
 	}, []string{"server"})
 )
 
+// AppProjectGetter resolves the AppProject for a given Application. It may be nil,
+// in which case sync window metrics are not emitted.
+type AppProjectGetter func(app *argoappv1.Application) (*argoappv1.AppProject, error)
+
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB, getAppProject AppProjectGetter) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -185,7 +196,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db, getAppProject)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -360,23 +371,25 @@ type appCollector struct {
 	appLabels     []string
 	appConditions []string
 	db            db.ArgoDB
+	getAppProject AppProjectGetter
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB, getAppProject AppProjectGetter) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
 		db:            db,
+		getAppProject: getAppProject,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB, getAppProject AppProjectGetter) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db, getAppProject))
 	return registry
 }
 
@@ -389,6 +402,9 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppConditions
 	}
 	ch <- descAppInfo
+	if c.getAppProject != nil {
+		ch <- descAppSyncWindow
+	}
 }
 
 // Collect implements the prometheus.Collector interface
@@ -471,4 +487,32 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			addGauge(descAppConditions, float64(count), conditionType)
 		}
 	}
+
+	if c.getAppProject != nil {
+		addGauge(descAppSyncWindow, syncWindowMetricValue(c.getAppProject, app))
+	}
+}
+
+// syncWindowMetricValue returns 1 if any sync window matching the given application
+// is currently active, otherwise 0. Errors resolving the project or evaluating the
+// schedule are logged and treated as "no active window" so the metric still reports
+// a value for the application.
+func syncWindowMetricValue(getAppProject AppProjectGetter, app *argoappv1.Application) float64 {
+	proj, err := getAppProject(app)
+	if err != nil {
+		log.Warnf("Failed to get AppProject for application %s/%s: %v", app.Namespace, app.Name, err)
+		return 0
+	}
+	if proj == nil {
+		return 0
+	}
+	active, err := proj.Spec.SyncWindows.Matches(app).Active()
+	if err != nil {
+		log.Warnf("Failed to evaluate sync windows for application %s/%s: %v", app.Namespace, app.Name, err)
+		return 0
+	}
+	if active.HasWindows() {
+		return 1
+	}
+	return 0
 }
