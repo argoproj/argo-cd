@@ -369,6 +369,10 @@ func RepoURL(urlType RepoURLType) string {
 	}
 }
 
+func LocalRepoRoot() string {
+	return repoDirectory()
+}
+
 func RepoBaseURL(urlType RepoURLType) string {
 	return path.Base(RepoURL(urlType))
 }

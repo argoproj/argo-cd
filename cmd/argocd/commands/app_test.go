@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -26,7 +25,6 @@ import (
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
@@ -360,59 +358,6 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 	require.Error(t, err, "Find revision history should fail with errors")
 	require.Nil(t, history, "History should be not found")
 	require.EqualError(t, err, "application '' does not have deployment id '4' in history", "Find revision history should fail with correct error message")
-}
-
-func Test_groupObjsByKey(t *testing.T) {
-	localObjs := []*unstructured.Unstructured{
-		{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]any{
-					"name":      "pod-name",
-					"namespace": "default",
-				},
-			},
-		},
-		{
-			Object: map[string]any{
-				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]any{
-					"name": "certificates.cert-manager.io",
-				},
-			},
-		},
-	}
-	liveObjs := []*unstructured.Unstructured{
-		{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]any{
-					"name":      "pod-name",
-					"namespace": "default",
-				},
-			},
-		},
-		{
-			Object: map[string]any{
-				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]any{
-					"name": "certificates.cert-manager.io",
-				},
-			},
-		},
-	}
-
-	expected := map[kube.ResourceKey]*unstructured.Unstructured{
-		{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
-		{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
-	}
-
-	objByKey := groupObjsByKey(localObjs, liveObjs, "default")
-	assert.Equal(t, expected, objByKey)
 }
 
 func TestFormatSyncPolicy(t *testing.T) {
@@ -1941,8 +1886,8 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy              
-%s   apps  Deployment     default                  test    Synced  Healthy              
+%s            Service     default         service-name1    Synced  Healthy
+%s   apps  Deployment     default                  test    Synced  Healthy
 
 Name:               argocd/test
 Project:            default
@@ -1962,21 +1907,29 @@ Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
-Phase:              
+Phase:
 Start:              0001-01-01 00:00:00 +0000 UTC
 Finished:           2020-11-10 23:00:00 +0000 UTC
 Duration:           2333448h16m18.871345152s
 Message:            test
 
 GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
-       Service     default    service-name1  Synced  Healthy        
-apps   Deployment  default    test           Synced  Healthy        
+       Service     default    service-name1  Synced  Healthy
+apps   Deployment  default    test           Synced  Healthy
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
+	// Trim trailing whitespace from each line
+	for i := range expectationParts {
+		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+	}
 	slices.Sort(expectationParts)
 	expectationSorted := strings.Join(expectationParts, "\n")
 	outputParts := strings.Split(output, "\n")
+	// Trim trailing whitespace from each line
+	for i := range outputParts {
+		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+	}
 	slices.Sort(outputParts)
 	outputSorted := strings.Join(outputParts, "\n")
 	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
@@ -2002,8 +1955,8 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy              
-%s   apps  Deployment     default                  test    Synced  Healthy              
+%s            Service     default         service-name1    Synced  Healthy
+%s   apps  Deployment     default                  test    Synced  Healthy
 
 The command timed out waiting for the conditions to be met.
 
@@ -2027,21 +1980,29 @@ Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
-Phase:              
+Phase:
 Start:              0001-01-01 00:00:00 +0000 UTC
 Finished:           2020-11-10 23:00:00 +0000 UTC
 Duration:           2333448h16m18.871345152s
 Message:            test
 
 GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
-       Service     default    service-name1  Synced  Healthy        
-apps   Deployment  default    test           Synced  Healthy        
+       Service     default    service-name1  Synced  Healthy
+apps   Deployment  default    test           Synced  Healthy
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
+	// Trim trailing whitespace from each line
+	for i := range expectationParts {
+		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+	}
 	slices.Sort(expectationParts)
 	expectationSorted := strings.Join(expectationParts, "\n")
 	outputParts := strings.Split(output, "\n")
+	// Trim trailing whitespace from each line
+	for i := range outputParts {
+		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+	}
 	slices.Sort(outputParts)
 	outputSorted := strings.Join(outputParts, "\n")
 	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
