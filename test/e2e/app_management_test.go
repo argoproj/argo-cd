@@ -2952,7 +2952,7 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
 			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
-			waitForArgoCDConfigMapToStabilize(t, ctx, namespace)
+			fixture.RestartApplicationController(t)
 		}).
 		CreateApp().
 		Sync().
@@ -2988,29 +2988,6 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 		})
 }
 
-func waitForArgoCDConfigMapToStabilize(t *testing.T, ctx context.Context, namespace string) {
-	t.Helper()
-	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	configMapResourceVersion := configMap.ResourceVersion
-	configMapUpdateTime := time.Now()
-
-	require.Eventually(t, func() bool {
-		currentConfigMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-		if err != nil {
-			return false
-		}
-		if currentConfigMap.ResourceVersion != configMapResourceVersion {
-			configMapResourceVersion = currentConfigMap.ResourceVersion
-			configMapUpdateTime = time.Now()
-			return false
-		}
-
-		timeSinceUpdate := time.Since(configMapUpdateTime)
-		return timeSinceUpdate >= 5*time.Second
-	}, 30*time.Second, 1*time.Second, "argocd-cm resourceVersion did not stabilize in time")
-}
-
 // TestGitCommitEventuallyOutOfSyncWithoutManualRefresh checks that a Git-only change is
 // eventually reflected as OutOfSync without a manual refresh.
 func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
@@ -3028,7 +3005,7 @@ func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, reconciliationTimeout, configMap.Data[reconciliationTimeoutConfigKey])
 			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
-			waitForArgoCDConfigMapToStabilize(t, ctx, namespace)
+			fixture.RestartApplicationController(t)
 		}).
 		CreateApp().
 		Sync().

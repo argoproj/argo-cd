@@ -1287,6 +1287,20 @@ func RestartRepoServer(t *testing.T) {
 	}
 }
 
+// RestartApplicationController restarts the controller to pick up argocd-cm env var changes (timeout/jitter).
+// Required because configMapKeyRef does not update running Pods. Skipped in local tests.
+func RestartApplicationController(t *testing.T) {
+	t.Helper()
+	if IsRemote() {
+		log.Infof("Waiting for application-controller to restart after argocd-cm reconciliation settings changed")
+		ns := TestNamespace()
+		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", ns, "restart", "statefulset", argoCDAppControllerName))
+		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", ns, "status", "statefulset", argoCDAppControllerName))
+		// Brief settle after rollout status returns (parity with RestartRepoServer)
+		time.Sleep(5 * time.Second)
+	}
+}
+
 // RestartAPIServer performs a restart of the API server deployemt and waits
 // until the rollout has completed.
 func RestartAPIServer(t *testing.T) {

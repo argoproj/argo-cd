@@ -2,11 +2,13 @@ package controller
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"maps"
 	"math"
+	"math/big"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -125,6 +127,7 @@ type ApplicationController struct {
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
 	statusHardRefreshTimeout      time.Duration
+	appResyncJitter               time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackoff               *wait.Backoff
 	syncTimeout                   time.Duration
@@ -201,6 +204,7 @@ func NewApplicationController(
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
 		statusHardRefreshTimeout:          appHardResyncPeriod,
+		appResyncJitter:                   appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
@@ -2089,8 +2093,14 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-// applicationComparisonExpired is true when Status.Expired reports expiry for ctrl.statusRefreshTimeout
-// or (if non-zero) ctrl.statusHardRefreshTimeout.
+// applicationComparisonExpired reports whether the app's last comparison is past the
+// configured soft/hard refresh windows (based on Status.Expired).
+// This is used as a lightweight check in the informer update path to avoid enqueueing
+// a full refresh on every update. If the comparison is expired, we allow the update
+// to fall through and trigger a refresh; otherwise we can take the fast path.
+// This does not replace needRefreshAppStatus or the refresh logic in
+// processAppRefreshQueueItem, which remains the source of truth for deciding
+// comparison level and performing reconciliation.
 func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Application) bool {
 	if app.Status.Expired(ctrl.statusRefreshTimeout) {
 		return true
@@ -2099,6 +2109,25 @@ func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Appli
 		return true
 	}
 	return false
+}
+
+// resyncRefreshAfter returns a random delay in the range [0, appResyncJitter]
+// to spread out refresh enqueues during relist-heavy events.
+// If jitter is disabled (<= 0), it returns nil so callers can proceed without delay.
+func (ctrl *ApplicationController) resyncRefreshAfter() *time.Duration {
+	if ctrl.appResyncJitter <= 0 {
+		return nil
+	}
+	nanos := ctrl.appResyncJitter.Nanoseconds()
+	if nanos <= 0 {
+		return nil
+	}
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(nanos+1))
+	if err != nil {
+		return nil
+	}
+	d := time.Duration(n.Int64())
+	return &d
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
@@ -2486,7 +2515,10 @@ func deletionTimestampChanged(oldApp, newApp *appv1.Application) bool {
 		(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
 }
 
-func isStatusOnlyUpdate(oldApp, newApp *appv1.Application) bool {
+// noSpecOperationOrDeletionChange is true when Spec, Operation (sync op), and deletion timestamp semantics are
+// unchanged between oldApp and newApp. Labels, annotations, Application Status, ResourceVersion, etc. may differ;
+// applicationInformerProcessUpdate layers refresh/hydrate annotation and applicationComparisonExpired gates on top.
+func noSpecOperationOrDeletionChange(oldApp, newApp *appv1.Application) bool {
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return false
 	}
@@ -2497,6 +2529,74 @@ func isStatusOnlyUpdate(oldApp, newApp *appv1.Application) bool {
 		return false
 	}
 	return true
+}
+
+// applicationInformerProcessUpdate is the Application informer UpdateFunc body after MetaNamespaceKeyFunc,
+// type assertions, and canProcessApp. It is shared with unit tests so behaviour does not drift from production.
+func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, oldApp *appv1.Application, newOK bool, newApp *appv1.Application, key string) {
+	if newOK && newApp.Operation != nil {
+		ctrl.appOperationQueue.AddRateLimited(key)
+	}
+
+	var compareWith *CompareWith
+	var delay *time.Duration
+
+	if oldOK && newOK {
+		if oldApp.ResourceVersion == newApp.ResourceVersion {
+			if ctrl.hydrator != nil {
+				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+			}
+			ctrl.clusterSharding.UpdateApp(newApp)
+
+			if ctrl.applicationComparisonExpired(newApp) {
+				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, ctrl.resyncRefreshAfter())
+			}
+			return
+		}
+
+		// Fast-path for updates where spec/operation/deletion are unchanged.
+		// We avoid enqueueing a full refresh unless:
+		//   - a refresh/hydrate annotation was just added (explicit user signal), or
+		//   - the comparison has expired (periodic reconciliation).
+		// If neither annotation was newly added and the app is not expired,
+		// we skip requestAppRefresh and only enqueue hydration work (if enabled),
+		// then return early.
+		// Otherwise (annotation edge or expiry), we fall through to the normal
+		// refresh path below.
+		if noSpecOperationOrDeletionChange(oldApp, newApp) {
+			oldAnnotations := oldApp.GetAnnotations()
+			newAnnotations := newApp.GetAnnotations()
+			refreshAnnotAppeared := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
+				(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyRefresh] != "")
+			hydrateAnnotAppeared := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
+				(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
+
+			if !refreshAnnotAppeared && !hydrateAnnotAppeared && !ctrl.applicationComparisonExpired(newApp) {
+				if ctrl.hydrator != nil {
+					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+				}
+				ctrl.clusterSharding.UpdateApp(newApp)
+				return
+			}
+			if ctrl.applicationComparisonExpired(newApp) && !refreshAnnotAppeared && !hydrateAnnotAppeared {
+				delay = ctrl.resyncRefreshAfter()
+			}
+		}
+
+		if automatedSyncEnabled(oldApp, newApp) {
+			log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
+			compareWith = CompareWithLatest.Pointer()
+		}
+	}
+
+	ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
+	if !newOK {
+		ctrl.appOperationQueue.AddRateLimited(key)
+	}
+	if ctrl.hydrator != nil {
+		ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+	}
+	ctrl.clusterSharding.UpdateApp(newApp)
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
@@ -2603,57 +2703,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return
 				}
 
-				if newOK && newApp.Operation != nil {
-					ctrl.appOperationQueue.AddRateLimited(key)
-				}
-
-				var compareWith *CompareWith
-				var delay *time.Duration
-
-				if oldOK && newOK {
-					if oldApp.ResourceVersion == newApp.ResourceVersion {
-						if ctrl.hydrator != nil {
-							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-						}
-						ctrl.clusterSharding.UpdateApp(newApp)
-
-						if ctrl.applicationComparisonExpired(newApp) {
-							ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-						}
-						return
-					}
-
-					if isStatusOnlyUpdate(oldApp, newApp) {
-						oldAnnotations := oldApp.GetAnnotations()
-						newAnnotations := newApp.GetAnnotations()
-						refreshAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
-							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyRefresh] != "")
-						hydrateAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
-							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
-
-						if !refreshAdded && !hydrateAdded && !ctrl.applicationComparisonExpired(newApp) {
-							if ctrl.hydrator != nil {
-								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-							}
-							ctrl.clusterSharding.UpdateApp(newApp)
-							return
-						}
-					}
-
-					if automatedSyncEnabled(oldApp, newApp) {
-						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
-						compareWith = CompareWithLatest.Pointer()
-					}
-				}
-
-				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				if !newOK {
-					ctrl.appOperationQueue.AddRateLimited(key)
-				}
-				if ctrl.hydrator != nil {
-					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-				}
-				ctrl.clusterSharding.UpdateApp(newApp)
+				ctrl.applicationInformerProcessUpdate(oldOK, oldApp, newOK, newApp, key)
 			},
 			DeleteFunc: func(obj any) {
 				if !ctrl.canProcessApp(obj) {
