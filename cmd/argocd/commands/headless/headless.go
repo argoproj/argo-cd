@@ -316,7 +316,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
 	ctx := c.Context()
 
-	ctxStr := resolveKubeContextName(opts, c)
+	ctxStr := resolveAndApplyKubeContext(opts, c)
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
 	_, err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, nil)
@@ -347,9 +347,14 @@ func newClientConfig(overrides *clientcmd.ConfigOverrides) clientcmd.ClientConfi
 	)
 }
 
-// resolveKubeContextName determines the kube context name and updates the client options with the resolved context if necessary.
-func resolveKubeContextName(opts *apiclient.ClientOptions, c *cobra.Command) string {
+// resolveAndApplyKubeContext resolves the kube context name to use.
+// If the context flag was explicitly set and opts is non-nil, it applies that
+// value to opts.KubeOverrides.CurrentContext.
+func resolveAndApplyKubeContext(opts *apiclient.ClientOptions, c *cobra.Command) string {
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
+	if opts == nil {
+		return ctxStr
+	}
 	if ctxStr != "" {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}

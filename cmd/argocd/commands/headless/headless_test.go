@@ -22,7 +22,7 @@ func TestKubeContextName(t *testing.T) {
 			},
 		}
 
-		assert.Equal(t, "target-context", resolveKubeContextName(opts, cmd))
+		assert.Equal(t, "target-context", resolveAndApplyKubeContext(opts, cmd))
 	})
 
 	t.Run("prefers changed context flag and updates KubeOverrides", func(t *testing.T) {
@@ -36,7 +36,7 @@ func TestKubeContextName(t *testing.T) {
 			},
 		}
 
-		assert.Equal(t, "context-flag", resolveKubeContextName(opts, cmd))
+		assert.Equal(t, "context-flag", resolveAndApplyKubeContext(opts, cmd))
 		assert.Equal(t, "context-flag", opts.KubeOverrides.CurrentContext)
 	})
 }
