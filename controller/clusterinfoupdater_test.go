@@ -233,7 +233,7 @@ func TestGetUpdatedClusterInfo_SyncWarnings(t *testing.T) {
 	clusterInfo := updater.getUpdatedClusterInfo(t.Context(), nil, cluster, info, metav1.Now())
 
 	assert.Equal(t, v1alpha1.ConnectionStatusSuccessful, clusterInfo.ConnectionState.Status)
-	assert.Equal(t, warnings, clusterInfo.SyncWarnings)
+	assert.Contains(t, clusterInfo.ConnectionState.Message, "deleted-ns")
 }
 
 func TestGetUpdatedClusterInfo_NoSyncWarnings(t *testing.T) {
@@ -249,7 +249,7 @@ func TestGetUpdatedClusterInfo_NoSyncWarnings(t *testing.T) {
 	clusterInfo := updater.getUpdatedClusterInfo(t.Context(), nil, cluster, info, metav1.Now())
 
 	assert.Equal(t, v1alpha1.ConnectionStatusSuccessful, clusterInfo.ConnectionState.Status)
-	assert.Empty(t, clusterInfo.SyncWarnings)
+	assert.Empty(t, clusterInfo.ConnectionState.Message)
 }
 
 func TestUpdateClusterLabels(t *testing.T) {

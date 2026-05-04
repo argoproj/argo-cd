@@ -1782,11 +1782,6 @@ func (in *ClusterInfo) DeepCopyInto(out *ClusterInfo) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.SyncWarnings != nil {
-		in, out := &in.SyncWarnings, &out.SyncWarnings
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	return
 }
 
