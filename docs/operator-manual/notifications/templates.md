@@ -111,6 +111,11 @@ The `message` field of the template definition allows creating a basic notificat
 fields to create complex notifications. For example using service-specific you can add blocks and attachments for Slack, subject for Email or URL path, and body for Webhook.
 See corresponding service [documentation](services/overview.md) for more information.
 
+## Change the timezone
+
+To change the timezone used when formatting time values in notifications, see
+[Configuring the local timezone](#configuring-the-local-timezone).
+
 ## Functions
 
 Templates have access to the set of built-in functions such as the functions of the [Sprig](https://masterminds.github.io/sprig/) package
