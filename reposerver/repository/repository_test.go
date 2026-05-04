@@ -1669,6 +1669,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.NotNil(t, res.Helm)
 
 	assert.Equal(t, "Helm", res.Type)
+	assert.Equal(t, "foobar", res.Helm.Name)
 	assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
@@ -1686,6 +1687,7 @@ func TestGetAppDetailsHelmUsesCache(t *testing.T) {
 	assert.NotNil(t, res.Helm)
 
 	assert.Equal(t, "Helm", res.Type)
+	assert.Equal(t, "foobar", res.Helm.Name)
 	assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
@@ -1703,6 +1705,7 @@ func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	assert.NotNil(t, res.Helm)
 
 	assert.Equal(t, "Helm", res.Type)
+	assert.NotEmpty(t, res.Helm.Name)
 	assert.Empty(t, res.Helm.ValueFiles)
 	assert.Empty(t, res.Helm.Values)
 }
