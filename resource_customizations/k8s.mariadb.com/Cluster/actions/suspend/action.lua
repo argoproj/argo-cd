@@ -1,3 +1,5 @@
-obj.spec.suspend = true
+if obj.spec ~= nil then
+	obj.spec.suspend = true
+end
 
 return obj
