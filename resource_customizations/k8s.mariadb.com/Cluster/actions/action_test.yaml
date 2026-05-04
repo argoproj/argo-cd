@@ -1,0 +1,7 @@
+actionTests:
+  - action: suspend
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster_suspended.yaml
+  - action: resume
+    inputPath: testdata/cluster_suspended.yaml
+    expectedOutputPath: testdata/cluster_healthy.yaml
