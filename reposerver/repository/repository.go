@@ -524,6 +524,7 @@ func (s *Service) runRepoOperation(
 		}
 
 		// Computed and passed to preserve API backwards compatibility only. Decisions are made based on SourceIntegrityResult.
+		// TODO: Remove with the next major version
 		verificationResult, err := gitClient.VerifyCommitSignature(rev) // nolint:staticcheck
 		if err != nil {
 			return nil, err
@@ -982,7 +983,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.SourceIntegrityResult = opContext.sourceIntegrityResult
-	manifestGenResult.VerifyResult = opContext.verificationResult
+	// TODO: Remove with the next major version
+	manifestGenResult.VerifyResult = opContext.verificationResult // nolint:staticcheck
 	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)

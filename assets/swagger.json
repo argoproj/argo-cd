@@ -6159,7 +6159,7 @@
           "type": "string"
         },
         "verifyResult": {
-          "description": "Raw response of git verify-commit operation (always the empty string for Helm)\nDeprecated: Use SourceIntegrityResult for more detailed information. VerifyResult will be removed with the next major version.",
+          "description": "Deprecated: Use sourceIntegrityResult for more detailed information. verifyResult will be removed with the next major version.",
           "type": "string"
         }
       }
