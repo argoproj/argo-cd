@@ -243,6 +243,18 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			// repository.name is a display name ("My Repo Display Name") that differs from
+			// the slug; full_name ("my-org/myrepo") must be used for matching.
+			desc:               "WebHook from a Bitbucket Cloud repository where display name differs from slug",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "pullrequest:created"},
+			payloadFile:        "bitbucket-cloud-pull-request-displayname.json",
+			effectedAppSets:    []string{"pull-request-bitbucket-cloud", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
