@@ -657,10 +657,18 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 }
 
 func bitbucketPRInfo(repo bitbucket.Repository) *prGeneratorBitbucketInfo {
-	return &prGeneratorBitbucketInfo{
-		Owner: repo.Owner.NickName,
-		Repo:  repo.Name,
+	// full_name is "workspace/repo-slug" and is always the stable API identifier.
+	// repo.Name can be a display name that differs from the slug, which would
+	// cause shouldRefreshPRGenerator to silently miss the matching ApplicationSet.
+	owner := repo.Owner.NickName
+	repoName := repo.Name
+	if repo.FullName != "" {
+		if parts := strings.SplitN(repo.FullName, "/", 2); len(parts) == 2 {
+			owner = parts[0]
+			repoName = parts[1]
+		}
 	}
+	return &prGeneratorBitbucketInfo{Owner: owner, Repo: repoName}
 }
 
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
