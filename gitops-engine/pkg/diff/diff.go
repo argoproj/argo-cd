@@ -194,15 +194,6 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
 
-	if isCoreSecret(config) {
-		// Mask Secret data symmetrically before comparison.
-		// Equal values get equal placeholders, different values get different placeholders.
-		predictedLive, live, err = HideSecretData(predictedLive, live, nil)
-		if err != nil {
-			return nil, fmt.Errorf("error hiding secret data for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
-		}
-	}
-
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
@@ -367,15 +358,6 @@ func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error
 	return &unstructured.Unstructured{Object: res}, nil
 }
 
-// isCoreSecret reports whether obj is a core/v1 Secret (Group="" and Kind="Secret").
-func isCoreSecret(obj *unstructured.Unstructured) bool {
-	if obj == nil {
-		return false
-	}
-	gvk := obj.GroupVersionKind()
-	return gvk.Group == "" && gvk.Kind == "Secret"
-}
-
 // StructuredMergeDiff will calculate the diff using the structured-merge-diff
 // k8s library (https://github.com/kubernetes-sigs/structured-merge-diff).
 func StructuredMergeDiff(config, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*DiffResult, error) {
@@ -526,7 +508,7 @@ func normalizeTypedValue(tv *typed.TypedValue) ([]byte, error) {
 
 func buildDiffResult(predictedBytes []byte, liveBytes []byte) *DiffResult {
 	return &DiffResult{
-		Modified:       string(liveBytes) != string(predictedBytes),
+		Modified:       !bytes.Equal(liveBytes, predictedBytes),
 		NormalizedLive: liveBytes,
 		PredictedLive:  predictedBytes,
 	}
@@ -869,7 +851,7 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, opts ...Opti
 	diffResultList := DiffResultList{
 		Diffs: make([]DiffResult, numItems),
 	}
-	for i := 0; i < numItems; i++ {
+	for i := range numItems {
 		config := configArray[i]
 		live := liveArray[i]
 		diffRes, err := Diff(config, live, opts...)
@@ -1074,16 +1056,18 @@ func CreateTwoWayMergePatch(orig, new, dataStruct any) ([]byte, bool, error) {
 // in replacement should be different.
 func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured, hideAnnotations map[string]bool) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
 	var liveLastAppliedAnnotation *unstructured.Unstructured
+	var targetLastAppliedAnnotation *unstructured.Unstructured
 	if live != nil {
 		liveLastAppliedAnnotation, _ = GetLastAppliedConfigAnnotation(live)
 		live = live.DeepCopy()
 	}
 	if target != nil {
+		targetLastAppliedAnnotation, _ = GetLastAppliedConfigAnnotation(target)
 		target = target.DeepCopy()
 	}
 
 	keys := map[string]bool{}
-	for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation} {
+	for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation} {
 		if obj == nil {
 			continue
 		}
@@ -1096,12 +1080,12 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 
 	var err error
-	target, live, liveLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, keys, "data")
+	target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, keys, "data")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	target, live, liveLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, hideAnnotations, "metadata", "annotations")
+	target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, hideAnnotations, "metadata", "annotations")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1123,15 +1107,32 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		}
 		live.SetAnnotations(annotations)
 	}
+	if target != nil && targetLastAppliedAnnotation != nil {
+		annotations := target.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation
+		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok {
+			annotations[corev1.LastAppliedConfigAnnotation] = replacement
+		} else {
+			lastAppliedData, err := json.Marshal(targetLastAppliedAnnotation)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error marshaling json: %w", err)
+			}
+			annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
+		}
+		target.SetAnnotations(annotations)
+	}
 	return target, live, nil
 }
 
-func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, keys map[string]bool, fields ...string) (*unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, error) {
+func hide(target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation *unstructured.Unstructured, keys map[string]bool, fields ...string) (*unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, error) {
 	for k := range keys {
 		// we use "+" rather than the more common "*"
 		nextReplacement := replacement
 		valToReplacement := make(map[string]string)
-		for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation} {
+		for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation} {
 			var data map[string]any
 			if obj != nil {
 				// handles an edge case when secret data has nil value
@@ -1145,7 +1146,7 @@ func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, ke
 				var err error
 				data, _, err = unstructured.NestedMap(obj.Object, fields...)
 				if err != nil {
-					return nil, nil, nil, fmt.Errorf("unstructured.NestedMap error: %w", err)
+					return nil, nil, nil, nil, fmt.Errorf("unstructured.NestedMap error: %w", err)
 				}
 			}
 			if data == nil {
@@ -1165,11 +1166,11 @@ func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, ke
 			data[k] = replacement
 			err := unstructured.SetNestedField(obj.Object, data, fields...)
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("unstructured.SetNestedField error: %w", err)
+				return nil, nil, nil, nil, fmt.Errorf("unstructured.SetNestedField error: %w", err)
 			}
 		}
 	}
-	return target, live, liveLastAppliedAnnotation, nil
+	return target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, nil
 }
 
 func toString(val any) string {
