@@ -1,5 +1,5 @@
 import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
 import {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
 import {Form, type FormApi} from 'argo-ui';

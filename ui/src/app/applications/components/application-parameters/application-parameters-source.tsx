@@ -1,4 +1,4 @@
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
 import {ReactNode, useContext, useState} from 'react';
 import {FormApi} from 'argo-ui';

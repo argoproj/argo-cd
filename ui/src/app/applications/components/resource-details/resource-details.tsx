@@ -282,7 +282,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const execEnabled = settings.execEnabled;
                         const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
                         const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
-                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
                         return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
                     }}>

@@ -1,6 +1,6 @@
 import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip, HelpIcon} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
 import {ReactForm, FormApi, Text} from 'argo-ui';
 import * as moment from 'moment';

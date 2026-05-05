@@ -12,7 +12,6 @@
         "noUnusedLocals": true,
         "declaration": false,
         "skipLibCheck": true,
-        "isolatedModules": true,
         "types": [
             "jest",
             "node"
@@ -26,6 +25,8 @@
         "./**/*"
     ],
     "exclude": [
-        "node_modules"
+        "node_modules",
+        "./**/*.test.ts",
+        "./**/*.test.tsx"
     ]
 }

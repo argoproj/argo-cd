@@ -1,6 +1,6 @@
 import * as moment from 'moment';
 import * as React from 'react';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import './application-deployment-history.scss';
 import '../../../shared/components/editable-panel/editable-panel.scss';

@@ -1,4 +1,4 @@
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as moment from 'moment';
 import * as React from 'react';
 import {FieldApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
