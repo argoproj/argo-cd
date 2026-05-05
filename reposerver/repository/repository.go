@@ -3150,6 +3150,12 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, err
 	}
 
+	if sourceIntegrityResult != nil {
+		if err := sourceintegrity.CommitSignatureError(request.VerifyCommit, gitClient, revision, repo); err != nil { // nolint:staticcheck
+			return nil, err
+		}
+	}
+
 	gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -3214,6 +3220,12 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	}
 	if err := sourceIntegrityResult.AsError(); err != nil {
 		return nil, err
+	}
+
+	if sourceIntegrityResult != nil {
+		if err := sourceintegrity.CommitSignatureError(request.VerifyCommit, gitClient, revision, repo); err != nil { // nolint:staticcheck
+			return nil, err
+		}
 	}
 
 	repoRoot := gitClient.Root()

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -814,4 +815,25 @@ func parseGitCommitVerification(signature string) pgpVerifyResult {
 	}
 	// No data found, return error
 	return unknownResult("Could not parse output of verify-commit, no verification data found.")
+}
+
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+func CommitSignatureError(verifyCommit bool, gitClient git.Client, revision string, repo *v1alpha1.Repository) error {
+	if IsGPGEnabled() && verifyCommit {
+		cs, err := gitClient.VerifyCommitSignature(revision)
+		if err != nil {
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, repo.Repo, err)
+			return err
+		}
+
+		if cs == "" {
+			return fmt.Errorf("revision %s is not signed", revision)
+		}
+		vr := parseGitCommitVerification(cs)
+		if vr.Result == verifyResultUnknown {
+			return fmt.Errorf("UNKNOWN signature: %s", vr.Message)
+		}
+		log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, vr.KeyID)
+	}
+	return nil
 }
