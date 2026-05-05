@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -37,7 +38,7 @@ func NewNotificationsCommand() *cobra.Command {
 		"argocd admin notifications",
 		applications,
 		settings.GetFactorySettingsForCLI(func() service.Service { return argocdService }, "argocd-notifications-secret", "argocd-notifications-cm", false),
-		func(clientConfig clientcmd.ClientConfig) {
+		func(_ context.Context, clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
 				log.Fatalf("Failed to parse k8s config: %v", err)
