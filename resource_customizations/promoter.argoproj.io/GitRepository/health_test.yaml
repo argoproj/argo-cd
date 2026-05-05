@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: GitRepository is being deleted
+    message: 'GitRepository is being deleted. gitrepository.promoter.argoproj.io/finalizer: Waiting until no non-deleting PullRequests still reference this repository. Risk if removed manually: repository metadata may be removed while promotions still depend on it.'
   inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Progressing

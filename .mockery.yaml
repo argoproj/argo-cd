@@ -29,8 +29,12 @@ packages:
     interfaces:
       Dependencies: {}
       RepoGetter: {}
+  github.com/argoproj/argo-cd/v3/pkg/apiclient/application:
+    interfaces:
+      ApplicationServiceClient: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
+      ClusterServiceClient: {}
       ClusterServiceServer: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/project:
     interfaces:
