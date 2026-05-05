@@ -170,6 +170,18 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                         </div>
                     </div>
 
+                    {/* Orphaned warning row */}
+                    {app.metadata.labels?.['argocd.argoproj.io/orphaned-by-applicationset'] && (
+                        <div className='row'>
+                            <div className='columns small-3' />
+                            <div className='columns small-9'>
+                                <a className='warning'>
+                                    <i className='fa fa-exclamation-triangle' /> Orphaned by ApplicationSet
+                                </a>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Repository row */}
                     <div className='row'>
                         <div className='columns small-3' title='Repository:'>
