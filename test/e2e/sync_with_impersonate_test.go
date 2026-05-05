@@ -53,21 +53,20 @@ func TestSyncWithNoDestinationServiceAccountsInProject(t *testing.T) {
 }
 
 func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
-	projectName := "sync-test-project"
 	serviceAccountName := "test-account"
 
 	projectCtx := project.Given(t)
-	appCtx := Given(t)
+	appCtx := GivenWithSameState(projectCtx)
 
 	projectCtx.
-		Name(projectName).
+		Name("sync-test-project").
 		SourceNamespaces([]string{"*"}).
 		SourceRepositories([]string{"*"}).
 		Destination("*,*").
 		DestinationServiceAccounts(
 			[]string{
-				fmt.Sprintf("%s,%s,%s", "*", fixture.DeploymentNamespace(), serviceAccountName),
-				fmt.Sprintf("%s,%s,%s", v1alpha1.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace(), "missing-serviceAccount"),
+				fmt.Sprintf("%s,%s,%s", "*", projectCtx.DeploymentNamespace(), serviceAccountName),
+				fmt.Sprintf("%s,%s,%s", v1alpha1.KubernetesInternalAPIServerAddr, projectCtx.DeploymentNamespace(), "missing-serviceAccount"),
 			}).
 		When().
 		Create().
@@ -75,6 +74,7 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 		Expect()
 
 	appCtx.
+		Project(projectCtx.GetName()).
 		SetTrackingMethod("annotation").
 		Path("guestbook").
 		When().
@@ -92,7 +92,6 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 		}).
 		CreateFromFile(func(app *v1alpha1.Application) {
 			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
-			app.Spec.Project = projectName
 		}).
 		Then().
 		// With the impersonation feature enabled, Application sync should succeed
@@ -102,21 +101,20 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 }
 
 func TestSyncWithMissingServiceAccount(t *testing.T) {
-	projectName := "false-test-project"
 	serviceAccountName := "test-account"
 
 	projectCtx := project.Given(t)
-	appCtx := Given(t)
+	appCtx := GivenWithSameState(projectCtx)
 
 	projectCtx.
-		Name(projectName).
+		Name("false-test-project").
 		SourceNamespaces([]string{"*"}).
 		SourceRepositories([]string{"*"}).
 		Destination("*,*").
 		DestinationServiceAccounts(
 			[]string{
-				fmt.Sprintf("%s,%s,%s", v1alpha1.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace(), "missing-serviceAccount"),
-				fmt.Sprintf("%s,%s,%s", "*", fixture.DeploymentNamespace(), serviceAccountName),
+				fmt.Sprintf("%s,%s,%s", v1alpha1.KubernetesInternalAPIServerAddr, projectCtx.DeploymentNamespace(), "missing-serviceAccount"),
+				fmt.Sprintf("%s,%s,%s", "*", projectCtx.DeploymentNamespace(), serviceAccountName),
 			}).
 		When().
 		Create().
@@ -124,6 +122,7 @@ func TestSyncWithMissingServiceAccount(t *testing.T) {
 		Expect()
 
 	appCtx.
+		Project(projectCtx.GetName()).
 		SetTrackingMethod("annotation").
 		Path("guestbook").
 		When().
@@ -141,7 +140,6 @@ func TestSyncWithMissingServiceAccount(t *testing.T) {
 		}).
 		CreateFromFile(func(app *v1alpha1.Application) {
 			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
-			app.Spec.Project = projectName
 		}).
 		Then().
 		// With the impersonation feature enabled, Application sync must fail
@@ -152,20 +150,19 @@ func TestSyncWithMissingServiceAccount(t *testing.T) {
 }
 
 func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
-	projectName := "negation-test-project"
 	serviceAccountName := "test-account"
 
 	projectCtx := project.Given(t)
-	appCtx := Given(t)
+	appCtx := GivenWithSameState(projectCtx)
 
 	projectCtx.
-		Name(projectName).
+		Name("negation-test-project").
 		SourceNamespaces([]string{"*"}).
 		SourceRepositories([]string{"*"}).
 		Destination("*,*").
 		DestinationServiceAccounts(
 			[]string{
-				fmt.Sprintf("%s,%s,%s", "*", fixture.DeploymentNamespace(), serviceAccountName),
+				fmt.Sprintf("%s,%s,%s", "*", projectCtx.DeploymentNamespace(), serviceAccountName),
 			}).
 		When().
 		Create().
@@ -173,6 +170,7 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 		Expect()
 
 	appCtx.
+		Project(projectCtx.GetName()).
 		SetTrackingMethod("annotation").
 		Path("guestbook").
 		When().
@@ -190,16 +188,15 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 		}).
 		CreateFromFile(func(app *v1alpha1.Application) {
 			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
-			app.Spec.Project = projectName
 		}).
 		Then().
 		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
 		When().
 		And(func() {
 			// Patch destination to disallow target destination namespace
-			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": %q}]}}`, "!"+fixture.DeploymentNamespace()))
+			patch := fmt.Appendf(nil, `{"spec": {"destinations": [{"namespace": %q}]}}`, "!"+appCtx.DeploymentNamespace())
 
-			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(t.Context(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
+			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(t.Context(), projectCtx.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
 			require.NoError(t, err)
 		}).
 		Refresh(v1alpha1.RefreshTypeNormal).

@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
 )
 
@@ -98,9 +99,12 @@ func refTargetForCacheKeyFromRefTarget(refTarget *appv1.RefTarget) refTargetForC
 
 type refTargetRevisionMappingForCacheKey map[string]refTargetForCacheKey
 
-func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTargetRevisionMapping) refTargetRevisionMappingForCacheKey {
+func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTargetRevisionMapping, refSourceCommitSHAs ResolvedRevisions) refTargetRevisionMappingForCacheKey {
 	res := make(refTargetRevisionMappingForCacheKey)
+
 	for k, v := range refTargetRevisionMapping {
+		// forcefully update TargetRevision based on refSourceCommitSHAs so that the resolved revision is always stored in the cache
+		v.TargetRevision = refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]
 		res[k] = refTargetForCacheKeyFromRefTarget(v)
 	}
 	return res
@@ -129,7 +133,7 @@ func appSourceKeyJSON(appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRe
 	}
 	appSrcStr, _ := json.Marshal(appSourceKeyStruct{
 		AppSrc:            appSrc,
-		SrcRefs:           getRefTargetRevisionMappingForCacheKey(srcRefs),
+		SrcRefs:           getRefTargetRevisionMappingForCacheKey(srcRefs, refSourceCommitSHAs),
 		ResolvedRevisions: refSourceCommitSHAs,
 	})
 	return string(appSrcStr)
@@ -147,9 +151,7 @@ func clusterRuntimeInfoKey(info ClusterRuntimeInfo) uint32 {
 // check if info is nil, the caller must do that.
 func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 	apiVersions := info.GetApiVersions()
-	sort.Slice(apiVersions, func(i, j int) bool {
-		return apiVersions[i] < apiVersions[j]
-	})
+	slices.Sort(apiVersions)
 	return info.GetKubeVersion() + "|" + strings.Join(apiVersions, ",")
 }
 
@@ -328,6 +330,7 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 	//       example, revision could be part of ResolvedRevisions. And srcRefs is probably redundant now that
 	//       refSourceCommitSHAs has been added. We don't need to know the _target_ revisions of the referenced sources
 	//       when the _resolved_ revisions are already part of the key.
+
 	trackingKey := trackingKey(appLabelKey, trackingMethod)
 	key := fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
 	if installationID != "" {
@@ -360,9 +363,9 @@ func LogDebugManifestCacheKeyFields(message string, reason string, revision stri
 	}
 }
 
-func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
-	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
-	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
+func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, oldSrcRefs appv1.RefTargetRevisionMapping, newSrcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, oldRefSourceCommitSHAs ResolvedRevisions, newRefSourceCommitSHAs ResolvedRevisions, installationID string) error {
+	oldKey := manifestCacheKey(revision, appSrc, oldSrcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, oldRefSourceCommitSHAs, installationID)
+	newKey := manifestCacheKey(newRevision, appSrc, newSrcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, newRefSourceCommitSHAs, installationID)
 	return c.cache.RenameItem(oldKey, newKey, c.repoCacheExpiration)
 }
 
@@ -483,6 +486,22 @@ func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *a
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
+func ociMetadataKey(repoURL, revision string) string {
+	return fmt.Sprintf("ocimetadata|%s|%s", repoURL, revision)
+}
+
+func (c *Cache) GetOCIMetadata(repoURL, revision string) (*appv1.OCIMetadata, error) {
+	item := &appv1.OCIMetadata{}
+	return item, c.cache.GetItem(ociMetadataKey(repoURL, revision), item)
+}
+
+func (c *Cache) SetOCIMetadata(repoURL, revision string, item *appv1.OCIMetadata) error {
+	return c.cache.SetItem(
+		ociMetadataKey(repoURL, revision),
+		item,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
 func gitFilesKey(repoURL, revision, pattern string) string {
 	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
 }
@@ -515,6 +534,23 @@ func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
 	var item []string
 	err := c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
 	return item, err
+}
+
+func getGitFilesChangesKey(repoURL, revision, targetRevision string) string {
+	return fmt.Sprintf("gitFilesChanges|%s|%s|%s", repoURL, revision, targetRevision)
+}
+
+func (c *Cache) SetGitFilesChanges(repoURL, revision, targetRevision string, files []string) error {
+	return c.cache.SetItem(
+		getGitFilesChangesKey(repoURL, revision, targetRevision),
+		&files,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) GetGitFilesChanges(repoURL, revision, targetRevision string) ([]string, error) {
+	var files []string
+	err := c.cache.GetItem(getGitFilesChangesKey(repoURL, revision, targetRevision), &files)
+	return files, err
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {

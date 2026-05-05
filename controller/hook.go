@@ -3,13 +3,15 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
@@ -17,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/lua"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 )
 
 type HookType string
@@ -43,8 +46,12 @@ func isHookOfType(obj *unstructured.Unstructured, hookType HookType) bool {
 	}
 
 	for k, v := range hookTypeAnnotations[hookType] {
-		if val, ok := obj.GetAnnotations()[k]; ok && val == v {
-			return true
+		if val, ok := obj.GetAnnotations()[k]; ok {
+			if slices.ContainsFunc(strings.Split(val, ","), func(item string) bool {
+				return strings.TrimSpace(item) == v
+			}) {
+				return true
+			}
 		}
 	}
 	return false
@@ -71,18 +78,44 @@ func isPostDeleteHook(obj *unstructured.Unstructured) bool {
 	return isHookOfType(obj, PostDeleteHookType)
 }
 
+// hasGitOpsEngineSyncPhaseHook is true when gitops-engine would run the resource during a sync
+// phase (PreSync, Sync, PostSync, SyncFail). PreDelete/PostDelete are not sync phases;
+// without this check, state reconciliation drops such resources
+// entirely because isPreDeleteHook/isPostDeleteHook match any comma-separated value.
+// HookTypeSkip is omitted as it is not a sync phase.
+func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
+	for _, t := range hook.Types(obj) {
+		switch t {
+		case common.HookTypePreSync, common.HookTypeSync, common.HookTypePostSync, common.HookTypeSyncFail:
+			return true
+		}
+	}
+	return false
+}
+
 // executeHooks is a generic function to execute hooks of a specified type
 func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return false, err
 	}
+	trackingMethodStr, err := ctrl.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return false, err
+	}
+	installationID, err := ctrl.settingsMgr.GetInstallationID()
+	if err != nil {
+		return false, err
+	}
+	trackingMethod := appv1.TrackingMethod(trackingMethodStr)
+	resourceTracking := argoutil.NewResourceTracking()
 
 	var revisions []string
 	for _, src := range app.Spec.GetSources() {
 		revisions = append(revisions, src.TargetRevision)
 	}
 
+	// Fetch target objects from Git to know which hooks should exist
 	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
 	if err != nil {
 		return false, err
@@ -105,24 +138,31 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 		if !isHookOfType(obj, hookType) {
 			continue
 		}
-		if runningHook := runningHooks[kube.GetResourceKey(obj)]; runningHook == nil {
+		if _, alreadyExists := runningHooks[kube.GetResourceKey(obj)]; !alreadyExists {
 			expectedHook[kube.GetResourceKey(obj)] = obj
 		}
 	}
 
 	// Create hooks that don't exist yet
 	createdCnt := 0
-	for _, obj := range expectedHook {
-		// Add app instance label so the hook can be tracked and cleaned up
-		labels := obj.GetLabels()
-		if labels == nil {
-			labels = make(map[string]string)
+	for key, obj := range expectedHook {
+		// Apply app instance tracking metadata so the hook can be tracked and cleaned up.
+		// Use the same code path as regular sync resources so the configured
+		// tracking method (label, annotation, annotation+label) is honored.
+		// When the configured tracking method writes a label, this also ensures
+		// the label value is truncated to fit Kubernetes' 63-character label
+		// limit (see https://github.com/argoproj/argo-cd/issues/27527).
+		if err := resourceTracking.SetAppInstance(obj, appLabelKey, app.InstanceName(ctrl.namespace), app.Spec.Destination.Namespace, trackingMethod, installationID); err != nil {
+			return false, fmt.Errorf("failed to set app instance tracking on %s hook %s: %w", hookType, key, err)
 		}
-		labels[appLabelKey] = app.InstanceName(ctrl.namespace)
-		obj.SetLabels(labels)
 
+		logCtx.Infof("Creating %s hook resource: %s", hookType, key)
 		_, err = ctrl.kubectl.CreateResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				logCtx.Warnf("Hook resource %s already exists, skipping", key)
+				continue
+			}
 			return false, err
 		}
 		createdCnt++
@@ -143,7 +183,8 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	progressingHooksCount := 0
 	var failedHooks []string
 	var failedHookObjects []*unstructured.Unstructured
-	for _, obj := range runningHooks {
+
+	for key, obj := range runningHooks {
 		hookHealth, err := health.GetResourceHealth(obj, healthOverrides)
 		if err != nil {
 			return false, err
@@ -160,12 +201,17 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 				Status: health.HealthStatusHealthy,
 			}
 		}
+
 		switch hookHealth.Status {
 		case health.HealthStatusProgressing:
+			logCtx.Debugf("Hook %s is progressing", key)
 			progressingHooksCount++
 		case health.HealthStatusDegraded:
+			logCtx.Warnf("Hook %s is degraded: %s", key, hookHealth.Message)
 			failedHooks = append(failedHooks, fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName()))
 			failedHookObjects = append(failedHookObjects, obj)
+		case health.HealthStatusHealthy:
+			logCtx.Debugf("Hook %s is healthy", key)
 		}
 	}
 
@@ -174,7 +220,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 		logCtx.Infof("Deleting %d failed %s hook(s) to allow retry", len(failedHookObjects), hookType)
 		for _, obj := range failedHookObjects {
 			err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
-			if err != nil {
+			if err != nil && !apierrors.IsNotFound(err) {
 				logCtx.WithError(err).Warnf("Failed to delete failed hook %s/%s", obj.GetNamespace(), obj.GetName())
 			}
 		}
@@ -221,6 +267,10 @@ func (ctrl *ApplicationController) cleanupHooks(hookType HookType, liveObjs map[
 		hooks = append(hooks, obj)
 	}
 
+	if len(hooks) == 0 {
+		return true, nil
+	}
+
 	// Process hooks for deletion
 	for _, obj := range hooks {
 		deletePolicies := hook.DeletePolicies(obj)
@@ -247,7 +297,7 @@ func (ctrl *ApplicationController) cleanupHooks(hookType HookType, liveObjs map[
 			}
 			logCtx.Infof("Deleting %s hook %s/%s", hookType, obj.GetNamespace(), obj.GetName())
 			err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
-			if err != nil {
+			if err != nil && !apierrors.IsNotFound(err) {
 				return false, err
 			}
 		}

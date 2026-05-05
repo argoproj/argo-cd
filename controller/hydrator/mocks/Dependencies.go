@@ -81,6 +81,112 @@ func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key typ
 	return _c
 }
 
+// GetCommitAuthorEmail provides a mock function for the type Dependencies
+func (_mock *Dependencies) GetCommitAuthorEmail() (string, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommitAuthorEmail")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() string); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Dependencies_GetCommitAuthorEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommitAuthorEmail'
+type Dependencies_GetCommitAuthorEmail_Call struct {
+	*mock.Call
+}
+
+// GetCommitAuthorEmail is a helper method to define mock.On call
+func (_e *Dependencies_Expecter) GetCommitAuthorEmail() *Dependencies_GetCommitAuthorEmail_Call {
+	return &Dependencies_GetCommitAuthorEmail_Call{Call: _e.mock.On("GetCommitAuthorEmail")}
+}
+
+func (_c *Dependencies_GetCommitAuthorEmail_Call) Run(run func()) *Dependencies_GetCommitAuthorEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Dependencies_GetCommitAuthorEmail_Call) Return(s string, err error) *Dependencies_GetCommitAuthorEmail_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Dependencies_GetCommitAuthorEmail_Call) RunAndReturn(run func() (string, error)) *Dependencies_GetCommitAuthorEmail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCommitAuthorName provides a mock function for the type Dependencies
+func (_mock *Dependencies) GetCommitAuthorName() (string, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommitAuthorName")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() string); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Dependencies_GetCommitAuthorName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommitAuthorName'
+type Dependencies_GetCommitAuthorName_Call struct {
+	*mock.Call
+}
+
+// GetCommitAuthorName is a helper method to define mock.On call
+func (_e *Dependencies_Expecter) GetCommitAuthorName() *Dependencies_GetCommitAuthorName_Call {
+	return &Dependencies_GetCommitAuthorName_Call{Call: _e.mock.On("GetCommitAuthorName")}
+}
+
+func (_c *Dependencies_GetCommitAuthorName_Call) Run(run func()) *Dependencies_GetCommitAuthorName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Dependencies_GetCommitAuthorName_Call) Return(s string, err error) *Dependencies_GetCommitAuthorName_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Dependencies_GetCommitAuthorName_Call) RunAndReturn(run func() (string, error)) *Dependencies_GetCommitAuthorName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetHydratorCommitMessageTemplate provides a mock function for the type Dependencies
 func (_mock *Dependencies) GetHydratorCommitMessageTemplate() (string, error) {
 	ret := _mock.Called()
@@ -419,25 +525,25 @@ func (_c *Dependencies_GetWriteCredentials_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
-// PersistAppHydratorStatus provides a mock function for the type Dependencies
-func (_mock *Dependencies) PersistAppHydratorStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+// PersistHydrationStatus provides a mock function for the type Dependencies
+func (_mock *Dependencies) PersistHydrationStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 	_mock.Called(orig, newStatus)
 	return
 }
 
-// Dependencies_PersistAppHydratorStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PersistAppHydratorStatus'
-type Dependencies_PersistAppHydratorStatus_Call struct {
+// Dependencies_PersistHydrationStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PersistHydrationStatus'
+type Dependencies_PersistHydrationStatus_Call struct {
 	*mock.Call
 }
 
-// PersistAppHydratorStatus is a helper method to define mock.On call
+// PersistHydrationStatus is a helper method to define mock.On call
 //   - orig *v1alpha1.Application
 //   - newStatus *v1alpha1.SourceHydratorStatus
-func (_e *Dependencies_Expecter) PersistAppHydratorStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistAppHydratorStatus_Call {
-	return &Dependencies_PersistAppHydratorStatus_Call{Call: _e.mock.On("PersistAppHydratorStatus", orig, newStatus)}
+func (_e *Dependencies_Expecter) PersistHydrationStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistHydrationStatus_Call {
+	return &Dependencies_PersistHydrationStatus_Call{Call: _e.mock.On("PersistHydrationStatus", orig, newStatus)}
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistHydrationStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *v1alpha1.Application
 		if args[0] != nil {
@@ -455,12 +561,12 @@ func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha
 	return _c
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) Return() *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) Return() *Dependencies_PersistHydrationStatus_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) RunAndReturn(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) RunAndReturn(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistHydrationStatus_Call {
 	_c.Run(run)
 	return _c
 }

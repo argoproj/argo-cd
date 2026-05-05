@@ -86,7 +86,7 @@ data:
     # Optional set of OIDC claims to request on the ID token.
     requestedIDTokenClaims: {"groups": {"essential": true}}
 
-  # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
+  # Configuration to customize resource behavior (optional) can be configured via split sub keys.
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
   # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group_kind>
   # resource.customizations.ignoreResourceUpdates.<group_kind>
@@ -115,7 +115,7 @@ data:
     jsonPointers:
     - /metadata/resourceVersion
 
-  # Configuration to define customizations ignoring differences during watched resource updates can be configured via splitted sub key.
+  # Configuration to define customizations ignoring differences during watched resource updates can be configured via split sub key.
   resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
     jsonPointers:
     - /status
@@ -444,6 +444,16 @@ data:
   # The current default setting up to now (`false`) requires only `sync` privilege for syncing to a different revision. 
   # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.  
   application.sync.requireOverridePrivilegeForRevisionSync: "true"  
+
+  ### SourceHydrator commit author name (optional).
+  # Configures the author name for commits created by the Source Hydrator.
+  # If not specified, defaults to "Argo CD".
+  commit.author.name: "Argo CD"
+
+  ### SourceHydrator commit author email (optional).
+  # Configures the author email for commits created by the Source Hydrator.
+  # If not specified, defaults to "argo-cd@example.com".
+  commit.author.email: "argo-cd@example.com"
 
   ### SourceHydrator commit message template.
   # This template iterates through the fields in the `.metadata` object,

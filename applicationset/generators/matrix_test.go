@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -624,11 +623,6 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 	}
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
 
 	for _, testCase := range testCases {
 		testCaseCopy := testCase // Since tests may run in parallel
@@ -637,13 +631,12 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			genMock := &generatorsMock.Generator{}
 			appSet := &v1alpha1.ApplicationSet{}
 
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
 				testCase.clientError,
 			}
-			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := v1alpha1.ApplicationSetGenerator{
@@ -803,11 +796,6 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 	}
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
 
 	for _, testCase := range testCases {
 		testCaseCopy := testCase // Since tests may run in parallel
@@ -820,13 +808,12 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				},
 			}
 
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
 				testCase.clientError,
 			}
-			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := v1alpha1.ApplicationSetGenerator{
@@ -1111,5 +1098,87 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 		"path[0]":                 "some",
 		"some":                    "value",
 		"test":                    "content",
+	}}, params)
+}
+
+func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_values(t *testing.T) {
+	// Given a matrix generator over a list generator and a git  generator with values,
+	// that contain a template that refers to got generator output parameters.
+	// This tests for a specific bug where the second generator in the matrix
+	// failed to evaluate value templates that referred to generator output parameters.
+
+	listGeneratorMock := &generatorsMock.Generator{}
+	listGeneratorMock.EXPECT().GenerateParams(mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).Return([]map[string]any{
+		{"some": "value"},
+	}, nil)
+	listGeneratorMock.EXPECT().GetTemplate(mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator")).Return(&v1alpha1.ApplicationSetTemplate{})
+
+	gitGeneratorSpec := &v1alpha1.GitGenerator{
+		RepoURL: "https://git.example.com",
+		Files: []v1alpha1.GitFileGeneratorItem{
+			{Path: "some/path.json"},
+		},
+		Values: map[string]string{
+			"foo": "{{.path.basename}}",
+		},
+	}
+
+	repoServiceMock := &servicesMocks.Repos{}
+	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+		"some/path.json": []byte("test: content"),
+	}, nil).Maybe()
+	gitGenerator := NewGitGenerator(repoServiceMock, "")
+
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"List": listGeneratorMock,
+		"Git":  gitGenerator,
+	})
+
+	matrixGeneratorSpec := &v1alpha1.MatrixGenerator{
+		Generators: []v1alpha1.ApplicationSetNestedGenerator{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						{
+							Raw: []byte(`{"some": "value"}`),
+						},
+					},
+				},
+			},
+			{
+				Git: gitGeneratorSpec,
+			},
+		},
+	}
+
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	appProject := v1alpha1.AppProject{}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+	params, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: matrixGeneratorSpec,
+	}, &v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+		},
+	}, client)
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]any{{
+		"path": map[string]any{
+			"basename":           "some",
+			"basenameNormalized": "some",
+			"filename":           "path.json",
+			"filenameNormalized": "path.json",
+			"path":               "some",
+			"segments":           []string{"some"},
+		},
+		"some": "value",
+		"test": "content",
+		"values": map[string]string{
+			"foo": "some",
+		},
 	}}, params)
 }

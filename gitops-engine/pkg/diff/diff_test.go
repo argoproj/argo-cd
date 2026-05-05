@@ -27,8 +27,8 @@ import (
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/diff/mocks"
-	"github.com/argoproj/gitops-engine/pkg/diff/testdata"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/testdata"
 )
 
 func printDiff(ctx context.Context, result *DiffResult) (string, error) {
@@ -704,7 +704,7 @@ func TestNullSecretData(t *testing.T) {
 }
 
 // TestRedactedSecretData tests we are able to perform diff on redacted secret data, which has
-// invalid characters (*) for the the data byte array field.
+// invalid characters (*) for the data byte array field.
 func TestRedactedSecretData(t *testing.T) {
 	configUn := unmarshalFile("testdata/wordpress-config.json")
 	liveUn := unmarshalFile("testdata/wordpress-live.json")
@@ -1164,6 +1164,215 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
 		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
 	})
+
+	t.Run("will not report diff for mismatched resourceVersion", func(t *testing.T) {
+		// given
+		t.Parallel()
+		predictedLiveJSON := `{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"resourceVersion": "99999",
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 1}
+		}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"resourceVersion": "12345",
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 1}
+		}`)
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default"
+			},
+			"spec": {"replicas": 1}
+		}`)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified, "mismatched resourceVersion should not cause a diff")
+		assert.NotContains(t, string(result.PredictedLive), "resourceVersion")
+		assert.NotContains(t, string(result.NormalizedLive), "resourceVersion")
+	})
+
+	t.Run("will detect ConfigMap data key removal", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ConfigMapLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ConfigMapConfigYAMLSSD)
+		opts := buildOpts(testdata.ConfigMapPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified, "Diff should detect key removal as a modification")
+
+		// Parse the results
+		var predictedCM map[string]any
+		err = json.Unmarshal(result.PredictedLive, &predictedCM)
+		require.NoError(t, err)
+
+		var liveCM map[string]any
+		err = json.Unmarshal(result.NormalizedLive, &liveCM)
+		require.NoError(t, err)
+
+		// Verify predicted live has only key1 and key2 (key3 removed)
+		predictedData, ok := predictedCM["data"].(map[string]any)
+		require.True(t, ok, "Predicted ConfigMap should have data field")
+		assert.Len(t, predictedData, 2, "Predicted data should have 2 keys")
+		assert.Contains(t, predictedData, "key1")
+		assert.Contains(t, predictedData, "key2")
+		assert.NotContains(t, predictedData, "key3", "key3 should be removed from predicted live")
+
+		// Verify live still has all 3 keys
+		liveData, ok := liveCM["data"].(map[string]any)
+		require.True(t, ok, "Live ConfigMap should have data field")
+		assert.Len(t, liveData, 3, "Live data should still have 3 keys")
+		assert.Contains(t, liveData, "key1")
+		assert.Contains(t, liveData, "key2")
+		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
+	})
+
+	t.Run("will mask Secret data symmetrically so identical values do not produce a spurious diff", func(t *testing.T) {
+		t.Parallel()
+
+		desired := buildSecret("test-secret", "default", map[string]string{"password": "vault:secret/foo"}, nil)
+		live := buildSecret("test-secret", "default", map[string]string{"password": "injected-by-webhook"}, nil)
+		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "injected-by-webhook"}, nil))
+
+		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
+		result, err := serverSideDiff(desired, live, opts...)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		assert.False(t, result.Modified, "identical secret values on both sides must not be flagged as modified after masking")
+
+		predictedData := mustGetSecretData(t, result.PredictedLive)
+		liveData := mustGetSecretData(t, result.NormalizedLive)
+		assert.Equal(t, "++++++++", predictedData["password"], "predicted data must be masked, not raw")
+		assert.Equal(t, "++++++++", liveData["password"], "live data must be masked, not raw")
+	})
+
+	t.Run("will keep Secret data masked but still detect genuine value differences", func(t *testing.T) {
+		t.Parallel()
+
+		desired := buildSecret("test-secret", "default", map[string]string{"password": "vault:secret/foo"}, nil)
+		live := buildSecret("test-secret", "default", map[string]string{"password": "old-value"}, nil)
+		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "new-value"}, nil))
+
+		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
+		result, err := serverSideDiff(desired, live, opts...)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		assert.True(t, result.Modified, "different secret values must still be flagged as modified")
+
+		predictedData := mustGetSecretData(t, result.PredictedLive)
+		liveData := mustGetSecretData(t, result.NormalizedLive)
+		// HideSecretData yields different placeholder lengths for different values, so the
+		// data field is masked on both sides and the two placeholders differ.
+		assert.NotEqual(t, "new-value", predictedData["password"], "raw new value must not leak into PredictedLive")
+		assert.NotEqual(t, "old-value", liveData["password"], "raw old value must not leak into NormalizedLive")
+		assert.NotEqual(t, predictedData["password"], liveData["password"], "differing values must yield differing placeholders")
+	})
+
+	t.Run("will detect Secret key additions and removals", func(t *testing.T) {
+		t.Parallel()
+
+		desired := buildSecret("test-secret", "default", map[string]string{"password": "x", "token": "y"}, nil)
+		live := buildSecret("test-secret", "default", map[string]string{"password": "x"}, nil)
+		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "x", "token": "y"}, nil))
+
+		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
+		result, err := serverSideDiff(desired, live, opts...)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		assert.True(t, result.Modified, "added Secret keys must still be flagged as modified after masking")
+	})
+
+	t.Run("will not mask non-core Secret resources", func(t *testing.T) {
+		// Resources whose Kind is "Secret" but whose Group is non-empty (e.g. CRDs)
+		// must not be touched by the core/v1 Secret masking path.
+		t.Parallel()
+
+		desired := buildSecret("test-secret", "default", map[string]string{"password": "raw-value"}, nil)
+		desired.SetAPIVersion("custom.io/v1")
+		live := buildSecret("test-secret", "default", map[string]string{"password": "raw-value"}, nil)
+		live.SetAPIVersion("custom.io/v1")
+		predictedLiveJSON := mustMarshalJSON(t, desired)
+
+		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
+		result, err := serverSideDiff(desired, live, opts...)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		predictedData := mustGetSecretData(t, result.PredictedLive)
+		assert.Equal(t, "raw-value", predictedData["password"], "non-core Secret data must be left untouched")
+	})
+}
+
+// buildSecret returns a core/v1 Secret as an *unstructured.Unstructured.
+func buildSecret(name, namespace string, data map[string]string, annotations map[string]string) *unstructured.Unstructured {
+	dataField := make(map[string]any, len(data))
+	for k, v := range data {
+		dataField[k] = v
+	}
+	metadata := map[string]any{
+		"name":      name,
+		"namespace": namespace,
+	}
+	if len(annotations) > 0 {
+		annField := make(map[string]any, len(annotations))
+		for k, v := range annotations {
+			annField[k] = v
+		}
+		metadata["annotations"] = annField
+	}
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Secret",
+		"metadata":   metadata,
+		"type":       "Opaque",
+		"data":       dataField,
+	}}
+}
+
+func mustMarshalJSON(t *testing.T, obj *unstructured.Unstructured) string {
+	t.Helper()
+	bytes, err := json.Marshal(obj)
+	require.NoError(t, err)
+	return string(bytes)
+}
+
+func mustGetSecretData(t *testing.T, secretBytes []byte) map[string]any {
+	t.Helper()
+	var obj map[string]any
+	require.NoError(t, json.Unmarshal(secretBytes, &obj))
+	data, ok := obj["data"].(map[string]any)
+	require.True(t, ok, "expected data field to be a map")
+	return data
 }
 
 // testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields

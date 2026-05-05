@@ -24,26 +24,19 @@ argocd app [flags]
 ### Options
 
 ```
-      --as string                      Username to impersonate for the operation
-      --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
-      --as-uid string                  UID to impersonate for the operation
-      --certificate-authority string   Path to a cert file for the certificate authority
-      --client-certificate string      Path to a client certificate file for TLS
-      --client-key string              Path to a client key file for TLS
-      --cluster string                 The name of the kubeconfig cluster to use
-      --context string                 The name of the kubeconfig context to use
-      --disable-compression            If true, opt-out of response compression for all requests to the server
-  -h, --help                           help for app
-      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --kubeconfig string              Path to a kube config. Only required if out-of-cluster
-  -n, --namespace string               If present, the namespace scope for this CLI request
-      --password string                Password for basic authentication to the API server
-      --proxy-url string               If provided, this URL will be used to connect via proxy
-      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
-      --token string                   Bearer token for authentication to the API server
-      --user string                    The name of the kubeconfig user to use
-      --username string                Username for basic authentication to the API server
+      --cluster string             The name of the kubeconfig cluster to use
+      --context string             The name of the kubeconfig context to use
+  -h, --help                       help for app
+      --insecure-skip-tls-verify   If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kubeconfig string          Path to a kube config. Only required if out-of-cluster
+  -n, --namespace string           If present, the namespace scope for this CLI request
+      --password string            Password for basic authentication to the API server
+      --proxy-url string           If provided, this URL will be used to connect via proxy
+      --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --tls-server-name string     If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
+      --token string               Bearer token for authentication to the API server
+      --user string                The name of the kubeconfig user to use
+      --username string            Username for basic authentication to the API server
 ```
 
 ### Options inherited from parent commands
@@ -97,7 +90,7 @@ argocd app [flags]
 * [argocd app patch](argocd_app_patch.md)	 - Patch application
 * [argocd app patch-resource](argocd_app_patch-resource.md)	 - Patch resource in an application
 * [argocd app remove-source](argocd_app_remove-source.md)	 - Remove a source from multiple sources application.
-* [argocd app resources](argocd_app_resources.md)	 - List resource of application
+* [argocd app resources](argocd_app_resources.md)	 - List resources of application
 * [argocd app rollback](argocd_app_rollback.md)	 - Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version
 * [argocd app set](argocd_app_set.md)	 - Set application parameters
 * [argocd app sync](argocd_app_sync.md)	 - Sync an application to its target state
