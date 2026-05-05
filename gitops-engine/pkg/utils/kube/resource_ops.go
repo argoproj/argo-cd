@@ -45,8 +45,7 @@ type ResourceOperations interface {
 	UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
 }
 
-// KubectlOptionsRunner abstracts the execution of kubectl command options
-// Handles the different Run() method signatures and kubectl execution hooks
+// KubectlOptionsRunner defines the operations to run kubectl commands based on provided options
 type KubectlOptionsRunner interface {
 	Apply(opts *apply.ApplyOptions) error
 	Create(opts *create.CreateOptions, fact cmdutil.Factory, cmd *cobra.Command) error
