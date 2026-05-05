@@ -2,6 +2,7 @@ package helm
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -574,6 +576,68 @@ func TestGetTagsCaching(t *testing.T) {
 	})
 }
 
+func TestGetTagsUsesHTTP2(t *testing.T) {
+	t.Run("should negotiate HTTP/2 when TLS is configured", func(t *testing.T) {
+		var requestProtos []string
+		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestProtos = append(requestProtos, r.Proto)
+			t.Logf("called %s with proto %s", r.URL.Path, r.Proto)
+
+			responseTags := fakeTagsList{
+				Tags: []string{"1.0.0"},
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		}))
+		// httptest.NewTLSServer only advertises http/1.1 in ALPN, so we must
+		// configure the server to also offer h2 for HTTP/2 negotiation to work.
+		server.TLS = &tls.Config{NextProtos: []string{"h2", "http/1.1"}}
+		server.StartTLS()
+		t.Cleanup(server.Close)
+
+		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
+
+		tags, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1.0.0"}, tags)
+
+		// Verify that at least one request used HTTP/2. When ForceAttemptHTTP2 is
+		// not set on the Transport, Go's TLS stack won't negotiate h2 even though
+		// the server supports it, because a custom TLSClientConfig disables the
+		// automatic HTTP/2 setup.
+		require.NotEmpty(t, requestProtos, "expected at least one request to the server")
+		hasHTTP2 := slices.Contains(requestProtos, "HTTP/2.0")
+		assert.True(t, hasHTTP2, "expected at least one HTTP/2 request, but got protocols: %v", requestProtos)
+	})
+}
+
+func TestLoadRepoIndexUsesHTTP2(t *testing.T) {
+	t.Run("should negotiate HTTP/2 when fetching index", func(t *testing.T) {
+		var requestProto string
+		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestProto = r.Proto
+			t.Logf("called %s with proto %s", r.URL.Path, r.Proto)
+
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		server.TLS = &tls.Config{NextProtos: []string{"h2", "http/1.1"}}
+		server.StartTLS()
+		t.Cleanup(server.Close)
+
+		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, false, "", "")
+
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		assert.Equal(t, "HTTP/2.0", requestProto, "expected HTTP/2 request for index fetch, but got %s", requestProto)
+	})
+}
+
 func TestUserAgentIsSet(t *testing.T) {
 	t.Run("Default User-Agent for traditional Helm repo", func(t *testing.T) {
 		// Create a test server that captures the User-Agent header
@@ -655,7 +719,7 @@ entries: {}
 
 		// Should succeed because our implementation sets User-Agent
 		require.NoError(t, err, "Request should succeed with User-Agent set")
-		t.Logf("Success! Server accepted request with User-Agent")
+		t.Log("Success! Server accepted request with User-Agent")
 	})
 }
 

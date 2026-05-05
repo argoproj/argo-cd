@@ -295,13 +295,13 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 
 		if flags.Changed("auto-prune") {
-			spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+			spec.SyncPolicy.Automated.Prune = &appOpts.autoPrune
 		}
 		if flags.Changed("self-heal") {
-			spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+			spec.SyncPolicy.Automated.SelfHeal = &appOpts.selfHeal
 		}
 		if flags.Changed("allow-empty") {
-			spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+			spec.SyncPolicy.Automated.AllowEmpty = &appOpts.allowEmpty
 		}
 	}
 	return visited
@@ -541,7 +541,7 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string, inde
 			source.Helm.AddParameter(*newParam)
 		}
 	default:
-		log.Fatalf("Parameters can only be set against Helm applications")
+		log.Fatal("Parameters can only be set against Helm applications")
 	}
 }
 

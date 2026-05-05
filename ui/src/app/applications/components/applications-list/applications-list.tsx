@@ -53,14 +53,34 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
+// ApplicationSet has different status fields than Application
+const APPSET_FIELDS = [
+    'metadata.name',
+    'metadata.namespace',
+    'metadata.annotations',
+    'metadata.labels',
+    'metadata.creationTimestamp',
+    'metadata.deletionTimestamp',
+    'spec',
+    'status.conditions',
+    'status.resources',
+    'status.resourcesCount',
+    'status.health'
+];
+const APPSET_LIST_FIELDS = ['metadata.resourceVersion', ...APPSET_FIELDS.map(field => `items.${field}`)];
+const APPSET_WATCH_FIELDS = ['result.type', ...APPSET_FIELDS.map(field => `result.applicationSet.${field}`)];
+
 function loadApplications(projects: string[], appNamespace: string, objectListKind: string): Observable<models.AbstractApplication[]> {
-    return from(services.applications.list(projects, objectListKind, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
+    const isApplication = objectListKind === 'application';
+    const listFields = isApplication ? APP_LIST_FIELDS : APPSET_LIST_FIELDS;
+    const watchFields = isApplication ? APP_WATCH_FIELDS : APPSET_WATCH_FIELDS;
+    return from(services.applications.list(projects, objectListKind, {appNamespace, fields: listFields})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
             return merge(
                 from([applications]),
                 services.applications
-                    .watch(objectListKind, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .watch(objectListKind, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: watchFields})
                     .pipe(repeat())
                     .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -140,6 +160,13 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .split(',')
                                 .filter(item => !!item);
                         }
+                        if (params.get('targetRevision') != null) {
+                            viewPref.targetRevisionFilter = params
+                                .get('targetRevision')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
                         if (params.get('cluster') != null) {
                             viewPref.clustersFilter = params
                                 .get('cluster')
@@ -162,6 +189,13 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                         if (params.get('annotations') != null) {
                             viewPref.annotationsFilter = params
                                 .get('annotations')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
+                        if (params.get('repo') != null) {
+                            viewPref.reposFilter = params
+                                .get('repo')
                                 .split(',')
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
@@ -453,6 +487,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
+                targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
+                repo: newPref.reposFilter.map(encodeURIComponent).join(','),
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
                 annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),

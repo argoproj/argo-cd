@@ -19,6 +19,7 @@ data:
 Each template has access to the following fields:
 
 - `app` holds the application object.
+- `appProject` holds the AppProject object associated with the application. This provides access to project-level details like RBAC roles, policies, source repository restrictions, and destination cluster restrictions.
 - `context` is a user-defined string map and might include any string keys and values.
 - `secrets` provides access to sensitive data stored in `argocd-notifications-secret`
 - `serviceType` holds the notification service type name (such as "slack" or "email). The field can be used to conditionally
@@ -42,6 +43,33 @@ data:
 
   template.a-slack-template-with-context: |
     message: "Something happened in {{ .context.environmentName }} in the {{ .context.region }} data center!"
+```
+
+## Using AppProject information in templates
+
+Templates can access the AppProject associated with an Application using the `appProject` variable. This is useful for including project-level information such as RBAC policies, source repositories, and destination clusters in notifications.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+data:
+  template.app-project-info: |
+    message: |
+      Application {{.app.metadata.name}} belongs to project {{.appProject.metadata.name}}.
+      Project description: {{.appProject.spec.description}}
+      Allowed source repositories: {{range .appProject.spec.sourceRepos}}{{.}} {{end}}
+  
+  template.app-rbac-policies: |
+    message: |
+      Application: {{.app.metadata.name}}
+      Project: {{.appProject.metadata.name}}
+      RBAC Roles:
+      {{range .appProject.spec.roles}}
+      - Role: {{.name}}
+        Policies: {{range .policies}}{{.}} {{end}}
+      {{end}}
 ```
 
 ## Defining and using secrets within notification templates
@@ -85,30 +113,8 @@ See corresponding service [documentation](services/overview.md) for more informa
 
 ## Change the timezone
 
-You can change the timezone to show in notifications as follows.
-
-1. Call time functions.
-
-    ```
-    {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}
-    ```
-
-2. Set the `TZ` environment variable on the argocd-notifications-controller container.
-
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: argocd-notifications-controller
-    spec:
-      template:
-        spec:
-          containers:
-          - name: argocd-notifications-controller
-            env:
-            - name: TZ
-              value: Asia/Tokyo
-    ```
+To change the timezone used when formatting time values in notifications, see
+[Configuring the local timezone](#configuring-the-local-timezone).
 
 ## Functions
 

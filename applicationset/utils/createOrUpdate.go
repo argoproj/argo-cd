@@ -24,6 +24,43 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
+var appEquality = conversion.EqualitiesOrDie(
+	func(a, b resource.Quantity) bool {
+		// Ignore formatting, only care that numeric value stayed the same.
+		// TODO: if we decide it's important, it should be safe to start comparing the format.
+		//
+		// Uninitialized quantities are equivalent to 0 quantities.
+		return a.Cmp(b) == 0
+	},
+	func(a, b metav1.MicroTime) bool {
+		return a.UTC().Equal(b.UTC())
+	},
+	func(a, b metav1.Time) bool {
+		return a.UTC().Equal(b.UTC())
+	},
+	func(a, b labels.Selector) bool {
+		return a.String() == b.String()
+	},
+	func(a, b fields.Selector) bool {
+		return a.String() == b.String()
+	},
+	func(a, b argov1alpha1.ApplicationDestination) bool {
+		return a.Namespace == b.Namespace && a.Name == b.Name && a.Server == b.Server
+	},
+)
+
+// BuildIgnoreDiffConfig constructs a DiffConfig from the ApplicationSet's ignoreDifferences rules.
+// Returns nil when ignoreDifferences is empty.
+func BuildIgnoreDiffConfig(ignoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) (argodiff.DiffConfig, error) {
+	if len(ignoreDifferences) == 0 {
+		return nil, nil
+	}
+	return argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(ignoreDifferences.ToApplicationIgnoreDifferences(), nil, false, ignoreNormalizerOpts).
+		WithNoCache().
+		Build()
+}
+
 // CreateOrUpdate overrides "sigs.k8s.io/controller-runtime" function
 // in sigs.k8s.io/controller-runtime/pkg/controller/controllerutil/controllerutil.go
 // to add equality for argov1alpha1.ApplicationDestination
@@ -34,10 +71,15 @@ import (
 // cluster. The object's desired state must be reconciled with the existing
 // state inside the passed in callback MutateFn.
 //
+// diffConfig must be built once per reconcile cycle via BuildIgnoreDiffConfig and may be nil
+// when there are no ignoreDifferences rules. obj.Spec must already be normalized by the caller
+// via NormalizeApplicationSpec before this function is called; the live object fetched from the
+// cluster is normalized internally.
+//
 // The MutateFn is called regardless of creating or updating an object.
 //
 // It returns the executed operation and an error.
-func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ignoreAppDifferences argov1alpha1.ApplicationSetIgnoreDifferences, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, obj *argov1alpha1.Application, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, diffConfig argodiff.DiffConfig, obj *argov1alpha1.Application, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 	key := client.ObjectKeyFromObject(obj)
 	if err := c.Get(ctx, key, obj); err != nil {
 		if !errors.IsNotFound(err) {
@@ -59,43 +101,18 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 		return controllerutil.OperationResultNone, err
 	}
 
+	// Normalize the live spec to avoid spurious diffs from unimportant differences (e.g. nil vs
+	// empty SyncPolicy). obj.Spec is already normalized by the caller; only the live side needs it.
+	normalizedLive.Spec = *argo.NormalizeApplicationSpec(&normalizedLive.Spec)
+
 	// Apply ignoreApplicationDifferences rules to remove ignored fields from both the live and the desired state. This
 	// prevents those differences from appearing in the diff and therefore in the patch.
-	err := applyIgnoreDifferences(ignoreAppDifferences, normalizedLive, obj, ignoreNormalizerOpts)
+	err := applyIgnoreDifferences(diffConfig, normalizedLive, obj)
 	if err != nil {
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
 	}
 
-	// Normalize to avoid diffing on unimportant differences.
-	normalizedLive.Spec = *argo.NormalizeApplicationSpec(&normalizedLive.Spec)
-	obj.Spec = *argo.NormalizeApplicationSpec(&obj.Spec)
-
-	equality := conversion.EqualitiesOrDie(
-		func(a, b resource.Quantity) bool {
-			// Ignore formatting, only care that numeric value stayed the same.
-			// TODO: if we decide it's important, it should be safe to start comparing the format.
-			//
-			// Uninitialized quantities are equivalent to 0 quantities.
-			return a.Cmp(b) == 0
-		},
-		func(a, b metav1.MicroTime) bool {
-			return a.UTC().Equal(b.UTC())
-		},
-		func(a, b metav1.Time) bool {
-			return a.UTC().Equal(b.UTC())
-		},
-		func(a, b labels.Selector) bool {
-			return a.String() == b.String()
-		},
-		func(a, b fields.Selector) bool {
-			return a.String() == b.String()
-		},
-		func(a, b argov1alpha1.ApplicationDestination) bool {
-			return a.Namespace == b.Namespace && a.Name == b.Name && a.Server == b.Server
-		},
-	)
-
-	if equality.DeepEqual(normalizedLive, obj) {
+	if appEquality.DeepEqual(normalizedLive, obj) {
 		return controllerutil.OperationResultNone, nil
 	}
 
@@ -135,19 +152,13 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 }
 
 // applyIgnoreDifferences applies the ignore differences rules to the found application. It modifies the applications in place.
-func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp *argov1alpha1.Application, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) error {
-	if len(applicationSetIgnoreDifferences) == 0 {
+// diffConfig may be nil, in which case this is a no-op.
+func applyIgnoreDifferences(diffConfig argodiff.DiffConfig, found *argov1alpha1.Application, generatedApp *argov1alpha1.Application) error {
+	if diffConfig == nil {
 		return nil
 	}
 
 	generatedAppCopy := generatedApp.DeepCopy()
-	diffConfig, err := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(applicationSetIgnoreDifferences.ToApplicationIgnoreDifferences(), nil, false, ignoreNormalizerOpts).
-		WithNoCache().
-		Build()
-	if err != nil {
-		return fmt.Errorf("failed to build diff config: %w", err)
-	}
 	unstructuredFound, err := appToUnstructured(found)
 	if err != nil {
 		return fmt.Errorf("failed to convert found application to unstructured: %w", err)

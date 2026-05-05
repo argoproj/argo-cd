@@ -1,3 +1,5 @@
+-- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#promotionstrategy
+
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing promotion strategy"
@@ -56,6 +58,17 @@ if not obj.status.environments or #obj.status.environments == 0 then
     return hs
 end
 
+-- Use note.drySha as canonical proposed SHA when present; fallback to proposed.dry.sha.
+local function getProposedDrySha(env)
+    if env and env.proposed and env.proposed.note and env.proposed.note.drySha and env.proposed.note.drySha ~= "" then
+        return env.proposed.note.drySha
+    end
+    if env and env.proposed and env.proposed.dry and env.proposed.dry.sha and env.proposed.dry.sha ~= "" then
+        return env.proposed.dry.sha
+    end
+    return nil
+end
+
 -- Make sure there's a fully-populated status for both active and proposed commits in all environments. If anything is
 -- missing or empty, return a Progressing status.
 for _, env in ipairs(obj.status.environments) do
@@ -64,7 +77,7 @@ for _, env in ipairs(obj.status.environments) do
         hs.message = "The active commit DRY SHA is missing or empty in environment '" .. env.branch .. "'."
         return hs
     end
-    if not env.proposed or not env.proposed.dry or not env.proposed.dry.sha or env.proposed.dry.sha == "" then
+    if not getProposedDrySha(env) then
         hs.status = "Progressing"
         hs.message = "The proposed commit DRY SHA is missing or empty in environment '" .. env.branch .. "'."
         return hs
@@ -72,9 +85,9 @@ for _, env in ipairs(obj.status.environments) do
 end
 
 -- Check if all the proposed environments have the same proposed commit dry sha. If not, return a Progressing status.
-local proposedSha = obj.status.environments[1].proposed.dry.sha  -- Don't panic, Lua is 1-indexed.
+local proposedSha = getProposedDrySha(obj.status.environments[1])  -- Don't panic, Lua is 1-indexed.
 for _, env in ipairs(obj.status.environments) do
-    if env.proposed.dry.sha ~= proposedSha then
+    if getProposedDrySha(env) ~= proposedSha then
         hs.status = "Progressing"
         hs.message = "Not all environments have the same proposed commit SHA. This likely means the hydrator has not run for all environments yet."
         return hs
@@ -96,7 +109,8 @@ end
 -- statuses and build a summary about how many are pending, successful, or failed. Return a Progressing status for this
 -- in-progress environment.
 for _, env in ipairs(obj.status.environments) do
-    if env.proposed.dry.sha ~= env.active.dry.sha then
+    local envProposedSha = getProposedDrySha(env)
+    if envProposedSha ~= env.active.dry.sha then
         local pendingCount = 0
         local successCount = 0
         local failureCount = 0
@@ -121,7 +135,7 @@ for _, env in ipairs(obj.status.environments) do
         hs.message =
             "Promotion in progress for environment '" .. env.branch ..
             "' from '" .. getShortSha(env.active.dry.sha) ..
-            "' to '" .. getShortSha(env.proposed.dry.sha) .. "': " ..
+            "' to '" .. getShortSha(envProposedSha) .. "': " ..
             pendingCount .. " pending, " .. successCount .. " successful, " .. failureCount .. " failed. "
 
         if pendingCount > 0 then
@@ -172,5 +186,5 @@ end
 -- If all environments have the same proposed commit dry sha as the active one, we can consider the promotion strategy
 -- healthy. This means all environments are in sync and no further action is needed.
 hs.status = "Healthy"
-hs.message = "All environments are up-to-date on commit '" .. getShortSha(obj.status.environments[1].proposed.dry.sha) .. "'."
+hs.message = "All environments are up-to-date on commit '" .. getShortSha(getProposedDrySha(obj.status.environments[1])) .. "'."
 return hs

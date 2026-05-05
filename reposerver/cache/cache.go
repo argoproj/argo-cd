@@ -486,6 +486,22 @@ func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *a
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
+func ociMetadataKey(repoURL, revision string) string {
+	return fmt.Sprintf("ocimetadata|%s|%s", repoURL, revision)
+}
+
+func (c *Cache) GetOCIMetadata(repoURL, revision string) (*appv1.OCIMetadata, error) {
+	item := &appv1.OCIMetadata{}
+	return item, c.cache.GetItem(ociMetadataKey(repoURL, revision), item)
+}
+
+func (c *Cache) SetOCIMetadata(repoURL, revision string, item *appv1.OCIMetadata) error {
+	return c.cache.SetItem(
+		ociMetadataKey(repoURL, revision),
+		item,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
 func gitFilesKey(repoURL, revision, pattern string) string {
 	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
 }
@@ -518,6 +534,23 @@ func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
 	var item []string
 	err := c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
 	return item, err
+}
+
+func getGitFilesChangesKey(repoURL, revision, targetRevision string) string {
+	return fmt.Sprintf("gitFilesChanges|%s|%s|%s", repoURL, revision, targetRevision)
+}
+
+func (c *Cache) SetGitFilesChanges(repoURL, revision, targetRevision string, files []string) error {
+	return c.cache.SetItem(
+		getGitFilesChangesKey(repoURL, revision, targetRevision),
+		&files,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) GetGitFilesChanges(repoURL, revision, targetRevision string) ([]string, error) {
+	var files []string
+	err := c.cache.GetItem(getGitFilesChangesKey(repoURL, revision, targetRevision), &files)
+	return files, err
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {

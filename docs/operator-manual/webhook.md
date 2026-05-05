@@ -1,11 +1,17 @@
-# Git Webhook Configuration
+# Webhook Configuration
 
 ## Overview
 
-Argo CD polls Git repositories every three minutes to detect changes to the manifests. To eliminate
-this delay from polling, the API server can be configured to receive webhook events. Argo CD supports
-Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure
-a Git webhook for GitHub, but the same process should be applicable to other providers.
+Argo CD polls Git/OCI/Helm repositories every three minutes to detect changes to the manifests. To eliminate
+this delay from polling, the API server can be configured to receive webhook events.
+
+### Git Webhooks
+
+Argo CD supports Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
+
+### OCI Registry Webhooks
+
+Argo CD also supports webhooks from OCI-compliant container registries to trigger application refreshes when new OCI artifacts are pushed. See [Webhook Configuration for OCI-Compliant Registries](#3-webhook-configuration-for-oci-compliant-registries) for details.
 
 Application Sets use a separate webhook configuration for generating applications. [Webhook support for the Git Generator can be found here](applicationset/Generators-Git.md#webhook-configuration).
 
@@ -113,7 +119,7 @@ Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 
 For more information refer to the corresponding section in the [User Management Documentation](user-management/index.md#alternative).
 
-## Special handling for BitBucket Cloud
+### Special handling for BitBucket Cloud
 BitBucket does not include the list of changed files in the webhook request body.
 This prevents the [Manifest Paths Annotation](high_availability.md#manifest-paths-annotation) feature from working with repositories hosted on BitBucket Cloud.
 BitBucket provides the `diffstat` API to determine the list of changed files between two commits.
@@ -126,3 +132,81 @@ For private repositories, the Argo CD webhook handler searches for a valid repos
 The webhook handler uses this OAuth token to make the API request to the originating server.
 If the Argo CD webhook handler cannot find a matching repository credential, the list of changed files would remain empty.
 If errors occur during the callback, the list of changed files will be empty.
+
+## 3. Webhook Configuration for OCI-Compliant Registries
+
+In addition to Git webhooks, Argo CD supports webhooks from OCI-compliant container registries. This enables instant application refresh when
+new artifacts are pushed, eliminating the delay from polling.
+
+### GitHub Container Registry (GHCR)
+
+Webhooks cannot be registered directly on a GHCR image repository. Instead, `package` events are delivered from the associated GitHub repository.
+
+> [!NOTE]
+> If your GHCR image repository is not yet linked to a GitHub repository, see [Connecting a repository to a package](https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package).
+
+#### Configure the Webhook
+
+1. Go to your GitHub repository **Settings** → **Webhooks** → **Add webhook**
+2. Set **Payload URL** to `https://<argocd-server>/api/webhook`
+3. Set **Content type** to `application/json`
+4. Set **Secret** to a secure value
+5. Under **Events**, select **Let me select individual events** and enable **Packages**
+
+> [!NOTE]
+> Only `published` events for `container` package types trigger a refresh. Other package types (npm, maven, etc.) and actions are ignored.
+
+> [!WARNING]
+> GitHub does not send `package` webhook events for artifacts with unknown media types. If your OCI artifact uses a custom or non-standard media type, the webhook will not be triggered. See [GitHub documentation on supported package types](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages).
+
+#### Configure the Webhook Secret
+
+GHCR webhooks use the same secret as GitHub Git webhooks (`webhook.github.secret`):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.github.secret: <your-webhook-secret>
+```
+
+#### Example Application
+
+When a OCI artifact with a known media type is pushed to GHCR, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: oci://ghcr.io/myorg/myimage
+    targetRevision: v1.0.0
+    chart: mychart
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+The `targetRevision` field supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints):
+
+| Constraint | Webhook triggers on push of |
+|------------|----------------------------|
+| `1.0.0` | Only `1.0.0` |
+| `^1.2.0` | `>=1.2.0` and `<2.0.0` (e.g., `1.2.1`, `1.9.0`) |
+| `~1.2.0` | `>=1.2.0` and `<1.3.0` (e.g., `1.2.1`, `1.2.9`) |
+| `>=1.0.0` | Any version `>=1.0.0` |
+
+#### URL Matching
+
+Argo CD normalizes OCI repository URLs before comparison to ensure consistent matching:
+
+For example, these `repoURL` values all match a webhook event for `ghcr.io/myorg/myimage`:
+- `oci://ghcr.io/myorg/myimage`
+- `oci://GHCR.IO/MyOrg/MyImage`
+- `oci://ghcr.io/myorg/myimage/`

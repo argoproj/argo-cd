@@ -212,7 +212,7 @@ export IMAGE_TAG=1.5.0-myrc
 
 > [!NOTE]
 > The image will be built for `linux/amd64` platform by default. If you are running on Mac with Apple chip (ARM),
-> you need to specify the correct buld platform by running:
+> you need to specify the correct build platform by running:
 > ```bash
 > export TARGET_ARCH=linux/arm64 
 > ```

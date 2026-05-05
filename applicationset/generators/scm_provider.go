@@ -164,7 +164,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %w", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts)
+		provider, err = scm_provider.NewGitlabProvider(providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.IncludeArchivedRepos, providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %w", err)
 		}
@@ -173,7 +173,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitea token: %w", err)
 		}
-		provider, err = scm_provider.NewGiteaProvider(providerConfig.Gitea.Owner, token, providerConfig.Gitea.API, providerConfig.Gitea.AllBranches, providerConfig.Gitea.Insecure)
+		provider, err = scm_provider.NewGiteaProvider(providerConfig.Gitea.Owner, token, providerConfig.Gitea.API, providerConfig.Gitea.AllBranches, providerConfig.Gitea.Insecure, providerConfig.Gitea.ExcludeArchivedRepos)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitea service: %w", err)
 		}
@@ -289,9 +289,9 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		}
 
 		if g.enableGitHubAPIMetrics {
-			return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, httpClient)
+			return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
 		}
-		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches)
+		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, github.ExcludeArchivedRepos)
 	}
 
 	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
@@ -300,7 +300,7 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	}
 
 	if g.enableGitHubAPIMetrics {
-		return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, httpClient)
+		return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
 	}
-	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches)
+	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, github.ExcludeArchivedRepos)
 }

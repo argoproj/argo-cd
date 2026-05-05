@@ -405,7 +405,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
-	_, err = client.Checkout(commitSHA, false)
+	_, err = client.Checkout(commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
@@ -413,7 +413,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config
@@ -697,6 +697,11 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		currentCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 		require.NotEqual(t, baseCommitHash, currentCommitHash)
 
+		gitCurrentCommitMessage, err := outputCmd(ctx, tempDir, "git", "log", "--format=%B", "-n", "1", "HEAD")
+		require.NoError(t, err)
+		currentCommitMessage := strings.TrimSpace(string(gitCurrentCommitMessage))
+		require.Contains(t, currentCommitMessage, expectedBranch)
+
 		// get commit count on current branch, verify 1 -> orphan
 		gitCommitCount, err := outputCmd(ctx, tempDir, "git", "rev-list", "--count", actualBranch)
 		require.NoError(t, err)
@@ -888,7 +893,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// make a file then commit and push
@@ -1307,7 +1312,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
@@ -1365,7 +1370,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
@@ -1429,7 +1434,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create the file inside repo root
