@@ -12,6 +12,7 @@
         "noUnusedLocals": true,
         "declaration": false,
         "skipLibCheck": true,
+        "isolatedModules": true,
         "types": [
             "jest",
             "node"
