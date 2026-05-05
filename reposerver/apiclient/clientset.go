@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -52,6 +53,51 @@ type clientSet struct {
 	tlsConfig      TLSConfiguration
 }
 
+type certCacheEntry struct {
+	cert tls.Certificate
+}
+
+var clientCertCache = struct {
+	mu      sync.Mutex
+	entries map[string]certCacheEntry
+}{
+	entries: map[string]certCacheEntry{},
+}
+
+// ResetClientCertCache clears the client certificate cache.
+// Intended for tests.
+func ResetClientCertCache() {
+	clientCertCache.mu.Lock()
+	defer clientCertCache.mu.Unlock()
+	clear(clientCertCache.entries)
+}
+
+func getClientCertFromCache(certFile, keyFile string) (tls.Certificate, error) {
+	cacheKey := certFile + "\x00" + keyFile
+
+	clientCertCache.mu.Lock()
+	if entry, ok := clientCertCache.entries[cacheKey]; ok {
+		clientCertCache.mu.Unlock()
+		return entry.cert, nil
+	}
+	clientCertCache.mu.Unlock()
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	clientCertCache.mu.Lock()
+	if entry, ok := clientCertCache.entries[cacheKey]; ok {
+		clientCertCache.mu.Unlock()
+		return entry.cert, nil
+	}
+	clientCertCache.entries[cacheKey] = certCacheEntry{cert: cert}
+	clientCertCache.mu.Unlock()
+
+	return cert, nil
+}
+
 func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error) {
 	conn, err := NewConnection(c.address, c.timeoutSeconds, &c.tlsConfig)
 	if err != nil {
@@ -86,7 +132,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 			tlsC.RootCAs = tlsConfig.Certificates
 		}
 		if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
-			cert, err := tls.LoadX509KeyPair(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
+			cert, err := getClientCertFromCache(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
 			if err != nil {
 				return nil, fmt.Errorf("failed to load client certificate: %w", err)
 			}

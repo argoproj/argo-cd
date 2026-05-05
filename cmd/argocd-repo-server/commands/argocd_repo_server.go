@@ -2,6 +2,7 @@ package commands
 
 import (
 	"crypto/x509"
+	stderrors "errors"
 	"fmt"
 	"math"
 	"net"
@@ -87,6 +88,7 @@ func NewCommand() *cobra.Command {
 		ociMediaTypes                      []string
 		enableBuiltinGitConfig             bool
 		clientCAPath                       string
+		disableTLS                         bool
 	)
 	command := cobra.Command{
 		Use:               common.CommandRepoServer,
@@ -114,9 +116,11 @@ func NewCommand() *cobra.Command {
 				}
 			}()
 
-			var err error
-			tlsConfigCustomizer, err = tlsConfigCustomizerSrc()
-			errors.CheckError(err)
+			if !disableTLS {
+				var err error
+				tlsConfigCustomizer, err = tlsConfigCustomizerSrc()
+				errors.CheckError(err)
+			}
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)
@@ -142,7 +146,10 @@ func NewCommand() *cobra.Command {
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
-			if clientCAPath != "" {
+			if disableTLS && clientCAPath != "" {
+				return stderrors.New("--client-ca-path cannot be used when --disable-tls is enabled")
+			}
+			if !disableTLS && clientCAPath != "" {
 				if _, err := os.Stat(clientCAPath); err != nil {
 					return fmt.Errorf("client CA path does not exist or is not readable: %w", err)
 				}
@@ -168,7 +175,7 @@ func NewCommand() *cobra.Command {
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
-			}, askPassServer, clientCAPath)
+			}, askPassServer, clientCAPath, disableTLS)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {
@@ -186,38 +193,20 @@ func NewCommand() *cobra.Command {
 			listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
+			healthCheckTLSConfig := &apiclient.TLSConfiguration{DisableTLS: disableTLS}
+			if !disableTLS {
+				cfg, err := buildHealthCheckTLSConfig(server.GetTLSConfig())
+				errors.CheckError(err)
+				healthCheckTLSConfig = &cfg
+			}
+
 			mux := http.NewServeMux()
 			healthz.ServeHealthCheck(mux, func(r *http.Request) error {
 				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
 					// connect to itself to make sure the repo server is able to serve the connection
 					// used by liveness probe to auto-restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					healthCheckTLSConfig := apiclient.TLSConfiguration{
-						StrictValidation: true,
-					}
-
-					// If the server has a TLS configuration, we use it to verify the server's certificate.
-					if srvTLSConfig := server.GetTLSConfig(); srvTLSConfig != nil && len(srvTLSConfig.Certificates) > 0 {
-						serverCert, err := x509.ParseCertificate(srvTLSConfig.Certificates[0].Certificate[0])
-						if err != nil {
-							return fmt.Errorf("failed to parse server certificate: %w", err)
-						}
-						certPool := x509.NewCertPool()
-						certPool.AddCert(serverCert)
-						healthCheckTLSConfig.Certificates = certPool
-
-						// Use the server's own certificate as the client certificate for health checks
-						// to ensure it's trusted when mTLS is enabled.
-						healthCheckTLSConfig.ClientCertificates = srvTLSConfig.Certificates
-					} else {
-						healthCheckTLSConfigFromCerts, err := generateSelfSignedCerts()
-						if err != nil {
-							return err
-						}
-						healthCheckTLSConfig.ClientCertificates = healthCheckTLSConfigFromCerts.ClientCertificates
-					}
-
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &healthCheckTLSConfig)
+					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, healthCheckTLSConfig)
 					if err != nil {
 						return err
 					}
@@ -303,6 +292,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
+	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS for the repo-server gRPC endpoint")
 	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", ""), "Path to the client CA certificate file for mTLS")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
@@ -315,25 +305,60 @@ func NewCommand() *cobra.Command {
 }
 
 func generateSelfSignedCerts() (apiclient.TLSConfiguration, error) {
-	healthCheckTLSConfig := apiclient.TLSConfiguration{
-		StrictValidation: false,
+	healthCheckCertMutex.RLock()
+	if healthCheckCert != nil {
+		cfg := apiclient.TLSConfiguration{
+			StrictValidation:   false,
+			ClientCertificates: []ctls.Certificate{*healthCheckCert},
+		}
+		healthCheckCertMutex.RUnlock()
+		return cfg, nil
 	}
+	healthCheckCertMutex.RUnlock()
 
 	healthCheckCertMutex.Lock()
 	defer healthCheckCertMutex.Unlock()
 
 	if healthCheckCert != nil {
-		healthCheckTLSConfig.ClientCertificates = []ctls.Certificate{*healthCheckCert}
-		return healthCheckTLSConfig, nil
+		return apiclient.TLSConfiguration{
+			StrictValidation:   false,
+			ClientCertificates: []ctls.Certificate{*healthCheckCert},
+		}, nil
 	}
 
 	cert, err := tls.GenerateX509KeyPair(tls.CertOptions{
 		Hosts:        []string{"localhost"},
 		Organization: "Argo CD Health Check",
 	})
-	if err == nil {
-		healthCheckCert = cert
-		healthCheckTLSConfig.ClientCertificates = []ctls.Certificate{*healthCheckCert}
+	if err != nil {
+		return apiclient.TLSConfiguration{}, err
 	}
-	return healthCheckTLSConfig, err
+
+	healthCheckCert = cert
+	return apiclient.TLSConfiguration{
+		StrictValidation:   false,
+		ClientCertificates: []ctls.Certificate{*healthCheckCert},
+	}, nil
+}
+
+func buildHealthCheckTLSConfig(srvTLSConfig *ctls.Config) (apiclient.TLSConfiguration, error) {
+	if srvTLSConfig != nil && len(srvTLSConfig.Certificates) > 0 {
+		serverCert, err := x509.ParseCertificate(srvTLSConfig.Certificates[0].Certificate[0])
+		if err != nil {
+			return apiclient.TLSConfiguration{}, fmt.Errorf("failed to parse server certificate: %w", err)
+		}
+		certPool := x509.NewCertPool()
+		certPool.AddCert(serverCert)
+		return apiclient.TLSConfiguration{
+			StrictValidation:   true,
+			Certificates:       certPool,
+			ClientCertificates: srvTLSConfig.Certificates,
+		}, nil
+	}
+
+	selfSignedConfig, err := generateSelfSignedCerts()
+	if err != nil {
+		return apiclient.TLSConfiguration{}, err
+	}
+	return selfSignedConfig, nil
 }
