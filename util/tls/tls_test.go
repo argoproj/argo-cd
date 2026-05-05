@@ -520,14 +520,28 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		assert.Equal(t, "test-ca-cert-prefixed", caCert)
 	})
 
-	t.Run("Self-generate client certificate", func(t *testing.T) {
+	t.Run("mTLS client certificate is configured only by explicit flags", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		t.Setenv("ARGOCD_SELF_GENERATE_CLIENT_CERT", "true")
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		err := cmd.Flags().Set("repo-server-client-cert", "test-client-cert")
+		require.NoError(t, err)
+		err = cmd.Flags().Set("repo-server-client-cert-key", "test-client-cert-key")
+		require.NoError(t, err)
+
+		config, err := configSrc()
+		require.NoError(t, err)
+		assert.Empty(t, config.ClientCertificates)
+		assert.Equal(t, "test-client-cert", config.ClientCertFile)
+		assert.Equal(t, "test-client-cert-key", config.ClientCertKeyFile)
+	})
+
+	t.Run("No mTLS client certificate by default", func(t *testing.T) {
+		cmd := &cobra.Command{}
 		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
 		config, err := configSrc()
 		require.NoError(t, err)
-		assert.Len(t, config.ClientCertificates, 1)
+		assert.Empty(t, config.ClientCertificates)
 		assert.Empty(t, config.ClientCertFile)
 		assert.Empty(t, config.ClientCertKeyFile)
 	})

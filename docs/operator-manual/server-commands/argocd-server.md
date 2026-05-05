@@ -106,7 +106,6 @@ argocd-server [flags]
       --revision-cache-expiration duration              Cache expiration for cached revision (default 3m0s)
       --revision-cache-lock-timeout duration            Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable (default 10s)
       --rootpath string                                 Used if Argo CD is running behind reverse proxy under subpath different from /
-      --self-generate-client-cert                       Self-generate a client certificate for mTLS
       --sentinel stringArray                            Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                           Redis sentinel master group name. (default "master")
       --server string                                   The address and port of the Kubernetes API server
