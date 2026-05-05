@@ -701,7 +701,6 @@ func TestFilterClusterResourceRestrictionItems(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := filterClusterResourceRestrictionItems(tt.items, tt.inherited)
@@ -743,7 +742,6 @@ func TestFilterGroupKinds(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := filterGroupKinds(tt.items, tt.inherited)
@@ -783,7 +781,6 @@ func TestFilterStrings(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := filterStrings(tt.items, tt.inherited)
@@ -825,7 +822,6 @@ func TestFilterDestinations(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := filterDestinations(tt.items, tt.inherited)
