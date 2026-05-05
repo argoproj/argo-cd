@@ -2,6 +2,8 @@ package sandbox
 
 import (
 	"fmt"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/landlock-lsm/go-landlock/landlock"
@@ -10,6 +12,8 @@ import (
 )
 
 const LANDLOCK = "landlock"
+const LANDLOCK_STD_RW = "read_dir,make_dir,read_file,write_file"
+const LANDLOCK_STD_RO = "read_dir,read_file"
 
 type LandlockAllowedPath struct {
 	Paths  []string `json:"paths"`
@@ -148,6 +152,22 @@ func (m *Landlock) GetConfig() string {
 	return fmt.Sprintf("%v", m.Cfg)
 }
 
+func (m *Landlock) makeFSArgs(accessSpec string, paths []string) []string {
+	result := []string{}
+	prefix := "fs:" + accessSpec + ":"
+	for _, path := range paths {
+		result = append(result, "--landlock-allow", prefix+path)
+	}
+	return result
+}
+
+func (m *Landlock) MakeArgs(runOpts *SandboxRunOpts) []string {
+	result := []string{}
+	result = append(result, m.makeFSArgs(LANDLOCK_STD_RW, runOpts.RWDirs)...)
+	result = append(result, m.makeFSArgs(LANDLOCK_STD_RO, runOpts.RODirs)...)
+	return result
+}
+
 // Parse parses a string in the format "fs:access_right1,access_right2,...:/absolute/path".
 func parseAllowParam(input string) (LandlockAllowedPath, error) {
 	if input == "" {
@@ -191,4 +211,29 @@ func validatePath(p string) error {
 		return fmt.Errorf("path contains null byte")
 	}
 	return nil
+}
+
+func GenerateDefaultLandlockConfig(ops *ToolOpts) (*LandlockConfig, error) {
+	result := LandlockConfig{}
+	result.DefaultFSDeny = "read_dir,read_file,write_file,make_dir,execute"
+	binPath, err := exec.LookPath(ops.toolName)
+	if err != nil {
+		return nil, fmt.Errorf("command %q not found in PATH: %v", ops.toolName, err)
+	}
+	binPath, err = filepath.Abs(binPath)
+	if err != nil {
+		return nil, fmt.Errorf("command %q not found in PATH: %v", ops.toolName, err)
+	}
+	result.AllowedPaths = append(result.AllowedPaths,
+		LandlockAllowedPath{
+			Access: "read_file,execute",
+			Paths:  []string{binPath},
+		},
+		LandlockAllowedPath{
+			Access: "read_file",
+			Paths:  []string{"/dev/null"},
+		},
+	)
+
+	return &result, nil
 }

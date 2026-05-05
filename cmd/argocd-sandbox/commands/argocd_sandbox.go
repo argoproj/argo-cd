@@ -18,9 +18,14 @@ import (
 func NewCommand() *cobra.Command {
 	var (
 		configPath         string
+		configStr          string
 		allowRules         []string
 		useImplementations []string
 		landlockAllowArgs  []string
+	)
+	const (
+		FLAG_CONFIG     = "config"
+		FLAG_CONFIG_STR = "config-str"
 	)
 
 	command := cobra.Command{
@@ -31,12 +36,20 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			if len(cmdargs) < 1 {
-				errors.CheckError(fmt.Errorf("expected at least 1 argument, got %d", len(cmdargs)-1))
+				errors.Fatal(errors.ErrorGeneric,
+					fmt.Errorf("expected at least 1 argument, got %d", len(cmdargs)-1))
 			}
 
 			log.Infof("argocd-sandbox started")
 			log.Infof("  allow rules (%d) %v", len(allowRules), allowRules)
-			sandboxCfg, err := sandbox.ReadSandboxConfig(configPath)
+			var err error
+			var sandboxCfg *sandbox.ArgocdSandboxConfig
+			if configPath != "" {
+				sandboxCfg, err = sandbox.ReadSandboxConfig(configPath)
+			}
+			if configStr != "" {
+				sandboxCfg, err = sandbox.ReadSandboxConfigStr(configStr)
+			}
 			errors.CheckError(err)
 			allowArgs := make(map[string][]string)
 			allowArgs[sandbox.LANDLOCK] = landlockAllowArgs
@@ -50,11 +63,13 @@ func NewCommand() *cobra.Command {
 	command.Flags().SetInterspersed(false)
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SANDBOX_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SANDBOX_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
-	command.Flags().StringVar(&configPath, "config", "", "Set configuration file location")
+	command.Flags().StringVar(&configPath, FLAG_CONFIG, "", "Set sandbox configuration file location")
+	command.Flags().StringVar(&configStr, FLAG_CONFIG_STR, "", "Set sandbox configuration from command argument")
 	// not split by
 	command.Flags().StringArrayVar(&landlockAllowArgs, "landlock-allow", []string{}, "allow access to a resource using the Landlock module")
 	command.Flags().StringSliceVar(&useImplementations, "impl", []string{}, "Use sandbox implementations")
-	command.MarkFlagRequired("config")
+	command.MarkFlagsOneRequired(FLAG_CONFIG, FLAG_CONFIG_STR)
+	command.MarkFlagsMutuallyExclusive(FLAG_CONFIG, FLAG_CONFIG_STR)
 	return &command
 
 }

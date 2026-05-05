@@ -369,6 +369,7 @@ image: build-ui
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-sandbox
 	cp Dockerfile.dev dist
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
