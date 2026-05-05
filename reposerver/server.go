@@ -42,20 +42,22 @@ type ArgoCDRepoServer struct {
 var tlsHostList = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
 
-	// Generate or load TLS server certificates to use with this instance of
-	//  the repository server.
-	var err error
-	certPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.crt"
-	keyPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.key"
-	tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList, clientCAPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating server TLS config: %w", err)
-	}
-	if tlsConfCustomizer != nil {
-		tlsConfCustomizer(tlsConfig)
+	if !disableTLS {
+		// Generate or load TLS server certificates to use with this instance of
+		//  the repository server.
+		var err error
+		certPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.crt"
+		keyPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.key"
+		tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList, clientCAPath)
+		if err != nil {
+			return nil, fmt.Errorf("error creating server TLS config: %w", err)
+		}
+		if tlsConfCustomizer != nil {
+			tlsConfCustomizer(tlsConfig)
+		}
 	}
 
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption

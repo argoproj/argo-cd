@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
 
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -396,10 +398,15 @@ func TestCreateServerTLSConfig(t *testing.T) {
 	})
 
 	t.Run("Configuration with client CA", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		defer hook.Reset()
+
 		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost"}, "testdata/valid_tls.crt")
 		require.NoError(t, err)
 		assert.NotNil(t, tlsc.ClientCAs)
 		assert.Equal(t, tls.RequireAndVerifyClientCert, tlsc.ClientAuth)
+		require.NotNil(t, hook.LastEntry())
+		assert.Contains(t, hook.LastEntry().Message, "mTLS enabled for repo-server: requiring client certificates from CA=testdata/valid_tls.crt")
 	})
 
 	t.Run("Self-signed creation with NoClientCert when no ClientCA", func(t *testing.T) {
@@ -544,6 +551,28 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		assert.Empty(t, config.ClientCertificates)
 		assert.Empty(t, config.ClientCertFile)
 		assert.Empty(t, config.ClientCertKeyFile)
+	})
+
+	t.Run("Repeated invocations do not leak strict validation state", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		certFile := path.Join("testdata", "single.pem")
+		err := cmd.Flags().Set("repo-server-ca-cert", certFile)
+		require.NoError(t, err)
+
+		configWithCA, err := configSrc()
+		require.NoError(t, err)
+		assert.True(t, configWithCA.StrictValidation)
+		assert.NotNil(t, configWithCA.Certificates)
+
+		err = cmd.Flags().Set("repo-server-ca-cert", "")
+		require.NoError(t, err)
+
+		configWithoutCA, err := configSrc()
+		require.NoError(t, err)
+		assert.False(t, configWithoutCA.StrictValidation)
+		assert.Nil(t, configWithoutCA.Certificates)
 	})
 }
 

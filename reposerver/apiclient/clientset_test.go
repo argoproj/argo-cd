@@ -2,6 +2,8 @@ package apiclient_test
 
 import (
 	"crypto/tls"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -101,6 +103,81 @@ func TestNewConnection_InMemoryCertificates(t *testing.T) {
 
 	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+}
+
+func TestNewConnection_CachesClientCertificateFromFiles(t *testing.T) {
+	t.Cleanup(apiclient.ResetClientCertCache)
+	apiclient.ResetClientCertCache()
+
+	certFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt")
+	keyFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.key")
+
+	tempCertFile := filepath.Join(t.TempDir(), "client.crt")
+	tempKeyFile := filepath.Join(t.TempDir(), "client.key")
+
+	certBytes, err := os.ReadFile(certFile)
+	require.NoError(t, err)
+	err = os.WriteFile(tempCertFile, certBytes, 0o600)
+	require.NoError(t, err)
+
+	keyBytes, err := os.ReadFile(keyFile)
+	require.NoError(t, err)
+	err = os.WriteFile(tempKeyFile, keyBytes, 0o600)
+	require.NoError(t, err)
+
+	tlsConfig := apiclient.TLSConfiguration{
+		StrictValidation:  false,
+		ClientCertFile:    tempCertFile,
+		ClientCertKeyFile: tempKeyFile,
+	}
+
+	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+
+	err = os.WriteFile(tempCertFile, []byte("invalid cert"), 0o600)
+	require.NoError(t, err)
+	err = os.WriteFile(tempKeyFile, []byte("invalid key"), 0o600)
+	require.NoError(t, err)
+
+	conn, err = apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+}
+
+func TestNewConnection_DoesNotCacheClientCertificateLoadError(t *testing.T) {
+	t.Cleanup(apiclient.ResetClientCertCache)
+	apiclient.ResetClientCertCache()
+
+	tempDir := t.TempDir()
+	tempCertFile := filepath.Join(tempDir, "client.crt")
+	tempKeyFile := filepath.Join(tempDir, "client.key")
+
+	tlsConfig := apiclient.TLSConfiguration{
+		StrictValidation:  false,
+		ClientCertFile:    tempCertFile,
+		ClientCertKeyFile: tempKeyFile,
+	}
+
+	_, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.Error(t, err)
+
+	certFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt")
+	keyFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.key")
+
+	certBytes, err := os.ReadFile(certFile)
+	require.NoError(t, err)
+	err = os.WriteFile(tempCertFile, certBytes, 0o600)
+	require.NoError(t, err)
+
+	keyBytes, err := os.ReadFile(keyFile)
+	require.NoError(t, err)
+	err = os.WriteFile(tempKeyFile, keyBytes, 0o600)
+	require.NoError(t, err)
+
+	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 	require.NoError(t, err)
 	assert.NotNil(t, conn)
 }

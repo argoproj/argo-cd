@@ -281,7 +281,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 		NotAfter:  notAfter,
 
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
 
@@ -441,7 +441,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 		c, err := GenerateX509KeyPair(CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
-			IsCA:         true,
+			IsCA:         false,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error generating X509 key pair: %w", err)
@@ -472,6 +472,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 		}
 		tlsConfig.ClientCAs = pool
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		log.Infof("mTLS enabled for repo-server: requiring client certificates from CA=%s", clientCAPath)
 	}
 
 	return tlsConfig, nil
@@ -495,15 +496,19 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, "repo-server-client-cert-key", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY", ""), "Path to the client certificate key file for mTLS")
 
 	return func() (apiclient.TLSConfiguration, error) {
+		config := tlsConfig
+		config.StrictValidation = repoServerCACert != ""
+
 		if repoServerCACert != "" {
 			pool, err := LoadX509CertPool(repoServerCACert)
 			if err != nil {
-				return tlsConfig, fmt.Errorf("error loading repo-server CA: %w", err)
+				return config, fmt.Errorf("error loading repo-server CA: %w", err)
 			}
-			tlsConfig.Certificates = pool
-			tlsConfig.StrictValidation = true
+			config.Certificates = pool
+		} else {
+			config.Certificates = nil
 		}
 
-		return tlsConfig, nil
+		return config, nil
 	}
 }
