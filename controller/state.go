@@ -242,56 +242,20 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
 
-		syncedRevision := app.Status.Sync.Revision
-		if app.Spec.HasMultipleSources() {
-			if i < len(app.Status.Sync.Revisions) {
-				syncedRevision = app.Status.Sync.Revisions[i]
-			} else {
-				syncedRevision = ""
-			}
-		}
-
 		revision := revisions[i]
 
 		appNamespace := app.Spec.Destination.Namespace
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
 
-		if repo.Depth == 0 && syncedRevision != "" && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
-			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
-			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
-				Repo:               repo,
-				Revision:           revision,
-				SyncedRevision:     syncedRevision,
-				NoRevisionCache:    noRevisionCache,
-				Paths:              path.GetSourceRefreshPaths(app, source),
-				AppLabelKey:        appLabelKey,
-				AppName:            app.InstanceName(m.namespace),
-				Namespace:          appNamespace,
-				ApplicationSource:  &source,
-				KubeVersion:        serverVersion,
-				ApiVersions:        apiVersions,
-				TrackingMethod:     trackingMethod,
-				RefSources:         refSources,
-				SyncedRefSources:   syncedRefSources,
-				HasMultipleSources: app.Spec.HasMultipleSources(),
-				InstallationID:     installationID,
-			})
-			if err != nil {
-				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
-			}
-
-			if updateRevisionResult.Changes {
-				revisionsMayHaveChanges = true
-			}
-
-			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
-			if updateRevisionResult.Revision != "" {
-				revision = updateRevisionResult.Revision
-			}
-		} else if !source.IsRef() {
-			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+		// Evaluate if the revision has changes
+		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, repoClient, app, &source, i, repo, revision, refSources, syncedRefSources, noRevisionCache, appLabelKey, serverVersion, apiVersions, trackingMethod, installationID, keyManifestGenerateAnnotationExists, keyManifestGenerateAnnotationVal)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
+		}
+		if hasChanges {
 			revisionsMayHaveChanges = true
 		}
+		revision = resolvedRevision
 
 		repos := permittedHelmRepos
 		helmRepoCreds := permittedHelmCredentials
@@ -358,6 +322,86 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
 }
 
+// evaluateRevisionChanges determines if a source revision has changes compared to the synced revision.
+// Returns the resolved revision, whether changes were detected, and any error.
+func (m *appStateManager) evaluateRevisionChanges(
+	ctx context.Context,
+	repoClient apiclient.RepoServerServiceClient,
+	app *v1alpha1.Application,
+	source *v1alpha1.ApplicationSource,
+	sourceIndex int,
+	repo *v1alpha1.Repository,
+	revision string,
+	refSources map[string]*v1alpha1.RefTarget,
+	syncedRefSources v1alpha1.RefTargetRevisionMapping,
+	noRevisionCache bool,
+	appLabelKey string,
+	serverVersion string,
+	apiVersions []string,
+	trackingMethod string,
+	installationID string,
+	keyManifestGenerateAnnotationExists bool,
+	keyManifestGenerateAnnotationVal string,
+) (string, bool, error) {
+	// For ref source specifically, we always return false since their change are evaluated as part of the source
+	// referencing them.
+	if source.IsRef() {
+		return revision, false, nil
+	}
+
+	// Determine the synced revision and source type for this specific source
+	var syncedRevision string
+	if app.Spec.HasMultipleSources() {
+		if sourceIndex < len(app.Status.Sync.Revisions) {
+			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
+		}
+	} else {
+		syncedRevision = app.Status.Sync.Revision
+	}
+
+	// if revisions are the same (and we are not using reference sources), we know there is no changes
+	if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+		return revision, false, nil
+	}
+
+	appNamespace := app.Spec.Destination.Namespace
+
+	if repo.Depth == 0 && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+		// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
+		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
+			Repo:               repo,
+			Revision:           revision,
+			SyncedRevision:     syncedRevision,
+			NoRevisionCache:    noRevisionCache,
+			Paths:              path.GetSourceRefreshPaths(app, *source),
+			AppLabelKey:        appLabelKey,
+			AppName:            app.InstanceName(m.namespace),
+			Namespace:          appNamespace,
+			ApplicationSource:  source,
+			KubeVersion:        serverVersion,
+			ApiVersions:        apiVersions,
+			TrackingMethod:     trackingMethod,
+			RefSources:         refSources,
+			SyncedRefSources:   syncedRefSources,
+			HasMultipleSources: app.Spec.HasMultipleSources(),
+			InstallationID:     installationID,
+		})
+		if err != nil {
+			return "", false, err
+		}
+
+		// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+		if updateRevisionResult.Revision != "" {
+			revision = updateRevisionResult.Revision
+		}
+
+		return revision, updateRevisionResult.Changes, nil
+	}
+
+	// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+	return revision, true, nil
+}
+
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
 	targetObjs := make([]*unstructured.Unstructured, 0)
 	for _, manifest := range manifests {
@@ -370,33 +414,45 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error
 	return targetObjs, nil
 }
 
-func DeduplicateTargetObjects(
-	namespace string,
-	objs []*unstructured.Unstructured,
-	infoProvider kubeutil.ResourceInfoProvider,
-) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
+func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
 		if obj == nil {
 			continue
 		}
+
+		namespaceModified := false
 		isNamespaced := kubeutil.IsNamespacedOrUnknown(infoProvider, obj.GroupVersionKind().GroupKind())
-		if !isNamespaced {
+		if !isNamespaced && obj.GetNamespace() != "" {
+			// If a resource is cluster scoped, set the namespace to empty.
 			obj.SetNamespace("")
-		} else if obj.GetNamespace() == "" {
+			namespaceModified = true
+		} else if isNamespaced && obj.GetNamespace() == "" {
+			// If the object does not have a namespace specified, set it to the namespace of the application.
 			obj.SetNamespace(namespace)
+			namespaceModified = true
 		}
+
+		if namespaceModified {
+			err := setAppInstance(obj)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to set app instance label on resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+			}
+		}
+
 		key := kubeutil.GetResourceKey(obj)
 		if key.Name == "" && obj.GetGenerateName() != "" {
 			key.Name = fmt.Sprintf("%s%d", obj.GetGenerateName(), i)
 		}
 		targetByKey[key] = append(targetByKey[key], obj)
 	}
+
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	result := make([]*unstructured.Unstructured, 0)
 	for key, targets := range targetByKey {
 		if len(targets) > 1 {
+			// If an object is duplicated in the target, we add a condition to the application.
 			now := metav1.Now()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{
 				Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
@@ -404,33 +460,11 @@ func DeduplicateTargetObjects(
 				LastTransitionTime: &now,
 			})
 		}
+		// Only keep the last target object to avoid duplicate resources.
 		result = append(result, targets[len(targets)-1])
 	}
 
 	return result, conditions, nil
-}
-
-// normalizeClusterScopeTracking will set the app instance tracking metadata on malformed cluster-scoped resources where
-// metadata.namespace is not empty. The repo-server doesn't know which resources are cluster-scoped, so it may apply
-// an incorrect tracking annotation using the metadata.namespace. This function will correct that.
-func normalizeClusterScopeTracking(targetObjs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) error {
-	for i := len(targetObjs) - 1; i >= 0; i-- {
-		targetObj := targetObjs[i]
-		if targetObj == nil {
-			continue
-		}
-		gvk := targetObj.GroupVersionKind()
-		if !kubeutil.IsNamespacedOrUnknown(infoProvider, gvk.GroupKind()) {
-			if targetObj.GetNamespace() != "" {
-				targetObj.SetNamespace("")
-				err := setAppInstance(targetObj)
-				if err != nil {
-					return fmt.Errorf("failed to set app instance label on cluster-scoped resource %s/%s: %w", gvk.String(), targetObj.GetName(), err)
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // getComparisonSettings will return the system level settings related to the
@@ -641,17 +675,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		infoProvider = &resourceInfoProviderStub{}
 	}
 
-	err = normalizeClusterScopeTracking(targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
+	targetObjs, dedupConditions, err := NormalizeTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
 		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 	})
 	if err != nil {
-		msg := "Failed to normalize cluster-scoped resource tracking: " + err.Error()
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-	}
-
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
-	if err != nil {
-		msg := "Failed to deduplicate target state: " + err.Error()
+		msg := "Failed to normalize target state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)
