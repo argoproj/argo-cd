@@ -709,7 +709,7 @@ export interface Cluster {
     info?: {
         applicationsCount: number;
         serverVersion: string;
-        agentVersion?: string;
+        argoAgentVersion?: string;
         connectionState: ConnectionState;
         cacheInfo: ClusterCacheInfo;
     };

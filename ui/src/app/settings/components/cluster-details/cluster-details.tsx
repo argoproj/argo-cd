@@ -134,10 +134,12 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                                     <div className='columns small-3'>VERSION:</div>
                                     <div className='columns small-9'> {cluster.info.serverVersion}</div>
                                 </div>
-                                <div className='row white-box__details-row'>
-                                    <div className='columns small-3'>AGENT VERSION:</div>
-                                    <div className='columns small-9'> {cluster.info.agentVersion || 'N/A'}</div>
-                                </div>
+                                {cluster.info.argoAgentVersion && (
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>ARGO AGENT VERSION:</div>
+                                        <div className='columns small-9'> {cluster.info.argoAgentVersion}</div>
+                                    </div>
+                                )}
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-3'>DETAILS:</div>
                                     <div className='columns small-9'> {cluster.info.connectionState.message} </div>

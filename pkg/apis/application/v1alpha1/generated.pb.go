@@ -9448,9 +9448,9 @@ func (m *ClusterInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	i -= len(m.AgentVersion)
-	copy(dAtA[i:], m.AgentVersion)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AgentVersion)))
+	i -= len(m.ArgoAgentVersion)
+	copy(dAtA[i:], m.ArgoAgentVersion)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.ArgoAgentVersion)))
 	i--
 	dAtA[i] = 0x32
 	if len(m.APIVersions) > 0 {
@@ -17800,7 +17800,7 @@ func (m *ClusterInfo) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	l = len(m.AgentVersion)
+	l = len(m.ArgoAgentVersion)
 	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
@@ -21358,7 +21358,7 @@ func (this *ClusterInfo) String() string {
 		`CacheInfo:` + strings.Replace(strings.Replace(this.CacheInfo.String(), "ClusterCacheInfo", "ClusterCacheInfo", 1), `&`, ``, 1) + `,`,
 		`ApplicationsCount:` + fmt.Sprintf("%v", this.ApplicationsCount) + `,`,
 		`APIVersions:` + fmt.Sprintf("%v", this.APIVersions) + `,`,
-		`AgentVersion:` + fmt.Sprintf("%v", this.AgentVersion) + `,`,
+		`AgentVersion:` + fmt.Sprintf("%v", this.ArgoAgentVersion) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -34921,7 +34921,7 @@ func (m *ClusterInfo) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.AgentVersion = string(dAtA[iNdEx:postIndex])
+			m.ArgoAgentVersion = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

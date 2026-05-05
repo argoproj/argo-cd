@@ -98,7 +98,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, updatedK8sVersion, clusterInfo.ServerVersion)
 		assert.Equal(t, test.ExpectedStatus, clusterInfo.ConnectionState.Status)
-		assert.Equal(t, "v99.99.99+unknown", clusterInfo.AgentVersion)
+		assert.Equal(t, "v99.99.99+unknown", clusterInfo.ArgoAgentVersion)
 	}
 }
 

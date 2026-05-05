@@ -2396,8 +2396,8 @@ type ClusterInfo struct {
 	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
 	// APIVersions contains list of API versions supported by the cluster
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,5,opt,name=apiVersions"`
-	// AgentVersion contains the version of the Argo CD agent (application controller) managing this cluster
-	AgentVersion string `json:"agentVersion,omitempty" protobuf:"bytes,6,opt,name=agentVersion"`
+	// ArgoAgentVersion contains the version of the Argo CD agent (application controller) managing this cluster
+	ArgoAgentVersion string `json:"argoAgentVersion,omitempty" protobuf:"bytes,6,opt,name=argoAgentVersion"`
 }
 
 func (c *ClusterInfo) GetKubeVersion() string {
