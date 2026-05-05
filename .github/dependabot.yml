@@ -8,6 +8,9 @@ updates:
     ignore:
     - dependency-name: k8s.io/*
     groups:
+      aws-sdk-v2:
+        patterns:
+          - "github.com/aws/aws-sdk-go-v2*"
       otel:
         patterns:
           - "go.opentelemetry.io/*"
@@ -21,12 +24,6 @@ updates:
     directory: "/ui/"
     schedule:
       interval: "daily"
-
-# Disabled since this code is rarely used.
-#  - package-ecosystem: "npm"
-#    directory: "/ui-test/"
-#    schedule:
-#      interval: "daily"
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -52,9 +49,3 @@ updates:
     directory: "/test/remote/"
     schedule:
       interval: "daily"
-
-# Disabled since this code is rarely used.
-#  - package-ecosystem: "docker"
-#    directory: "/ui-test/"
-#    schedule:
-#      interval: "daily"

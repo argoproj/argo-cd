@@ -16,7 +16,8 @@ jest.mock('./resource-customizations', () => ({
     resourceIconGroups: {
         '*.crossplane.io': true,
         '*.fluxcd.io': true,
-        'cert-manager.io': true
+        'cert-manager.io': true,
+        'promoter.argoproj.io': true
     }
 }));
 
@@ -70,6 +71,14 @@ describe('ResourceIcon', () => {
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
             expect(imgs[0].props.src).toBe('assets/images/resources/_.fluxcd.io/icon.svg');
+        });
+
+        it('should show group-based icon for promoter.argoproj.io', () => {
+            const testRenderer = renderer.create(<ResourceIcon group='promoter.argoproj.io' kind='PromotionStrategy' />);
+            const testInstance = testRenderer.root;
+            const imgs = testInstance.findAllByType('img');
+            expect(imgs.length).toBeGreaterThan(0);
+            expect(imgs[0].props.src).toBe('assets/images/resources/promoter.argoproj.io/icon.svg');
         });
     });
 
@@ -131,6 +140,13 @@ describe('ResourceIcon', () => {
             const testRenderer = renderer.create(<ResourceIcon group='' kind='Application' />);
             const testInstance = testRenderer.root;
             const icons = testInstance.findAll(node => node.type === 'i' && typeof node.props.className === 'string' && node.props.className.includes('argo-icon-application'));
+            expect(icons.length).toBeGreaterThan(0);
+        });
+
+        it('should show applicationset icon for kind=ApplicationSet', () => {
+            const testRenderer = renderer.create(<ResourceIcon group='argoproj.io' kind='ApplicationSet' />);
+            const testInstance = testRenderer.root;
+            const icons = testInstance.findAll(node => node.type === 'i' && typeof node.props.className === 'string' && node.props.className.includes('argo-icon-applicationset'));
             expect(icons.length).toBeGreaterThan(0);
         });
     });

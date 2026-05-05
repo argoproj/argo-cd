@@ -45,8 +45,8 @@ In order to enable this feature, the Argo CD administrator must reconfigure the 
 The `--application-namespaces` parameter takes a comma-separated list of namespaces where `Applications` are to be allowed in. Each entry of the list supports:
 
 - shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
-- regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
-  
+- regex, requires wrapping the string in `/`, example to allow all namespaces except a particular one: `/^((?!not-allowed).)*$/`.
+
 The startup parameters for both, the `argocd-server` and the `argocd-application-controller` can also be conveniently set up and kept in sync by specifying the `application.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the respective workloads. For example:
 
 ```yaml
@@ -94,7 +94,7 @@ metadata:
   namespace: argocd
 spec:
   sourceNamespaces:
-  - namespace-one
+    - namespace-one
 ```
 
 and
@@ -107,7 +107,7 @@ metadata:
   namespace: argocd
 spec:
   sourceNamespaces:
-  - namespace-two
+    - namespace-two
 ```
 
 In order for an Application to set `.spec.project` to `project-one`, it would have to be created in either namespace `namespace-one` or `argocd`. Likewise, in order for an Application to set `.spec.project` to `project-two`, it would have to be created in either namespace `namespace-two` or `argocd`.
@@ -138,7 +138,11 @@ For backwards compatibility, if the namespace of the Application is the control 
 
 The RBAC syntax for Application objects has been changed from `<project>/<application>` to `<project>/<namespace>/<application>` to accommodate the need to restrict access based on the source namespace of the Application to be managed.
 
-For backwards compatibility, Applications in the `argocd` namespace can still be referred to as `<project>/<application>` in the RBAC policy rules.
+For backwards compatibility, Applications in the `argocd` namespace will still be referred to as `<project>/<application>` in the RBAC policy rules.
+
+!!! note
+
+    Due to backward compatibility, it is not possible to define RBAC policies specifically for applications in the Argo CD control plane namespace (typically `argocd`) using the pattern `foo/argocd/*`. Applications in the control plane namespace are always normalized to the 2-segment format `<project>/<application>` in RBAC enforcement. For security reasons, an AppProject should never grant access to the control plane namespace through the `.spec.sourceNamespaces` field, as this would allow users to create applications with elevated privileges.
 
 Wildcards do not make any distinction between project and application namespaces yet. For example, the following RBAC rule would match any application belonging to project `foo`, regardless of the namespace it is created in:
 
@@ -151,7 +155,7 @@ If you want to restrict access to be granted only to `Applications` in project `
 ```
 p, somerole, applications, get, foo/bar/*, allow
 ```
-  
+
 ## Managing applications in other namespaces
 
 ### Declaratively
@@ -175,10 +179,10 @@ The project `some-project` will then need to specify `some-namespace` in the lis
 kind: AppProject
 apiVersion: argoproj.io/v1alpha1
 metadata:
-    name: some-project
-    namespace: argocd
+  name: some-project
+  namespace: argocd
 spec:
-    sourceNamespaces:
+  sourceNamespaces:
     - some-namespace
 ```
 

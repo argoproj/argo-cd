@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,11 +27,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/test"
 )
 
@@ -1934,7 +1938,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	assert.True(t, compRes.revisionsMayHaveChanges)
 }
 
-func Test_normalizeClusterScopeTracking(t *testing.T) {
+func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -1944,7 +1948,7 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	c := &cachemocks.ClusterCache{}
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
 	var called bool
-	err := normalizeClusterScopeTracking([]*unstructured.Unstructured{obj}, c, func(u *unstructured.Unstructured) error {
+	_, _, err := NormalizeTargetObjects(test.FakeDestNamespace, []*unstructured.Unstructured{obj}, &resourceInfoProviderStub{}, func(u *unstructured.Unstructured) error {
 		// We expect that the normalization function will call this callback with an obj that has had the namespace set
 		// to empty.
 		called = true
@@ -1953,6 +1957,164 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, called, "normalization function should have called the callback function")
+}
+
+func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
+	// Create three cluster-scoped objects with the same Group/Kind/Name
+	// Using cluster-scoped to work with resourceInfoProviderStub
+	obj1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"get"}, Resources: []string{"pods"}},
+		},
+	})
+	obj2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"list"}, Resources: []string{"pods"}},
+		},
+	})
+	obj3 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"watch"}, Resources: []string{"pods"}},
+		},
+	})
+
+	result, conditions, err := NormalizeTargetObjects(
+		test.FakeDestNamespace,
+		[]*unstructured.Unstructured{obj1, obj2, obj3},
+		&resourceInfoProviderStub{},
+		func(_ *unstructured.Unstructured) error {
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	// Should only keep the last object
+	assert.Len(t, result, 1, "should deduplicate to one object")
+	// Verify it's the last object by checking the rules
+	rules, found, err := unstructured.NestedSlice(result[0].Object, "rules")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Len(t, rules, 1)
+	rule := rules[0].(map[string]any)
+	verbs := rule["verbs"].([]any)
+	assert.Equal(t, "watch", verbs[0], "should keep the last duplicate")
+
+	// Should have one condition warning about duplication
+	require.Len(t, conditions, 1, "should have one duplication warning")
+	assert.Equal(t, v1alpha1.ApplicationConditionRepeatedResourceWarning, conditions[0].Type)
+	assert.Contains(t, conditions[0].Message, "appeared 3 times")
+	assert.Contains(t, conditions[0].Message, "rbac.authorization.k8s.io/ClusterRole//my-cluster-role")
+}
+
+func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
+	// Create two objects with the same generateName
+	obj1 := kube.MustToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-pod-",
+			Namespace:    "default",
+		},
+	})
+	obj2 := kube.MustToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-pod-",
+			Namespace:    "default",
+		},
+	})
+
+	result, conditions, err := NormalizeTargetObjects(
+		test.FakeDestNamespace,
+		[]*unstructured.Unstructured{obj1, obj2},
+		&resourceInfoProviderStub{},
+		func(_ *unstructured.Unstructured) error {
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	// Both objects should be present because they get synthetic names (test-pod-0, test-pod-1)
+	assert.Len(t, result, 2, "should keep all objects with different synthetic names")
+	assert.Empty(t, conditions, "should have no duplication warnings for generateName objects")
+}
+
+func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
+	// Create a namespaced resource without namespace set
+	obj := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-config",
+			// No namespace specified
+		},
+		Data: map[string]string{"key": "value"},
+	})
+
+	trackingCalled := false
+	expectedNamespace := "my-app-namespace"
+
+	// Custom info provider that reports ConfigMaps as namespaced
+	namespacedProvider := &namespacedResourceInfoProvider{namespaced: true}
+
+	result, conditions, err := NormalizeTargetObjects(
+		expectedNamespace,
+		[]*unstructured.Unstructured{obj},
+		namespacedProvider,
+		func(u *unstructured.Unstructured) error {
+			// Verify namespace was set before tracking callback
+			assert.Equal(t, expectedNamespace, u.GetNamespace(), "namespace should be set before tracking callback")
+			trackingCalled = true
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	assert.Empty(t, conditions, "should have no conditions")
+	require.Len(t, result, 1, "should have one result")
+
+	// Verify namespace was set
+	assert.Equal(t, expectedNamespace, result[0].GetNamespace(), "namespace should be set on result")
+
+	// Verify tracking callback was called
+	assert.True(t, trackingCalled, "tracking callback should have been called")
+}
+
+// namespacedResourceInfoProvider is a test helper that returns a fixed namespaced status
+type namespacedResourceInfoProvider struct {
+	namespaced bool
+}
+
+func (n *namespacedResourceInfoProvider) IsNamespaced(_ schema.GroupKind) (bool, error) {
+	return n.namespaced, nil
 }
 
 func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
@@ -2037,4 +2199,315 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T)
 	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, false, &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
+}
+
+func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
+	t.Parallel()
+	t.Run("with hydrateTo: appends waiting message", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "env/prod-next",
+			},
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.ErrorContains(t, err, "waiting for an external process to update env/prod from env/prod-next")
+	})
+	t.Run("without hydrateTo: no waiting message appended", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.NotContains(t, err.Error(), "waiting for an external process")
+	})
+}
+
+func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
+	for _, tt := range []struct {
+		name                string
+		resourceSyncOptions []string
+		appSyncOptions      []string
+		expected            bool
+	}{
+		{
+			name:     "default",
+			expected: false,
+		},
+		{
+			name:                "confirm delete resource",
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:           "confirm delete app",
+			appSyncOptions: []string{"Delete=confirm"},
+			expected:       true,
+		},
+		{
+			name:           "confirm prune resource",
+			appSyncOptions: []string{"Prune=confirm"},
+			expected:       true,
+		},
+		{
+			name:                "confirm app & resource delete",
+			appSyncOptions:      []string{"Delete=confirm"},
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:                "confirm app & resource override",
+			appSyncOptions:      []string{"Delete=confirm"},
+			resourceSyncOptions: []string{"Delete=foo"},
+			expected:            false,
+		},
+		{
+			name:                "confirm app & resource mixed delete and prune",
+			appSyncOptions:      []string{"Prune=confirm"},
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:                "override prune resource",
+			appSyncOptions:      []string{"Prune=confirm"},
+			resourceSyncOptions: []string{"Prune=foo"},
+			expected:            false,
+		},
+		{
+			name:                "override delete resource and additional delete confirm",
+			appSyncOptions:      []string{"Delete=confirm", "Prune=confirm"},
+			resourceSyncOptions: []string{"Delete=foo"},
+			expected:            true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := NewPod()
+			obj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": strings.Join(tt.resourceSyncOptions, ",")})
+
+			app := newFakeApp()
+			app.Spec.SyncPolicy.SyncOptions = tt.appSyncOptions
+
+			require.Equal(t, tt.expected, isObjRequiresDeletionConfirmation(obj, app))
+		})
+	}
+}
+
+func Test_evaluateRevisionChanges(t *testing.T) {
+	tests := []struct {
+		name                                string
+		source                              *v1alpha1.ApplicationSource
+		sourceType                          v1alpha1.ApplicationSourceType
+		syncPolicy                          *v1alpha1.SyncPolicy
+		revision                            string
+		appSyncedRevision                   string
+		refSources                          map[string]*v1alpha1.RefTarget
+		repoDepth                           int64
+		keyManifestGenerateAnnotationExists bool
+		keyManifestGenerateAnnotationVal    string
+		updateRevisionForPathsResponse      *apiclient.UpdateRevisionForPathsResponse
+		expectedRevision                    string
+		expectedHasChanges                  bool
+		expectUpdateRevisionForPathsCalled  bool
+	}{
+		{
+			name: "Ref source returns early with no changes",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Ref:     "main",
+			},
+			sourceType:         v1alpha1.ApplicationSourceTypeHelm,
+			revision:           "abc123",
+			appSyncedRevision:  "def456",
+			expectedRevision:   "abc123",
+			expectedHasChanges: false,
+		},
+		{
+			name: "Same revision with no ref sources returns early",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType:         v1alpha1.ApplicationSourceTypeKustomize,
+			revision:           "abc123",
+			appSyncedRevision:  "abc123",
+			refSources:         map[string]*v1alpha1.RefTarget{},
+			expectedRevision:   "abc123",
+			expectedHasChanges: false,
+		},
+		{
+			name: "Same revision with ref sources continues to evaluation",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType:        v1alpha1.ApplicationSourceTypeKustomize,
+			revision:          "abc123",
+			appSyncedRevision: "abc123",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"ref1": {Repo: v1alpha1.Repository{Repo: "https://github.com/example/ref"}},
+			},
+			repoDepth:                           0,
+			keyManifestGenerateAnnotationExists: true,
+			keyManifestGenerateAnnotationVal:    ".",
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+				Revision: "abc123",
+				Changes:  false,
+			},
+			expectedRevision:                   "abc123",
+			expectedHasChanges:                 false,
+			expectUpdateRevisionForPathsCalled: true,
+		},
+		{
+			name: "Shallow clone skips UpdateRevisionForPaths",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
+			syncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{},
+			},
+			revision:                            "abc123",
+			appSyncedRevision:                   "def456",
+			repoDepth:                           1,
+			keyManifestGenerateAnnotationExists: true,
+			keyManifestGenerateAnnotationVal:    ".",
+			expectedRevision:                    "abc123",
+			expectedHasChanges:                  true,
+			expectUpdateRevisionForPathsCalled:  false,
+		},
+		{
+			name: "Missing annotation skips UpdateRevisionForPaths",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
+			syncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{},
+			},
+			revision:                            "abc123",
+			appSyncedRevision:                   "def456",
+			repoDepth:                           0,
+			keyManifestGenerateAnnotationExists: false,
+			keyManifestGenerateAnnotationVal:    "",
+			expectedRevision:                    "abc123",
+			expectedHasChanges:                  true,
+			expectUpdateRevisionForPathsCalled:  false,
+		},
+		{
+			name: "UpdateRevisionForPaths returns updated revision",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
+			syncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{},
+			},
+			revision:                            "HEAD",
+			appSyncedRevision:                   "def456",
+			repoDepth:                           0,
+			keyManifestGenerateAnnotationExists: true,
+			keyManifestGenerateAnnotationVal:    ".",
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+				Revision: "abc123resolved",
+				Changes:  true,
+			},
+			expectedRevision:                   "abc123resolved",
+			expectedHasChanges:                 true,
+			expectUpdateRevisionForPathsCalled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.SyncPolicy = tt.syncPolicy
+			app.Status.Sync.Revision = tt.appSyncedRevision
+			app.Status.SourceType = tt.sourceType
+			if tt.keyManifestGenerateAnnotationExists {
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: tt.keyManifestGenerateAnnotationVal,
+				}
+			}
+
+			repo := &v1alpha1.Repository{
+				Repo:  tt.source.RepoURL,
+				Depth: tt.repoDepth,
+			}
+
+			mockRepoClient := &mocks.RepoServerServiceClient{}
+			if tt.expectUpdateRevisionForPathsCalled {
+				mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(tt.updateRevisionForPathsResponse, nil)
+			}
+
+			mgr := &appStateManager{
+				namespace: "test-namespace",
+			}
+
+			resolvedRevision, hasChanges, err := mgr.evaluateRevisionChanges(
+				context.Background(),
+				mockRepoClient,
+				app,
+				tt.source,
+				0, // sourceIndex
+				repo,
+				tt.revision,
+				tt.refSources,
+				nil,
+				false,
+				"app.kubernetes.io/instance",
+				"v1.28.0",
+				[]string{"v1"},
+				"label",
+				"test-installation",
+				tt.keyManifestGenerateAnnotationExists,
+				tt.keyManifestGenerateAnnotationVal,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedRevision, resolvedRevision)
+			assert.Equal(t, tt.expectedHasChanges, hasChanges)
+
+			if tt.expectUpdateRevisionForPathsCalled {
+				mockRepoClient.AssertExpectations(t)
+			} else {
+				mockRepoClient.AssertNotCalled(t, "UpdateRevisionForPaths")
+			}
+		})
+	}
 }

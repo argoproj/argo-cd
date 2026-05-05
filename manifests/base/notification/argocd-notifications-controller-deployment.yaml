@@ -48,6 +48,12 @@ spec:
                   key: notificationscontroller.log.level
                   name: argocd-cmd-params-cm
                   optional: true
+            - name: ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT
+              valueFrom:
+                configMapKeyRef:
+                  key: notificationscontroller.processors.count
+                  name: argocd-cmd-params-cm
+                  optional: true
             - name: ARGOCD_LOG_FORMAT_TIMESTAMP
               valueFrom:
                 configMapKeyRef:

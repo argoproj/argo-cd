@@ -1858,6 +1858,46 @@ func TestDeleteApp(t *testing.T) {
 	})
 }
 
+func TestDeleteAppAlreadyDeleting(t *testing.T) {
+	ctx := t.Context()
+	appServer := newTestAppServer(t)
+	createReq := application.ApplicationCreateRequest{
+		Application: newTestApp(),
+	}
+	app, err := appServer.Create(ctx, &createReq)
+	require.NoError(t, err)
+
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+	// Drop the default reactor so we can observe exactly which actions Delete issues.
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	deleted := false
+	fakeAppCs.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, nil, nil
+	})
+	fakeAppCs.AddReactor("delete", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		deleted = true
+		return true, nil, nil
+	})
+	now := metav1.Now()
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				DeletionTimestamp: &now,
+			},
+			Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}},
+		}, nil
+	})
+	appServer.appclientset = fakeAppCs
+
+	trueVar := true
+	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
+	require.NoError(t, err)
+	assert.False(t, patched, "finalizer patch must not be attempted on an app already being deleted")
+	assert.True(t, deleted, "delete call should still be issued so the RPC stays idempotent")
+}
+
 func TestDeleteResourcesRBAC(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
@@ -2547,8 +2587,8 @@ func TestSyncRBACOverrideNotRequired_DiffRevisionWithAutosyncPrevented(t *testin
 	testApp := newTestApp()
 	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			Prune:    true,
-			SelfHeal: true,
+			Prune:    new(true),
+			SelfHeal: new(true),
 		},
 	}
 	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
@@ -2566,8 +2606,8 @@ func TestSyncRBACOverrideNotRequired_DiffRevisionWithAutosyncPrevented(t *testin
 	multiSourceApp := newMultiSourceTestApp()
 	multiSourceApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			Prune:    true,
-			SelfHeal: true,
+			Prune:    new(true),
+			SelfHeal: new(true),
 		},
 	}
 
@@ -2714,6 +2754,39 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 		NoCache: new(true),
 	})
 	require.NoError(t, err)
+}
+
+func TestGetManifests_SourceHydrator(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/org/dry-repo",
+			Path:           "manifests/dry",
+			TargetRevision: "main",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			Path: "manifests/sync",
+		},
+	}
+
+	appServer := newTestAppServer(t, testApp)
+
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
+		return mr.Repo.Repo == "https://github.com/org/dry-repo" &&
+			mr.ApplicationSource.Path == "manifests/dry" &&
+			mr.Revision == "some-revision"
+	})).Return(&apiclient.ManifestResponse{}, nil)
+
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+		Name:     &testApp.Name,
+		Revision: new("some-revision"),
+	})
+	require.NoError(t, err)
+	mockRepoServiceClient.AssertExpectations(t)
 }
 
 func TestRollbackApp(t *testing.T) {
@@ -4643,4 +4716,130 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	// Should succeed after retrying with the fresh app
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
+}
+
+func TestGetApplicationClusterConfig(t *testing.T) {
+	t.Run("ImpersonationDisabled", func(t *testing.T) {
+		app := newTestApp()
+		appServer := newTestAppServer(t, app)
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			},
+		}
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
+		require.NoError(t, err)
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+
+	t.Run("ImpersonationEnabledWithMatch", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		projWithSA := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://cluster-api.example.com",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Project = "proj-impersonate"
+		})
+
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{"application.sync.impersonation.enabled": "true"},
+			app, projWithSA,
+		)
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, projWithSA)
+		require.NoError(t, err)
+		assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+	})
+
+	t.Run("ImpersonationEnabledWithNoMatch", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{"application.sync.impersonation.enabled": "true"},
+			app,
+		)
+
+		// "default" project has no DestinationServiceAccounts
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			},
+		}
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
+		assert.Nil(t, config)
+		assert.ErrorContains(t, err, "no matching service account found")
+	})
+}
+
+func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+
+	projWithSA := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+				{
+					Server:                "https://cluster-api.example.com",
+					Namespace:             test.FakeDestNamespace,
+					DefaultServiceAccount: "test-sa",
+				},
+			},
+		},
+	}
+
+	app := newTestApp(func(a *v1alpha1.Application) {
+		a.Spec.Project = "proj-impersonate"
+	})
+
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.impersonation.enabled": "true"},
+		app, projWithSA,
+	)
+
+	appName := app.Name
+	group := "argoproj.io"
+	kind := "Application"
+	project := "proj-impersonate"
+
+	_, _, _, config, err := appServer.getUnstructuredLiveResourceOrApp(t.Context(), rbac.ActionGet, &application.ApplicationResourceRequest{
+		Name:         &appName,
+		ResourceName: &appName,
+		Group:        &group,
+		Kind:         &kind,
+		Project:      &project,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
 }

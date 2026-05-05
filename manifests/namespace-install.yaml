@@ -1119,7 +1119,7 @@ spec:
             configMapKeyRef:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
-              optional: false
+              optional: true
         image: ghcr.io/dexidp/dex:v2.45.0
         imagePullPolicy: Always
         name: dex
@@ -1134,6 +1134,7 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          runAsUser: 1001
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
@@ -1219,6 +1220,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: notificationscontroller.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.processors.count
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_LOG_FORMAT_TIMESTAMP
@@ -2092,6 +2099,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_GLOB_CACHE_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: server.glob.cache.size
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING

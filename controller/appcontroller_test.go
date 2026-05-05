@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -662,8 +664,7 @@ func TestAutoSync(t *testing.T) {
 
 func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 	app := newFakeApp()
-	enable := true
-	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
+	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: new(true)}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -683,7 +684,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	// So our Sync Revisions and SyncStatus Revisions should deep equal
 	t.Run("ClusterObjectChangeShouldNotTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
@@ -698,7 +699,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	})
 	t.Run("NewRevisionChangeShouldTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
@@ -715,7 +716,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -727,8 +728,8 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 
 func TestAutoSyncAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
-	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
+	app.Spec.SyncPolicy.Automated.AllowEmpty = new(true)
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -789,8 +790,7 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when auto-sync is disabled
 	t.Run("AutoSyncEnableFieldIsSetFalse", func(t *testing.T) {
 		app := newFakeApp()
-		enable := false
-		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
+		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: new(false)}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -1199,6 +1199,58 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.Equal(t, "pre-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
 	})
 
+	t.Run("PreDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
+		// Regression test for https://github.com/argoproj/argo-cd/issues/27527.
+		// When the app name (or instance name) exceeds Kubernetes' 63-character
+		// label limit, the pre-delete hook must still be created with a
+		// truncated app instance label so the API server doesn't reject it.
+		app := newFakeApp()
+		// 70-character name (7 over the 63-char label limit)
+		app.Name = "this-application-name-is-deliberately-seventy-characters-long-12345678"
+		app.SetPreDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(context.Background(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePreDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			// Force the tracking method that writes the app instance label so
+			// we can assert truncation actually ran (the default tracking method
+			// is annotation-only, which would skip the label entirely).
+			configMapData: map[string]string{
+				"application.resourceTrackingMethod": "annotation+label",
+			},
+		}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		// pre-delete hook is created and its instance label is truncated to
+		// the 63-character limit
+		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
+		createdHook := ctrl.kubectl.(*MockKubectl).CreatedResources[0]
+		require.Equal(t, "pre-delete-hook", createdHook.GetName())
+		labelVal := createdHook.GetLabels()[common.LabelKeyAppInstance]
+		assert.LessOrEqual(t, len(labelVal), 63, "instance label must fit within Kubernetes' 63-character limit")
+		assert.NotEmpty(t, labelVal)
+		// The label value must be the truncated form of the app name (not the
+		// untouched 70-char name), proving the truncation actually ran.
+		assert.NotEqual(t, app.Name, labelVal)
+		assert.True(t, strings.HasPrefix(app.Name, labelVal),
+			"truncated label must be a prefix of the original app name, got %q", labelVal)
+	})
+
 	t.Run("PostDelete_HookIsCreated", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetPostDeleteFinalizer()
@@ -1231,6 +1283,51 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// post-delete hook is created
 		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
+	})
+
+	t.Run("PostDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
+		// Post-delete counterpart of PreDelete_HookIsCreatedForLongAppName; see
+		// that test for the rationale.
+		app := newFakeApp()
+		app.Name = "this-application-name-is-deliberately-seventy-characters-long-12345678"
+		app.SetPostDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePostDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.resourceTrackingMethod": "annotation+label",
+			},
+		}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		assert.False(t, patched, "finalizer must not be removed while hook is still pending")
+		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
+		createdHook := ctrl.kubectl.(*MockKubectl).CreatedResources[0]
+		require.Equal(t, "post-delete-hook", createdHook.GetName())
+		labelVal := createdHook.GetLabels()[common.LabelKeyAppInstance]
+		assert.LessOrEqual(t, len(labelVal), 63, "instance label must fit within Kubernetes' 63-character limit")
+		assert.NotEmpty(t, labelVal)
+		assert.NotEqual(t, app.Name, labelVal)
+		assert.True(t, strings.HasPrefix(app.Name, labelVal),
+			"truncated label must be a prefix of the original app name, got %q", labelVal)
 	})
 
 	t.Run("PreDelete_HookIsExecuted", func(t *testing.T) {
@@ -1362,6 +1459,71 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.ElementsMatch(t, expectedNames, deletedResources, "Deleted resources should match expected names")
 		// finalizer is not removed
 		assert.False(t, patched)
+	})
+
+	// Ensure cache is cleared using correct key (InstanceName) for apps in different namespace
+	t.Run("MultiNamespaceCacheClear", func(t *testing.T) {
+		// Create a project that allows apps from other-ns namespace
+		multiNsProj := v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+				SourceNamespaces: []string{"other-ns"},
+			},
+		}
+		app := newFakeApp()
+		// Set app to a different namespace than controller namespace
+		app.Namespace = "other-ns"
+		app.DeletionTimestamp = &now
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps:                  []runtime.Object{app, &multiNsProj},
+			managedLiveObjs:       map[kube.ResourceKey]*unstructured.Unstructured{},
+			applicationNamespaces: []string{"other-ns"},
+		}, nil)
+
+		// Pre-populate cache with InstanceName key (simulating normal operation)
+		instanceName := app.InstanceName(ctrl.namespace)
+		assert.Equal(t, "other-ns_my-app", instanceName, "InstanceName should include namespace prefix")
+
+		err := ctrl.cache.SetAppManagedResources(instanceName, []*v1alpha1.ResourceDiff{{Name: "test"}})
+		require.NoError(t, err)
+		err = ctrl.cache.SetAppResourcesTree(instanceName, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{ResourceRef: v1alpha1.ResourceRef{Name: "test"}}}})
+		require.NoError(t, err)
+
+		// Verify cache is populated
+		var managedResources []*v1alpha1.ResourceDiff
+		err = ctrl.cache.GetAppManagedResources(instanceName, &managedResources)
+		require.NoError(t, err)
+		assert.Len(t, managedResources, 1)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, &v1alpha1.Application{}, nil
+		})
+
+		// Execute deletion
+		err = ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+
+		// Verify cache is cleared using InstanceName key
+		err = ctrl.cache.GetAppManagedResources(instanceName, &managedResources)
+		assert.ErrorIs(t, err, appstatecache.ErrCacheMiss, "Cache should be cleared for InstanceName key")
 	})
 }
 
@@ -2920,6 +3082,21 @@ func Test_syncDeleteOption(t *testing.T) {
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
 		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
+
+	t.Run("delete set on the app level", func(t *testing.T) {
+		newApp := app.DeepCopy()
+		newApp.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{})
+		assert.False(t, ctrl.shouldBeDeleted(newApp, cmObj))
+	})
+	t.Run("delete should be overridden on the resource", func(t *testing.T) {
+		newApp := app.DeepCopy()
+		newApp.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=foo"})
+		assert.True(t, ctrl.shouldBeDeleted(newApp, cmObj))
+	})
 }
 
 func TestAddControllerNamespace(t *testing.T) {
@@ -3278,4 +3455,83 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}
+}
+
+func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
+	t.Run("persistReconciliationStatus deletes only refresh annotation", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{
+			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+			v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
+			"other-annotation":            "other-value",
+		}
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+
+		ctrl.persistReconciliationStatus(origApp, newStatus)
+
+		// Verify the patch was created correctly
+		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+
+		// Refresh annotation should be deleted
+		_, hasRefresh := patchedApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+		assert.False(t, hasRefresh, "refresh annotation should be deleted")
+
+		// Hydrate annotation should still exist
+		hydrateValue, hasHydrate := patchedApp.Annotations[v1alpha1.AnnotationKeyHydrate]
+		assert.True(t, hasHydrate, "hydrate annotation should still exist")
+		assert.Equal(t, string(v1alpha1.HydrateTypeNormal), hydrateValue)
+
+		// Other annotations should be preserved
+		otherValue, hasOther := patchedApp.Annotations["other-annotation"]
+		assert.True(t, hasOther, "other annotations should be preserved")
+		assert.Equal(t, "other-value", otherValue)
+	})
+
+	t.Run("persistAppStatus with explicit annotations", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{
+			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+			v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
+			"other-annotation":            "other-value",
+		}
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+
+		// Create annotations that delete hydrate but keep refresh
+		newAnnotations := make(map[string]string)
+		maps.Copy(newAnnotations, origApp.Annotations)
+		delete(newAnnotations, v1alpha1.AnnotationKeyHydrate)
+
+		ctrl.persistAppStatus(origApp, newStatus, newAnnotations)
+
+		// Verify the patch was created correctly
+		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+
+		// Hydrate annotation should be deleted
+		_, hasHydrate := patchedApp.Annotations[v1alpha1.AnnotationKeyHydrate]
+		assert.False(t, hasHydrate, "hydrate annotation should be deleted")
+
+		// Refresh annotation should still exist
+		refreshValue, hasRefresh := patchedApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+		assert.True(t, hasRefresh, "refresh annotation should still exist")
+		assert.Equal(t, string(v1alpha1.RefreshTypeNormal), refreshValue)
+
+		// Other annotations should be preserved
+		otherValue, hasOther := patchedApp.Annotations["other-annotation"]
+		assert.True(t, hasOther, "other annotations should be preserved")
+		assert.Equal(t, "other-value", otherValue)
+	})
 }

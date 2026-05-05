@@ -92,6 +92,8 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
 
         pref.clustersFilter = [];
         pref.namespacesFilter = [];
+        pref.reposFilter = [];
+        pref.targetRevisionFilter = [];
         pref.projectsFilter = [];
         pref.syncFilter = [];
         pref.autoSyncFilter = [];
@@ -102,7 +104,9 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
     public syncFilter: string[];
     public autoSyncFilter: string[];
     public namespacesFilter: string[];
+    public reposFilter: string[];
     public clustersFilter: string[];
+    public targetRevisionFilter: string[];
     public operationFilter: string[];
 }
 
@@ -158,6 +162,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         annotationsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
+        reposFilter: new Array<string>(),
+        targetRevisionFilter: new Array<string>(),
         clustersFilter: new Array<string>(),
         syncFilter: new Array<string>(),
         autoSyncFilter: new Array<string>(),
@@ -174,7 +180,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     hideBannerContent: '',
     hideSidebar: false,
     position: '',
-    theme: 'light'
+    theme: 'auto'
 };
 
 export class ViewPreferencesService {
@@ -230,6 +236,8 @@ export class ViewPreferencesService {
         appList.annotationsFilter = appList.annotationsFilter || [];
         appList.projectsFilter = appList.projectsFilter || [];
         appList.namespacesFilter = appList.namespacesFilter || [];
+        appList.reposFilter = appList.reposFilter || [];
+        appList.targetRevisionFilter = appList.targetRevisionFilter || [];
         appList.clustersFilter = appList.clustersFilter || [];
         appList.syncFilter = appList.syncFilter || [];
         appList.autoSyncFilter = appList.autoSyncFilter || [];

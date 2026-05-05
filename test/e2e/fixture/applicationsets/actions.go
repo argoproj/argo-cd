@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 
 	log "github.com/sirupsen/logrus"
@@ -391,7 +394,7 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 }
 
 // Delete deletes the ApplicationSet within the context
-func (a *Actions) Delete() *Actions {
+func (a *Actions) Delete(propagationPolicy metav1.DeletionPropagation) *Actions {
 	a.context.T().Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
@@ -408,9 +411,7 @@ func (a *Actions) Delete() *Actions {
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
-
-	deleteProp := metav1.DeletePropagationForeground
-	err := appSetClientSet.Delete(context.Background(), a.context.GetName(), metav1.DeleteOptions{PropagationPolicy: &deleteProp})
+	err := appSetClientSet.Delete(context.Background(), a.context.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 	a.describeAction = fmt.Sprintf("Deleting ApplicationSet '%s/%s' %v", a.context.namespace, a.context.GetName(), err)
 	a.lastOutput, a.lastError = "", err
 	a.verifyAction()
@@ -564,5 +565,50 @@ func (a *Actions) runCli(args ...string) {
 func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	a.context.T().Helper()
 	fixture.AddSignedFile(a.context.T(), a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
+func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *Actions {
+	a.context.T().Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
+
+	var namespace string
+	if a.context.switchToNamespace != "" {
+		namespace = string(a.context.switchToNamespace)
+	} else {
+		namespace = fixture.TestNamespace()
+	}
+	for _, appName := range appNames {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			app, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Get(
+				a.context.T().Context(), appName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			// Remove provided finalizer
+			finalizers := []string{}
+			for _, f := range app.Finalizers {
+				if f != finalizer {
+					finalizers = append(finalizers, f)
+				}
+			}
+			patch, _ := json.Marshal(map[string]any{
+				"metadata": map[string]any{
+					"finalizers": finalizers,
+				},
+			})
+			_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Patch(
+				a.context.T().Context(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			a.lastError = err
+		}
+	}
+	a.describeAction = fmt.Sprintf("removing finalizer '%s' from apps %v", finalizer, appNames)
+	a.verifyAction()
 	return a
 }
