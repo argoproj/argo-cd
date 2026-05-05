@@ -867,6 +867,71 @@ func TestFilterSyncWindows(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncWindows{w2}, got)
 }
 
+func TestDedupVirtualProjectSpec(t *testing.T) {
+	w := &argoappv1.SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"*"},
+		TimeZone:     "UTC",
+	}
+	wDup := &argoappv1.SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"*"},
+		TimeZone:     "UTC",
+	}
+
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "*"},
+				{Group: "*", Kind: "*"},
+			},
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "", Kind: "Volume"},
+				{Group: "", Kind: "Volume"},
+			},
+			NamespaceResourceWhitelist: []metav1.GroupKind{
+				{Group: "", Kind: "ConfigMap"},
+				{Group: "", Kind: "ConfigMap"},
+			},
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "", Kind: "Secret"},
+				{Group: "", Kind: "Secret"},
+			},
+			SourceRepos: []string{
+				"https://example.com/a.git",
+				"https://example.com/a.git",
+				"https://example.com/b.git",
+			},
+			Destinations: []argoappv1.ApplicationDestination{
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-b"},
+			},
+			SyncWindows: argoappv1.SyncWindows{w, wDup},
+		},
+	}
+
+	dedupVirtualProjectSpec(proj)
+
+	assert.Equal(t, []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}}, proj.Spec.ClusterResourceWhitelist)
+	assert.Equal(t, []argoappv1.ClusterResourceRestrictionItem{{Group: "", Kind: "Volume"}}, proj.Spec.ClusterResourceBlacklist)
+	assert.Equal(t, []metav1.GroupKind{{Group: "", Kind: "ConfigMap"}}, proj.Spec.NamespaceResourceWhitelist)
+	assert.Equal(t, []metav1.GroupKind{{Group: "", Kind: "Secret"}}, proj.Spec.NamespaceResourceBlacklist)
+	assert.Equal(t, []string{"https://example.com/a.git", "https://example.com/b.git"}, proj.Spec.SourceRepos)
+	assert.Equal(t,
+		[]argoappv1.ApplicationDestination{
+			{Server: "*", Namespace: "team-a"},
+			{Server: "*", Namespace: "team-b"},
+		},
+		proj.Spec.Destinations,
+	)
+	assert.Len(t, proj.Spec.SyncWindows, 1)
+}
+
 func TestFilterByRepo(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
@@ -1557,6 +1622,20 @@ func TestGetGlobalProjects(t *testing.T) {
 		nonXGlobalProjects := GetGlobalProjects(isNoX, projLister, settingsMgr)
 		assert.Len(t, nonXGlobalProjects, 1)
 		assert.Equal(t, "default-non-x", nonXGlobalProjects[0].Name)
+
+		// Regression: a proj object whose labels match a global project's selector should match
+		// even if it is not yet present in the lister/informer cache (e.g. a freshly received
+		// update payload). Only the proj's labels should drive matching.
+		notInCache := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "not-in-cache",
+				Namespace: namespace,
+				Labels:    map[string]string{"is-x": "yep"},
+			},
+		}
+		notInCacheGlobalProjects := GetGlobalProjects(notInCache, projLister, settingsMgr)
+		assert.Len(t, notInCacheGlobalProjects, 1)
+		assert.Equal(t, "default-x", notInCacheGlobalProjects[0].Name)
 	})
 }
 

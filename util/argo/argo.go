@@ -1245,7 +1245,10 @@ func filterSyncWindows(items argoappv1.SyncWindows, inherited map[uint64]struct{
 	for _, w := range items {
 		h, ok := syncWindowIdentityHash(w)
 		if !ok {
-			// If we can't hash identity, keep it (validation will handle bad windows elsewhere).
+			// HashIdentity only fails on a gob.Encode error, which is not expected for valid SyncWindows
+			// in practice. Keep the item rather than dropping it: validation elsewhere will catch
+			// genuinely malformed windows. The trade-off is that a theoretically un-hashable window will
+			// not participate in dedupe; this is preferable to silently dropping user data.
 			res = append(res, w)
 			continue
 		}

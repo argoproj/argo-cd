@@ -158,7 +158,13 @@ function stripInheritedGlobalSpec(virtualSpec: ProjectSpec, globalProjects: Proj
     const inheritedNamespaceBlacklist = new Set((inherited.namespaceResourceBlacklist || []).map(groupKindKey));
     const inheritedNamespaceWhitelist = new Set((inherited.namespaceResourceWhitelist || []).map(groupKindKey));
     const inheritedSourceRepos = new Set((inherited.sourceRepos || []).map(r => r || ''));
-    const inheritedDestinations = new Set((inherited.destinations || []).map(destKey));
+    // NOTE: `reduceGlobal` dedupes destinations by `server+namespace` and drops the `name` field, so it
+    // can lose inherited destinations that use cluster-name (empty `server`) or that differ only by `name`.
+    // Build the inherited destination key set directly from the global projects using the same identity
+    // (server+name+namespace) used for filtering below.
+    const inheritedDestinations = new Set(
+        (globalProjects || []).flatMap(gp => (gp.spec?.destinations || []).map(destKey))
+    );
 
     const uniqueByKey = <T,>(items: T[], keyFn: (t: T) => string): T[] => {
         const seen = new Set<string>();
