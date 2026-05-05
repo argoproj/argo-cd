@@ -2505,6 +2505,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return nil, nil
 				}
 
+				if !ctrl.projInformer.HasSynced() {
+					return nil, nil
+				}
+
 				proj, err := ctrl.getAppProj(app)
 				if err != nil {
 					return nil, nil
