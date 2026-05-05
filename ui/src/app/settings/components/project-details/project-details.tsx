@@ -162,9 +162,7 @@ function stripInheritedGlobalSpec(virtualSpec: ProjectSpec, globalProjects: Proj
     // can lose inherited destinations that use cluster-name (empty `server`) or that differ only by `name`.
     // Build the inherited destination key set directly from the global projects using the same identity
     // (server+name+namespace) used for filtering below.
-    const inheritedDestinations = new Set(
-        (globalProjects || []).flatMap(gp => (gp.spec?.destinations || []).map(destKey))
-    );
+    const inheritedDestinations = new Set((globalProjects || []).flatMap(gp => (gp.spec?.destinations || []).map(destKey)));
 
     const uniqueByKey = <T,>(items: T[], keyFn: (t: T) => string): T[] => {
         const seen = new Set<string>();
