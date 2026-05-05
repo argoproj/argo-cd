@@ -561,6 +561,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 	refCandidates := append(source.ValueFiles, refFileParams...)
 
 	for _, valueFile := range refCandidates {
+		valueFile, _ = splitOptionalPrefix(valueFile)
 		if !strings.HasPrefix(valueFile, "$") {
 			continue
 		}
@@ -832,6 +833,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 				// Checkout every one of the referenced sources to the target revision before generating Manifests
 				for _, valueFile := range refCandidates {
+					valueFile, _ = splitOptionalPrefix(valueFile)
 					if !strings.HasPrefix(valueFile, "$") {
 						continue
 					}
@@ -1413,7 +1415,8 @@ func getResolvedValueFiles(
 	// the final position. For example, with ["*.yaml", "c.yaml"], c.yaml is excluded from
 	// the glob expansion and placed at the end where it was explicitly listed.
 	explicitPaths := make(map[pathutil.ResolvedFilePath]struct{})
-	for _, rawValueFile := range rawValueFiles {
+	for _, rawEntry := range rawValueFiles {
+		rawValueFile, _ := splitOptionalPrefix(rawEntry)
 		referencedSource := getReferencedSource(rawValueFile, refSources)
 		var resolved pathutil.ResolvedFilePath
 		var err error
@@ -1438,7 +1441,8 @@ func getResolvedValueFiles(
 			resolvedValueFiles = append(resolvedValueFiles, p)
 		}
 	}
-	for _, rawValueFile := range rawValueFiles {
+	for _, rawEntry := range rawValueFiles {
+		rawValueFile, optional := splitOptionalPrefix(rawEntry)
 		isRemote := false
 		var resolvedPath pathutil.ResolvedFilePath
 		var err error
@@ -1479,7 +1483,7 @@ func getResolvedValueFiles(
 				return nil, fmt.Errorf("error expanding glob pattern %q: %w", rawValueFile, err)
 			}
 			if len(matches) == 0 {
-				if ignoreMissingValueFiles {
+				if ignoreMissingValueFiles || optional {
 					log.Debugf(" %s values file glob matched no files", rawValueFile)
 					continue
 				}
@@ -1500,7 +1504,7 @@ func getResolvedValueFiles(
 		if !isRemote {
 			_, err = os.Stat(string(resolvedPath))
 			if os.IsNotExist(err) {
-				if ignoreMissingValueFiles {
+				if ignoreMissingValueFiles || optional {
 					log.Debugf(" %s values file does not exist", resolvedPath)
 					continue
 				}
@@ -1551,10 +1555,28 @@ func getReferencedSources(rawValueFiles []string, refSources map[string]*v1alpha
 }
 
 func getReferencedSourceName(rawValueFile string) string {
+	rawValueFile, _ = splitOptionalPrefix(rawValueFile)
 	if !strings.HasPrefix(rawValueFile, "$") {
 		return ""
 	}
 	return strings.Split(rawValueFile, "/")[0]
+}
+
+// optionalValueFilePrefix marks a single valueFiles entry as allowed-to-be-missing.
+// When present, the entry behaves as if ignoreMissingValueFiles were set, but only
+// for that one entry. Sibling entries without the prefix remain strict.
+const optionalValueFilePrefix = "optional:"
+
+// splitOptionalPrefix strips the optional: marker from a valueFiles entry and
+// reports whether it was present. It is called at every site that interprets a
+// valueFiles string (ref-source detection, path resolution, env substitution,
+// glob expansion) so the marker composes with every existing feature without
+// further parser updates.
+func splitOptionalPrefix(raw string) (string, bool) {
+	if rest, ok := strings.CutPrefix(raw, optionalValueFilePrefix); ok {
+		return rest, true
+	}
+	return raw, false
 }
 
 func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {
@@ -3416,6 +3438,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	for _, valueFile := range refCandidates {
+		valueFile, _ = splitOptionalPrefix(valueFile)
 		if !strings.HasPrefix(valueFile, "$") {
 			continue
 		}
