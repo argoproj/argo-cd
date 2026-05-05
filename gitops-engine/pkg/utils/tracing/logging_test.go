@@ -11,11 +11,12 @@ import (
 
 func TestLoggingTracer(t *testing.T) {
 	l := mocks.NewLogSink(t)
-	l.EXPECT().Init(mock.Anything).Return().Once()
-	l.EXPECT().WithValues("my-key", "my-value").Return(l).Once()
-	l.EXPECT().WithValues("operation_name", "my-operation", "time_ms", mock.Anything).Return(l).Once()
-	l.EXPECT().Enabled(mock.Anything).Return(true).Once()
-	l.EXPECT().Info(0, "Trace").Return().Once()
+	initCall := l.EXPECT().Init(mock.Anything).Return().Once()
+	withBaggageCall := l.EXPECT().WithValues("my-key", "my-value").Return(l).Once()
+	withOperationCall := l.EXPECT().WithValues("operation_name", "my-operation", "time_ms", mock.Anything).Return(l).Once()
+	enabledCall := l.EXPECT().Enabled(mock.Anything).Return(true).Once()
+	infoCall := l.EXPECT().Info(0, "Trace").Return().Once()
+	mock.InOrder(initCall, withBaggageCall, withOperationCall, enabledCall, infoCall)
 
 	tr := NewLoggingTracer(logr.New(l))
 
