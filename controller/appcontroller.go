@@ -2531,8 +2531,10 @@ func noSpecOperationOrDeletionChange(oldApp, newApp *appv1.Application) bool {
 	return true
 }
 
-// applicationInformerProcessUpdate is the Application informer UpdateFunc body after MetaNamespaceKeyFunc,
-// type assertions, and canProcessApp. It is shared with unit tests so behaviour does not drift from production.
+// applicationInformerProcessUpdate handles Application informer updates and decides whether to
+// enqueue a refresh or skip it. It avoids unnecessary refreshes for updates where
+// spec/operation/deletion timestamp are unchanged (e.g. status- or metadata-only updates), while still
+// handling newly added refresh/hydrate annotations, comparison expiry, and automated sync.
 func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, oldApp *appv1.Application, newOK bool, newApp *appv1.Application, key string) {
 	if newOK && newApp.Operation != nil {
 		ctrl.appOperationQueue.AddRateLimited(key)
