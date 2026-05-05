@@ -59,7 +59,6 @@ argocd-applicationset-controller [flags]
       --scm-no-proxy string                     Comma-separated list of hosts that should bypass the --scm-proxy-url proxy.
       --scm-proxy-url string                    HTTP/HTTPS proxy URL for outbound SCM provider API requests (GitHub, GitLab, etc.). Does NOT affect Kubernetes API server connectivity — use --proxy-url (kubectl flag) for that.
       --scm-root-ca-path string                 Provide Root CA Path for self-signed TLS Certificates
-      --self-generate-client-cert               Self-generate a client certificate for mTLS
       --server string                           The address and port of the Kubernetes API server
       --tls-server-name string                  If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                            Bearer token for authentication to the API server

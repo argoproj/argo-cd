@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -75,24 +76,26 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
 
-	tlsC := &tls.Config{}
-	// mTLS is required and cannot be disabled for repo-server communication.
-	// The DisableTLS flag is ignored.
-	if !tlsConfig.StrictValidation {
-		tlsC.InsecureSkipVerify = true
+	if tlsConfig.DisableTLS {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
-		tlsC.RootCAs = tlsConfig.Certificates
-	}
-	if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load client certificate: %w", err)
+		tlsC := &tls.Config{}
+		if !tlsConfig.StrictValidation {
+			tlsC.InsecureSkipVerify = true
+		} else {
+			tlsC.RootCAs = tlsConfig.Certificates
 		}
-		tlsC.Certificates = []tls.Certificate{cert}
-	} else if len(tlsConfig.ClientCertificates) > 0 {
-		tlsC.Certificates = tlsConfig.ClientCertificates
+		if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
+			cert, err := tls.LoadX509KeyPair(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load client certificate: %w", err)
+			}
+			tlsC.Certificates = []tls.Certificate{cert}
+		} else if len(tlsConfig.ClientCertificates) > 0 {
+			tlsC.Certificates = tlsConfig.ClientCertificates
+		}
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
 	}
-	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
 
 	conn, err := grpc.NewClient(address, opts...)
 	if err != nil {

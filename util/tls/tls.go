@@ -484,7 +484,6 @@ func AddClientTLSFlagsToCmd(cmd *cobra.Command) func() (apiclient.TLSConfigurati
 func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (apiclient.TLSConfiguration, error) {
 	var tlsConfig apiclient.TLSConfiguration
 	var repoServerCACert string
-	var selfGenerateClientCert bool
 	envPrefix := ""
 
 	if prefix != "" {
@@ -494,7 +493,6 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 	cmd.Flags().StringVar(&repoServerCACert, "repo-server-ca-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CA_CERT", ""), "Path to the repo-server CA certificate file")
 	cmd.Flags().StringVar(&tlsConfig.ClientCertFile, "repo-server-client-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT", ""), "Path to the client certificate file for mTLS")
 	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, "repo-server-client-cert-key", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY", ""), "Path to the client certificate key file for mTLS")
-	cmd.Flags().BoolVar(&selfGenerateClientCert, "self-generate-client-cert", env.ParseBoolFromEnv("ARGOCD_SELF_GENERATE_CLIENT_CERT", false), "Self-generate a client certificate for mTLS")
 
 	return func() (apiclient.TLSConfiguration, error) {
 		if repoServerCACert != "" {
@@ -504,18 +502,6 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 			}
 			tlsConfig.Certificates = pool
 			tlsConfig.StrictValidation = true
-		}
-
-		if selfGenerateClientCert && (tlsConfig.ClientCertFile == "" || tlsConfig.ClientCertKeyFile == "") {
-			cert, err := GenerateX509KeyPair(CertOptions{
-				Hosts:        []string{"localhost"},
-				Organization: "Argo CD Client",
-			})
-			if err != nil {
-				return tlsConfig, fmt.Errorf("error generating client certificate: %w", err)
-			}
-			tlsConfig.ClientCertificates = []tls.Certificate{*cert}
-			log.Info("Self-generated in-memory client certificate for mTLS")
 		}
 
 		return tlsConfig, nil
