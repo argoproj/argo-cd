@@ -1210,6 +1210,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	}
 	s.logAppEvent(ctx, a, argo.EventReasonResourceDeleted, "deleted application")
 	return &application.ApplicationResponse{}, nil
+
 }
 
 func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
@@ -3109,15 +3110,22 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 				i, len(q.GetLiveResources()), len(targetObjs))
 		}
 
-		found := false
-		for _, item := range managedResources {
-			if item.Kind == kind && item.Group == group && item.Namespace == namespace && item.Name == name {
-				found = true
-				break
+		// Skip managed-resources check for new resources in server‑side diff
+		isNewResource := i >= len(q.GetLiveResources()) ||
+			q.GetLiveResources()[i].LiveState == "" ||
+			q.GetLiveResources()[i].LiveState == "null"
+
+		if !isNewResource {
+			found := false
+			for _, item := range managedResources {
+				if item.Kind == kind && item.Group == group && item.Namespace == namespace && item.Name == name {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			return nil, status.Errorf(codes.PermissionDenied, "%s %s %s not found as part of application %s", kind, group, name, a.Name)
+			if !found {
+				return nil, status.Errorf(codes.PermissionDenied, "%s %s %s not found as part of application %s", kind, group, name, a.Name)
+			}
 		}
 
 		// Create ResourceDiff with StateDiffs results
