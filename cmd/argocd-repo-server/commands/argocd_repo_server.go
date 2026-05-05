@@ -304,7 +304,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
 	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", ""), "Path to the client CA certificate file for mTLS")
-	// mTLS is required and cannot be disabled.
+
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
