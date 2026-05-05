@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
 	"math"
 	"net/http"
 	"os"
@@ -222,6 +223,7 @@ func NewCommand() *cobra.Command {
 			argoCDService := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, clusterInformer)
+			cacheSyncClient := utils.NewCacheSyncingClient(mgr.GetClient(), mgr.GetCache())
 
 			// start a webhook server that listens to incoming webhook payloads
 			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
@@ -238,10 +240,9 @@ func NewCommand() *cobra.Command {
 				func(appset *appv1alpha1.ApplicationSet) bool {
 					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
 				})
-
-			if err = (&controllers.ApplicationSetReconciler{
+			appsetReconciler := &controllers.ApplicationSetReconciler{
 				Generators:                   topLevelGenerators,
-				Client:                       utils.NewCacheSyncingClient(mgr.GetClient(), mgr.GetCache()),
+				Client:                       cacheSyncClient,
 				Scheme:                       mgr.GetScheme(),
 				Recorder:                     mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:                     &utils.Render{},
@@ -259,7 +260,10 @@ func NewCommand() *cobra.Command {
 				MaxResourcesStatusCount:      maxResourcesStatusCount,
 				ClusterInformer:              clusterInformer,
 				ConcurrentApplicationUpdates: concurrentApplicationUpdates,
-			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
+			}
+			appsetReconciler.ProgressiveSyncManager = progressiveSync.NewProgressiveSyncManager(cacheSyncClient, appsetReconciler)
+
+			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
 			}
