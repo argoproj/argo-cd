@@ -3,11 +3,13 @@ package sandbox
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"testing"
 
 	testutil "github.com/argoproj/argo-cd/v3/util/test"
 	"github.com/landlock-lsm/go-landlock/landlock"
 	llsyscall "github.com/landlock-lsm/go-landlock/landlock/syscall"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,6 +145,50 @@ func TestLandlockConfigAccessRules(t *testing.T) {
 	})
 }
 
+func TestMakeArgs(t *testing.T) {
+	ll := Landlock{}
+	tests := []struct {
+		name         string
+		runOpts      SandboxRunOpts
+		expectedArgs []string
+	}{
+		{
+			name:         "empty run opts",
+			runOpts:      SandboxRunOpts{},
+			expectedArgs: []string{},
+		},
+		{
+			name: "ro dirs",
+			runOpts: SandboxRunOpts{
+				RODirs: []string{"/ro1", "/ro2"},
+			},
+			expectedArgs: []string{
+				"--landlock-allow", "fs:read_dir,read_file:/ro1",
+				"--landlock-allow", "fs:read_dir,read_file:/ro2",
+			},
+		},
+		{
+			name: "rorw dirs",
+			runOpts: SandboxRunOpts{
+				RODirs: []string{"/ro1", "/ro2"},
+				RWDirs: []string{"/rw1", "/rw2"},
+			},
+			expectedArgs: []string{
+				"--landlock-allow", "fs:read_dir,make_dir,read_file,write_file:/rw1",
+				"--landlock-allow", "fs:read_dir,make_dir,read_file,write_file:/rw2",
+				"--landlock-allow", "fs:read_dir,read_file:/ro1",
+				"--landlock-allow", "fs:read_dir,read_file:/ro2",
+			},
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			args := ll.MakeArgs(&testCase.runOpts)
+			assert.Equal(t, testCase.expectedArgs, args)
+		})
+	}
+}
+
 func TestParseValidDynamicRule(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -220,4 +266,48 @@ func TestParseInvalidDynamicRules(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateLandlockHelmConfig(t *testing.T) {
+	testutil.RunInSubprocess(t, func() {
+		ops := &ToolOpts{
+			toolName:       "helm",
+			isEnabled:      false,
+			modulesList:    []string{LANDLOCK},
+			configFilePath: "",
+		}
+		landlockCfg, err := GenerateDefaultLandlockConfig(ops)
+		require.NoError(t, err)
+		require.NotNil(t, landlockCfg)
+		assert.True(t, landlockCfg.DefaultFSDeny != "")
+		assert.True(t, len(landlockCfg.AllowedPaths) > 0)
+
+		kustomizeBinPath, err := exec.LookPath("kustomize") // not allowed, must fail
+		require.NoError(t, err)
+
+		toolBinPath, err := exec.LookPath(ops.toolName)
+		require.NoError(t, err)
+
+		cfg := &ArgocdSandboxConfig{
+			Landlock: landlockCfg,
+		}
+		m := Landlock{}
+		err = m.Init(cfg, nil)
+		require.NoError(t, err)
+
+		err = m.Apply()
+		require.NoError(t, err)
+
+		// FIXME: check process return code, output text
+		cmd := exec.Command(toolBinPath)
+		b, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+		log.Infof("TOOL OUTPUT: %s", string(b))
+
+		cmd = exec.Command(kustomizeBinPath)
+		b, err = cmd.CombinedOutput()
+		require.ErrorContains(t, err, kustomizeBinPath+": permission denied")
+		//log.Infof("LS OUTPUT: %s", string(b))
+	})
+
 }
