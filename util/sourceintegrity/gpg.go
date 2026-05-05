@@ -13,9 +13,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 )
@@ -619,4 +622,196 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	}
 
 	return newKeys, removedKeys, nil
+}
+
+// Result of a git commit verification
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+type pgpVerifyResult struct {
+	// Date the signature was made
+	Date string
+	// KeyID the signature was made with
+	KeyID string
+	// Identity
+	Identity string
+	// Trust level of the key
+	Trust string
+	// Cipher of the key the signature was made with
+	Cipher string
+	// Result of verification - "unknown", "good" or "bad"
+	Result string
+	// Additional informational message
+	Message string
+}
+
+// Signature verification results
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+const (
+	verifyResultGood    = "Good"
+	verifyResultBad     = "Bad"
+	verifyResultInvalid = "Invalid"
+	verifyResultUnknown = "Unknown"
+)
+
+// maxVerificationLinesToParse is a maximum number of lines to parse for a gpg verify-commit output
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+const maxVerificationLinesToParse = 40
+
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+var (
+	// Regular expression to match the start of a commit signature verification
+	verificationStartMatch = regexp.MustCompile(`^gpg: Signature made ([a-zA-Z0-9\ :]+)$`)
+
+	// Regular expression to match the key ID of a commit signature verification
+	verificationKeyIDMatch = regexp.MustCompile(`^gpg:\s+using\s([A-Za-z]+)\skey\s([a-zA-Z0-9]+)$`)
+
+	// Regular expression to match possible additional fields of a commit signature verification
+	verificationAdditionalFields = regexp.MustCompile(`^gpg:\s+issuer\s.+$`)
+
+	// Regular expression to match the signature status of a commit signature verification
+	verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature from "([^"]+)" \[([a-zA-Z]+)\]$`)
+)
+
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+func VerifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifestInfo *apiclient.ManifestResponse) []v1alpha1.ApplicationCondition {
+	now := metav1.Now()
+	conditions := make([]v1alpha1.ApplicationCondition, 0)
+	// We need to have some data in the verification result to parse, otherwise there was no signature
+	if manifestInfo.VerifyResult != "" { // nolint:staticcheck
+		verifyResult := parseGitCommitVerification(manifestInfo.VerifyResult) // nolint:staticcheck
+		switch verifyResult.Result {
+		case verifyResultGood:
+			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
+			validKey := false
+			for _, k := range project.Spec.SignatureKeys {
+				declared, _ := KeyID(k.KeyID)
+				present, _ := KeyID(verifyResult.KeyID)
+				if declared == present && declared != "" {
+					validKey = true
+					break
+				}
+			}
+			if !validKey {
+				msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
+					verifyResult.Cipher, verifyResult.KeyID)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			}
+		case verifyResultInvalid:
+			msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
+				verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+		default:
+			msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+		}
+	} else {
+		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+	}
+
+	return conditions
+}
+
+// parseGitCommitVerification parses the output of "git verify-commit" and returns the result
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+func parseGitCommitVerification(signature string) pgpVerifyResult {
+	result := pgpVerifyResult{Result: verifyResultUnknown}
+	parseOk := false
+	linesParsed := 0
+
+	// Shortcut for returning an unknown verification result with a reason
+	unknownResult := func(reason string) pgpVerifyResult {
+		return pgpVerifyResult{
+			Result:  verifyResultUnknown,
+			Message: reason,
+		}
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(signature))
+	for scanner.Scan() && linesParsed < maxVerificationLinesToParse {
+		linesParsed++
+
+		// Indicating the beginning of a signature
+		start := verificationStartMatch.FindStringSubmatch(scanner.Text())
+		if len(start) == 2 {
+			result.Date = start[1]
+			if !scanner.Scan() {
+				return unknownResult("Unexpected end-of-file while parsing commit verification output.")
+			}
+
+			linesParsed++
+
+			// What key has made the signature?
+			keyID := verificationKeyIDMatch.FindStringSubmatch(scanner.Text())
+			if len(keyID) != 3 {
+				return unknownResult("Could not parse key ID of commit verification output.")
+			}
+
+			result.Cipher = keyID[1]
+			keyId, err := KeyID(keyID[2])
+			if err != nil {
+				return unknownResult("Invalid PGP key ID found in verification result: " + result.KeyID)
+			}
+			result.KeyID = keyId
+
+			// What was the result of signature verification?
+			if !scanner.Scan() {
+				return unknownResult("Unexpected end-of-file while parsing commit verification output.")
+			}
+
+			linesParsed++
+
+			// Skip additional fields
+			for verificationAdditionalFields.MatchString(scanner.Text()) {
+				if !scanner.Scan() {
+					return unknownResult("Unexpected end-of-file while parsing commit verification output.")
+				}
+
+				linesParsed++
+			}
+
+			if strings.HasPrefix(scanner.Text(), "gpg: Can't check signature: ") {
+				result.Result = verifyResultInvalid
+				result.Identity = "unknown"
+				result.Trust = TrustUnknown
+				result.Message = scanner.Text()
+			} else {
+				sigState := verificationStatusMatch.FindStringSubmatch(scanner.Text())
+				if len(sigState) != 4 {
+					return unknownResult("Could not parse result of verify operation, check logs for more information.")
+				}
+
+				switch strings.ToLower(sigState[1]) {
+				case "good":
+					result.Result = verifyResultGood
+				case "bad":
+					result.Result = verifyResultBad
+				default:
+					result.Result = verifyResultInvalid
+				}
+				result.Identity = sigState[2]
+
+				// Did we catch a valid trust?
+				if _, ok := pgpTrustLevels[sigState[3]]; ok {
+					result.Trust = sigState[3]
+				} else {
+					result.Trust = TrustUnknown
+				}
+				result.Message = "Success verifying the commit signature."
+			}
+
+			// No more data to parse here
+			parseOk = true
+			break
+		}
+	}
+
+	if parseOk && linesParsed < maxVerificationLinesToParse {
+		// Operation successful - return result
+		return result
+	} else if linesParsed >= maxVerificationLinesToParse {
+		// Too many output lines, return error
+		return unknownResult("Too many lines of gpg verify-commit output, abort.")
+	}
+	// No data found, return error
+	return unknownResult("Could not parse output of verify-commit, no verification data found.")
 }

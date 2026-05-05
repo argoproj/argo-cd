@@ -1839,6 +1839,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 		Repo:            &v1alpha1.Repository{},
 		Revision:        "c0b400fc458875d925171398f9ba9eabd5529923",
 		SourceIntegrity: sourceIntegrityReqStrict,
+		CheckSignature:  true, // nolint:staticcheck
 	})
 
 	require.NoError(t, err)
@@ -1856,6 +1857,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 		Repo:            &v1alpha1.Repository{},
 		Revision:        "c0b400f",
 		SourceIntegrity: sourceIntegrityReqStrict,
+		CheckSignature:  true, // nolint:staticcheck
 	})
 
 	require.NoError(t, err)
@@ -1870,27 +1872,33 @@ func TestGetRevisionMetadata(t *testing.T) {
 		Repo:            &v1alpha1.Repository{},
 		Revision:        "c0b400fc458875d925171398f9ba9eabd5529923",
 		SourceIntegrity: nil,
+		CheckSignature:  false, // nolint:staticcheck
 	})
 	require.NoError(t, err)
 	assert.Nil(t, res.SourceIntegrityResult)
 
-	// Enforce cache miss - signature info should not be in result
+	// Cache miss - signature info should not be in result
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:            &v1alpha1.Repository{},
 		Revision:        "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		SourceIntegrity: nil,
+		CheckSignature:  false, // nolint:staticcheck
 	})
 	require.NoError(t, err)
 	assert.Nil(t, res.SourceIntegrityResult)
+	assert.Empty(t, res.SignatureInfo) // nolint:staticcheck
 
 	// Cache miss on the previous entry that did not have signature info - recreated
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:            &v1alpha1.Repository{},
 		Revision:        "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		SourceIntegrity: sourceIntegrityReqStrict,
+		CheckSignature:  true, // nolint:staticcheck
 	})
 	require.NoError(t, err)
+	require.NotNil(t, res.SourceIntegrityResult)
 	assert.True(t, res.SourceIntegrityResult.IsValid())
+	assert.NotEmpty(t, res.SignatureInfo) // nolint:staticcheck
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
@@ -1904,6 +1912,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &src,
 			SourceIntegrity:    sourceIntegrityReqStrict,
+			VerifySignature:    true, // nolint:staticcheck
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		}
@@ -1923,6 +1932,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &src,
 			SourceIntegrity:    nil,
+			VerifySignature:    false, // nolint:staticcheck
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		}
@@ -1942,6 +1952,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &src,
 			SourceIntegrity:    sourceIntegrityReqStrict,
+			VerifySignature:    true, // nolint:staticcheck
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		}
@@ -1960,6 +1971,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &src,
 			SourceIntegrity:    nil,
+			VerifySignature:    false, // nolint:staticcheck
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		}

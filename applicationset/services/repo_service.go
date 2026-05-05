@@ -64,6 +64,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 		NewGitFileGlobbingEnabled: a.newFileGlobbingEnabled,
 		NoRevisionCache:           noRevisionCache,
 		SourceIntegrity:           sourceIntegrity,
+		VerifyCommit:              sourceIntegrity != nil, // nolint:staticcheck
 	}
 
 	fileResponse, err := a.getGitFilesFromRepoServer(ctx, fileRequest)
@@ -85,6 +86,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 		Revision:         revision,
 		NoRevisionCache:  noRevisionCache,
 		SourceIntegrity:  sourceIntegrity,
+		VerifyCommit:     sourceIntegrity != nil,
 	}
 
 	dirResponse, err := a.getGitDirectoriesFromRepoServer(ctx, dirRequest)

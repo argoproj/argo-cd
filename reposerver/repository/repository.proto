@@ -26,7 +26,7 @@ message ManifestRequest {
     // ApiVersions is the list of API versions from the destination cluster, used for rendering Helm charts.
     repeated string apiVersions = 15;
     // Deprecated: Use sourceIntegrity for more detailed information. verifySignature will be removed with the next major version.
-    bool verifySignature = 16;
+    bool verifySignature = 16; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
     repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
     bool noRevisionCache = 18;
     string trackingMethod = 19;
@@ -167,7 +167,7 @@ message RepoServerRevisionMetadataRequest {
     // the revision within the repo
     string revision = 2;
     // Deprecated: Use sourceIntegrity for more detailed information. checkSignature will be removed with the next major version.
-    bool checkSignature = 3;
+    bool checkSignature = 3; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
     // Source integrity constrains to verify the sources before use
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 4;
 }
@@ -253,7 +253,7 @@ message GitFilesRequest {
     bool NewGitFileGlobbingEnabled = 5;
     bool noRevisionCache = 6;
     // Deprecated: Use sourceIntegrity for more detailed information. verifyCommit will be removed with the next major version.
-    bool verifyCommit = 7;
+    bool verifyCommit = 7; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
     // Source integrity constrains to verify the sources before use
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 8;
 }
@@ -269,7 +269,7 @@ message GitDirectoriesRequest {
     string revision = 3;
     bool noRevisionCache = 4;
     // Deprecated: Use sourceIntegrity for more detailed information. verifyCommit will be removed with the next major version.
-    bool verifyCommit = 5;
+    bool verifyCommit = 5; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
     // Source integrity constrains to verify the sources before use
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 6;
 }

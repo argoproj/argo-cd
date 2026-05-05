@@ -1135,6 +1135,7 @@ func TestNoSourceIntegrity(t *testing.T) {
 				Server:                test.FakeClusterURL,
 				Revision:              "abc123",
 				SourceIntegrityResult: nil, // No verification requested
+				VerifyResult:          "",
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}

@@ -287,6 +287,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     apiVersions,
 			SourceIntegrity:                 sourceIntegrity,
+			VerifySignature:                 sourceIntegrity != nil, // nolint:staticcheck
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enabledSourceTypes,
@@ -967,6 +968,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Message:            err.Error(),
 					LastTransitionTime: &now,
 				})
+			} else {
+				legacyVerifySignature := len(project.Spec.SignatureKeys) > 0 && sourceintegrity.IsGPGEnabled()
+				if legacyVerifySignature {
+					conditions = append(conditions, sourceintegrity.VerifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
+				}
 			}
 		}
 	}

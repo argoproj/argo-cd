@@ -1657,10 +1657,13 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer utilio.Close(conn)
+	sourceIntegrity := proj.EffectiveSourceIntegrity()
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:            repo,
 		Revision:        q.GetRevision(),
-		SourceIntegrity: proj.EffectiveSourceIntegrity(),
+		SourceIntegrity: sourceIntegrity,
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		CheckSignature: sourceIntegrity != nil, // nolint:staticcheck
 	})
 }
 

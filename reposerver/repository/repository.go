@@ -983,7 +983,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.SourceIntegrityResult = opContext.sourceIntegrityResult
-	// TODO: Remove with the next major version
+	// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	manifestGenResult.VerifyResult = opContext.verificationResult // nolint:staticcheck
 	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 	if err != nil {
@@ -2650,11 +2650,15 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
+
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
 	if err == nil {
 		// The SourceIntegrity criteria could have changed since this was cached - it could have been added, removed, or changed.
 		// If present in request or the cached version, treat this as a cache miss.
-		if q.SourceIntegrity == nil && metadata.SourceIntegrityResult == nil {
+		sourceIntegrity := q.SourceIntegrity != nil || metadata.SourceIntegrityResult != nil
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		signatureChecking := q.CheckSignature || metadata.SignatureInfo != "" // nolint:staticcheck
+		if !sourceIntegrity && !signatureChecking {
 			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
 			return metadata, nil
 		}
@@ -2712,14 +2716,14 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		}
 	}
 	metadata = &v1alpha1.RevisionMetadata{
-		Author:  m.Author,
-		Date:    &metav1.Time{Time: m.Date},
-		Tags:    m.Tags,
-		Message: m.Message,
-		// TODO remove with next major version
-		SignatureInfo:         legacySignatureInfo,
+		Author:                m.Author,
+		Date:                  &metav1.Time{Time: m.Date},
+		Tags:                  m.Tags,
+		Message:               m.Message,
 		References:            relatedRevisions,
 		SourceIntegrityResult: sourceIntegrityResult,
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		SignatureInfo: legacySignatureInfo, // nolint:staticcheck
 	}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil

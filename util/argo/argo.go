@@ -891,6 +891,7 @@ func verifyGenerateManifests(
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
 			SourceIntegrity:                 proj.EffectiveSourceIntegrity(),
+			VerifySignature:                 proj.EffectiveSourceIntegrity() != nil, // nolint:staticcheck
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
