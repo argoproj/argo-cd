@@ -16,7 +16,7 @@ Verify that commits in the source repository are correctly signed with one of th
 > **Compatibility notice**
 >
 > The GnuPG verification was first introduced in v1.7 as a project-wide constraint configured by `signatureKeys`.
-> As of v**TODO**, it is supported as one of the methods for source integrity verification, but it is using a different declaration format.
+> As of Argo CD 3.5, it is supported as one of the methods for source integrity verification, but it is using a different declaration format.
 > Keys configured in `signatureKeys` will continue to be supported, but they cannot be used together with `sourceIntegrity`.
 > See below on how to convert the legacy `signatureKeys` configuration to `sourceIntegrity`.
 

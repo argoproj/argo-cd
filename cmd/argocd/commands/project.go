@@ -182,6 +182,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 }
 
 // NewProjectAddSignatureKeyCommand returns a new instance of an `argocd proj add-signature-key` command
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "add-signature-key PROJECT KEY-ID",
@@ -226,6 +227,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 }
 
 // NewProjectRemoveSignatureKeyCommand returns a new instance of an `argocd proj remove-signature-key` command
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "remove-signature-key PROJECT KEY-ID",
