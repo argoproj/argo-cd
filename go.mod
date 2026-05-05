@@ -316,11 +316,8 @@ require (
 	k8s.io/gengo/v2 v2.0.0-20250604051438-85fd79dbfd9f // indirect
 	k8s.io/kube-aggregator v0.34.0 // indirect
 	k8s.io/kubernetes v1.34.2 // indirect
-<<<<<<< HEAD
-=======
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
 	kernel.org/pub/linux/libs/security/libcap/psx v1.2.77 // indirect
->>>>>>> 8a4984cc1 (feat: landlock sandbox initial impl)
 	nhooyr.io/websocket v1.8.7 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect

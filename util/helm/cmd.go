@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	sandbox "github.com/argoproj/argo-cd/v3/sandbox"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
@@ -58,7 +59,17 @@ var redactor = func(text string) string {
 }
 
 func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
-	cmd := exec.CommandContext(ctx, "helm", args...)
+	//cmd := exec.CommandContext(ctx, "helm", args...)
+	sandboxRunOpts := sandbox.SandboxRunOpts{
+		RWDirs: []string{
+			c.WorkDir,
+			c.helmHome,
+		},
+	}
+	cmd, err := sandbox.CommandContext(ctx, &sandboxRunOpts, "helm", args...)
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to create command context for helm: %w", err)
+	}
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	if !c.IsLocal {
