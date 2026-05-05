@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
 	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
@@ -772,7 +773,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source: &v1alpha1.ApplicationSource{
+						Source:  &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},

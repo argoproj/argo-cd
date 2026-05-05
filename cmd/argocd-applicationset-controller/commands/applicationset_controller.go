@@ -2,12 +2,13 @@ package command
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
 	"math"
 	"net/http"
 	"os"
 	"runtime/debug"
 	"time"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
 
 	"github.com/argoproj/pkg/v2/stats"
 	"k8s.io/apimachinery/pkg/runtime"

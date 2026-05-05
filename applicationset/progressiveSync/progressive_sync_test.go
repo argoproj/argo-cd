@@ -1,13 +1,15 @@
 package progressiveSync
 
 import (
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"testing"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestBuildAppDependencyList(t *testing.T) {
@@ -742,7 +744,6 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-
 			appDependencyList, appStepMap := buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")

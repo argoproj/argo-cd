@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"context"
-	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+
 	log "github.com/sirupsen/logrus"
+
+	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 /**

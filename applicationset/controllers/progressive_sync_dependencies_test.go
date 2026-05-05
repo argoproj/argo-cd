@@ -1,14 +1,11 @@
 package controllers
 
 import (
+	"testing"
+	"time"
+
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/v3/applicationset/generators"
-	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
-	appsetprogressiveSync "github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,8 +15,13 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
-	"time"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
+	appsetprogressiveSync "github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
