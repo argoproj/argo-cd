@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	stderrors "errors"
 	"fmt"
 	"io"
 	"slices"
@@ -3062,7 +3061,7 @@ func TestGetCachedAppState(t *testing.T) {
 	})
 
 	t.Run("NonCacheErrorDoesNotTriggerRefresh", func(t *testing.T) {
-		randomError := stderrors.New("random error")
+		randomError := errors.New("random error")
 		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			return randomError
 		})
@@ -5026,7 +5025,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 			return true, nil, apierrors.NewConflict(
 				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
 				app.Name,
-				stderrors.New("the object has been modified"),
+				errors.New("the object has been modified"),
 			)
 		}
 
