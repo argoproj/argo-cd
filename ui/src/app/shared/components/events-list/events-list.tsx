@@ -52,7 +52,7 @@ export const EventsList = (props: {events: models.Event[]}) => {
                                 <div className='columns small-3 xxlarge-3' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
                                     {event.message}
                                 </div>
-                                <div className='columns small-2 xxlarge-2'>{event.source.component}</div>
+                                <div className='columns small-2 xxlarge-2'>{event.reportingComponent || event.source?.component}</div>
                                 <div className='columns small-1 xxlarge-1'>{event.count}</div>
                                 <div className='columns small-2 xxlarge-2'>{event.firstTimestamp ? getTimeElements(event.firstTimestamp) : getTimeElements(event.eventTime)}</div>
                                 <div className='columns small-2 xxlarge-2'>{event.lastTimestamp ? getTimeElements(event.lastTimestamp) : getTimeElements(event.eventTime)}</div>
