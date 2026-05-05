@@ -2,15 +2,10 @@ package kubetest
 
 import (
 	"context"
-	"fmt"
 
 	"k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/testdata"
-	openapi_v2 "github.com/google/gnostic-models/openapiv2"
-	"google.golang.org/protobuf/proto"
-	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -116,28 +111,7 @@ func (k *MockKubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resourc
 	if k.loadOpenAPISchemaFunc != nil {
 		return (*k.loadOpenAPISchemaFunc)(config)
 	}
-
-	// Default implementation: load from embedded test data
-	document := &openapi_v2.Document{}
-	if err := proto.Unmarshal(testdata.OpenAPIV2Doc, document); err != nil {
-		return nil, nil, fmt.Errorf("error unmarshaling openapi doc: %w", err)
-	}
-
-	resources, err := openapi.NewOpenAPIData(document)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating openapi resources: %w", err)
-	}
-
-	models, err := openapiproto.NewOpenAPIData(document)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error building openapi data: %w", err)
-	}
-	gvkParser, err := managedfields.NewGVKParser(models, false)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error building gvkParser: %w", err)
-	}
-
-	return resources, gvkParser, nil
+	return nil, nil, nil
 }
 
 func (k *MockKubectlCmd) SetOnKubectlRun(_ kube.OnKubectlRunFunc) {
