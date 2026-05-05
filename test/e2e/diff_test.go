@@ -61,6 +61,7 @@ data:
 			assert.False(t, sensitiveData.MatchString(mnfs))
 		}).
 		When().
+		AddTag("old-desired-revision").
 		PatchFile("secrets.yaml", `[{"op": "replace", "path": "/stringData/username", "value": "NEWSECRETVAL"}]`).
 		PatchFile("secrets.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"token": "NEWSECRETVAL"}}]`).
 		PatchFile("secrets.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"something": "else"}}]`).
@@ -77,8 +78,19 @@ data:
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
-			// Revision specific diff should show no differences
+			// Normal diff should return an error since you must provide a desired version with desired manifest
+			_, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--compare-desired", "--exit-code=false")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "--compare-desired cannot be specified when no target manifests are provided")
+
+			// Revision specific diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--exit-code=false")
+			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
+			assert.Contains(t, diff, "===== /Secret")
+
+			// Revision specific diff should show a diff with the sensitive value masked with desired manifest
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", "old-desired-revision", "--compare-desired", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
@@ -86,11 +98,13 @@ data:
 			// Server-Side diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff should exclude secret resources completely
@@ -126,6 +140,7 @@ data:
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
+		AddTag("old-desired-revision").
 		// invalidate secret
 		PatchFile("secrets.yaml", `[{"op": "replace", "path": "/data/password", "value": 12345}]`).
 		Refresh(RefreshTypeHard).
@@ -147,8 +162,14 @@ data:
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
-			// Revision specific diff should show no differences
+			// Revision specific diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--exit-code=false")
+			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
+			assert.Contains(t, diff, "===== /Secret")
+
+			// Revision specific diff should show a diff with the sensitive value masked with desired manifest
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", "old-desired-revision", "--compare-desired", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
@@ -156,11 +177,13 @@ data:
 			// Server-Side diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff should exclude secret resources completely
@@ -235,7 +258,15 @@ func testDiffResultsAreEmptyWithoutChanges(t *testing.T, appPath string, appName
 			require.NoError(t, err)
 			assert.Empty(t, diff)
 
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--compare-desired", "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--compare-desired", "--exit-code=false")
 			require.NoError(t, err)
 			assert.Empty(t, diff)
 
@@ -243,7 +274,15 @@ func testDiffResultsAreEmptyWithoutChanges(t *testing.T, appPath string, appName
 			require.NoError(t, err)
 			assert.Empty(t, diff)
 
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--compare-desired", "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", appPath, "--local-repo-root", localRepoRoot, "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", appPath, "--local-repo-root", localRepoRoot, "--compare-desired", "--exit-code=false")
 			require.NoError(t, err)
 			assert.Empty(t, diff)
 		})
@@ -395,8 +434,6 @@ func TestServerSideDiffWithLocalValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), "--server-side-diff with --local requires --server-side-generate")
 		})
 }
-
-//
 
 func assetSecretDataHidden(t *testing.T, manifest string) {
 	t.Helper()
