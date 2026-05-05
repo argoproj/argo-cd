@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
 	"strconv"
 	"testing"
 	"time"
@@ -773,7 +774,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source:  &v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -5280,6 +5281,7 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 				Metrics:                metrics,
 				EnableProgressiveSyncs: cc.progressiveSyncEnabled,
 			}
+			r.ProgressiveSyncManager = progressiveSync.NewProgressiveSyncManager(r.Client, &r)
 
 			req := ctrl.Request{
 				NamespacedName: types.NamespacedName{
