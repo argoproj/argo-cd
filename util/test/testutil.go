@@ -321,7 +321,7 @@ func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 
 const SUBPROC_ENV_VAR = "SANDBOX_TEST_SUBPROCESS"
 
-func RunInSubprocess(t *testing.T, testfunc func()) error {
+func RunInSubprocess(t *testing.T, testfunc func()) {
 	t.Helper()
 	//cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
 
@@ -361,5 +361,4 @@ func RunInSubprocess(t *testing.T, testfunc func()) error {
 		//assert.Equal(t, "1", "2")
 		assert.NoError(t, err)
 	}
-	return nil
 }

@@ -92,13 +92,6 @@ func TestInit(t *testing.T) {
 	}
 }
 
-// func TestInitLandlockDomain(t *testing.T) {
-// 	runInSubprocess(t, func() {
-// 		err := InitLandlockDomain()
-// 		require.NoError(t, err)
-// 	})
-// }
-
 func TestLandlockApply(t *testing.T) {
 	testutil.RunInSubprocess(t, func() {
 		ll := Landlock{}
@@ -107,8 +100,9 @@ func TestLandlockApply(t *testing.T) {
 				DefaultFSDeny: "read_dir",
 			},
 		}
-		ll.Init(&implConfig, []string{})
-		err := ll.Apply()
+		err := ll.Init(&implConfig, []string{})
+		require.NoError(t, err)
+		err = ll.Apply()
 		require.NoError(t, err)
 		_, err = os.Open(".")
 		require.ErrorContains(t, err, "permission denied")

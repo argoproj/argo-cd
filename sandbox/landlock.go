@@ -100,7 +100,7 @@ func (m *Landlock) addAllowedPaths(entry LandlockAllowedPath) error {
 	}
 	permittedAccess, err := m.createAccessFSSet(entry.Access)
 	if err != nil {
-		return fmt.Errorf("invalid access spec: %v", err)
+		return fmt.Errorf("invalid access spec: %w", err)
 	}
 	log.Infof("* adding allowed paths: %s %q", entry.Access, entry.Paths)
 	rule := landlock.PathAccess(permittedAccess, entry.Paths...)
@@ -115,16 +115,16 @@ func (m *Landlock) Init(sandboxConfig *ArgocdSandboxConfig, allowRulesStrs []str
 	}
 	accessFSSet, err := m.createAccessFSSet(implConfig.DefaultFSDeny)
 	if err != nil {
-		return fmt.Errorf("Landlock sandbox cannot create default filesystem deny set: %v", err)
+		return fmt.Errorf("Landlock sandbox cannot create default filesystem deny set: %w", err)
 	}
 	m.Cfg, err = landlock.NewConfig(accessFSSet)
 	if err != nil {
-		return fmt.Errorf("Landlock sandbox cannot initialize configuration: %v", err)
+		return fmt.Errorf("Landlock sandbox cannot initialize configuration: %w", err)
 	}
 	for idx, entry := range implConfig.AllowedPaths {
 		err = m.addAllowedPaths(entry)
 		if err != nil {
-			return fmt.Errorf("Landlock sandbox cannot initialize: invalid allowedPaths entry #%d: %v", idx, err)
+			return fmt.Errorf("Landlock sandbox cannot initialize: invalid allowedPaths entry #%d: %w", idx, err)
 		}
 	}
 
@@ -221,11 +221,11 @@ func GenerateDefaultLandlockConfig(ops *ToolOpts) (*LandlockConfig, error) {
 	result.DefaultFSDeny = "read_dir,read_file,write_file,make_dir,execute"
 	binPath, err := exec.LookPath(ops.toolName)
 	if err != nil {
-		return nil, fmt.Errorf("command %q not found in PATH: %v", ops.toolName, err)
+		return nil, fmt.Errorf("command %q not found in PATH: %w", ops.toolName, err)
 	}
 	binPath, err = filepath.Abs(binPath)
 	if err != nil {
-		return nil, fmt.Errorf("command %q not found in PATH: %v", ops.toolName, err)
+		return nil, fmt.Errorf("command %q not found in PATH: %w", ops.toolName, err)
 	}
 	result.AllowedPaths = append(result.AllowedPaths,
 		LandlockAllowedPath{
