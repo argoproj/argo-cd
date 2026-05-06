@@ -1316,6 +1316,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return nil
 		}
 		logCtx.Infof("Successfully deleted %d resources", len(objs))
+		if deletionApproved {
+			if err := ctrl.clearDeletionApprovedAnnotation(app); err != nil {
+				logCtx.WithError(err).Warn("Failed to clear deletion approved annotation")
+			}
+		}
 		app.UnSetCascadedDeletion()
 		return ctrl.updateFinalizers(app)
 	}
@@ -1400,6 +1405,48 @@ func (ctrl *ApplicationController) updateFinalizers(app *appv1.Application) erro
 
 	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
+}
+
+func (ctrl *ApplicationController) clearDeletionApprovedAnnotation(app *appv1.Application) error {
+	if app.GetAnnotation(synccommon.AnnotationDeletionApproved) == "" {
+		return nil
+	}
+
+	patch, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{
+			"annotations": map[string]any{
+				synccommon.AnnotationDeletionApproved: nil,
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	return nil
+}
+
+func shouldClearDeletionApprovedAnnotation(app *appv1.Application, state *appv1.OperationState) bool {
+	if state == nil || !state.Phase.Successful() || state.Operation.Sync == nil || state.Operation.Sync.DryRun {
+		return false
+	}
+	if len(state.Operation.Sync.Resources) > 0 {
+		return false
+	}
+	if state.StartedAt.IsZero() || !app.IsDeletionConfirmed(state.StartedAt.Time) {
+		return false
+	}
+	for _, resource := range app.Status.Resources {
+		if resource.RequiresDeletionConfirmation {
+			return true
+		}
+	}
+	return false
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
@@ -1559,6 +1606,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 
 	ctrl.setOperationState(app, state)
+	if shouldClearDeletionApprovedAnnotation(app, state) {
+		if err := ctrl.clearDeletionApprovedAnnotation(app); err != nil {
+			logCtx.WithError(err).Warn("Failed to clear deletion approved annotation")
+		}
+	}
 	ts.AddCheckpoint("final_set_operation_state")
 	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
