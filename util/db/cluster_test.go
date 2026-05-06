@@ -66,15 +66,13 @@ func Test_secretToCluster(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, v1alpha1.Cluster{
-		Name:   "test",
-		Server: "http://mycluster",
-		Config: v1alpha1.ClusterConfig{
-			Username: "foo",
-		},
-		Labels:      labels,
-		Annotations: annotations,
-	}, *cluster)
+	assert.Equal(t, "test", cluster.Name)
+	assert.Equal(t, "http://mycluster", cluster.Server)
+	assert.Equal(t, v1alpha1.ClusterConfig{Username: "foo"}, cluster.Config)
+	assert.Equal(t, labels, cluster.Labels)
+	assert.Equal(t, annotations, cluster.Annotations)
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
 }
 
 func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
@@ -145,12 +143,12 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, v1alpha1.Cluster{
-		Name:        "test",
-		Server:      "http://mycluster",
-		Labels:      map[string]string{},
-		Annotations: map[string]string{},
-	}, *cluster)
+	assert.Equal(t, "test", cluster.Name)
+	assert.Equal(t, "http://mycluster", cluster.Server)
+	assert.Equal(t, map[string]string{}, cluster.Labels)
+	assert.Equal(t, map[string]string{}, cluster.Annotations)
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
 }
 
 func Test_secretToCluster_InvalidConfig(t *testing.T) {
@@ -942,4 +940,243 @@ func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 		_, _ = db.UpdateCluster(ctx, clusterCopy)
 		time.Sleep(time.Millisecond * 500)
 	}
+}
+
+// ConfigHash tests
+func Test_clusterToSecret_ConfigHash_Persisted(t *testing.T) {
+	testHash := uint64(12345)
+	cluster := &v1alpha1.Cluster{
+		Server:     "https://example.com",
+		Name:       "test-cluster",
+		ConfigHash: &testHash,
+		Config:     v1alpha1.ClusterConfig{},
+	}
+	s := &corev1.Secret{}
+	err := clusterToSecret(cluster, s)
+	require.NoError(t, err)
+
+	assert.Equal(t, []byte("12345"), s.Data["configHash"])
+}
+
+func Test_clusterToSecret_ConfigHash_Nil(t *testing.T) {
+	cluster := &v1alpha1.Cluster{
+		Server:     "https://example.com",
+		Name:       "test-cluster",
+		ConfigHash: nil,
+		Config:     v1alpha1.ClusterConfig{},
+	}
+	s := &corev1.Secret{}
+	err := clusterToSecret(cluster, s)
+	require.NoError(t, err)
+
+	assert.Empty(t, s.Data["configHash"])
+}
+
+func Test_secretToCluster_ConfigHash_Parsed(t *testing.T) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster-secret",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":       []byte("test-cluster"),
+			"server":     []byte("https://example.com"),
+			"config":     []byte("{}"),
+			"configHash": []byte("12345"),
+		},
+	}
+	cluster, err := SecretToCluster(secret)
+	require.NoError(t, err)
+
+	assert.NotNil(t, cluster.ConfigHash)
+	// Hash is recomputed, so won't be 12345, but should be non-zero
+	assert.NotZero(t, *cluster.ConfigHash)
+}
+
+func Test_secretToCluster_ConfigHash_InvalidValue(t *testing.T) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster-secret",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":       []byte("test-cluster"),
+			"server":     []byte("https://example.com"),
+			"config":     []byte("{}"),
+			"configHash": []byte("not-a-number"),
+		},
+	}
+	cluster, err := SecretToCluster(secret)
+	require.NoError(t, err)
+
+	// Should still parse successfully with warning
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
+}
+
+func Test_secretToCluster_ConfigHash_Missing(t *testing.T) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster-secret",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test-cluster"),
+			"server": []byte("https://example.com"),
+			"config": []byte("{}"),
+		},
+	}
+	cluster, err := SecretToCluster(secret)
+	require.NoError(t, err)
+
+	// Should have a computed hash
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
+}
+
+func Test_secretToCluster_ConfigHash_RoundTrip(t *testing.T) {
+	// Create a cluster, convert to secret, then back
+	originalCluster := &v1alpha1.Cluster{
+		Server: "https://example.com:6443",
+		Name:   "my-cluster",
+		Config: v1alpha1.ClusterConfig{
+			Password: "secret",
+		},
+	}
+
+	// First round-trip to get initial hash
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+	}
+	err := clusterToSecret(originalCluster, secret)
+	require.NoError(t, err)
+
+	clusterAfterRoundTrip, err := SecretToCluster(secret)
+	require.NoError(t, err)
+
+	assert.NotNil(t, clusterAfterRoundTrip.ConfigHash)
+
+	// Second conversion should produce same hash for same config
+	secret2 := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test2",
+			Namespace: "default",
+		},
+	}
+	err = clusterToSecret(clusterAfterRoundTrip, secret2)
+	require.NoError(t, err)
+
+	// Both should have configHash set
+	assert.NotEmpty(t, secret2.Data["configHash"])
+}
+
+func Test_Cluster_HashIdentity(t *testing.T) {
+	t.Run("deterministic - same cluster produces same hash", func(t *testing.T) {
+		cluster1 := &v1alpha1.Cluster{
+			Server: "https://example.com",
+			Name:   "cluster1",
+			Config: v1alpha1.ClusterConfig{
+				Username: "user",
+			},
+		}
+
+		cluster2 := &v1alpha1.Cluster{
+			Server: "https://example.com",
+			Name:   "cluster1",
+			Config: v1alpha1.ClusterConfig{
+				Username: "user",
+			},
+		}
+
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
+
+		assert.Equal(t, hash1, hash2, "Same cluster config should produce same hash")
+	})
+
+	t.Run("different config produces different hash", func(t *testing.T) {
+		cluster1 := &v1alpha1.Cluster{
+			Server: "https://example.com",
+			Name:   "cluster1",
+			Config: v1alpha1.ClusterConfig{
+				Username: "user1",
+			},
+		}
+
+		cluster2 := &v1alpha1.Cluster{
+			Server: "https://example.com",
+			Name:   "cluster1",
+			Config: v1alpha1.ClusterConfig{
+				Username: "user2",
+			},
+		}
+
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
+
+		assert.NotEqual(t, hash1, hash2, "Different config should produce different hash")
+	})
+
+	t.Run("different server produces different hash", func(t *testing.T) {
+		cluster1 := &v1alpha1.Cluster{
+			Server: "https://server1.com",
+			Name:   "cluster1",
+			Config: v1alpha1.ClusterConfig{},
+		}
+
+		cluster2 := &v1alpha1.Cluster{
+			Server: "https://server2.com",
+			Name:   "cluster1",
+			Config: v1alpha1.ClusterConfig{},
+		}
+
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
+
+		assert.NotEqual(t, hash1, hash2, "Different server should produce different hash")
+	})
+
+	t.Run("ignores non-identity fields", func(t *testing.T) {
+		// HashIdentity should only consider Server, Name, Config
+		// and ignore fields like Namespaces, Labels, Annotations, etc.
+		cluster1 := &v1alpha1.Cluster{
+			Server:           "https://example.com",
+			Name:             "cluster1",
+			Config:           v1alpha1.ClusterConfig{},
+			Namespaces:       []string{"ns1", "ns2"},
+			ClusterResources: false,
+			Labels:           map[string]string{"key": "value"},
+		}
+
+		cluster2 := &v1alpha1.Cluster{
+			Server:           "https://example.com",
+			Name:             "cluster1",
+			Config:           v1alpha1.ClusterConfig{},
+			Namespaces:       []string{"ns3"},                     // Different
+			ClusterResources: true,                                // Different
+			Labels:           map[string]string{"other": "label"}, // Different
+		}
+
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
+
+		assert.Equal(t, hash1, hash2, "Hash should ignore non-identity fields")
+	})
+
+	t.Run("returns computed hash not default value", func(t *testing.T) {
+		cluster := &v1alpha1.Cluster{
+			Server: "https://example.com",
+			Name:   "cluster1",
+			Config: v1alpha1.ClusterConfig{},
+		}
+
+		defaultVal := uint64(99999)
+		hash := cluster.HashIdentity(defaultVal)
+
+		// Should return an actual hash, not the default
+		assert.NotEqual(t, hash, defaultVal)
+	})
 }

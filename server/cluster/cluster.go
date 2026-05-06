@@ -183,12 +183,10 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 			Status:     appv1.ConnectionStatusSuccessful,
 			ModifiedAt: &metav1.Time{Time: time.Now()},
 		},
-		Generation: clust.HashIdentity(0),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error setting cluster info in cache: %w", err)
 	}
-
 	return s.toAPIResponse(clust), err
 }
 
@@ -336,19 +334,16 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 	}
-
 	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
 			ModifiedAt: &metav1.Time{Time: time.Now()},
 		},
-		Generation: q.Cluster.HashIdentity(q.Cluster.Info.Generation + 1),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 	}
-
 	return s.toAPIResponse(clust), nil
 }
 
@@ -456,19 +451,16 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		if err != nil {
 			return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 		}
-
 		err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
 			ServerVersion: serverVersion,
 			ConnectionState: appv1.ConnectionState{
 				Status:     appv1.ConnectionStatusSuccessful,
 				ModifiedAt: &metav1.Time{Time: time.Now()},
 			},
-			Generation: clust.HashIdentity(clust.Info.Generation + 1),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 		}
-
 		err = clusterauth.RotateServiceAccountSecrets(kubeclientset, claims, newSecret)
 		if err != nil {
 			return nil, fmt.Errorf("failed to rotate service account secrets: %w", err)

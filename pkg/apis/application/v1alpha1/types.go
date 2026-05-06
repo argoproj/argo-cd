@@ -2307,6 +2307,8 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+	// ConfigHash is an opaque value which tracks changes to the desired configuration of a Cluster
+	ConfigHash *uint64 `json:"configHash,omitempty" protobuf:"bytes,14,opt,name=configHash"`
 
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
@@ -2327,6 +2329,7 @@ func (c *Cluster) Sanitized() *Cluster {
 		ClusterResources:   c.ClusterResources,
 		Info:               c.Info,
 		RefreshRequestedAt: c.RefreshRequestedAt,
+		ConfigHash:         c.ConfigHash,
 		Config: ClusterConfig{
 			AWSAuthConfig:      c.Config.AWSAuthConfig,
 			ProxyUrl:           c.Config.ProxyUrl,
@@ -2384,16 +2387,17 @@ func (c *Cluster) Equals(other *Cluster) bool {
 
 func (c *Cluster) HashIdentity(defaultValue uint64) uint64 {
 	// Include only fields which are static identifiers or represent the desired state of the Cluster
-	identityWindow := Cluster{
-		ID:     c.ID,
+	// Note: ID is excluded as it has json:"-" tag and is not marshaled
+
+	cluster := Cluster{
 		Server: c.Server,
 		Name:   c.Name,
 		Config: c.Config,
 	}
 
-	result, err := hash.ObjectHash(identityWindow)
+	result, err := hash.JsonObjectHash(cluster)
 	if err != nil {
-		log.Warnf("failed to encode cluster for hashing: %v", err)
+		log.Warnf("failed to encode cluster for hashing : %v. returning default value: %d", err, defaultValue)
 		return defaultValue
 	}
 
@@ -2412,8 +2416,6 @@ type ClusterInfo struct {
 	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
 	// APIVersions contains list of API versions supported by the cluster
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,5,opt,name=apiVersions"`
-	// Generation is an opaque value which tracks changes to the desired configuration of a Cluster
-	Generation uint64 `json:"generation,omitempty" protobuf:"bytes,6,opt,name=generation"`
 }
 
 func (c *ClusterInfo) GetKubeVersion() string {
@@ -3387,7 +3389,7 @@ func (w *SyncWindow) HashIdentity() (uint64, error) {
 		// ManualSync and Description are excluded as they don't affect window identity
 	}
 
-	result, err := hash.ObjectHash(identityWindow)
+	result, err := hash.GobObjectHash(identityWindow)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
 	}

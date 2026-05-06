@@ -5024,7 +5024,9 @@ func TestCluster_HashIdentity(t *testing.T) {
 		assert.Equal(t, hash1, hash2, "identical clusters should produce identical hashes")
 	})
 
-	t.Run("different ID produces different hash", func(t *testing.T) {
+	t.Run("different ID produces same hash", func(t *testing.T) {
+		// ID has json:"-" tag so it's excluded from JSON marshaling,
+		// therefore it doesn't affect the hash identity
 		base := &Cluster{
 			ID:     "same-id",
 			Server: "https://same.example.com",
@@ -5039,7 +5041,7 @@ func TestCluster_HashIdentity(t *testing.T) {
 		}
 		hash1 := base.HashIdentity(0)
 		hash2 := different.HashIdentity(0)
-		assert.NotEqual(t, hash1, hash2)
+		assert.Equal(t, hash1, hash2, "ID should not affect hash since it has json:\"-\" tag")
 	})
 
 	t.Run("different Server produces different hash", func(t *testing.T) {
@@ -5087,7 +5089,6 @@ func TestCluster_HashIdentity(t *testing.T) {
 			Project:    "project1",
 			Labels:     map[string]string{"env": "prod"},
 			Info: ClusterInfo{
-				Generation:        100,
 				ServerVersion:     "v1.28.0",
 				ApplicationsCount: 5,
 			},
@@ -5103,7 +5104,6 @@ func TestCluster_HashIdentity(t *testing.T) {
 			Project:    "project2",
 			Labels:     map[string]string{"env": "dev"},
 			Info: ClusterInfo{
-				Generation:        200,
 				ServerVersion:     "v1.30.0",
 				ApplicationsCount: 10,
 			},

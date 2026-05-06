@@ -1686,6 +1686,11 @@ func (in *Cluster) DeepCopyInto(out *Cluster) {
 			(*out)[key] = val
 		}
 	}
+	if in.ConfigHash != nil {
+		in, out := &in.ConfigHash, &out.ConfigHash
+		*out = new(uint64)
+		**out = **in
+	}
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	return
 }
