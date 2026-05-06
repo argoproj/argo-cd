@@ -192,22 +192,13 @@ func (s *Service) Init() error {
 		closer := s.gitRepoInitializer(fullPath)
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
-				var pathSHA string
 				sparsePaths, err := getSparseCheckoutPathsFromRepo(context.Background(), fullPath)
 				if err != nil {
 					// Non-sparse repos will fail here; that's normal, not worth a warning.
 					log.Debugf("No sparse checkout configured for %s: %v", fullPath, err)
-				} else if len(sparsePaths) > 0 {
-					pathSHA = git.ComputePathHash(sparsePaths)
 				}
-
-				normalizedURL := git.NormalizeGitURL(remotes[0].Config().URLs[0])
-				keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathSHA})
-				if err != nil {
-					log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
-				} else {
-					s.gitRepoPaths.Add(string(keyData), fullPath)
-				}
+				key := repoPathKey(v1alpha1.Repository{Repo: remotes[0].Config().URLs[0], SparsePaths: sparsePaths})
+				s.gitRepoPaths.Add(key, fullPath)
 			}
 		}
 		utilio.Close(closer)
@@ -2853,7 +2844,7 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 	return q.Source.Helm.FileParameters
 }
 
-// repoPathKey builds the JSON cache key used to look up repository checkout paths.
+// repoPathKey builds the cache key used to look up repository checkout paths.
 // The key encodes both the normalized URL and (when sparse paths are configured) a
 // hash of those paths so that each sparse-path permutation gets its own checkout.
 func repoPathKey(repo v1alpha1.Repository) string {
@@ -2861,9 +2852,7 @@ func repoPathKey(repo v1alpha1.Repository) string {
 	if len(repo.SparsePaths) > 0 {
 		pathsSHA = git.ComputePathHash(repo.SparsePaths)
 	}
-	normalizedURL := git.NormalizeGitURL(repo.Repo)
-	keyData, _ := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathsSHA})
-	return string(keyData)
+	return git.NormalizeGitURL(repo.Repo) + "|" + pathsSHA
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {

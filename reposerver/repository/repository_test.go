@@ -3363,12 +3363,10 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 	var appPath string
 	var res apiclient.RepoAppDetailsResponse
 
-	// repoPathKey generates the JSON cache key used by newClient/getResolvedRefValueFile
+	// repoPathKey generates the cache key used by newClient/getResolvedRefValueFile
 	// to look up repository paths. Matches the format in repository.go's newClient().
 	repoPathKey := func(repoURL string) string {
-		normalizedURL := git.NormalizeGitURL(repoURL)
-		keyData, _ := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": ""})
-		return string(keyData)
+		return git.NormalizeGitURL(repoURL) + "|"
 	}
 
 	testCases := []struct {
