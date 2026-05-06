@@ -37,7 +37,7 @@ func NewCommand() *cobra.Command {
 			cli.SetLogLevel(cmdutil.LogLevel)
 			if len(cmdargs) < 1 {
 				errors.Fatal(errors.ErrorGeneric,
-					fmt.Errorf("expected at least 1 argument, got %d", len(cmdargs)-1))
+					fmt.Errorf("expected at least 1 argument, got %d", len(cmdargs)))
 			}
 
 			log.Infof("argocd-sandbox started")
