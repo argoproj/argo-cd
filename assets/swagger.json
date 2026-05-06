@@ -8171,6 +8171,11 @@
         "config": {
           "$ref": "#/definitions/v1alpha1ClusterConfig"
         },
+        "configHash": {
+          "type": "string",
+          "format": "uint64",
+          "title": "ConfigHash is an opaque value which tracks changes to the desired configuration of a Cluster"
+        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
@@ -8314,11 +8319,6 @@
         },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
-        },
-        "generation": {
-          "type": "string",
-          "format": "uint64",
-          "title": "Generation is an opaque value which tracks changes to the desired configuration of a Cluster"
         },
         "serverVersion": {
           "type": "string",

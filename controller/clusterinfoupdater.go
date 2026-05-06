@@ -140,13 +140,10 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			appCount++
 		}
 	}
-
 	clusterInfo := appv1.ClusterInfo{
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
-		Generation:        cluster.HashIdentity(cluster.Info.Generation + 1),
 	}
-
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
 		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, true)
