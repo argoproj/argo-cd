@@ -97,9 +97,10 @@ func TestLandlockApply(t *testing.T) {
 		ll := Landlock{}
 		implConfig := ArgocdSandboxConfig{
 			Landlock: &LandlockConfig{
-				DefaultFSDeny: "read_dir",
+				DefaultFSDeny: LANDLOCK_STD_RW,
 			},
 		}
+		fixTestCoverage(t, &implConfig.Landlock.AllowedPaths)
 		err := ll.Init(&implConfig, []string{})
 		require.NoError(t, err)
 		err = ll.Apply()
@@ -109,25 +110,46 @@ func TestLandlockApply(t *testing.T) {
 	})
 }
 
+// FIXME: linter?  When the test is run with the -cover option it is
+// expected to open a file in the coverage directory to write its
+// coverage data. So we have to allow writes to this directory. Too
+// bad there is no option to pass file descriptor. That means that we
+// cannot actually test default Access Sets that do not include write
+// access or have to disable coverage for subprocesses:-(
+func fixTestCoverage(t *testing.T, paths *[]LandlockAllowedPath) {
+	t.Helper()
+	coverdir := os.Getenv("GOCOVERDIR")
+	if coverdir != "" {
+		allowedPath := LandlockAllowedPath{
+			Access: LANDLOCK_STD_RW,
+			Paths:  []string{coverdir},
+		}
+		*paths = append(*paths, allowedPath)
+	}
+}
+
 func TestLandlockConfigAccessRules(t *testing.T) {
 	testutil.RunInSubprocess(t, func() {
 		ll := Landlock{}
 		implConfig := ArgocdSandboxConfig{
 			Landlock: &LandlockConfig{
-				DefaultFSDeny: "read_dir,read_file",
+				DefaultFSDeny: "read_dir,read_file,write_file,make_dir",
 			},
 		}
 
 		cwd, err := os.Getwd()
+		require.NoError(t, err)
+
 		allowedPaths := []LandlockAllowedPath{}
 		allowedPath := LandlockAllowedPath{
 			Access: "read_dir,read_file",
 			Paths:  []string{},
 		}
 		allowedPath.Paths = append(allowedPath.Paths, cwd)
-		require.NoError(t, err)
 		allowedPaths = append(allowedPaths, allowedPath)
+		fixTestCoverage(t, &allowedPaths)
 		implConfig.Landlock.AllowedPaths = allowedPaths
+
 		fmt.Printf("implConfig: %v", *implConfig.Landlock)
 		err = ll.Init(&implConfig, []string{})
 		require.NoError(t, err)
@@ -275,6 +297,8 @@ func TestGenerateLandlockHelmConfig(t *testing.T) {
 		require.NotNil(t, landlockCfg)
 		assert.True(t, landlockCfg.DefaultFSDeny != "")
 		assert.True(t, len(landlockCfg.AllowedPaths) > 0)
+
+		fixTestCoverage(t, &landlockCfg.AllowedPaths)
 
 		kustomizeBinPath, err := exec.LookPath("kustomize") // not allowed, must fail
 		require.NoError(t, err)
