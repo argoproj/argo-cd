@@ -114,6 +114,9 @@ func (m *Landlock) Init(sandboxConfig *ArgocdSandboxConfig, allowRulesStrs []str
 		return fmt.Errorf("Landlock sandbox cannot initialize with no configuration given")
 	}
 	accessFSSet, err := m.createAccessFSSet(implConfig.DefaultFSDeny)
+	if err != nil {
+		return fmt.Errorf("Landlock sandbox cannot create default filesystem deny set: %v", err)
+	}
 	m.Cfg, err = landlock.NewConfig(accessFSSet)
 	if err != nil {
 		return fmt.Errorf("Landlock sandbox cannot initialize configuration: %v", err)
