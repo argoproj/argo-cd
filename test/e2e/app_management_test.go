@@ -3024,3 +3024,159 @@ func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 			}, 4*time.Minute, 3*time.Second, "expected OutOfSync without manual refresh")
 		})
 }
+
+// TestStatusUpdateDoesNotTriggerRefresh verifies that status-only updates
+// (without spec/operation/deletion changes) do not trigger refreshes.
+func TestStatusUpdateDoesNotTriggerRefresh(t *testing.T) {
+	ctx := t.Context()
+	namespace := fixture.TestNamespace()
+
+	Given(t).
+		Path(guestbookPath).
+		When().
+		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "0s").
+		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s").
+		And(func() {
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
+			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
+			fixture.RestartApplicationController(t)
+		}).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(a *Application) {
+			time.Sleep(5 * time.Second)
+
+			appNS := a.Namespace
+			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			initialReconciledAt := app.Status.ReconciledAt
+			require.NotNil(t, initialReconciledAt)
+
+			for i := 0; i < 10; i++ {
+				time.Sleep(2 * time.Second)
+
+				patch := fmt.Sprintf(
+					`[{"op":"replace","path":"/status/summary/images","value":["test-image:v%d"]}]`,
+					i,
+				)
+				_, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Patch(
+					ctx,
+					a.Name,
+					types.JSONPatchType,
+					[]byte(patch),
+					metav1.PatchOptions{},
+				)
+				require.NoError(t, err)
+			}
+
+			time.Sleep(5 * time.Second)
+
+			finalApp, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
+			assert.Equal(t, initialReconciledAt.Time, finalApp.Status.ReconciledAt.Time,
+				"Status-only updates should NOT trigger refresh")
+		})
+}
+
+// TestRefreshAnnotationStillWorks verifies that explicitly adding a refresh
+// annotation DOES trigger a refresh, even when reconciliation is disabled.
+func TestRefreshAnnotationStillWorks(t *testing.T) {
+	ctx := t.Context()
+	namespace := fixture.TestNamespace()
+
+	Given(t).
+		Path(guestbookPath).
+		When().
+		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "0s").
+		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s").
+		And(func() {
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
+			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
+			fixture.RestartApplicationController(t)
+		}).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(a *Application) {
+			time.Sleep(5 * time.Second)
+
+			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			initialReconciledAt := app.Status.ReconciledAt
+			require.NotNil(t, initialReconciledAt)
+
+			time.Sleep(10 * time.Second)
+
+			// Add refresh annotation (simulating user clicking "Refresh" in UI)
+			app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
+			if app.Annotations == nil {
+				app.Annotations = make(map[string]string)
+			}
+			app.Annotations[AnnotationKeyRefresh] = string(RefreshTypeNormal)
+
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Update(ctx, app, metav1.UpdateOptions{})
+			require.NoError(t, err)
+
+			// Should trigger refresh despite timeout.reconciliation=0s
+			require.Eventually(t, func() bool {
+				app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return app.Status.ReconciledAt != nil && app.Status.ReconciledAt.After(initialReconciledAt.Time)
+			}, 30*time.Second, 1*time.Second, "Refresh annotation should trigger refresh even with timeout.reconciliation=0s")
+		})
+}
+
+// TestEnableAutomatedSyncTriggersRefresh verifies that enabling automated sync
+// on an application triggers a refresh with CompareWithLatest.
+func TestEnableAutomatedSyncTriggersRefresh(t *testing.T) {
+	ctx := t.Context()
+
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(a *Application) {
+			time.Sleep(5 * time.Second)
+
+			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			initialReconciledAt := app.Status.ReconciledAt
+			require.NotNil(t, initialReconciledAt, "Initial ReconciledAt should be set")
+			require.Nil(t, app.Spec.SyncPolicy, "App should not have automated sync initially")
+
+			// Enable automated sync by updating the spec
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Automated: &SyncPolicyAutomated{},
+			}
+
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Update(ctx, app, metav1.UpdateOptions{})
+			require.NoError(t, err)
+
+			require.Eventually(t, func() bool {
+				app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				// ReconciledAt should have changed, indicating a refresh occurred
+				return app.Status.ReconciledAt != nil && app.Status.ReconciledAt.After(initialReconciledAt.Time)
+			}, 30*time.Second, 1*time.Second, "Enabling automated sync should trigger a refresh")
+		})
+}
