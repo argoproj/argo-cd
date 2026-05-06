@@ -1177,6 +1177,7 @@ export interface ApplicationSet extends AbstractApplication {
             message?: string;
             lastTransitionTime?: string;
             step?: string;
+            group?: string;
             targetRevisions?: string[];
         }>;
         resources?: ApplicationSetResource[];

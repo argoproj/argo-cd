@@ -7220,6 +7220,10 @@
           "type": "string",
           "title": "Application contains the name of the Application resource"
         },
+        "group": {
+          "type": "string",
+          "title": "Group tracks which group this Application has"
+        },
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
         },
@@ -7397,6 +7401,9 @@
     "v1alpha1ApplicationSetRolloutStrategy": {
       "type": "object",
       "properties": {
+        "groupKey": {
+          "type": "string"
+        },
         "steps": {
           "type": "array",
           "items": {

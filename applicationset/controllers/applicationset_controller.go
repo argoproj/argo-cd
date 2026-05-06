@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"runtime/debug"
 	"slices"
@@ -171,7 +172,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			requeueTime, err := r.performReverseDeletion(ctx, logCtx, applicationSetInfo, currentApplications)
+			requeueTime, err := r.performGroupReverseDeletion(ctx, logCtx, applicationSetInfo, currentApplications)
 			if err != nil {
 				return ctrl.Result{}, err
 			} else if requeueTime > 0 {
@@ -426,6 +427,26 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}, nil
 }
 
+func (r *ApplicationSetReconciler) performGroupReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
+	groups := r.getGroupsByApps(currentApps, []argov1alpha1.Application{}, appset.Spec.Strategy.RollingSync.GroupKey)
+
+	if len(groups) == 0 {
+		return r.performReverseDeletion(ctx, logCtx, appset, currentApps)
+	}
+
+	var requeueTime time.Duration
+	var err error
+	for _, group := range groups {
+		groupApplications := r.getApplicationsbyGroup(currentApps, appset.Spec.Strategy.RollingSync.GroupKey, group)
+		requeueTime, err = r.performReverseDeletion(ctx, logCtx, appset, groupApplications)
+		if err != nil {
+			return requeueTime, err
+		}
+	}
+
+	return requeueTime, nil
+}
+
 func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
 	requeueTime := 10 * time.Second
 	stepLength := len(appset.Spec.Strategy.RollingSync.Steps)
@@ -436,7 +457,7 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 		appMap[app.Name] = &app
 	}
 
-	// Get Rolling Sync Step Maps
+	// Get Rolling ApplicationSetReasonRefreshApplicationError Step Maps
 	_, appStepMap := r.buildAppDependencyList(logCtx, appset, currentApps)
 	// reverse the AppStepMap to perform deletion
 	var reverseDeleteAppSteps []deleteInOrder
@@ -1043,21 +1064,74 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 	return nil
 }
 
+func (r *ApplicationSetReconciler) getGroupsByApps(applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, labelGroup string) []string {
+	groups := []string{}
+	if labelGroup == "" {
+		return groups
+	}
+
+	for _, app := range applications {
+		if v, ok := app.Labels[labelGroup]; ok && !slices.Contains(groups, v) {
+			groups = append(groups, v)
+		}
+	}
+	for _, app := range desiredApplications {
+		if v, ok := app.Labels[labelGroup]; ok && !slices.Contains(groups, v) {
+			groups = append(groups, v)
+		}
+	}
+
+	return groups
+}
+
+func (r *ApplicationSetReconciler) getApplicationsbyGroup(applications []argov1alpha1.Application, labelGroup string, group string) []argov1alpha1.Application {
+	if group == "" {
+		return applications
+	}
+
+	apps := []argov1alpha1.Application{}
+	for _, app := range applications {
+		if _, ok := app.Labels[labelGroup]; ok && app.Labels[labelGroup] == group {
+			apps = append(apps, app)
+		}
+	}
+
+	return apps
+}
+
 func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, error) {
-	appDependencyList, appStepMap := r.buildAppDependencyList(logCtx, appset, desiredApplications)
+	groups := r.getGroupsByApps(applications, desiredApplications, appset.Spec.Strategy.RollingSync.GroupKey)
+
+	if len(groups) == 0 {
+		// support progressive sync without groups
+		groups = []string{""}
+	}
+
+	appsToSync := map[string]bool{}
+	appStepMap := map[string]int{}
+
+	for _, group := range groups {
+		groupApplications := r.getApplicationsbyGroup(applications, appset.Spec.Strategy.RollingSync.GroupKey, group)
+		groupDesiredApplications := r.getApplicationsbyGroup(desiredApplications, appset.Spec.Strategy.RollingSync.GroupKey, group)
+
+		appDependencyList, groupAppStepMap := r.buildAppDependencyList(logCtx, appset, groupDesiredApplications)
+
+		logCtx.Infof("ApplicationSet %v step list:", appset.Name)
+		for stepIndex, applicationNames := range appDependencyList {
+			logCtx.Infof("group: %s; step %v: %+v", group, stepIndex+1, applicationNames)
+		}
+
+		groupAppsToSync := r.getAppsToSync(appset, appDependencyList, groupApplications)
+		logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appsToSync)
+
+		maps.Copy(appsToSync, groupAppsToSync)
+		maps.Copy(appStepMap, groupAppStepMap)
+	}
 
 	_, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
-
-	logCtx.Infof("ApplicationSet %v step list:", appset.Name)
-	for stepIndex, applicationNames := range appDependencyList {
-		logCtx.Infof("step %v: %+v", stepIndex+1, applicationNames)
-	}
-
-	appsToSync := r.getAppsToSync(appset, appDependencyList, applications)
-	logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appsToSync)
 
 	_, err = r.updateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
 	if err != nil {
@@ -1222,6 +1296,16 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 	return step
 }
 
+func getAppGroup(application *argov1alpha1.Application, groupKey string) string {
+	if groupKey == "" {
+		return ""
+	}
+	if v, ok := application.Labels[groupKey]; ok {
+		return v
+	}
+	return ""
+}
+
 // check the status of each Application's status and promote Applications to the next status if needed
 func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
@@ -1248,6 +1332,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				Message:            "No Application status found, defaulting status to Waiting",
 				Status:             argov1alpha1.ProgressiveSyncWaiting,
 				Step:               strconv.Itoa(getAppStep(app.Name, appStepMap)),
+				Group:              getAppGroup(&app, applicationSet.Spec.Strategy.RollingSync.GroupKey),
 			}
 		} else {
 			// we have an existing AppStatus
@@ -1261,11 +1346,13 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			"status.status":          currentAppStatus.Status,
 			"status.message":         currentAppStatus.Message,
 			"status.step":            currentAppStatus.Step,
+			"status.group":           currentAppStatus.Group,
 			"status.targetRevisions": strings.Join(currentAppStatus.TargetRevisions, ","),
 		})
 
 		newAppStatus := currentAppStatus.DeepCopy()
 		newAppStatus.Step = strconv.Itoa(getAppStep(newAppStatus.Application, appStepMap))
+		newAppStatus.Group = getAppGroup(&app, applicationSet.Spec.Strategy.RollingSync.GroupKey)
 
 		revisionsChanged := !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions())
 
@@ -1353,6 +1440,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				"new_status.status":          newAppStatus.Status,
 				"new_status.message":         newAppStatus.Message,
 				"new_status.step":            newAppStatus.Step,
+				"new_status.group":           newAppStatus.Group,
 				"new_status.targetRevisions": strings.Join(newAppStatus.TargetRevisions, ","),
 			}).Info("Progressive sync application changed status")
 		}
@@ -1395,6 +1483,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 				"status.status":          appStatus.Status,
 				"status.message":         appStatus.Message,
 				"status.step":            appStatus.Step,
+				"status.group":           appStatus.Group,
 				"status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
 			})
 
@@ -1431,6 +1520,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 					"new_status.status":          appStatus.Status,
 					"new_status.message":         appStatus.Message,
 					"new_status.step":            appStatus.Step,
+					"new_status.group":           appStatus.Group,
 					"new_status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
 				}).Info("Progressive sync application changed status")
 
@@ -1625,8 +1715,9 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			statusChanged := currentStatus.Status != appStatus.Status
 			stepChanged := currentStatus.Step != appStatus.Step
 			messageChanged := currentStatus.Message != appStatus.Message
+			groupChanged := currentStatus.Group != appStatus.Group
 
-			if statusChanged || stepChanged || messageChanged {
+			if statusChanged || stepChanged || messageChanged || groupChanged {
 				if statusChanged {
 					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_status": currentStatus.Status, "new_status": appStatus.Status}).
 						Debug("application status changed")
@@ -1637,6 +1728,9 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 				}
 				if messageChanged {
 					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application message changed")
+				}
+				if groupChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_group": currentStatus.Group, "new_group": appStatus.Group}).Debug("application group changed")
 				}
 				needToUpdateStatus = true
 				break

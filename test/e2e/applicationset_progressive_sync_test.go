@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -20,6 +21,136 @@ import (
 const (
 	TransitionTimeout = 60 * time.Second
 )
+
+func TestApplicationSetProgressiveSyncGroups(t *testing.T) {
+	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
+		t.Skip("Skipping progressive sync tests - env variable not set to enable progressive sync")
+	}
+
+	createExpectedApp := func(name, env, region string) v1alpha1.Application {
+		return v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-%s", name, env),
+				Namespace: fixture.TestNamespace(),
+				Labels: map[string]string{
+					"environment": env,
+					"region":      region,
+				},
+				Finalizers: []string{
+					"resources-finalizer.argocd.argoproj.io",
+				},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					Path:           "guestbook",
+					TargetRevision: "HEAD",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: name,
+				},
+			},
+		}
+	}
+
+	expectedApps := []v1alpha1.Application{
+		createExpectedApp("app1", "dev", "eu"),
+		createExpectedApp("app2", "staging", "eu"),
+		createExpectedApp("app3", "prod", "eu"),
+
+		createExpectedApp("app4", "dev", "us"),
+		createExpectedApp("app5", "staging", "us"),
+		createExpectedApp("app6", "prod", "us"),
+	}
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "progressive-sync-groups",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				GoTemplate: true,
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+						Name:      "{{.name}}-{{.environment}}",
+						Namespace: fixture.TestNamespace(),
+						Labels: map[string]string{
+							"environment": "{{.environment}}",
+							"region":      "{{.region}}",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							Path:           "guestbook",
+							TargetRevision: "HEAD",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{.name}}",
+						},
+						SyncPolicy: &v1alpha1.SyncPolicy{
+							SyncOptions: v1alpha1.SyncOptions{
+								"CreateNamespace=true",
+							},
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{
+								{Raw: []byte(`{"name":"app1","environment":"dev","region":"eu"}`)},
+								{Raw: []byte(`{"name":"app2","environment":"staging","region":"eu"}`)},
+								{Raw: []byte(`{"name":"app3","environment":"prod","region":"eu"}`)},
+
+								{Raw: []byte(`{"name":"app4","environment":"dev","region":"us"}`)},
+								{Raw: []byte(`{"name":"app5","environment":"staging","region":"us"}`)},
+								{Raw: []byte(`{"name":"app6","environment":"prod","region":"us"}`)},
+							},
+						},
+					},
+				},
+				Strategy: &v1alpha1.ApplicationSetStrategy{
+					Type: "RollingSync",
+					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+						GroupKey: "region",
+						Steps:    generateStandardRolloutSyncSteps(),
+					},
+				},
+			},
+		}).
+		Then().
+		And(func() {
+			t.Log("Grouped ApplicationSet created")
+		}).
+		Expect(ApplicationsExist(expectedApps)).
+		And(func() {
+			t.Log("All grouped applications exist")
+		}).
+
+		// wave 1 should progress independently per region
+		ExpectWithDuration(CheckApplicationInRightSteps("1", []string{"app1-dev", "app4-dev"}), TransitionTimeout).
+		// wave 2 should also progress independently
+		ExpectWithDuration(CheckApplicationInRightSteps("2", []string{"app2-staging", "app5-staging"}), time.Second*5).
+		// wave 3
+		ExpectWithDuration(CheckApplicationInRightSteps("3", []string{"app3-prod", "app6-prod"}), time.Second*5).
+		When().
+		Delete(metav1.DeletePropagationForeground).
+		Then().
+		ExpectWithDuration(
+			ApplicationsDoNotExist(expectedApps),
+			time.Minute,
+		)
+}
 
 func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {

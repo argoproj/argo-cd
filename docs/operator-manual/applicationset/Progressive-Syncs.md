@@ -190,18 +190,21 @@ spec:
       steps:
         - matchExpressions:
             - key: envLabel
+              groupKey: envGroupLabel
               operator: In
               values:
                 - env-dev
           #maxUpdate: 100%  # if undefined, all applications matched are updated together (default is 100%)
         - matchExpressions:
             - key: envLabel
+              groupKey: envGroupLabel
               operator: In
               values:
                 - env-qa
           maxUpdate: 0 # if 0, no matched applications will be updated
         - matchExpressions:
             - key: envLabel
+              groupKey: envGroupLabel
               operator: In
               values:
                 - env-prod
@@ -223,3 +226,57 @@ spec:
         server: '{{.url}}'
         namespace: guestbook
 ```
+
+### Grouped RollingSync
+
+Grouped RollingSync allows Applications to progress independently inside logical groups.
+
+This is useful for multi-cluster, multi-region, multi-tenant, or multi-environment ApplicationSets where rollout progression should not be blocked globally by unrelated Applications.
+
+Groups are defined using the `groupKey` field. Applications sharing the same label value for `groupKey` are processed independently through all RollingSync steps.
+
+Each group is then processed independently through the defined rollout steps. This means that progression through steps, health evaluation, and update gating are evaluated per group rather than globally across all Applications. As a result, a failure or delay in one group does not block progression in other groups.
+
+Within each group, the existing RollingSync semantics remain unchanged, including step ordering, match expression evaluation, max update limits, and health-based gating.
+
+> **NOTE**: If no `groupKey` is specified, the behavior remains identical to the current global RollingSync implementation, where all Applications participate in a single shared rollout sequence.
+
+#### Example Grouped RollingSync
+
+```yaml
+spec:
+  strategy:
+    type: RollingSync
+    rollingSync:
+      groupKey: region
+      steps:
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values:
+                - env-dev
+
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values:
+                - env-prod
+```
+
+
+Applications grouped by label "region":
+
+- region=eu:
+   - app1 (envLabel=env-dev)
+   - app2 (envLabel=env-prod)
+
+- region=us:
+   - app3 (envLabel=env-dev)
+   - app4 (envLabel=env-prod)
+
+Progression:
+
+- region=eu: Step 1 → Step 2
+- region=us: Step 1 → Step 2
+
+Each group progresses independently through the same steps without blocking each other.

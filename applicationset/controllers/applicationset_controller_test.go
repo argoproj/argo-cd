@@ -8485,3 +8485,136 @@ func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) cont
 	}
 	return cancel
 }
+
+func TestGetApplicationsByGroup(t *testing.T) {
+	reconciler := &ApplicationSetReconciler{}
+
+	applications := []v1alpha1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-eu-1",
+				Labels: map[string]string{
+					"region": "eu",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-eu-2",
+				Labels: map[string]string{
+					"region": "eu",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-us-1",
+				Labels: map[string]string{
+					"region": "us",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-without-group",
+			},
+		},
+	}
+
+	t.Run("returns all applications when group is empty", func(t *testing.T) {
+		result := reconciler.getApplicationsbyGroup(applications, "region", "")
+		require.Len(t, result, 4)
+	})
+
+	t.Run("returns only eu applications", func(t *testing.T) {
+		result := reconciler.getApplicationsbyGroup(applications, "region", "eu")
+
+		require.Len(t, result, 2)
+		require.ElementsMatch(t, []string{"app-eu-1", "app-eu-2"}, []string{
+			result[0].Name,
+			result[1].Name,
+		})
+	})
+
+	t.Run("returns only us applications", func(t *testing.T) {
+		result := reconciler.getApplicationsbyGroup(applications, "region", "us")
+
+		require.Len(t, result, 1)
+		require.Equal(t, "app-us-1", result[0].Name)
+	})
+
+	t.Run("returns empty slice for unknown group", func(t *testing.T) {
+		result := reconciler.getApplicationsbyGroup(applications, "region", "asia")
+		require.Empty(t, result)
+	})
+}
+
+func TestGetGroupsByApps(t *testing.T) {
+	reconciler := &ApplicationSetReconciler{}
+
+	applications := []v1alpha1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-eu",
+				Labels: map[string]string{
+					"region": "eu",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-us",
+				Labels: map[string]string{
+					"region": "us",
+				},
+			},
+		},
+	}
+
+	desiredApplications := []v1alpha1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-asia",
+				Labels: map[string]string{
+					"region": "asia",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-us-2",
+				Labels: map[string]string{
+					"region": "us",
+				},
+			},
+		},
+	}
+
+	t.Run("returns empty groups when labelGroup is empty", func(t *testing.T) {
+		result := reconciler.getGroupsByApps(applications, desiredApplications, "")
+		require.Empty(t, result)
+	})
+
+	t.Run("collects unique groups from current and desired applications", func(t *testing.T) {
+		result := reconciler.getGroupsByApps(applications, desiredApplications, "region")
+
+		require.Len(t, result, 3)
+		require.ElementsMatch(t, []string{"eu", "us", "asia"}, result)
+	})
+
+	t.Run("returns empty when no applications contain label", func(t *testing.T) {
+		result := reconciler.getGroupsByApps(
+			[]v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-no-label",
+					},
+				},
+			},
+			nil,
+			"region",
+		)
+
+		require.Empty(t, result)
+	})
+}
