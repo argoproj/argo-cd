@@ -282,6 +282,23 @@ func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.Appli
 	return "", nil
 }
 
+// GetKustomizeBuildOptions returns the build options for the kustomize invocation based on the provided KustomizeOptions
+// and ApplicationSource. If the source requests a specific kustomize version and that version defines per-version build
+// options, those are returned. Otherwise, the global build options are returned.
+func GetKustomizeBuildOptions(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) string {
+	if ks == nil {
+		return ""
+	}
+	if source.Kustomize != nil && source.Kustomize.Version != "" {
+		for _, ver := range ks.Versions {
+			if ver.Name == source.Kustomize.Version && ver.BuildOptions != "" {
+				return ver.BuildOptions
+			}
+		}
+	}
+	return ks.BuildOptions
+}
+
 // Credentials for accessing a Git repository
 type Repository struct {
 	// The URL to the repository
