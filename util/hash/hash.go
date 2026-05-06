@@ -3,6 +3,7 @@ package hash
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"hash/fnv"
 
 	"github.com/cespare/xxhash/v2"
@@ -15,7 +16,7 @@ func FNVa(s string) uint32 {
 	return h.Sum32()
 }
 
-func ObjectHash(obj any) (uint64, error) {
+func GobObjectHash(obj any) (uint64, error) {
 	var buffer bytes.Buffer
 
 	enc := gob.NewEncoder(&buffer)
@@ -25,4 +26,13 @@ func ObjectHash(obj any) (uint64, error) {
 	}
 
 	return xxhash.Sum64(buffer.Bytes()), nil
+}
+
+func JsonObjectHash(obj any) (uint64, error) {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return 0, err
+	}
+
+	return xxhash.Sum64(data), nil
 }
