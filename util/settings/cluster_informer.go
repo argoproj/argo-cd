@@ -258,6 +258,18 @@ func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		delete(annotations, common.AnnotationKeyManagedBy)
 	}
 
+	parsedConfigHash := uint64(0)
+
+	if len(s.Data["configHash"]) > 0 {
+		val, err := strconv.ParseUint(string(s.Data["configHash"]), 10, 64)
+
+		if err != nil {
+			log.Warnf("Error while parsing configHash in cluster secret '%s': %v", s.Name, err)
+		} else {
+			parsedConfigHash = val
+		}
+	}
+
 	cluster := appv1.Cluster{
 		ID:                 string(s.UID),
 		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
@@ -271,6 +283,10 @@ func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		Labels:             labels,
 		Annotations:        annotations,
 	}
+
+	// Always recompute the hash as the secret may have been directly updated
+	cluster.ConfigHash = new(cluster.HashIdentity(parsedConfigHash + 1))
+
 	// To ensure the informer cache is properly populated, use the secret's name/namespace as the cache key
 	cluster.ObjectMeta.Name = s.Name
 	cluster.Namespace = s.Namespace
