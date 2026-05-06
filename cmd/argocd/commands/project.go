@@ -213,12 +213,12 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			for _, key := range proj.Spec.SignatureKeys {
+			for _, key := range proj.Spec.SignatureKeys { // nolint:staticcheck
 				if key.KeyID == signatureKey {
 					log.Fatal("Specified signature key is already defined in project")
 				}
 			}
-			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys, v1alpha1.SignatureKey{KeyID: signatureKey})
+			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys, v1alpha1.SignatureKey{KeyID: signatureKey}) // nolint:staticcheck
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
@@ -254,7 +254,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			errors.CheckError(err)
 
 			index := -1
-			for i, key := range proj.Spec.SignatureKeys {
+			for i, key := range proj.Spec.SignatureKeys { // nolint:staticcheck
 				if key.KeyID == signatureKey {
 					index = i
 					break
@@ -263,7 +263,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			if index == -1 {
 				log.Fatal("Specified signature key is not configured for project")
 			}
-			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
+			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...) // nolint:staticcheck
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
@@ -968,11 +968,11 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
 	}
-	switch len(p.Spec.SignatureKeys) {
+	switch len(p.Spec.SignatureKeys) { // nolint:staticcheck
 	case 0:
 		signatureKeys = "<none>"
 	default:
-		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys))
+		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys)) // nolint:staticcheck
 	}
 	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts)
 }
@@ -1055,9 +1055,9 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 
 	// Print required signature keys
 	signatureKeysStr := "<none>"
-	if len(p.Spec.SignatureKeys) > 0 {
+	if len(p.Spec.SignatureKeys) > 0 { // nolint:staticcheck
 		kids := make([]string, 0)
-		for _, key := range p.Spec.SignatureKeys {
+		for _, key := range p.Spec.SignatureKeys { // nolint:staticcheck
 			kids = append(kids, key.KeyID)
 		}
 		signatureKeysStr = strings.Join(kids, ", ")

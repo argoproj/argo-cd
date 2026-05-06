@@ -13,13 +13,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/git"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/git"
+
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 )
@@ -673,9 +673,9 @@ var (
 )
 
 // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
-func VerifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifestInfo *apiclient.ManifestResponse) []v1alpha1.ApplicationCondition {
+func VerifyGnuPGSignature(revision string, project *appsv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appsv1.ApplicationCondition {
 	now := metav1.Now()
-	conditions := make([]v1alpha1.ApplicationCondition, 0)
+	conditions := make([]appsv1.ApplicationCondition, 0)
 	// We need to have some data in the verification result to parse, otherwise there was no signature
 	if manifestInfo.VerifyResult != "" { // nolint:staticcheck
 		verifyResult := parseGitCommitVerification(manifestInfo.VerifyResult) // nolint:staticcheck
@@ -683,7 +683,7 @@ func VerifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifes
 		case verifyResultGood:
 			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
 			validKey := false
-			for _, k := range project.Spec.SignatureKeys {
+			for _, k := range project.Spec.SignatureKeys { // nolint:staticcheck
 				declared, _ := KeyID(k.KeyID)
 				present, _ := KeyID(verifyResult.KeyID)
 				if declared == present && declared != "" {
@@ -694,19 +694,19 @@ func VerifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifes
 			if !validKey {
 				msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
 					verifyResult.Cipher, verifyResult.KeyID)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+				conditions = append(conditions, appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			}
 		case verifyResultInvalid:
 			msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
 				verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			conditions = append(conditions, appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		default:
 			msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			conditions = append(conditions, appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		}
 	} else {
 		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+		conditions = append(conditions, appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 
 	return conditions
@@ -818,9 +818,9 @@ func parseGitCommitVerification(signature string) pgpVerifyResult {
 }
 
 // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
-func CommitSignatureError(verifyCommit bool, gitClient git.Client, revision string, repo *v1alpha1.Repository) error {
+func CommitSignatureError(verifyCommit bool, gitClient git.Client, revision string, repo *appsv1.Repository) error {
 	if IsGPGEnabled() && verifyCommit {
-		cs, err := gitClient.VerifyCommitSignature(revision)
+		cs, err := gitClient.VerifyCommitSignature(revision) // nolint:staticcheck
 		if err != nil {
 			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, repo.Repo, err)
 			return err

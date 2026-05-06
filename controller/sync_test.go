@@ -163,7 +163,7 @@ func TestSyncComparisonError(t *testing.T) {
 			Name:      "default",
 		},
 		Spec: v1alpha1.AppProjectSpec{
-			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 		},
 	}
 	data := fakeData{
@@ -218,7 +218,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 				Destinations: []v1alpha1.ApplicationDestination{
 					{
 						Namespace: "*",

@@ -850,7 +850,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 						ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
-						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}, // nolint:staticcheck
 						SourceNamespaces:         []string{AppNamespace()},
 					},
 				},

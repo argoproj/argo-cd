@@ -969,7 +969,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					LastTransitionTime: &now,
 				})
 			} else {
-				legacyVerifySignature := len(project.Spec.SignatureKeys) > 0 && sourceintegrity.IsGPGEnabled()
+				legacyVerifySignature := len(project.Spec.SignatureKeys) > 0 && sourceintegrity.IsGPGEnabled() // nolint:staticcheck
 				if legacyVerifySignature {
 					conditions = append(conditions, sourceintegrity.VerifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
 				}
