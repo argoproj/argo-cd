@@ -255,11 +255,15 @@ spec:
                   type: object
                 type: array
               signatureKeys:
-                description: SignatureKeys contains a list of PGP key IDs that commits
-                  in Git must be signed with in order to be allowed for sync
+                description: |-
+                  SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
+
+                  Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
                 items:
-                  description: SignatureKey is the specification of a key required
-                    to verify commit signatures with
+                  description: |-
+                    SignatureKey is the specification of a key required to verify commit signatures with
+
+                    Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
                   properties:
                     keyID:
                       description: The ID of the key in hexadecimal notation

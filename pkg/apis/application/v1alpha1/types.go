@@ -2770,8 +2770,7 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 // SignatureKey is the specification of a key required to verify commit signatures with
 //
 // Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
-// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
-type SignatureKey struct {
+type SignatureKey struct { // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// The ID of the key in hexadecimal notation
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }

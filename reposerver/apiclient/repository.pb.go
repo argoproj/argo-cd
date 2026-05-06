@@ -48,7 +48,7 @@ type ManifestRequest struct {
 	// ApiVersions is the list of API versions from the destination cluster, used for rendering Helm charts.
 	ApiVersions []string `protobuf:"bytes,15,rep,name=apiVersions,proto3" json:"apiVersions,omitempty"`
 	// Deprecated: Use sourceIntegrity for more detailed information. verifySignature will be removed with the next major version.
-	VerifySignature    bool                           `protobuf:"varint,16,opt,name=verifySignature,proto3" json:"verifySignature,omitempty"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+	VerifySignature    bool                           `protobuf:"varint,16,opt,name=verifySignature,proto3" json:"verifySignature,omitempty"`
 	HelmRepoCreds      []*v1alpha1.RepoCreds          `protobuf:"bytes,17,rep,name=helmRepoCreds,proto3" json:"helmRepoCreds,omitempty"`
 	NoRevisionCache    bool                           `protobuf:"varint,18,opt,name=noRevisionCache,proto3" json:"noRevisionCache,omitempty"`
 	TrackingMethod     string                         `protobuf:"bytes,19,opt,name=trackingMethod,proto3" json:"trackingMethod,omitempty"`
@@ -1983,7 +1983,7 @@ type GitFilesRequest struct {
 	NewGitFileGlobbingEnabled bool                 `protobuf:"varint,5,opt,name=NewGitFileGlobbingEnabled,proto3" json:"NewGitFileGlobbingEnabled,omitempty"`
 	NoRevisionCache           bool                 `protobuf:"varint,6,opt,name=noRevisionCache,proto3" json:"noRevisionCache,omitempty"`
 	// Deprecated: Use sourceIntegrity for more detailed information. verifyCommit will be removed with the next major version.
-	VerifyCommit bool `protobuf:"varint,7,opt,name=verifyCommit,proto3" json:"verifyCommit,omitempty"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+	VerifyCommit bool `protobuf:"varint,7,opt,name=verifyCommit,proto3" json:"verifyCommit,omitempty"`
 	// Source integrity constrains to verify the sources before use
 	SourceIntegrity      *v1alpha1.SourceIntegrity `protobuf:"bytes,8,opt,name=sourceIntegrity,proto3" json:"sourceIntegrity,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
@@ -2134,7 +2134,7 @@ type GitDirectoriesRequest struct {
 	Revision         string               `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
 	NoRevisionCache  bool                 `protobuf:"varint,4,opt,name=noRevisionCache,proto3" json:"noRevisionCache,omitempty"`
 	// Deprecated: Use sourceIntegrity for more detailed information. verifyCommit will be removed with the next major version.
-	VerifyCommit bool `protobuf:"varint,5,opt,name=verifyCommit,proto3" json:"verifyCommit,omitempty"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+	VerifyCommit bool `protobuf:"varint,5,opt,name=verifyCommit,proto3" json:"verifyCommit,omitempty"`
 	// Source integrity constrains to verify the sources before use
 	SourceIntegrity      *v1alpha1.SourceIntegrity `protobuf:"bytes,6,opt,name=sourceIntegrity,proto3" json:"sourceIntegrity,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`

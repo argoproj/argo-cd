@@ -7038,6 +7038,7 @@
           }
         },
         "signatureKeys": {
+          "description": "Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.",
           "type": "array",
           "title": "SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync",
           "items": {
@@ -10610,6 +10611,7 @@
       }
     },
     "v1alpha1SignatureKey": {
+      "description": "Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.",
       "type": "object",
       "title": "SignatureKey is the specification of a key required to verify commit signatures with",
       "properties": {
