@@ -3057,7 +3057,7 @@ func TestStatusUpdateDoesNotTriggerRefresh(t *testing.T) {
 			initialReconciledAt := app.Status.ReconciledAt
 			require.NotNil(t, initialReconciledAt)
 
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				time.Sleep(2 * time.Second)
 
 				patch := fmt.Sprintf(
