@@ -95,7 +95,11 @@ snapshot: #### To be removed for PR
   version_template: '2.6.0'
 
 changelog:
-  use: github
+  # Avoid GitHub Compare API pagination (secondary rate limits on large ranges).
+  # With `use: git`, `@logins` are unavailable; list committer/author names from git via `Authors`.
+  # See https://goreleaser.com/customization/publish/changelog/
+  use: git
+  format: '{{ .SHA }} {{ .Message }}{{ if .Authors }} ({{ range $i, $a := .Authors }}{{ if $i }}, {{ end }}{{ $a.Name }}{{ end }}){{ end }}'
   sort: asc
   abbrev: 0
   groups: # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
