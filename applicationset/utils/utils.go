@@ -35,6 +35,8 @@ var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 var baseTemplate *template.Template
 
 func init() {
+	baseTemplate = template.New("base")
+
 	// Avoid allowing the user to learn things about the environment.
 	delete(sprigFuncMap, "env")
 	delete(sprigFuncMap, "expandenv")
@@ -44,10 +46,11 @@ func init() {
 	sprigFuncMap["toYaml"] = toYAML
 	sprigFuncMap["fromYaml"] = fromYAML
 	sprigFuncMap["fromYamlArray"] = fromYAMLArray
+	sprigFuncMap["tpl"] = tplFun(baseTemplate)
 
 	// Initialize the base template with sprig functions once at startup.
 	// This must be done after modifying sprigFuncMap above.
-	baseTemplate = template.New("base").Funcs(sprigFuncMap)
+	baseTemplate = baseTemplate.Funcs(sprigFuncMap)
 }
 
 type Renderer interface {
