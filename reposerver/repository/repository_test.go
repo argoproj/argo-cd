@@ -70,7 +70,7 @@ var sourceIntegrityReqStrict = &v1alpha1.SourceIntegrity{
 	},
 }
 
-var LsSignaturesMockOk = func(_ string, _ bool) (info []git.RevisionSignatureInfo, err error) {
+var LsSignaturesMockOk = func(_ string, _ bool) (info []git.RevisionSignatureInfo, legacy string, err error) {
 	return []git.RevisionSignatureInfo{
 		{
 			Revision:           "d71589b8001a0bd78bb311cb03c9d129c6f91de1",
@@ -79,10 +79,10 @@ var LsSignaturesMockOk = func(_ string, _ bool) (info []git.RevisionSignatureInf
 			Date:               "Fri Oct 31 14:42:39 2025 +0100",
 			AuthorIdentity:     "Jane Doe <jdoe@acme.com>",
 		},
-	}, nil
+	}, "", nil
 }
 
-var LsSignaturesMockGitError = func(_ string, _ bool) (info []git.RevisionSignatureInfo, err error) {
+var LsSignaturesMockGitError = func(_ string, _ bool) (info []git.RevisionSignatureInfo, legacy string, err error) {
 	return []git.RevisionSignatureInfo{{
 		Revision:           "171589b8001a0bd78bb311cb03c9d129c6f91de1",
 		VerificationResult: git.GPGVerificationResultExpiredKey,
@@ -95,7 +95,7 @@ var LsSignaturesMockGitError = func(_ string, _ bool) (info []git.RevisionSignat
 		SignatureKeyID:     "",
 		Date:               "Fri Oct 31 14:42:39 2025 +0100",
 		AuthorIdentity:     "Unsigned <unsigned@acme.com>",
-	}}, nil
+	}}, "", nil
 }
 
 var sourceIntegrityResultGitError = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
@@ -4565,7 +4565,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("ah error"))
-				gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return([]git.RevisionSignatureInfo{}, errors.New("the thing have exploded"))
+				gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return([]git.RevisionSignatureInfo{}, "", errors.New("the thing have exploded"))
 				gitClient.EXPECT().Root().Return(root)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
 				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")

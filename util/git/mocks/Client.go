@@ -1064,7 +1064,7 @@ func (_c *Client_LsRemote_Call) RunAndReturn(run func(revision string) (string, 
 }
 
 // LsSignatures provides a mock function for the type Client
-func (_mock *Client) LsSignatures(revision string, deep bool) ([]git.RevisionSignatureInfo, error) {
+func (_mock *Client) LsSignatures(revision string, deep bool) ([]git.RevisionSignatureInfo, string, error) {
 	ret := _mock.Called(revision, deep)
 
 	if len(ret) == 0 {
@@ -1072,8 +1072,9 @@ func (_mock *Client) LsSignatures(revision string, deep bool) ([]git.RevisionSig
 	}
 
 	var r0 []git.RevisionSignatureInfo
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, bool) ([]git.RevisionSignatureInfo, error)); ok {
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(string, bool) ([]git.RevisionSignatureInfo, string, error)); ok {
 		return returnFunc(revision, deep)
 	}
 	if returnFunc, ok := ret.Get(0).(func(string, bool) []git.RevisionSignatureInfo); ok {
@@ -1083,12 +1084,17 @@ func (_mock *Client) LsSignatures(revision string, deep bool) ([]git.RevisionSig
 			r0 = ret.Get(0).([]git.RevisionSignatureInfo)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, bool) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(string, bool) string); ok {
 		r1 = returnFunc(revision, deep)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(string)
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(string, bool) error); ok {
+		r2 = returnFunc(revision, deep)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
 // Client_LsSignatures_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LsSignatures'
@@ -1121,12 +1127,12 @@ func (_c *Client_LsSignatures_Call) Run(run func(revision string, deep bool)) *C
 	return _c
 }
 
-func (_c *Client_LsSignatures_Call) Return(revisionSignatureInfos []git.RevisionSignatureInfo, err error) *Client_LsSignatures_Call {
-	_c.Call.Return(revisionSignatureInfos, err)
+func (_c *Client_LsSignatures_Call) Return(revisionSignatureInfos []git.RevisionSignatureInfo, s string, err error) *Client_LsSignatures_Call {
+	_c.Call.Return(revisionSignatureInfos, s, err)
 	return _c
 }
 
-func (_c *Client_LsSignatures_Call) RunAndReturn(run func(revision string, deep bool) ([]git.RevisionSignatureInfo, error)) *Client_LsSignatures_Call {
+func (_c *Client_LsSignatures_Call) RunAndReturn(run func(revision string, deep bool) ([]git.RevisionSignatureInfo, string, error)) *Client_LsSignatures_Call {
 	_c.Call.Return(run)
 	return _c
 }

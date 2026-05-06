@@ -968,10 +968,21 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Message:            err.Error(),
 					LastTransitionTime: &now,
 				})
-			} else {
+			}
+
+			// Can happen during migration when the legacy SignatureKeys are used AND the repo-server have not yet been
+			// upgraded to version using Source Integrity. So the manifests comes in with verifyResult only, that we have to interpret anyway.
+			if manifestInfo.SourceIntegrityResult == nil && manifestInfo.VerifyResult != "" { // nolint:staticcheck
 				legacyVerifySignature := len(project.Spec.SignatureKeys) > 0 && sourceintegrity.IsGPGEnabled() // nolint:staticcheck
 				if legacyVerifySignature {
-					conditions = append(conditions, sourceintegrity.VerifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
+					var keys []string
+					for _, key := range project.Spec.SignatureKeys { // nolint:staticcheck
+						keys = append(keys, key.KeyID)
+					}
+					condition := sourceintegrity.VerifyGnuPGSignature(manifestInfo.Revision, keys, manifestInfo.VerifyResult) // nolint:staticcheck
+					if condition != nil {
+						conditions = append(conditions, *condition)
+					}
 				}
 			}
 		}

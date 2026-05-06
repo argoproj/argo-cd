@@ -16,7 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/git"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -673,18 +672,17 @@ var (
 )
 
 // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
-func VerifyGnuPGSignature(revision string, project *appsv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appsv1.ApplicationCondition {
+func VerifyGnuPGSignature(revision string, validKeys []string, verifyResult string) (condition *appsv1.ApplicationCondition) { // nolint:staticcheck
 	now := metav1.Now()
-	conditions := make([]appsv1.ApplicationCondition, 0)
 	// We need to have some data in the verification result to parse, otherwise there was no signature
-	if manifestInfo.VerifyResult != "" { // nolint:staticcheck
-		verifyResult := parseGitCommitVerification(manifestInfo.VerifyResult) // nolint:staticcheck
+	if verifyResult != "" {
+		verifyResult := parseGitCommitVerification(verifyResult)
 		switch verifyResult.Result {
 		case verifyResultGood:
 			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
 			validKey := false
-			for _, k := range project.Spec.SignatureKeys { // nolint:staticcheck
-				declared, _ := KeyID(k.KeyID)
+			for _, k := range validKeys {
+				declared, _ := KeyID(k)
 				present, _ := KeyID(verifyResult.KeyID)
 				if declared == present && declared != "" {
 					validKey = true
@@ -694,22 +692,22 @@ func VerifyGnuPGSignature(revision string, project *appsv1.AppProject, manifestI
 			if !validKey {
 				msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
 					verifyResult.Cipher, verifyResult.KeyID)
-				conditions = append(conditions, appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+				condition = &appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now}
 			}
 		case verifyResultInvalid:
 			msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
 				verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
-			conditions = append(conditions, appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			condition = &appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now}
 		default:
 			msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
-			conditions = append(conditions, appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			condition = &appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now}
 		}
 	} else {
 		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
-		conditions = append(conditions, appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+		condition = &appsv1.ApplicationCondition{Type: appsv1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now}
 	}
 
-	return conditions
+	return condition
 }
 
 // parseGitCommitVerification parses the output of "git verify-commit" and returns the result
@@ -814,7 +812,7 @@ func parseGitCommitVerification(signature string) pgpVerifyResult {
 		return unknownResult("Too many lines of gpg verify-commit output, abort.")
 	}
 	// No data found, return error
-	return unknownResult("Could not parse output of verify-commit, no verification data found.")
+	return unknownResult(fmt.Sprintf("Could not parse output of verify-commit, no verification data found, lines parsed %d.", linesParsed))
 }
 
 // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695

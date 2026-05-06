@@ -1500,8 +1500,9 @@ func Test_LsSignatures_Error(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		signatures, err := client.LsSignatures(tt.revision, tt.deep)
+		signatures, legacy, err := client.LsSignatures(tt.revision, tt.deep)
 		require.ErrorContains(t, err, tt.expectedMsg)
 		assert.Nil(t, signatures)
+		assert.Empty(t, legacy)
 	}
 }
