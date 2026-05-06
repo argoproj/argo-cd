@@ -25,8 +25,8 @@ type SandboxImpl interface {
 	MakeArgs(runOpts *SandboxRunOpts) []string
 }
 
-func ExecuteCommand(cfg *ArgocdSandboxConfig, allowRules map[string][]string, args []string) error {
-	modules, err := getModules(cfg)
+func ExecuteCommand(cfg *ArgocdSandboxConfig, impls []string, allowRules map[string][]string, args []string) error {
+	modules, err := getModulesFromConfig(cfg, impls)
 	if err != nil {
 		return err
 	}
@@ -172,10 +172,24 @@ func RunStartupTests() error {
 	return nil
 }
 
-func getModules(cfg *ArgocdSandboxConfig) ([]SandboxImpl, error) {
+func getAllModulesNames() []string {
+	return []string{LANDLOCK}
+}
+
+func getModulesFromConfig(cfg *ArgocdSandboxConfig, names []string) ([]SandboxImpl, error) {
 	var result []SandboxImpl
-	if nil != cfg.Landlock {
-		result = append(result, &Landlock{})
+	if len(names) == 0 {
+		names = getAllModulesNames()
+	}
+	for _, name := range names {
+		switch name {
+		case LANDLOCK:
+			if nil != cfg.Landlock {
+				result = append(result, &Landlock{})
+			}
+		default:
+			return nil, fmt.Errorf("No such sandbox module: %q", name)
+		}
 	}
 	return result, nil
 }

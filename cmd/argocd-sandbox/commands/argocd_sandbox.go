@@ -54,7 +54,7 @@ func NewCommand() *cobra.Command {
 			allowArgs := make(map[string][]string)
 			allowArgs[sandbox.LANDLOCK] = landlockAllowArgs
 			log.Infof("executing %v", cmdargs)
-			err = sandbox.ExecuteCommand(sandboxCfg, allowArgs, cmdargs)
+			err = sandbox.ExecuteCommand(sandboxCfg, useImplementations, allowArgs, cmdargs)
 			// Normally the process is replaced, we won't get there
 			log.Errorf("Failed to execute command: %v", err)
 			os.Exit(2)
