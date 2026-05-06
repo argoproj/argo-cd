@@ -207,6 +207,7 @@ nav:
   - user-guide/status-badge.md
   - user-guide/external-url.md
   - user-guide/extra_info.md
+  - user-guide/application-notice.md
   - Notification subscriptions: user-guide/subscriptions.md
   - user-guide/annotations-and-labels.md
   - Command Reference: user-guide/commands/argocd.md
