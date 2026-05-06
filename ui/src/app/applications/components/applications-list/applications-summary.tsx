@@ -37,30 +37,12 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
     });
 
     const attributes = [
-        {
-            title: 'APPLICATIONS',
-            value: applications.length
-        },
-        {
-            title: 'SYNCED',
-            value: applications.filter(app => app.status.sync.status === 'Synced').length
-        },
-        {
-            title: 'HEALTHY',
-            value: applications.filter(app => app.status.health.status === 'Healthy').length
-        },
-        {
-            title: 'HYDRATED',
-            value: applications.filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length
-        },
-        {
-            title: 'CLUSTERS',
-            value: new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name)).size
-        },
-        {
-            title: 'NAMESPACES',
-            value: new Set(applications.map(app => app.spec.destination.namespace)).size
-        }
+        {title: 'APPLICATIONS', value: applications.length},
+        {title: 'SYNCED', value: applications.filter(app => app.status.sync.status === 'Synced').length},
+        {title: 'HEALTHY', value: applications.filter(app => app.status.health.status === 'Healthy').length},
+        {title: 'HYDRATED', value: applications.filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length},
+        {title: 'CLUSTERS', value: new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name)).size},
+        {title: 'NAMESPACES', value: new Set(applications.map(app => app.spec.destination.namespace)).size}
     ];
 
     const charts = [
@@ -80,6 +62,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
             legend: hydratorColors as Map<string, string>
         }
     ];
+
     return (
         <div className='white-box applications-list__summary'>
             <div className='row'>
