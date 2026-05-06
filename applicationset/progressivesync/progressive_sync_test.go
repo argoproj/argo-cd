@@ -1,4 +1,4 @@
-package progressiveSync
+package progressivesync
 
 import (
 	"testing"
@@ -1416,7 +1416,7 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := IsProgressiveSyncDeletionOrderReversed(tt.appset)
+			result := IsDeletionOrderReversed(tt.appset)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

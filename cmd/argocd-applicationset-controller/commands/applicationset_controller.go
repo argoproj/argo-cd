@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
+	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 
 	"github.com/argoproj/pkg/v2/stats"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -262,7 +262,7 @@ func NewCommand() *cobra.Command {
 				ClusterInformer:              clusterInformer,
 				ConcurrentApplicationUpdates: concurrentApplicationUpdates,
 			}
-			appsetReconciler.ProgressiveSyncManager = progressiveSync.NewProgressiveSyncManager(cacheSyncClient, appsetReconciler)
+			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, appsetReconciler)
 
 			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")

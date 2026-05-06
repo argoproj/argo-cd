@@ -18,7 +18,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
-	appsetprogressiveSync "github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
+	appsetprogressiveSync "github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -900,7 +900,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewProgressiveSyncManager(r.Client, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r)
 
 			desiredApps := cc.desiredApps
 			if desiredApps == nil {
@@ -1658,7 +1658,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewProgressiveSyncManager(r.Client, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r)
 
 			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
 

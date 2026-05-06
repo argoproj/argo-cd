@@ -48,7 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/metrics"
-	"github.com/argoproj/argo-cd/v3/applicationset/progressiveSync"
+	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 	"github.com/argoproj/argo-cd/v3/applicationset/status"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -108,10 +108,10 @@ type ApplicationSetReconciler struct {
 	MaxResourcesStatusCount      int
 	ClusterInformer              *settings.ClusterInformer
 	ConcurrentApplicationUpdates int
-	ProgressiveSyncManager       *progressiveSync.ProgressiveSyncManager
+	ProgressiveSyncManager       *progressivesync.Manager
 }
 
-var _ progressiveSync.Dependencies = (*ApplicationSetReconciler)(nil)
+var _ progressivesync.Dependencies = (*ApplicationSetReconciler)(nil)
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
@@ -158,7 +158,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 			logCtx.Debugf("ownerReferences referring %s is deleted from generated applications", appsetName)
 		}
-		if progressiveSync.IsProgressiveSyncDeletionOrderReversed(&applicationSetInfo) {
+		if progressivesync.IsDeletionOrderReversed(&applicationSetInfo) {
 			logCtx.Debugf("DeletionOrder is set as Reverse on %s", appsetName)
 			currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 			if err != nil {
@@ -184,7 +184,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// ensure finalizer exists if deletionOrder is set as Reverse
-	if r.EnableProgressiveSyncs && progressiveSync.IsProgressiveSyncDeletionOrderReversed(&applicationSetInfo) {
+	if r.EnableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSetInfo) {
 		if !controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
 			controllerutil.AddFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
 			if err := r.Update(ctx, &applicationSetInfo); err != nil {
@@ -246,7 +246,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	appSyncMap := map[string]bool{}
 
 	if r.EnableProgressiveSyncs {
-		if !progressiveSync.IsRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+		if !progressivesync.IsRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
 			// If an appset was previously syncing with a `RollingSync` strategy but it has switched to the default strategy, clean up the progressive sync application statuses
 			logCtx.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
@@ -254,7 +254,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
-		} else if progressiveSync.IsRollingSyncStrategy(&applicationSetInfo) {
+		} else if progressivesync.IsRollingSyncStrategy(&applicationSetInfo) {
 			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
@@ -308,7 +308,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
-		if progressiveSync.ProgressiveSyncsRollingSyncStrategyEnabled(&applicationSetInfo) {
+		if progressivesync.RollingSyncStrategyEnabled(&applicationSetInfo) {
 			validApps = r.ProgressiveSyncManager.SyncDesiredApplications(logCtx, &applicationSetInfo, appSyncMap, validApps)
 		}
 	}
@@ -451,7 +451,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	evaluatedTypes[condition.Type] = true
 	newConditions := []argov1alpha1.ApplicationSetCondition{condition}
 
-	if !progressiveSync.IsRollingSyncStrategy(applicationSet) {
+	if !progressivesync.IsRollingSyncStrategy(applicationSet) {
 		// Progressing sync is always evaluated so conditions are removed when it is not enabled
 		evaluatedTypes[argov1alpha1.ApplicationSetConditionRolloutProgressing] = true
 	}
@@ -486,7 +486,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 			})
 		}
 	case argov1alpha1.ApplicationSetConditionRolloutProgressing:
-		if !progressiveSync.IsRollingSyncStrategy(applicationSet) {
+		if !progressivesync.IsRollingSyncStrategy(applicationSet) {
 			// if the condition is a rolling sync and it is disabled, ignore it
 			evaluatedTypes[condition.Type] = false
 		}

@@ -1,4 +1,4 @@
-package progressiveSync
+package progressivesync
 
 import (
 	"context"
@@ -39,7 +39,7 @@ type deleteInOrder struct {
 	Step    int
 }
 
-// Dependencies is the interface for dependencies of the ProgressiveSyncManager.
+// Dependencies is the interface for dependencies of the Manager.
 // It serves two purposes: 1) it prevents progressive sync from having direct access
 // to the ApplicationSet controller, and 2) it allows for easy mocking in tests.
 type Dependencies interface {
@@ -60,20 +60,20 @@ type Dependencies interface {
 	) error
 }
 
-type ProgressiveSyncManager struct {
+type Manager struct {
 	Client       client.Client
 	dependencies Dependencies
 }
 
-// NewProgressiveSyncManager creates a new manager with dependencies
-func NewProgressiveSyncManager(client client.Client, dependencies Dependencies) *ProgressiveSyncManager {
-	return &ProgressiveSyncManager{
+// NewManager creates a new manager with dependencies
+func NewManager(client client.Client, dependencies Dependencies) *Manager {
+	return &Manager{
 		Client:       client,
 		dependencies: dependencies,
 	}
 }
 
-func (m *ProgressiveSyncManager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, error) {
+func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, error) {
 	appDependencyList, appStepMap := buildAppDependencyList(logCtx, appset, desiredApplications)
 
 	_, err := m.UpdateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
@@ -99,7 +99,7 @@ func (m *ProgressiveSyncManager) PerformProgressiveSyncs(ctx context.Context, lo
 	return appsToSync, nil
 }
 
-func (m *ProgressiveSyncManager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
+func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
 	requeueTime := 10 * time.Second
 	stepLength := len(appset.Spec.Strategy.RollingSync.Steps)
 
@@ -155,7 +155,7 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 	}
 
 	steps := []argov1alpha1.ApplicationSetRolloutStep{}
-	if ProgressiveSyncsRollingSyncStrategyEnabled(&applicationSet) {
+	if RollingSyncStrategyEnabled(&applicationSet) {
 		steps = applicationSet.Spec.Strategy.RollingSync.Steps
 	}
 
@@ -229,7 +229,7 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 
 // check the status of each Application's status and promote Applications to the next status if needed
 // update AppSet status in-memory, controller will persist it
-func (m *ProgressiveSyncManager) UpdateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
 
@@ -425,14 +425,14 @@ func IsRollingSyncStrategy(appset *argov1alpha1.ApplicationSet) bool {
 	return appset.Spec.Strategy != nil && appset.Spec.Strategy.Type == "RollingSync" && appset.Spec.Strategy.RollingSync != nil
 }
 
-func ProgressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.ApplicationSet) bool {
+func RollingSyncStrategyEnabled(appset *argov1alpha1.ApplicationSet) bool {
 	// ProgressiveSync is enabled if the strategy is set to `RollingSync` + steps slice is not empty
 	return IsRollingSyncStrategy(appset) && len(appset.Spec.Strategy.RollingSync.Steps) > 0
 }
 
-func IsProgressiveSyncDeletionOrderReversed(appset *argov1alpha1.ApplicationSet) bool {
+func IsDeletionOrderReversed(appset *argov1alpha1.ApplicationSet) bool {
 	// When progressive sync is enabled + deletionOrder is set to Reverse (case-insensitive)
-	return ProgressiveSyncsRollingSyncStrategyEnabled(appset) && strings.EqualFold(appset.Spec.Strategy.DeletionOrder, ReverseDeletionOrder)
+	return RollingSyncStrategyEnabled(appset) && strings.EqualFold(appset.Spec.Strategy.DeletionOrder, ReverseDeletionOrder)
 }
 
 func isApplicationWithError(app argov1alpha1.Application) bool {
@@ -448,13 +448,13 @@ func isApplicationWithError(app argov1alpha1.Application) bool {
 }
 
 // check Applications that are in Waiting status and promote them to Pending if needed
-func (m *ProgressiveSyncManager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationSet.Status.ApplicationStatus))
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
-	if ProgressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
+	if RollingSyncStrategyEnabled(applicationSet) {
 		length := len(applicationSet.Spec.Strategy.RollingSync.Steps)
 
 		updateCountMap := make([]int, length)
@@ -480,7 +480,7 @@ func (m *ProgressiveSyncManager) UpdateApplicationSetApplicationStatusProgress(c
 
 			maxUpdateAllowed := true
 			maxUpdate := &intstr.IntOrString{}
-			if ProgressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
+			if RollingSyncStrategyEnabled(applicationSet) {
 				maxUpdate = applicationSet.Spec.Strategy.RollingSync.Steps[appStepMap[appStatus.Application]].MaxUpdate
 			}
 
@@ -529,7 +529,7 @@ func (m *ProgressiveSyncManager) UpdateApplicationSetApplicationStatusProgress(c
 	return appStatuses, nil
 }
 
-func (m *ProgressiveSyncManager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet) []argov1alpha1.ApplicationSetCondition {
+func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet) []argov1alpha1.ApplicationSetCondition {
 	if !IsRollingSyncStrategy(applicationSet) {
 		return applicationSet.Status.Conditions
 	}
@@ -583,7 +583,7 @@ func (m *ProgressiveSyncManager) updateApplicationSetApplicationStatusConditions
 	return applicationSet.Status.Conditions
 }
 
-func (m *ProgressiveSyncManager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
+func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
 	rolloutApps := []argov1alpha1.Application{}
 	for i := range desiredApplications {
 		pruneEnabled := false
