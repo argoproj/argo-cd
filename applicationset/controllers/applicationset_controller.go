@@ -41,7 +41,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -1104,7 +1103,7 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 	groups := r.getGroupsByApps(applications, desiredApplications, appset.Spec.Strategy.RollingSync.GroupKey)
 
 	if len(groups) == 0 {
-		// if groups list is emtpy it means that we have only one common group
+		// support progressive sync without groups
 		groups = []string{""}
 	}
 
@@ -1139,7 +1138,7 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
 
-	r.updateApplicationSetApplicationStatusConditions(ctx, &appset)
+	_ = r.updateApplicationSetApplicationStatusConditions(ctx, &appset)
 
 	return appsToSync, nil
 }
@@ -1540,9 +1539,9 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 	return appStatuses, nil
 }
 
-func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet) {
+func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet) []argov1alpha1.ApplicationSetCondition {
 	if !isRollingSyncStrategy(applicationSet) {
-		return
+		return applicationSet.Status.Conditions
 	}
 
 	completedWaves := map[string]bool{}
@@ -1591,6 +1590,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 			}, true,
 		)
 	}
+	return applicationSet.Status.Conditions
 }
 
 func findApplicationStatusIndex(appStatuses []argov1alpha1.ApplicationSetApplicationStatus, application string) int {
@@ -1783,7 +1783,7 @@ func (r *ApplicationSetReconciler) syncDesiredApplications(logCtx *log.Entry, ap
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
 		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.GetPrune()
-			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = ptr.To(false)
+			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = new(false)
 		}
 
 		appSetStatusPending := false
