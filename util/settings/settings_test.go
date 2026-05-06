@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	testutil "github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/test"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *SettingsManager) {
@@ -1620,6 +1621,201 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.False(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
 		assert.Contains(t, getCNFromCertificate(settings.Certificate), "argocd-e2e-server")
+	})
+	t.Run("Argo CD managed cert in argocd-server-tls is not external", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+					Annotations: map[string]string{
+						annotationTLSManagedByArgoCD: "true",
+					},
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.False(t, settings.CertificateIsExternal)
+		assert.NotNil(t, settings.Certificate)
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "localhost")
+	})
+}
+
+func TestInitializeSettings_SavesCertToServerTLSSecret(t *testing.T) {
+	t.Run("saves generated cert to argocd-server-tls not argocd-secret", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		_, err := settingsManager.InitializeSettings(false)
+		require.NoError(t, err)
+
+		// cert must be in argocd-server-tls with the managed annotation
+		tlsSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotEmpty(t, tlsSecret.Data[settingServerCertificate])
+		assert.NotEmpty(t, tlsSecret.Data[settingServerPrivateKey])
+		assert.Equal(t, "true", tlsSecret.Annotations[annotationTLSManagedByArgoCD])
+
+		// argocd-secret must not contain tls.crt or tls.key
+		argocdSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Empty(t, argocdSecret.Data[settingServerCertificate])
+		assert.Empty(t, argocdSecret.Data[settingServerPrivateKey])
+	})
+}
+
+func TestInitializeSettings_RefusesToOverwriteOperatorManagedSecret(t *testing.T) {
+	t.Run("returns error when argocd-server-tls exists without annotation and has no valid cert", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{},
+			},
+			// argocd-server-tls exists but has no annotation and no cert data —
+			// simulates a cert-manager-managed secret that hasn't been populated yet.
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		_, err := settingsManager.InitializeSettings(false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), annotationTLSManagedByArgoCD)
+
+		// The secret must not have been modified.
+		tlsSecret, getErr := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, getErr)
+		assert.Empty(t, tlsSecret.Data[settingServerCertificate], "operator-managed secret must not be overwritten")
+		assert.Empty(t, tlsSecret.Annotations[annotationTLSManagedByArgoCD], "annotation must not be stamped on operator-managed secret")
+	})
+}
+
+func TestInitializeSettings_RenewsExpiredManagedCert(t *testing.T) {
+	t.Run("regenerates expired Argo CD-managed cert in argocd-server-tls", func(t *testing.T) {
+		// generate a cert that is already expired
+		expiredCert, err := tlsutil.GenerateX509KeyPair(tlsutil.CertOptions{
+			Hosts:        []string{"localhost"},
+			Organization: "Argo CD",
+			ValidFrom:    time.Now().Add(-48 * time.Hour),
+			ValidFor:     time.Hour, // expired 47 hours ago
+		})
+		require.NoError(t, err)
+		expiredCertPEM, expiredKeyPEM := tlsutil.EncodeX509KeyPair(*expiredCert)
+
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+					Annotations: map[string]string{
+						annotationTLSManagedByArgoCD: "true",
+					},
+				},
+				Data: map[string][]byte{
+					settingServerCertificate: expiredCertPEM,
+					settingServerPrivateKey:  expiredKeyPEM,
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.InitializeSettings(false)
+		require.NoError(t, err)
+
+		// the returned cert must be a fresh one, not the expired one
+		require.NotNil(t, settings.Certificate)
+		x509Cert, err := x509.ParseCertificate(settings.Certificate.Certificate[0])
+		require.NoError(t, err)
+		assert.True(t, time.Now().Before(x509Cert.NotAfter), "renewed cert should not be expired")
+
+		// argocd-server-tls must have been updated with the new cert
+		tlsSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotEqual(t, expiredCertPEM, tlsSecret.Data[settingServerCertificate], "secret should contain the renewed cert")
 	})
 }
 
