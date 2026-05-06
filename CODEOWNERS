@@ -32,9 +32,9 @@ Dockerfile.*              @argoproj/argocd-approvers @argoproj/argocd-approvers-
 # Assorted stuff in hack/ with exclusions for not CI/build related paths
 /hack/                          @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
 /hack/gen-docs/                 @argoproj/argocd-approvers
-/hack/migrate-gitops-engine/	@argoproj/argocd-approvers
+/hack/migrate-gitops-engine/    @argoproj/argocd-approvers
 /hack/gen-resources/            @argoproj/argocd-approvers
-/hack/known_types/		@argoproj/argocd-approvers
+/hack/known_types/              @argoproj/argocd-approvers
 /hack/admonitions-to-alerts.sh  @argoproj/argocd-approvers
 /hack/generate-actions-list.sh  @argoproj/argocd-approvers
 /hack/git-ask-pass.sh           @argoproj/argocd-approvers
