@@ -13,4 +13,7 @@ const (
 	AnnotationKeyManifestGeneratePaths = "argocd.argoproj.io/manifest-generate-paths"
 	// AnnotationKeyManagedByURL contains the URL of the Argo CD instance managing the application
 	AnnotationKeyManagedByURL = "argocd.argoproj.io/managed-by-url"
+	// AnnotationKeyApplicationIcon is the annotation key to specify a custom icon URL for the application.
+	// The value must be a valid https:// URL. Used to display a custom icon in the Argo CD UI.
+	AnnotationKeyApplicationIcon = "argocd.argoproj.io/icon"
 )

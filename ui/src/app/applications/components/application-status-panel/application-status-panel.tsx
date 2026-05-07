@@ -6,6 +6,7 @@ import {revisionUrl} from '../../../shared/components/urls';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {ApplicationIcon, isValidIconUrl} from '../application-icon/application-icon';
 import {
     ApplicationSyncWindowStatusIcon,
     ComparisonStatusIcon,
@@ -234,6 +235,17 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const revisionType = source?.repoURL?.startsWith('oci://') ? 'oci' : source?.chart ? 'helm' : 'git';
     return (
         <div className='application-status-panel row'>
+            {(() => {
+                const iconUrl = application.metadata.annotations?.['argocd.argoproj.io/icon'];
+                if (iconUrl && isValidIconUrl(iconUrl)) {
+                    return (
+                        <div className='application-status-panel__item application-status-panel__item--icon'>
+                            <ApplicationIcon app={application} size='medium' />
+                        </div>
+                    );
+                }
+                return null;
+            })()}
             <div className='application-status-panel__item'>
                 {sectionHeader({title: 'APP HEALTH', helpContent: 'The health status of your app'})}
                 <div className='application-status-panel__item-value'>
