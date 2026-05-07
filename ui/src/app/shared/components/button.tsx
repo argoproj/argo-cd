@@ -30,7 +30,8 @@ export const Button = ({
         <button
             className={'argo-button ' + (!outline ? 'argo-button--base' : 'argo-button--base-o') + ' ' + (disabled ? 'disabled' : '') + ' ' + (className || '')}
             style={style}
-            onClick={onClick}>
+            onClick={onClick}
+            disabled={disabled}>
             {icon && <i className={'fa fa-' + icon + ' ' + (beat ? 'fa-beat' : '') + (rotate ? 'fa-rotate-180' : '')} />} {children}
         </button>
     </Tooltip>
