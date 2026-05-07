@@ -1349,6 +1349,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		err = runHelmBuild(appPath, h)
 		if err != nil {
 			var reposNotPermitted []string
+			var repoFailures []string
 			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
 			// the AppProject which the application is a part of
 			for _, repo := range helmRepos {
@@ -1357,13 +1358,25 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				chartCannotBeReached := strings.Contains(msg, "is not a valid chart repository or cannot be reached")
 				couldNotDownloadChart := strings.Contains(msg, "could not download")
 
-				if (chartCannotBeReached || couldNotDownloadChart) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
-					reposNotPermitted = append(reposNotPermitted, repo.Repo)
+				if chartCannotBeReached || couldNotDownloadChart {
+					if isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+						repoFailures = append(repoFailures, msg)
+					} else {
+						reposNotPermitted = append(reposNotPermitted, repo.Repo)
+					}
 				}
 			}
 
+			var errorMessages []string
+			if len(repoFailures) > 0 {
+				errorMessages = append(errorMessages, fmt.Sprintf("helm failures retrieving charts: %s", strings.Join(repoFailures, ", ")))
+			}
 			if len(reposNotPermitted) > 0 {
-				return nil, "", status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+				errorMessages = append(errorMessages, fmt.Sprintf("helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName))
+			}
+
+			if len(errorMessages) > 0 {
+				return nil, "", status.Errorf(codes.PermissionDenied, strings.Join(errorMessages, "; "))
 			}
 
 			return nil, "", err
