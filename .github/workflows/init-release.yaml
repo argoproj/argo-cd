@@ -12,7 +12,7 @@ on:
         required: true
         type: string
 
-permissions: {}
+permissions: { }
 
 env:
   # a workaround to disable harden runner
@@ -59,6 +59,14 @@ jobs:
           set -ue
           echo "Bumping version from $(cat VERSION) to ${{ inputs.TARGET_VERSION }}"
           echo "${{ inputs.TARGET_VERSION }}" > VERSION
+
+      - name: Update go.mod gitops-engine version to release tag
+        run: |
+          set -xue
+          # Update the require line to reference the gitops-engine tag that will be created at release time
+          # Handles both semver (v3.4.1) and pseudo-versions (v0.0.0-20260212142940-0cdd44bda77a)
+          GE_VERSION="v${{ inputs.TARGET_VERSION }}"
+          sed -i "s|github.com/argoproj/argo-cd/gitops-engine v[^ ]*|github.com/argoproj/argo-cd/gitops-engine ${GE_VERSION}|" go.mod
 
         # We install kustomize in the dist directory
       - name: Add dist to PATH
