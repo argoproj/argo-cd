@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -187,7 +188,12 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
 			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		}
-		// unfortunately, Azure DevOps doesn't provide a list of changed files
+		changedFiles = append(changedFiles, a.lookupAndFetchADOChangedFiles(
+			payload.Resource.Repository.RemoteURL,
+			payload.Resource.Repository.ID,
+			change.shaBefore,
+			change.shaAfter,
+		)...)
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
@@ -334,6 +340,21 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 type changeInfo struct {
 	shaBefore string
 	shaAfter  string
+}
+
+type adoDiffsResponse struct {
+	Changes            []adoDiffChange `json:"changes"`
+	AllChangesIncluded bool            `json:"allChangesIncluded"`
+}
+
+type adoDiffChange struct {
+	Item       adoDiffItem `json:"item"`
+	ChangeType string      `json:"changeType"`
+}
+
+type adoDiffItem struct {
+	Path     string `json:"path"`
+	IsFolder bool   `json:"isFolder"`
 }
 
 // HandleEvent handles webhook events for repo push events
@@ -542,6 +563,28 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	return nil
 }
 
+// lookupAndFetchADOChangedFiles fetches the list of changed files for an Azure DevOps push event.
+// The repo lookup acts as the SSRF guard: we only proceed if the repository is registered in ArgoCD.
+func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(repoURL, repoID, shaBefore, shaAfter string) []string {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	argoRepo, err := a.lookupRepositoryWithCredsTemplate(ctx, repoURL)
+	if err != nil {
+		log.Warnf("error finding repository for Azure DevOps webhook URL %s: %v", repoURL, err)
+		return nil
+	}
+	if argoRepo == nil {
+		log.Debugf("no repository configured for Azure DevOps webhook URL %s, skipping changed files lookup", repoURL)
+		return nil
+	}
+	changedFiles, err := fetchChangedFilesFromADO(ctx, argoRepo, repoID, shaBefore, shaAfter)
+	if err != nil {
+		log.Warnf("error fetching changed files from Azure DevOps diffs API: %v", err)
+		return nil
+	}
+	return changedFiles
+}
+
 // lookupRepository returns a repository with its credentials for a given URL. If there are no matching repository secret found,
 // then nil repository is returned.
 func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
@@ -557,6 +600,31 @@ func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL str
 		}
 	}
 	return repository, nil
+}
+
+// lookupRepositoryWithCredsTemplate returns credentials for a given URL by checking individual
+// repository secrets first, then falling back to credentials templates (matched by URL prefix).
+// Returns nil if no credentials are found.
+func (a *ArgoCDWebhookHandler) lookupRepositoryWithCredsTemplate(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
+	repo, err := a.lookupRepository(ctx, repoURL)
+	if err != nil || repo != nil {
+		return repo, err
+	}
+	creds, err := a.db.GetRepositoryCredentials(ctx, repoURL)
+	if err != nil {
+		return nil, fmt.Errorf("error getting repository credentials for %q: %w", repoURL, err)
+	}
+	if creds == nil {
+		log.Debugf("no repository or credentials template found for Azure DevOps URL %s", repoURL)
+		return nil, nil
+	}
+	log.Debugf("found matching credentials template for URL %s", repoURL)
+	return &v1alpha1.Repository{
+		Repo:        repoURL,
+		Username:    creds.Username,
+		Password:    creds.Password,
+		BearerToken: creds.BearerToken,
+	}, nil
 }
 
 func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
@@ -670,6 +738,79 @@ func fetchDiffStatFromBitbucket(_ context.Context, bbClient *bb.Client, owner, r
 		}
 	}
 	log.Debugf("changed files for spec %s: %v", spec, changedFiles)
+	return changedFiles, nil
+}
+
+// parseADOBaseURL extracts the base URL used to construct Azure DevOps REST API requests.
+// It supports both the modern format (https://dev.azure.com/{org}/{project}/_git/{repo})
+// and the legacy format (https://{org}.visualstudio.com/{project}/_git/{repo}).
+func parseADOBaseURL(repoURL string) (string, error) {
+	u, err := url.Parse(repoURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse Azure DevOps URL %q: %w", repoURL, err)
+	}
+	parts := strings.SplitN(strings.TrimPrefix(u.Path, "/"), "/", 3)
+	// Legacy format: https://{org}.visualstudio.com/{project}/_git/{repo}
+	// The org is in the host; the first path segment is the project.
+	if strings.HasSuffix(u.Host, ".visualstudio.com") {
+		if len(parts) < 1 || parts[0] == "" {
+			return "", fmt.Errorf("cannot extract project from Azure DevOps URL %q", repoURL)
+		}
+		return fmt.Sprintf("%s://%s/%s", u.Scheme, u.Host, parts[0]), nil
+	}
+	// Modern format: https://dev.azure.com/{org}/{project}/_git/{repo}
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return "", fmt.Errorf("cannot extract organization and project from Azure DevOps URL %q", repoURL)
+	}
+	return fmt.Sprintf("%s://%s/%s/%s", u.Scheme, u.Host, parts[0], parts[1]), nil
+}
+
+// fetchChangedFilesFromADO retrieves the list of files changed between two commits by calling
+// the Azure DevOps Diffs REST API.
+// See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get
+func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, repoID, shaBefore, shaAfter string) ([]string, error) {
+	baseURL, err := parseADOBaseURL(repo.Repo)
+	if err != nil {
+		return nil, err
+	}
+	// $top=2000 fetches up to 2000 file changes; large push sets beyond this limit will fall
+	// back to refreshing all matching applications.
+	apiURL := fmt.Sprintf(
+		"%s/_apis/git/repositories/%s/diffs/commits?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
+		baseURL, url.PathEscape(repoID), url.QueryEscape(shaBefore), url.QueryEscape(shaAfter),
+	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("error creating Azure DevOps diffs API request: %w", err)
+	}
+	if repo.Username != "" && repo.Password != "" {
+		req.SetBasicAuth(repo.Username, repo.Password)
+	} else if repo.BearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+repo.BearerToken)
+	}
+	log.Debugf("fetching changed files from Azure DevOps diffs API: %s", apiURL)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error calling Azure DevOps diffs API: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("azure DevOps diffs API returned unexpected status %d", resp.StatusCode)
+	}
+	var diffsResp adoDiffsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&diffsResp); err != nil {
+		return nil, fmt.Errorf("error decoding Azure DevOps diffs API response: %w", err)
+	}
+	if !diffsResp.AllChangesIncluded {
+		return nil, errors.New("azure DevOps diffs API response was truncated (more than 2000 files changed); falling back to full refresh")
+	}
+	changedFiles := make([]string, 0, len(diffsResp.Changes))
+	for _, c := range diffsResp.Changes {
+		if !c.Item.IsFolder && c.Item.Path != "" {
+			changedFiles = append(changedFiles, strings.TrimPrefix(c.Item.Path, "/"))
+		}
+	}
+	log.Debugf("Azure DevOps diffs API returned %d changed files between %s..%s", len(changedFiles), shaBefore, shaAfter)
 	return changedFiles, nil
 }
 
