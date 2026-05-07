@@ -342,7 +342,7 @@ export class App extends React.Component<
                 if (isSSO) {
                     window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 } else {
-                    history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
+                    window.location.href = `${basehref}/login?return_url=${encodeURIComponent(location.href)}`;
                 }
             }
         });
