@@ -1058,7 +1058,7 @@ func NormalizeSource(source *argoappv1.ApplicationSource) *argoappv1.Application
 func GetPermittedReposCredentials(proj *argoappv1.AppProject, repoCreds []*argoappv1.RepoCreds) ([]*argoappv1.RepoCreds, error) {
 	var permittedRepoCreds []*argoappv1.RepoCreds
 	for _, v := range repoCreds {
-		if proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.URL}) {
+		if proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.URL}) || proj.IsCredentialPermittedForAnySource(v.URL) {
 			permittedRepoCreds = append(permittedRepoCreds, v)
 		}
 	}
