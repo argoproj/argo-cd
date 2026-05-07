@@ -10643,6 +10643,10 @@
         "currentOperation": {
           "$ref": "#/definitions/v1alpha1HydrateOperation"
         },
+        "lastComparedDryRevision": {
+          "description": "LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.\nThis is updated on every evaluation, even when hydration is skipped due to no changes.",
+          "type": "string"
+        },
         "lastSuccessfulOperation": {
           "$ref": "#/definitions/v1alpha1SuccessfulHydrateOperation"
         }

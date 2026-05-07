@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -331,7 +332,7 @@ func TestHydratorNoOp(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Then().
-		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		ExpectConsistently(HydrationPhaseIs(HydrateOperationPhaseHydrated), 1*time.Second, 5*time.Second).
 		And(func(app *Application) {
 			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
 				"Hydrated SHA must not be empty")
@@ -384,4 +385,206 @@ func TestHydratorWithAuthenticatedRepo(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHydratorHydratesAutomatically_NewCommit(t *testing.T) {
+	// Test that when a new commit is made to the dry source, a normal refresh (not a hydrate request)
+	// detects the new revision and triggers hydration automatically.
+	// This scenario has no manifest-path-annotation, so the controller always treats a new revision as
+	// potentially having changes.
+	var firstDrySHA string
+	var firstHydratedSHA string
+	var firstStartedAt time.Time
+
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.SourceHydrator.CurrentOperation)
+			require.Equal(t, HydrateOperationPhaseHydrated, app.Status.SourceHydrator.CurrentOperation.Phase)
+			firstDrySHA = app.Status.SourceHydrator.CurrentOperation.DrySHA
+			firstHydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
+			firstStartedAt = app.Status.SourceHydrator.CurrentOperation.StartedAt.Time
+			require.NotEmpty(t, firstDrySHA)
+			require.NotEmpty(t, firstHydratedSHA)
+			require.False(t, firstStartedAt.IsZero())
+			t.Logf("Initial hydration - drySHA: %s, hydratedSHA: %s, startedAt: %s", firstDrySHA, firstHydratedSHA, firstStartedAt)
+
+			// Wait a second here because we using the firstStartedAt timestamp and do not want it to be the same
+			// if we refresh too fast
+			time.Sleep(time.Second)
+		}).
+		// Verify the hydration is stable: a normal refresh should not trigger a new hydration
+		// when no commits have been made.
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		ExpectConsistently(HydrationPhaseIs(HydrateOperationPhaseHydrated), 1*time.Second, 5*time.Second).
+		And(func(app *Application) {
+			require.Equal(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				"Dry SHA should not change without a new commit")
+			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"Hydrated SHA should not change without a new commit")
+			require.Equal(t, firstStartedAt, app.Status.SourceHydrator.CurrentOperation.StartedAt.Time,
+				"StartedAt should not change — no new hydration operation should have been triggered")
+		}).
+		// Now make a manifest-affecting change and verify that a normal refresh triggers re-hydration.
+		When().
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			require.NotEqual(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				"Dry SHA should change after a new commit")
+			require.NotEqual(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"Hydrated SHA should change when manifests differ")
+			t.Logf("After new commit - drySHA: %s, hydratedSHA: %s",
+				app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
+		}).
+		// Verify the new hydration is stable.
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		ExpectConsistently(HydrationPhaseIs(HydrateOperationPhaseHydrated), 1*time.Second, 5*time.Second)
+}
+
+func TestHydratorHydratesAutomatically_NewCommit_WithChanges(t *testing.T) {
+	// Test that when a new commit is made to the dry source with manifest-generate-paths annotation,
+	// and the commit affects the watched path, hydration is triggered automatically.
+	var firstDrySHA string
+	var firstHydratedSHA string
+	var firstStartedAt time.Time
+
+	ctx := Given(t)
+	ctx.Path("guestbook").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
+			app.ObjectMeta.Annotations = map[string]string{
+				AnnotationKeyManifestGeneratePaths: ".",
+			}
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "guestbook",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "guestbook",
+				},
+			}
+		}).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			firstDrySHA = app.Status.SourceHydrator.CurrentOperation.DrySHA
+			firstHydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
+			firstStartedAt = app.Status.SourceHydrator.CurrentOperation.StartedAt.Time
+			require.NotEmpty(t, firstDrySHA)
+			require.NotEmpty(t, firstHydratedSHA)
+			t.Logf("Initial hydration - drySHA: %s, hydratedSHA: %s", firstDrySHA, firstHydratedSHA)
+
+			// Wait a second here because we using the firstStartedAt timestamp and do not want it to be the same
+			// if we refresh too fast
+			time.Sleep(time.Second)
+		}).
+		// A change inside the watched path should trigger re-hydration.
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			require.NotEqual(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				"Dry SHA should change after a new commit")
+			require.NotEqual(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"Hydrated SHA should change when manifests differ")
+			require.NotEqual(t, firstStartedAt, app.Status.SourceHydrator.CurrentOperation.StartedAt.Time,
+				"StartedAt should change — a new hydration operation should have been triggered")
+			t.Logf("After change in watched path - drySHA: %s, hydratedSHA: %s",
+				app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
+		})
+}
+
+func TestHydratorHydratesAutomatically_NewCommit_WithoutChanges(t *testing.T) {
+	// Test that when a new commit is made to the dry source with manifest-generate-paths annotation,
+	// but the commit does NOT affect the watched path, hydration is NOT re-triggered.
+	var firstDrySHA string
+	var firstHydratedSHA string
+	var firstStartedAt time.Time
+
+	ctx := Given(t)
+	ctx.Path("guestbook").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
+			app.ObjectMeta.Annotations = map[string]string{
+				AnnotationKeyManifestGeneratePaths: ".",
+			}
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "guestbook",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "guestbook",
+				},
+			}
+		}).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			firstDrySHA = app.Status.SourceHydrator.CurrentOperation.DrySHA
+			firstHydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
+			firstStartedAt = app.Status.SourceHydrator.CurrentOperation.StartedAt.Time
+			require.NotEmpty(t, firstDrySHA)
+			require.NotEmpty(t, firstHydratedSHA)
+			t.Logf("Initial hydration - drySHA: %s, hydratedSHA: %s", firstDrySHA, firstHydratedSHA)
+
+			// Wait a second here because we using the firstStartedAt timestamp and do not want it to be the same
+			// if we refresh too fast
+			time.Sleep(time.Second)
+		}).
+		// A change outside the watched path should NOT trigger re-hydration.
+		// Use fixture.AddFile directly to write outside the context path.
+		AndAction(func() {
+			fixture.AddFile(t, "unrelated-file.md", "# This change is outside the manifest-generate-paths")
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		ExpectConsistently(HydrationPhaseIs(HydrateOperationPhaseHydrated), 1*time.Second, 5*time.Second).
+		And(func(app *Application) {
+			require.Equal(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				"Dry SHA should not change — no new hydration operation should have been triggered")
+			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"Hydrated SHA should not change when the commit is outside the watched path")
+			require.Equal(t, firstStartedAt, app.Status.SourceHydrator.CurrentOperation.StartedAt.Time,
+				"StartedAt should not change — no new hydration operation should have been triggered")
+			t.Logf("After change outside watched path - drySHA: %s, hydratedSHA: %s",
+				app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
+		})
 }

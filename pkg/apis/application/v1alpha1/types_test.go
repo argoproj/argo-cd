@@ -4561,6 +4561,72 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			sourceIndex: 0,
 			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
 		},
+		{
+			name: "HasSourceHydrator_NegativeIndex_ReturnsDrySource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: -1,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "dry-path",
+				TargetRevision: "main",
+			},
+		},
+		{
+			name: "HasSourceHydrator_ZeroIndex_ReturnsSyncSource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: 0,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "sync-path",
+				TargetRevision: "hydrated",
+			},
+		},
+		{
+			name: "HasSourceHydrator_PositiveIndex_ReturnsSyncSource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: 1,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "sync-path",
+				TargetRevision: "hydrated",
+			},
+		},
 	}
 
 	for _, tc := range testCases {

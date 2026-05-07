@@ -109,11 +109,12 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 			namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().
 				Applications(app.Namespace)
 
+			ht := v1alpha1.HydrateTypeNormal
 			if _, err := argo.RefreshApp(
 				namespacedAppInterface,
 				app.Name,
 				v1alpha1.RefreshTypeNormal,
-				false,
+				&ht,
 			); err != nil {
 				log.Errorf("Failed to refresh app '%s': %v",
 					app.Name, err)

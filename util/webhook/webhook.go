@@ -431,22 +431,22 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					refreshPaths := path.GetSourceRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						hydrate := false
+						var hydrateType *v1alpha1.HydrateType
 						if app.Spec.SourceHydrator != nil {
 							drySource := app.Spec.SourceHydrator.GetDrySource()
 							if (&source).Equals(&drySource) {
-								hydrate = true
+								ht := v1alpha1.HydrateTypeNormal
+								hydrateType = &ht
 							}
 						}
 
 						// refresh paths have changed, so we need to refresh the app
 						log.Infof("refreshing app '%s' from webhook", app.Name)
-						if hydrate {
-							// log if we need to hydrate the app
+						if hydrateType != nil {
 							log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
 						}
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						if _, err := argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, hydrate); err != nil {
+						if _, err := argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, hydrateType); err != nil {
 							log.Errorf("Failed to refresh app '%s': %v", app.Name, err)
 						}
 						break // we don't need to check other sources

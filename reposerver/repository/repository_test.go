@@ -5276,6 +5276,82 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 	}
 }
 
+func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) {
+	// UpdateRevisionForPaths renames the manifest cache entry from the synced
+	// revision to the resolved revision. Callers are expected to persist the
+	// returned resolved revision so that subsequent calls use it as the new
+	// SyncedRevision. If a caller re-uses the old SyncedRevision, the cache
+	// entry will not be found (it was already renamed) and the call returns
+	// Changes=true as a safe fallback.
+	resolvedRevision := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	syncedRevision := "1e67a504d03def3a6a1125d934cb511680f72555"
+
+	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote("HEAD").Return(resolvedRevision, nil)
+		gitClient.EXPECT().LsRemote(syncedRevision).Return(syncedRevision, nil)
+		gitClient.EXPECT().LsRemote(resolvedRevision).Return(resolvedRevision, nil)
+		gitClient.EXPECT().Root().Return("")
+		gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+	}, ".")
+
+	request := &apiclient.UpdateRevisionForPathsRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          "HEAD",
+		SyncedRevision:    syncedRevision,
+		Paths:             []string{"."},
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "test-persist-revision",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
+	}
+
+	// Seed the manifest cache for the synced revision.
+	err := cacheMocks.cache.SetManifests(
+		syncedRevision,
+		request.ApplicationSource,
+		request.RefSources,
+		request,
+		request.Namespace,
+		request.TrackingMethod,
+		request.AppLabelKey,
+		request.AppName,
+		&cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
+		nil,
+		request.InstallationID,
+		nil,
+	)
+	require.NoError(t, err)
+
+	// First call: no file changes, cache renamed from syncedRevision to resolvedRevision
+	resp1, err := s.UpdateRevisionForPaths(t.Context(), request)
+	require.NoError(t, err)
+	assert.False(t, resp1.Changes, "First call should detect no changes")
+	assert.Equal(t, resolvedRevision, resp1.Revision)
+
+	// Second call with the OLD SyncedRevision: cache miss because the entry
+	// was already renamed. Returns Changes=true as a safe fallback.
+	resp2, err := s.UpdateRevisionForPaths(t.Context(), request)
+	require.NoError(t, err)
+	assert.True(t, resp2.Changes, "Repeating with old SyncedRevision returns Changes=true (cache was renamed)")
+
+	// Third call with the RESOLVED revision as SyncedRevision: the caller
+	// persisted the resolved revision from the first call. The cache entry
+	// exists under the resolved revision key, so revisions match and it
+	// returns Changes=false without needing a cache lookup.
+	request.SyncedRevision = resolvedRevision
+	resp3, err := s.UpdateRevisionForPaths(t.Context(), request)
+	require.NoError(t, err)
+	assert.False(t, resp3.Changes, "Using the resolved revision as SyncedRevision should detect no changes")
+	assert.Equal(t, resolvedRevision, resp3.Revision)
+}
+
 func Test_getRepoSanitizerRegex(t *testing.T) {
 	r := getRepoSanitizerRegex("/tmp/_argocd-repo")
 	msg := r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE and other stuff", "<path to cached source>")
