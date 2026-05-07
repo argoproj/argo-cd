@@ -1181,9 +1181,21 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 			a.SetCascadedDeletion(policyFinalizer)
 			patchFinalizer = true
 		}
-	} else if a.CascadedDeletion() {
-		a.UnSetCascadedDeletion()
-		patchFinalizer = true
+	} else {
+		if a.CascadedDeletion() {
+			a.UnSetCascadedDeletion()
+			patchFinalizer = true
+		}
+
+		// Non-cascading deletes must not be blocked by delete-hook finalizers.
+		if a.HasPreDeleteFinalizer() || a.HasPreDeleteFinalizer("cleanup") {
+			a.UnSetPreDeleteFinalizerAll()
+			patchFinalizer = true
+		}
+		if a.HasPostDeleteFinalizer() || a.HasPostDeleteFinalizer("cleanup") {
+			a.UnSetPostDeleteFinalizerAll()
+			patchFinalizer = true
+		}
 	}
 
 	if patchFinalizer {
