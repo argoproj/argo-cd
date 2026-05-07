@@ -1731,6 +1731,155 @@ func TestHandleAppUpdated(t *testing.T) {
 	assert.Equal(t, CompareWithRecent, level)
 }
 
+func TestRequestAppOperation_EnqueuesOperationQueueWhenOperationAdded(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{
+				Server:    "*",
+				Namespace: "*",
+			}},
+		},
+	}
+	app := newFakeApp()
+	app.Status.OperationState = nil
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}, nil)
+
+	require.Zero(t, ctrl.appOperationQueue.Len())
+	ctrl.requestAppOperation(app.QualifiedName())
+
+	assert.Eventually(t, func() bool {
+		return ctrl.appOperationQueue.Len() > 0
+	}, time.Second, 10*time.Millisecond)
+	assert.True(t, ctrl.isAppOperationRequested(ctrl.toAppKey(app.QualifiedName())))
+}
+
+func TestProcessAppOperationQueueItem_UsesFreshAppForExplicitOperationRequest(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{
+				Server:    "*",
+				Namespace: "*",
+			}},
+		},
+	}
+	app := newFakeApp()
+	app.Status.OperationState = nil
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}, nil)
+
+	liveApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	liveApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+	}
+	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(t.Context(), liveApp, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	staleApp := app.DeepCopy()
+	staleApp.ResourceVersion = liveApp.ResourceVersion
+	require.NoError(t, ctrl.appInformer.GetStore().Update(staleApp))
+
+	ctrl.requestAppOperation(app.QualifiedName())
+	ctrl.processAppOperationQueueItem()
+
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, updatedApp.Status.OperationState)
+	assert.NotEmpty(t, string(updatedApp.Status.OperationState.Phase))
+}
+
+func TestProcessAppOperationQueueItem_RequeuesOnTransientGetFailure(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{
+				Server:    "*",
+				Namespace: "*",
+			}},
+		},
+	}
+	app := newFakeApp()
+	app.Status.OperationState = nil
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}, nil)
+
+	liveApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	liveApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+	}
+	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(t.Context(), liveApp, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	staleApp := app.DeepCopy()
+	staleApp.ResourceVersion = liveApp.ResourceVersion
+	require.NoError(t, ctrl.appInformer.GetStore().Update(staleApp))
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	gets := 0
+	fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if gets == 0 {
+			gets++
+			return true, nil, apierrors.NewTooManyRequests("transient get failure", 1)
+		}
+		return false, nil, nil
+	})
+
+	ctrl.requestAppOperation(app.QualifiedName())
+	ctrl.processAppOperationQueueItem()
+
+	assert.Eventually(t, func() bool {
+		return ctrl.appOperationQueue.Len() > 0
+	}, time.Second, 10*time.Millisecond)
+
+	require.NoError(t, ctrl.appInformer.GetStore().Update(staleApp))
+	ctrl.processAppOperationQueueItem()
+
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, updatedApp.Status.OperationState)
+	assert.NotEmpty(t, string(updatedApp.Status.OperationState.Phase))
+}
+
 func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	app1 := newFakeApp()
 	app1.Name = "app1"
