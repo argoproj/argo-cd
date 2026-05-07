@@ -10,16 +10,16 @@ import (
 )
 
 type BitBucketCloudProvider struct {
-	client      *ExtendedClient
-	allBranches bool
-	owner       string
+	client         *ExtendedClient
+	allBranches    bool
+	owner          string
+	// bearer tokens (workspace access tokens, OAuth client credentials) have no
+	// user membership context, so the role=member filter must be omitted.
+	omitRoleFilter bool
 }
 
 type ExtendedClient struct {
 	*bitbucket.Client
-	// token is stored separately to determine Role filtering in ListRepos:
-	// bearer tokens can list all workspace repos without a role filter.
-	token string
 }
 
 var _ SCMProviderService = &BitBucketCloudProvider{}
@@ -42,9 +42,8 @@ func NewBitBucketCloudProviderBearerToken(owner string, token string, allBranche
 	}
 	client := &ExtendedClient{
 		Client: bitbucketClient,
-		token:  token,
 	}
-	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches}, nil
+	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches, omitRoleFilter: true}, nil
 }
 
 func (g *BitBucketCloudProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
@@ -79,7 +78,7 @@ func (g *BitBucketCloudProvider) ListRepos(_ context.Context, cloneProtocol stri
 	opt := &bitbucket.RepositoriesOptions{
 		Owner: g.owner,
 	}
-	if g.client.token == "" {
+	if !g.omitRoleFilter {
 		opt.Role = "member"
 	}
 	repos := []*Repository{}
