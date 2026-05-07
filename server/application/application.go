@@ -3048,7 +3048,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			if liveObj.GroupVersionKind().Kind != liveResource.Kind {
 				return nil, status.Errorf(codes.InvalidArgument, "kind mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Kind, liveObj.GroupVersionKind().Kind, liveResource.Group, liveResource.Kind, liveResource.Name)
 			}
-			// Validate permissions for the live object requested. It has to be part of the applciation's managed resources.
+			// Validate permissions for the requested live object. It has to be part of the application's managed resources.
 			found := false
 			for _, item := range managedResources {
 				if item.Kind == liveResource.Kind && item.Group == liveResource.Group && item.Namespace == liveResource.Namespace && item.Name == liveResource.Name {
