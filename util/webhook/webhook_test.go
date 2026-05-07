@@ -1730,12 +1730,6 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 		return resp, nil
 	})
 
-	repo := &v1alpha1.Repository{
-		Repo:     testRepoURL,
-		Username: "test-user",
-		Password: "test-pat",
-	}
-
 	tests := []struct {
 		name          string
 		repoURL       string
@@ -1789,7 +1783,12 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			changedFiles, err := fetchChangedFilesFromADO(t.Context(), repo, tt.repoURL, tt.repoID, tt.shaBefore, tt.shaAfter)
+			repo := &v1alpha1.Repository{
+				Repo:     tt.repoURL,
+				Username: "test-user",
+				Password: "test-pat",
+			}
+			changedFiles, err := fetchChangedFilesFromADO(t.Context(), repo, tt.repoID, tt.shaBefore, tt.shaAfter)
 			if tt.expectErr {
 				require.Error(t, err)
 			} else {
