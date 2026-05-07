@@ -188,28 +188,12 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
 			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		}
-		// The webhook payload does not include changed files. Fetch them from the Azure DevOps
-		// REST API using the repository credentials already stored in ArgoCD. The repo lookup
-		// acts as the SSRF guard: we only proceed if the repository is registered in ArgoCD.
-		{
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			argoRepo, err := a.lookupRepositoryWithCredsTemplate(ctx, payload.Resource.Repository.RemoteURL)
-			if err != nil {
-				log.Warnf("error finding repository for Azure DevOps webhook URL %s: %v", payload.Resource.Repository.RemoteURL, err)
-				break
-			}
-			if argoRepo == nil {
-				log.Debugf("no repository configured for Azure DevOps webhook URL %s, skipping changed files lookup", payload.Resource.Repository.RemoteURL)
-				break
-			}
-			adoChangedFiles, err := fetchChangedFilesFromADO(ctx, argoRepo, payload.Resource.Repository.RemoteURL, payload.Resource.Repository.ID, change.shaBefore, change.shaAfter)
-			if err != nil {
-				log.Warnf("error fetching changed files from Azure DevOps diffs API: %v", err)
-				break
-			}
-			changedFiles = append(changedFiles, adoChangedFiles...)
-		}
+		changedFiles = append(changedFiles, a.lookupAndFetchADOChangedFiles(
+			payload.Resource.Repository.RemoteURL,
+			payload.Resource.Repository.ID,
+			change.shaBefore,
+			change.shaAfter,
+		)...)
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
@@ -577,6 +561,28 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	}
 
 	return nil
+}
+
+// lookupAndFetchADOChangedFiles fetches the list of changed files for an Azure DevOps push event.
+// The repo lookup acts as the SSRF guard: we only proceed if the repository is registered in ArgoCD.
+func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(repoURL, repoID, shaBefore, shaAfter string) []string {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	argoRepo, err := a.lookupRepositoryWithCredsTemplate(ctx, repoURL)
+	if err != nil {
+		log.Warnf("error finding repository for Azure DevOps webhook URL %s: %v", repoURL, err)
+		return nil
+	}
+	if argoRepo == nil {
+		log.Debugf("no repository configured for Azure DevOps webhook URL %s, skipping changed files lookup", repoURL)
+		return nil
+	}
+	changedFiles, err := fetchChangedFilesFromADO(ctx, argoRepo, repoURL, repoID, shaBefore, shaAfter)
+	if err != nil {
+		log.Warnf("error fetching changed files from Azure DevOps diffs API: %v", err)
+		return nil
+	}
+	return changedFiles
 }
 
 // lookupRepository returns a repository with its credentials for a given URL. If there are no matching repository secret found,
