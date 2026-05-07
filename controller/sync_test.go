@@ -459,6 +459,100 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, int64(4), replicas)
 	})
+	t.Run("will return normalized targets without merge patch when no ignore rules configured", func(t *testing.T) {
+		// given - no ignore differences rules
+		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
+
+		originalTarget := f.comparisonResult.reconciliationResult.Target[0]
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then - diff.Normalize() still runs (for standard Kubernetes normalization),
+		// so the returned target is a deep copy, not the same pointer. But the content
+		// should match the original target since no merge patch is applied.
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		assert.NotSame(t, originalTarget, targets[0])
+		assert.Equal(t, originalTarget.GetAnnotations()["iksm-version"], targets[0].GetAnnotations()["iksm-version"])
+	})
+	t.Run("will not corrupt CRD target when no ignore rules configured", func(t *testing.T) {
+		// given - a CRD resource (like Argo Rollout) with no ignore rules
+		// This is the exact scenario from issue #26588: RespectIgnoreDifferences=true
+		// with no actual ignoreDifferences rules should not modify the target.
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{}, nil, false, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		cr := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+
+		// when
+		targets, err := normalizeTargetResources(cr)
+
+		// then - target should be unchanged
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		// The env array in the target should be preserved exactly
+		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Len(t, containers, 1)
+
+		env := containers[0].(map[string]any)["env"].([]any)
+		require.Len(t, env, 2)
+		// Verify the updated value is preserved
+		assert.Equal(t, "ENV_VAR_1", env[0].(map[string]any)["name"])
+		assert.Equal(t, "value-1-updated", env[0].(map[string]any)["value"])
+		assert.Equal(t, "ENV_VAR_2", env[1].(map[string]any)["name"])
+		assert.Equal(t, "value-2", env[1].(map[string]any)["value"])
+	})
+	t.Run("will still normalize CRD target when ignore rules are configured", func(t *testing.T) {
+		// given - a CRD resource with ignore rules configured
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "argoproj.io",
+				Kind:         "Rollout",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, false, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		cr := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+
+		// when
+		targets, err := normalizeTargetResources(cr)
+
+		// then - normalization should have been applied
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		// The replicas field should be normalized to match the live value
+		replicas, ok, err := unstructured.NestedInt64(targets[0].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, int64(1), replicas)
+	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
 		t.Skip("limitation in the current implementation")
 		// given

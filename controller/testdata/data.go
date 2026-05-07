@@ -32,4 +32,10 @@ var (
 
 	//go:embed additional-image-replicas-deployment.yaml
 	AdditionalImageReplicaDeploymentYaml string
+
+	//go:embed live-rollout.yaml
+	LiveRolloutYaml string
+
+	//go:embed target-rollout.yaml
+	TargetRolloutYaml string
 )
