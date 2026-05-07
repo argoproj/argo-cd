@@ -566,6 +566,60 @@ awsAuthConfig:
     profile: string
 # Configure external command to supply client credentials
 # See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
+
+### Alternative: Using AWS Environment Variables (Not Recommended)
+
+In environments where IAM Roles for Service Accounts (IRSA) or AWS profile-based authentication is not available, Argo CD can use AWS credentials provided via environment variables instead of the `profile` field.
+
+Argo CD components (such as `argocd-application-controller` and `argocd-server`) read credentials from:
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN` (optional)
+
+These credentials are used by the AWS SDK to assume the IAM role specified in `awsAuthConfig`.
+
+#### Example: Inject credentials via Kubernetes Secret
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-aws-credentials
+  namespace: argocd
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: <your-access-key>
+  AWS_SECRET_ACCESS_KEY: <your-secret-key>
+```
+
+Patch Argo CD components:
+
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-application-controller
+        envFrom:
+        - secretRef:
+            name: argocd-aws-credentials
+```
+
+Apply similar configuration to other components as needed.
+
+#### ⚠️ Limitations
+
+- Credentials are shared globally across all clusters
+- No automatic credential rotation (requires restarting components)
+- Increased risk of credential exposure via environment variables
+
+#### Recommendation
+
+This approach is **not recommended for production use**.
+
+Prefer IAM Roles for Service Accounts (IRSA) or AWS profile-based authentication.
+
 execProviderConfig:
     command: string
     args: [
