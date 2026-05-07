@@ -215,6 +215,7 @@ type ArgoCDServer struct {
 	Shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
+	dauTracker         *metrics.DAUTracker
 }
 
 type ArgoCDServerOpts struct {
@@ -568,6 +569,8 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		}
 	}()
 	metricsServ := metrics.NewMetricsServer(server.MetricsHost, server.MetricsPort)
+	server.dauTracker = metrics.NewDAUTracker(24*time.Hour, metricsServ)
+	server.dauTracker.Start(1 * time.Minute)
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
@@ -1523,6 +1526,9 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 		// Add claims to the context to inspect for RBAC
 		//nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", claims)
+		if userID := util_session.GetUserIdentifier(ctx); userID != "" {
+			server.dauTracker.RecordUser(userID)
+		}
 		if newToken != "" {
 			// Session tokens that are expiring soon should be regenerated if user stays active.
 			// The renewed token is stored in outgoing ServerMetadata. Metadata is available to grpc-gateway
