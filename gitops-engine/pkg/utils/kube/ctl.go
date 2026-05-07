@@ -328,17 +328,6 @@ func (k *KubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config, openAPISch
 	}, cleanup, nil
 }
 
-// ManageServerSideDiffDryRuns is deprecated. Use the Kubectl interface method instead.
-// This function is kept for backward compatibility.
-func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
-	k := &KubectlCmd{
-		Log:          log,
-		Tracer:       tracer,
-		OnKubectlRun: onKubectlRun,
-	}
-	return k.ManageServerSideDiffDryRuns(config, openAPISchema)
-}
-
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	span := k.Tracer.StartSpan("ConvertToVersion")
@@ -386,7 +375,7 @@ func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun OnKubectlRunFunc) {
 func RunAllAsync(count int, action func(i int) error) error {
 	g, ctx := errgroup.WithContext(context.Background())
 loop:
-	for i := 0; i < count; i++ {
+	for i := range count {
 		index := i
 		g.Go(func() error {
 			return action(index)
