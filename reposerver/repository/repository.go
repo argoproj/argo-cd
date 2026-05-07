@@ -1713,7 +1713,15 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
-		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
+		kustomizeOpts := q.KustomizeOptions
+		if kustomizeOpts != nil {
+			if effectiveBuildOptions := settings.GetKustomizeBuildOptions(kustomizeOpts, *q.ApplicationSource); effectiveBuildOptions != kustomizeOpts.BuildOptions {
+				optsCopy := *kustomizeOpts
+				optsCopy.BuildOptions = effectiveBuildOptions
+				kustomizeOpts = &optsCopy
+			}
+		}
+		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, kustomizeOpts, env, &kustomize.BuildOpts{
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
@@ -2582,7 +2590,15 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 		ApplicationSource: q.Source,
 	}
 	env := newEnv(&fakeManifestRequest, reversion)
-	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil)
+	kustomizeOpts := q.KustomizeOptions
+	if kustomizeOpts != nil {
+		if effectiveBuildOptions := settings.GetKustomizeBuildOptions(kustomizeOpts, *q.Source); effectiveBuildOptions != kustomizeOpts.BuildOptions {
+			optsCopy := *kustomizeOpts
+			optsCopy.BuildOptions = effectiveBuildOptions
+			kustomizeOpts = &optsCopy
+		}
+	}
+	_, images, _, err := k.Build(q.Source.Kustomize, kustomizeOpts, env, nil)
 	if err != nil {
 		return err
 	}
