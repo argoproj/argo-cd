@@ -295,3 +295,53 @@ func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
 	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
 }
+
+func TestSCMProviderBitbucketCloudRequiresAuth(t *testing.T) {
+	t.Parallel()
+
+	generator := &SCMProviderGenerator{SCMConfig: SCMConfig{enableSCMProviders: true}}
+
+	t.Run("neither bearerToken nor appPasswordRef", func(t *testing.T) {
+		t.Parallel()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "set"},
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+						Bitbucket: &argoprojiov1alpha1.SCMProviderGeneratorBitbucket{
+							Owner: "myorg",
+						},
+					},
+				}},
+			},
+		}
+
+		_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "bitbucket scm provider requires either bearerToken or appPasswordRef")
+	})
+
+	t.Run("both bearerToken and appPasswordRef", func(t *testing.T) {
+		t.Parallel()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "set"},
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+						Bitbucket: &argoprojiov1alpha1.SCMProviderGeneratorBitbucket{
+							Owner:          "myorg",
+							BearerToken:    &argoprojiov1alpha1.BearerTokenBitbucketCloud{TokenRef: &argoprojiov1alpha1.SecretRef{SecretName: "s", Key: "k"}},
+							AppPasswordRef: &argoprojiov1alpha1.SecretRef{SecretName: "s", Key: "k"},
+						},
+					},
+				}},
+			},
+		}
+
+		_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "bitbucket scm provider bearerToken and appPasswordRef are mutually exclusive")
+	})
+}

@@ -536,12 +536,14 @@ func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
 type SCMProviderGeneratorBitbucket struct {
 	// Bitbucket workspace to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
-	// Bitbucket user to use when authenticating.  Should have a "member" role to be able to read all repositories and branches.  Required
-	User string `json:"user" protobuf:"bytes,2,opt,name=user"`
-	// The app password to use for the user.  Required. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
-	AppPasswordRef *SecretRef `json:"appPasswordRef" protobuf:"bytes,3,opt,name=appPasswordRef"`
+	// Bitbucket user to use when authenticating with app password auth. Required when using appPasswordRef.
+	User string `json:"user,omitempty" protobuf:"bytes,2,opt,name=user"`
+	// The app password to use for the user. Required when using app password auth. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
+	AppPasswordRef *SecretRef `json:"appPasswordRef,omitempty" protobuf:"bytes,3,opt,name=appPasswordRef"`
 	// Scan all branches instead of just the main branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
+	// Bearer token for workspace, project, or repository access tokens. Mutually exclusive with user/appPasswordRef.
+	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
 }
 
 // SCMProviderGeneratorBitbucketServer defines connection info specific to Bitbucket Server.
