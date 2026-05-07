@@ -3,7 +3,7 @@ import * as React from 'react';
 import {Timestamp} from '../../../shared/components/timestamp';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
+export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number; hideAuthorComment?: boolean}) => {
     if (props.type === 'helm') {
         return null;
     }
@@ -38,11 +38,18 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
                         placement='bottom'
                         allowHTML={true}>
                         <div className='application-status-panel__item-name'>
-                            {m.authors && (
+                            {props.hideAuthorComment ? (
                                 <div className='application-status-panel__item__row'>
-                                    <div>Author:</div>
-                                    <div>{m.authors}</div>
+                                    <div>Revision:</div>
+                                    <div>{props.revision.slice(0, 7)}</div>
                                 </div>
+                            ) : (
+                                m.authors && (
+                                    <div className='application-status-panel__item__row'>
+                                        <div>Author:</div>
+                                        <div>{m.authors}</div>
+                                    </div>
+                                )
                             )}
                         </div>
                     </Tooltip>
@@ -90,18 +97,27 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
                     placement='bottom'
                     allowHTML={true}>
                     <div className='application-status-panel__item-name'>
-                        {m.author && (
+                        {props.hideAuthorComment ? (
                             <div className='application-status-panel__item__row'>
-                                <div>Author:</div>
-                                <div>
-                                    {m.author} - {m.signatureInfo}
-                                </div>
+                                <div>Revision:</div>
+                                <div>{props.revision.slice(0, 7)}</div>
                             </div>
+                        ) : (
+                            <>
+                                {m.author && (
+                                    <div className='application-status-panel__item__row'>
+                                        <div>Author:</div>
+                                        <div>
+                                            {m.author} - {m.signatureInfo}
+                                        </div>
+                                    </div>
+                                )}
+                                <div className='application-status-panel__item__row'>
+                                    <div>Comment:</div>
+                                    <div>{m.message?.split('\n')[0].slice(0, 64)}</div>
+                                </div>
+                            </>
                         )}
-                        <div className='application-status-panel__item__row'>
-                            <div>Comment:</div>
-                            <div>{m.message?.split('\n')[0].slice(0, 64)}</div>
-                        </div>
                     </div>
                 </Tooltip>
             )}
