@@ -5325,6 +5325,7 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 		&cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
 		nil,
 		request.InstallationID,
+		nil,
 	)
 	require.NoError(t, err)
 
