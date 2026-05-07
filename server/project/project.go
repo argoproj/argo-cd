@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +28,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
+	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -491,7 +493,7 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	return &project.EmptyResponse{}, err
 }
 
-func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*corev1.EventList, error) {
+func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*structpb.Struct, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceProjects, rbac.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
@@ -504,7 +506,11 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*core
 		"involvedObject.uid":       string(proj.UID),
 		"involvedObject.namespace": proj.Namespace,
 	}).String()
-	return s.kubeclientset.CoreV1().Events(s.ns).List(ctx, metav1.ListOptions{FieldSelector: fieldSelector})
+	list, err := s.kubeclientset.CoreV1().Events(s.ns).List(ctx, metav1.ListOptions{FieldSelector: fieldSelector})
+	if err != nil {
+		return nil, err
+	}
+	return serverevents.EventListToStruct(list)
 }
 
 func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason string, action string) {
