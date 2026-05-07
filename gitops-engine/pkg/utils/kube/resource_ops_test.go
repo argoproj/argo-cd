@@ -1,171 +1,506 @@
 package kube
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/mocks"
 	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/client-go/kubernetes"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/cmd/apply"
+	"k8s.io/kubectl/pkg/cmd/create"
+	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
-func TestAuthReconcileWithMissingNamespace(t *testing.T) {
-	namespace := "test-ns"
-	fakeBearer := "fake-bearer"
+func newTestKubectlResourceOperations(t *testing.T) (*kubectlResourceOperations, *mocks.KubectlCommandFacade) {
+	t.Helper()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		status := &metav1.Status{
-			Status:  "Failure",
-			Message: fmt.Sprintf("namespace \"%s\" not found", namespace),
-			Reason:  metav1.StatusReasonNotFound,
-			Code:    http.StatusNotFound,
-		}
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(status)
-	}))
-	defer server.Close()
+	cmdMocks := mocks.NewKubectlCommandFacade(t)
 
-	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
-	kubeConfigFlags.Namespace = &namespace
-	kubeConfigFlags.APIServer = &server.URL
-	kubeConfigFlags.BearerToken = &fakeBearer
-	matchFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
-	fact := cmdutil.NewFactory(matchFlags)
-
-	config := &rest.Config{Host: server.URL}
 	k := &kubectlResourceOperations{
-		config: config,
-		fact:   fact,
+		config:        &rest.Config{},
+		log:           logr.Discard(),
+		tracer:        &tracing.NopTracer{},
+		fact:          cmdutil.NewFactory(cmdutil.NewMatchVersionFlags(genericclioptions.NewConfigFlags(true))),
+		commandFacade: cmdMocks,
+		getClientFunc: func() (kubernetes.Interface, error) {
+			return kubefake.NewSimpleClientset(), nil
+		},
+		outputMode: outputModeLog,
 	}
-
-	role := testingutils.NewRole()
-	role.SetNamespace(namespace)
-
-	_, err := k.authReconcile(context.Background(), role, "/dev/null", cmdutil.DryRunNone)
-	assert.Error(t, err)
-	assert.True(t, errors.IsNotFound(err), "returned error should be resource not found")
-
-	roleBinding := testingutils.NewRoleBinding()
-	roleBinding.SetNamespace(namespace)
-
-	_, err = k.authReconcile(context.Background(), roleBinding, "/dev/null", cmdutil.DryRunNone)
-	assert.Error(t, err)
-	assert.True(t, errors.IsNotFound(err), "returned error should be resource not found")
-
-	clusterRole := testingutils.NewClusterRole()
-	clusterRole.SetNamespace(namespace)
-
-	_, err = k.authReconcile(context.Background(), clusterRole, "/dev/null", cmdutil.DryRunNone)
-	assert.NoError(t, err)
-
-	clusterRoleBinding := testingutils.NewClusterRoleBinding()
-	clusterRoleBinding.SetNamespace(namespace)
-
-	_, err = k.authReconcile(context.Background(), clusterRoleBinding, "/dev/null", cmdutil.DryRunNone)
-	assert.NoError(t, err)
+	return k, cmdMocks
 }
 
-func TestRBACReconcileUsage(t *testing.T) {
-	var executedCommands []string
-	onKubectlRun := func(cmd string) (CleanupFunc, error) {
-		executedCommands = append(executedCommands, cmd)
-		return func() {}, nil
-	}
+func TestAuthReconcileWithMissingNamespace(t *testing.T) {
+	namespace := "test-ns"
 
-	k := &kubectlResourceOperations{
-		onKubectlRun: onKubectlRun,
-		tracer:       &tracing.NopTracer{},
-	}
+	t.Run("Namespaced resources", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+
+		role := testingutils.NewRole()
+		role.SetNamespace(namespace)
+
+		_, err := k.rbacReconcile(context.Background(), role, cmdutil.DryRunNone)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `namespaces "test-ns" not found`)
+
+		roleBinding := testingutils.NewRoleBinding()
+		roleBinding.SetNamespace(namespace)
+
+		_, err = k.rbacReconcile(context.Background(), roleBinding, cmdutil.DryRunNone)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `namespaces "test-ns" not found`)
+	})
+
+	t.Run("Cluster-scoped resources", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("AuthReconcile", mock.Anything).Return(nil).Twice()
+
+		clusterRole := testingutils.NewClusterRole()
+		clusterRole.SetNamespace(namespace)
+
+		_, err := k.rbacReconcile(context.Background(), clusterRole, cmdutil.DryRunNone)
+		require.NoError(t, err)
+
+		clusterRoleBinding := testingutils.NewClusterRoleBinding()
+		clusterRoleBinding.SetNamespace(namespace)
+
+		_, err = k.rbacReconcile(context.Background(), clusterRoleBinding, cmdutil.DryRunNone)
+		require.NoError(t, err)
+	})
+}
+
+func TestAuthReconcileUsage(t *testing.T) {
+	// This test verifies that the rbacReconcile logic is correctly applied based on the operation type
+	// and server-side apply setting. It uses the facade pattern to track kubectl command executions.
 
 	role := testingutils.NewRole()
 
-	t.Run("CreateResource should NOT call rbacReconcile", func(t *testing.T) {
-		executedCommands = nil
-		_, err := k.runResourceCommand(context.Background(), role, cmdutil.DryRunClient, false, func(ioStreams genericiooptions.IOStreams, fileName string) error {
-			return nil
-		})
-		assert.NoError(t, err)
+	t.Run("CreateResource should not call auth reconcile", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		for _, cmd := range executedCommands {
-			assert.NotEqual(t, "auth", cmd, "auth reconcile should NOT be called")
-		}
+		_, err := k.CreateResource(t.Context(), role, cmdutil.DryRunNone, false)
+		require.NoError(t, err)
+		cmdMocks.AssertNotCalled(t, "AuthReconcile")
 	})
 
-	t.Run("ReplaceResource should NOT call rbacReconcile", func(t *testing.T) {
-		executedCommands = nil
-		_, err := k.runResourceCommand(context.Background(), role, cmdutil.DryRunClient, false, func(ioStreams genericiooptions.IOStreams, fileName string) error {
-			return nil
-		})
-		assert.NoError(t, err)
+	t.Run("ReplaceResource should not call auth reconcile", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Replace", mock.Anything, mock.Anything).Return(nil)
 
-		for _, cmd := range executedCommands {
-			assert.NotEqual(t, "auth", cmd, "auth reconcile should NOT be called")
-		}
+		_, err := k.ReplaceResource(t.Context(), role, cmdutil.DryRunNone, false)
+		require.NoError(t, err)
+		cmdMocks.AssertNotCalled(t, "AuthReconcile")
 	})
 
-	t.Run("Simulation of original issue: when reconcileRBAC is TRUE, it should fail if resource is created by reconcile first", func(t *testing.T) {
-		// This test simulates the BUGGY behavior (passing reconcileRBAC=true to runResourceCommand)
-		// and shows why it fails with "already exists".
-		var executedCommands []string
-		authCalled := false
+	t.Run("ApplyResource should not call auth reconcile on server-side apply", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Apply", mock.Anything).Return(nil)
 
-		kWithAuth := &kubectlResourceOperations{
-			onKubectlRun: func(cmd string) (CleanupFunc, error) {
-				executedCommands = append(executedCommands, cmd)
-				if cmd == "auth" {
-					authCalled = true
-				}
-				return func() {}, nil
-			},
-			tracer: &tracing.NopTracer{},
+		ssa := true
+		_, err := k.ApplyResource(t.Context(), role, cmdutil.DryRunNone, false, false, ssa, "")
+		require.NoError(t, err)
+		cmdMocks.AssertNotCalled(t, "AuthReconcile")
+	})
+
+	t.Run("ApplyResource should call auth reconcile on client-side apply", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Apply", mock.Anything).Return(nil)
+		cmdMocks.On("AuthReconcile", mock.Anything).Return(nil)
+
+		ssa := false
+		_, err := k.ApplyResource(t.Context(), role, cmdutil.DryRunNone, false, false, ssa, "")
+		require.NoError(t, err)
+	})
+}
+
+func TestOutputModeLog(t *testing.T) {
+	// Test normal flow operations with outputModeLog
+
+	t.Run("CreateResource with outputModeLog", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.CreateResource(t.Context(), obj, cmdutil.DryRunNone, false)
+		require.NoError(t, err)
+	})
+
+	t.Run("ReplaceResource with outputModeLog", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Replace", mock.Anything, mock.Anything).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ReplaceResource(t.Context(), obj, cmdutil.DryRunNone, false)
+		require.NoError(t, err)
+	})
+
+	t.Run("ApplyResource with outputModeLog and client-side apply", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Apply", mock.Anything).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, false, "test-manager")
+		require.NoError(t, err)
+	})
+
+	t.Run("ApplyResource with outputModeLog and server-side apply", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		cmdMocks.On("Apply", mock.Anything).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, true, "test-manager")
+		require.NoError(t, err)
+	})
+}
+
+func TestOutputModeJSON(t *testing.T) {
+	// Test JSON output mode operations
+
+	t.Run("CreateResource with outputModeJSON should fail", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.CreateResource(t.Context(), obj, cmdutil.DryRunServer, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "CreateResource is not supported with JSON output mode")
+	})
+
+	t.Run("ReplaceResource with outputModeJSON should fail", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.ReplaceResource(t.Context(), obj, cmdutil.DryRunServer, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ReplaceResource is not supported with JSON output mode")
+	})
+
+	t.Run("ApplyResource with outputModeJSON without Dry run", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, true, "test-manager")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid dry run strategy used with JSON output")
+	})
+
+	t.Run("ApplyResource with outputModeJSON requires DryRunServer", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunClient, false, false, true, "test-manager")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid dry run strategy used with JSON output")
+	})
+
+	t.Run("ApplyResource with outputModeJSON requires server-side apply", func(t *testing.T) {
+		k, _ := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, false, "test-manager")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid Apply strategy used with JSON output")
+	})
+
+	t.Run("ApplyResource with outputModeJSON return object", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		jsonObj, err := json.Marshal(obj)
+		require.NoError(t, err)
+
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			applyOpts := args[0].(*apply.ApplyOptions)
+			_, err := applyOpts.Out.Write(jsonObj)
+			require.NoError(t, err)
+		}).Return(nil)
+
+		result, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, true, "test-manager")
+		require.NoError(t, err)
+		assert.JSONEq(t, string(jsonObj), result)
+	})
+
+	t.Run("ApplyResource with outputModeJSON with object and stderr returns object", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		jsonObj, err := json.Marshal(obj)
+		require.NoError(t, err)
+
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			applyOpts := args[0].(*apply.ApplyOptions)
+			_, err := applyOpts.Out.Write(jsonObj)
+			require.NoError(t, err)
+
+			// add an stderr message that should not be returned in the result
+			_, err = applyOpts.ErrOut.Write([]byte("error message"))
+			require.NoError(t, err)
+		}).Return(nil)
+
+		result, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, true, "test-manager")
+		require.NoError(t, err)
+		assert.JSONEq(t, string(jsonObj), result)
+	})
+
+	t.Run("ApplyResource with outputModeJSON without object with a stderr returns error", func(t *testing.T) {
+		obj := testingutils.NewPod()
+
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			applyOpts := args[0].(*apply.ApplyOptions)
+
+			_, err := applyOpts.ErrOut.Write([]byte("error message"))
+			require.NoError(t, err)
+		}).Return(nil)
+
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, true, "test-manager")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error message")
+	})
+}
+
+func TestApplyOptionsConfiguration(t *testing.T) {
+	// Test that newApplyOptions correctly configures all ApplyOptions fields
+	t.Run("general options are correctly set", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+		}{
+			{"DryRunNone", cmdutil.DryRunNone},
+			{"DryRunClient", cmdutil.DryRunClient},
+			{"DryRunServer", cmdutil.DryRunServer},
 		}
 
-		// Mock runResourceCommand behavior manually to avoid calling real authReconcile which panics due to nil fact/config
-		runResourceCommandMock := func(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, reconcileRBAC bool, executor commandExecutor) (string, error) {
-			if reconcileRBAC && obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
-				_, err := kWithAuth.onKubectlRun("auth")
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
+
+				var capturedOpts *apply.ApplyOptions
+				cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*apply.ApplyOptions)
+				}).Return(nil)
+
+				obj := testingutils.NewPod()
+				_, err := k.ApplyResource(t.Context(), obj, tc.strategy, false, false, false, "test-manager")
 				require.NoError(t, err)
-			}
-			ioStreams := genericiooptions.IOStreams{
-				In:     &bytes.Buffer{},
-				Out:    &bytes.Buffer{},
-				ErrOut: &bytes.Buffer{},
-			}
-			return "", executor(ioStreams, "")
+
+				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
+				assert.Equal(t, "test-manager", capturedOpts.FieldManager)
+				assert.True(t, capturedOpts.Overwrite)
+				assert.True(t, capturedOpts.OpenAPIPatch)
+				assert.False(t, capturedOpts.ServerSideApply)
+				assert.False(t, capturedOpts.ForceConflicts)
+			})
+		}
+	})
+
+	t.Run("serverSideApply=true sets ServerSideApply=true and ForceConflicts=true", func(t *testing.T) {
+		testCases := []struct {
+			name          string
+			strategy      cmdutil.DryRunStrategy
+			expectedError string
+		}{
+			{"DryRunNone", cmdutil.DryRunNone, ""},
+			{"DryRunClient", cmdutil.DryRunClient, "error validating options: --dry-run=client doesn't work with --server-side"},
+			{"DryRunServer", cmdutil.DryRunServer, ""},
 		}
 
-		executor := func(ioStreams genericiooptions.IOStreams, fileName string) error {
-			if authCalled {
-				// Simulate the "already exists" error that happens when kubectl create/replace
-				// is called after kubectl auth reconcile has already created the resource.
-				return fmt.Errorf("roles.rbac.authorization.k8s.io \"mytestrole\" already exists")
-			}
-			return nil
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
+
+				var capturedOpts *apply.ApplyOptions
+				if tc.expectedError == "" {
+					cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+						capturedOpts = args[0].(*apply.ApplyOptions)
+					}).Return(nil)
+				}
+
+				ssa := true
+				obj := testingutils.NewPod()
+				_, err := k.ApplyResource(t.Context(), obj, tc.strategy, false, false, ssa, "test-manager")
+
+				if tc.expectedError == "" {
+					require.NoError(t, err)
+					assert.True(t, capturedOpts.ServerSideApply)
+					assert.True(t, capturedOpts.ForceConflicts)
+				} else {
+					require.Error(t, err)
+					assert.Contains(t, err.Error(), tc.expectedError)
+				}
+			})
+		}
+	})
+
+	t.Run("force=true sets DeleteOptions.ForceDeletion", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+		}{
+			{"DryRunNone", cmdutil.DryRunNone},
+			{"DryRunClient", cmdutil.DryRunClient},
+			{"DryRunServer", cmdutil.DryRunServer},
 		}
 
-		// If we call it with reconcileRBAC = true (the bug), it should fail
-		_, err := runResourceCommandMock(context.Background(), role, cmdutil.DryRunClient, true, executor)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "already exists")
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
 
-		// If we call it with reconcileRBAC = false (the fix), it should succeed
-		authCalled = false
-		executedCommands = nil
-		_, err = runResourceCommandMock(context.Background(), role, cmdutil.DryRunClient, false, executor)
-		assert.NoError(t, err)
+				var capturedOpts *apply.ApplyOptions
+				cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*apply.ApplyOptions)
+				}).Return(nil)
+
+				obj := testingutils.NewPod()
+				_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, true, false, false, "")
+				require.NoError(t, err)
+
+				assert.True(t, capturedOpts.DeleteOptions.ForceDeletion)
+			})
+		}
+	})
+
+	t.Run("outputModeJSON returns JSONPrinter", func(t *testing.T) {
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+		k.outputMode = outputModeJSON
+
+		var capturedOpts *apply.ApplyOptions
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			capturedOpts = args[0].(*apply.ApplyOptions)
+		}).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunServer, false, false, true, "test-manager")
+		require.NoError(t, err)
+
+		// Call ToPrinter and verify it returns a JSON printer
+		printer, err := capturedOpts.ToPrinter("configured")
+		require.NoError(t, err)
+		assert.NotNil(t, printer)
+
+		// Verify it's a JSONPrinter by checking the type
+		_, isJSONPrinter := printer.(*printers.JSONPrinter)
+		assert.True(t, isJSONPrinter, "Expected printer to be of type *printers.JSONPrinter")
+
+		// Verify ShowManagedFields is set to true for JSON output
+		assert.True(t, capturedOpts.PrintFlags.JSONYamlPrintFlags.ShowManagedFields)
+	})
+}
+
+func TestCreateOptionsConfiguration(t *testing.T) {
+	// Test that newCreateOptions correctly configures all CreateOptions fields
+
+	t.Run("general options are correctly set", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+		}{
+			{"DryRunNone", cmdutil.DryRunNone},
+			{"DryRunClient", cmdutil.DryRunClient},
+			{"DryRunServer", cmdutil.DryRunServer},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
+
+				var capturedOpts *create.CreateOptions
+				cmdMocks.On("Create", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*create.CreateOptions)
+				}).Return(nil)
+
+				obj := testingutils.NewPod()
+				_, err := k.CreateResource(t.Context(), obj, tc.strategy, false)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
+				assert.NotEmpty(t, capturedOpts.FilenameOptions.Filenames)
+				assert.NotNil(t, capturedOpts.PrintObj)
+			})
+		}
+	})
+}
+
+func TestReplaceOptionsConfiguration(t *testing.T) {
+	// Test that newReplaceOptions correctly configures all ReplaceOptions fields
+
+	t.Run("general options are correctly set", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+		}{
+			{"DryRunNone", cmdutil.DryRunNone},
+			{"DryRunClient", cmdutil.DryRunClient},
+			{"DryRunServer", cmdutil.DryRunServer},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
+
+				var capturedOpts *replace.ReplaceOptions
+				cmdMocks.On("Replace", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*replace.ReplaceOptions)
+				}).Return(nil)
+
+				obj := testingutils.NewPod()
+				obj.SetNamespace("test-namespace")
+				_, err := k.ReplaceResource(t.Context(), obj, tc.strategy, false)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
+				assert.False(t, capturedOpts.DeleteOptions.ForceDeletion)
+				assert.NotEmpty(t, capturedOpts.DeleteOptions.Filenames)
+				assert.Equal(t, "test-namespace", capturedOpts.Namespace)
+				assert.NotNil(t, capturedOpts.PrintObj)
+			})
+		}
+	})
+
+	t.Run("force=true sets DeleteOptions.ForceDeletion correctly", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			strategy cmdutil.DryRunStrategy
+			expected bool
+		}{
+			{"DryRunNone", cmdutil.DryRunNone, true},
+			{"DryRunClient", cmdutil.DryRunClient, false},
+			{"DryRunServer", cmdutil.DryRunServer, false},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				k, cmdMocks := newTestKubectlResourceOperations(t)
+
+				var capturedOpts *replace.ReplaceOptions
+				cmdMocks.On("Replace", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					capturedOpts = args[0].(*replace.ReplaceOptions)
+				}).Return(nil)
+
+				obj := testingutils.NewPod()
+				_, err := k.ReplaceResource(t.Context(), obj, tc.strategy, true)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.expected, capturedOpts.DeleteOptions.ForceDeletion)
+			})
+		}
 	})
 }
