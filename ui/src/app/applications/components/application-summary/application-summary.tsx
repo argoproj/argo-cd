@@ -490,10 +490,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: (
                 <Revision
                     repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
-                    revision={
-                        app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
-                        (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
-                    }
+                    revision={app.spec.sourceHydrator?.hydrateTo?.targetBranch || app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
                 />
             ),
             edit: (formApi: FormApi) => (
