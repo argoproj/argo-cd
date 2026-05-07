@@ -253,6 +253,8 @@ message GitFilesRequest {
 message GitFilesResponse {
     // Map consisting of path of the path to its contents in bytes
     map<string, bytes> map = 1;
+    // The resolved commit SHA for the revision that was fetched
+    string resolved_revision = 2;
 }
 
 message GitDirectoriesRequest {
@@ -266,6 +268,8 @@ message GitDirectoriesRequest {
 message GitDirectoriesResponse {
     // A set of directory paths
     repeated string paths = 1;
+    // The resolved commit SHA for the revision that was fetched
+    string resolved_revision = 2;
 }
 
 message UpdateRevisionForPathsRequest {
@@ -345,7 +349,7 @@ service RepoServerService {
     // Get the meta-data (author, date, tags, message) for a specific revision of the OCI image
     rpc GetOCIMetadata(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.OCIMetadata) {
     }
-    
+
     // Get the chart details (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionChartDetails(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ChartDetails) {
     }

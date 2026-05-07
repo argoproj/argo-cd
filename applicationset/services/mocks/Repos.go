@@ -38,7 +38,7 @@ func (_m *Repos) EXPECT() *Repos_Expecter {
 }
 
 // GetDirectories provides a mock function for the type Repos
-func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, verifyCommit bool) ([]string, error) {
+func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, verifyCommit bool) ([]string, string, error) {
 	ret := _mock.Called(ctx, repoURL, revision, project, noRevisionCache, verifyCommit)
 
 	if len(ret) == 0 {
@@ -46,8 +46,9 @@ func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision
 	}
 
 	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, bool) ([]string, error)); ok {
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, bool) ([]string, string, error)); ok {
 		return returnFunc(ctx, repoURL, revision, project, noRevisionCache, verifyCommit)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, bool) []string); ok {
@@ -57,12 +58,17 @@ func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, bool, bool) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, bool, bool) string); ok {
 		r1 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, verifyCommit)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(string)
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, string, string, bool, bool) error); ok {
+		r2 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, verifyCommit)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
 // Repos_GetDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDirectories'
@@ -119,18 +125,18 @@ func (_c *Repos_GetDirectories_Call) Run(run func(ctx context.Context, repoURL s
 	return _c
 }
 
-func (_c *Repos_GetDirectories_Call) Return(strings []string, err error) *Repos_GetDirectories_Call {
-	_c.Call.Return(strings, err)
+func (_c *Repos_GetDirectories_Call) Return(strings []string, s string, err error) *Repos_GetDirectories_Call {
+	_c.Call.Return(strings, s, err)
 	return _c
 }
 
-func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, verifyCommit bool) ([]string, error)) *Repos_GetDirectories_Call {
+func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, verifyCommit bool) ([]string, string, error)) *Repos_GetDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFiles provides a mock function for the type Repos
-func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, verifyCommit bool) (map[string][]byte, error) {
+func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, verifyCommit bool) (map[string][]byte, string, error) {
 	ret := _mock.Called(ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)
 
 	if len(ret) == 0 {
@@ -138,8 +144,9 @@ func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision strin
 	}
 
 	var r0 map[string][]byte
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, bool) (map[string][]byte, error)); ok {
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, bool) (map[string][]byte, string, error)); ok {
 		return returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, bool) map[string][]byte); ok {
@@ -149,12 +156,17 @@ func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision strin
 			r0 = ret.Get(0).(map[string][]byte)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool, bool) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool, bool) string); ok {
 		r1 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(string)
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, string, string, string, bool, bool) error); ok {
+		r2 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
 // Repos_GetFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFiles'
@@ -217,12 +229,12 @@ func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string,
 	return _c
 }
 
-func (_c *Repos_GetFiles_Call) Return(stringToBytes map[string][]byte, err error) *Repos_GetFiles_Call {
-	_c.Call.Return(stringToBytes, err)
+func (_c *Repos_GetFiles_Call) Return(stringToBytes map[string][]byte, s string, err error) *Repos_GetFiles_Call {
+	_c.Call.Return(stringToBytes, s, err)
 	return _c
 }
 
-func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, verifyCommit bool) (map[string][]byte, error)) *Repos_GetFiles_Call {
+func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, verifyCommit bool) (map[string][]byte, string, error)) *Repos_GetFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }
