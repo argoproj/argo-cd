@@ -2,6 +2,9 @@ package git
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +20,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -924,6 +928,65 @@ func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	require.NoError(t, err)
 	_, ok := auth.(*githttp.TokenAuth)
 	require.Truef(t, ok, "expected TokenAuth but got %T", auth)
+}
+
+// Test_newAuth_SSH_HostKeyAlgorithms verifies that for SSH creds with a known
+// host key, newAuth populates HostKeyAlgorithms on both PublicKeysWithOptions
+// and the embedded gitssh.PublicKeys.HostKeyCallbackHelper. The latter is
+// required because go-git's SetHostKeyCallback overwrites the resolved
+// ssh.ClientConfig.HostKeyAlgorithms with the embedded helper's value, so if
+// the helper field is empty the algorithms get clobbered (go-git/go-git#1551).
+func Test_newAuth_SSH_HostKeyAlgorithms(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBlock, err := ssh.MarshalPrivateKey(priv, "")
+	require.NoError(t, err)
+	privPEM := pem.EncodeToMemory(pemBlock)
+
+	sshPub, err := ssh.NewPublicKey(pub)
+	require.NoError(t, err)
+	authorizedKey := ssh.MarshalAuthorizedKey(sshPub)
+
+	tmpDir := t.TempDir()
+	knownHostsPath := filepath.Join(tmpDir, "ssh_known_hosts")
+	knownHostsLine := fmt.Sprintf("example.com %s", strings.TrimSpace(string(authorizedKey)))
+	require.NoError(t, os.WriteFile(knownHostsPath, []byte(knownHostsLine+"\n"), 0o600))
+
+	t.Setenv("ARGOCD_SSH_DATA_PATH", tmpDir)
+
+	auth, err := newAuth("git@example.com:org/repo.git", SSHCreds{sshPrivateKey: string(privPEM)})
+	require.NoError(t, err)
+
+	pk, ok := auth.(*PublicKeysWithOptions)
+	require.Truef(t, ok, "expected *PublicKeysWithOptions but got %T", auth)
+
+	require.NotEmpty(t, pk.HostKeyAlgorithms, "wrapper HostKeyAlgorithms should be populated from known_hosts")
+	assert.Contains(t, pk.HostKeyAlgorithms, ssh.KeyAlgoED25519)
+	assert.Equal(t, pk.HostKeyAlgorithms, pk.PublicKeys.HostKeyAlgorithms,
+		"embedded helper HostKeyAlgorithms must mirror the wrapper field, otherwise go-git's SetHostKeyCallback clobbers the ClientConfig value")
+
+	cfg, err := pk.ClientConfig()
+	require.NoError(t, err)
+	assert.Equal(t, pk.HostKeyAlgorithms, cfg.HostKeyAlgorithms,
+		"resolved ssh.ClientConfig must carry the configured HostKeyAlgorithms")
+}
+
+func Test_newAuth_SSH_InsecureSkipsKnownHosts(t *testing.T) {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	pemBlock, err := ssh.MarshalPrivateKey(priv, "")
+	require.NoError(t, err)
+	privPEM := pem.EncodeToMemory(pemBlock)
+
+	auth, err := newAuth("git@example.com:org/repo.git", SSHCreds{sshPrivateKey: string(privPEM), insecure: true})
+	require.NoError(t, err)
+
+	pk, ok := auth.(*PublicKeysWithOptions)
+	require.Truef(t, ok, "expected *PublicKeysWithOptions but got %T", auth)
+	assert.Empty(t, pk.HostKeyAlgorithms)
+	assert.Empty(t, pk.PublicKeys.HostKeyAlgorithms)
+	assert.NotNil(t, pk.HostKeyCallback, "insecure mode should still install an InsecureIgnoreHostKey callback")
 }
 
 func TestNewAuth(t *testing.T) {
