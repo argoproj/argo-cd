@@ -5128,6 +5128,96 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Revision: "0.0.1", Changes: true,
 		}, wantErr: assert.Error, cacheHit: nil},
+		{name: "HelmParamWithEnvVarChangesRevision", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
+			}, ".")
+			return fields{service: s, cache: c}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+				ApplicationSource: &v1alpha1.ApplicationSource{
+					Path: ".",
+					Helm: &v1alpha1.ApplicationSourceHelm{
+						Parameters: []v1alpha1.HelmParameter{
+							{Name: "image.tag", Value: "$ARGOCD_APP_REVISION"},
+						},
+					},
+				},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Changes:  true,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    1,
+			ExternalSets:    1,
+		}},
+		{name: "HelmParamWithNoEnvVarNoExtraChanges", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
+			}, ".")
+			return fields{service: s, cache: c}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+				AppLabelKey:    "app.kubernetes.io/name",
+				AppName:        "static-param-app",
+				Namespace:      "default",
+				TrackingMethod: "annotation+label",
+				ApplicationSource: &v1alpha1.ApplicationSource{
+					Path: ".",
+					Helm: &v1alpha1.ApplicationSourceHelm{
+						Parameters: []v1alpha1.HelmParameter{
+							{Name: "replicas", Value: "3"},
+						},
+					},
+				},
+				KubeVersion: "v1.16.0",
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Changes:  true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+		}, wantErr: assert.NoError, cacheHit: &cacheHit{
+			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
+			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
+		}},
 		{name: "IgnoreRefSourcesForGitSource", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
@@ -5207,6 +5297,136 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAppParametersWouldChange(t *testing.T) {
+	oldEnv := &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "aaaaaaa"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "aaaaaaa"},
+	}
+	newEnv := &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "bbbbbbb"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "bbbbbbb"},
+	}
+
+	t.Run("HelmParamWithRevisionEnvVar", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				Parameters: []v1alpha1.HelmParameter{
+					{Name: "image.tag", Value: "$ARGOCD_APP_REVISION"},
+				},
+			},
+		}
+		assert.True(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("HelmParamWithStaticValue", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				Parameters: []v1alpha1.HelmParameter{
+					{Name: "replicas", Value: "3"},
+				},
+			},
+		}
+		assert.False(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("HelmFileParamWithRevisionEnvVar", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				FileParameters: []v1alpha1.HelmFileParameter{
+					{Name: "config", Path: "configs/$ARGOCD_APP_REVISION/values.yaml"},
+				},
+			},
+		}
+		assert.True(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("KustomizeImageWithRevisionEnvVar", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{
+				Images: v1alpha1.KustomizeImages{"myrepo/myimage:$ARGOCD_APP_REVISION"},
+			},
+		}
+		assert.True(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("KustomizeCommonLabelWithRevisionEnvVar", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{"revision": "$ARGOCD_APP_REVISION"},
+			},
+		}
+		assert.True(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("KustomizeCommonAnnotationWithEnvVarAndEnvsubstEnabled", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{
+				CommonAnnotations:          map[string]string{"revision": "$ARGOCD_APP_REVISION"},
+				CommonAnnotationsEnvsubst:  true,
+			},
+		}
+		assert.True(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("KustomizeCommonAnnotationWithEnvVarButEnvsubstDisabled", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{
+				CommonAnnotations:         map[string]string{"revision": "$ARGOCD_APP_REVISION"},
+				CommonAnnotationsEnvsubst: false,
+			},
+		}
+		assert.False(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("JsonnetTLAWithRevisionEnvVar", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Directory: &v1alpha1.ApplicationSourceDirectory{
+				Jsonnet: v1alpha1.ApplicationSourceJsonnet{
+					TLAs: []v1alpha1.JsonnetVar{{Name: "revision", Value: "$ARGOCD_APP_REVISION"}},
+				},
+			},
+		}
+		assert.True(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("JsonnetExtVarWithRevisionEnvVar", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Directory: &v1alpha1.ApplicationSourceDirectory{
+				Jsonnet: v1alpha1.ApplicationSourceJsonnet{
+					ExtVars: []v1alpha1.JsonnetVar{{Name: "revision", Value: "$ARGOCD_APP_REVISION"}},
+				},
+			},
+		}
+		assert.True(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("PluginEnvWithRevisionEnvVar", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Plugin: &v1alpha1.ApplicationSourcePlugin{
+				Env: v1alpha1.Env{
+					&v1alpha1.EnvEntry{Name: "MY_REVISION", Value: "$ARGOCD_APP_REVISION"},
+				},
+			},
+		}
+		assert.True(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("PluginEnvWithStaticValue", func(t *testing.T) {
+		source := &v1alpha1.ApplicationSource{
+			Plugin: &v1alpha1.ApplicationSourcePlugin{
+				Env: v1alpha1.Env{
+					&v1alpha1.EnvEntry{Name: "ENV", Value: "production"},
+				},
+			},
+		}
+		assert.False(t, appParametersWouldChange(source, oldEnv, newEnv))
+	})
+
+	t.Run("NilSource", func(t *testing.T) {
+		assert.False(t, appParametersWouldChange(&v1alpha1.ApplicationSource{}, oldEnv, newEnv))
+	})
 }
 
 func Test_getRepoSanitizerRegex(t *testing.T) {
