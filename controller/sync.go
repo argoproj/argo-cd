@@ -286,16 +286,37 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(project, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
+			state.Message = fmt.Sprintf("failed to derive service account to impersonate: %v", err)
 			return
 		}
-		logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
-		// set the impersonation headers.
-		rawConfig.Impersonate = rest.ImpersonationConfig{
-			UserName: serviceAccountToImpersonate,
-		}
-		restConfig.Impersonate = rest.ImpersonationConfig{
-			UserName: serviceAccountToImpersonate,
+
+		if serviceAccountToImpersonate == "" {
+			// No matching service account found - check enforcement
+			impersonationEnforced, enforcedErr := m.settingsMgr.IsImpersonationEnforced()
+			if enforcedErr != nil {
+				log.Errorf("could not get impersonation enforcement flag: %v", enforcedErr)
+				state.Phase = common.OperationError
+				state.Message = fmt.Sprintf("failed to check impersonation enforcement setting: %v", enforcedErr)
+				return
+			}
+
+			if impersonationEnforced {
+				state.Phase = common.OperationError
+				state.Message = fmt.Sprintf("no matching service account found for destination server %s and namespace %s", destCluster.Server, app.Spec.Destination.Namespace)
+				return
+			}
+
+			// Non-enforced mode: log info and continue with controller SA
+			logEntry.Infof("no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
+		} else {
+			logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
+			// set the impersonation headers.
+			rawConfig.Impersonate = rest.ImpersonationConfig{
+				UserName: serviceAccountToImpersonate,
+			}
+			restConfig.Impersonate = rest.ImpersonationConfig{
+				UserName: serviceAccountToImpersonate,
+			}
 		}
 	}
 

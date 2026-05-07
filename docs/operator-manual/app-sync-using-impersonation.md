@@ -77,6 +77,29 @@ data:
 > [!NOTE]
 > This feature can be enabled/disabled only at the system level and once enabled/disabled it is applicable to all Applications managed by ArgoCD.
 
+### Configure enforcement behavior
+
+By default, when impersonation is enabled, Argo CD strictly enforces that every project must have a matching service account configured. If no match is found, the sync operation will fail.
+
+You can disable this enforcement by setting `application.sync.impersonation.enforced` to `false` in the `argocd-cm` ConfigMap:
+
+```yaml
+data:
+  application.sync.impersonation.enabled: 'true'
+  application.sync.impersonation.enforced: 'false'
+```
+
+When enforcement is disabled, if no matching service account is found, Argo CD will fall back to using the controller's service account.
+
+This is useful for gradually migrating to impersonation. Argo CD administrators can:
+
+1. Enable impersonation with enforcement disabled
+2. Configure service accounts in each project over time
+3. Enable enforcement once all projects are properly configured
+
+> [!WARNING]
+> Disabling enforcement reduces the security isolation between applications. Only disable enforcement if you understand the security implications and trust all applications managed by your Argo CD instance.
+
 ## Configuring destination service accounts
 
 Destination service accounts can be added to the `AppProject` under `.spec.destinationServiceAccounts`. Specify the target destination `server` and `namespace` and provide the service account to be used for the sync operation using `defaultServiceAccount` field. Applications that refer this `AppProject` will use the corresponding service account configured for its destination.

@@ -1406,16 +1406,31 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 		return config, nil
 	}
 
-	user, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
+	serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
 	if err != nil {
 		return nil, fmt.Errorf("error deriving service account to impersonate: %w", err)
 	}
+	if serviceAccountToImpersonate == "" {
+		// No matching service account found - check enforcement
+		impersonationEnforced, enforcedErr := s.settingsMgr.IsImpersonationEnforced()
+		if enforcedErr != nil {
+			return nil, fmt.Errorf("error getting impersonation enforcement setting: %w", enforcedErr)
+		}
 
-	config.Impersonate = rest.ImpersonationConfig{
-		UserName: user,
+		if impersonationEnforced {
+			return nil, fmt.Errorf("no matching service account found for destination server %s and namespace %s", cluster.Server, a.Spec.Destination.Namespace)
+		}
+
+		// Service Account is not enforced
+		log.Infof("no matching service account found for impersonation for app %s/%s (project: %s, server: %s, namespace: %s), falling back to controller service account", a.Namespace, a.Name, p.Name, cluster.Server, a.Spec.Destination.Namespace)
+		return config, nil
 	}
 
-	return config, err
+	config.Impersonate = rest.ImpersonationConfig{
+		UserName: serviceAccountToImpersonate,
+	}
+
+	return config, nil
 }
 
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing

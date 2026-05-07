@@ -125,8 +125,8 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 		cluster := &v1alpha1.Cluster{Server: "https://cluster-api.example.com"}
 
 		user, err := DeriveServiceAccountToImpersonate(project, app, cluster)
+		require.NoError(t, err)
 		assert.Empty(t, user)
-		assert.ErrorContains(t, err, "no matching service account found")
 	})
 
 	t.Run("EmptyDestinationServiceAccounts", func(t *testing.T) {
@@ -146,8 +146,8 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 		cluster := &v1alpha1.Cluster{Server: "https://cluster-api.example.com"}
 
 		user, err := DeriveServiceAccountToImpersonate(project, app, cluster)
+		require.NoError(t, err)
 		assert.Empty(t, user)
-		assert.ErrorContains(t, err, "no matching service account found")
 	})
 
 	t.Run("InvalidServiceAccountChars", func(t *testing.T) {

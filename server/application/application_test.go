@@ -4796,6 +4796,76 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		assert.Nil(t, config)
 		assert.ErrorContains(t, err, "no matching service account found")
 	})
+
+	t.Run("ImpersonationEnabledWithNoMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app,
+		)
+
+		// "default" project has no DestinationServiceAccounts
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			},
+		}
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		// Should not have impersonation set (uses controller SA)
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+
+	t.Run("ImpersonationEnabledWithMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		projWithSA := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://cluster-api.example.com",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Project = "proj-impersonate"
+		})
+
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app, projWithSA,
+		)
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, projWithSA)
+		require.NoError(t, err)
+		// Should use impersonation since SA is configured
+		assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+	})
 }
 
 func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {

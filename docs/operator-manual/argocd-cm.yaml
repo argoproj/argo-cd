@@ -242,7 +242,7 @@ data:
     ignoreAggregatedRoles: true
 
     # disables status field diffing in specified resource types
-    # 'crd' - CustomResourceDefinitions 
+    # 'crd' - CustomResourceDefinitions
     # 'all' - all resources (default)
     # 'none' - disabled
     ignoreResourceStatusField: all
@@ -440,10 +440,15 @@ data:
   # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"
 
-  # If true, passing passing a different revision from the one given in the application when syncing requires the `override` privilege. 
-  # The current default setting up to now (`false`) requires only `sync` privilege for syncing to a different revision. 
-  # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.  
-  application.sync.requireOverridePrivilegeForRevisionSync: "true"  
+  # application.sync.impersonation.enforced enforces that a service account must be configured for impersonation.
+  # When set to false, if no matching service account is found, the controller's service account will be used.
+  # Defaults to true for security. Only disable if you trust all applications.
+  application.sync.impersonation.enforced: "true"
+
+  # If true, passing passing a different revision from the one given in the application when syncing requires the `override` privilege.
+  # The current default setting up to now (`false`) requires only `sync` privilege for syncing to a different revision.
+  # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.
+  application.sync.requireOverridePrivilegeForRevisionSync: "true"
 
   ### SourceHydrator commit author name (optional).
   # Configures the author name for commits created by the Source Hydrator.
@@ -462,7 +467,7 @@ data:
   sourceHydrator.commitMessageTemplate: |
     {{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
     {{- if .metadata.body }}
-    
+
     {{ .metadata.body }}
     {{- end }}
     {{ range $ref := .metadata.references }}
@@ -473,4 +478,3 @@ data:
     {{- if .metadata.author }}
     Co-authored-by: {{ .metadata.author }}
     {{- end }}
-

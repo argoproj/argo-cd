@@ -568,6 +568,12 @@ func (a *Actions) WithImpersonationDisabled() *Actions {
 	return a
 }
 
+func (a *Actions) WithImpersonationEnforcementDisabled() *Actions {
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetImpersonationEnforcement("false"))
+	return a
+}
+
 // TODO: Ensure service account name and other resources have unique names based on the test context
 // TODO: This function should be moved to the project context since impersonation is a project concept, not application.
 func createRBACResourcesForImpersonation(namespace string, serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
