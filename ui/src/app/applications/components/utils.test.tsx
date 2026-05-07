@@ -14,6 +14,7 @@ import * as jsYaml from 'js-yaml';
 import {
     appRBACName,
     ComparisonStatusIcon,
+    getAppDrySource,
     getAppOperationState,
     getOperationType,
     getPodStateReason,
@@ -942,5 +943,63 @@ describe('appRBACName', () => {
         const result = appRBACName(app);
 
         expect(result).toBe('test-project/test-app');
+    });
+});
+
+describe('getAppDrySource', () => {
+    it('returns null for undefined app', () => {
+        expect(getAppDrySource(undefined)).toBeNull();
+    });
+
+    it('returns full source for non-hydrator app', () => {
+        const app = {
+            spec: {
+                source: {
+                    repoURL: 'https://github.com/example/repo.git',
+                    path: 'helm-chart',
+                    targetRevision: 'HEAD',
+                    helm: {
+                        parameters: [{name: 'replicaCount', value: '2'}],
+                    },
+                },
+            },
+        } as Application;
+
+        const result = getAppDrySource(app);
+
+        expect(result).toEqual(app.spec.source);
+        expect(result.helm).toBeDefined();
+        expect(result.helm.parameters).toHaveLength(1);
+    });
+
+    it('returns stripped drySource for hydrator app', () => {
+        const app = {
+            spec: {
+                source: {
+                    repoURL: 'https://github.com/example/repo.git',
+                    path: 'helm-chart',
+                    targetRevision: 'HEAD',
+                    helm: {
+                        parameters: [{name: 'replicaCount', value: '2'}],
+                    },
+                },
+                sourceHydrator: {
+                    drySource: {
+                        repoURL: 'https://github.com/example/dry-repo.git',
+                        path: 'dry-path',
+                        targetRevision: 'main',
+                    },
+                },
+            },
+        } as Application;
+
+        const result = getAppDrySource(app);
+
+        expect(result).toEqual({
+            repoURL: 'https://github.com/example/dry-repo.git',
+            path: 'dry-path',
+            targetRevision: 'main',
+        });
+        expect(result).not.toHaveProperty('helm');
     });
 });
