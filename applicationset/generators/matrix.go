@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"dario.cat/mergo"
-	"github.com/mitchellh/copystructure"
+	"github.com/mohae/deepcopy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
@@ -190,10 +190,7 @@ func deepCopyParams(params map[string]any) (map[string]any, error) {
 		return nil, nil
 	}
 
-	copied, err := copystructure.Copy(params)
-	if err != nil {
-		return nil, err
-	}
+	copied := deepcopy.Copy(params)
 
 	copiedParams, ok := copied.(map[string]any)
 	if !ok {
