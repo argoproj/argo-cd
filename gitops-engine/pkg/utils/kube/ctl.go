@@ -32,6 +32,7 @@ type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 
 type Kubectl interface {
 	ManageResources(config *rest.Config) (ResourceOperations, func(), error)
+	ManageServerSideDiffDryRuns(config *rest.Config) (diff.KubeApplier, func(), error)
 	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
@@ -306,7 +307,8 @@ func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, f
 	}, cleanup, nil
 }
 
-func ManageServerSideDiffDryRuns(config *rest.Config, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
+// ManageServerSideDiffDryRuns creates a KubeApplier for server-side diff dry runs
+func (k *KubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config) (diff.KubeApplier, func(), error) {
 	f, err := os.CreateTemp(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %w", err)
@@ -324,10 +326,10 @@ func ManageServerSideDiffDryRuns(config *rest.Config, tracer tracing.Tracer, log
 	return &kubectlServerSideDiffDryRunApplier{
 		config: config,
 		fact:   fact,
-		tracer: tracer,
-		log:    log,
+		tracer: k.Tracer,
+		log:    k.Log,
 		optionsRunner: &realKubectlOptionsRunner{
-			onKubectlRun: onKubectlRun,
+			onKubectlRun: k.OnKubectlRun,
 		},
 	}, cleanup, nil
 }

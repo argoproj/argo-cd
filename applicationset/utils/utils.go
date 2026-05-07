@@ -591,3 +591,12 @@ func GetOptionalHTTPClient(optionalHTTPClient ...*http.Client) *http.Client {
 	}
 	return &http.Client{}
 }
+
+func FindApplicationStatusIndex(appStatuses []argoappsv1.ApplicationSetApplicationStatus, application string) int {
+	for i := range appStatuses {
+		if appStatuses[i].Application == application {
+			return i
+		}
+	}
+	return -1
+}

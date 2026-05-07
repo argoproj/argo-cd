@@ -369,6 +369,10 @@ func RepoURL(urlType RepoURLType) string {
 	}
 }
 
+func LocalRepoRoot() string {
+	return repoDirectory()
+}
+
 func RepoBaseURL(urlType RepoURLType) string {
 	return path.Base(RepoURL(urlType))
 }
@@ -536,7 +540,6 @@ func SetAccounts(accounts map[string][]string) error {
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 		var aclstr strings.Builder
-
 		for _, permission := range permissions {
 			_, _ = fmt.Fprintf(&aclstr, "p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
 		}
@@ -847,7 +850,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 						ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
-						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}, // nolint:staticcheck
 						SourceNamespaces:         []string{AppNamespace()},
 					},
 				},

@@ -34,7 +34,7 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-succeeded.telegram: -1000000000000
 ```
 
-If your private chat contains threads, you can optionally specify a thread id by seperating it with a `|`:
+If your private chat contains threads, you can optionally specify a thread id by separating it with a `|`:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
