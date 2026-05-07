@@ -470,7 +470,11 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 
 		matched := globMatch(normalized, srcNormalized, true, '/')
 		if matched {
-			anySourceMatched = true
+			// Deny rules can only reject, never permit. Per documentation, a source
+			// requires an explicit allow rule to match; deny rules alone must not expand permissions.
+			if !isDenyPattern(normalized) {
+				anySourceMatched = true
+			}
 		} else if !matched && isDenyPattern(normalized) {
 			return false
 		}
@@ -515,7 +519,11 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
 		switch {
 		case matched:
-			anyDestinationMatched = true
+			// Deny rules can only reject, never permit. Per documentation, a destination
+			// requires an explicit allow rule to match; deny rules alone must not expand permissions.
+			if !isDenyPattern(item.Namespace) {
+				anyDestinationMatched = true
+			}
 		case (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched:
 			return false
 		case !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched:
