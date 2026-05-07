@@ -2602,3 +2602,49 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 		})
 	}
 }
+
+func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		notConfigured bool
+		output        time.Duration
+	}{
+		{
+			name:   "Valid jitter value",
+			input:  "60s",
+			output: 60 * time.Second,
+		},
+		{
+			name:          "Not configured",
+			notConfigured: true,
+			output:        0,
+		},
+		{
+			name:   "Empty input",
+			input:  "",
+			output: 0,
+		},
+		{
+			name:   "Invalid format",
+			input:  "invalid",
+			output: 0,
+		},
+		{
+			name:   "Invalid format with only number",
+			input:  "60",
+			output: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configMap := map[string]string{}
+			if !tt.notConfigured {
+				configMap["webhook.refresh.jitter"] = tt.input
+			}
+			_, settingsManager := fixtures(t.Context(), configMap)
+			jitter := settingsManager.GetWebhookRefreshJitter()
+			assert.Equal(t, tt.output, jitter)
+		})
+	}
+}
