@@ -446,6 +446,97 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 }
 
+func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionChanged(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+	app.Status.SourceHydrator.CurrentOperation.DrySHA = "old-sha"
+
+	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, &repoclient.ManifestResponse{
+		Revision: "new-sha",
+	}, nil).Once()
+	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Return().Once()
+	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionUnchanged(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+	app.Status.SourceHydrator.CurrentOperation.DrySHA = "same-sha"
+
+	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, &repoclient.ManifestResponse{
+		Revision: "same-sha",
+	}, nil).Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionLookupFails(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+
+	d.EXPECT().GetProcessableAppProj(app).Return(nil, errors.New("project lookup failed")).Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceManifestResolutionFails(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+
+	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, nil, errors.New("manifest resolution failed")).Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
@@ -487,6 +578,106 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
 
 	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestHydrator_shouldCheckDrySourceRevision(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	newHydratedApp := func() *v1alpha1.Application {
+		app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+		return app
+	}
+
+	testCases := []struct {
+		name string
+		app  *v1alpha1.Application
+		h    *Hydrator
+		want bool
+	}{
+		{
+			name: "returns false when there is no current operation",
+			app:  newTestApp("test-app"),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: false,
+		},
+		{
+			name: "returns false while hydration is in progress",
+			app:  setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: false,
+		},
+		{
+			name: "returns false when refresh timeout is disabled",
+			app:  newHydratedApp(),
+			h:    &Hydrator{statusRefreshTimeout: 0},
+			want: false,
+		},
+		{
+			name: "returns true when app was never reconciled",
+			app:  newHydratedApp(),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: true,
+		},
+		{
+			name: "returns false when reconciled recently",
+			app: func() *v1alpha1.Application {
+				app := newHydratedApp()
+				reconciledAt := metav1.NewTime(now.Add(-30 * time.Second))
+				app.Status.ReconciledAt = &reconciledAt
+				return app
+			}(),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: false,
+		},
+		{
+			name: "returns true when refresh timeout elapsed",
+			app: func() *v1alpha1.Application {
+				app := newHydratedApp()
+				reconciledAt := metav1.NewTime(now.Add(-2 * time.Minute))
+				app.Status.ReconciledAt = &reconciledAt
+				return app
+			}(),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, tc.h.shouldCheckDrySourceRevision(tc.app))
+		})
+	}
+}
+
+func TestHydrator_getLatestDrySourceRevision_ProjectError(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	h := &Hydrator{dependencies: d}
+
+	d.EXPECT().GetProcessableAppProj(app).Return(nil, errors.New("project error")).Once()
+
+	revision, err := h.getLatestDrySourceRevision(app)
+	require.Error(t, err)
+	assert.Empty(t, revision)
+	assert.ErrorContains(t, err, "failed to get app project")
+}
+
+func TestHydrator_getLatestDrySourceRevision_ManifestError(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	h := &Hydrator{dependencies: d}
+
+	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, nil, errors.New("manifest resolution failed")).Once()
+
+	revision, err := h.getLatestDrySourceRevision(app)
+	require.Error(t, err)
+	assert.Empty(t, revision)
+	assert.ErrorContains(t, err, "failed to resolve latest dry source revision")
 }
 
 func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
@@ -666,6 +857,50 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	assert.Equal(t, "abc123", persistedStatus.LastSuccessfulOperation.DrySHA)
 	assert.Equal(t, "def456", persistedStatus.LastSuccessfulOperation.HydratedSHA)
 	assert.Equal(t, app.Status.SourceHydrator.CurrentOperation.SourceHydrator, persistedStatus.LastSuccessfulOperation.SourceHydrator)
+}
+
+func TestProcessHydrationQueueItem_SuccessfulHydration_SkipsRefreshDuringSync(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+	hydrationKey := getHydrationQueueKey(app)
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
+	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
+
+	var persistedStatus *v1alpha1.SourceHydratorStatus
+	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+		persistedStatus = newStatus
+	}).Return().Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
+		Revision: "abc123",
+	}, nil).Once()
+	r.EXPECT().GetRepository(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
+	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
+
+	h.ProcessHydrationQueueItem(hydrationKey)
+
+	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "RequestAppRefresh", app.Name, app.Namespace)
+	assert.NotNil(t, persistedStatus)
+	assert.NotNil(t, persistedStatus.CurrentOperation.FinishedAt)
+	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrated, persistedStatus.CurrentOperation.Phase)
+	assert.Equal(t, "abc123", persistedStatus.CurrentOperation.DrySHA)
+	assert.Equal(t, "def456", persistedStatus.CurrentOperation.HydratedSHA)
+	assert.NotNil(t, persistedStatus.LastSuccessfulOperation)
+	assert.Equal(t, "abc123", persistedStatus.LastSuccessfulOperation.DrySHA)
+	assert.Equal(t, "def456", persistedStatus.LastSuccessfulOperation.HydratedSHA)
 }
 
 func TestValidateApplications_ProjectError(t *testing.T) {
