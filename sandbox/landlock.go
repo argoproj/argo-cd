@@ -13,6 +13,7 @@ import (
 
 const LANDLOCK = "landlock"
 const LANDLOCK_STD_RW = "read_dir,make_dir,read_file,write_file"
+const LANDLOCK_STD_FILE_RW = "read_file,write_file"
 const LANDLOCK_STD_RO = "read_dir,read_file"
 
 type LandlockAllowedPath struct {
