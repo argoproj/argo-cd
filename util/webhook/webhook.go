@@ -577,7 +577,7 @@ func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(repoURL, repoID, sh
 		log.Debugf("no repository configured for Azure DevOps webhook URL %s, skipping changed files lookup", repoURL)
 		return nil
 	}
-	changedFiles, err := fetchChangedFilesFromADO(ctx, argoRepo, repoURL, repoID, shaBefore, shaAfter)
+	changedFiles, err := fetchChangedFilesFromADO(ctx, argoRepo, repoID, shaBefore, shaAfter)
 	if err != nil {
 		log.Warnf("error fetching changed files from Azure DevOps diffs API: %v", err)
 		return nil
@@ -768,8 +768,8 @@ func parseADOBaseURL(repoURL string) (string, error) {
 // fetchChangedFilesFromADO retrieves the list of files changed between two commits by calling
 // the Azure DevOps Diffs REST API.
 // See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get
-func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, repoURL, repoID, shaBefore, shaAfter string) ([]string, error) {
-	baseURL, err := parseADOBaseURL(repoURL)
+func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, repoID, shaBefore, shaAfter string) ([]string, error) {
+	baseURL, err := parseADOBaseURL(repo.Repo)
 	if err != nil {
 		return nil, err
 	}
