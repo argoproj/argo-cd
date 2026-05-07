@@ -318,8 +318,14 @@ require (
 )
 
 require (
+	cloud.google.com/go v0.112.2 // indirect
+	cloud.google.com/go/iam v1.1.6 // indirect
+	cloud.google.com/go/kms v1.15.7 // indirect
+	cloud.google.com/go/pubsub v1.36.1 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.23 // indirect
 	github.com/google/go-github/v84 v84.0.0 // indirect
+	go.opencensus.io v0.24.0 // indirect
+	gonum.org/v1/gonum v0.17.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
