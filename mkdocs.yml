@@ -82,6 +82,7 @@ nav:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/awssqs.md
       - operator-manual/notifications/services/email.md
+      - operator-manual/notifications/services/gcppubsub.md
       - operator-manual/notifications/services/github.md
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
@@ -208,6 +209,7 @@ nav:
   - user-guide/status-badge.md
   - user-guide/external-url.md
   - user-guide/extra_info.md
+  - user-guide/application-notice.md
   - Notification subscriptions: user-guide/subscriptions.md
   - user-guide/annotations-and-labels.md
   - Command Reference: user-guide/commands/argocd.md

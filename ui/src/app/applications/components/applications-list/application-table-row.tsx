@@ -4,6 +4,7 @@ import Moment from 'react-moment';
 import {Cluster} from '../../../shared/components';
 import {ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
+import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
@@ -94,6 +95,10 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                         <div className='columns small-2' />
                         <div className='show-for-xxlarge columns small-4'>Name:</div>
                         <div className='columns small-12 xxlarge-6'>
+                            {/* Rendered before the name so it stays visible when the name truncates with ellipsis;
+                                the column's `overflow:hidden; white-space:nowrap` (argo-ui table-list) clips trailing
+                                inline children. The tile view does the opposite because there the title wraps. */}
+                            <NoticeIcon annotations={app.metadata.annotations} />
                             <Tooltip
                                 content={
                                     <>

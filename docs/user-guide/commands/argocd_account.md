@@ -36,7 +36,6 @@ argocd account [flags]
       --password string            Password for basic authentication to the API server
       --proxy-url string           If provided, this URL will be used to connect via proxy
       --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --tls-server-name string     If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string               Bearer token for authentication to the API server
       --user string                The name of the kubeconfig user to use
       --username string            Username for basic authentication to the API server
@@ -75,7 +74,7 @@ argocd account [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd account bcrypt](argocd_account_bcrypt.md)	 - Generate bcrypt hash for any password
 * [argocd account can-i](argocd_account_can-i.md)	 - Can I
 * [argocd account delete-token](argocd_account_delete-token.md)	 - Deletes account token
