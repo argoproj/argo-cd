@@ -235,6 +235,7 @@ nav:
   - developer-guide/static-code-analysis.md
   - Extensions:
     - developer-guide/extensions/ui-extensions.md
+    - operator-manual/upgrading/ui-extensions-react-19-upgrading.md
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
   - developer-guide/tilt.md
