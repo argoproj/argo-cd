@@ -147,6 +147,64 @@ By default, health typically returns a `Progressing` status.
 >     # Lua standard libraries are enabled for this script
 > ```
 
+### Terminating resources (`metadata.deletionTimestamp`)
+
+When a resource is being deleted, Kubernetes sets `metadata.deletionTimestamp`. Argo CD treats most terminating
+resources specially so they always appear **Progressing** while still present in the cluster:
+
+* If **`metadata.deletionTimestamp` is set** and the resource does **not** have the Argo CD hook finalizer
+  **`argocd.argoproj.io/hook-finalizer`**, health status is **always `Progressing`**. This applies even when a
+  when custom Lua health check sets `hs.status` to something other than `Progressing`.
+* The **message** is built as follows: if your health script returns a **non-empty** `hs.message`, Argo CD shows
+  **`Pending deletion: `** followed by that string. If there is no custom health script, or Lua returns an **empty**
+  `hs.message`, the message is simply **`Pending deletion`**. Do **not** add your own `Pending deletion:` prefix in
+  Lua unless you intend it to appear twice in the UI (`Pending deletion: Pending deletion: …`).
+* If the custom health **script fails** (runtime error) while the resource is terminating, health remains **`Progressing`**
+  with message **`Pending deletion. Error from health check: `** followed by the error text.
+
+### Best practices: finalizers and messages in `health.lua`
+
+When you explain why an object is stuck in deletion, operators usually care about **which finalizers remain** and
+**what component clears them**. Practical guidelines:
+
+* **Branch on deletion first.** When `obj.metadata.deletionTimestamp` focus the `message` on finalizers, 
+  controllers, or external dependencies that must finish before the object is removed.
+* **Name finalizers clearly.** You can list entries from `obj.metadata.finalizers` and, for well-known finalizers,
+  add a short line on who removes them and what cleanup they protect (for example, cloud load balancer teardown or
+  foreground garbage collection). Keep each line short; the UI shows the full message after the `Pending deletion: `
+  prefix.
+* **Test terminating YAML.** Add cases under `testdata/` with `metadata.deletionTimestamp` (and optional `finalizers`)
+  and assert the expected **Lua output** in `health_test.yaml`. End-to-end message text including `Pending deletion: `
+  is assembled by Argo CD when the resource is terminating.
+
+The example below is **illustrative only** (`widgets.example.com` / `Widget`). It maps a hypothetical finalizer to a short explanation of who clears it and why deletion might stall:
+
+```lua
+hs = {}
+hs.status = "Healthy"
+hs.message = "Ready"
+
+if obj.metadata ~= nil and obj.metadata.deletionTimestamp ~= nil then
+  hs.status = "Progressing" -- ignored by Argo CD for terminating resources; set for consistency
+  local detail = "waiting on unknown finalizers"
+  if obj.metadata.finalizers ~= nil then
+    for _, f in ipairs(obj.metadata.finalizers) do
+      if f == "widgets.example.com/datastore" then
+        detail = f .. " — Widget controller finishes datastore teardown before removal"
+        break
+      end
+    end
+  end
+  hs.message = detail
+  return hs
+end
+
+return hs
+```
+
+For a terminating resource, Argo CD **forces** `Progressing` and shows **`Pending deletion: `** plus that string—for example:
+`Pending deletion: widgets.example.com/datastore — Widget controller finishes datastore teardown before removal`.
+
 ### Way 2. Contribute a Custom Health Check
 
 A health check can be bundled into Argo CD. Custom health check scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). This must have the following directory structure:

@@ -5,6 +5,7 @@ Package provides functionality that allows assessing the health state of a Kuber
 package health
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -171,4 +172,119 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, HealthStatusProgressing, health.Status)
 	assert.Empty(t, health.Message)
+}
+
+type funcHealthOverride func(*unstructured.Unstructured) (*HealthStatus, error)
+
+func (f funcHealthOverride) GetResourceHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
+	return f(obj)
+}
+
+func TestGetResourceHealthPendingDeletion(t *testing.T) {
+	t.Run("baseline without Lua", func(t *testing.T) {
+		h := getHealthStatus(t, "./testdata/pod-deletion.yaml")
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion", h.Message)
+	})
+
+	t.Run("Lua detail prefixed and status forced to progressing", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":              "pod",
+				"namespace":       "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+			},
+		}
+		override := funcHealthOverride(func(_ *unstructured.Unstructured) (*HealthStatus, error) {
+			return &HealthStatus{Status: HealthStatusHealthy, Message: "waiting on foo"}, nil
+		})
+		h, err := GetResourceHealth(&obj, override)
+		require.NoError(t, err)
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion: waiting on foo", h.Message)
+	})
+
+	t.Run("Lua empty message uses baseline only", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":              "pod",
+				"namespace":       "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+			},
+		}
+		override := funcHealthOverride(func(_ *unstructured.Unstructured) (*HealthStatus, error) {
+			return &HealthStatus{Status: HealthStatusHealthy, Message: ""}, nil
+		})
+		h, err := GetResourceHealth(&obj, override)
+		require.NoError(t, err)
+		assert.Equal(t, "Pending deletion", h.Message)
+	})
+
+	t.Run("Lua error when not deleting is returned", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":      "pod",
+				"namespace": "ns",
+			},
+		}
+		override := funcHealthOverride(func(_ *unstructured.Unstructured) (*HealthStatus, error) {
+			return nil, errors.New("lua failed")
+		})
+		h, err := GetResourceHealth(&obj, override)
+		require.Error(t, err)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusUnknown, h.Status)
+		assert.Contains(t, h.Message, "lua failed")
+	})
+
+	t.Run("Lua error while deleting includes error in message", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":              "pod",
+				"namespace":       "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+			},
+		}
+		override := funcHealthOverride(func(_ *unstructured.Unstructured) (*HealthStatus, error) {
+			return nil, errors.New("lua execution failed")
+		})
+		h, err := GetResourceHealth(&obj, override)
+		require.NoError(t, err)
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion. Error from health check: lua execution failed", h.Message)
+	})
+
+	t.Run("terminating resource ignores built-in healthy", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "networking.k8s.io/v1",
+			"kind":       "Ingress",
+			"metadata": map[string]any{
+				"name":              "ing",
+				"namespace":       "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+			},
+			"status": map[string]any{
+				"loadBalancer": map[string]any{
+					"ingress": []any{map[string]any{"hostname": "x.example.com"}},
+				},
+			},
+		}
+		h, err := GetResourceHealth(&obj, nil)
+		require.NoError(t, err)
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion", h.Message)
+	})
 }
