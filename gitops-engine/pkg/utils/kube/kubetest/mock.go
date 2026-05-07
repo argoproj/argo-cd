@@ -117,7 +117,7 @@ func (k *MockKubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resourc
 func (k *MockKubectlCmd) SetOnKubectlRun(_ kube.OnKubectlRunFunc) {
 }
 
-func (k *MockKubectlCmd) ManageResources(_ *rest.Config, _ openapi.Resources) (kube.ResourceOperations, func(), error) {
+func (k *MockKubectlCmd) ManageResources(_ *rest.Config) (kube.ResourceOperations, func(), error) {
 	return &MockResourceOps{}, func() {
 	}, nil
 }
