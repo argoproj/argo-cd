@@ -2,12 +2,13 @@ package controller
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"maps"
 	"math"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -27,6 +28,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -125,7 +127,7 @@ type ApplicationController struct {
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
 	statusHardRefreshTimeout      time.Duration
-	statusRefreshJitter           time.Duration
+	appResyncJitter               time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackoff               *wait.Backoff
 	syncTimeout                   time.Duration
@@ -202,7 +204,7 @@ func NewApplicationController(
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
 		statusHardRefreshTimeout:          appHardResyncPeriod,
-		statusRefreshJitter:               appResyncJitter,
+		appResyncJitter:                   appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
@@ -1016,17 +1018,54 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		log.WithField("appkey", appKey).WithError(err).Error("Failed to get application from informer index")
 		return processNext
 	}
+
+	var app *appv1.Application
+	var logCtx *log.Entry
+
 	if !exists {
-		// This happens after app was deleted, but the work queue still had an entry for it.
-		return processNext
+		parts := strings.Split(appKey, "/")
+		if len(parts) != 2 {
+			log.WithField("appkey", appKey).Warn("Unexpected appKey format, expected namespace/name")
+			return processNext
+		}
+		appNamespace, appName := parts[0], parts[1]
+		freshApp, apiErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(context.Background(), appName, metav1.GetOptions{})
+		if apiErr != nil {
+			if apierrors.IsNotFound(apiErr) {
+				return processNext
+			}
+			log.WithField("appkey", appKey).WithError(apiErr).Error("Failed to retrieve application from API server")
+			return processNext
+		}
+		if freshApp.Operation == nil {
+			return processNext
+		}
+		app = freshApp
+		logCtx = log.WithFields(applog.GetAppLogFields(app))
+	} else {
+		origApp, ok := obj.(*appv1.Application)
+		if !ok {
+			log.WithField("appkey", appKey).Warn("Key in index is not an application")
+			return processNext
+		}
+		app = origApp.DeepCopy()
+		logCtx = log.WithFields(applog.GetAppLogFields(app))
+
+		if app.Operation != nil {
+			freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			if err != nil {
+				if !apierrors.IsNotFound(err) {
+					logCtx.WithError(err).Error("Failed to retrieve latest application state")
+				}
+				return processNext
+			}
+			if freshApp.Operation == nil {
+				return processNext
+			}
+			app = freshApp
+		}
 	}
-	origApp, ok := obj.(*appv1.Application)
-	if !ok {
-		log.WithField("appkey", appKey).Warn("Key in index is not an application")
-		return processNext
-	}
-	app := origApp.DeepCopy()
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
+
 	ts := stats.NewTimingStats()
 	defer func() {
 		for k, v := range ts.Timings() {
@@ -1035,18 +1074,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing app operation queue item")
 	}()
-
-	if app.Operation != nil {
-		// If we get here, we are about to process an operation, but we cannot rely on informer since it might have stale data.
-		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
-		// We cannot rely on informer since applications might be updated by both application controller and api server.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-		if err != nil {
-			logCtx.WithError(err).Error("Failed to retrieve latest application state")
-			return processNext
-		}
-		app = freshApp
-	}
 	ts.AddCheckpoint("get_fresh_app_ms")
 
 	if app.Operation != nil {
@@ -2066,6 +2093,43 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
+// applicationComparisonExpired reports whether the app's last comparison is past the
+// configured soft/hard refresh windows (based on Status.Expired).
+// This is used as a lightweight check in the informer update path to avoid enqueueing
+// a full refresh on every update. If the comparison is expired, we allow the update
+// to fall through and trigger a refresh; otherwise we can take the fast path.
+// This does not replace needRefreshAppStatus or the refresh logic in
+// processAppRefreshQueueItem, which remains the source of truth for deciding
+// comparison level and performing reconciliation.
+func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Application) bool {
+	if app.Status.Expired(ctrl.statusRefreshTimeout) {
+		return true
+	}
+	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && app.Status.Expired(ctrl.statusHardRefreshTimeout) {
+		return true
+	}
+	return false
+}
+
+// resyncRefreshAfter returns a random delay in the range [0, appResyncJitter]
+// to spread out refresh enqueues during relist-heavy events.
+// If jitter is disabled (<= 0), it returns nil so callers can proceed without delay.
+func (ctrl *ApplicationController) resyncRefreshAfter() *time.Duration {
+	if ctrl.appResyncJitter <= 0 {
+		return nil
+	}
+	nanos := ctrl.appResyncJitter.Nanoseconds()
+	if nanos <= 0 {
+		return nil
+	}
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(nanos+1))
+	if err != nil {
+		return nil
+	}
+	d := time.Duration(n.Int64())
+	return &d
+}
+
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
@@ -2441,6 +2505,102 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
+func operationChanged(oldApp, newApp *appv1.Application) bool {
+	return (oldApp.Operation == nil && newApp.Operation != nil) ||
+		(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
+}
+
+func deletionTimestampChanged(oldApp, newApp *appv1.Application) bool {
+	return (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
+		(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
+}
+
+// noSpecOperationOrDeletionChange is true when Spec, Operation (sync op), and deletion timestamp semantics are
+// unchanged between oldApp and newApp. Labels, annotations, Application Status, ResourceVersion, etc. may differ;
+// applicationInformerProcessUpdate layers refresh/hydrate annotation and applicationComparisonExpired gates on top.
+func noSpecOperationOrDeletionChange(oldApp, newApp *appv1.Application) bool {
+	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+		return false
+	}
+	if operationChanged(oldApp, newApp) {
+		return false
+	}
+	if deletionTimestampChanged(oldApp, newApp) || newApp.DeletionTimestamp != nil {
+		return false
+	}
+	return true
+}
+
+// applicationInformerProcessUpdate handles Application informer updates and decides whether to
+// enqueue a refresh or skip it. It avoids unnecessary refreshes for updates where
+// spec/operation/deletion timestamp are unchanged (e.g. status- or metadata-only updates), while still
+// handling newly added refresh/hydrate annotations, comparison expiry, and automated sync.
+func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, oldApp *appv1.Application, newOK bool, newApp *appv1.Application, key string) {
+	if newOK && newApp.Operation != nil {
+		ctrl.appOperationQueue.AddRateLimited(key)
+	}
+
+	var compareWith *CompareWith
+	var delay *time.Duration
+
+	if oldOK && newOK {
+		if oldApp.ResourceVersion == newApp.ResourceVersion {
+			if ctrl.hydrator != nil {
+				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+			}
+			ctrl.clusterSharding.UpdateApp(newApp)
+
+			if ctrl.applicationComparisonExpired(newApp) {
+				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, ctrl.resyncRefreshAfter())
+			}
+			return
+		}
+
+		// Fast-path for updates where spec/operation/deletion are unchanged.
+		// We avoid enqueueing a full refresh unless:
+		//   - a refresh/hydrate annotation was just added (explicit user signal), or
+		//   - the comparison has expired (periodic reconciliation).
+		// If neither annotation was newly added and the app is not expired,
+		// we skip requestAppRefresh and only enqueue hydration work (if enabled),
+		// then return early.
+		// Otherwise (annotation edge or expiry), we fall through to the normal
+		// refresh path below.
+		if noSpecOperationOrDeletionChange(oldApp, newApp) {
+			oldAnnotations := oldApp.GetAnnotations()
+			newAnnotations := newApp.GetAnnotations()
+			refreshAnnotAppeared := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
+				(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyRefresh] != "")
+			hydrateAnnotAppeared := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
+				(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
+
+			if !refreshAnnotAppeared && !hydrateAnnotAppeared && !ctrl.applicationComparisonExpired(newApp) {
+				if ctrl.hydrator != nil {
+					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+				}
+				ctrl.clusterSharding.UpdateApp(newApp)
+				return
+			}
+			if ctrl.applicationComparisonExpired(newApp) && !refreshAnnotAppeared && !hydrateAnnotAppeared {
+				delay = ctrl.resyncRefreshAfter()
+			}
+		}
+
+		if automatedSyncEnabled(oldApp, newApp) {
+			log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
+			compareWith = CompareWithLatest.Pointer()
+		}
+	}
+
+	ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
+	if !newOK {
+		ctrl.appOperationQueue.AddRateLimited(key)
+	}
+	if ctrl.hydrator != nil {
+		ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+	}
+	ctrl.clusterSharding.UpdateApp(newApp)
+}
+
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
@@ -2533,47 +2693,26 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 			},
 			UpdateFunc: func(old, new any) {
-				if !ctrl.canProcessApp(new) {
-					return
-				}
-
 				key, err := cache.MetaNamespaceKeyFunc(new)
 				if err != nil {
 					return
 				}
 
-				var compareWith *CompareWith
-				var delay *time.Duration
-
 				oldApp, oldOK := old.(*appv1.Application)
 				newApp, newOK := new.(*appv1.Application)
-				if oldOK && newOK {
-					if automatedSyncEnabled(oldApp, newApp) {
-						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
-						compareWith = CompareWithLatest.Pointer()
-					}
-					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
-						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
-						delay = &jitter
-					}
+
+				if !ctrl.canProcessApp(new) {
+					return
 				}
 
-				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				if !newOK || (delay != nil && *delay != time.Duration(0)) {
-					ctrl.appOperationQueue.AddRateLimited(key)
-				}
-				if ctrl.hydrator != nil {
-					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-				}
-				ctrl.clusterSharding.UpdateApp(newApp)
+				ctrl.applicationInformerProcessUpdate(oldOK, oldApp, newOK, newApp, key)
 			},
 			DeleteFunc: func(obj any) {
 				if !ctrl.canProcessApp(obj) {
 					return
 				}
 				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-				// key function.
+				// Key function.
 				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 				if err == nil {
 					// for deletes, we immediately add to the refresh queue
