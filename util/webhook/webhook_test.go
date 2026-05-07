@@ -440,7 +440,7 @@ func TestInvalidMethod(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	assertLogContains(t, hook, "Webhook processing failed: invalid HTTP Method")
-	assert.Equal(t, "Webhook processing failed\n", w.Body.String())
+	assert.Equal(t, "Webhook processing failed: invalid HTTP Method\n", w.Body.String())
 	hook.Reset()
 }
 
