@@ -599,3 +599,22 @@ Disabling certificate verification might make sense if:
 
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
 `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
+
+### Configurable groups claim
+
+By default, Argo CD reads user group information from the `groups` claim in the OIDC UserInfo endpoint response.
+
+Some identity providers return group membership using a different claim name such as `roles`, `memberof`, or other custom attributes.
+
+You can configure a custom claim name using the `groupsClaim` field:
+
+```yaml
+oidc.config: |
+  name: example
+  issuer: https://example.com
+  clientID: example-client-id
+  clientSecret: example-secret
+  enableUserInfoGroups: true
+  userInfoPath: /userinfo
+  groupsClaim: roles 
+```
