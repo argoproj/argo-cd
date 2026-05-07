@@ -47,6 +47,7 @@ var (
 const (
 	helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
 	helmOCILayerType  = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+	helmOCIProvType   = "application/vnd.cncf.helm.chart.provenance.v1.prov"
 )
 
 var _ Client = &nativeOCIClient{}
@@ -73,6 +74,10 @@ type Client interface {
 	// Extract retrieves and unpacks the contents of an OCI image identified by the specified revision.
 	// If successful, the extracted contents are extracted to a randomized tempdir.
 	Extract(ctx context.Context, revision string) (string, utilio.Closer, error)
+
+	// FetchHelmChartAndProvenance loads the Helm chart content layer and optional provenance layer bytes
+	// for a given OCI digest. chartFilename is derived from OCI layer annotations when available.
+	FetchHelmChartAndProvenance(ctx context.Context, digest string) (chartContent []byte, provContent []byte, chartFilename string, err error)
 
 	// TestRepo verifies the connectivity and accessibility of the repository.
 	TestRepo(ctx context.Context) (bool, error)
@@ -250,6 +255,103 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, u
 		fail(digest)
 	}
 	return extract, closer, err
+}
+
+func (c *nativeOCIClient) FetchHelmChartAndProvenance(ctx context.Context, digest string) ([]byte, []byte, string, error) {
+	cachedPath, err := c.getCachedPath(digest)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("error getting oci path for digest %s: %w", digest, err)
+	}
+	c.repoLock.Lock(cachedPath)
+	defer c.repoLock.Unlock(cachedPath)
+
+	if err = c.ensureHelmImageCached(ctx, digest, cachedPath); err != nil {
+		return nil, nil, "", err
+	}
+
+	ociReadOnlyStore, err := oci.NewFromTar(ctx, cachedPath)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("error creating oci store from cache: %w", err)
+	}
+
+	ociManifest, err := getOCIManifest(ctx, digest, ociReadOnlyStore)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	chartLayer, provLayer, err := findHelmChartAndProvLayers(ociManifest.Layers)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	chartContent, err := fetchLayerBlob(ctx, ociReadOnlyStore, *chartLayer)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("failed to fetch helm chart content layer: %w", err)
+	}
+
+	chartFilename := helmChartFilenameFromLayer(chartLayer)
+	provContent, err := fetchHelmProvContent(ctx, ociReadOnlyStore, provLayer)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return chartContent, provContent, chartFilename, nil
+}
+
+// ensureHelmImageCached saves the OCI image to cachedPath if it does not exist.
+func (c *nativeOCIClient) ensureHelmImageCached(ctx context.Context, digest, cachedPath string) error {
+	exists, err := fileExists(cachedPath)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	if err = saveCompressedImageToPath(ctx, digest, c.repo, cachedPath); err != nil {
+		return fmt.Errorf("could not save oci digest %s: %w", digest, err)
+	}
+	return nil
+}
+
+// findHelmChartAndProvLayers finds the chart content layer and optional provenance layer from OCI manifest layers.
+func findHelmChartAndProvLayers(layers []imagev1.Descriptor) (*imagev1.Descriptor, *imagev1.Descriptor, error) {
+	var chartLayer, provLayer *imagev1.Descriptor
+	for i := range layers {
+		layer := &layers[i]
+		switch layer.MediaType {
+		case helmOCILayerType:
+			if chartLayer != nil {
+				return nil, nil, fmt.Errorf("expected a single helm chart content layer, found multiple")
+			}
+			chartLayer = layer
+		case helmOCIProvType:
+			provLayer = layer
+		}
+	}
+	if chartLayer == nil {
+		return nil, nil, fmt.Errorf("helm chart content layer not found in OCI artifact")
+	}
+	return chartLayer, provLayer, nil
+}
+
+// helmChartFilenameFromLayer returns the org.opencontainers.image.title annotation from the layer, or "".
+func helmChartFilenameFromLayer(layer *imagev1.Descriptor) string {
+	if layer != nil && layer.Annotations != nil {
+		return layer.Annotations["org.opencontainers.image.title"]
+	}
+	return ""
+}
+
+// fetchHelmProvContent fetches the provenance layer blob.
+func fetchHelmProvContent(ctx context.Context, repo oras.ReadOnlyTarget, provLayer *imagev1.Descriptor) ([]byte, error) {
+	if provLayer == nil {
+		return nil, nil
+	}
+	provContent, err := fetchLayerBlob(ctx, repo, *provLayer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch helm provenance layer: %w", err)
+	}
+	return provContent, nil
 }
 
 func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
@@ -607,6 +709,15 @@ func isHelmOCI(mediaType string) bool {
 	return mediaType == helmOCILayerType
 }
 
+func fetchLayerBlob(ctx context.Context, repo oras.ReadOnlyTarget, desc imagev1.Descriptor) ([]byte, error) {
+	rc, err := repo.Fetch(ctx, desc)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rc.Close() }()
+	return io.ReadAll(rc)
+}
+
 // Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
 // and then renames the temp dir to the directory where the repo-server expects to find k8s manifests.
 func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.Descriptor, content io.Reader) error {
@@ -686,14 +797,13 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget) (*imagev1.Manifest, error) {
 	desc, err := repo.Resolve(ctx, digest)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving oci manifest for digest %s: %w", digest, err)
+		return nil, fmt.Errorf("error resolving oci repo from digest, %w", err)
 	}
 
 	rc, err := repo.Fetch(ctx, desc)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci manifest for digest %s: %w", digest, err)
 	}
-	defer rc.Close()
 
 	manifest := imagev1.Manifest{}
 	decoder := json.NewDecoder(rc)

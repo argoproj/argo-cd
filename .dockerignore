@@ -24,6 +24,5 @@ examples/
 !test/remote
 !hack/installers
 !hack/gpg-wrapper.sh
-!hack/git-verify-wrapper.sh
 !hack/tool-versions.sh
 !hack/install.sh

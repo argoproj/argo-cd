@@ -189,7 +189,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("error resolving oci manifest for digest sha256:nonexistentdigest: sha256:nonexistentdigest: not found"),
+			expectedError: errors.New("error resolving oci repo from digest, sha256:nonexistentdigest: not found"),
 		},
 		{
 			name: "extraction with helm chart",
@@ -767,54 +767,84 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	}
 }
 
-func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
-	// Regression test for https://github.com/argoproj/argo-cd/issues/27521:
-	// DigestMetadata must work on any replica without relying on a local tar
-	// populated by a prior Extract.
-	pushManifest := func(t *testing.T, store *memory.Store, annotations map[string]string) string {
-		t.Helper()
-		configBlob := []byte("config")
-		configDesc := content.NewDescriptorFromBytes("application/vnd.cncf.helm.config.v1+json", configBlob)
-		manifestBlob, err := json.Marshal(imagev1.Manifest{
-			Versioned:   specs.Versioned{SchemaVersion: 2},
-			Config:      configDesc,
-			Annotations: annotations,
-		})
-		require.NoError(t, err)
-		manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
-		require.NoError(t, store.Push(t.Context(), configDesc, bytes.NewReader(configBlob)))
-		require.NoError(t, store.Push(t.Context(), manifestDesc, bytes.NewReader(manifestBlob)))
-		require.NoError(t, store.Tag(t.Context(), manifestDesc, manifestDesc.Digest.String()))
-		return manifestDesc.Digest.String()
-	}
+func TestFetchHelmChartAndProvenance_ChartLayerNotFound(t *testing.T) {
+	store := memory.New()
+	provenanceBlob := []byte("-----BEGIN PGP SIGNED MESSAGE-----\nprovenance\n-----BEGIN PGP SIGNATURE-----\n-----END PGP SIGNATURE-----")
+	digest := generateManifestWithConfig(t, store, helmOCIConfigType,
+		layerConf{content.NewDescriptorFromBytes(helmOCIProvType, provenanceBlob), provenanceBlob})
 
-	t.Run("succeeds without any local tar cache", func(t *testing.T) {
-		store := memory.New()
-		annotations := map[string]string{
-			"org.opencontainers.image.version": "1.2.3",
-			"org.opencontainers.image.authors": "me@example.com",
-		}
-		sha := pushManifest(t, store, annotations)
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	c := newClientWithLock("ghcr.io/test/charts", globalLock, store, func(context.Context, string) ([]string, error) { return nil, nil },
+		func(context.Context) error { return nil }, nil,
+		WithImagePaths(cacheDir))
 
-		// Note: no WithImagePaths — there is no local cache directory at all,
-		// mirroring a repo-server replica that never ran Extract for this digest.
-		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil,
-			WithEventHandlers(fakeEventHandlers(t, "repo")))
+	chartContent, provContent, chartFilename, err := c.FetchHelmChartAndProvenance(t.Context(), digest)
+	require.Error(t, err)
+	require.Nil(t, chartContent)
+	require.Nil(t, provContent)
+	require.Empty(t, chartFilename)
+	require.Contains(t, err.Error(), "helm chart content layer not found")
+}
 
-		manifest, err := c.DigestMetadata(t.Context(), sha)
-		require.NoError(t, err)
-		require.NotNil(t, manifest)
-		assert.Equal(t, annotations, manifest.Annotations)
-	})
+func TestFetchHelmChartAndProvenance_MultipleChartLayers(t *testing.T) {
+	store := memory.New()
+	chartBlob := createGzippedTarWithContent(t, "Chart.yaml", "chart content")
+	chartBlob2 := createGzippedTarWithContent(t, "values.yaml", "values content")
+	digest := generateManifestWithConfig(t, store, helmOCIConfigType,
+		layerConf{content.NewDescriptorFromBytes(helmOCILayerType, chartBlob), chartBlob},
+		layerConf{content.NewDescriptorFromBytes(helmOCILayerType, chartBlob2), chartBlob2})
 
-	t.Run("propagates not-found errors from the remote", func(t *testing.T) {
-		store := memory.New()
-		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil,
-			WithEventHandlers(fakeEventHandlers(t, "repo")))
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	c := newClientWithLock("ghcr.io/test/charts", globalLock, store, func(context.Context, string) ([]string, error) { return nil, nil },
+		func(context.Context) error { return nil }, nil,
+		WithImagePaths(cacheDir))
 
-		_, err := c.DigestMetadata(t.Context(), "sha256:0000000000000000000000000000000000000000000000000000000000000000")
-		require.Error(t, err)
-	})
+	chartContent, provContent, chartFilename, err := c.FetchHelmChartAndProvenance(t.Context(), digest)
+	require.Error(t, err)
+	require.Nil(t, chartContent)
+	require.Nil(t, provContent)
+	require.Empty(t, chartFilename)
+	require.Contains(t, err.Error(), "expected a single helm chart content layer, found multiple")
+}
+
+func TestFetchHelmChartAndProvenance_Success(t *testing.T) {
+	store := memory.New()
+	chartBlob := createGzippedTarWithContent(t, "Chart.yaml", "helm chart content")
+	provBlob := []byte("-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA256\n\nmychart-1.0.0.tgz: sha256:abc123\n-----BEGIN PGP SIGNATURE-----\n-----END PGP SIGNATURE-----")
+	chartDesc := content.NewDescriptorFromBytes(helmOCILayerType, chartBlob)
+	chartDesc.Annotations = map[string]string{"org.opencontainers.image.title": "mychart-1.0.0.tgz"}
+	digest := generateManifestWithConfig(t, store, helmOCIConfigType,
+		layerConf{chartDesc, chartBlob},
+		layerConf{content.NewDescriptorFromBytes(helmOCIProvType, provBlob), provBlob})
+
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	c := newClientWithLock("ghcr.io/test/charts", globalLock, store, func(context.Context, string) ([]string, error) { return nil, nil },
+		func(context.Context) error { return nil }, nil,
+		WithImagePaths(cacheDir))
+
+	chartContent, provContent, chartFilename, err := c.FetchHelmChartAndProvenance(t.Context(), digest)
+	require.NoError(t, err)
+	require.Equal(t, chartBlob, chartContent)
+	require.Equal(t, provBlob, provContent)
+	require.Equal(t, "mychart-1.0.0.tgz", chartFilename)
+}
+
+func TestFetchHelmChartAndProvenance_SuccessWithoutProvenance(t *testing.T) {
+	store := memory.New()
+	chartBlob := createGzippedTarWithContent(t, "Chart.yaml", "chart only")
+	digest := generateManifestWithConfig(t, store, helmOCIConfigType,
+		layerConf{content.NewDescriptorFromBytes(helmOCILayerType, chartBlob), chartBlob})
+
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	c := newClientWithLock("ghcr.io/test/charts", globalLock, store, func(context.Context, string) ([]string, error) { return nil, nil },
+		func(context.Context) error { return nil }, nil,
+		WithImagePaths(cacheDir))
+
+	chartContent, provContent, chartFilename, err := c.FetchHelmChartAndProvenance(t.Context(), digest)
+	require.NoError(t, err)
+	require.Equal(t, chartBlob, chartContent)
+	require.Nil(t, provContent)
+	require.Empty(t, chartFilename)
 }
 
 func TestNewClientUsesHTTP2(t *testing.T) {

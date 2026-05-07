@@ -31,7 +31,6 @@ RUN ./install.sh helm && \
     ./install.sh git-lfs
 
 COPY hack/gpg-wrapper.sh \
-    hack/git-verify-wrapper.sh \
     entrypoint.sh \
     /usr/local/bin/
 

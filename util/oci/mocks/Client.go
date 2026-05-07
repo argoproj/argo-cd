@@ -232,6 +232,88 @@ func (_c *Client_Extract_Call) RunAndReturn(run func(ctx context.Context, revisi
 	return _c
 }
 
+// FetchHelmChartAndProvenance provides a mock function for the type Client
+func (_mock *Client) FetchHelmChartAndProvenance(ctx context.Context, digest string) ([]byte, []byte, string, error) {
+	ret := _mock.Called(ctx, digest)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FetchHelmChartAndProvenance")
+	}
+
+	var r0 []byte
+	var r1 []byte
+	var r2 string
+	var r3 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]byte, []byte, string, error)); ok {
+		return returnFunc(ctx, digest)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []byte); ok {
+		r0 = returnFunc(ctx, digest)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) []byte); ok {
+		r1 = returnFunc(ctx, digest)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]byte)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string) string); ok {
+		r2 = returnFunc(ctx, digest)
+	} else {
+		r2 = ret.Get(2).(string)
+	}
+	if returnFunc, ok := ret.Get(3).(func(context.Context, string) error); ok {
+		r3 = returnFunc(ctx, digest)
+	} else {
+		r3 = ret.Error(3)
+	}
+	return r0, r1, r2, r3
+}
+
+// Client_FetchHelmChartAndProvenance_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchHelmChartAndProvenance'
+type Client_FetchHelmChartAndProvenance_Call struct {
+	*mock.Call
+}
+
+// FetchHelmChartAndProvenance is a helper method to define mock.On call
+//   - ctx context.Context
+//   - digest string
+func (_e *Client_Expecter) FetchHelmChartAndProvenance(ctx interface{}, digest interface{}) *Client_FetchHelmChartAndProvenance_Call {
+	return &Client_FetchHelmChartAndProvenance_Call{Call: _e.mock.On("FetchHelmChartAndProvenance", ctx, digest)}
+}
+
+func (_c *Client_FetchHelmChartAndProvenance_Call) Run(run func(ctx context.Context, digest string)) *Client_FetchHelmChartAndProvenance_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_FetchHelmChartAndProvenance_Call) Return(chartContent []byte, provContent []byte, chartFilename string, err error) *Client_FetchHelmChartAndProvenance_Call {
+	_c.Call.Return(chartContent, provContent, chartFilename, err)
+	return _c
+}
+
+func (_c *Client_FetchHelmChartAndProvenance_Call) RunAndReturn(run func(ctx context.Context, digest string) ([]byte, []byte, string, error)) *Client_FetchHelmChartAndProvenance_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetTags provides a mock function for the type Client
 func (_mock *Client) GetTags(ctx context.Context, noCache bool) ([]string, error) {
 	ret := _mock.Called(ctx, noCache)

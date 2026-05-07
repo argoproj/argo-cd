@@ -723,6 +723,49 @@ entries: {}
 	})
 }
 
+func TestChartTgzPath_OCIReturnsError(t *testing.T) {
+	client := NewClient("example.com", HelmCreds{}, true, "", "")
+	path, err := client.ChartTgzPath("my-chart", "1.0.0")
+	assert.Empty(t, path)
+	assert.ErrorIs(t, err, ErrOCINotEnabled)
+}
+
+func TestFetchProvenance_OCIReturnsError(t *testing.T) {
+	client := NewClient("example.com", HelmCreds{}, true, "", "")
+	prov, name, err := client.FetchProvenance("my-chart", "1.0.0")
+	assert.Nil(t, prov)
+	assert.Empty(t, name)
+	assert.ErrorIs(t, err, ErrOCINotEnabled)
+}
+
+func TestFetchProvenance_Success(t *testing.T) {
+	provContent := []byte("-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA256\n\nchart: mychart-1.0.0.tgz\n...\n-----BEGIN PGP SIGNATURE-----\n...\n-----END PGP SIGNATURE-----")
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/index.yaml":
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries:
+  mychart:
+  - version: "1.0.0"
+    urls:
+    - "mychart-1.0.0.tgz"
+`))
+		case "/mychart-1.0.0.tgz.prov":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(provContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+	prov, chartFilename, err := client.FetchProvenance("mychart", "1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, provContent, prov)
+	assert.Equal(t, "mychart-1.0.0.tgz", chartFilename)
+}
+
 func TestUserAgentPriority(t *testing.T) {
 	t.Run("Custom User-Agent set via WithUserAgent option", func(t *testing.T) {
 		// Create a test server that captures the User-Agent header
