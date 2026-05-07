@@ -2130,6 +2130,139 @@ func TestUseAzureWorkloadIdentity(t *testing.T) {
 	}
 }
 
+func TestAzureUserGroupOverageClaimEnabled(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult bool
+	}{
+		{
+			Name: "enabled and set to true",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"enableUserGroupOverageClaim": true}}`,
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "enabled and set to false",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"enableUserGroupOverageClaim": false}}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "not defined with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "not defined",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name:           "OIDC config not defined",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureUserGroupOverageClaimEnabled()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
+func TestAzureGraphAPIEndpoint(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult string
+	}{
+		{
+			Name: "default endpoint when azure section present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: "https://graph.microsoft.com/v1.0",
+		},
+		{
+			Name: "custom endpoint for sovereign cloud",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://graph.microsoft.us/v1.0"}}`,
+			},
+			ExpectedResult: "https://graph.microsoft.us/v1.0",
+		},
+		{
+			Name: "empty string when no azure section",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{}`,
+			},
+			ExpectedResult: "",
+		},
+		{
+			Name:           "empty string when no OIDC config",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureGraphAPIEndpoint()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
+func TestAzureUserGroupOverageClaimCacheExpiration(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult time.Duration
+	}{
+		{
+			Name: "valid duration",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"userGroupOverageClaimCacheExpiration": "10m"}}`,
+			},
+			ExpectedResult: 10 * time.Minute,
+		},
+		{
+			Name: "not configured",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: 0,
+		},
+		{
+			Name: "invalid duration returns 0",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"userGroupOverageClaimCacheExpiration": "invalid"}}`,
+			},
+			ExpectedResult: 0,
+		},
+		{
+			Name:           "no OIDC config",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureUserGroupOverageClaimCacheExpiration()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
 func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
