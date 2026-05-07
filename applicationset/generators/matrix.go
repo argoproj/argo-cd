@@ -49,7 +49,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil, client)
 	if err != nil {
-		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
+		return nil, fmt.Errorf("failed to get params for first generator in the matrix generator: %w", err)
 	}
 	for _, a := range g0 {
 		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a, client)
