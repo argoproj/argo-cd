@@ -619,6 +619,178 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+// TestCompareAppStatePostDeleteHookNotTracked verifies that a PostDelete hook defined in the
+// application manifests does not cause the app to be OutOfSync. The hook should be excluded
+// from the target objects passed to GetManagedLiveObjs so that untracked resources sharing
+// the same name are not picked up as managed resources. (See #21579)
+func TestCompareAppStatePostDeleteHookNotTracked(t *testing.T) {
+	t.Parallel()
+
+	// Create a pod manifest annotated as a PostDelete hook
+	hook := NewPod()
+	hook.SetName("post-delete-secret")
+	hook.SetNamespace(test.FakeDestNamespace)
+	hook.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": "PostDelete"})
+	hookBytes, err := json.Marshal(hook)
+	require.NoError(t, err)
+
+	app := newFakeApp()
+	// managedLiveObjs is empty: since the fix excludes PostDelete hooks from the target
+	// objects passed to GetManagedLiveObjs, the untracked live resource with the same name
+	// would no longer be returned by the live state cache.
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(hookBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+	// The app should be Synced because PostDelete hooks are excluded from sync comparison
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.True(t, compRes.hasPostDeleteHooks)
+	// PostDelete hooks should not appear as managed resources or reconciled targets
+	assert.Empty(t, compRes.managedResources)
+	assert.Empty(t, compRes.resources)
+	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStatePreDeleteHookNotTracked verifies that a PreDelete hook defined in the
+// application manifests does not cause the app to be OutOfSync.
+func TestCompareAppStatePreDeleteHookNotTracked(t *testing.T) {
+	t.Parallel()
+
+	hook := NewPod()
+	hook.SetName("pre-delete-job")
+	hook.SetNamespace(test.FakeDestNamespace)
+	hook.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": "PreDelete"})
+	hookBytes, err := json.Marshal(hook)
+	require.NoError(t, err)
+
+	app := newFakeApp()
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(hookBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.True(t, compRes.hasPreDeleteHooks)
+	assert.Empty(t, compRes.managedResources)
+	assert.Empty(t, compRes.resources)
+	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateHelmPostDeleteHookNotTracked verifies that a Helm post-delete hook
+// defined in the application manifests does not cause the app to be OutOfSync.
+func TestCompareAppStateHelmPostDeleteHookNotTracked(t *testing.T) {
+	t.Parallel()
+
+	hook := NewPod()
+	hook.SetName("post-delete-secret")
+	hook.SetNamespace(test.FakeDestNamespace)
+	hook.SetAnnotations(map[string]string{"helm.sh/hook": "post-delete"})
+	hookBytes, err := json.Marshal(hook)
+	require.NoError(t, err)
+
+	app := newFakeApp()
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(hookBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.True(t, compRes.hasPostDeleteHooks)
+	assert.Empty(t, compRes.managedResources)
+	assert.Empty(t, compRes.resources)
+	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStatePostDeleteHookWithRegularResource verifies that when an app has both
+// a PostDelete hook and a regular resource, the regular resource is properly tracked while
+// the PostDelete hook is excluded from sync comparison.
+func TestCompareAppStatePostDeleteHookWithRegularResource(t *testing.T) {
+	t.Parallel()
+
+	// Regular resource that should be tracked
+	regularPod := NewPod()
+	regularPod.SetNamespace(test.FakeDestNamespace)
+	regularBytes, err := json.Marshal(regularPod)
+	require.NoError(t, err)
+
+	// PostDelete hook that should NOT be tracked for sync
+	hook := NewPod()
+	hook.SetName("post-delete-cleanup")
+	hook.SetNamespace(test.FakeDestNamespace)
+	hook.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": "PostDelete"})
+	hookBytes, err := json.Marshal(hook)
+	require.NoError(t, err)
+
+	// Live state has the regular pod
+	livePod := regularPod.DeepCopy()
+	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: regularPod.GetName()}
+
+	app := newFakeApp()
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(regularBytes), string(hookBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			key: livePod,
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+	// App should be Synced: regular resource is in sync, PostDelete hook is excluded
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.True(t, compRes.hasPostDeleteHooks)
+	// Only the regular resource should be tracked, not the PostDelete hook
+	assert.Len(t, compRes.managedResources, 1)
+	assert.Len(t, compRes.resources, 1)
+	assert.Empty(t, app.Status.Conditions)
+}
+
 // TestAppRevisions tests that revisions are properly propagated for a single source app
 func TestAppRevisionsSingleSource(t *testing.T) {
 	obj1 := NewPod()
