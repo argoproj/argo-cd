@@ -3019,6 +3019,14 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error building diff config: %w", err)
 	}
 
+	managedResources := make([]*v1alpha1.ResourceDiff, 0)
+	err = s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &managedResources)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting managed resources: %w", err)
+	}
+
 	// Convert live resources to unstructured objects
 	liveObjs := make([]*unstructured.Unstructured, 0, len(q.GetLiveResources()))
 	for _, liveResource := range q.GetLiveResources() {
@@ -3029,16 +3037,27 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 				return nil, fmt.Errorf("error unmarshaling live state for %s/%s: %w", liveResource.Kind, liveResource.Name, err)
 			}
 			if liveObj.GetName() != liveResource.Name {
-				return nil, fmt.Errorf("name mismatch: expected %s, got %s", liveResource.Name, liveObj.GetName())
+				return nil, status.Errorf(codes.InvalidArgument, "name mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Name, liveObj.GetName(), liveResource.Group, liveResource.Kind, liveResource.Name)
 			}
 			if liveObj.GetNamespace() != liveResource.Namespace {
-				return nil, fmt.Errorf("namespace mismatch: expected %s, got %s", liveResource.Namespace, liveObj.GetNamespace())
+				return nil, status.Errorf(codes.InvalidArgument, "namespace mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Namespace, liveObj.GetNamespace(), liveResource.Group, liveResource.Kind, liveResource.Name)
 			}
 			if liveObj.GroupVersionKind().Group != liveResource.Group {
-				return nil, fmt.Errorf("group mismatch: expected %s, got %s", liveResource.Group, liveObj.GroupVersionKind().Group)
+				return nil, status.Errorf(codes.InvalidArgument, "group mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Group, liveObj.GroupVersionKind().Group, liveResource.Group, liveResource.Kind, liveResource.Name)
 			}
 			if liveObj.GroupVersionKind().Kind != liveResource.Kind {
-				return nil, fmt.Errorf("kind mismatch: expected %s, got %s", liveResource.Kind, liveObj.GroupVersionKind().Kind)
+				return nil, status.Errorf(codes.InvalidArgument, "kind mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Kind, liveObj.GroupVersionKind().Kind, liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			// Validate permissions for the requested live object. It has to be part of the application's managed resources.
+			found := false
+			for _, item := range managedResources {
+				if item.Kind == liveResource.Kind && item.Group == liveResource.Group && item.Namespace == liveResource.Namespace && item.Name == liveResource.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, status.Errorf(codes.PermissionDenied, "%s/%s %s not found as part of application %s", liveResource.Group, liveResource.Kind, liveResource.Name, a.Name)
 			}
 			liveObjs = append(liveObjs, liveObj)
 		} else {
@@ -3059,13 +3078,6 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	diffResults, err := argodiff.StateDiffs(liveObjs, targetObjs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error performing state diffs: %w", err)
-	}
-	managedResources := make([]*v1alpha1.ResourceDiff, 0)
-	err = s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &managedResources)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error getting managed resources: %w", err)
 	}
 
 	// Convert StateDiffs results to ResourceDiff format for API response
@@ -3107,17 +3119,6 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		default:
 			return nil, fmt.Errorf("diff result index %d out of bounds: live resources (%d), target objects (%d)",
 				i, len(q.GetLiveResources()), len(targetObjs))
-		}
-
-		found := false
-		for _, item := range managedResources {
-			if item.Kind == kind && item.Group == group && item.Namespace == namespace && item.Name == name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return nil, status.Errorf(codes.PermissionDenied, "%s %s %s not found as part of application %s", kind, group, name, a.Name)
 		}
 
 		// Create ResourceDiff with StateDiffs results
