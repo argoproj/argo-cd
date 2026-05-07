@@ -136,14 +136,23 @@ func (g *BitBucketCloudProvider) listBranches(repo *Repository) ([]bitbucket.Rep
 		}, nil
 	}
 
-	branches, err := g.client.Repositories.Repository.ListBranches(&bitbucket.RepositoryBranchOptions{
-		Owner:    g.owner,
-		RepoSlug: repo.Repository,
-	})
-	if err != nil {
-		return nil, err
+	var allBranches []bitbucket.RepositoryBranch
+	for pageNum := 1; ; pageNum++ {
+		page, err := g.client.Repositories.Repository.ListBranches(&bitbucket.RepositoryBranchOptions{
+			Owner:    g.owner,
+			RepoSlug: repo.Repository,
+			Pagelen:  100,
+			PageNum:  pageNum,
+		})
+		if err != nil {
+			return nil, err
+		}
+		allBranches = append(allBranches, page.Branches...)
+		if page.Next == "" {
+			break
+		}
 	}
-	return branches.Branches, nil
+	return allBranches, nil
 }
 
 func findCloneURL(cloneProtocol string, repo *bitbucket.Repository) (*string, error) {
