@@ -1,0 +1,11 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: example
+  namespace: monitoring
+  generation: 4
+spec: {}
+status:
+  observedGeneration: 4
+  updateStatus: expanding
+  reason: "rolling out new replicas"
