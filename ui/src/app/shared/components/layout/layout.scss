@@ -15,6 +15,9 @@
     @include themify($themes) {
         background-color: themed('background-1');
     }
+    .theme-dark & {
+        background-color: #141a20;
+    }
     &__loader {
         @include themify($themes) {
             background-color: themed('layout-loader-bg');
