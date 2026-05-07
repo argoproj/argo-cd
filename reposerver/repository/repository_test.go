@@ -4215,6 +4215,172 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 	})
 }
 
+func Test_splitOptionalPrefix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		raw              string
+		expectedRest     string
+		expectedOptional bool
+	}{
+		{name: "bare path", raw: "values.yaml", expectedRest: "values.yaml", expectedOptional: false},
+		{name: "optional prefix", raw: "optional:values.yaml", expectedRest: "values.yaml", expectedOptional: true},
+		{name: "optional with ref", raw: "optional:$values/foo.yaml", expectedRest: "$values/foo.yaml", expectedOptional: true},
+		{name: "optional with glob", raw: "optional:envs/*.yaml", expectedRest: "envs/*.yaml", expectedOptional: true},
+		{name: "empty after prefix", raw: "optional:", expectedRest: "", expectedOptional: true},
+		// Prefix is case-sensitive. Anything other than the literal token is treated as a plain path.
+		{name: "wrong case is not stripped", raw: "Optional:values.yaml", expectedRest: "Optional:values.yaml", expectedOptional: false},
+		{name: "extra whitespace not stripped", raw: " optional:values.yaml", expectedRest: " optional:values.yaml", expectedOptional: false},
+		// Documented escape for files actually named optional:*.yaml — prefix the entry with ./
+		// so it no longer starts with the literal token.
+		{name: "dot-slash escape preserves literal optional in filename", raw: "./optional:legacy.yaml", expectedRest: "./optional:legacy.yaml", expectedOptional: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			rest, optional := splitOptionalPrefix(tc.raw)
+			assert.Equal(t, tc.expectedRest, rest)
+			assert.Equal(t, tc.expectedOptional, optional)
+		})
+	}
+}
+
+func Test_getResolvedValueFiles_optional(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
+
+	// main-repo: existing files
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "envs"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "values.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "envs", "a.yaml"), []byte{}, 0o644))
+
+	// repo1: existing file in referenced source
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "repo1"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "values.yaml"), []byte{}, 0o644))
+
+	repoPath := path.Join(tempDir, "main-repo")
+	refSources := map[string]*v1alpha1.RefTarget{
+		"$ref": {Repo: v1alpha1.Repository{Repo: "https://github.com/org/repo1"}},
+	}
+
+	t.Run("optional: on missing plain path is skipped", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"optional:missing.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.NoError(t, err)
+		assert.Empty(t, resolved)
+	})
+
+	t.Run("optional: on existing plain path is included", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"optional:values.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.NoError(t, err)
+		require.Len(t, resolved, 1)
+		assert.Equal(t, path.Join(repoPath, "values.yaml"), string(resolved[0]))
+	})
+
+	t.Run("optional: on existing $ref source path is resolved through the ref", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"optional:$ref/values.yaml"}, refSources, paths, false)
+		require.NoError(t, err)
+		require.Len(t, resolved, 1)
+		assert.Equal(t, path.Join(tempDir, "repo1", "values.yaml"), string(resolved[0]))
+	})
+
+	t.Run("optional: on missing $ref source path is skipped", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"optional:$ref/missing.yaml"}, refSources, paths, false)
+		require.NoError(t, err)
+		assert.Empty(t, resolved)
+	})
+
+	t.Run("optional: on glob with matches behaves like a normal glob", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"optional:envs/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.NoError(t, err)
+		require.Len(t, resolved, 1)
+		assert.Equal(t, path.Join(repoPath, "envs", "a.yaml"), string(resolved[0]))
+	})
+
+	t.Run("optional: on glob with zero matches is skipped without error", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"optional:nonexistent/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.NoError(t, err)
+		assert.Empty(t, resolved)
+	})
+
+	t.Run("required sibling next to optional is still passed to helm when missing", func(t *testing.T) {
+		t.Parallel()
+		// getResolvedValueFiles itself does not stat-fail on missing non-glob entries when
+		// ignoreMissingValueFiles=false — that's helm's job to error out on later. The contract
+		// the optional: marker must preserve is: a missing required entry is *kept* in the
+		// resolved list (so helm sees it and fails), while a missing optional entry is dropped.
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{
+				"optional:missing-override.yaml", // optional, missing → dropped
+				"missing-required.yaml",          // required, missing → kept (helm will error)
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.NoError(t, err)
+		require.Len(t, resolved, 1)
+		assert.Equal(t, path.Join(repoPath, "missing-required.yaml"), string(resolved[0]))
+	})
+
+	t.Run("required missing glob sibling next to optional missing glob still errors", func(t *testing.T) {
+		t.Parallel()
+		// For globs, zero-match *does* return GlobNoMatchError when neither flag is set.
+		// optional: on a glob suppresses that error for that entry only; the required glob
+		// next to it still raises.
+		_, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{
+				"optional:nonexistent-optional/*.yaml", // suppressed
+				"nonexistent-required/*.yaml",          // raises GlobNoMatchError
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.Error(t, err)
+	})
+
+	t.Run("optional next to required-and-present preserves order", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{
+				"values.yaml",                    // required, present
+				"optional:missing-override.yaml", // optional, missing → skipped
+				"envs/a.yaml",                    // required, present
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.NoError(t, err)
+		require.Len(t, resolved, 2)
+		assert.Equal(t, path.Join(repoPath, "values.yaml"), string(resolved[0]))
+		assert.Equal(t, path.Join(repoPath, "envs", "a.yaml"), string(resolved[1]))
+	})
+
+	t.Run("ignoreMissingValueFiles=true does not change behavior for bare entries paired with optional", func(t *testing.T) {
+		t.Parallel()
+		// Both flags allow the missing file to be skipped; the result should be identical to
+		// using either alone for an entry that is missing.
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{
+				"values.yaml",
+				"optional:missing.yaml",
+				"missing-via-global.yaml",
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, true)
+		require.NoError(t, err)
+		require.Len(t, resolved, 1)
+		assert.Equal(t, path.Join(repoPath, "values.yaml"), string(resolved[0]))
+	})
+}
+
 func Test_verifyGlobMatchesWithinRoot(t *testing.T) {
 	t.Parallel()
 

@@ -90,6 +90,40 @@ source:
     ignoreMissingValueFiles: true
 ```
 
+### Marking a single file as optional
+
+`ignoreMissingValueFiles` makes every entry in `valueFiles` allowed-to-be-missing,
+which can hide typos or accidental renames in files that should always exist.
+To mark only specific entries as optional while keeping the rest strict, prefix
+those entries with `optional:`:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - shared/defaults.yaml                          # required
+    - optional:shared/defaults.region-eu-west.yaml  # optional override
+    - service/defaults.yaml                         # required
+    - optional:service/defaults.production.yaml     # optional override
+```
+
+A missing required entry still produces an error; a missing `optional:` entry is
+silently skipped. Order is preserved, so an `optional:` override stays at its
+declared position relative to the file it overrides.
+
+The `optional:` prefix composes with `$ref`-source paths, glob patterns, and
+remote URLs. For globs, `optional:` causes a zero-match to be skipped silently
+instead of raising the `ComparisonError` described under
+[No-match behavior](#no-match-behavior).
+
+> [!NOTE]
+> The literal token `optional:` is reserved at the start of `valueFiles` entries.
+> Linux filesystems do allow `:` in filenames, but it is rare in practice (it
+> conflicts with `host:path` conventions in rsync/scp and with `PATH` separators).
+> If you do have a file whose name actually starts with `optional:`, escape it by
+> prefixing the entry with `./` — anything that does not start with the literal
+> token `optional:` is treated as a path. For example: `./optional:legacy.yaml`.
+
 ## Glob Patterns in Value Files
 
 Glob patterns can be used in `valueFiles` entries to match multiple files at once. This is useful
