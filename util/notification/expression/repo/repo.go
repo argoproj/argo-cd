@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -34,12 +35,12 @@ func getApplication(obj *unstructured.Unstructured) (*v1alpha1.Application, erro
 	return application, nil
 }
 
-func getAppDetails(un *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {
+func getAppDetails(un *unstructured.Unstructured, argocdService service.Service, sourceIndex int) (*shared.AppDetail, error) {
 	app, err := getApplication(un)
 	if err != nil {
 		return nil, err
 	}
-	appDetail, err := argocdService.GetAppDetails(context.Background(), app)
+	appDetail, err := argocdService.GetAppDetails(context.Background(), app, sourceIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +107,25 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 
 			return *meta
 		},
-		"GetAppDetails": func() any {
-			appDetails, err := getAppDetails(app, argocdService)
+		"GetAppDetails": func(optionalSourceIndex ...interface{}) any {
+			sourceIndex := 0
+			if len(optionalSourceIndex) > 0 && optionalSourceIndex[0] != nil {
+				switch v := optionalSourceIndex[0].(type) {
+				case int:
+					sourceIndex = v
+				case int32:
+					sourceIndex = int(v)
+				case int64:
+					sourceIndex = int(v)
+				case float32:
+					sourceIndex = int(v)
+				case float64:
+					sourceIndex = int(v)
+				default:
+					panic(fmt.Sprintf("GetAppDetails: source index must be an integer (int, int32, int64, float32, float64), got %T", optionalSourceIndex[0]))
+				}
+			}
+			appDetails, err := getAppDetails(app, argocdService, sourceIndex)
 			if err != nil {
 				panic(err)
 			}

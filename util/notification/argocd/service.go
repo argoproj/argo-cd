@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
 
 	log "github.com/sirupsen/logrus"
@@ -21,7 +22,7 @@ import (
 
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
-	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
+	GetAppDetails(ctx context.Context, app *v1alpha1.Application, sourceIndex int) (*shared.AppDetail, error)
 	GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error)
 }
 
@@ -73,8 +74,17 @@ func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string,
 	}, nil
 }
 
-func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error) {
-	appSource := app.Spec.GetSourcePtrByIndex(0)
+func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Application, sourceIndex int) (*shared.AppDetail, error) {
+	sources := app.Spec.GetSources()
+	if len(sources) == 0 {
+		return nil, fmt.Errorf("application has no sources")
+	}
+	// Explicit bounds check is required because GetSourcePtrByIndex does not validate the index:
+	// it silently falls back to Sources[0] for any index <= 0 and panics for out-of-range positive indices.
+	if sourceIndex < 0 || sourceIndex >= len(sources) {
+		return nil, fmt.Errorf("source index %d out of range (application has %d sources)", sourceIndex, len(sources))
+	}
+	appSource := app.Spec.GetSourcePtrByIndex(sourceIndex)
 
 	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
 	repo, err := argocdDB.GetRepository(ctx, appSource.RepoURL, app.Spec.Project)
@@ -93,6 +103,20 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 	if err != nil {
 		return nil, err
 	}
+
+	var refSources v1alpha1.RefTargetRevisionMapping
+	if app.Spec.HasMultipleSources() {
+		// Pass empty revisions slice so each ref source uses its spec.TargetRevision.
+		// Empty revisions causes GetRefSources to resolve each ref source at its
+		// default/HEAD revision.
+		// This is intentional since GetAppDetails queries the current
+		// chart state, not a specific sync revision.
+		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, app.Spec.Project, argocdDB.GetRepository, []string{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ref sources: %w", err)
+		}
+	}
+
 	appDetail, err := svc.repoServerClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		AppName:          app.Name,
 		Repo:             repo,
@@ -100,6 +124,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      helmOptions,
+		RefSources:       refSources,
 	})
 	if err != nil {
 		return nil, err
