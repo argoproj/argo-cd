@@ -389,7 +389,7 @@ func (_c *ClusterServiceClient_InvalidateCache_Call) RunAndReturn(run func(ctx c
 }
 
 // List provides a mock function for the type ClusterServiceClient
-func (_mock *ClusterServiceClient) List(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption) (*v1alpha1.ClusterList, error) {
+func (_mock *ClusterServiceClient) List(ctx context.Context, in *cluster.ClusterListQuery, opts ...grpc.CallOption) (*v1alpha1.ClusterList, error) {
 	// grpc.CallOption
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
@@ -406,17 +406,17 @@ func (_mock *ClusterServiceClient) List(ctx context.Context, in *cluster.Cluster
 
 	var r0 *v1alpha1.ClusterList
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *cluster.ClusterQuery, ...grpc.CallOption) (*v1alpha1.ClusterList, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *cluster.ClusterListQuery, ...grpc.CallOption) (*v1alpha1.ClusterList, error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *cluster.ClusterQuery, ...grpc.CallOption) *v1alpha1.ClusterList); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *cluster.ClusterListQuery, ...grpc.CallOption) *v1alpha1.ClusterList); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.ClusterList)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *cluster.ClusterQuery, ...grpc.CallOption) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *cluster.ClusterListQuery, ...grpc.CallOption) error); ok {
 		r1 = returnFunc(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)
@@ -431,22 +431,22 @@ type ClusterServiceClient_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-//   - in *cluster.ClusterQuery
+//   - in *cluster.ClusterListQuery
 //   - opts ...grpc.CallOption
 func (_e *ClusterServiceClient_Expecter) List(ctx interface{}, in interface{}, opts ...interface{}) *ClusterServiceClient_List_Call {
 	return &ClusterServiceClient_List_Call{Call: _e.mock.On("List",
 		append([]interface{}{ctx, in}, opts...)...)}
 }
 
-func (_c *ClusterServiceClient_List_Call) Run(run func(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption)) *ClusterServiceClient_List_Call {
+func (_c *ClusterServiceClient_List_Call) Run(run func(ctx context.Context, in *cluster.ClusterListQuery, opts ...grpc.CallOption)) *ClusterServiceClient_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 *cluster.ClusterQuery
+		var arg1 *cluster.ClusterListQuery
 		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterQuery)
+			arg1 = args[1].(*cluster.ClusterListQuery)
 		}
 		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
@@ -470,7 +470,7 @@ func (_c *ClusterServiceClient_List_Call) Return(clusterList *v1alpha1.ClusterLi
 	return _c
 }
 
-func (_c *ClusterServiceClient_List_Call) RunAndReturn(run func(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption) (*v1alpha1.ClusterList, error)) *ClusterServiceClient_List_Call {
+func (_c *ClusterServiceClient_List_Call) RunAndReturn(run func(ctx context.Context, in *cluster.ClusterListQuery, opts ...grpc.CallOption) (*v1alpha1.ClusterList, error)) *ClusterServiceClient_List_Call {
 	_c.Call.Return(run)
 	return _c
 }

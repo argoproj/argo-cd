@@ -2491,6 +2491,12 @@
             "description": "value holds the cluster server URL or cluster name.",
             "name": "id.value",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Label selector to restrict the returned list to clusters with matching labels.",
+            "name": "selector",
+            "in": "query"
           }
         ],
         "responses": {

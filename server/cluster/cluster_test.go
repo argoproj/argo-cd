@@ -593,21 +593,29 @@ func TestListCluster(t *testing.T) {
 		Name:       "foo",
 		Server:     "https://127.0.0.1",
 		Namespaces: []string{"default", "kube-system"},
+		Labels:     map[string]string{"env": "prod"},
 	}
 	barCluster := appv1.Cluster{
 		Name:       "bar",
 		Server:     "https://192.168.0.1",
 		Namespaces: []string{"default", "kube-system"},
+		Labels:     map[string]string{"env": "staging"},
 	}
 	bazCluster := appv1.Cluster{
 		Name:       "test/ing",
 		Server:     "https://testing.com",
 		Namespaces: []string{"default", "kube-system"},
+		Labels:     map[string]string{"env": "prod", "tier": "frontend"},
+	}
+	quxCluster := appv1.Cluster{
+		Name:       "qux",
+		Server:     "https://qux.example.com",
+		Namespaces: []string{"default"},
 	}
 
 	mockClusterList := appv1.ClusterList{
 		ListMeta: metav1.ListMeta{},
-		Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster},
+		Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster, quxCluster},
 	}
 
 	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
@@ -616,13 +624,13 @@ func TestListCluster(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		q       *cluster.ClusterQuery
+		q       *cluster.ClusterListQuery
 		want    *appv1.ClusterList
 		wantErr bool
 	}{
 		{
 			name: "filter by name",
-			q: &cluster.ClusterQuery{
+			q: &cluster.ClusterListQuery{
 				Name: fooCluster.Name,
 			},
 			want: &appv1.ClusterList{
@@ -632,7 +640,7 @@ func TestListCluster(t *testing.T) {
 		},
 		{
 			name: "filter by server",
-			q: &cluster.ClusterQuery{
+			q: &cluster.ClusterListQuery{
 				Server: barCluster.Server,
 			},
 			want: &appv1.ClusterList{
@@ -642,7 +650,7 @@ func TestListCluster(t *testing.T) {
 		},
 		{
 			name: "filter by id - name",
-			q: &cluster.ClusterQuery{
+			q: &cluster.ClusterListQuery{
 				Id: &cluster.ClusterID{
 					Type:  "name",
 					Value: fooCluster.Name,
@@ -655,7 +663,7 @@ func TestListCluster(t *testing.T) {
 		},
 		{
 			name: "filter by id - name_escaped",
-			q: &cluster.ClusterQuery{
+			q: &cluster.ClusterListQuery{
 				Id: &cluster.ClusterID{
 					Type:  "name_escaped",
 					Value: "test%2fing",
@@ -668,7 +676,7 @@ func TestListCluster(t *testing.T) {
 		},
 		{
 			name: "filter by id - server",
-			q: &cluster.ClusterQuery{
+			q: &cluster.ClusterListQuery{
 				Id: &cluster.ClusterID{
 					Type:  "server",
 					Value: barCluster.Server,
@@ -677,6 +685,75 @@ func TestListCluster(t *testing.T) {
 			want: &appv1.ClusterList{
 				ListMeta: metav1.ListMeta{},
 				Items:    []appv1.Cluster{barCluster},
+			},
+		},
+		{
+			name: "no filter - returns all clusters",
+			q:    &cluster.ClusterListQuery{},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster, quxCluster},
+			},
+		},
+		{
+			name: "filter by label selector - single label",
+			q:    &cluster.ClusterListQuery{Selector: "env=prod"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, bazCluster},
+			},
+		},
+		{
+			name: "filter by label selector - multiple labels",
+			q:    &cluster.ClusterListQuery{Selector: "env=prod,tier=frontend"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{bazCluster},
+			},
+		},
+		{
+			name: "filter by label selector - negation",
+			q:    &cluster.ClusterListQuery{Selector: "env!=staging"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, bazCluster, quxCluster},
+			},
+		},
+		{
+			name: "filter by label selector - set-based in operator",
+			q:    &cluster.ClusterListQuery{Selector: "env in (prod,staging)"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster},
+			},
+		},
+		{
+			name: "filter by label selector - key existence",
+			q:    &cluster.ClusterListQuery{Selector: "env"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster},
+			},
+		},
+		{
+			name: "filter by label selector - no match",
+			q:    &cluster.ClusterListQuery{Selector: "env=dev"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{},
+			},
+		},
+		{
+			name:    "filter by label selector - invalid selector",
+			q:       &cluster.ClusterListQuery{Selector: "!!invalid"},
+			wantErr: true,
+		},
+		{
+			name: "filter by label selector - key absence",
+			q:    &cluster.ClusterListQuery{Selector: "!env"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{quxCluster},
 			},
 		},
 	}

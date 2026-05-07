@@ -151,6 +151,49 @@ func TestClusterListDenied(t *testing.T) {
 		})
 }
 
+func TestClusterListLabelSelector(t *testing.T) {
+	state := fixture.EnsureCleanState(t)
+
+	clusterURL := url.QueryEscape(KubernetesInternalAPIServerAddr)
+
+	// Label the in-cluster cluster
+	var cluster Cluster
+	err := fixture.DoHttpJsonRequest("PUT",
+		fmt.Sprintf("/api/v1/clusters/%s?updatedFields=labels", clusterURL),
+		&cluster,
+		[]byte(`{"labels":{"e2e-env":"production"}}`)...)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err := fixture.DoHttpJsonRequest("PUT",
+			fmt.Sprintf("/api/v1/clusters/%s?updatedFields=labels", clusterURL),
+			&cluster,
+			[]byte(`{"labels":{}}`)...)
+		if err != nil {
+			t.Logf("cleanup: failed to reset cluster labels: %v", err)
+		}
+	})
+
+	// Matching selector returns the cluster
+	clusterFixture.GivenWithSameState(state).
+		When().
+		ListWithSelector("e2e-env=production").
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			require.NoError(t, err)
+			assert.Contains(t, output, "https://kubernetes.default.svc")
+		})
+
+	// Non-matching selector returns empty list
+	clusterFixture.GivenWithSameState(state).
+		When().
+		ListWithSelector("e2e-env=nonexistent").
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			require.NoError(t, err)
+			assert.Equal(t, "SERVER  NAME  VERSION  STATUS  MESSAGE  PROJECT", output)
+		})
+}
+
 func TestClusterSet(t *testing.T) {
 	ctx := clusterFixture.Given(t)
 	ctx.Project(fixture.ProjectName).
