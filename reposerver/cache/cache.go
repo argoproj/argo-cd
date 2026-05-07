@@ -155,19 +155,19 @@ func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 	return info.GetKubeVersion() + "|" + strings.Join(apiVersions, ",")
 }
 
-func listApps(repoURL, revision string) string {
-	return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
+func listApps(repoURL, revision, pathsSHA string) string {
+	return fmt.Sprintf("ldir|%s|%s|%s", repoURL, revision, pathsSHA)
 }
 
-func (c *Cache) ListApps(repoURL, revision string) (map[string]string, error) {
+func (c *Cache) ListApps(repoURL, revision, pathsSHA string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.cache.GetItem(listApps(repoURL, revision), &res)
+	err := c.cache.GetItem(listApps(repoURL, revision, pathsSHA), &res)
 	return res, err
 }
 
-func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error {
+func (c *Cache) SetApps(repoURL, revision, pathsSHA string, apps map[string]string) error {
 	return c.cache.SetItem(
-		listApps(repoURL, revision),
+		listApps(repoURL, revision, pathsSHA),
 		apps,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
@@ -502,37 +502,40 @@ func (c *Cache) SetOCIMetadata(repoURL, revision string, item *appv1.OCIMetadata
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func gitFilesKey(repoURL, revision, pattern string) string {
-	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
+func gitFilesKey(repoURL, revision, pathsSHA, pattern string) string {
+	if pathsSHA == "" {
+		return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
+	}
+	return fmt.Sprintf("gitfiles|%s|%s|%s|%s", repoURL, revision, pattern, pathsSHA)
 }
 
-func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+func (c *Cache) SetGitFiles(repoURL, revision, pathsSHA, pattern string, files map[string][]byte) error {
 	return c.cache.SetItem(
-		gitFilesKey(repoURL, revision, pattern),
+		gitFilesKey(repoURL, revision, pathsSHA, pattern),
 		&files,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+func (c *Cache) GetGitFiles(repoURL, revision, pathsSHA, pattern string) (map[string][]byte, error) {
 	var item map[string][]byte
-	err := c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+	err := c.cache.GetItem(gitFilesKey(repoURL, revision, pathsSHA, pattern), &item)
 	return item, err
 }
 
-func gitDirectoriesKey(repoURL, revision string) string {
-	return fmt.Sprintf("gitdirs|%s|%s", repoURL, revision)
+func gitDirectoriesKey(repoURL, revision, pathsSHA string) string {
+	return fmt.Sprintf("gitdirs|%s|%s|%s", repoURL, revision, pathsSHA)
 }
 
-func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string) error {
+func (c *Cache) SetGitDirectories(repoURL, revision, pathsSHA string, directories []string) error {
 	return c.cache.SetItem(
-		gitDirectoriesKey(repoURL, revision),
+		gitDirectoriesKey(repoURL, revision, pathsSHA),
 		&directories,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
+func (c *Cache) GetGitDirectories(repoURL, revision, pathsSHA string) ([]string, error) {
 	var item []string
-	err := c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
+	err := c.cache.GetItem(gitDirectoriesKey(repoURL, revision, pathsSHA), &item)
 	return item, err
 }
 

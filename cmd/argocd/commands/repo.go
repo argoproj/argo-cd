@@ -203,6 +203,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.AzureActiveDirectoryEndpoint = repoOpts.AzureActiveDirectoryEndpoint
 			repoOpts.Repo.Depth = repoOpts.Depth
 			repoOpts.Repo.WebhookManifestCacheWarmDisabled = repoOpts.WebhookManifestCacheWarmDisabled
+			repoOpts.Repo.SparsePaths = repoOpts.SparsePaths
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")

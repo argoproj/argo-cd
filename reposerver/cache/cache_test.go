@@ -66,19 +66,19 @@ func TestCache_ListApps(t *testing.T) {
 	cache := fixtures.cache
 	mockCache := fixtures.mockCache
 	// cache miss
-	_, err := cache.ListApps("my-repo-url", "my-revision")
+	_, err := cache.ListApps("my-repo-url", "my-revision", "")
 	require.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
-	err = cache.SetApps("my-repo-url", "my-revision", map[string]string{"foo": "bar"})
+	err = cache.SetApps("my-repo-url", "my-revision", "", map[string]string{"foo": "bar"})
 	require.NoError(t, err)
 	// cache miss
-	_, err = cache.ListApps("other-repo-url", "my-revision")
+	_, err = cache.ListApps("other-repo-url", "my-revision", "")
 	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache miss
-	_, err = cache.ListApps("my-repo-url", "other-revision")
+	_, err = cache.ListApps("my-repo-url", "other-revision", "")
 	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
-	value, err := cache.ListApps("my-repo-url", "my-revision")
+	value, err := cache.ListApps("my-repo-url", "my-revision", "")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"foo": "bar"}, value)
 	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 4})
@@ -691,7 +691,7 @@ func TestGetGitDirectories(t *testing.T) {
 	t.Run("GetGitDirectories cache miss", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
+		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision", "")
 		require.ErrorIs(t, err, ErrCacheMiss)
 		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
@@ -702,11 +702,11 @@ func TestGetGitDirectories(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := []string{"test/dir", "test/dir2"}
 		err := cache.cache.SetItem(
-			gitDirectoriesKey("test-repo", "test-revision"),
+			gitDirectoriesKey("test-repo", "test-revision", ""),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
+		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision", "")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -718,11 +718,11 @@ func TestGetGitDirectories(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := []string{"test/dir", "test/dir2"}
 		err := cache.cache.SetItem(
-			gitDirectoriesKey("test-repo", "test-revision"),
+			gitDirectoriesKey("test-repo", "test-revision", ""),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
+		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision", "")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -732,9 +732,9 @@ func TestGetGitDirectories(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		expectedItem := []string{"test/dir", "test/dir2"}
-		err := fixtures.cache.SetGitDirectories("test-repo", "test-revision", expectedItem)
+		err := fixtures.cache.SetGitDirectories("test-repo", "test-revision", "", expectedItem)
 		require.NoError(t, err)
-		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
+		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision", "")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -745,7 +745,7 @@ func TestGetGitFiles(t *testing.T) {
 	t.Run("GetGitFiles cache miss", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.ErrorIs(t, err, ErrCacheMiss)
 		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
@@ -756,11 +756,11 @@ func TestGetGitFiles(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
 		err := cache.cache.SetItem(
-			gitFilesKey("test-repo", "test-revision", "*.json"),
+			gitFilesKey("test-repo", "test-revision", "", "*.json"),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -770,9 +770,9 @@ func TestGetGitFiles(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
-		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "*.json", expectedItem)
+		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "", "*.json", expectedItem)
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})

@@ -1997,6 +1997,11 @@ message Repository {
 
   // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
   optional string azureActiveDirectoryEndpoint = 32;
+
+  // SparsePaths specifies which paths to checkout when using sparse checkout with partial clone.
+  // Paths can be absolute (e.g., "/charts") or relative to the repository root.
+  // If empty, a full checkout will be used, otherwise a partial clone will be used.
+  repeated string sparsePaths = 33;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

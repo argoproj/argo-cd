@@ -62,6 +62,8 @@ type Context struct {
 	syncSourceBranch         string
 	syncSourcePath           string
 	hydrateToBranch          string
+	directoryInclude         string
+	directoryExclude         string
 }
 
 type ContextArgs struct {
@@ -317,6 +319,16 @@ func (c *Context) HydrateToBranch(branch string) *Context {
 
 func (c *Context) Recurse() *Context {
 	c.directoryRecurse = true
+	return c
+}
+
+func (c *Context) DirectoryInclude(directoryInclude string) *Context {
+	c.directoryInclude = directoryInclude
+	return c
+}
+
+func (c *Context) DirectoryExclude(directoryExclude string) *Context {
+	c.directoryExclude = directoryExclude
 	return c
 }
 

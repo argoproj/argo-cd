@@ -93,6 +93,14 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             });
         }
 
+        if (repository.type === 'git') {
+            items.push({
+                title: 'Sparse paths (comma-separated)',
+                view: repository.sparsePaths ? repository.sparsePaths.join(',') : '',
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='sparsePaths' component={Text} />
+            });
+        }
+
         return items;
     };
 
@@ -114,12 +122,13 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         forceHttpBasicAuth: repo.forceHttpBasicAuth || false,
         useAzureWorkloadIdentity: repo.useAzureWorkloadIdentity || false,
         insecureOCIForceHttp: repo.insecureOCIForceHttp || false,
-        depth: repo.depth || 0
+        depth: repo.depth || 0,
+        sparsePaths: repo.sparsePaths ? repo.sparsePaths.join(',') : ''
     };
 
     return (
         <EditablePanel
-            values={repo}
+            values={newRepo}
             validate={input => ({
                 username: !input.username && input.password && 'Username is required if password is given.',
                 password: !input.password && input.username && 'Password is required if username is given.',
@@ -133,6 +142,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 params.password = input.password || '';
                 params.bearerToken = input.bearerToken || '';
                 params.depth = input.depth || 0;
+                params.sparsePaths = input.sparsePaths || '';
                 save(params);
             }}
             title='CONNECTED REPOSITORY'

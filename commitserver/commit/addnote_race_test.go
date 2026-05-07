@@ -194,7 +194,7 @@ func getClientForClone(t *testing.T, remotePath string) git.Client {
 	_, err = runGitCmd(ctx, workDir, "config", "user.email", "test@example.com")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	return client
