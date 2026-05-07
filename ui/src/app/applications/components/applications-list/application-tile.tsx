@@ -261,6 +261,20 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 <i className='fa fa-sync' /> Sync
                             </a>
                             &nbsp;
+                            {app.status.sync.status !== models.SyncStatuses.Synced && (
+                                <Tooltip className='custom-tooltip' content={'Diff'}>
+                                    <a
+                                        className='argo-button argo-button--base'
+                                        qe-id='applications-tiles-button-diff'
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {tab: 'diff'});
+                                        }}>
+                                        <i className='fa fa-file-medical' /> <span className='show-for-xxlarge'>Diff</span>
+                                    </a>
+                                </Tooltip>
+                            )}
+                            {app.status.sync.status !== models.SyncStatuses.Synced && <> &nbsp;</>}
                             <Tooltip className='custom-tooltip' content={'Refresh'}>
                                 <a
                                     className='argo-button argo-button--base'
