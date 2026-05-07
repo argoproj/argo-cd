@@ -13,6 +13,7 @@ import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions, ApplicationSetConditions} from '../application-conditions/application-conditions';
+import {NoticeBanner} from '../application-notice/notice-banner';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
@@ -751,13 +752,27 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 if (isApplication) {
                                     return {
                                         ...commonProps,
-                                        onNodeClick: (fullName: string) => selectNode(fullName),
+                                        onNodeClick: (fullName: string) => {
+                                            const parts = fullName.split('/');
+                                            const [group, kind, namespace, name] = parts;
+                                            if (group === 'argoproj.io' && kind === 'ApplicationSet' && namespace && name) {
+                                                // Only navigate to AppSet page if this AppSet owns the current Application.
+                                                // If the AppSet is a child resource managed by this Application, open ResourceDetails instead.
+                                                const ownerAppSetRef = AppUtils.getApplicationSetOwnerRef(application as appModels.Application);
+                                                if (ownerAppSetRef && ownerAppSetRef.name === name) {
+                                                    appContext.navigation.goto(`/applicationsets/${namespace}/${name}`);
+                                                    return;
+                                                }
+                                            }
+                                            selectNode(fullName);
+                                        },
                                         nodeMenu: (node: ResourceTreeNode) =>
                                             AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged.current, () =>
                                                 getApplicationActionMenu(application as appModels.Application, false)
                                             ),
                                         app: application as appModels.Application,
                                         showOrphanedResources: pref.orphanedResources,
+                                        showAppSetParent: pref.showAppSetParent,
                                         useNetworkingHierarchy: pref.view === 'network',
                                         podGroupCount: pref.podGroupCount
                                     };
@@ -975,6 +990,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     />
                                                 )}
                                             </div>
+                                            <NoticeBanner
+                                                annotations={application.metadata.annotations}
+                                                appName={application.metadata.name}
+                                                appNamespace={application.metadata.namespace}
+                                            />
                                             <div className='application-details__tree'>
                                                 {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                                 {((pref.view === 'tree' || pref.view === 'network') && (
@@ -1031,6 +1051,18 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         <i className={classNames('fa fa-object-group fa-fw')} />
                                                                     </a>
                                                                 </Tooltip>
+                                                            )}
+                                                            {isApplication && !!AppUtils.getApplicationSetOwnerRef(application as appModels.Application) && (
+                                                                <a
+                                                                    className={`group-nodes-button group-nodes-button${pref.showAppSetParent ? '-on' : ''}`}
+                                                                    title='Show ApplicationSet parent node'
+                                                                    onClick={() =>
+                                                                        services.viewPreferences.updatePreferences({
+                                                                            appDetails: {...pref, showAppSetParent: !pref.showAppSetParent}
+                                                                        })
+                                                                    }>
+                                                                    <i className='fa fa-sitemap fa-fw' />
+                                                                </a>
                                                             )}
                                                             <span className={`separator`} />
                                                             <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
@@ -1294,6 +1326,41 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     title: <ActionMenuItem actionLabel='Sync' />,
                     action: () => AppUtils.showDeploy('all', null, appContext),
                     disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
+                },
+                {
+                    iconClassName: 'fa fa-toggle-on',
+                    title: <ActionMenuItem actionLabel='Toggle Auto-Sync' />,
+                    action: async () => {
+                        const isEnabled = app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
+                        const confirmationTitle = isEnabled ? 'Disable Auto-Sync?' : 'Enable Auto-Sync?';
+                        const confirmed = await appContext.popup.confirm(
+                            confirmationTitle,
+                            isEnabled
+                                ? 'Are you sure you want to disable automated application synchronization'
+                                : 'If enabled, application will automatically sync when changes are detected'
+                        );
+                        if (!confirmed) return;
+                        try {
+                            await services.applications.runResourceAction(
+                                app.metadata.name,
+                                app.metadata.namespace,
+                                {
+                                    name: app.metadata.name,
+                                    namespace: app.metadata.namespace,
+                                    group: 'argoproj.io',
+                                    kind: 'Application',
+                                    version: 'v1alpha1'
+                                } as appModels.ResourceNode,
+                                'toggle-auto-sync',
+                                []
+                            );
+                        } catch (e) {
+                            appContext.notifications.show({
+                                content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
+                                type: NotificationType.Error
+                            });
+                        }
+                    }
                 },
                 ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
                     ? [

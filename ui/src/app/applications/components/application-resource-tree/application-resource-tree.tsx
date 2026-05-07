@@ -17,10 +17,12 @@ import {
     BASE_COLORS,
     ComparisonStatusIcon,
     getAppOverridesCount,
+    getApplicationSetOwnerRef,
     getAppSetHealthStatus,
     HealthStatusIcon,
     isApp,
     isAppNode,
+    isAppSetNode,
     isYoungerThanXMinutes,
     NodeId,
     nodeKey,
@@ -76,6 +78,7 @@ export interface ApplicationResourceTreeProps {
     nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
+    showAppSetParent?: boolean;
 }
 
 interface Line {
@@ -88,6 +91,9 @@ interface Line {
 const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
 const POD_NODE_HEIGHT = 136;
+const POD_GROUP_ROW_HEIGHT = 20;
+// Keep in sync with `$pods-per-row` in `application-resource-tree.scss`.
+const POD_GROUP_PODS_PER_ROW = 8;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
@@ -400,11 +406,31 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
     }
 }
 
+function getPodGroupNumberOfRows(pods: models.Pod[], showPodGroupByStatus: boolean) {
+    if (!pods || pods.length === 0) {
+        return 0;
+    }
+    if (showPodGroupByStatus) {
+        const statuses = new Set<string>();
+        for (const pod of pods) {
+            if (!pod) {
+                continue;
+            }
+            const health = pod.health;
+            if (health === 'Healthy' || health === 'Degraded' || health === 'Progressing') {
+                statuses.add(health);
+            }
+        }
+        return statuses.size;
+    }
+    return Math.ceil(pods.length / POD_GROUP_PODS_PER_ROW);
+}
+
 function renderPodGroup(
     props: ApplicationResourceTreeProps,
-    id: string,
     node: ResourceTreeNode & dagre.Node & {groupedNodeIds?: string[]},
-    childMap: Map<string, ResourceTreeNode[]>
+    childMap: Map<string, ResourceTreeNode[]>,
+    showPodGroupByStatus: boolean
 ) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -424,8 +450,6 @@ function renderPodGroup(
         return acc;
     }, []);
     const childCount = nonPodChildren?.length;
-    const margin = 8;
-    let topExtra = 0;
     const podGroup = node.podGroup;
     const podGroupHealthy = [];
     const podGroupDegraded = [];
@@ -444,14 +468,10 @@ function renderPodGroup(
         }
     }
 
-    const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
-    const numberOfRows = showPodGroupByStatus
-        ? [podGroupHealthy, podGroupDegraded, podGroupInProgress].reduce((total, podGroupByStatus) => total + (podGroupByStatus.filter(pod => pod).length > 0 ? 1 : 0), 0)
-        : Math.ceil(podGroup?.pods.length / 8);
-
-    if (podGroup) {
-        topExtra = margin + (POD_NODE_HEIGHT / 2 + 30 * numberOfRows) / 2;
-    }
+    // Use Dagre's measured height directly to avoid duplicating sizing logic in the render path.
+    // Dagre assigns node.y as the node center; convert to DOM top-left for rendering.
+    const podGroupHeight = node.height;
+    const podGroupTop = node.y - podGroupHeight / 2;
 
     return (
         <div
@@ -463,9 +483,9 @@ function renderPodGroup(
             title={describeNode(node)}
             style={{
                 left: node.x,
-                top: node.y - topExtra,
+                top: podGroupTop,
                 width: node.width,
-                height: showPodGroupByStatus ? POD_NODE_HEIGHT + 20 * numberOfRows : node.height
+                height: podGroupHeight
             }}>
             <NodeUpdateAnimation resourceVersion={node.resourceVersion} />
             <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={`application-resource-tree__node__top-part`}>
@@ -531,13 +551,18 @@ function renderPodGroup(
                                 }}
                             </Consumer>
                         )}
+                        {isAppSetNode(node) && (
+                            <a onClick={e => e.stopPropagation()} title='Open ApplicationSet'>
+                                <i className='fa fa-external-link-alt' />
+                            </a>
+                        )}
                         <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
                     </span>
                     {childCount > 0 && (
                         <>
                             <br />
                             <div
-                                style={{top: node.height / 2 - 6}}
+                                style={{top: podGroupHeight / 2 - 6}}
                                 className='application-resource-tree__node--podgroup--expansion'
                                 onClick={event => {
                                     expandCollapse(node, props);
@@ -588,7 +613,7 @@ function renderPodGroup(
                         </Tooltip>
                     )}
                 </div>
-                {props.nodeMenu && (
+                {props.nodeMenu && !isAppSetNode(node) && (
                     <div className='application-resource-tree__node-menu'>
                         <DropDown
                             key={node.uid}
@@ -767,7 +792,7 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
     }
 }
 
-function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
+function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -779,14 +804,17 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     const rootNode = !node.root;
     const extLinks: string[] = isApp(props.app) ? (props.app as models.Application).status.summary.externalURLs : [];
     const childCount = nodesHavingChildren.get(node.uid);
+    const ownerAppSetRef = rootNode && appNode && isApp(props.app) ? getApplicationSetOwnerRef(props.app as models.Application) : null;
+    const isAppSetParent = isAppSetNode(node) && isApp(props.app) && getApplicationSetOwnerRef(props.app as models.Application)?.name === node.name;
+    const isManagedAppSet = isAppSetNode(node) && !isAppSetParent;
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
-            className={classNames('application-resource-tree__node', 'application-resource-tree__node--' + node.kind.toLowerCase(), {
+            className={classNames('application-resource-tree__node', !isManagedAppSet && 'application-resource-tree__node--' + node.kind.toLowerCase(), {
                 'active': fullName === props.selectedNodeFullName,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
-            title={describeNode(node)}
+            title={isAppSetParent ? `ApplicationSet: ${node.name}\nThis ApplicationSet generates and manages this Application.` : describeNode(node)}
             style={{
                 left: node.x,
                 top: node.y,
@@ -855,7 +883,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             }}
                         </Consumer>
                     )}
-                    <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
+
+                    <ApplicationURLs urls={isAppSetParent ? [] : rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
                 </div>
                 {childCount > 0 && (
                     <div
@@ -869,6 +898,36 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 )}
             </div>
             <div className='application-resource-tree__node-labels'>
+                {ownerAppSetRef && !props.showAppSetParent && (
+                    <Consumer>
+                        {ctx => (
+                            <a
+                                className='application-resource-tree__node-label application-resource-tree__node-label--appset'
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    ctx.navigation.goto(`/applicationsets/${props.app.metadata.namespace}/${ownerAppSetRef.name}`);
+                                }}
+                                title={`Managed by ApplicationSet: ${ownerAppSetRef.name}`}>
+                                {ownerAppSetRef.name}
+                            </a>
+                        )}
+                    </Consumer>
+                )}
+                {isManagedAppSet && (
+                    <Consumer>
+                        {ctx => (
+                            <a
+                                className='application-resource-tree__node-label application-resource-tree__node-label--appset'
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    ctx.navigation.goto(`/applicationsets/${node.namespace}/${node.name}`);
+                                }}
+                                title={`View ApplicationSet: ${node.name}`}>
+                                {node.name}
+                            </a>
+                        )}
+                    </Consumer>
+                )}
                 {node.createdAt || rootNode ? (
                     <span title={`${node.kind} was created ${moment(node.createdAt || props.app.metadata.creationTimestamp).fromNow()}`}>
                         <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
@@ -908,7 +967,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     </Tooltip>
                 )}
             </div>
-            {props.nodeMenu && (
+            {props.nodeMenu && !isAppSetParent && (
                 <div className='application-resource-tree__node-menu'>
                     <DropDown
                         isMenu={true}
@@ -969,6 +1028,22 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 : []
     };
 
+    const appSetRef = isApp(props.app) && props.showAppSetParent ? getApplicationSetOwnerRef(props.app as models.Application) : null;
+    const appSetNode = appSetRef
+        ? {
+              kind: 'ApplicationSet',
+              name: appSetRef.name,
+              namespace: props.app.metadata.namespace,
+              group: 'argoproj.io',
+              version: '',
+              children: [] as string[],
+              status: null as string,
+              health: null as models.HealthStatus,
+              uid: 'ApplicationSet-' + props.app.metadata.namespace + '-' + appSetRef.name,
+              info: [] as {name: string; value: string}[]
+          }
+        : null;
+
     const statusByKey = new Map<string, models.ResourceStatus>();
     const appSetStatusByKey = new Map<string, models.ApplicationSetResource>();
     if (isApp(props.app)) {
@@ -1019,6 +1094,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }, [props.filters]);
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
+    const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
 
     React.useEffect(() => {
         if (podCount > podGroupCount) {
@@ -1229,8 +1305,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             processNode(node, node);
         });
         graph.setNode(appNodeKey(props.app), {...appNode, width: NODE_WIDTH, height: NODE_HEIGHT});
+        const appSetKey = appSetNode ? nodeKey({group: 'argoproj.io', kind: 'ApplicationSet', name: appSetRef.name, namespace: props.app.metadata.namespace}) : null;
+        if (appSetKey) {
+            graph.setNode(appSetKey, {...appSetNode, width: NODE_WIDTH, height: NODE_HEIGHT});
+            graph.setEdge(appSetKey, appNodeKey(props.app));
+        }
         if (props.nodeFilter) {
-            filterGraph(props.app, appNodeKey(props.app), graph, props.nodeFilter);
+            filterGraph(props.app, appSetKey || appNodeKey(props.app), graph, props.nodeFilter);
         }
         if (props.showCompactNodes) {
             groupNodes(nodes, graph);
@@ -1238,8 +1319,14 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }
 
     function setPodGroupNode(node: ResourceTreeNode, root: ResourceTreeNode) {
-        const numberOfRows = Math.ceil(node.podGroup.pods.length / 8);
-        graph.setNode(treeNodeKey(node), {...node, type: NODE_TYPES.podGroup, width: NODE_WIDTH, height: POD_NODE_HEIGHT + 30 * numberOfRows, root});
+        const numberOfRows = getPodGroupNumberOfRows(node.podGroup?.pods, showPodGroupByStatus);
+        graph.setNode(treeNodeKey(node), {
+            ...node,
+            type: NODE_TYPES.podGroup,
+            width: NODE_WIDTH,
+            height: POD_NODE_HEIGHT + POD_GROUP_ROW_HEIGHT * numberOfRows,
+            root
+        });
     }
 
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
@@ -1410,9 +1497,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.groupedNodes:
                             return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return <React.Fragment key={key}>{renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderPodGroup(props, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderResourceNode(props, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (

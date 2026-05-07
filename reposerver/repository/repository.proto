@@ -25,8 +25,8 @@ message ManifestRequest {
     string kubeVersion = 14;
     // ApiVersions is the list of API versions from the destination cluster, used for rendering Helm charts.
     repeated string apiVersions = 15;
-    // Request to verify the signature when generating the manifests (only for Git repositories)
-    bool verifySignature = 16;
+    // Deprecated: Use sourceIntegrity for more detailed information. verifySignature will be removed with the next major version.
+    bool verifySignature = 16; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
     repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
     bool noRevisionCache = 18;
     string trackingMethod = 19;
@@ -42,6 +42,8 @@ message ManifestRequest {
     string annotationManifestGeneratePaths = 26;
     // Holds instance installation id
     string installationID = 27;
+    // Source integrity constrains to verify the sources before use
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 28;
 }
 
 message ManifestRequestWithFiles {
@@ -97,10 +99,11 @@ message ManifestResponse {
     // resolved revision
     string revision = 4;
     string sourceType = 6;
-    // Raw response of git verify-commit operation (always the empty string for Helm)
+    // Deprecated: Use sourceIntegrityResult for more detailed information. verifyResult will be removed with the next major version.
     string verifyResult = 7;
     // Commands is the list of commands used to hydrate the manifests
     repeated string commands = 8;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityCheckResult sourceIntegrityResult = 9;
 }
 
 message ListRefsRequest {
@@ -163,8 +166,10 @@ message RepoServerRevisionMetadataRequest {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
     // the revision within the repo
     string revision = 2;
-    // whether to check signature on revision
-    bool checkSignature = 3;
+    // Deprecated: Use sourceIntegrity for more detailed information. checkSignature will be removed with the next major version.
+    bool checkSignature = 3; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+    // Source integrity constrains to verify the sources before use
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 4;
 }
 
 message RepoServerRevisionChartDetailsRequest {
@@ -247,7 +252,10 @@ message GitFilesRequest {
     string path = 4;
     bool NewGitFileGlobbingEnabled = 5;
     bool noRevisionCache = 6;
-    bool verifyCommit = 7;
+    // Deprecated: Use sourceIntegrity for more detailed information. verifyCommit will be removed with the next major version.
+    bool verifyCommit = 7; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+    // Source integrity constrains to verify the sources before use
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 8;
 }
 
 message GitFilesResponse {
@@ -260,7 +268,10 @@ message GitDirectoriesRequest {
     bool submoduleEnabled = 2;
     string revision = 3;
     bool noRevisionCache = 4;
-    bool verifyCommit = 5;
+    // Deprecated: Use sourceIntegrity for more detailed information. verifyCommit will be removed with the next major version.
+    bool verifyCommit = 5; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+    // Source integrity constrains to verify the sources before use
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 6;
 }
 
 message GitDirectoriesResponse {
@@ -345,7 +356,7 @@ service RepoServerService {
     // Get the meta-data (author, date, tags, message) for a specific revision of the OCI image
     rpc GetOCIMetadata(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.OCIMetadata) {
     }
-    
+
     // Get the chart details (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionChartDetails(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ChartDetails) {
     }

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	kubecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
@@ -535,7 +536,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			}
 			sources = appSpec.GetSources()
 		} else {
-			source := a.Spec.GetSource()
+			// For sourceHydrator applications, use the dry source to generate manifests
+			var source v1alpha1.ApplicationSource
+			if a.Spec.SourceHydrator != nil {
+				source = a.Spec.SourceHydrator.GetDrySource()
+			} else {
+				source = a.Spec.GetSource()
+			}
+
 			if q.GetRevision() != "" {
 				source.TargetRevision = q.GetRevision()
 			}
@@ -706,7 +714,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Repo:                            repo,
 			Revision:                        source.TargetRevision,
 			AppLabelKey:                     appInstanceLabelKey,
-			AppName:                         a.Name,
+			AppName:                         a.InstanceName(s.ns),
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
@@ -1176,7 +1184,10 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		if policyFinalizer == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid propagation policy: %s", *q.PropagationPolicy)
 		}
-		if !a.IsFinalizerPresent(policyFinalizer) {
+		// Kubernetes forbids adding finalizers to an object that is already being deleted,
+		// so skip the patch if the app is mid-deletion. The underlying Delete call below is
+		// still issued to keep the RPC idempotent for callers retrying a cascade delete.
+		if !a.IsFinalizerPresent(policyFinalizer) && a.DeletionTimestamp == nil {
 			a.SetCascadedDeletion(policyFinalizer)
 			patchFinalizer = true
 		}
@@ -1655,10 +1666,13 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer utilio.Close(conn)
+	sourceIntegrity := proj.EffectiveSourceIntegrity()
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           repo,
-		Revision:       q.GetRevision(),
-		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+		Repo:            repo,
+		Revision:        q.GetRevision(),
+		SourceIntegrity: sourceIntegrity,
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		CheckSignature: sourceIntegrity != nil, // nolint:staticcheck
 	})
 }
 
@@ -2105,9 +2119,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
 	}
 
-	// We cannot use local manifests if we're only allowed to sync to signed commits
-	if syncReq.Manifests != nil && len(proj.Spec.SignatureKeys) > 0 {
-		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
+	if syncReq.Manifests != nil && sourceintegrity.HasCriteria(proj.EffectiveSourceIntegrity(), a.Spec.GetSources()...) {
+		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local manifests when source integrity is enforced")
 	}
 
 	resources := []v1alpha1.SyncOperationResource{}
@@ -3018,6 +3031,14 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error building diff config: %w", err)
 	}
 
+	managedResources := make([]*v1alpha1.ResourceDiff, 0)
+	err = s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &managedResources)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting managed resources: %w", err)
+	}
+
 	// Convert live resources to unstructured objects
 	liveObjs := make([]*unstructured.Unstructured, 0, len(q.GetLiveResources()))
 	for _, liveResource := range q.GetLiveResources() {
@@ -3026,6 +3047,29 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			err := json.Unmarshal([]byte(liveResource.LiveState), liveObj)
 			if err != nil {
 				return nil, fmt.Errorf("error unmarshaling live state for %s/%s: %w", liveResource.Kind, liveResource.Name, err)
+			}
+			if liveObj.GetName() != liveResource.Name {
+				return nil, status.Errorf(codes.InvalidArgument, "name mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Name, liveObj.GetName(), liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GetNamespace() != liveResource.Namespace {
+				return nil, status.Errorf(codes.InvalidArgument, "namespace mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Namespace, liveObj.GetNamespace(), liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GroupVersionKind().Group != liveResource.Group {
+				return nil, status.Errorf(codes.InvalidArgument, "group mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Group, liveObj.GroupVersionKind().Group, liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GroupVersionKind().Kind != liveResource.Kind {
+				return nil, status.Errorf(codes.InvalidArgument, "kind mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Kind, liveObj.GroupVersionKind().Kind, liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			// Validate permissions for the requested live object. It has to be part of the application's managed resources.
+			found := false
+			for _, item := range managedResources {
+				if item.Kind == liveResource.Kind && item.Group == liveResource.Group && item.Namespace == liveResource.Namespace && item.Name == liveResource.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, status.Errorf(codes.PermissionDenied, "%s/%s %s not found as part of application %s", liveResource.Group, liveResource.Kind, liveResource.Name, a.Name)
 			}
 			liveObjs = append(liveObjs, liveObj)
 		} else {
@@ -3092,13 +3136,50 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		// Create ResourceDiff with StateDiffs results
 		// TargetState = PredictedLive (what the target should be after applying)
 		// LiveState = NormalizedLive (current normalized live state)
+		targetState := string(diffRes.PredictedLive)
+		liveState := string(diffRes.NormalizedLive)
+
+		if kind == kube.SecretKind && group == "" {
+			var targetObj, liveObj *unstructured.Unstructured
+			if len(diffRes.PredictedLive) > 0 && string(diffRes.PredictedLive) != "null" {
+				targetObj = &unstructured.Unstructured{}
+				if err := json.Unmarshal(diffRes.PredictedLive, targetObj); err != nil {
+					return nil, fmt.Errorf("error unmarshaling predicted live for secret masking: %w", err)
+				}
+			}
+			if len(diffRes.NormalizedLive) > 0 && string(diffRes.NormalizedLive) != "null" {
+				liveObj = &unstructured.Unstructured{}
+				if err := json.Unmarshal(diffRes.NormalizedLive, liveObj); err != nil {
+					return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
+				}
+			}
+			maskedTarget, maskedLive, err := diff.HideSecretData(targetObj, liveObj, s.settingsMgr.GetSensitiveAnnotations())
+			if err != nil {
+				return nil, fmt.Errorf("error masking secret data: %w", err)
+			}
+			if maskedTarget != nil {
+				data, err := json.Marshal(maskedTarget)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling masked target state: %w", err)
+				}
+				targetState = string(data)
+			}
+			if maskedLive != nil {
+				data, err := json.Marshal(maskedLive)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling masked live state: %w", err)
+				}
+				liveState = string(data)
+			}
+		}
+
 		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
 			Group:           group,
 			Kind:            kind,
 			Namespace:       namespace,
 			Name:            name,
-			TargetState:     string(diffRes.PredictedLive),
-			LiveState:       string(diffRes.NormalizedLive),
+			TargetState:     targetState,
+			LiveState:       liveState,
 			Diff:            "", // Diff string is generated client-side
 			Hook:            hook,
 			Modified:        diffRes.Modified,
