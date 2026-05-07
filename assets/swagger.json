@@ -7719,7 +7719,7 @@
         },
         "version": {
           "type": "string",
-          "title": "Version is the Helm version to use for templating (\"3\")"
+          "title": "Version is the Helm version to use for templating (\"3\" or \"4\")"
         }
       }
     },
