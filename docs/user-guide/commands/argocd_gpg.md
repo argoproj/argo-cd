@@ -58,7 +58,7 @@ argocd gpg [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd gpg add](argocd_gpg_add.md)	 - Adds a GPG public key to the server's keyring
 * [argocd gpg get](argocd_gpg_get.md)	 - Get the GPG public key with ID <KEYID> from the server
 * [argocd gpg list](argocd_gpg_list.md)	 - List configured GPG public keys

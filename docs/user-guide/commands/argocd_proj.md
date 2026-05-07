@@ -74,7 +74,7 @@ argocd proj [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd proj add-destination](argocd_proj_add-destination.md)	 - Add project destination
 * [argocd proj add-destination-service-account](argocd_proj_add-destination-service-account.md)	 - Add project destination's default service account
 * [argocd proj add-orphaned-ignore](argocd_proj_add-orphaned-ignore.md)	 - Add a resource to orphaned ignore list
