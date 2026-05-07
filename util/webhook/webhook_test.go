@@ -1712,3 +1712,471 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "", nil)
 	require.NoError(t, err)
 }
+
+func NewMockHandlerForBitbucketServerCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
+		[]*v1alpha1.Repository{
+			{
+				Repo:     "https://bitbucketserver/scm/myproject/test-repo.git",
+				Username: "testuser",
+				Password: "testpassword",
+			},
+			{
+				Repo:     "https://bitbucketserver/scm/myproject/paged-repo.git",
+				Username: "testuser",
+				Password: "testpassword",
+			},
+			{
+				Repo:     "https://bitbucketserver/scm/myproject/auth-error-repo.git",
+				Username: "testuser",
+				Password: "testpassword",
+			},
+		}, nil)
+	argoSettings := settings.ArgoCDSettings{WebhookBitbucketServerSecret: "my-bb-server-secret"}
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
+}
+
+// getBBServerChangesResponderFn returns a httpmock responder for the Bitbucket Server changes API
+func getBBServerChangesResponderFn() func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
+		changesResp := map[string]any{
+			"values": []any{
+				map[string]any{
+					"contentId":     "abc123",
+					"fromContentId": "def456",
+					"path": map[string]any{
+						"components": []any{"guestbook", "guestbook-ui-deployment.yaml"},
+						"parent":     "guestbook",
+						"name":       "guestbook-ui-deployment.yaml",
+						"extension":  "yaml",
+						"toString":   "guestbook/guestbook-ui-deployment.yaml",
+					},
+					"type":     "MODIFY",
+					"nodeType": "FILE",
+				},
+			},
+			"isLastPage": true,
+			"start":      0,
+			"limit":      25,
+			"size":       1,
+		}
+		resp, err := httpmock.NewJsonResponse(200, changesResp)
+		if err != nil {
+			return httpmock.NewStringResponse(500, ""), nil
+		}
+		return resp, nil
+	}
+}
+
+// getBBServerDefaultBranchResponderFn returns a httpmock responder for the Bitbucket Server default branch API
+func getBBServerDefaultBranchResponderFn(defaultBranch string) func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
+		branchResp := map[string]any{
+			"id":           "refs/heads/" + defaultBranch,
+			"displayId":    defaultBranch,
+			"type":         "BRANCH",
+			"isDefault":    true,
+			"latestCommit": "abc123",
+		}
+		resp, err := httpmock.NewJsonResponse(200, branchResp)
+		if err != nil {
+			return httpmock.NewStringResponse(500, ""), nil
+		}
+		return resp, nil
+	}
+}
+
+func NewMockHandlerForBitbucketServerNoSecret(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	mockDB := &mocks.ArgoDB{}
+	// No ListRepositories expectation because it must never be called without a secret.
+	argoSettings := settings.ArgoCDSettings{} // no WebhookBitbucketServerSecret
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
+}
+
+// getBBServer401ResponderFn returns a 401 Unauthorized responder to simulate auth errors.
+func getBBServer401ResponderFn() func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
+		return httpmock.NewStringResponse(401, `{"errors":[{"message":"Unauthenticated"}]}`), nil
+	}
+}
+
+// getBBServerPagedChangesResponderFn returns a two-page responder for the changes API.
+func getBBServerPagedChangesResponderFn() func(req *http.Request) (*http.Response, error) {
+	callCount := 0
+	return func(_ *http.Request) (*http.Response, error) {
+		callCount++
+		var body map[string]any
+		if callCount == 1 {
+			body = map[string]any{
+				"values": []any{
+					map[string]any{"path": map[string]any{"toString": "base/deployment.yaml"}},
+				},
+				"isLastPage":    false,
+				"nextPageStart": float64(1),
+				"limit":         1,
+			}
+		} else {
+			body = map[string]any{
+				"values": []any{
+					map[string]any{"path": map[string]any{"toString": "base/service.yaml"}},
+				},
+				"isLastPage": true,
+				"limit":      1,
+			}
+		}
+		resp, err := httpmock.NewJsonResponse(200, body)
+		if err != nil {
+			return httpmock.NewStringResponse(500, ""), nil
+		}
+		return resp, nil
+	}
+}
+
+func Test_affectedRevisionInfo_bbserver_changed_files(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/changes`,
+		getBBServerChangesResponderFn())
+	httpmock.RegisterResponder("GET",
+		"https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/branches/default",
+		getBBServerDefaultBranchResponderFn("master"))
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/paged-repo/changes`,
+		getBBServerPagedChangesResponderFn())
+	httpmock.RegisterResponder("GET",
+		"https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/paged-repo/branches/default",
+		getBBServerDefaultBranchResponderFn("master"))
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/auth-error-repo/`,
+		getBBServer401ResponderFn())
+
+	// payload with both HTTP and SSH clone links
+	bbServerPayload := func(branchName, projectKey, repoSlug, fromHash, toHash string) bitbucketserver.RepositoryReferenceChangedPayload {
+		return bitbucketserver.RepositoryReferenceChangedPayload{
+			Changes: []bitbucketserver.RepositoryChange{
+				{
+					Reference:   bitbucketserver.RepositoryReference{ID: "refs/heads/" + branchName},
+					ReferenceID: "refs/heads/" + branchName,
+					FromHash:    fromHash,
+					ToHash:      toHash,
+					Type:        "UPDATE",
+				},
+			},
+			Repository: bitbucketserver.Repository{
+				Slug: repoSlug,
+				Project: bitbucketserver.Project{
+					Key: projectKey,
+				},
+				Links: map[string]any{
+					"clone": []any{
+						map[string]any{
+							"href": "https://bitbucketserver/scm/" + strings.ToLower(projectKey) + "/" + repoSlug + ".git",
+							"name": "http",
+						},
+						map[string]any{
+							"href": "ssh://git@bitbucketserver:7999/" + strings.ToLower(projectKey) + "/" + repoSlug + ".git",
+							"name": "ssh",
+						},
+					},
+				},
+			},
+		}
+	}
+
+	// payload with SSH clone link only (no HTTP)
+	bbServerSSHOnlyPayload := func(branchName, projectKey, repoSlug, fromHash, toHash string) bitbucketserver.RepositoryReferenceChangedPayload {
+		p := bbServerPayload(branchName, projectKey, repoSlug, fromHash, toHash)
+		p.Repository.Links = map[string]any{
+			"clone": []any{
+				map[string]any{
+					"href": "ssh://git@bitbucketserver:7999/" + strings.ToLower(projectKey) + "/" + repoSlug + ".git",
+					"name": "ssh",
+				},
+			},
+		}
+		return p
+	}
+
+	tests := []struct {
+		name                 string
+		revision             string
+		hookPayload          bitbucketserver.RepositoryReferenceChangedPayload
+		handler              func() *ArgoCDWebhookHandler
+		expectedTouchHead    bool
+		expectedChangedFiles []string
+		expectedChangeInfo   changeInfo
+	}{
+		{
+			name:                 "push to non-default branch",
+			revision:             "feature-branch",
+			hookPayload:          bbServerPayload("feature-branch", "MYPROJECT", "test-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    false,
+			expectedChangedFiles: []string{"guestbook/guestbook-ui-deployment.yaml"},
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			name:                 "push to default branch",
+			revision:             "master",
+			hookPayload:          bbServerPayload("master", "MYPROJECT", "test-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: []string{"guestbook/guestbook-ui-deployment.yaml"},
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			// Without a secret the API must never be called; changed files stay nil and
+			// touchedHead defaults to true (safe fallback).
+			name:                 "no secret configured - no API call, touchedHead defaults to true",
+			revision:             "master",
+			hookPayload:          bbServerPayload("master", "MYPROJECT", "test-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerNoSecret(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: nil,
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			// When only an SSH clone URL is present httpCloneURL remains empty and the API
+			// block is skipped, same as no-secret.
+			name:                 "SSH-only clone URL - API skipped, touchedHead defaults to true",
+			revision:             "master",
+			hookPayload:          bbServerSSHOnlyPayload("master", "MYPROJECT", "test-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: nil,
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			// Changes API returns two pages; both pages should be collected.
+			name:                 "paginated changes response",
+			revision:             "master",
+			hookPayload:          bbServerPayload("master", "MYPROJECT", "paged-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: []string{"base/deployment.yaml", "base/service.yaml"},
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			// When the Bitbucket Server API returns a 401 error changed files stay nil and
+			// touchedHead defaults to true so the controller performs a safe full-refresh.
+			name:                 "API auth error - no changed files, touchedHead defaults to true",
+			revision:             "master",
+			hookPayload:          bbServerPayload("master", "MYPROJECT", "auth-error-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: nil,
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			h := testCase.handler()
+			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
+			require.Equal(t, testCase.revision, revisionFromHook)
+			require.Equal(t, testCase.expectedTouchHead, touchHead)
+			require.Equal(t, testCase.expectedChangedFiles, changedFiles)
+			require.Equal(t, testCase.expectedChangeInfo, change)
+		})
+	}
+}
+
+func TestExtractBBServerBaseURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		cloneURL    string
+		expected    string
+		expectedErr string
+	}{
+		{
+			name:     "standard http clone URL",
+			cloneURL: "https://bitbucketserver/scm/myproject/test-repo.git",
+			expected: "https://bitbucketserver",
+		},
+		{
+			name:     "personal project clone URL",
+			cloneURL: "https://bitbucketserver/scm/~testuser/test_a.git",
+			expected: "https://bitbucketserver",
+		},
+		{
+			name:     "bitbucket server deployed under a subpath",
+			cloneURL: "https://mycompany.com/bitbucket/scm/myproject/test-repo.git",
+			expected: "https://mycompany.com/bitbucket",
+		},
+		{
+			name:        "invalid URL missing host",
+			cloneURL:    "/scm/myproject/test-repo.git",
+			expectedErr: "invalid Bitbucket Server clone URL",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := extractBBServerBaseURL(tt.cloneURL)
+			if tt.expectedErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestFetchChangesFromBitbucketServer(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/changes`,
+		getBBServerChangesResponderFn())
+
+	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
+
+	tt := []struct {
+		name                string
+		projectKey          string
+		repoSlug            string
+		fromHash            string
+		toHash              string
+		expectedLen         int
+		expectedFileChanged string
+		expectedErrString   string
+	}{
+		{
+			name:                "valid project and repo",
+			projectKey:          "MYPROJECT",
+			repoSlug:            "test-repo",
+			fromHash:            "abcdef",
+			toHash:              "ghijkl",
+			expectedLen:         1,
+			expectedFileChanged: "guestbook/guestbook-ui-deployment.yaml",
+		},
+		{
+			name:              "unknown repo",
+			projectKey:        "MYPROJECT",
+			repoSlug:          "unknown-repo",
+			fromHash:          "abcdef",
+			toHash:            "ghijkl",
+			expectedErrString: "error fetching changes from Bitbucket Server",
+		},
+	}
+	for _, test := range tt {
+		t.Run(test.name, func(t *testing.T) {
+			changedFiles, err := fetchChangesFromBitbucketServer(client, test.projectKey, test.repoSlug, test.fromHash, test.toHash)
+			if test.expectedErrString == "" {
+				require.NoError(t, err)
+				require.Len(t, changedFiles, test.expectedLen)
+				require.Equal(t, test.expectedFileChanged, changedFiles[0])
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), test.expectedErrString)
+			}
+		})
+	}
+}
+
+func TestFetchChangesFromBitbucketServerPaginated(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	// Stateful responder: first call returns page 1, second returns page 2 (last).
+	callCount := 0
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/paged-repo/changes`,
+		func(_ *http.Request) (*http.Response, error) {
+			callCount++
+			var body map[string]any
+			if callCount == 1 {
+				body = map[string]any{
+					"values": []any{
+						map[string]any{
+							"path": map[string]any{"toString": "file1.yaml"},
+						},
+					},
+					"isLastPage":    false,
+					"nextPageStart": float64(1),
+					"limit":         1,
+					"size":          1,
+				}
+			} else {
+				body = map[string]any{
+					"values": []any{
+						map[string]any{
+							"path": map[string]any{"toString": "file2.yaml"},
+						},
+					},
+					"isLastPage": true,
+					"limit":      1,
+					"size":       1,
+				}
+			}
+			resp, err := httpmock.NewJsonResponse(200, body)
+			if err != nil {
+				return httpmock.NewStringResponse(500, ""), nil
+			}
+			return resp, nil
+		})
+
+	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
+	changedFiles, err := fetchChangesFromBitbucketServer(client, "MYPROJECT", "paged-repo", "abcdef", "ghijkl")
+	require.NoError(t, err)
+	require.Equal(t, 2, callCount, "expected two API calls for two pages")
+	require.Equal(t, []string{"file1.yaml", "file2.yaml"}, changedFiles)
+}
+
+func TestIsBBServerHeadTouched(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("GET",
+		"https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/branches/default",
+		getBBServerDefaultBranchResponderFn("master"))
+
+	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
+
+	tt := []struct {
+		name              string
+		projectKey        string
+		repoSlug          string
+		revision          string
+		expectedTouchHead bool
+		expectedErrString string
+	}{
+		{
+			name:              "revision matches default branch",
+			projectKey:        "MYPROJECT",
+			repoSlug:          "test-repo",
+			revision:          "master",
+			expectedTouchHead: true,
+		},
+		{
+			name:              "revision does not match default branch",
+			projectKey:        "MYPROJECT",
+			repoSlug:          "test-repo",
+			revision:          "feature-branch",
+			expectedTouchHead: false,
+		},
+		{
+			name:              "unknown repo returns error",
+			projectKey:        "MYPROJECT",
+			repoSlug:          "unknown-repo",
+			revision:          "master",
+			expectedErrString: "https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/unknown-repo",
+		},
+	}
+	for _, test := range tt {
+		t.Run(test.name, func(t *testing.T) {
+			touchedHead, err := isBBServerHeadTouched(client, test.projectKey, test.repoSlug, test.revision)
+			if test.expectedErrString == "" {
+				require.NoError(t, err)
+				require.Equal(t, test.expectedTouchHead, touchedHead)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), test.expectedErrString)
+				require.False(t, touchedHead)
+			}
+		})
+	}
+}
