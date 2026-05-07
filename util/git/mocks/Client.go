@@ -497,16 +497,16 @@ func (_c *Client_CommitSHA_Call) RunAndReturn(run func() (string, error)) *Clien
 }
 
 // Fetch provides a mock function for the type Client
-func (_mock *Client) Fetch(revision string, depth int64) error {
-	ret := _mock.Called(revision, depth)
+func (_mock *Client) Fetch(revision string) error {
+	ret := _mock.Called(revision)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string, int64) error); ok {
-		r0 = returnFunc(revision, depth)
+	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
+		r0 = returnFunc(revision)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -520,24 +520,18 @@ type Client_Fetch_Call struct {
 
 // Fetch is a helper method to define mock.On call
 //   - revision string
-//   - depth int64
-func (_e *Client_Expecter) Fetch(revision interface{}, depth interface{}) *Client_Fetch_Call {
-	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", revision, depth)}
+func (_e *Client_Expecter) Fetch(revision interface{}) *Client_Fetch_Call {
+	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", revision)}
 }
 
-func (_c *Client_Fetch_Call) Run(run func(revision string, depth int64)) *Client_Fetch_Call {
+func (_c *Client_Fetch_Call) Run(run func(revision string)) *Client_Fetch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
 			arg0 = args[0].(string)
 		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
 		run(
 			arg0,
-			arg1,
 		)
 	})
 	return _c
@@ -548,7 +542,7 @@ func (_c *Client_Fetch_Call) Return(err error) *Client_Fetch_Call {
 	return _c
 }
 
-func (_c *Client_Fetch_Call) RunAndReturn(run func(revision string, depth int64) error) *Client_Fetch_Call {
+func (_c *Client_Fetch_Call) RunAndReturn(run func(revision string) error) *Client_Fetch_Call {
 	_c.Call.Return(run)
 	return _c
 }
