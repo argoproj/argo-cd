@@ -610,27 +610,15 @@ func (a *ArgoCDWebhookHandler) lookupRepositoryWithCredsTemplate(ctx context.Con
 	if err != nil || repo != nil {
 		return repo, err
 	}
-
-	// No specific repo found — check credentials templates, which match by URL prefix.
-	credURLs, err := a.db.ListRepositoryCredentials(ctx)
+	creds, err := a.db.GetRepositoryCredentials(ctx, repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("error listing repository credentials: %w", err)
+		return nil, fmt.Errorf("error getting repository credentials for %q: %w", repoURL, err)
 	}
-	normalizedRepoURL := git.NormalizeGitURL(repoURL)
-	var bestMatchURL string
-	for _, credURL := range credURLs {
-		if strings.HasPrefix(normalizedRepoURL, git.NormalizeGitURL(credURL)) && len(credURL) > len(bestMatchURL) {
-			bestMatchURL = credURL
-		}
-	}
-	if bestMatchURL == "" {
+	if creds == nil {
+		log.Debugf("no repository or credentials template found for Azure DevOps URL %s", repoURL)
 		return nil, nil
 	}
-	creds, err := a.db.GetRepositoryCredentials(ctx, bestMatchURL)
-	if err != nil {
-		return nil, fmt.Errorf("error getting credentials template for %q: %w", bestMatchURL, err)
-	}
-	log.Debugf("found matching credentials template %q for URL %s", bestMatchURL, repoURL)
+	log.Debugf("found matching credentials template for URL %s", repoURL)
 	return &v1alpha1.Repository{
 		Repo:        repoURL,
 		Username:    creds.Username,

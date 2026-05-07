@@ -99,6 +99,7 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 	mockDB := &mocks.ArgoDB{}
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
 	mockDB.EXPECT().ListRepositoryCredentials(mock.Anything).Return([]string{}, nil).Maybe()
+	mockDB.EXPECT().GetRepositoryCredentials(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
@@ -144,9 +145,7 @@ func NewMockHandlerForADOCallback(reactor *reactorDef, applicationNamespaces []s
 func NewMockHandlerForADOCredsTemplateCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	mockDB := &mocks.ArgoDB{}
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil)
-	mockDB.EXPECT().ListRepositoryCredentials(mock.Anything).Return(
-		[]string{"https://dev.azure.com/alexander0053"}, nil)
-	mockDB.EXPECT().GetRepositoryCredentials(mock.Anything, "https://dev.azure.com/alexander0053").Return(
+	mockDB.EXPECT().GetRepositoryCredentials(mock.Anything, "https://dev.azure.com/alexander0053/alex-test/_git/alex-test").Return(
 		&v1alpha1.RepoCreds{
 			URL:      "https://dev.azure.com/alexander0053",
 			Username: "test-user",
