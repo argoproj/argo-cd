@@ -278,7 +278,7 @@ func TestJqPathExpressionFailWithTimeout(t *testing.T) {
 func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Kind: "ConfigMap",
-		// This is a really wild expression, but it does trigger the desired error.
+		// This expression triggers an error when applied via delpaths([path(...)]).
 		JQPathExpressions: []string{`.nothing) | .data["config.yaml"] |= (fromjson | del(.auth) | tojson`},
 	}}, nil, IgnoreNormalizerOpts{})
 
@@ -291,5 +291,85 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 		err = normalizer.Normalize(configMap)
 		require.NoError(t, err)
 	})
-	assert.Contains(t, out, "fromjson cannot be applied")
+	assert.Contains(t, out, "Failed to apply normalization")
+}
+
+func TestNormalizeNestedArrayFieldPattern(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:             "gateway.networking.k8s.io",
+		Kind:              "HTTPRoute",
+		JQPathExpressions: []string{".spec.rules[].backendRefs[].weight"},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	httpRoute := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "gateway.networking.k8s.io/v1",
+			"kind":       "HTTPRoute",
+			"metadata": map[string]any{
+				"name":      "test-route",
+				"namespace": "default",
+			},
+			"spec": map[string]any{
+				"rules": []any{
+					map[string]any{
+						"backendRefs": []any{
+							map[string]any{
+								"name":   "service1",
+								"port":   int64(80),
+								"weight": int64(100),
+							},
+							map[string]any{
+								"name":   "service2",
+								"port":   int64(80),
+								"weight": int64(0),
+							},
+						},
+					},
+					map[string]any{
+						"backendRefs": []any{
+							map[string]any{
+								"name":   "service3",
+								"port":   int64(8080),
+								"weight": int64(50),
+							},
+						},
+					},
+				},
+				// "weight" field outside the targeted path should NOT be deleted
+				"metadata": map[string]any{
+					"weight": int64(999),
+				},
+			},
+		},
+	}
+
+	err = normalizer.Normalize(httpRoute)
+	require.NoError(t, err)
+
+	// Verify weight fields are removed from backendRefs
+	rules, _, err := unstructured.NestedSlice(httpRoute.Object, "spec", "rules")
+	require.NoError(t, err)
+	require.Len(t, rules, 2)
+
+	for i, rule := range rules {
+		ruleMap := rule.(map[string]any)
+		backendRefs := ruleMap["backendRefs"].([]any)
+		for j, backend := range backendRefs {
+			backendMap := backend.(map[string]any)
+			_, hasWeight := backendMap["weight"]
+			assert.False(t, hasWeight, "weight should be deleted from rule %d, backendRef %d", i, j)
+			_, hasName := backendMap["name"]
+			assert.True(t, hasName, "name should be preserved in rule %d, backendRef %d", i, j)
+			_, hasPort := backendMap["port"]
+			assert.True(t, hasPort, "port should be preserved in rule %d, backendRef %d", i, j)
+		}
+	}
+
+	// Verify weight field OUTSIDE the targeted path is preserved (path-scoped)
+	outsideWeight, found, err := unstructured.NestedFieldNoCopy(httpRoute.Object, "spec", "metadata", "weight")
+	require.NoError(t, err)
+	assert.True(t, found, "weight outside targeted path should be preserved")
+	assert.Equal(t, int64(999), outsideWeight)
 }
