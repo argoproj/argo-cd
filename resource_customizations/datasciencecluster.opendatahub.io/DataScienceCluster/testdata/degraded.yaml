@@ -1,0 +1,17 @@
+apiVersion: datasciencecluster.opendatahub.io/v1
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: opendatahub
+spec:
+  components:
+    dashboard:
+      managementState: Managed
+status:
+  phase: Error
+  errorMessage: "component dashboard is in error state"
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: Error
+      message: "component dashboard is in error state"
