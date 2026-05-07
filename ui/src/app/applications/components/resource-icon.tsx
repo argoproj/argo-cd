@@ -11,13 +11,7 @@ export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: s
         return <i title={kind} className={`icon argo-icon-application`} style={customStyle} />;
     }
     if (kind === 'ApplicationSet') {
-        return (
-            <span title={kind} style={{display: 'inline-flex', alignItems: 'center', ...customStyle}}>
-                {'{'}
-                <i className='icon argo-icon-application' style={{margin: '0 1px'}} />
-                {'}'}
-            </span>
-        );
+        return <i title={kind} className={`icon argo-icon-applicationset`} style={customStyle} />;
     }
     // First, check for group-based custom icons
     if (group) {

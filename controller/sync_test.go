@@ -163,17 +163,20 @@ func TestSyncComparisonError(t *testing.T) {
 			Name:      "default",
 		},
 		Spec: v1alpha1.AppProjectSpec{
-			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 		},
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []string{},
-			Namespace:    test.FakeDestNamespace,
-			Server:       test.FakeClusterURL,
-			Revision:     "abc123",
-			VerifyResult: "something went wrong",
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name:     "GIT/GPG",
+				Problems: []string{"Unknown key 'XXX'"},
+			}}},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
@@ -215,7 +218,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 				Destinations: []v1alpha1.ApplicationDestination{
 					{
 						Namespace: "*",
