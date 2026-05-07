@@ -1872,3 +1872,70 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
 }
+
+// TestExposedFileSystem_HTTPHandler verifies directory-listing is disabled at the HTTP layer.
+func TestExposedFileSystem_HTTPHandler(t *testing.T) {
+	t.Run("GET directory without index.html returns 404", func(t *testing.T) {
+		argocd, closer := fakeServer(t)
+		defer closer()
+
+		subdir := filepath.Join(argocd.TmpAssetsDir, "subdir")
+		err := os.Mkdir(subdir, 0o755)
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/subdir/", http.NoBody)
+		w := httptest.NewRecorder()
+		argocd.newStaticAssetsHandler()(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code, "directory listing should be disabled")
+	})
+
+	t.Run("GET directory with index.html serves the directory", func(t *testing.T) {
+		argocd, closer := fakeServer(t)
+		defer closer()
+
+		subdir := filepath.Join(argocd.TmpAssetsDir, "subdir")
+		err := os.Mkdir(subdir, 0o755)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(subdir, "index.html"), []byte("<html>subdir</html>"), 0o644)
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/subdir/", http.NoBody)
+		w := httptest.NewRecorder()
+		argocd.newStaticAssetsHandler()(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code, "directory with index.html should be accessible")
+	})
+
+	t.Run("GET regular file inside directory is served", func(t *testing.T) {
+		argocd, closer := fakeServer(t)
+		defer closer()
+
+		subdir := filepath.Join(argocd.TmpAssetsDir, "static")
+		err := os.Mkdir(subdir, 0o755)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(subdir, "style.css"), []byte("body{}"), 0o644)
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/static/style.css", http.NoBody)
+		w := httptest.NewRecorder()
+		argocd.newStaticAssetsHandler()(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("GET nested directory without index.html returns 404", func(t *testing.T) {
+		argocd, closer := fakeServer(t)
+		defer closer()
+
+		nested := filepath.Join(argocd.TmpAssetsDir, "a", "b", "c")
+		err := os.MkdirAll(nested, 0o755)
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/a/b/c/", http.NoBody)
+		w := httptest.NewRecorder()
+		argocd.newStaticAssetsHandler()(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code, "nested directory listing should be disabled")
+	})
+}
