@@ -537,13 +537,19 @@ argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
 # List Clusters in YAML Format
 argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
 
-# List Clusters that have been added to your Argo CD 
+# List Clusters that have been added to your Argo CD
 argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 
+# List clusters by label
+argocd cluster list -l env=prod
+argocd cluster list -l env!=prod
+argocd cluster list -l env
+argocd cluster list -l '!env'
+argocd cluster list -l 'env notin (dev,staging)'
 `,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Label selector to filter clusters. Supports '=', '==', '!=', 'in', 'notin', 'exists', and '!exists' (e.g., 'env=production,tier!=frontend')")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "List clusters by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching clusters must satisfy all of the specified label constraints.")
 	return command
 }
 
