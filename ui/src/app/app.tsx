@@ -34,7 +34,7 @@ const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
     // TODO: Uncomment when ApplicationSet details page is fully implemented
-    // '/applicationsets': {component: applications.component},
+    '/applicationsets': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component}
@@ -53,6 +53,12 @@ const navItems: NavItem[] = [
         tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
+    },
+    {
+        title: 'ApplicationSets',
+        tooltip: 'Manage your ApplicationSets, and diagnose health problems.',
+        path: '/applicationsets',
+        iconClassName: 'argo-icon argo-icon-applicationset'
     },
     {
         title: 'Settings',
