@@ -5,14 +5,19 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/regex"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -313,4 +318,64 @@ func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 		}
 	}
 	return matches
+}
+
+const SUBPROC_ENV_VAR = "SANDBOX_TEST_SUBPROCESS"
+
+func RunInSubprocess(t *testing.T, ignoreCoverageErrors bool, testfunc func()) {
+	t.Helper()
+	if os.Getenv(SUBPROC_ENV_VAR) != "" {
+		t.Logf("running test %q in subprocess", t.Name())
+		//err :=
+		testfunc()
+		//t.Logf("execution finished")
+		//assert.NoError(t, err)
+	} else {
+		t.Logf("running test %q in parent process", t.Name())
+
+		// Parent process: re-exec this same test binary, running only this test.
+
+		t.Logf("called with args %v", os.Args)
+		cmdArgs := []string{}
+		for _, arg := range os.Args[1:] {
+			if strings.HasPrefix(arg, "-test.run=") || arg == "-test.paniconexit0" ||
+				strings.HasPrefix(arg, "-test.gocoverdir=") {
+				continue
+			}
+			cmdArgs = append(cmdArgs, arg)
+		}
+		cmdArgs = append(cmdArgs, "-test.run=^"+t.Name()+"$")
+
+		cmdEnv := []string{}
+		for _, entry := range os.Environ() {
+			//if strings.HasPrefix(entry, "GOCOVERDIR=") {
+			//	continue
+			//}
+			cmdEnv = append(cmdEnv, entry)
+		}
+		cmdEnv = append(cmdEnv, SUBPROC_ENV_VAR+"=1")
+
+		cmd := exec.Command(os.Args[0], cmdArgs...)
+		cmd.Env = cmdEnv
+		fmt.Fprintf(os.Stderr, "execuring %q with args %v", os.Args[0], cmdArgs)
+		fmt.Fprintf(os.Stderr, "execuring %q with env %v", os.Args[0], cmdEnv)
+		//err := cmd.Run()
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+		t.Logf("subprocess output:\n%s", outputStr)
+		// Now assert on the subprocess result.
+
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				if !(ignoreCoverageErrors && regex.Match("error setting GOCOVERDIR: bad os.MkdirTemp return: mkdir /[^\\s]+: permission denied", string(outputStr))) {
+					assert.Fail(t, fmt.Sprintf("expected subprocess exit code 0, but got %d", exitErr.ExitCode()))
+				}
+			} else {
+				assert.Fail(t, "error running test in subprocess: %w", err)
+			}
+		}
+		if !strings.Contains(outputStr, "PASS: "+t.Name()+" (") {
+			os.Exit(1)
+		}
+	}
 }
