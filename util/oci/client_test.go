@@ -817,6 +817,86 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 	})
 }
 
+func TestFetchHelmChartAndProvenance_ChartLayerNotFound(t *testing.T) {
+	store := memory.New()
+	provenanceBlob := []byte("-----BEGIN PGP SIGNED MESSAGE-----\nprovenance\n-----BEGIN PGP SIGNATURE-----\n-----END PGP SIGNATURE-----")
+	digest := generateManifestWithConfig(t, store, helmOCIConfigType,
+		layerConf{content.NewDescriptorFromBytes(helmOCIProvType, provenanceBlob), provenanceBlob})
+
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	c := newClientWithLock("ghcr.io/test/charts", globalLock, store, func(context.Context, string) ([]string, error) { return nil, nil },
+		func(context.Context) error { return nil }, nil,
+		WithImagePaths(cacheDir))
+
+	chartContent, provContent, chartFilename, err := c.FetchHelmChartAndProvenance(t.Context(), digest)
+	require.Error(t, err)
+	require.Nil(t, chartContent)
+	require.Nil(t, provContent)
+	require.Empty(t, chartFilename)
+	require.Contains(t, err.Error(), "helm chart content layer not found")
+}
+
+func TestFetchHelmChartAndProvenance_MultipleChartLayers(t *testing.T) {
+	store := memory.New()
+	chartBlob := createGzippedTarWithContent(t, "Chart.yaml", "chart content")
+	chartBlob2 := createGzippedTarWithContent(t, "values.yaml", "values content")
+	digest := generateManifestWithConfig(t, store, helmOCIConfigType,
+		layerConf{content.NewDescriptorFromBytes(helmOCILayerType, chartBlob), chartBlob},
+		layerConf{content.NewDescriptorFromBytes(helmOCILayerType, chartBlob2), chartBlob2})
+
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	c := newClientWithLock("ghcr.io/test/charts", globalLock, store, func(context.Context, string) ([]string, error) { return nil, nil },
+		func(context.Context) error { return nil }, nil,
+		WithImagePaths(cacheDir))
+
+	chartContent, provContent, chartFilename, err := c.FetchHelmChartAndProvenance(t.Context(), digest)
+	require.Error(t, err)
+	require.Nil(t, chartContent)
+	require.Nil(t, provContent)
+	require.Empty(t, chartFilename)
+	require.Contains(t, err.Error(), "expected a single helm chart content layer, found multiple")
+}
+
+func TestFetchHelmChartAndProvenance_Success(t *testing.T) {
+	store := memory.New()
+	chartBlob := createGzippedTarWithContent(t, "Chart.yaml", "helm chart content")
+	provBlob := []byte("-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA256\n\nmychart-1.0.0.tgz: sha256:abc123\n-----BEGIN PGP SIGNATURE-----\n-----END PGP SIGNATURE-----")
+	chartDesc := content.NewDescriptorFromBytes(helmOCILayerType, chartBlob)
+	chartDesc.Annotations = map[string]string{"org.opencontainers.image.title": "mychart-1.0.0.tgz"}
+	digest := generateManifestWithConfig(t, store, helmOCIConfigType,
+		layerConf{chartDesc, chartBlob},
+		layerConf{content.NewDescriptorFromBytes(helmOCIProvType, provBlob), provBlob})
+
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	c := newClientWithLock("ghcr.io/test/charts", globalLock, store, func(context.Context, string) ([]string, error) { return nil, nil },
+		func(context.Context) error { return nil }, nil,
+		WithImagePaths(cacheDir))
+
+	chartContent, provContent, chartFilename, err := c.FetchHelmChartAndProvenance(t.Context(), digest)
+	require.NoError(t, err)
+	require.Equal(t, chartBlob, chartContent)
+	require.Equal(t, provBlob, provContent)
+	require.Equal(t, "mychart-1.0.0.tgz", chartFilename)
+}
+
+func TestFetchHelmChartAndProvenance_SuccessWithoutProvenance(t *testing.T) {
+	store := memory.New()
+	chartBlob := createGzippedTarWithContent(t, "Chart.yaml", "chart only")
+	digest := generateManifestWithConfig(t, store, helmOCIConfigType,
+		layerConf{content.NewDescriptorFromBytes(helmOCILayerType, chartBlob), chartBlob})
+
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	c := newClientWithLock("ghcr.io/test/charts", globalLock, store, func(context.Context, string) ([]string, error) { return nil, nil },
+		func(context.Context) error { return nil }, nil,
+		WithImagePaths(cacheDir))
+
+	chartContent, provContent, chartFilename, err := c.FetchHelmChartAndProvenance(t.Context(), digest)
+	require.NoError(t, err)
+	require.Equal(t, chartBlob, chartContent)
+	require.Nil(t, provContent)
+	require.Empty(t, chartFilename)
+}
+
 func TestNewClientUsesHTTP2(t *testing.T) {
 	t.Run("should negotiate HTTP/2 when TLS is configured", func(t *testing.T) {
 		var requestProtos []string

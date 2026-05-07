@@ -64,6 +64,10 @@ type Client interface {
 	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(chart string, noCache bool) ([]string, error)
 	TestHelmOCI() (bool, error)
+	// ChartTgzPath returns the path to the cached chart .tgz (valid after ExtractChart). Traditional Helm only.
+	ChartTgzPath(chart string, version string) (string, error)
+	// FetchProvenance fetches the .prov file for the chart version and returns its content and the chart filename. Traditional Helm only.
+	FetchProvenance(chart string, version string) (provContent []byte, chartFilename string, err error)
 }
 
 type ClientOpts func(c *nativeHelmChart)
@@ -433,6 +437,73 @@ func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (stri
 		return "", fmt.Errorf("error marshaling cache key data: %w", err)
 	}
 	return c.chartCachePaths.GetPath(string(keyData))
+}
+
+func (c *nativeHelmChart) ChartTgzPath(chart string, version string) (string, error) {
+	if c.enableOci {
+		return "", ErrOCINotEnabled
+	}
+	return c.getCachedChartPath(chart, version)
+}
+
+func (c *nativeHelmChart) FetchProvenance(chart string, version string) ([]byte, string, error) {
+	if c.enableOci {
+		return nil, "", ErrOCINotEnabled
+	}
+	const maxIndexSizeForProvenance = 10 * 1024 * 1024 // 10MB
+	index, err := c.GetIndex(false, maxIndexSizeForProvenance)
+	if err != nil {
+		return nil, "", fmt.Errorf("error getting index for provenance: %w", err)
+	}
+	chartURL, err := index.GetChartURL(chart, version)
+	if err != nil {
+		return nil, "", err
+	}
+	chartFilename := path.Base(chartURL)
+	provURL := chartURL + ".prov"
+	// Resolve relative URLs against repo base (index often has relative URLs like "chart-1.0.0.tgz")
+	if base, errParse := url.Parse(c.repoURL); errParse == nil {
+		if ref, errRef := url.Parse(provURL); errRef == nil {
+			provURL = base.ResolveReference(ref).String()
+		}
+	}
+
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, provURL, http.NoBody)
+	if err != nil {
+		return nil, "", fmt.Errorf("error creating request for %s: %w", provURL, err)
+	}
+	req.Header.Set("User-Agent", c.getUserAgent())
+	helmPassword, err := c.creds.GetPassword()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get password: %w", err)
+	}
+	if c.creds.GetUsername() != "" || helmPassword != "" {
+		req.SetBasicAuth(c.creds.GetUsername(), helmPassword)
+	}
+	tlsConf, err := newTLSConfig(c.creds)
+	if err != nil {
+		return nil, "", err
+	}
+	tr := &http.Transport{
+		Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
+		TLSClientConfig:   tlsConf,
+		DisableKeepAlives: true,
+	}
+	client := http.Client{Transport: tr}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("error fetching provenance %s: %w", provURL, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("provenance fetch returned %s for %s", resp.Status, provURL)
+	}
+	provContent, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("error reading provenance: %w", err)
+	}
+	return provContent, chartFilename, nil
 }
 
 // Ensures that given OCI registries URL does not have protocol

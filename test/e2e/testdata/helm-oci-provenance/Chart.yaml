@@ -1,0 +1,4 @@
+apiVersion: v2
+name: demo-chart
+version: 1.0.0
+description: Minimal chart for Helm OCI provenance e2e tests
