@@ -11,7 +11,18 @@ import (
 // Normalize applies the full normalization on the lives and configs resources based
 // on the provided DiffConfig.
 func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
-	result, err := preDiffNormalize(lives, configs, diffConfig)
+	return normalize(lives, configs, diffConfig, false)
+}
+
+// NormalizeIgnoredFields is like Normalize but skips the resource-tracking migration step,
+// so the target's tracking metadata is preserved. Used by sync paths that derive a patch
+// from the normalized output, where tracking-id mutations must not leak into the patch.
+func NormalizeIgnoredFields(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
+	return normalize(lives, configs, diffConfig, true)
+}
+
+func normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig, skipResourceTracking bool) (*NormalizationResult, error) {
+	result, err := preDiffNormalize(lives, configs, diffConfig, skipResourceTracking)
 	if err != nil {
 		return nil, err
 	}

@@ -419,8 +419,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// normalize live and target resources
-	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
+	// normalize live and target resources without applying the resource-tracking
+	// migration, since the patch derived below would otherwise fold tracking-id
+	// mutations into ignored-field updates and strip the annotation on CRDs
+	// (RFC 7396 JSON Merge Patch encodes deletions as explicit nulls).
+	normalized, err := diff.NormalizeIgnoredFields(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
 	}

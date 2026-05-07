@@ -298,7 +298,7 @@ func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (
 // StateDiffs will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
 func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
-	normResults, err := preDiffNormalize(lives, configs, diffConfig)
+	normResults, err := preDiffNormalize(lives, configs, diffConfig, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform pre-diff normalization: %w", err)
 	}
@@ -411,7 +411,11 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 
 // preDiffNormalize applies the normalization of live and target resources before invoking
 // the diff. None of the attributes in the lives and targets params will be modified.
-func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
+//
+// When skipResourceTracking is true, the resource-tracking migration step is skipped so the
+// target's tracking metadata is preserved as-is. Sync paths that derive a patch from this
+// output need this to avoid leaking tracking-id mutations into the patch.
+func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig, skipResourceTracking bool) (*NormalizationResult, error) {
 	if diffConfig == nil {
 		return nil, errors.New("preDiffNormalize error: diffConfig can not be nil")
 	}
@@ -424,8 +428,10 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 	for i := range targets {
 		target := safeDeepCopy(targets[i])
 		live := safeDeepCopy(lives[i])
-		resourceTracking := argo.NewResourceTracking()
-		_ = resourceTracking.Normalize(target, live, diffConfig.AppLabelKey(), diffConfig.TrackingMethod())
+		if !skipResourceTracking {
+			resourceTracking := argo.NewResourceTracking()
+			_ = resourceTracking.Normalize(target, live, diffConfig.AppLabelKey(), diffConfig.TrackingMethod())
+		}
 		// just normalize on managed fields if live and target aren't nil as we just care
 		// about conflicting fields
 		if live != nil && target != nil {
