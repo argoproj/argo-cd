@@ -7,8 +7,6 @@ import (
 	"github.com/go-logr/logr"
 	log "github.com/sirupsen/logrus"
 
-	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
@@ -81,7 +79,7 @@ func (b *DiffConfigBuilder) WithLogger(l logr.Logger) *DiffConfigBuilder {
 }
 
 // WithGVKParser sets the gvkParser in the diff config.
-func (b *DiffConfigBuilder) WithGVKParser(parser *k8smanagedfields.GvkParser) *DiffConfigBuilder {
+func (b *DiffConfigBuilder) WithGVKParser(parser scheme.GVKParser) *DiffConfigBuilder {
 	b.diffConfig.gvkParser = parser
 	return b
 }
@@ -152,7 +150,7 @@ type DiffConfig interface {
 	Logger() *logr.Logger
 	// GVKParser returns a parser able to build a TypedValue used in
 	// structured merge diffs.
-	GVKParser() *k8smanagedfields.GvkParser
+	GVKParser() scheme.GVKParser
 	// StructuredMergeDiff defines if the diff should be calculated using
 	// structured merge diffs. Will use standard 3-way merge diffs if
 	// returns false.
@@ -179,7 +177,7 @@ type diffConfig struct {
 	stateCache            *appstatecache.Cache
 	ignoreAggregatedRoles bool
 	logger                *logr.Logger
-	gvkParser             *k8smanagedfields.GvkParser
+	gvkParser             scheme.GVKParser
 	structuredMergeDiff   bool
 	manager               string
 	serverSideDiff        bool
@@ -224,7 +222,7 @@ func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
 }
 
-func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
+func (c *diffConfig) GVKParser() scheme.GVKParser {
 	return c.gvkParser
 }
 
@@ -433,7 +431,10 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 			idc := NewIgnoreDiffConfig(diffConfig.Ignores(), diffConfig.Overrides())
 			ok, ignoreDiff := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
 			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
-				pt := scheme.ResolveParseableType(gvk, diffConfig.GVKParser())
+				pt, ptErr := scheme.ResolveParseableType(gvk, diffConfig.GVKParser())
+				if ptErr != nil {
+					return nil, ptErr
+				}
 				var err error
 				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers, pt)
 				if err != nil {

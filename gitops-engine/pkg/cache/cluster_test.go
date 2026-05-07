@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -2642,4 +2643,73 @@ func BenchmarkIncrementalIndexBuild(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestSyncSkipsWebhookFailingGVK(t *testing.T) {
+	// When a conversion webhook is down, listing that resource returns a 500.
+	// The sync should skip that GVK and continue syncing others, rather than
+	// failing the entire cluster sync.
+	deploy := &appsv1.Deployment{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
+		ObjectMeta: metav1.ObjectMeta{Name: "my-deploy", Namespace: "default"},
+	}
+
+	client := fake.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme,
+		map[schema.GroupVersionResource]string{
+			{Group: "example.io", Version: "v1", Resource: "widgets"}: "WidgetList",
+		},
+		deploy,
+	)
+	reactor := client.ReactionChain[0]
+	client.PrependReactor("list", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetResource().Resource == "widgets" {
+			return true, nil, apierrors.NewInternalError(fmt.Errorf(
+				"failed calling webhook: dial tcp: lookup webhook-service.default.svc: no such host"))
+		}
+		handled, ret, err = reactor.React(action)
+		if err != nil || !handled {
+			return handled, ret, fmt.Errorf("reactor failed: %w", err)
+		}
+		ret.(metav1.ListInterface).SetResourceVersion("123")
+		return handled, ret, nil
+	})
+
+	apiResources := []kube.APIResourceInfo{
+		{
+			GroupKind:            schema.GroupKind{Group: "apps", Kind: "Deployment"},
+			GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
+			Meta:                 metav1.APIResource{Namespaced: true},
+		},
+		{
+			GroupKind:            schema.GroupKind{Group: "example.io", Kind: "Widget"},
+			GroupVersionResource: schema.GroupVersionResource{Group: "example.io", Version: "v1", Resource: "widgets"},
+			Meta:                 metav1.APIResource{Namespaced: true},
+		},
+	}
+
+	cluster := NewClusterCache(
+		&rest.Config{Host: "https://test"},
+		SetKubectl(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client}),
+	)
+	t.Cleanup(func() { cluster.Invalidate() })
+
+	err := cluster.EnsureSynced()
+	require.NoError(t, err, "Sync should succeed despite webhook failure for widgets")
+
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
+
+	// Deployment should be cached
+	assert.NotEmpty(t, cluster.resources, "Normal resources should still be cached")
+	var hasDeployment bool
+	for k := range cluster.resources {
+		if k.Kind == "Deployment" && k.Name == "my-deploy" {
+			hasDeployment = true
+		}
+	}
+	assert.True(t, hasDeployment, "Deployment should be in the cache")
+
+	// Widget GVK should have been removed from apisMeta
+	_, hasWidget := cluster.apisMeta[schema.GroupKind{Group: "example.io", Kind: "Widget"}]
+	assert.False(t, hasWidget, "Widget should be removed from apisMeta after webhook failure")
 }

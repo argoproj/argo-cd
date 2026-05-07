@@ -183,3 +183,13 @@ func SetEventProcessingInterval(interval time.Duration) UpdateSettingsFunc {
 		cache.eventProcessingInterval = interval
 	}
 }
+
+// SetOpenAPIV3 enables fetching OpenAPI v3 schemas per-GroupVersion instead of
+// the monolithic OpenAPI v2 swagger document. Requires Kubernetes 1.27+.
+func SetOpenAPIV3(enabled bool) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		if kcmd, ok := cache.kubectl.(*kube.KubectlCmd); ok {
+			kcmd.UseOpenAPIV3 = enabled
+		}
+	}
+}

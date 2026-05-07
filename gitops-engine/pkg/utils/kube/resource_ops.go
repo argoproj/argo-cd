@@ -31,7 +31,6 @@ import (
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
@@ -48,22 +47,20 @@ type ResourceOperations interface {
 
 // This is a generic implementation for doing most kubectl operations. Implements the ResourceOperations interface.
 type kubectlResourceOperations struct {
-	config        *rest.Config
-	log           logr.Logger
-	tracer        tracing.Tracer
-	onKubectlRun  OnKubectlRunFunc
-	fact          cmdutil.Factory
-	openAPISchema openapi.Resources
+	config       *rest.Config
+	log          logr.Logger
+	tracer       tracing.Tracer
+	onKubectlRun OnKubectlRunFunc
+	fact         cmdutil.Factory
 }
 
 // This is an implementation specific for doing server-side diff dry runs. Implements the KubeApplier interface.
 type kubectlServerSideDiffDryRunApplier struct {
-	config        *rest.Config
-	log           logr.Logger
-	tracer        tracing.Tracer
-	onKubectlRun  OnKubectlRunFunc
-	fact          cmdutil.Factory
-	openAPISchema openapi.Resources
+	config       *rest.Config
+	log          logr.Logger
+	tracer       tracing.Tracer
+	onKubectlRun OnKubectlRunFunc
+	fact         cmdutil.Factory
 }
 
 type commandExecutor func(ioStreams genericiooptions.IOStreams, fileName string) error

@@ -217,6 +217,10 @@ type cacheSettings struct {
 
 	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
 	ignoreResourceUpdatesEnabled bool
+
+	// openAPIV3Enabled enables fetching OpenAPI v3 schemas per-GroupVersion
+	// instead of the monolithic OpenAPI v2 swagger document.
+	openAPIV3Enabled bool
 }
 
 type liveStateCache struct {
@@ -263,12 +267,16 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	openAPIV3Enabled, err := c.settingsMgr.GetOpenAPIV3Enabled()
+	if err != nil {
+		return nil, err
+	}
 	clusterSettings := clustercache.Settings{
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled, openAPIV3Enabled}, nil
 }
 
 func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
@@ -550,6 +558,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetClusterSyncRetryTimeout(clusterSyncRetryTimeoutDuration),
 		clustercache.SetResyncTimeout(clusterCacheResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
+		clustercache.SetOpenAPIV3(cacheSettings.openAPIV3Enabled),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (any, bool) {
@@ -669,7 +678,7 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	c.lock.Unlock()
 
 	for _, clust := range clusters {
-		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings))
+		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings), clustercache.SetOpenAPIV3(cacheSettings.openAPIV3Enabled))
 	}
 	log.Info("live state cache invalidated")
 }

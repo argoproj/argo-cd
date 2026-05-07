@@ -53,6 +53,24 @@ var (
 		append(descClusterDefaultLabels, "k8s_version"),
 		nil,
 	)
+	descClusterOpenAPIGVsTotal = prometheus.NewDesc(
+		"argocd_cluster_openapi_gvs_total",
+		"Total number of GroupVersions available in the cluster's OpenAPI schema.",
+		descClusterDefaultLabels,
+		nil,
+	)
+	descClusterOpenAPIGVsLoaded = prometheus.NewDesc(
+		"argocd_cluster_openapi_gvs_loaded",
+		"Number of GroupVersions whose OpenAPI schemas have been loaded into memory.",
+		descClusterDefaultLabels,
+		nil,
+	)
+	descClusterOpenAPISchemaBytes = prometheus.NewDesc(
+		"argocd_cluster_openapi_schema_bytes",
+		"Total bytes of raw OpenAPI schema data loaded into memory. The encoding differs by version: protobuf for OpenAPI v2, JSON for OpenAPI v3. Values are not directly comparable across versions.",
+		descClusterDefaultLabels,
+		nil,
+	)
 )
 
 type HasClustersInfo interface {
@@ -161,6 +179,9 @@ func (c *clusterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descClusterAPIs
 	ch <- descClusterCacheAgeSeconds
 	ch <- descClusterConnectionStatus
+	ch <- descClusterOpenAPIGVsTotal
+	ch <- descClusterOpenAPIGVsLoaded
+	ch <- descClusterOpenAPISchemaBytes
 	if len(c.clusterLabels) > 0 {
 		ch <- descClusterLabels
 	}
@@ -187,6 +208,9 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		ch <- prometheus.MustNewConstMetric(descClusterCacheAgeSeconds, prometheus.GaugeValue, float64(cacheAgeSeconds), defaultValues...)
 		ch <- prometheus.MustNewConstMetric(descClusterConnectionStatus, prometheus.GaugeValue, boolFloat64(info.SyncError == nil), append(defaultValues, info.K8SVersion)...)
+		ch <- prometheus.MustNewConstMetric(descClusterOpenAPIGVsTotal, prometheus.GaugeValue, float64(info.OpenAPIGVsTotal), defaultValues...)
+		ch <- prometheus.MustNewConstMetric(descClusterOpenAPIGVsLoaded, prometheus.GaugeValue, float64(info.OpenAPIGVsLoaded), defaultValues...)
+		ch <- prometheus.MustNewConstMetric(descClusterOpenAPISchemaBytes, prometheus.GaugeValue, float64(info.OpenAPISchemaBytes), defaultValues...)
 
 		if len(c.clusterLabels) > 0 && labels != nil {
 			labelValues := []string{}

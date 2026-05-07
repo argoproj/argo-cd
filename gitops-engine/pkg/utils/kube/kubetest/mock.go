@@ -7,13 +7,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 )
 
 type KubectlOutput struct {
@@ -89,14 +88,14 @@ func (k *MockKubectlCmd) GetServerVersion(_ *rest.Config) (string, error) {
 	return k.Version, nil
 }
 
-func (k *MockKubectlCmd) LoadOpenAPISchema(_ *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
-	return nil, nil, nil
+func (k *MockKubectlCmd) LoadOpenAPISchema(_ *rest.Config) (scheme.GVKParser, error) {
+	return nil, nil
 }
 
 func (k *MockKubectlCmd) SetOnKubectlRun(_ kube.OnKubectlRunFunc) {
 }
 
-func (k *MockKubectlCmd) ManageResources(_ *rest.Config, _ openapi.Resources) (kube.ResourceOperations, func(), error) {
+func (k *MockKubectlCmd) ManageResources(_ *rest.Config) (kube.ResourceOperations, func(), error) {
 	return &MockResourceOps{}, func() {
 	}, nil
 }
