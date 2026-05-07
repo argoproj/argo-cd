@@ -13,6 +13,7 @@ import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions, ApplicationSetConditions} from '../application-conditions/application-conditions';
+import {NoticeBanner} from '../application-notice/notice-banner';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
@@ -989,6 +990,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     />
                                                 )}
                                             </div>
+                                            <NoticeBanner
+                                                annotations={application.metadata.annotations}
+                                                appName={application.metadata.name}
+                                                appNamespace={application.metadata.namespace}
+                                            />
                                             <div className='application-details__tree'>
                                                 {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                                 {((pref.view === 'tree' || pref.view === 'network') && (
