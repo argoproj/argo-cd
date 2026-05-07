@@ -693,7 +693,8 @@ func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.Ma
 	span.SetAttributes(
 		attribute.String("iss", iss),
 		attribute.String("sub", sub),
-		attribute.String("sid", sid))
+		attribute.String("sid", sid),
+	)
 	if GetTokenExpiration(groupClaims) < refreshTokenThreshold {
 		token, err := a.GetUpdatedOidcTokenFromCache(ctx, sub, sid)
 		if err != nil {
@@ -898,7 +899,7 @@ func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
 	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+		userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoBaseURL(), a.settings.UserInfoPath())
 		if unauthorized {
 			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
 		}
@@ -915,7 +916,7 @@ func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims
 }
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
-func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoBaseURL, userInfoPath string) (jwt.MapClaims, bool, error) {
 	var span trace.Span
 	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUserInfo")
 	defer span.End()
@@ -949,7 +950,13 @@ func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims,
 		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
 	}
 
-	url := issuerURL + userInfoPath
+	var url string
+	if userInfoBaseURL != "" {
+		url = userInfoBaseURL + userInfoPath
+	} else {
+		url = issuerURL + userInfoPath
+	}
+
 	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)

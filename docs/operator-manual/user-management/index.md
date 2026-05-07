@@ -397,6 +397,7 @@ Some OIDC providers don't return the group information for a user in the ID toke
 oidc.config: |
     enableUserInfoGroups: true
     userInfoPath: /userinfo
+    userInfoURL: "https://users.example.com"
     userInfoCacheExpiration: "5m"
 ```
 
