@@ -38,42 +38,20 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		return nil, ErrEmptyAppSetGenerator
 	}
 
-	res := make([]map[string]any, len(appSetGenerator.List.Elements))
+	res := make([]map[string]any, 0, len(appSetGenerator.List.Elements))
 
-	for i, tmpItem := range appSetGenerator.List.Elements {
-		params := map[string]any{}
+	for _, tmpItem := range appSetGenerator.List.Elements {
 		var element map[string]any
 		err := json.Unmarshal(tmpItem.Raw, &element)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshling list element %w", err)
 		}
 
-		if appSet.Spec.GoTemplate {
-			res[i] = element
-		} else {
-			for key, value := range element {
-				if key == "values" {
-					values, ok := (value).(map[string]any)
-					if !ok {
-						return nil, errors.New("error parsing values map")
-					}
-					for k, v := range values {
-						value, ok := v.(string)
-						if !ok {
-							return nil, fmt.Errorf("error parsing value as string %w", err)
-						}
-						params["values."+k] = value
-					}
-				} else {
-					v, ok := value.(string)
-					if !ok {
-						return nil, fmt.Errorf("error parsing value as string %w", err)
-					}
-					params[key] = v
-				}
-				res[i] = params
-			}
+		processed, err := processElement(element, appSet.Spec.GoTemplate)
+		if err != nil {
+			return nil, err
 		}
+		res = append(res, processed)
 	}
 
 	// Append elements from ElementsYaml to the response
@@ -83,8 +61,59 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshling decoded ElementsYaml %w", err)
 		}
-		res = append(res, yamlElements...)
+		for _, element := range yamlElements {
+			processed, err := processElement(element, appSet.Spec.GoTemplate)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, processed)
+		}
 	}
 
 	return res, nil
+}
+
+func processElement(element map[string]any, goTemplate bool) (map[string]any, error) {
+	if goTemplate {
+		return element, nil
+	}
+	params := make(map[string]any)
+	for key, value := range element {
+		if key == "values" {
+			values, ok := (value).(map[string]any)
+			if !ok {
+				return nil, errors.New("error parsing values map")
+			}
+			for k, v := range values {
+				val, err := getParamValue(v, k)
+				if err != nil {
+					return nil, err
+				}
+				params["values."+k] = val
+			}
+		} else {
+			val, err := getParamValue(value, key)
+			if err != nil {
+				return nil, err
+			}
+			params[key] = val
+		}
+	}
+	return params, nil
+}
+
+func getParamValue(value any, key string) (string, error) {
+	switch v := value.(type) {
+	case string:
+		return v, nil
+	case bool, float64:
+		return fmt.Sprintf("%v", v), nil
+	// JSON unmarshals to float64, but we keep int/int64 for safety also for use in manual maps/tests
+	case int, int64:
+		return fmt.Sprintf("%v", v), nil
+	case nil:
+		return "", nil
+	default:
+		return "", fmt.Errorf("unsupported value type %T for key %q: nested objects and arrays are not supported in non-GoTemplate mode", value, key)
+	}
 }
