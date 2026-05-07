@@ -2333,6 +2333,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 		syncPolicy                          *v1alpha1.SyncPolicy
 		revision                            string
 		appSyncedRevision                   string
+		appLastSyncedRevision               string // overrides SyncResult.Revision when set
 		refSources                          map[string]*v1alpha1.RefTarget
 		repoDepth                           int64
 		keyManifestGenerateAnnotationExists bool
@@ -2360,12 +2361,32 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				RepoURL: "https://github.com/example/repo",
 				Path:    "manifests",
 			},
-			sourceType:         v1alpha1.ApplicationSourceTypeKustomize,
-			revision:           "abc123",
-			appSyncedRevision:  "abc123",
-			refSources:         map[string]*v1alpha1.RefTarget{},
-			expectedRevision:   "abc123",
-			expectedHasChanges: false,
+			sourceType:            v1alpha1.ApplicationSourceTypeKustomize,
+			revision:              "abc123",
+			appSyncedRevision:     "abc123",
+			appLastSyncedRevision: "abc123",
+			refSources:            map[string]*v1alpha1.RefTarget{},
+			expectedRevision:      "abc123",
+			expectedHasChanges:    false,
+		},
+		{
+			// Regression test for https://github.com/argoproj/argo-cd/issues/21692:
+			// when a sync is blocked by a sync window, Status.Sync.Revision is updated after
+			// each comparison to the new git revision even though the cluster is never synced.
+			// Subsequent comparisons must still detect changes so that auto-sync fires once the
+			// window opens.
+			name: "Sync window blocked: comparison revision matches current but last sync revision differs",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType:            v1alpha1.ApplicationSourceTypeKustomize,
+			revision:              "def456",
+			appSyncedRevision:     "def456", // Status.Sync.Revision updated by comparison while sync was blocked
+			appLastSyncedRevision: "abc123", // cluster was last synced to abc123
+			refSources:            map[string]*v1alpha1.RefTarget{},
+			expectedRevision:      "def456",
+			expectedHasChanges:    true,
 		},
 		{
 			name: "Same revision with ref sources continues to evaluation",
@@ -2459,6 +2480,9 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			app.Spec.SyncPolicy = tt.syncPolicy
 			app.Status.Sync.Revision = tt.appSyncedRevision
 			app.Status.SourceType = tt.sourceType
+			if tt.appLastSyncedRevision != "" {
+				app.Status.OperationState.SyncResult.Revision = tt.appLastSyncedRevision
+			}
 			if tt.keyManifestGenerateAnnotationExists {
 				app.Annotations = map[string]string{
 					v1alpha1.AnnotationKeyManifestGeneratePaths: tt.keyManifestGenerateAnnotationVal,

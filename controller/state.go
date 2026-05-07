@@ -349,13 +349,25 @@ func (m *appStateManager) evaluateRevisionChanges(
 		return revision, false, nil
 	}
 
-	// Determine the synced revision and source type for this specific source
+	// Determine the last actually-synced revision for this source. We deliberately use
+	// OperationState.SyncResult rather than Status.Sync here: Status.Sync.Revision is updated
+	// after every comparison even when the sync is blocked (e.g. by a sync window). Using it
+	// as the baseline would cause subsequent comparisons to report no new revision changes even
+	// though the cluster was never synced to the current git revision, which in turn causes
+	// alreadyAttemptedSync to skip the auto-sync. Fall back to Status.Sync when no sync has
+	// completed yet (fresh app with no operation history).
 	var syncedRevision string
-	if app.Spec.HasMultipleSources() {
-		if sourceIndex < len(app.Status.Sync.Revisions) {
+	switch {
+	case app.Spec.HasMultipleSources():
+		if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil &&
+			sourceIndex < len(app.Status.OperationState.SyncResult.Revisions) {
+			syncedRevision = app.Status.OperationState.SyncResult.Revisions[sourceIndex]
+		} else if sourceIndex < len(app.Status.Sync.Revisions) {
 			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
 		}
-	} else {
+	case app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil:
+		syncedRevision = app.Status.OperationState.SyncResult.Revision
+	default:
 		syncedRevision = app.Status.Sync.Revision
 	}
 
