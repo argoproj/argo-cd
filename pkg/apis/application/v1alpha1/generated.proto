@@ -878,6 +878,9 @@ message Cluster {
 
   // Annotations for cluster secret metadata
   map<string, string> annotations = 13;
+
+  // ConfigHash is an opaque value which tracks changes to the desired configuration of a Cluster
+  optional uint64 configHash = 14;
 }
 
 // ClusterCacheInfo contains information about the cluster cache

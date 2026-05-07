@@ -4980,6 +4980,165 @@ func TestSanitized(t *testing.T) {
 	}, cluster.Sanitized())
 }
 
+func TestCluster_HashIdentity(t *testing.T) {
+	t.Run("valid cluster produces non-zero hash", func(t *testing.T) {
+		cluster := &Cluster{
+			ID:     "cluster-123",
+			Server: "https://example.com:6443",
+			Name:   "production-cluster",
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					Insecure: true,
+				},
+			},
+		}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash, "hash should not be zero")
+	})
+
+	t.Run("minimal cluster produces hash", func(t *testing.T) {
+		cluster := &Cluster{
+			Server: "https://minimal.example.com",
+		}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash)
+	})
+
+	t.Run("empty cluster produces hash", func(t *testing.T) {
+		cluster := &Cluster{}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash)
+	})
+
+	t.Run("deterministic - same cluster produces same hash", func(t *testing.T) {
+		cluster := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		hash1 := cluster.HashIdentity(0)
+		hash2 := cluster.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "identical clusters should produce identical hashes")
+	})
+
+	t.Run("different ID produces same hash", func(t *testing.T) {
+		// ID has json:"-" tag so it's excluded from JSON marshaling,
+		// therefore it doesn't affect the hash identity
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "different-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "ID should not affect hash since it has json:\"-\" tag")
+	})
+
+	t.Run("different Server produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "same-id",
+			Server: "https://different.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+
+	t.Run("different Name produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "different-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+
+	t.Run("non-identity fields do not affect hash", func(t *testing.T) {
+		cluster1 := &Cluster{
+			ID:         "test-id",
+			Server:     "https://test.example.com",
+			Name:       "test-cluster",
+			Namespaces: []string{"ns1", "ns2"},
+			Project:    "project1",
+			Labels:     map[string]string{"env": "prod"},
+			Info: ClusterInfo{
+				ServerVersion:     "v1.28.0",
+				ApplicationsCount: 5,
+			},
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		cluster2 := &Cluster{
+			ID:         "test-id",
+			Server:     "https://test.example.com",
+			Name:       "test-cluster",
+			Namespaces: []string{"ns3"},
+			Project:    "project2",
+			Labels:     map[string]string{"env": "dev"},
+			Info: ClusterInfo{
+				ServerVersion:     "v1.30.0",
+				ApplicationsCount: 10,
+			},
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "clusters with same identity fields but different non-identity fields should have same hash")
+	})
+
+	t.Run("different Config produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token1",
+			},
+		}
+		different := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token2",
+			},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+}
+
 func TestSourceHydrator_Equals(t *testing.T) {
 	t.Parallel()
 
