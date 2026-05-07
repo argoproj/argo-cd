@@ -34,6 +34,8 @@
 - [image.toolkit.fluxcd.io/ImageUpdateAutomation/reconcile](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/image.toolkit.fluxcd.io/ImageUpdateAutomation/actions/reconcile/action.lua)
 - [image.toolkit.fluxcd.io/ImageUpdateAutomation/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/image.toolkit.fluxcd.io/ImageUpdateAutomation/actions/resume/action.lua)
 - [image.toolkit.fluxcd.io/ImageUpdateAutomation/suspend](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/image.toolkit.fluxcd.io/ImageUpdateAutomation/actions/suspend/action.lua)
+- [k8s.mariadb.com/MariaDB/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/k8s.mariadb.com/MariaDB/actions/resume/action.lua)
+- [k8s.mariadb.com/MariaDB/suspend](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/k8s.mariadb.com/MariaDB/actions/suspend/action.lua)
 - [keda.sh/ScaledJob/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/keda.sh/ScaledJob/actions/pause/action.lua)
 - [keda.sh/ScaledJob/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/keda.sh/ScaledJob/actions/resume/action.lua)
 - [keda.sh/ScaledObject/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/keda.sh/ScaledObject/actions/pause/action.lua)
