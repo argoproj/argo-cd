@@ -874,3 +874,177 @@ extensions:
       - name: some-header-name
 `
 }
+
+func getExtensionConfigWithSecret(name, url, secretRef string) string {
+	cfg := `
+extensions:
+- name: %s
+  backend:
+    services:
+    - url: %s
+      headers:
+      - name: Authorization
+        value: '%s'
+`
+	return fmt.Sprintf(cfg, name, url, secretRef)
+}
+
+func TestUpdateExtensionRegistryWithSecrets(t *testing.T) {
+	t.Parallel()
+
+	defaultServerNamespace := "control-plane-ns"
+	defaultProjectName := "project-name"
+
+	setup := func() (*mocks.ApplicationGetter, *mocks.SettingsGetter, *mocks.RbacEnforcer, *mocks.ProjectGetter, *mocks.ExtensionMetricsRegistry, *mocks.UserGetter, *extension.Manager, *http.ServeMux) {
+		appMock := &mocks.ApplicationGetter{}
+		settMock := &mocks.SettingsGetter{}
+		rbacMock := &mocks.RbacEnforcer{}
+		projMock := &mocks.ProjectGetter{}
+		metricsMock := &mocks.ExtensionMetricsRegistry{}
+		userMock := &mocks.UserGetter{}
+
+		dbMock := &dbmocks.ArgoDB{}
+		dbMock.EXPECT().GetClusterServersByName(mock.Anything, mock.Anything).Return([]string{"cluster1"}, nil).Maybe()
+		dbMock.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&v1alpha1.Cluster{Server: "some-url", Name: "cluster1"}, nil).Maybe()
+
+		logger, _ := test.NewNullLogger()
+		logEntry := logger.WithContext(t.Context())
+		m := extension.NewManager(logEntry, defaultServerNamespace, settMock, appMock, projMock, dbMock, rbacMock, userMock)
+		m.AddMetricsRegistry(metricsMock)
+
+		mux := http.NewServeMux()
+		extHandler := http.HandlerFunc(m.CallExtension())
+		mux.Handle(extension.URLPrefix+"/", extHandler)
+
+		return appMock, settMock, rbacMock, projMock, metricsMock, userMock, m, mux
+	}
+
+	newExtensionRequest := func(t *testing.T, method, url string) *http.Request {
+		t.Helper()
+		r, err := http.NewRequestWithContext(t.Context(), method, url, http.NoBody)
+		require.NoError(t, err, "error initializing request")
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
+		r.Header.Add(extension.HeaderArgoCDProjectName, defaultProjectName)
+		return r
+	}
+
+	getApp := func(destName, destServer, projName string) *v1alpha1.Application {
+		return &v1alpha1.Application{
+			TypeMeta:   metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Name:   destName,
+					Server: destServer,
+				},
+				Project: projName,
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Resources: []v1alpha1.ResourceStatus{
+					{
+						Group:     "apps",
+						Version:   "v1",
+						Kind:      "Pod",
+						Namespace: "default",
+						Name:      "some-pod",
+					},
+				},
+			},
+		}
+	}
+
+	getProjectWithDestinations := func(prjName string, destNames []string, destURLs []string) *v1alpha1.AppProject {
+		destinations := []v1alpha1.ApplicationDestination{}
+		for _, destName := range destNames {
+			destination := v1alpha1.ApplicationDestination{
+				Name: destName,
+			}
+			destinations = append(destinations, destination)
+		}
+		for _, destURL := range destURLs {
+			destination := v1alpha1.ApplicationDestination{
+				Server: destURL,
+			}
+			destinations = append(destinations, destination)
+		}
+		return &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: prjName,
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: destinations,
+			},
+		}
+	}
+
+	t.Run("will update proxy headers when secrets change", func(t *testing.T) {
+		t.Parallel()
+		appMock, settMock, rbacMock, projMock, metricsMock, userMock, manager, mux := setup()
+
+		extName := "secret-test"
+		oldToken := "Bearer old-token"
+		newToken := "Bearer new-token"
+
+		backendSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			auth := r.Header.Get("Authorization")
+			w.Header().Set("X-Received-Auth", auth)
+			fmt.Fprintln(w, "ok")
+		}))
+		defer backendSrv.Close()
+
+		// Initial settings with old secret
+		secrets := map[string]string{"my.secret": oldToken}
+		initialSettings := &settings.ArgoCDSettings{
+			ExtensionConfig: map[string]string{
+				"": getExtensionConfigWithSecret(extName, backendSrv.URL, "$my.secret"),
+			},
+			Secrets: secrets,
+		}
+		settMock.EXPECT().Get().Return(initialSettings, nil).Maybe()
+
+		// RBAC allow all
+		rbacMock.EXPECT().EnforceErr(mock.Anything, rbac.ResourceApplications, rbac.ActionGet, mock.Anything).Return(nil).Maybe()
+		rbacMock.EXPECT().EnforceErr(mock.Anything, rbac.ResourceExtensions, rbac.ActionInvoke, mock.Anything).Return(nil).Maybe()
+
+		userMock.EXPECT().GetUserId(mock.Anything).Return("some-user-id").Maybe()
+		userMock.EXPECT().GetUsername(mock.Anything).Return("some-user").Maybe()
+		userMock.EXPECT().GetGroups(mock.Anything).Return([]string{"group1"}).Maybe()
+
+		projMock.EXPECT().Get(defaultProjectName).Return(getProjectWithDestinations("project-name", nil, []string{"some-url"}), nil).Maybe()
+
+		metricsMock.EXPECT().IncExtensionRequestCounter(mock.Anything, mock.Anything).Maybe()
+		metricsMock.EXPECT().ObserveExtensionRequestDuration(mock.Anything, mock.Anything).Maybe()
+
+		err := manager.RegisterExtensions()
+		require.NoError(t, err)
+
+		ts := httptest.NewServer(mux)
+		defer ts.Close()
+
+		// First request - should get old token
+		r1 := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
+		appMock.EXPECT().Get(mock.Anything, mock.Anything).Return(getApp("", "some-url", defaultProjectName), nil).Maybe()
+
+		resp1, err := http.DefaultClient.Do(r1)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp1.StatusCode)
+		assert.Equal(t, oldToken, resp1.Header.Get("X-Received-Auth"))
+
+		// Update settings with new secret
+		newSettings := &settings.ArgoCDSettings{
+			ExtensionConfig: initialSettings.ExtensionConfig,
+			Secrets:         map[string]string{"my.secret": newToken},
+		}
+		err = manager.UpdateExtensionRegistry(newSettings)
+		require.NoError(t, err)
+
+		// Second request - should get new token
+		r2 := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
+		appMock.EXPECT().Get(mock.Anything, mock.Anything).Return(getApp("", "some-url", defaultProjectName), nil).Maybe()
+
+		resp2, err := http.DefaultClient.Do(r2)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp2.StatusCode)
+		assert.Equal(t, newToken, resp2.Header.Get("X-Received-Auth"))
+	})
+}
