@@ -9587,6 +9587,11 @@
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
         },
+        "depth": {
+          "description": "Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.",
+          "type": "integer",
+          "format": "int64"
+        },
         "enableOCI": {
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
