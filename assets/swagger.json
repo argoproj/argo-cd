@@ -6136,6 +6136,13 @@
             "type": "string"
           }
         },
+        "helmLookupWarnings": {
+          "description": "HelmLookupWarnings reports template files that invoke the unsupported Helm `lookup` function.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "manifests": {
           "type": "array",
           "items": {

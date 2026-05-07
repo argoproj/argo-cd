@@ -1879,6 +1879,9 @@ const (
 	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
 	// ApplicationConditionOrphanedResourceWarning indicates that application has orphaned resources
 	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
+	// ApplicationConditionHelmLookupNotSupported indicates the chart uses the Helm `lookup` function,
+	// which is not currently supported by `helm template` and may produce incorrect manifests.
+	ApplicationConditionHelmLookupNotSupported = "HelmLookupNotSupportedWarning"
 )
 
 // ApplicationCondition contains details about an application condition, which is usually an error or warning
