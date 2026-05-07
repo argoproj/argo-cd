@@ -143,6 +143,71 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
     );
 }
 
+function stripInheritedGlobalSpec(virtualSpec: ProjectSpec, globalProjects: Project[] | undefined): ProjectSpec {
+    if (!globalProjects || globalProjects.length === 0) {
+        return virtualSpec;
+    }
+
+    const inherited = reduceGlobal(globalProjects);
+
+    const clusterResKey = (i: ClusterResourceRestrictionItem) => `${i.group || ''}::${i.kind || ''}::${i.name || ''}`;
+    const groupKindKey = (i: GroupKind) => `${i.group || ''}::${i.kind || ''}`;
+    const destKey = (d: any) => `${d.server || ''}::${d.name || ''}::${d.namespace || ''}`;
+
+    const inheritedClusterBlacklist = new Set((inherited.clusterResourceBlacklist || []).map(clusterResKey));
+    const inheritedClusterWhitelist = new Set((inherited.clusterResourceWhitelist || []).map(clusterResKey));
+    const inheritedNamespaceBlacklist = new Set((inherited.namespaceResourceBlacklist || []).map(groupKindKey));
+    const inheritedNamespaceWhitelist = new Set((inherited.namespaceResourceWhitelist || []).map(groupKindKey));
+    const inheritedSourceRepos = new Set((inherited.sourceRepos || []).map(r => r || ''));
+    // NOTE: `reduceGlobal` dedupes destinations by `server+namespace` and drops the `name` field, so it
+    // can lose inherited destinations that use cluster-name (empty `server`) or that differ only by `name`.
+    // Build the inherited destination key set directly from the global projects using the same identity
+    // (server+name+namespace) used for filtering below.
+    const inheritedDestinations = new Set((globalProjects || []).flatMap(gp => (gp.spec?.destinations || []).map(destKey)));
+
+    const uniqueByKey = <T,>(items: T[], keyFn: (t: T) => string): T[] => {
+        const seen = new Set<string>();
+        const res: T[] = [];
+        for (const item of items || []) {
+            const k = keyFn(item);
+            if (seen.has(k)) {
+                continue;
+            }
+            seen.add(k);
+            res.push(item);
+        }
+        return res;
+    };
+
+    return {
+        ...virtualSpec,
+        clusterResourceBlacklist: uniqueByKey(
+            (virtualSpec.clusterResourceBlacklist || []).filter(i => !inheritedClusterBlacklist.has(clusterResKey(i))),
+            clusterResKey
+        ),
+        clusterResourceWhitelist: uniqueByKey(
+            (virtualSpec.clusterResourceWhitelist || []).filter(i => !inheritedClusterWhitelist.has(clusterResKey(i))),
+            clusterResKey
+        ),
+        namespaceResourceBlacklist: uniqueByKey(
+            (virtualSpec.namespaceResourceBlacklist || []).filter(i => !inheritedNamespaceBlacklist.has(groupKindKey(i))),
+            groupKindKey
+        ),
+        namespaceResourceWhitelist: uniqueByKey(
+            (virtualSpec.namespaceResourceWhitelist || []).filter(i => !inheritedNamespaceWhitelist.has(groupKindKey(i))),
+            groupKindKey
+        ),
+        sourceRepos: uniqueByKey(
+            (virtualSpec.sourceRepos || []).filter(r => !inheritedSourceRepos.has(r || '')),
+            r => r || ''
+        ),
+        destinations: uniqueByKey(
+            (virtualSpec.destinations || []).filter(d => !inheritedDestinations.has(destKey(d))),
+            destKey
+        )
+    };
+}
+
 export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {objectListKind?: string}> = props => {
     const [token, setToken] = React.useState('');
     const projectRoleFormApi = React.useRef<FormApi>(null);
@@ -308,11 +373,14 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
         );
     };
 
-    const saveProject = async (updatedProj: Project) => {
+    const saveProject = async (updatedProj: Project, globalProjects?: Project[]) => {
         try {
             const proj = await services.projects.get(updatedProj.metadata.name);
             proj.metadata.labels = updatedProj.metadata.labels;
-            proj.spec = updatedProj.spec;
+            // NOTE: `/projects/:name/detailed` returns a *virtual* project (globalProjects are appended).
+            // We must never persist inherited/global spec entries back into the real AppProject CR,
+            // otherwise each subsequent edit will append the inherited entries again and create duplicates.
+            proj.spec = stripInheritedGlobalSpec(updatedProj.spec, globalProjects);
 
             await services.projects.update(proj);
             const scopedProj = await services.projects.getDetailed(props.match.params.name);
@@ -329,7 +397,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
         return (
             <div className='argo-container'>
                 <EditablePanel
-                    save={item => saveProject(item)}
+                    save={item => saveProject(item, scopedProj.globalProjects)}
                     validate={input => ({
                         'metadata.name': !input.metadata.name && 'Project name is required'
                     })}
@@ -375,7 +443,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                 />
 
                 <EditablePanel
-                    save={item => saveProject(item)}
+                    save={item => saveProject(item, scopedProj.globalProjects)}
                     values={proj}
                     title={<React.Fragment>SOURCE REPOSITORIES {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
                     view={
@@ -438,7 +506,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                     {authCtx =>
                         authCtx?.appsInAnyNamespaceEnabled && (
                             <EditablePanel
-                                save={item => saveProject(item)}
+                                save={item => saveProject(item, scopedProj.globalProjects)}
                                 values={proj}
                                 title={
                                     <React.Fragment>SOURCE NAMESPACES {helpTip('Kubernetes namespaces where application resources are allowed to be created in')}</React.Fragment>
@@ -480,7 +548,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                     }
                 </AuthSettingsCtx.Consumer>
                 <EditablePanel
-                    save={item => saveProject(item)}
+                    save={item => saveProject(item, scopedProj.globalProjects)}
                     values={proj}
                     title={<React.Fragment>DESTINATIONS {helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</React.Fragment>}
                     view={
@@ -577,7 +645,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                 />
 
                 <EditablePanel
-                    save={item => saveProject(item)}
+                    save={item => saveProject(item, scopedProj.globalProjects)}
                     values={proj}
                     title={
                         <React.Fragment>
@@ -667,7 +735,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                     items={[]}
                 />
 
-                <ResourceListsPanel proj={proj} saveProject={item => saveProject(item)} />
+                <ResourceListsPanel proj={proj} saveProject={item => saveProject(item, scopedProj.globalProjects)} />
                 {globalProj.count > 0 && (
                     <ResourceListsPanel
                         title={<p>INHERITED FROM GLOBAL PROJECTS {helpTip('Global projects provide configurations that other projects can inherit from.')}</p>}
@@ -676,7 +744,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                 )}
 
                 <EditablePanel
-                    save={item => saveProject(item)}
+                    save={item => saveProject(item, scopedProj.globalProjects)}
                     values={proj}
                     title={<React.Fragment>GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</React.Fragment>}
                     view={
@@ -727,7 +795,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                 />
 
                 <EditablePanel
-                    save={item => saveProject(item)}
+                    save={item => saveProject(item, scopedProj.globalProjects)}
                     values={proj}
                     title={<React.Fragment>RESOURCE MONITORING {helpTip('Enables monitoring of top level resources in the application target namespace')}</React.Fragment>}
                     view={

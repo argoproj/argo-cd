@@ -783,3 +783,118 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 	})
 	return enforcer
 }
+
+// TestUpdateStripsInheritedGlobalProjectSpec verifies that Server.Update does not persist
+// spec entries inherited from a globalProject back into the AppProject CR. This is the core
+// scenario that motivated the fix: clients (notably the UI) historically PUT the virtual
+// project (which has globalProject specs appended) and we must defensively strip inherited
+// entries server-side to avoid duplication on every subsequent edit.
+func TestUpdateStripsInheritedGlobalProjectSpec(t *testing.T) {
+	const ns = testNamespace
+
+	kubeclientset := fake.NewClientset(
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: ns,
+				Name:      "argocd-cm",
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			},
+			Data: map[string]string{
+				"globalProjects": `
+- projectName: global-project
+  labelSelector:
+    matchLabels:
+      inherits-global: "true"
+`,
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: ns},
+			Data: map[string][]byte{
+				"admin.password":   []byte("test"),
+				"server.secretkey": []byte("test"),
+			},
+		},
+	)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, ns)
+	enforcer := newEnforcer(kubeclientset)
+	enforcer.SetDefaultRole("role:admin")
+	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+
+	globalProj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "global-project", Namespace: ns},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"https://global.example.com/repo.git"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{Server: "*", Namespace: "global-ns"},
+			},
+			ClusterResourceBlacklist: []v1alpha1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "Volume"},
+			},
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "", Kind: "LimitRange"},
+			},
+		},
+	}
+	storedProj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-project",
+			Namespace: ns,
+			Labels:    map[string]string{"inherits-global": "true"},
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"https://local.example.com/repo.git"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "local-ns"}},
+		},
+	}
+
+	appsClientset := apps.NewSimpleClientset(globalProj, storedProj)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	factory := informer.NewSharedInformerFactoryWithOptions(appsClientset, 0, informer.WithNamespace(""))
+	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	go projInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
+		t.Fatal("Timed out waiting for caches to sync")
+	}
+
+	argoDB := db.NewDB(ns, settingsMgr, kubeclientset)
+	projectServer := NewServer(ns, kubeclientset, appsClientset, enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+	// Simulate what clients (UI) historically did: PUT the *virtual* project (with global entries appended),
+	// possibly multiple times resulting in duplicates.
+	virtualProj := storedProj.DeepCopy()
+	virtualProj.Spec.SourceRepos = append(virtualProj.Spec.SourceRepos,
+		"https://global.example.com/repo.git", "https://global.example.com/repo.git")
+	virtualProj.Spec.Destinations = append(virtualProj.Spec.Destinations,
+		v1alpha1.ApplicationDestination{Server: "*", Namespace: "global-ns"},
+		v1alpha1.ApplicationDestination{Server: "*", Namespace: "global-ns"},
+	)
+	virtualProj.Spec.ClusterResourceBlacklist = append(virtualProj.Spec.ClusterResourceBlacklist,
+		v1alpha1.ClusterResourceRestrictionItem{Group: "*", Kind: "Volume"},
+	)
+	virtualProj.Spec.NamespaceResourceBlacklist = append(virtualProj.Spec.NamespaceResourceBlacklist,
+		metav1.GroupKind{Group: "", Kind: "LimitRange"},
+	)
+
+	updated, err := projectServer.Update(t.Context(), &project.ProjectUpdateRequest{Project: virtualProj})
+	require.NoError(t, err)
+
+	// Inherited entries must be stripped; only locally-owned entries remain.
+	assert.Equal(t, []string{"https://local.example.com/repo.git"}, updated.Spec.SourceRepos)
+	assert.Equal(t,
+		[]v1alpha1.ApplicationDestination{{Server: "*", Namespace: "local-ns"}},
+		updated.Spec.Destinations,
+	)
+	assert.Empty(t, updated.Spec.ClusterResourceBlacklist)
+	assert.Empty(t, updated.Spec.NamespaceResourceBlacklist)
+
+	// Persisted CR matches what Update returned.
+	persisted, err := appsClientset.ArgoprojV1alpha1().AppProjects(ns).Get(t.Context(), "test-project", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"https://local.example.com/repo.git"}, persisted.Spec.SourceRepos)
+	assert.Equal(t,
+		[]v1alpha1.ApplicationDestination{{Server: "*", Namespace: "local-ns"}},
+		persisted.Spec.Destinations,
+	)
+}

@@ -688,6 +688,335 @@ func TestFilterAppSetsByProjects(t *testing.T) {
 	})
 }
 
+func TestStripInheritedGlobalProjectSpec(t *testing.T) {
+	global := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "global-project", Namespace: "argocd"},
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "*"},
+			},
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "", Kind: "LimitRange"},
+			},
+			SourceRepos: []string{"https://example.com/global.git"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{Server: "*", Namespace: "team-a"},
+			},
+		},
+	}
+
+	// Simulate a "virtual" project spec which already contains inherited entries (possibly multiple times).
+	proj := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "project-a", Namespace: "argocd"},
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "*"},
+				{Group: "*", Kind: "*"},
+				{Group: "", Kind: "ConfigMap"},
+			},
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "", Kind: "LimitRange"},
+				{Group: "", Kind: "LimitRange"},
+				{Group: "", Kind: "Secret"},
+			},
+			SourceRepos: []string{
+				"https://example.com/global.git",
+				"https://example.com/global.git",
+				"https://example.com/project.git",
+			},
+			Destinations: []argoappv1.ApplicationDestination{
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-b"},
+			},
+		},
+	}
+
+	StripInheritedGlobalProjectSpec(proj, []*argoappv1.AppProject{global})
+
+	assert.Equal(t,
+		[]argoappv1.ClusterResourceRestrictionItem{
+			{Group: "", Kind: "ConfigMap"},
+		},
+		proj.Spec.ClusterResourceBlacklist,
+	)
+	assert.Equal(t,
+		[]metav1.GroupKind{
+			{Group: "", Kind: "Secret"},
+		},
+		proj.Spec.NamespaceResourceBlacklist,
+	)
+	assert.Equal(t, []string{"https://example.com/project.git"}, proj.Spec.SourceRepos)
+	assert.Equal(t,
+		[]argoappv1.ApplicationDestination{
+			{Server: "*", Namespace: "team-b"},
+		},
+		proj.Spec.Destinations,
+	)
+}
+
+func TestFilterClusterResourceRestrictionItems(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		items     []argoappv1.ClusterResourceRestrictionItem
+		inherited map[string]struct{}
+		want      []argoappv1.ClusterResourceRestrictionItem
+	}{
+		{
+			name: "filters inherited and dedupes remaining",
+			items: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "*"},
+				{Group: "*", Kind: "*"},
+				{Group: "", Kind: "ConfigMap"},
+				{Group: "", Kind: "ConfigMap"},
+				{Group: "", Kind: "Secret"},
+			},
+			inherited: map[string]struct{}{
+				clusterResourceRestrictionItemKey(argoappv1.ClusterResourceRestrictionItem{Group: "*", Kind: "*"}): {},
+			},
+			want: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "", Kind: "ConfigMap"},
+				{Group: "", Kind: "Secret"},
+			},
+		},
+		{
+			name:      "no inherited -> only dedupe",
+			items:     []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}, {Group: "*", Kind: "*"}},
+			inherited: map[string]struct{}{},
+			want:      []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := filterClusterResourceRestrictionItems(tt.items, tt.inherited)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestFilterGroupKinds(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		items     []metav1.GroupKind
+		inherited map[string]struct{}
+		want      []metav1.GroupKind
+	}{
+		{
+			name: "filters inherited and dedupes remaining",
+			items: []metav1.GroupKind{
+				{Group: "", Kind: "LimitRange"},
+				{Group: "", Kind: "LimitRange"},
+				{Group: "", Kind: "Secret"},
+				{Group: "", Kind: "Secret"},
+			},
+			inherited: map[string]struct{}{
+				groupKindKey(metav1.GroupKind{Group: "", Kind: "LimitRange"}): {},
+			},
+			want: []metav1.GroupKind{
+				{Group: "", Kind: "Secret"},
+			},
+		},
+		{
+			name:      "no inherited -> only dedupe",
+			items:     []metav1.GroupKind{{Group: "", Kind: "Secret"}, {Group: "", Kind: "Secret"}},
+			inherited: map[string]struct{}{},
+			want:      []metav1.GroupKind{{Group: "", Kind: "Secret"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := filterGroupKinds(tt.items, tt.inherited)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestFilterStrings(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		items     []string
+		inherited map[string]struct{}
+		want      []string
+	}{
+		{
+			name: "filters inherited and dedupes remaining",
+			items: []string{
+				"https://example.com/global.git",
+				"https://example.com/global.git",
+				"https://example.com/project.git",
+				"https://example.com/project.git",
+			},
+			inherited: map[string]struct{}{
+				"https://example.com/global.git": {},
+			},
+			want: []string{"https://example.com/project.git"},
+		},
+		{
+			name:      "no inherited -> only dedupe",
+			items:     []string{"a", "a", "b", "b"},
+			inherited: map[string]struct{}{},
+			want:      []string{"a", "b"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := filterStrings(tt.items, tt.inherited)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestFilterDestinations(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		items     []argoappv1.ApplicationDestination
+		inherited map[string]struct{}
+		want      []argoappv1.ApplicationDestination
+	}{
+		{
+			name: "filters inherited and dedupes remaining",
+			items: []argoappv1.ApplicationDestination{
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-b"},
+				{Server: "*", Namespace: "team-b"},
+			},
+			inherited: map[string]struct{}{
+				applicationDestinationKey(argoappv1.ApplicationDestination{Server: "*", Namespace: "team-a"}): {},
+			},
+			want: []argoappv1.ApplicationDestination{
+				{Server: "*", Namespace: "team-b"},
+			},
+		},
+		{
+			name:      "no inherited -> only dedupe",
+			items:     []argoappv1.ApplicationDestination{{Server: "*", Namespace: "team-a"}, {Server: "*", Namespace: "team-a"}},
+			inherited: map[string]struct{}{},
+			want:      []argoappv1.ApplicationDestination{{Server: "*", Namespace: "team-a"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := filterDestinations(tt.items, tt.inherited)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestFilterSyncWindows(t *testing.T) {
+	t.Parallel()
+
+	w1 := &argoappv1.SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"*"},
+		TimeZone:     "UTC",
+	}
+	// Same identity as w1 (should be deduped)
+	w1dup := &argoappv1.SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"*"},
+		TimeZone:     "UTC",
+	}
+	w2 := &argoappv1.SyncWindow{
+		Kind:         "deny",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"*"},
+		TimeZone:     "UTC",
+	}
+
+	h1, ok := syncWindowIdentityHash(w1)
+	require.True(t, ok)
+
+	got := filterSyncWindows(argoappv1.SyncWindows{w1, w1dup, w2}, map[uint64]struct{}{h1: {}})
+	assert.Equal(t, argoappv1.SyncWindows{w2}, got)
+}
+
+func TestDedupVirtualProjectSpec(t *testing.T) {
+	w := &argoappv1.SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"*"},
+		TimeZone:     "UTC",
+	}
+	wDup := &argoappv1.SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"*"},
+		TimeZone:     "UTC",
+	}
+
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "*"},
+				{Group: "*", Kind: "*"},
+			},
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "", Kind: "Volume"},
+				{Group: "", Kind: "Volume"},
+			},
+			NamespaceResourceWhitelist: []metav1.GroupKind{
+				{Group: "", Kind: "ConfigMap"},
+				{Group: "", Kind: "ConfigMap"},
+			},
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "", Kind: "Secret"},
+				{Group: "", Kind: "Secret"},
+			},
+			SourceRepos: []string{
+				"https://example.com/a.git",
+				"https://example.com/a.git",
+				"https://example.com/b.git",
+			},
+			Destinations: []argoappv1.ApplicationDestination{
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-b"},
+			},
+			SyncWindows: argoappv1.SyncWindows{w, wDup},
+		},
+	}
+
+	dedupVirtualProjectSpec(proj)
+
+	assert.Equal(t, []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}}, proj.Spec.ClusterResourceWhitelist)
+	assert.Equal(t, []argoappv1.ClusterResourceRestrictionItem{{Group: "", Kind: "Volume"}}, proj.Spec.ClusterResourceBlacklist)
+	assert.Equal(t, []metav1.GroupKind{{Group: "", Kind: "ConfigMap"}}, proj.Spec.NamespaceResourceWhitelist)
+	assert.Equal(t, []metav1.GroupKind{{Group: "", Kind: "Secret"}}, proj.Spec.NamespaceResourceBlacklist)
+	assert.Equal(t, []string{"https://example.com/a.git", "https://example.com/b.git"}, proj.Spec.SourceRepos)
+	assert.Equal(t,
+		[]argoappv1.ApplicationDestination{
+			{Server: "*", Namespace: "team-a"},
+			{Server: "*", Namespace: "team-b"},
+		},
+		proj.Spec.Destinations,
+	)
+	assert.Len(t, proj.Spec.SyncWindows, 1)
+}
+
 func TestFilterByRepo(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
@@ -1378,6 +1707,20 @@ func TestGetGlobalProjects(t *testing.T) {
 		nonXGlobalProjects := GetGlobalProjects(isNoX, projLister, settingsMgr)
 		assert.Len(t, nonXGlobalProjects, 1)
 		assert.Equal(t, "default-non-x", nonXGlobalProjects[0].Name)
+
+		// Regression: a proj object whose labels match a global project's selector should match
+		// even if it is not yet present in the lister/informer cache (e.g. a freshly received
+		// update payload). Only the proj's labels should drive matching.
+		notInCache := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "not-in-cache",
+				Namespace: namespace,
+				Labels:    map[string]string{"is-x": "yep"},
+			},
+		}
+		notInCacheGlobalProjects := GetGlobalProjects(notInCache, projLister, settingsMgr)
+		assert.Len(t, notInCacheGlobalProjects, 1)
+		assert.Equal(t, "default-x", notInCacheGlobalProjects[0].Name)
 	})
 }
 
