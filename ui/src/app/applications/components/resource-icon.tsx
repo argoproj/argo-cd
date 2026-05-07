@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {resourceIcons} from './resources';
 import {resourceIconGroups as resourceCustomizations} from './resource-customizations';
-import * as minimatch from 'minimatch';
+const minimatch = require('minimatch');
 
 export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: string; customStyle?: React.CSSProperties}) => {
     if (kind === 'node') {
