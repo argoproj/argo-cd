@@ -66,6 +66,9 @@ argocd-application-controller [flags]
       --redisdb int                                               Redis database.
       --repo-error-grace-period-seconds int                       Grace period in seconds for ignoring consecutive errors while communicating with repo server. (default 180)
       --repo-server string                                        Repo server address. (default "argocd-repo-server:8081")
+      --repo-server-ca-cert string                                Path to the repo-server CA certificate file
+      --repo-server-client-cert string                            Path to the client certificate file for mTLS
+      --repo-server-client-cert-key string                        Path to the client certificate key file for mTLS
       --repo-server-plaintext                                     Disable TLS on connections to repo server
       --repo-server-strict-tls                                    Whether to use strict validation of the TLS cert presented by the repo server
       --repo-server-timeout-seconds int                           Repo server RPC call timeout seconds. (default 60)
