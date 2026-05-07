@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -2640,6 +2641,66 @@ func BenchmarkIncrementalIndexBuild(b *testing.B) {
 					cluster.addToParentUIDToChildren(child.parentUID, child.childKey)
 				}
 			}
+		})
+	}
+}
+
+func TestSync_DeletedNamespace_DoesNotBlockSync(t *testing.T) {
+	tests := []struct {
+		name    string
+		makeErr func(resource string) error
+	}{
+		{
+			name: "NotFound (404)",
+			makeErr: func(resource string) error {
+				return apierrors.NewNotFound(schema.GroupResource{Resource: resource}, "")
+			},
+		},
+		{
+			name: "Forbidden (403)",
+			makeErr: func(resource string) error {
+				return apierrors.NewForbidden(schema.GroupResource{Resource: resource}, "", fmt.Errorf("namespace %q not found", "deleted-namespace"))
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given a cluster configured with a valid and a deleted namespace
+			deletedNamespace := "deleted-namespace"
+			validNamespace := "default"
+			pod := testPod1()
+			pod.SetNamespace(validNamespace)
+			validNs := &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Namespace",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: validNamespace,
+				},
+			}
+			cluster := newCluster(t, pod, validNs)
+			fakeClient := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+			fakeClient.PrependReactor("list", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+				if action.GetNamespace() == deletedNamespace {
+					return true, nil, tc.makeErr(action.GetResource().Resource)
+				}
+				return false, nil, nil
+			})
+			cluster.namespaces = []string{validNamespace, deletedNamespace}
+
+			// When sync is called
+			err := cluster.sync()
+
+			// Then sync succeeds
+			require.NoError(t, err)
+			assert.NotEmpty(t, cluster.resources, "resources from valid namespace should be cached")
+
+			// And the inaccessible namespace is reported as a sync warning
+			info := cluster.GetClusterInfo()
+			assert.Len(t, info.SyncWarnings, 1)
+			assert.Contains(t, info.SyncWarnings[0], deletedNamespace)
 		})
 	}
 }

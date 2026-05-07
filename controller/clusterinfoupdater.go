@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -156,6 +157,9 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
 			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
 			clusterInfo.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
+			if len(info.SyncWarnings) > 0 {
+				clusterInfo.ConnectionState.Message = strings.Join(info.SyncWarnings, "; ")
+			}
 		default:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusFailed
 			clusterInfo.ConnectionState.Message = info.SyncError.Error()
