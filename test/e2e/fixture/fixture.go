@@ -1075,7 +1075,18 @@ func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
-func Patch(t *testing.T, path string, jsonPatch string) {
+func PushChanges(t *testing.T) {
+	t.Helper()
+	log.Info("pushing changes")
+
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "push changes"))
+
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
+}
+
+func WritePatch(t *testing.T, path, jsonPatch string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
@@ -1105,6 +1116,12 @@ func Patch(t *testing.T, path string, jsonPatch string) {
 	}
 
 	require.NoError(t, os.WriteFile(filename, bytes, 0o644))
+}
+
+func Patch(t *testing.T, path string, jsonPatch string) {
+	t.Helper()
+	WritePatch(t, path, jsonPatch)
+
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
