@@ -15,7 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +33,7 @@ import (
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -641,7 +641,7 @@ func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, na
 }
 
 // ListResourceEvents returns a list of event resources for an applicationset
-func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*structpb.Struct, error) {
+func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*eventspb.EventList, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
 	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
@@ -661,5 +661,5 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return serverevents.EventListToStruct(list)
+	return serverevents.K8sEventListToAPIEventList(list), nil
 }

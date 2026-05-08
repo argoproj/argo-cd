@@ -10,56 +10,31 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestEventListToStruct(t *testing.T) {
-	t.Run("nil EventList returns empty struct", func(t *testing.T) {
-		result, err := EventListToStruct(nil)
-		require.NoError(t, err)
+func TestK8sEventListToAPIEventList(t *testing.T) {
+	t.Run("nil EventList returns empty list", func(t *testing.T) {
+		result := K8sEventListToAPIEventList(nil)
 		require.NotNil(t, result)
-
-		// Verify the structure has items and metadata fields
-		assert.NotNil(t, result.Fields["items"])
-		assert.NotNil(t, result.Fields["metadata"])
-
-		// Items should be an empty list
-		items := result.Fields["items"].GetListValue()
-		assert.NotNil(t, items)
-		assert.Empty(t, items.Values)
+		assert.Empty(t, result.Items)
 	})
 
 	t.Run("empty EventList returns empty items", func(t *testing.T) {
-		eventList := &corev1.EventList{
-			Items: []corev1.Event{},
-		}
-
-		result, err := EventListToStruct(eventList)
-		require.NoError(t, err)
+		result := K8sEventListToAPIEventList(&corev1.EventList{Items: []corev1.Event{}})
 		require.NotNil(t, result)
-
-		items := result.Fields["items"].GetListValue()
-		assert.NotNil(t, items)
-		assert.Empty(t, items.Values)
+		assert.Empty(t, result.Items)
 	})
 
-	t.Run("EventList with events converts correctly", func(t *testing.T) {
+	t.Run("EventList with events converts each field", func(t *testing.T) {
 		eventTime := metav1.NewTime(time.Now())
-		eventList := &corev1.EventList{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "EventList",
-				APIVersion: "v1",
-			},
-			ListMeta: metav1.ListMeta{
-				ResourceVersion: "12345",
-			},
+		input := &corev1.EventList{
+			ListMeta: metav1.ListMeta{ResourceVersion: "12345"},
 			Items: []corev1.Event{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-event-1",
-						Namespace: "default",
-					},
+					ObjectMeta: metav1.ObjectMeta{Name: "test-event-1", Namespace: "default"},
 					InvolvedObject: corev1.ObjectReference{
 						Kind:      "Pod",
 						Name:      "test-pod",
 						Namespace: "default",
+						UID:       "abc-123",
 					},
 					Reason:         "Created",
 					Message:        "Pod created successfully",
@@ -68,10 +43,7 @@ func TestEventListToStruct(t *testing.T) {
 					LastTimestamp:  eventTime,
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-event-2",
-						Namespace: "default",
-					},
+					ObjectMeta: metav1.ObjectMeta{Name: "test-event-2", Namespace: "default"},
 					InvolvedObject: corev1.ObjectReference{
 						Kind:      "Pod",
 						Name:      "test-pod",
@@ -86,39 +58,24 @@ func TestEventListToStruct(t *testing.T) {
 			},
 		}
 
-		result, err := EventListToStruct(eventList)
-		require.NoError(t, err)
+		result := K8sEventListToAPIEventList(input)
 		require.NotNil(t, result)
+		assert.Equal(t, "12345", result.Metadata.ResourceVersion)
+		require.Len(t, result.Items, 2)
 
-		// Verify items
-		items := result.Fields["items"].GetListValue()
-		assert.NotNil(t, items)
-		assert.Len(t, items.Values, 2)
-
-		// Verify first event
-		firstEvent := items.Values[0].GetStructValue()
-		assert.NotNil(t, firstEvent)
-
-		metadata := firstEvent.Fields["metadata"].GetStructValue()
-		assert.Equal(t, "test-event-1", metadata.Fields["name"].GetStringValue())
-		assert.Equal(t, "default", metadata.Fields["namespace"].GetStringValue())
-
-		assert.Equal(t, "Created", firstEvent.Fields["reason"].GetStringValue())
-		assert.Equal(t, "Pod created successfully", firstEvent.Fields["message"].GetStringValue())
-		assert.Equal(t, "Normal", firstEvent.Fields["type"].GetStringValue())
-
-		// Verify involvedObject
-		involvedObject := firstEvent.Fields["involvedObject"].GetStructValue()
-		assert.Equal(t, "Pod", involvedObject.Fields["kind"].GetStringValue())
-		assert.Equal(t, "test-pod", involvedObject.Fields["name"].GetStringValue())
+		first := result.Items[0]
+		assert.Equal(t, "test-event-1", first.Metadata.Name)
+		assert.Equal(t, "default", first.Metadata.Namespace)
+		assert.Equal(t, "Created", first.Reason)
+		assert.Equal(t, "Pod created successfully", first.Message)
+		assert.Equal(t, "Normal", first.Type)
+		assert.Equal(t, "Pod", first.InvolvedObject.Kind)
+		assert.Equal(t, "test-pod", first.InvolvedObject.Name)
+		assert.Equal(t, "abc-123", first.InvolvedObject.UID)
 	})
 
 	t.Run("EventList metadata is preserved", func(t *testing.T) {
-		eventList := &corev1.EventList{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "EventList",
-				APIVersion: "v1",
-			},
+		input := &corev1.EventList{
 			ListMeta: metav1.ListMeta{
 				ResourceVersion: "67890",
 				Continue:        "continue-token",
@@ -126,17 +83,37 @@ func TestEventListToStruct(t *testing.T) {
 			Items: []corev1.Event{},
 		}
 
-		result, err := EventListToStruct(eventList)
-		require.NoError(t, err)
+		result := K8sEventListToAPIEventList(input)
 		require.NotNil(t, result)
+		assert.Equal(t, "67890", result.Metadata.ResourceVersion)
+		assert.Equal(t, "continue-token", result.Metadata.Continue)
+	})
 
-		// Verify metadata
-		listMetadata := result.Fields["metadata"].GetStructValue()
-		assert.Equal(t, "67890", listMetadata.Fields["resourceVersion"].GetStringValue())
-		assert.Equal(t, "continue-token", listMetadata.Fields["continue"].GetStringValue())
+	t.Run("optional pointer fields are converted", func(t *testing.T) {
+		input := &corev1.EventList{
+			Items: []corev1.Event{
+				{
+					ObjectMeta:          metav1.ObjectMeta{Name: "evt", Namespace: "default"},
+					Reason:              "Updated",
+					Series:              &corev1.EventSeries{Count: 3},
+					Related:             &corev1.ObjectReference{Kind: "Deployment", Name: "dep"},
+					ReportingController: "argocd-application-controller",
+					ReportingInstance:   "argocd-0",
+				},
+			},
+		}
 
-		// Verify kind and apiVersion
-		assert.Equal(t, "EventList", result.Fields["kind"].GetStringValue())
-		assert.Equal(t, "v1", result.Fields["apiVersion"].GetStringValue())
+		result := K8sEventListToAPIEventList(input)
+		require.NotNil(t, result)
+		require.Len(t, result.Items, 1)
+
+		got := result.Items[0]
+		require.NotNil(t, got.Series)
+		assert.Equal(t, int32(3), got.Series.Count)
+		require.NotNil(t, got.Related)
+		assert.Equal(t, "Deployment", got.Related.Kind)
+		assert.Equal(t, "dep", got.Related.Name)
+		assert.Equal(t, "argocd-application-controller", got.ReportingComponent)
+		assert.Equal(t, "argocd-0", got.ReportingInstance)
 	})
 }

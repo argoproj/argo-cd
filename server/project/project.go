@@ -13,7 +13,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
@@ -493,7 +493,7 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	return &project.EmptyResponse{}, err
 }
 
-func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*structpb.Struct, error) {
+func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*eventspb.EventList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceProjects, rbac.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
@@ -510,7 +510,7 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*stru
 	if err != nil {
 		return nil, err
 	}
-	return serverevents.EventListToStruct(list)
+	return serverevents.K8sEventListToAPIEventList(list), nil
 }
 
 func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason string, action string) {

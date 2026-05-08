@@ -4,7 +4,6 @@ import (
 	"sort"
 	"testing"
 
-	"google.golang.org/protobuf/types/known/structpb"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cr_fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -33,18 +32,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
-
-// getItemsFromStruct extracts the items array from a protobuf Struct representing an EventList
-func getItemsFromStruct(s *structpb.Struct) []*structpb.Value {
-	if s == nil {
-		return nil
-	}
-	items := s.Fields["items"].GetListValue()
-	if items == nil {
-		return nil
-	}
-	return items.Values
-}
 
 const (
 	testNamespace = "default"
@@ -773,7 +760,7 @@ func TestListResourceEvents(t *testing.T) {
 		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
 		require.NoError(t, err)
 		// No events exist in the fake client, so we expect an empty list
-		assert.Empty(t, getItemsFromStruct(res))
+		assert.Empty(t, res.Items)
 	})
 
 	t.Run("ListResourceEvents in named namespace", func(t *testing.T) {
@@ -783,7 +770,7 @@ func TestListResourceEvents(t *testing.T) {
 
 		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
 		require.NoError(t, err)
-		assert.Empty(t, getItemsFromStruct(res))
+		assert.Empty(t, res.Items)
 	})
 
 	t.Run("ListResourceEvents in not allowed namespace", func(t *testing.T) {
@@ -845,18 +832,11 @@ func TestListResourceEvents(t *testing.T) {
 
 		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
 		require.NoError(t, err)
-		items := getItemsFromStruct(res)
-		assert.NotEmpty(t, items)
-		assert.Len(t, items, 2)
+		assert.Len(t, res.Items, 2)
 
-		// Verify the returned events have the expected content
-		var eventNames []string
-		for _, item := range items {
-			if itemStruct := item.GetStructValue(); itemStruct != nil {
-				if metadata := itemStruct.Fields["metadata"].GetStructValue(); metadata != nil {
-					eventNames = append(eventNames, metadata.Fields["name"].GetStringValue())
-				}
-			}
+		eventNames := make([]string, 0, len(res.Items))
+		for _, item := range res.Items {
+			eventNames = append(eventNames, item.Metadata.Name)
 		}
 		assert.Contains(t, eventNames, "appset1-event-1")
 		assert.Contains(t, eventNames, "appset1-event-2")

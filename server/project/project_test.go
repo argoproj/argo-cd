@@ -822,18 +822,7 @@ func TestListEvents(t *testing.T) {
 		res, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: existingProj.Name})
 		require.NoError(t, err)
 		require.NotNil(t, res)
-
-		// Verify the Struct has the expected structure
-		// When there are no events, items may be null or an empty list depending on K8s response
-		itemsField := res.Fields["items"]
-		if itemsField != nil {
-			items := itemsField.GetListValue()
-			if items != nil {
-				assert.Empty(t, items.Values, "items should be empty when no events exist")
-			}
-		}
-
-		assert.NotNil(t, res.Fields["metadata"], "response should have metadata field")
+		assert.Empty(t, res.Items, "items should be empty when no events exist")
 	})
 
 	t.Run("ListEvents returns events for project", func(t *testing.T) {
@@ -892,25 +881,13 @@ func TestListEvents(t *testing.T) {
 		res, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: existingProj.Name})
 		require.NoError(t, err)
 		require.NotNil(t, res)
+		assert.Len(t, res.Items, 2, "should have 2 events")
 
-		// Verify the Struct has the expected structure
-		items := res.Fields["items"].GetListValue()
-		require.NotNil(t, items, "items should be a list")
-		assert.Len(t, items.Values, 2, "should have 2 events")
-
-		// Verify event content is preserved in the Struct
-		var eventNames []string
-		for _, item := range items.Values {
-			itemStruct := item.GetStructValue()
-			require.NotNil(t, itemStruct, "each item should be a struct")
-
-			metadata := itemStruct.Fields["metadata"].GetStructValue()
-			require.NotNil(t, metadata, "event should have metadata")
-			eventNames = append(eventNames, metadata.Fields["name"].GetStringValue())
-
-			// Verify reason and message fields are present
-			assert.NotEmpty(t, itemStruct.Fields["reason"].GetStringValue())
-			assert.NotEmpty(t, itemStruct.Fields["message"].GetStringValue())
+		eventNames := make([]string, 0, len(res.Items))
+		for _, item := range res.Items {
+			eventNames = append(eventNames, item.Metadata.Name)
+			assert.NotEmpty(t, item.Reason)
+			assert.NotEmpty(t, item.Message)
 		}
 		assert.Contains(t, eventNames, "test-event-1")
 		assert.Contains(t, eventNames, "test-event-2")

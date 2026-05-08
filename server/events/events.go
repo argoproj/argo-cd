@@ -1,34 +1,82 @@
 package events
 
 import (
-	"encoding/json"
-	"fmt"
-
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
+
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 )
 
-// EventListToStruct converts a Kubernetes EventList to a protobuf Struct.
-// This is used to return EventList data through gRPC APIs in a way that avoids
-// protobuf compatibility issues with Kubernetes types in K8s 1.35+.
-func EventListToStruct(eventList *corev1.EventList) (*structpb.Struct, error) {
-	if eventList == nil {
-		return structpb.NewStruct(map[string]any{
-			"metadata": map[string]any{},
-			"items":    []any{},
-		})
+// K8sEventListToAPIEventList converts a Kubernetes EventList into the typed
+// Argo CD events API representation. A nil input is mapped to an empty list so
+// callers can return the result directly without a nil-check.
+func K8sEventListToAPIEventList(in *corev1.EventList) *eventspb.EventList {
+	if in == nil {
+		return &eventspb.EventList{}
 	}
 
-	jsonBytes, err := json.Marshal(eventList)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal EventList to JSON: %w", err)
+	out := &eventspb.EventList{
+		Metadata: in.ListMeta,
+		Items:    make([]eventspb.Event, 0, len(in.Items)),
 	}
-
-	result := &structpb.Struct{}
-	if err := protojson.Unmarshal(jsonBytes, result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal into protobuf Struct: %w", err)
+	for i := range in.Items {
+		out.Items = append(out.Items, k8sEventToAPIEvent(&in.Items[i]))
 	}
+	return out
+}
 
-	return result, nil
+func k8sEventToAPIEvent(in *corev1.Event) eventspb.Event {
+	return eventspb.Event{
+		Metadata:           in.ObjectMeta,
+		InvolvedObject:     k8sObjectReferenceToAPIObjectReference(in.InvolvedObject),
+		Reason:             in.Reason,
+		Message:            in.Message,
+		Source:             k8sEventSourceToAPIEventSource(in.Source),
+		FirstTimestamp:     in.FirstTimestamp,
+		LastTimestamp:      in.LastTimestamp,
+		Count:              in.Count,
+		Type:               in.Type,
+		EventTime:          in.EventTime,
+		Series:             k8sEventSeriesPtrToAPIEventSeriesPtr(in.Series),
+		Action:             in.Action,
+		Related:            k8sObjectReferencePtrToAPIObjectReferencePtr(in.Related),
+		ReportingComponent: in.ReportingController,
+		ReportingInstance:  in.ReportingInstance,
+	}
+}
+
+func k8sEventSourceToAPIEventSource(in corev1.EventSource) eventspb.EventSource {
+	return eventspb.EventSource{
+		Component: in.Component,
+		Host:      in.Host,
+	}
+}
+
+func k8sEventSeriesPtrToAPIEventSeriesPtr(in *corev1.EventSeries) *eventspb.EventSeries {
+	if in == nil {
+		return nil
+	}
+	return &eventspb.EventSeries{
+		Count:            in.Count,
+		LastObservedTime: in.LastObservedTime,
+	}
+}
+
+func k8sObjectReferenceToAPIObjectReference(in corev1.ObjectReference) eventspb.ObjectReference {
+	return eventspb.ObjectReference{
+		Kind:            in.Kind,
+		Namespace:       in.Namespace,
+		Name:            in.Name,
+		UID:             string(in.UID),
+		APIVersion:      in.APIVersion,
+		ResourceVersion: in.ResourceVersion,
+		FieldPath:       in.FieldPath,
+	}
+}
+
+func k8sObjectReferencePtrToAPIObjectReferencePtr(in *corev1.ObjectReference) *eventspb.ObjectReference {
+	if in == nil {
+		return nil
+	}
+	out := k8sObjectReferenceToAPIObjectReference(*in)
+	return &out
 }

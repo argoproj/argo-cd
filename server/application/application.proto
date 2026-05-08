@@ -7,10 +7,10 @@ option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/application";
 package application;
 
 import "google/api/annotations.proto";
-import "google/protobuf/struct.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/v3/reposerver/repository/repository.proto";
+import "github.com/argoproj/argo-cd/v3/server/events/events.proto";
 
 
 // ApplicationQuery is a query for application resources. When getting multiple applications, the "projects" field acts
@@ -359,7 +359,7 @@ service ApplicationService {
 	}
 
 	// ListResourceEvents returns a list of event resources
-	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (google.protobuf.Struct) {
+	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (events.EventList) {
 		option (google.api.http).get = "/api/v1/applications/{name}/events";
 	}
 

@@ -1,0 +1,59 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/events";
+
+// Events Service
+//
+// Events Service API performs query actions against Kubernetes core/v1 Event
+// resources owned by Argo CD applications, application sets and projects.
+package events;
+
+import "gogoproto/gogo.proto";
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
+
+// EventList is a list of Kubernetes core/v1 Events. It mirrors corev1.EventList
+// but is defined in Argo CD's apiclient package to avoid pulling Kubernetes
+// protobuf types into the public gRPC surface.
+message EventList {
+  k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.nullable) = false];
+  repeated Event items = 2 [(gogoproto.nullable) = false];
+}
+
+// Event mirrors corev1.Event and exposes the fields consumed by the Argo CD
+// API and UI.
+message Event {
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.nullable) = false];
+  ObjectReference involvedObject = 2 [(gogoproto.nullable) = false];
+  string reason = 3;
+  string message = 4;
+  EventSource source = 5 [(gogoproto.nullable) = false];
+  k8s.io.apimachinery.pkg.apis.meta.v1.Time firstTimestamp = 6 [(gogoproto.nullable) = false];
+  k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTimestamp = 7 [(gogoproto.nullable) = false];
+  int32 count = 8;
+  string type = 9;
+  k8s.io.apimachinery.pkg.apis.meta.v1.MicroTime eventTime = 10 [(gogoproto.nullable) = false];
+  EventSeries series = 11;
+  string action = 12;
+  ObjectReference related = 13;
+  string reportingComponent = 14;
+  string reportingInstance = 15;
+}
+
+message EventSource {
+  string component = 1;
+  string host = 2;
+}
+
+message EventSeries {
+  int32 count = 1;
+  k8s.io.apimachinery.pkg.apis.meta.v1.MicroTime lastObservedTime = 2 [(gogoproto.nullable) = false];
+}
+
+message ObjectReference {
+  string kind = 1;
+  string namespace = 2;
+  string name = 3;
+  string uid = 4 [(gogoproto.customname) = "UID"];
+  string apiVersion = 5 [(gogoproto.customname) = "APIVersion"];
+  string resourceVersion = 6;
+  string fieldPath = 7;
+}
