@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -11,10 +12,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const LANDLOCK = "landlock"
-const LANDLOCK_STD_RW = "read_dir,make_dir,read_file,write_file"
-const LANDLOCK_STD_FILE_RW = "read_file,write_file"
-const LANDLOCK_STD_RO = "read_dir,read_file"
+const (
+	LANDLOCK             = "landlock"
+	LANDLOCK_STD_RW      = "read_dir,make_dir,read_file,write_file"
+	LANDLOCK_STD_FILE_RW = "read_file,write_file"
+	LANDLOCK_STD_RO      = "read_dir,read_file"
+)
 
 type LandlockAllowedPath struct {
 	Paths  []string `json:"paths"`
@@ -76,8 +79,8 @@ const fsAccessAll = llsyscall.AccessFSExecute |
 
 func (m *Landlock) createAccessFSSet(spec string) (landlock.AccessFSSet, error) {
 	var result landlock.AccessFSSet
-	specvals := strings.Split(spec, ",")
-	for _, specval := range specvals {
+	specvals := strings.SplitSeq(spec, ",")
+	for specval := range specvals {
 		specval = strings.TrimSpace(specval)
 		if specval == "*" {
 			result = fsAccessAll
@@ -88,7 +91,7 @@ func (m *Landlock) createAccessFSSet(spec string) (landlock.AccessFSSet, error) 
 		}
 		accessFlag, ok := accessFSNames[specval]
 		if !ok {
-			return 0, fmt.Errorf("Invalid access specification given: %q", specval)
+			return 0, fmt.Errorf("invalid access specification given: %q", specval)
 		}
 		result |= accessFlag
 	}
@@ -97,7 +100,7 @@ func (m *Landlock) createAccessFSSet(spec string) (landlock.AccessFSSet, error) 
 
 func (m *Landlock) addAllowedPaths(entry LandlockAllowedPath) error {
 	if len(entry.Paths) == 0 {
-		return fmt.Errorf("no paths are given for access entry")
+		return errors.New("no paths are given for access entry")
 	}
 	permittedAccess, err := m.createAccessFSSet(entry.Access)
 	if err != nil {
@@ -112,7 +115,7 @@ func (m *Landlock) addAllowedPaths(entry LandlockAllowedPath) error {
 func (m *Landlock) Init(sandboxConfig *ArgocdSandboxConfig, allowRulesStrs []string) error {
 	implConfig := sandboxConfig.Landlock
 	if implConfig == nil {
-		return fmt.Errorf("Landlock sandbox cannot initialize with no configuration given")
+		return errors.New("Landlock sandbox cannot initialize with no configuration given")
 	}
 	accessFSSet, err := m.createAccessFSSet(implConfig.DefaultFSDeny)
 	if err != nil {
@@ -132,11 +135,11 @@ func (m *Landlock) Init(sandboxConfig *ArgocdSandboxConfig, allowRulesStrs []str
 	for _, allowRuleStr := range allowRulesStrs {
 		entry, err := parseAllowParam(allowRuleStr)
 		if err != nil {
-			return fmt.Errorf("Landlock sandbox cannot initialize: unparsable allow param %q: %v", allowRuleStr, err)
+			return fmt.Errorf("Landlock sandbox cannot initialize: unparsable allow param %q: %w", allowRuleStr, err)
 		}
 		err = m.addAllowedPaths(entry)
 		if err != nil {
-			return fmt.Errorf("Landlock sandbox cannot initialize: invalid allow param %q: %v", allowRuleStr, err)
+			return fmt.Errorf("Landlock sandbox cannot initialize: invalid allow param %q: %w", allowRuleStr, err)
 		}
 	}
 	return err
@@ -153,7 +156,7 @@ func (m *Landlock) Name() string {
 }
 
 func (m *Landlock) GetConfig() string {
-	return fmt.Sprintf("%v", m.Cfg)
+	return m.Cfg.String()
 }
 
 func (m *Landlock) makeFSArgs(accessSpec string, paths []string) []string {
@@ -175,7 +178,7 @@ func (m *Landlock) MakeArgs(runOpts *SandboxRunOpts) []string {
 // Parse parses a string in the format "fs:access_right1,access_right2,...:/absolute/path".
 func parseAllowParam(input string) (LandlockAllowedPath, error) {
 	if input == "" {
-		return LandlockAllowedPath{}, fmt.Errorf("the rule is empty")
+		return LandlockAllowedPath{}, errors.New("the rule is empty")
 	}
 	parts := strings.SplitN(input, ":", 3)
 	if len(parts) != 3 {
@@ -191,7 +194,7 @@ func parseAllowParam(input string) (LandlockAllowedPath, error) {
 	rights = strings.TrimSpace(rights)
 
 	if rights == "" {
-		return LandlockAllowedPath{}, fmt.Errorf("empty access rights list")
+		return LandlockAllowedPath{}, errors.New("empty access rights list")
 	}
 
 	if err := validatePath(path); err != nil {
@@ -206,13 +209,13 @@ func parseAllowParam(input string) (LandlockAllowedPath, error) {
 
 func validatePath(p string) error {
 	if p == "" {
-		return fmt.Errorf("path is empty")
+		return errors.New("path is empty")
 	}
 	if !strings.HasPrefix(p, "/") {
 		return fmt.Errorf("path must be absolute (start with /), got %q", p)
 	}
 	if strings.Contains(p, "\x00") {
-		return fmt.Errorf("path contains null byte")
+		return errors.New("path contains null byte")
 	}
 	return nil
 }

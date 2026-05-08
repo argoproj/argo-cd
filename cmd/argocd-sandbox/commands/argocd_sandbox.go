@@ -32,7 +32,7 @@ func NewCommand() *cobra.Command {
 		Use:               common.CommandSandbox,
 		Short:             "Argo Tool Execution Sandbox",
 		DisableAutoGenTag: true,
-		Run: func(c *cobra.Command, cmdargs []string) {
+		Run: func(_ *cobra.Command, cmdargs []string) {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			if len(cmdargs) < 1 {
@@ -71,5 +71,4 @@ func NewCommand() *cobra.Command {
 	command.MarkFlagsOneRequired(FLAG_CONFIG, FLAG_CONFIG_STR)
 	command.MarkFlagsMutuallyExclusive(FLAG_CONFIG, FLAG_CONFIG_STR)
 	return &command
-
 }

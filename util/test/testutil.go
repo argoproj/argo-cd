@@ -2,6 +2,7 @@ package test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,8 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/util/regex"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/util/regex"
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
@@ -347,26 +349,18 @@ func (h *LogHook) GetEntries() []string {
 
 const SUBPROC_ENV_VAR = "SANDBOX_TEST_SUBPROCESS"
 
-var counter = 0
-
 func RunInSubprocess(t *testing.T, disableCoverage bool, testfunc func()) {
 	t.Helper()
 	if os.Getenv(SUBPROC_ENV_VAR) != "" {
 		fmt.Fprintf(os.Stderr, "running test %q in subprocess PID=%d PPID=%d", t.Name(), os.Getpid(), os.Getppid())
-		//err :=
+		// err :=
 		testfunc()
-		//t.Logf("execution finished")
-		//assert.NoError(t, err)
+		// t.Logf("execution finished")
+		// assert.NoError(t, err)
 	} else {
 		t.Logf("running test %q in parent process", t.Name())
-
 		// Parent process: re-exec this same test binary, running only this test.
-
 		t.Logf("called with args %v", os.Args)
-		//fd, err =
-		msg := fmt.Sprintf("*** called with args %v\n", os.Args)
-		os.WriteFile(fmt.Sprintf("/tmp/msg_%d", counter), []byte(msg), 0644)
-		counter++
 		cmdArgs := []string{}
 		for _, arg := range os.Args[1:] {
 			if strings.HasPrefix(arg, "-test.run=") || arg == "-test.paniconexit0" {
@@ -391,23 +385,24 @@ func RunInSubprocess(t *testing.T, disableCoverage bool, testfunc func()) {
 		}
 		cmdEnv = append(cmdEnv, SUBPROC_ENV_VAR+"=1")
 
-		cmd := exec.Command(os.Args[0], cmdArgs...)
+		cmd := exec.CommandContext(t.Context(), os.Args[0], cmdArgs...)
 		cmd.Env = cmdEnv
 		fmt.Fprintf(os.Stderr, "execuring %q with args %v", os.Args[0], cmdArgs)
 		fmt.Fprintf(os.Stderr, "execuring %q with env %v", os.Args[0], cmdEnv)
-		//err := cmd.Run()
+		// err := cmd.Run()
 		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
 		t.Logf("subprocess output:\n%s", outputStr)
 		// Now assert on the subprocess result.
 
 		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				if !(disableCoverage && regex.Match("error setting GOCOVERDIR: bad os.MkdirTemp return: mkdir /[^\\s]+: permission denied", string(outputStr))) {
+			exitErr := &exec.ExitError{}
+			if errors.As(err, &exitErr) {
+				if !disableCoverage || !regex.Match("error setting GOCOVERDIR: bad os.MkdirTemp return: mkdir /[^\\s]+: permission denied", string(outputStr)) {
 					assert.Fail(t, fmt.Sprintf("expected subprocess exit code 0, but got %d", exitErr.ExitCode()))
 				}
 			} else {
-				assert.Fail(t, "error running test in subprocess: %w", err)
+				assert.Fail(t, fmt.Sprintf("error running test in subprocess: %v", err))
 			}
 		}
 		if !strings.Contains(outputStr, "PASS: "+t.Name()+" (") {

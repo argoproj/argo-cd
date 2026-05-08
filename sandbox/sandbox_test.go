@@ -33,7 +33,7 @@ func TestGetModulesFromConfig(t *testing.T) {
 			modules, err := getModulesFromConfig(&testCase.spec, testCase.impls)
 			if testCase.errmsg == "" {
 				require.NoError(t, err)
-				assert.True(t, len(modules) == 1)
+				assert.Len(t, modules, 1)
 				assert.Equal(t, "landlock", modules[0].Name())
 			} else {
 				require.Error(t, err)
