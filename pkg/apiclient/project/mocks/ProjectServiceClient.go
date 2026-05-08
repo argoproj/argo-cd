@@ -8,11 +8,11 @@ import (
 	"context"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	mock "github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // NewProjectServiceClient creates a new instance of ProjectServiceClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -826,7 +826,7 @@ func (_c *ProjectServiceClient_List_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // ListEvents provides a mock function for the type ProjectServiceClient
-func (_mock *ProjectServiceClient) ListEvents(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*structpb.Struct, error) {
+func (_mock *ProjectServiceClient) ListEvents(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*events.EventList, error) {
 	// grpc.CallOption
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
@@ -841,16 +841,16 @@ func (_mock *ProjectServiceClient) ListEvents(ctx context.Context, in *project.P
 		panic("no return value specified for ListEvents")
 	}
 
-	var r0 *structpb.Struct
+	var r0 *events.EventList
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) (*structpb.Struct, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) (*events.EventList, error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) *structpb.Struct); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) *events.EventList); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*structpb.Struct)
+			r0 = ret.Get(0).(*events.EventList)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) error); ok {
@@ -902,12 +902,12 @@ func (_c *ProjectServiceClient_ListEvents_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *ProjectServiceClient_ListEvents_Call) Return(structParam *structpb.Struct, err error) *ProjectServiceClient_ListEvents_Call {
-	_c.Call.Return(structParam, err)
+func (_c *ProjectServiceClient_ListEvents_Call) Return(eventList *events.EventList, err error) *ProjectServiceClient_ListEvents_Call {
+	_c.Call.Return(eventList, err)
 	return _c
 }
 
-func (_c *ProjectServiceClient_ListEvents_Call) RunAndReturn(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*structpb.Struct, error)) *ProjectServiceClient_ListEvents_Call {
+func (_c *ProjectServiceClient_ListEvents_Call) RunAndReturn(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*events.EventList, error)) *ProjectServiceClient_ListEvents_Call {
 	_c.Call.Return(run)
 	return _c
 }
