@@ -71,8 +71,8 @@ var (
 
 	descAppSyncWindow = prometheus.NewDesc(
 		"argocd_app_sync_window",
-		"Whether any sync window currently applies to the application. 1 if at least one sync window is active, 0 otherwise.",
-		descAppDefaultLabels,
+		"Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per window_kind (\"allow\", \"deny\"); 1 means at least one matching window of that kind is currently active.",
+		append(descAppDefaultLabels, "window_kind"),
 		nil,
 	)
 
@@ -489,30 +489,43 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	}
 
 	if c.getAppProject != nil {
-		addGauge(descAppSyncWindow, syncWindowMetricValue(c.getAppProject, app))
+		allow, deny := syncWindowMetricValues(c.getAppProject, app)
+		addGauge(descAppSyncWindow, allow, "allow")
+		addGauge(descAppSyncWindow, deny, "deny")
 	}
 }
 
-// syncWindowMetricValue returns 1 if any sync window matching the given application
-// is currently active, otherwise 0. Errors resolving the project or evaluating the
-// schedule are logged and treated as "no active window" so the metric still reports
-// a value for the application.
-func syncWindowMetricValue(getAppProject AppProjectGetter, app *argoappv1.Application) float64 {
+// syncWindowMetricValues returns the gauge values for the allow and deny
+// argocd_app_sync_window series of the given application. Each value is 1 if at
+// least one matching sync window of that kind is currently active, otherwise 0.
+// Errors resolving the project or evaluating window schedules are logged and
+// treated as "no active window" so both series still report a value for the
+// application; this keeps `unless on(...)`-style alert queries well-defined
+// across application/project configurations.
+func syncWindowMetricValues(getAppProject AppProjectGetter, app *argoappv1.Application) (allow, deny float64) {
 	proj, err := getAppProject(app)
 	if err != nil {
 		log.Warnf("Failed to get AppProject for application %s/%s: %v", app.Namespace, app.Name, err)
-		return 0
+		return 0, 0
 	}
 	if proj == nil {
-		return 0
+		return 0, 0
 	}
 	active, err := proj.Spec.SyncWindows.Matches(app).Active()
 	if err != nil {
 		log.Warnf("Failed to evaluate sync windows for application %s/%s: %v", app.Namespace, app.Name, err)
-		return 0
+		return 0, 0
 	}
-	if active.HasWindows() {
-		return 1
+	if !active.HasWindows() {
+		return 0, 0
 	}
-	return 0
+	for _, w := range *active {
+		switch w.Kind {
+		case "allow":
+			allow = 1
+		case "deny":
+			deny = 1
+		}
+	}
+	return allow, deny
 }
