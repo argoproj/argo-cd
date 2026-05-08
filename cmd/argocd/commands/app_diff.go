@@ -704,14 +704,19 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 
-			hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
-
-			// Use annotation if flag not explicitly set
-			if !c.Flags().Changed("server-side-diff") {
-				serverSideDiff = hasServerSideDiffAnnotation
-			} else if serverSideDiff && !hasServerSideDiffAnnotation {
-				// Flag explicitly set to true, but app annotation is not set
-				fmt.Fprint(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
+			if !compareDesired {
+				// Use annotation if flag not explicitly set
+				hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
+				if !c.Flags().Changed("server-side-diff") {
+					serverSideDiff = hasServerSideDiffAnnotation
+				} else if serverSideDiff && !hasServerSideDiffAnnotation {
+					// Flag explicitly set to true, but app annotation is not set
+					fmt.Fprint(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
+				}
+			} else {
+				// When comparing desired state, always use client-side diff.
+				// We want to compare two generated manifests versions together without any influence of the current live state.
+				serverSideDiff = false
 			}
 
 			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
