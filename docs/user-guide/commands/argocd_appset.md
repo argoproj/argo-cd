@@ -78,7 +78,7 @@ argocd appset [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd appset create](argocd_appset_create.md)	 - Create one or more ApplicationSets
 * [argocd appset delete](argocd_appset_delete.md)	 - Delete one or more ApplicationSets
 * [argocd appset generate](argocd_appset_generate.md)	 - Generate apps of ApplicationSet rendered templates

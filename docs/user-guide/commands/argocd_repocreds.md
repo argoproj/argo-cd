@@ -71,7 +71,7 @@ argocd repocreds [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd repocreds add](argocd_repocreds_add.md)	 - Add git repository connection parameters
 * [argocd repocreds list](argocd_repocreds_list.md)	 - List configured repository credentials
 * [argocd repocreds rm](argocd_repocreds_rm.md)	 - Remove repository credentials

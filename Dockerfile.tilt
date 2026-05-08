@@ -43,7 +43,7 @@ RUN touch ssh_known_hosts && \
 WORKDIR /app/config
 RUN mkdir -p tls && \
     mkdir -p gpg/source && \
-    mkdir -p gpg/keys 
+    mkdir -p gpg/keys
 
 COPY .tilt-bin/argocd_linux /usr/local/bin/argocd
 

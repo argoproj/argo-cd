@@ -26,8 +26,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
@@ -182,14 +182,16 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 }
 
 // NewProjectAddSignatureKeyCommand returns a new instance of an `argocd proj add-signature-key` command
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "add-signature-key PROJECT KEY-ID",
-		Short: "Add GnuPG signature key to project",
+		Short: "Add GnuPG signature key to project (DEPRECATED)",
 		Example: templates.Examples(`
 			# Add GnuPG signature key KEY-ID to project PROJECT
 			argocd proj add-signature-key PROJECT KEY-ID
 		`),
+		Deprecated: "Managing project signature keys through CLI is deprecated, migrate to Source Integrity defined in AppProject manifest",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -200,8 +202,9 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			projName := args[0]
 			signatureKey := args[1]
 
-			if !gpg.IsShortKeyID(signatureKey) && !gpg.IsLongKeyID(signatureKey) {
-				log.Fatalf("%s is not a valid GnuPG key ID", signatureKey)
+			_, err := sourceintegrity.KeyID(signatureKey)
+			if err != nil {
+				log.Fatal(err.Error())
 			}
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
@@ -210,12 +213,12 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			for _, key := range proj.Spec.SignatureKeys {
+			for _, key := range proj.Spec.SignatureKeys { // nolint:staticcheck
 				if key.KeyID == signatureKey {
 					log.Fatal("Specified signature key is already defined in project")
 				}
 			}
-			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys, v1alpha1.SignatureKey{KeyID: signatureKey})
+			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys, v1alpha1.SignatureKey{KeyID: signatureKey}) // nolint:staticcheck
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
@@ -224,14 +227,16 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 }
 
 // NewProjectRemoveSignatureKeyCommand returns a new instance of an `argocd proj remove-signature-key` command
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "remove-signature-key PROJECT KEY-ID",
-		Short: "Remove GnuPG signature key from project",
+		Short: "Remove GnuPG signature key from project (DEPRECATED)",
 		Example: templates.Examples(`
 			# Remove GnuPG signature key KEY-ID from project PROJECT
 			argocd proj remove-signature-key PROJECT KEY-ID
 		`),
+		Deprecated: "Managing project signature keys through CLI is deprecated, migrate to Source Integrity defined in AppProject manifest",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -249,7 +254,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			errors.CheckError(err)
 
 			index := -1
-			for i, key := range proj.Spec.SignatureKeys {
+			for i, key := range proj.Spec.SignatureKeys { // nolint:staticcheck
 				if key.KeyID == signatureKey {
 					index = i
 					break
@@ -258,7 +263,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			if index == -1 {
 				log.Fatal("Specified signature key is not configured for project")
 			}
-			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
+			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...) // nolint:staticcheck
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
@@ -963,11 +968,11 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
 	}
-	switch len(p.Spec.SignatureKeys) {
+	switch len(p.Spec.SignatureKeys) { // nolint:staticcheck
 	case 0:
 		signatureKeys = "<none>"
 	default:
-		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys))
+		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys)) // nolint:staticcheck
 	}
 	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts)
 }
@@ -1050,9 +1055,9 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 
 	// Print required signature keys
 	signatureKeysStr := "<none>"
-	if len(p.Spec.SignatureKeys) > 0 {
+	if len(p.Spec.SignatureKeys) > 0 { // nolint:staticcheck
 		kids := make([]string, 0)
-		for _, key := range p.Spec.SignatureKeys {
+		for _, key := range p.Spec.SignatureKeys { // nolint:staticcheck
 			kids = append(kids, key.KeyID)
 		}
 		signatureKeysStr = strings.Join(kids, ", ")

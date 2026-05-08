@@ -1,0 +1,94 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$notice-severities: (
+    'info': ($argo-running-color, mix($argo-running-color, white, 15%), $argo-color-teal-8),
+    'warning': ($argo-status-warning-color, mix($argo-status-warning-color, white, 25%), darken($argo-status-warning-color, 35%)),
+    'critical': ($argo-failed-color, mix($argo-failed-color, white, 25%), darken($argo-failed-color, 25%))
+);
+
+.application-notice {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    margin: 0 0 14px 0;
+    border-radius: 6px;
+    border-left: 6px solid $argo-color-gray-6;
+    background: $argo-color-gray-4;
+    color: $argo-color-gray-8;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.4;
+    min-height: 52px;
+    box-shadow: 0 1px 2px rgba($argo-color-gray-9, 0.08);
+
+    &__icon {
+        flex: 0 0 auto;
+        font-size: 20px;
+        margin-right: 14px;
+    }
+
+    &__content {
+        flex: 1 1 auto;
+        word-break: break-word;
+
+        a {
+            color: inherit;
+            text-decoration: underline;
+        }
+    }
+
+    &__dismiss {
+        flex: 0 0 auto;
+        margin-left: 14px;
+        background: transparent;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        opacity: 0.7;
+        padding: 4px 8px;
+        font-size: 16px;
+
+        &:hover {
+            opacity: 1;
+        }
+    }
+}
+
+@each $name, $colors in $notice-severities {
+    $accent: nth($colors, 1);
+    $bg: nth($colors, 2);
+    $text: nth($colors, 3);
+
+    .application-notice--#{$name} {
+        background: $bg;
+        border-left-color: $accent;
+        color: $text;
+
+        .application-notice__icon {
+            color: $accent;
+        }
+    }
+
+    .application-notice-icon--#{$name} {
+        color: $accent;
+    }
+}
+
+// The tile's title column is a flex container (due to the `:has(> .argo-icon-git)`
+// rule in applications-tiles.scss) and `.applications-list__title` is sized to
+// `width: 100%`, so without this override the title fills the column and shoves
+// the notice icon to the far right.
+.applications-tiles .columns:has(> .application-notice-icon) .applications-list__title {
+    width: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.application-notice-icon {
+    // Negative top margin nudges the icon up to align optically with the
+    // surrounding text — FontAwesome glyphs render below the em-box center.
+    margin: -4px 6px 0 6px;
+    cursor: help;
+    font-size: 14px;
+    line-height: 1;
+}

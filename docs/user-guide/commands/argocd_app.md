@@ -71,7 +71,7 @@ argocd app [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd app actions](argocd_app_actions.md)	 - Manage Resource actions
 * [argocd app add-source](argocd_app_add-source.md)	 - Adds a source to the list of sources in the application
 * [argocd app confirm-deletion](argocd_app_confirm-deletion.md)	 - Confirms deletion/pruning of an application resources

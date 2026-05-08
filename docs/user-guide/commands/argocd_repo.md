@@ -76,7 +76,7 @@ argocd repo rm https://github.com/yourusername/your-repo.git
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd repo add](argocd_repo_add.md)	 - Add git, oci or helm repository connection parameters
 * [argocd repo get](argocd_repo_get.md)	 - Get a configured repository by URL
 * [argocd repo list](argocd_repo_list.md)	 - List configured repositories
