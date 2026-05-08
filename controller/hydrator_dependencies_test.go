@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -120,4 +121,50 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)
 	assert.NotEmpty(t, tmpl)
+}
+
+func TestProcessAppHydrateQueueItem_ReconcileTimeout_EnqueuesHydrationOnDryRevisionChange(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        app.Spec.Source.RepoURL,
+			TargetRevision: app.Spec.Source.TargetRevision,
+			Path:           app.Spec.Source.Path,
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "hydrated/path",
+		},
+	}
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "old-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+
+	data := fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "new-sha",
+		},
+	}
+
+	ctrl := newFakeHydratorControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+	ctrl.appHydrateQueue.Add(app.QualifiedName())
+	processed := ctrl.processAppHydrateQueueItem()
+	require.True(t, processed)
+
+	require.Eventually(t, func() bool {
+		updatedApp, err := ctrl.appLister.Applications(app.Namespace).Get(app.Name)
+		if err != nil {
+			return false
+		}
+		op := updatedApp.Status.SourceHydrator.CurrentOperation
+		return op != nil && op.Phase == v1alpha1.HydrateOperationPhaseHydrating
+	}, 2*time.Second, 25*time.Millisecond)
 }
