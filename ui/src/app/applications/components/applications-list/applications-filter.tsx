@@ -27,6 +27,7 @@ export interface FilterResult {
     health: boolean;
     clusters: boolean;
     namespaces: boolean;
+    repos: boolean;
     targetRevision: boolean;
     operation: boolean;
     annotations: boolean;
@@ -87,6 +88,8 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                             );
                         }
                     }),
+                repos:
+                    pref.reposFilter.length === 0 || pref.reposFilter.some(repoURL => getAppAllSources(app).some(source => source.repoURL && minimatch(source.repoURL, repoURL))),
                 targetRevision:
                     pref.targetRevisionFilter.length === 0 || pref.targetRevisionFilter.some(filter => targetRevisions.some(targetRevision => minimatch(targetRevision, filter))),
                 labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
@@ -392,6 +395,18 @@ const TargetRevisionFilter = (props: AppFilterProps) => {
     );
 };
 
+const RepoFilter = React.memo((props: AppFilterProps) => {
+    const repoOptions = React.useMemo(
+        () =>
+            optionsFrom(
+                Array.from(new Set(props.apps.flatMap(app => getAppAllSources(app).map(source => source.repoURL)).filter((item): item is string => !!item))),
+                props.pref.reposFilter
+            ),
+        [props.apps, props.pref.reposFilter]
+    );
+    return <Filter label='REPOSITORIES' selected={props.pref.reposFilter} setSelected={s => props.onChange({...props.pref, reposFilter: s})} field={true} options={repoOptions} />;
+});
+
 const FavoriteFilter = (props: {value: boolean; onChange: (showFavorites: boolean) => void}) => {
     const onChange = (val: boolean) => {
         props.onChange(val);
@@ -503,6 +518,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         ...(props.pref.projectsFilter || []),
         ...(props.pref.clustersFilter || []),
         ...(props.pref.namespacesFilter || []),
+        ...(props.pref.reposFilter || []),
         ...(props.pref.targetRevisionFilter || []),
         ...(props.pref.autoSyncFilter || []),
         ...(props.pref.showFavorites ? ['favorites'] : [])
@@ -525,6 +541,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
+            <RepoFilter {...props} />
             <TargetRevisionFilter {...props} />
             <AutoSyncFilter {...props} collapsed={true} />
         </FiltersGroup>

@@ -15,7 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/config"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 type ProjectOpts struct {
@@ -125,13 +125,14 @@ func (opts *ProjectOpts) GetDestinationServiceAccounts() []v1alpha1.ApplicationD
 }
 
 // GetSignatureKeys TODO: Get configured keys and emit warning when a key is specified that is not configured
-func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
-	signatureKeys := make([]v1alpha1.SignatureKey, 0)
+func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey { // nolint:staticcheck
+	signatureKeys := make([]v1alpha1.SignatureKey, 0) // nolint:staticcheck
 	for _, keyStr := range opts.SignatureKeys {
-		if !gpg.IsShortKeyID(keyStr) && !gpg.IsLongKeyID(keyStr) {
-			log.Fatalf("'%s' is not a valid GnuPG key ID", keyStr)
+		keyId, err := sourceintegrity.KeyID(keyStr)
+		if err != nil {
+			log.Fatal(err.Error())
 		}
-		signatureKeys = append(signatureKeys, v1alpha1.SignatureKey{KeyID: gpg.KeyID(keyStr)})
+		signatureKeys = append(signatureKeys, v1alpha1.SignatureKey{KeyID: keyId}) // nolint:staticcheck
 	}
 	return signatureKeys
 }
@@ -185,8 +186,9 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 			spec.Destinations = projOpts.GetDestinations()
 		case "src":
 			spec.SourceRepos = projOpts.Sources
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 		case "signature-keys":
-			spec.SignatureKeys = projOpts.GetSignatureKeys()
+			spec.SignatureKeys = projOpts.GetSignatureKeys() // nolint:staticcheck
 		case "allow-cluster-resource":
 			spec.ClusterResourceWhitelist = projOpts.GetAllowedClusterResources()
 		case "deny-cluster-resource":
