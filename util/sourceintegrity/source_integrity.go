@@ -16,7 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
-type gitFunc func(gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error)
+type gitFunc func(gitClient git.Client, verifiedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, legacyDescription string, err error)
 
 var _gpgDisabledLoggedAlready bool
 
@@ -81,16 +81,16 @@ func hasHelmProvenanceCriteriaForSource(si *v1alpha1.SourceIntegrity, source v1a
 // VerifyGit makes sure the git repository satisfies the criteria declared.
 // It returns nil in case there were no relevant criteria, a check result if there were.
 // The verifiedRevision is expected to be either an annotated tag to a resolved commit sha - the revision, its signature is being verified.
-func VerifyGit(si *v1alpha1.SourceIntegrity, gitClient git.Client, verifiedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, err error) {
+func VerifyGit(si *v1alpha1.SourceIntegrity, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 	if si == nil || si.Git == nil {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	check := lookupGit(si, gitClient.RepoURL())
 	if check != nil {
 		return check(gitClient, verifiedRevision)
 	}
-	return nil, nil
+	return nil, "", nil
 }
 
 func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
@@ -105,8 +105,8 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		// This is to make sure that a mistake in argo cd configuration does not disable verification until fixed.
 		msg := fmt.Sprintf("multiple (%d) git source integrity policies found for repo URL: %s", nPolicies, repoURL)
 		log.Warn(msg)
-		return func(_ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, error) {
-			return nil, errors.New(msg)
+		return func(_ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+			return nil, "", errors.New(msg)
 		}
 	}
 
@@ -123,7 +123,7 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 			return nil
 		}
 
-		return func(gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error) {
+		return func(gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 			return verify(policy.GPG, gitClient, verifiedRevision)
 		}
 	}
@@ -147,14 +147,11 @@ func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (p
 
 func repoMatches(urlGlob string, repoURL string) int {
 	if strings.HasPrefix(urlGlob, "!") {
-		inner := urlGlob[1:]
-		matched := glob.Match(inner, repoURL)
-		if matched {
+		if glob.Match(urlGlob[1:], repoURL) {
 			return -1
 		}
 	} else {
-		matched := glob.Match(urlGlob, repoURL)
-		if matched {
+		if glob.Match(urlGlob, repoURL) {
 			return 1
 		}
 	}
@@ -178,7 +175,7 @@ func repoURLMatchesPolicyGlobs(globs []string, repoURL string) bool {
 	return include
 }
 
-func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, err error) {
+func verify(g *v1alpha1.SourceIntegrityGitPolicyGPGConfig, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 	const checkName = "GIT/GPG"
 
 	var deep bool
@@ -190,27 +187,61 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verif
 	case v1alpha1.SourceIntegrityGitPolicyGPGModeStrict:
 		deep = true
 	default:
-		return nil, fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
+		return nil, "", fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
 	}
 
-	signatures, _, err := gitClient.LsSignatures(verifiedRevision, deep)
+	// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+	signatures, legacyVerification, err := gitClient.LsSignatures(verifiedRevision, deep)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+	legacyDescriptionCondition := VerifyGnuPGSignature(verifiedRevision, g.Keys, legacyVerification)
+	legacyDescription := ""
+	if legacyDescriptionCondition != nil {
+		legacyDescription = legacyDescriptionCondition.Message
 	}
 
-	return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+	if len(signatures) == 0 {
+		// Checked for defensiveness, there should be 1+ signatures always
+		return nil, "", errors.New("git LsSignatures found no signatures for " + verifiedRevision)
+	}
+
+	problems, legacyGood := describeProblems(g, signatures)
+	result := &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 		Name:     checkName,
-		Problems: describeProblems(g, signatures),
-	}}}, nil
+		Problems: problems,
+	}}}
+	if legacyDescription == "" {
+		legacyDescription = legacyGood
+	}
+	return result, legacyDescription, nil
 }
 
 // describeProblems reports 10 most recent problematic signatures or unsigned commits.
-func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []git.RevisionSignatureInfo) []string {
+// The number is limited not to flood the UI and logs with too many problems. Problems related to the same signing key are squashed.
+func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []git.RevisionSignatureInfo) (problems []string, legacyDescription string) {
 	reportedKeys := make(map[string]any)
-	var problems []string
 	for _, signatureInfo := range signatureInfos {
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		if legacyDescription == "" {
+			if signatureInfo.VerificationResult == git.GPGVerificationResultUnsigned {
+				legacyDescription = "Revision is not signed."
+			} else {
+				legacyResult := map[git.GPGVerificationResult]string{
+					git.GPGVerificationResultGood:             "Good",
+					git.GPGVerificationResultBad:              "Bad",
+					git.GPGVerificationResultUntrusted:        "Invalid",
+					git.GPGVerificationResultExpiredSignature: "Invalid",
+					git.GPGVerificationResultExpiredKey:       "Invalid",
+					git.GPGVerificationResultRevokedKey:       "Invalid",
+					git.GPGVerificationResultMissingKey:       "Invalid",
+				}[signatureInfo.VerificationResult]
+				legacyDescription = fmt.Sprintf("%s signature from %s key %s", legacyResult, signatureInfo.AuthorIdentity, signatureInfo.SignatureKeyID)
+			}
+		}
+
 		// Do not report the same key twice unless:
-		// - the revision is unsigned (unsigned commits can have different authors, so they are worth reporting)
+		// - the revision is unsigned (unsigned commits can have different authors, so they are all worth reporting)
 		// - the revision is a tag (tags are signed separately from commits)
 		if signatureInfo.SignatureKeyID != "" && git.IsCommitSHA(signatureInfo.Revision) {
 			if _, exists := reportedKeys[signatureInfo.SignatureKeyID]; exists {
@@ -229,7 +260,7 @@ func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []
 			}
 		}
 	}
-	return problems
+	return problems, legacyDescription
 }
 
 // gpgProblemMessage generates a message describing GPG verification issues for a specific revision signature and the configured policy.
