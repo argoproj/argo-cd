@@ -175,7 +175,7 @@ func repoURLMatchesPolicyGlobs(globs []string, repoURL string) bool {
 	return include
 }
 
-func verify(g *v1alpha1.SourceIntegrityGitPolicyGPGConfig, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 	const checkName = "GIT/GPG"
 
 	var deep bool
