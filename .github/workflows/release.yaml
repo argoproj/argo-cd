@@ -313,7 +313,7 @@ jobs:
       - goreleaser
       - generate-sbom
     permissions:
-      contents: write # Needed to push commit to update stable tag
+      contents: write # Needed to push commit to update stable and gitops-engine tags
       pull-requests: write # Needed to create PR for VERSION update.
     if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     runs-on: ubuntu-24.04
