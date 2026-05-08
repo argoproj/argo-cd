@@ -106,6 +106,57 @@ func TestBitbucketHasRepo(t *testing.T) {
 	}
 }
 
+func TestBitbucketHasRepoBearerToken(t *testing.T) {
+	var capturedAuthHeader string
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		capturedAuthHeader = req.Header.Get("Authorization")
+		if req.URL.Path == "/repositories/test-owner/testmike/src/dc1edb6c7d650d8ba67719ddf7b662ad8f8fb798/.gitignore" {
+			res.WriteHeader(http.StatusOK)
+			_, err := res.Write([]byte(`{}`))
+			require.NoError(t, err)
+		} else {
+			res.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer testServer.Close()
+
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	provider, err := NewBitBucketCloudProviderBearerToken("test-owner", "my-workspace-token", false)
+	require.NoError(t, err)
+
+	repo := &Repository{
+		Organization: "test-owner",
+		Repository:   "testmike",
+		SHA:          "dc1edb6c7d650d8ba67719ddf7b662ad8f8fb798",
+		Branch:       "main",
+	}
+	hasPath, err := provider.RepoHasPath(t.Context(), repo, ".gitignore")
+	require.NoError(t, err)
+	assert.True(t, hasPath)
+	assert.Equal(t, "Bearer my-workspace-token", capturedAuthHeader)
+}
+
+func TestBitbucketListReposBearerTokenNoRoleFilter(t *testing.T) {
+	var capturedQuery string
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/repositories/test-owner" {
+			capturedQuery = req.URL.RawQuery
+		}
+		res.WriteHeader(http.StatusOK)
+		_, err := res.Write([]byte(`{"pagelen":10,"values":[],"page":1,"size":0}`))
+		require.NoError(t, err)
+	}))
+	defer testServer.Close()
+
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	provider, err := NewBitBucketCloudProviderBearerToken("test-owner", "my-workspace-token", false)
+	require.NoError(t, err)
+
+	_, err = provider.ListRepos(t.Context(), "https")
+	require.NoError(t, err)
+	assert.NotContains(t, capturedQuery, "role=member", "bearer token auth must not send role=member filter")
+}
+
 func TestBitbucketListRepos(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
