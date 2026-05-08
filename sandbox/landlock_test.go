@@ -6,12 +6,13 @@ import (
 	"os/exec"
 	"testing"
 
-	testutil "github.com/argoproj/argo-cd/v3/util/test"
 	"github.com/landlock-lsm/go-landlock/landlock"
 	llsyscall "github.com/landlock-lsm/go-landlock/landlock/syscall"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	testutil "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 func TestCreateAccessFSSet(t *testing.T) {
@@ -21,17 +22,17 @@ func TestCreateAccessFSSet(t *testing.T) {
 		errmsg string
 	}
 	testCases := []testCase{
-		testCase{spec: "", result: 0},
-		testCase{spec: "write_file", result: llsyscall.AccessFSWriteFile},
-		testCase{spec: "write_file ,  read_dir", result: llsyscall.AccessFSWriteFile | llsyscall.AccessFSReadDir},
-		testCase{spec: "nowrite", errmsg: "Invalid access specification given: \"nowrite\""},
+		{spec: "", result: 0},
+		{spec: "write_file", result: llsyscall.AccessFSWriteFile},
+		{spec: "write_file ,  read_dir", result: llsyscall.AccessFSWriteFile | llsyscall.AccessFSReadDir},
+		{spec: "nowrite", errmsg: "Invalid access specification given: \"nowrite\""},
 	}
 	ll := Landlock{}
 	for _, testCase := range testCases {
 		t.Run(testCase.spec, func(t *testing.T) {
 			accessFSSet, err := ll.createAccessFSSet(testCase.spec)
 			if testCase.errmsg == "" {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCase.result, accessFSSet)
 			} else {
 				assert.ErrorContains(t, err, testCase.errmsg)
@@ -58,10 +59,9 @@ func TestInit(t *testing.T) {
 		return result
 	}
 
-	var rxAFSSet landlock.AccessFSSet
-	rxAFSSet = llsyscall.AccessFSExecute | llsyscall.AccessFSReadFile | llsyscall.AccessFSReadDir
+	var rxAFSSet landlock.AccessFSSet = llsyscall.AccessFSExecute | llsyscall.AccessFSReadFile | llsyscall.AccessFSReadDir
 	rxCfg, err := landlock.NewConfig(rxAFSSet)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	testCases := []testCase{
 		newTestCase("noconfig", ArgocdSandboxConfig{},
@@ -76,7 +76,7 @@ func TestInit(t *testing.T) {
 			ll := Landlock{}
 			err := ll.Init(&testCase.spec, testCase.allowRules)
 			if testCase.errmsg == "" {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				if testCase.cfg == nil {
 					assert.Nil(t, ll.Cfg)
@@ -99,7 +99,7 @@ func TestLandlockApply(t *testing.T) {
 				DefaultFSDeny: LANDLOCK_STD_RW,
 			},
 		}
-		//fixTestCoverage(t, &implConfig.Landlock.AllowedPaths)
+		// fixTestCoverage(t, &implConfig.Landlock.AllowedPaths)
 		err := ll.Init(&implConfig, []string{})
 		require.NoError(t, err)
 		err = ll.Apply()
@@ -128,7 +128,7 @@ func TestLandlockConfigAccessRules(t *testing.T) {
 		}
 		allowedPath.Paths = append(allowedPath.Paths, cwd)
 		allowedPaths = append(allowedPaths, allowedPath)
-		//fixTestCoverage(t, &allowedPaths)
+		// fixTestCoverage(t, &allowedPaths)
 		implConfig.Landlock.AllowedPaths = allowedPaths
 
 		fmt.Printf("implConfig: %v", *implConfig.Landlock)
@@ -238,7 +238,7 @@ func TestParseValidDynamicRule(t *testing.T) {
 			result, err := parseAllowParam(tt.input)
 			require.NoError(t, err)
 			assert.Equal(t, tt.ops, result.Access)
-			assert.Equal(t, len(result.Paths), 1)
+			assert.Len(t, result.Paths, 1)
 			assert.Equal(t, result.Paths[0], tt.path)
 		})
 	}
@@ -278,8 +278,8 @@ func TestGenerateLandlockHelmConfig(t *testing.T) {
 		landlockCfg, err := GenerateDefaultLandlockConfig(ops)
 		require.NoError(t, err)
 		require.NotNil(t, landlockCfg)
-		assert.True(t, landlockCfg.DefaultFSDeny != "")
-		assert.True(t, len(landlockCfg.AllowedPaths) > 0)
+		assert.NotEmpty(t, landlockCfg.DefaultFSDeny)
+		assert.NotEmpty(t, landlockCfg.AllowedPaths)
 
 		kustomizeBinPath, err := exec.LookPath("kustomize") // not allowed, must fail
 		require.NoError(t, err)
@@ -298,15 +298,14 @@ func TestGenerateLandlockHelmConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// FIXME: check process return code, output text
-		cmd := exec.Command(toolBinPath)
+
+		cmd := exec.CommandContext(t.Context(), toolBinPath)
 		b, err := cmd.CombinedOutput()
 		require.NoError(t, err)
 		log.Infof("TOOL OUTPUT: %s", string(b))
 
-		cmd = exec.Command(kustomizeBinPath)
-		b, err = cmd.CombinedOutput()
+		cmd = exec.CommandContext(t.Context(), kustomizeBinPath)
+		_, err = cmd.CombinedOutput()
 		require.ErrorContains(t, err, kustomizeBinPath+": permission denied")
-
 	})
-
 }

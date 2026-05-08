@@ -8,8 +8,9 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/argoproj/argo-cd/v3/common"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 type SandboxRunOpts struct {
@@ -35,7 +36,7 @@ func ExecuteCommand(cfg *ArgocdSandboxConfig, impls []string, allowRules map[str
 		log.Infof("Initializing sandbox module: %s", name)
 		err := module.Init(cfg, allowRules[name])
 		if err != nil {
-			return fmt.Errorf("Failed to initialize module %q: %v", name, err)
+			return fmt.Errorf("failed to initialize module %q: %w", name, err)
 		}
 		log.Infof("module config is: %s", module.GetConfig())
 	}
@@ -45,7 +46,7 @@ func ExecuteCommand(cfg *ArgocdSandboxConfig, impls []string, allowRules map[str
 		log.Infof("module config is: %s", module.GetConfig())
 		err := module.Apply()
 		if err != nil {
-			return fmt.Errorf("Failed to apply module %q: %v", name, err)
+			return fmt.Errorf("failed to apply module %q: %w", name, err)
 		}
 	}
 	binary := args[0]
@@ -75,34 +76,35 @@ func GenerateDefaultSandboxConfig(ops *ToolOpts) (*ArgocdSandboxConfig, error) {
 	var err error
 	for _, moduleName := range ops.modulesList {
 		log.Infof("Generating default %s configuration for %s", moduleName, ops.toolName)
-		if moduleName == LANDLOCK {
+		switch moduleName {
+		case LANDLOCK:
 			cfg.Landlock, err = GenerateDefaultLandlockConfig(ops)
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			return nil, fmt.Errorf("Unknown sandbox module %q", moduleName)
+		default:
+			return nil, fmt.Errorf("unknown sandbox module %q", moduleName)
 		}
-
 	}
 	return cfg, nil
 }
 
 func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName string, args ...string) (*exec.Cmd, error) {
 	var toolOpts *ToolOpts
-	if cmdName == "helm" && HelmToolOps.isEnabled {
+	switch {
+	case cmdName == "helm" && HelmToolOps.isEnabled:
 		log.Infof("executing command %s in sandbox", cmdName)
 		toolOpts = &HelmToolOps
-	} else if cmdName == "kustomize" && KustomizeToolOps.isEnabled {
+	case cmdName == "kustomize" && KustomizeToolOps.isEnabled:
 		log.Infof("executing command %s in sandbox", cmdName)
 		toolOpts = &KustomizeToolOps
-	} else {
+	default:
 		log.Infof("executing command %q without sandbox", cmdName)
 		return exec.CommandContext(ctx, cmdName, args...), nil
 	}
 	binPath, err := exec.LookPath(cmdName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create command context for helm: %w", err)
+		return nil, fmt.Errorf("failed to create command context for helm: %w", err)
 	}
 	args = makeSandboxCmdline(toolOpts, sandboxRunOpts, binPath, args...)
 	return exec.CommandContext(ctx, common.CommandSandbox, args...), nil
@@ -128,7 +130,7 @@ func makeSandboxCmdline(toolOpts *ToolOpts, runOpts *SandboxRunOpts, binPath str
 func sandboxConfigToString(cfg *ArgocdSandboxConfig) (string, error) {
 	b, err := json.Marshal(cfg)
 	if err != nil {
-		return "", fmt.Errorf("Failed to marshal generated sandbox configuration: %v", err)
+		return "", fmt.Errorf("failed to marshal generated sandbox configuration: %w", err)
 	}
 	return string(b), nil
 }
@@ -184,11 +186,11 @@ func getModulesFromConfig(cfg *ArgocdSandboxConfig, names []string) ([]SandboxIm
 	for _, name := range names {
 		switch name {
 		case LANDLOCK:
-			if nil != cfg.Landlock {
+			if cfg.Landlock != nil {
 				result = append(result, &Landlock{})
 			}
 		default:
-			return nil, fmt.Errorf("No such sandbox module: %q", name)
+			return nil, fmt.Errorf("no such sandbox module: %q", name)
 		}
 	}
 	return result, nil

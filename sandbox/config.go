@@ -1,14 +1,17 @@
 package sandbox
 
 import (
-	configUtil "github.com/argoproj/argo-cd/v3/util/config"
-	"github.com/argoproj/argo-cd/v3/util/env"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	configUtil "github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
-const BEST_EFFORT_MODE = "best_effort"
-const STRICT_MODE = "strict"
+const (
+	BEST_EFFORT_MODE = "best_effort"
+	STRICT_MODE      = "strict"
+)
 
 type ArgocdSandboxConfig struct {
 	Landlock *LandlockConfig `yaml:"landlock"`
@@ -20,7 +23,7 @@ type ToolOpts struct {
 	configFilePath string
 	configStr      string
 	modulesList    []string
-	compatMode     string
+	// compatMode     string
 }
 
 func ReadSandboxConfig(filePath string) (*ArgocdSandboxConfig, error) {
@@ -51,6 +54,7 @@ var HelmToolOps = ToolOpts{
 	modulesList:    []string{},
 	configFilePath: "",
 }
+
 var KustomizeToolOps = ToolOpts{
 	toolName:       "kustomize",
 	isEnabled:      false,
