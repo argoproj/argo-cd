@@ -2683,7 +2683,7 @@ message SourceIntegrityGitPolicyRepo {
   optional string url = 1;
 }
 
-// SourceIntegrityHelm holds policies for Helm chart provenance verification.
+// SourceIntegrityHelm holds policies for Helm chart provenance verification for both traditional and OCI repositories.
 message SourceIntegrityHelm {
   repeated SourceIntegrityHelmPolicy policies = 1;
 }

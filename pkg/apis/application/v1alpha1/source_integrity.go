@@ -13,7 +13,7 @@ type SourceIntegrity struct {
 	Helm *SourceIntegrityHelm `json:"helm,omitempty" protobuf:"bytes,2,name=helm"`
 }
 
-// SourceIntegrityHelm holds policies for Helm chart provenance verification.
+// SourceIntegrityHelm holds policies for Helm chart provenance verification for both traditional and OCI repositories.
 type SourceIntegrityHelm struct {
 	Policies []*SourceIntegrityHelmPolicy `json:"policies" protobuf:"bytes,1,name=policies"`
 }
