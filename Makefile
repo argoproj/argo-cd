@@ -409,7 +409,9 @@ lint: test-tools-image
 
 # Run linter on the code (local version)
 .PHONY: lint-local
+lint-local: export PATH := $(PWD)/dist:$(PATH)
 lint-local:
+	which golangci-lint
 	golangci-lint --version
 	golangci-lint run --fix --verbose
 
@@ -641,6 +643,7 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
+	./hack/install.sh test-go-tools
 	./hack/install.sh kustomize
 	./hack/install.sh helm
 	./hack/install.sh gotestsum

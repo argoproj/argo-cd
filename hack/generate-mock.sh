@@ -13,6 +13,7 @@ PROJECT_ROOT=$(
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 
 # output tool versions
+which mockery
 mockery version
 
 mockery --config "${PROJECT_ROOT}"/.mockery.yaml

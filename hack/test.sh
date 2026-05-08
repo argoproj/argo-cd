@@ -1,15 +1,11 @@
 #!/bin/bash
 set -eux -o pipefail
 
-# check for local installation of go-junit-report otherwise install locally
-which go-junit-report || go install github.com/jstemmer/go-junit-report@latest
-
-# check for local installation of gotestsum otherwise install locally
-which gotestsum || go install gotest.tools/gotestsum@latest
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)
 
 TEST_RESULTS=${TEST_RESULTS:-test-results}
 TEST_FLAGS=${TEST_FLAGS:-}
-DIST_DIR=${DIST_DIR:-dist}
+DIST_DIR=${DIST_DIR:-$PROJECT_ROOT/dist}
 
 # Add DIST_DIR to PATH so binaries installed for argo are found first
 export PATH="${DIST_DIR}:${PATH}"

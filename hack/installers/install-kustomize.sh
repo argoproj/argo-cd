@@ -6,8 +6,7 @@ INSTALLERS=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
 
 . "$INSTALLERS/../tool-versions.sh"
 
-INSTALL_PATH="${BIN:-$INSTALL_PATH}"
-INSTALL_PATH="${INSTALL_PATH:-$PROJECT_ROOT/dist}"
+INSTALL_PATH="${BIN:-$PROJECT_ROOT/dist}"
 PATH="${INSTALL_PATH}:${PATH}"
 [ -d "$INSTALL_PATH" ] || mkdir -p "$INSTALL_PATH"
 
@@ -32,7 +31,11 @@ case $ARCHITECTURE in
       [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
       "$INSTALLERS/compare-chksum.sh"
       tar -C /tmp -xf "${DOWNLOADS}/${TARGET_FILE}"
-      sudo install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
+      if [ -w "$INSTALL_PATH" ]; then
+        install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
+      else
+        sudo install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
+      fi
       ;;
   *)
     case $KUSTOMIZE_VERSION in
@@ -42,7 +45,11 @@ case $ARCHITECTURE in
         BINNAME=kustomize2
         [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
         "$INSTALLERS/compare-chksum.sh"
-        sudo install -m 0755 "${DOWNLOADS}/${TARGET_FILE}" "$INSTALL_PATH/$BINNAME"
+        if [ -w "$INSTALL_PATH" ]; then
+          install -m 0755 "${DOWNLOADS}/${TARGET_FILE}" "$INSTALL_PATH/$BINNAME"
+        else
+          sudo install -m 0755 "${DOWNLOADS}/${TARGET_FILE}" "$INSTALL_PATH/$BINNAME"
+        fi
         ;;
       *)
         export TARGET_FILE=kustomize_${KUSTOMIZE_VERSION}_${INSTALL_OS}_${ARCHITECTURE}.tar.gz
@@ -51,7 +58,11 @@ case $ARCHITECTURE in
         [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
         "$INSTALLERS/compare-chksum.sh"
         tar -C /tmp -xf "${DOWNLOADS}/${TARGET_FILE}"
-        sudo install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
+        if [ -w "$INSTALL_PATH" ]; then
+          install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
+        else
+          sudo install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
+        fi
         ;;
     esac
     ;;

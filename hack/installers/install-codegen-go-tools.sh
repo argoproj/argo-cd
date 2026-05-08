@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eux -o pipefail
 
-SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/../.." && pwd -P )"
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)
 
 # This script installs all our golang-based codegen utility CLIs necessary for codegen.
 # Some dependencies are vendored in go.mod (ones which are actually imported in our codebase).
@@ -18,7 +18,7 @@ go_mod_install() {
 }
 
 # All binaries are compiled into the argo-cd/dist directory, which is added to the PATH during codegen
-export GOBIN="${SRCROOT}/dist"
+export GOBIN="${PROJECT_ROOT}/dist"
 mkdir -p "$GOBIN"
 
 # protoc-gen-go* is used to generate <service>.pb.go from .proto files
