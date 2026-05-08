@@ -34,8 +34,10 @@ type Cmd struct {
 
 func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd, error) {
 	switch version {
-	// If v3 is specified (or by default, if no value is specified) then use v3
+	// If v3 or v4 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
+		return NewCmdWithVersion(workDir, false, proxy, noProxy)
+	case "v4":
 		return NewCmdWithVersion(workDir, false, proxy, noProxy)
 	}
 	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
