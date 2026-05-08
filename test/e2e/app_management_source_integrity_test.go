@@ -419,9 +419,8 @@ func TestOCISourceIgnoredWithSourceIntegrity(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		// Verify local manifests are permitted - source integrity criteria for git should not apply for oci
 		Given().
-			LocalPath(guestbookPathLocal).
-			When().
-			DoNotIgnoreErrors().
-			Sync("--local-repo-root", ".", "--force", "--prune")
-	}
+		LocalPath(guestbookPathLocal).
+		When().
+		DoNotIgnoreErrors().
+		Sync("--local-repo-root", ".", "--force", "--prune")
 }
