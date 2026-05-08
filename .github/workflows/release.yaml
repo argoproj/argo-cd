@@ -345,8 +345,12 @@ jobs:
           # so downstream consumers can resolve github.com/argoproj/argo-cd/gitops-engine
           # https://go.dev/doc/modules/managing-source#multiple-module-source
           GE_TAG="gitops-engine/${{ github.ref_name }}"
-          git tag "${GE_TAG}" ${{ github.ref_name }}
-          git push origin "${GE_TAG}"
+          if git rev-parse "${GE_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${GE_TAG} already exists, skipping"
+          else
+            git tag "${GE_TAG}" ${{ github.ref_name }}
+            git push origin "${GE_TAG}"
+          fi
 
       - name: Check to see if VERSION should be updated on master branch
         run: |
