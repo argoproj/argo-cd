@@ -441,22 +441,21 @@ const (
 func extractProvSignedBody(provContent []byte) ([]byte, error) {
 	s := string(provContent)
 	// Find the signature boundary
-	idx := strings.Index(s, "\n"+pgpSignatureHeader)
-	if idx < 0 {
+	bodyWithHeader, _, found := strings.Cut(s, "\n"+pgpSignatureHeader)
+	if !found {
 		return nil, fmt.Errorf("provenance missing %s boundary", pgpSignatureHeader)
 	}
-	bodyWithHeader := strings.TrimSuffix(s[:idx], "\n")
+	bodyWithHeader = strings.TrimSuffix(bodyWithHeader, "\n")
 	// Ignore "-----BEGIN PGP SIGNED MESSAGE-----" and "Hash: SHA256" and the blank line after.
 	if !strings.HasPrefix(bodyWithHeader, pgpSignedMessageHeader) {
 		return nil, fmt.Errorf("provenance missing %s", pgpSignedMessageHeader)
 	}
 	rest := bodyWithHeader[len(pgpSignedMessageHeader):]
 	// Rest is "\nHash: SHA256\n\n" + body (or "\nHash: ...\n\n" + body)
-	doubleNewline := strings.Index(rest, "\n\n")
-	if doubleNewline < 0 {
-		return nil, fmt.Errorf("provenance signed body has no blank line after Hash")
+	_, body, found := strings.Cut(rest, "\n\n")
+	if !found {
+		return nil, errors.New("provenance signed body has no blank line after Hash")
 	}
-	body := rest[doubleNewline+2:]
 	return []byte(body), nil
 }
 

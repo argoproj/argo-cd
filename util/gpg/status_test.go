@@ -72,7 +72,7 @@ func TestParseStatusOutputStrict(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
 				if tt.wantErr == "no GPG status line found" {
-					assert.True(t, errors.Is(err, ErrNoStatusFound))
+					assert.ErrorIs(t, err, ErrNoStatusFound)
 				}
 				return
 			}

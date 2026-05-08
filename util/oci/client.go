@@ -265,7 +265,7 @@ func (c *nativeOCIClient) FetchHelmChartAndProvenance(ctx context.Context, diges
 	c.repoLock.Lock(cachedPath)
 	defer c.repoLock.Unlock(cachedPath)
 
-	if err = c.ensureHelmImageCached(ctx, digest, cachedPath); err != nil {
+	if err := c.ensureHelmImageCached(ctx, digest, cachedPath); err != nil {
 		return nil, nil, "", err
 	}
 
@@ -321,7 +321,7 @@ func findHelmChartAndProvLayers(layers []imagev1.Descriptor) (*imagev1.Descripto
 		switch layer.MediaType {
 		case helmOCILayerType:
 			if chartLayer != nil {
-				return nil, nil, fmt.Errorf("expected a single helm chart content layer, found multiple")
+				return nil, nil, errors.New("expected a single helm chart content layer, found multiple")
 			}
 			chartLayer = layer
 		case helmOCIProvType:
@@ -329,7 +329,7 @@ func findHelmChartAndProvLayers(layers []imagev1.Descriptor) (*imagev1.Descripto
 		}
 	}
 	if chartLayer == nil {
-		return nil, nil, fmt.Errorf("helm chart content layer not found in OCI artifact")
+		return nil, nil, errors.New("helm chart content layer not found in OCI artifact")
 	}
 	return chartLayer, provLayer, nil
 }
