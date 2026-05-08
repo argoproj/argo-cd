@@ -43,7 +43,7 @@ func TestSyncToUnsignedCommit(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
 		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
-		Expect(Condition(ApplicationConditionComparisonError, " unsigned (key_id=)"))
+		Expect(Condition(ApplicationConditionComparisonError, "signed with key not in keyring (key_id="))
 }
 
 func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
