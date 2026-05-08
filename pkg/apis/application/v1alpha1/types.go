@@ -285,11 +285,16 @@ func (spec *ApplicationSpec) HasMultipleSources() bool {
 	return spec.SourceHydrator == nil && len(spec.Sources) > 0
 }
 
+// GetSourcePtrByPosition returns the source pointer by position.
+// The position is 1-based index.
+// If the source is using hydrator, use 0 to return the dry source or 1 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	return spec.GetSourcePtrByIndex(sourcePosition - 1)
 }
 
+// GetSourcePtrByIndex returns the source pointer by index.
+// If the source is using hydrator, use -1 to return the dry source or 0 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	if spec.SourceHydrator != nil {
 		if sourceIndex < 0 {

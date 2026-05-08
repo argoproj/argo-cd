@@ -423,6 +423,8 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 	syncedRevision := app.Status.Sync.Revision
 	if app.Spec.SourceHydrator != nil {
 		if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
+			// Always resolve the revision even if UpdateRevisionForPaths is not called so we can
+			// correctly compare it with the syncedRevision
 			alwaysResolveRevision = true
 			sourceIndex = -1 // Special case allowing GetSourcePtrByIndex() to return the dry source
 			// Use LastComparedDryRevision as the synced revision for cache lookups
@@ -452,9 +454,9 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 		return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 	}
 
-	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
+	keyManifestGenerateAnnotationVal := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
-	if syncedRevision != "" && repo.Depth == 0 && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+	if syncedRevision != "" && repo.Depth == 0 && keyManifestGenerateAnnotationVal != "" {
 		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 			Repo:               repo,
 			Revision:           revision,
