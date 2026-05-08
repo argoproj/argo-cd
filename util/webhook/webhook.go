@@ -756,6 +756,8 @@ func fetchDiffStatFromBitbucket(_ context.Context, bbClient *bb.Client, owner, r
 // parseADOBaseURL extracts the base URL used to construct Azure DevOps REST API requests.
 // It supports both the modern format (https://dev.azure.com/{org}/{project}/_git/{repo})
 // and the legacy format (https://{org}.visualstudio.com/{project}/_git/{repo}).
+// SSH URLs (e.g. git@ssh.dev.azure.com:v3/{org}/{project}/{repo}) are not supported
+// because SSH keys cannot be used to authenticate the Azure DevOps REST API.
 func parseADOBaseURL(repoURL string) (string, error) {
 	u, err := url.Parse(repoURL)
 	if err != nil {
