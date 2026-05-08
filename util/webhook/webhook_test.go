@@ -1803,7 +1803,7 @@ func getBBServer401ResponderFn() func(req *http.Request) (*http.Response, error)
 	}
 }
 
-// getBBServerPagedChangesResponderFn returns a two-page responder for the changes API.
+// getBBServerPagedChangesResponderFn returns a two-page stateful responder for the Bitbucket Server changes API.
 func getBBServerPagedChangesResponderFn() func(req *http.Request) (*http.Response, error) {
 	callCount := 0
 	return func(_ *http.Request) (*http.Response, error) {
@@ -2082,49 +2082,15 @@ func TestFetchChangesFromBitbucketServerPaginated(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	// Stateful responder: first call returns page 1, second returns page 2 (last).
-	callCount := 0
 	httpmock.RegisterResponder("GET",
 		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/paged-repo/changes`,
-		func(_ *http.Request) (*http.Response, error) {
-			callCount++
-			var body map[string]any
-			if callCount == 1 {
-				body = map[string]any{
-					"values": []any{
-						map[string]any{
-							"path": map[string]any{"toString": "file1.yaml"},
-						},
-					},
-					"isLastPage":    false,
-					"nextPageStart": float64(1),
-					"limit":         1,
-					"size":          1,
-				}
-			} else {
-				body = map[string]any{
-					"values": []any{
-						map[string]any{
-							"path": map[string]any{"toString": "file2.yaml"},
-						},
-					},
-					"isLastPage": true,
-					"limit":      1,
-					"size":       1,
-				}
-			}
-			resp, err := httpmock.NewJsonResponse(200, body)
-			if err != nil {
-				return httpmock.NewStringResponse(500, ""), nil
-			}
-			return resp, nil
-		})
+		getBBServerPagedChangesResponderFn())
 
 	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
 	changedFiles, err := fetchChangesFromBitbucketServer(client, "MYPROJECT", "paged-repo", "abcdef", "ghijkl")
 	require.NoError(t, err)
-	require.Equal(t, 2, callCount, "expected two API calls for two pages")
-	require.Equal(t, []string{"file1.yaml", "file2.yaml"}, changedFiles)
+	require.Equal(t, 2, httpmock.GetTotalCallCount(), "expected two API calls for two pages")
+	require.Equal(t, []string{"base/deployment.yaml", "base/service.yaml"}, changedFiles)
 }
 
 func TestIsBBServerHeadTouched(t *testing.T) {
