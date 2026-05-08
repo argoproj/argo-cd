@@ -532,9 +532,9 @@ const (
 type HydrateType string
 
 const (
-	// HydrateTypeNormal reevaluates if the app needs hydration without using any cache
+	// HydrateTypeNormal forces reevaluation of whether the dry requires hydration
 	HydrateTypeNormal HydrateType = "normal"
-	// HydrateTypeHard forces an app hydration
+	// HydrateTypeHard forces an app hydration of the dry source
 	HydrateTypeHard HydrateType = "hard"
 )
 
