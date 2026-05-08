@@ -35,7 +35,7 @@ type MockKubectlCmd struct {
 	convertToVersionFunc           *func(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	getResourceFunc                *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	loadOpenAPISchemaFunc          *func(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
-	manageServerSideDiffDryRunFunc *func(config *rest.Config, openAPISchema openapi.Resources) (diff.KubeApplier, func(), error)
+	manageServerSideDiffDryRunFunc *func(config *rest.Config) (diff.KubeApplier, func(), error)
 }
 
 // WithConvertToVersionFunc overrides the default ConvertToVersion behavior.
@@ -57,7 +57,7 @@ func (k *MockKubectlCmd) WithLoadOpenAPISchemaFunc(loadOpenAPISchemaFunc func(*r
 }
 
 // WithManageServerSideDiffDryRunFunc overrides the default ManageServerSideDiffDryRuns behavior.
-func (k *MockKubectlCmd) WithManageServerSideDiffDryRunFunc(manageServerSideDiffDryRunFunc func(*rest.Config, openapi.Resources) (diff.KubeApplier, func(), error)) *MockKubectlCmd {
+func (k *MockKubectlCmd) WithManageServerSideDiffDryRunFunc(manageServerSideDiffDryRunFunc func(*rest.Config) (diff.KubeApplier, func(), error)) *MockKubectlCmd {
 	k.manageServerSideDiffDryRunFunc = &manageServerSideDiffDryRunFunc
 	return k
 }
@@ -122,9 +122,9 @@ func (k *MockKubectlCmd) ManageResources(_ *rest.Config) (kube.ResourceOperation
 	}, nil
 }
 
-func (k *MockKubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources) (diff.KubeApplier, func(), error) {
+func (k *MockKubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config) (diff.KubeApplier, func(), error) {
 	if k.manageServerSideDiffDryRunFunc != nil {
-		return (*k.manageServerSideDiffDryRunFunc)(config, openAPISchema)
+		return (*k.manageServerSideDiffDryRunFunc)(config)
 	}
 	return &MockKubeApplier{}, func() {}, nil
 }
