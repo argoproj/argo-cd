@@ -30519,7 +30519,7 @@ spec:
                     type: object
                   helm:
                     description: Helm - policies for Helm chart provenance verification
-                      (traditional repo only; OCI out of scope here)
+                      (both traditional and OCI repositories)
                     properties:
                       policies:
                         items:

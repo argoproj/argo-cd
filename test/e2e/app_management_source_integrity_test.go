@@ -43,7 +43,7 @@ func TestSyncToUnsignedCommit(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
 		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
-		Expect(Condition(ApplicationConditionComparisonError, "signed with key not in keyring (key_id="))
+		Expect(Condition(ApplicationConditionComparisonError, " unsigned (key_id=)"))
 }
 
 func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
@@ -423,4 +423,35 @@ func TestOCISourceIgnoredWithSourceIntegrity(t *testing.T) {
 		When().
 		DoNotIgnoreErrors().
 		Sync("--local-repo-root", ".", "--force", "--prune")
+}
+
+func TestArtifactCacheInvalidatedOnSourceIntegrityChange(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		CreateApp().
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions()).
+		Given().
+		// Should start failing when the project does not bless they key anymore
+		ProjectSpec(appProjectWithSourceIntegrity()).
+		When().
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key (key_id="+fixture.GpgGoodKeyID+")"))
 }

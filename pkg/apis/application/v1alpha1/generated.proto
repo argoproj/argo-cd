@@ -2630,7 +2630,7 @@ message SourceIntegrity {
   // Git - policies for git source verification
   optional SourceIntegrityGit git = 1;
 
-  // Helm - policies for Helm chart provenance verification (traditional repo only; OCI out of scope here)
+  // Helm - policies for Helm chart provenance verification (both traditional and OCI repositories)
   optional SourceIntegrityHelm helm = 2;
 }
 

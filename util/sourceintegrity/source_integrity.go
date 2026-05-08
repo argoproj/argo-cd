@@ -397,15 +397,6 @@ func verifyHelmProvenanceContent(policy *v1alpha1.SourceIntegrityHelmPolicy, cha
 	return nil
 }
 
-func getHelmPolicyURLs(si *v1alpha1.SourceIntegrityHelm) (urls []string) {
-	for _, p := range si.Policies {
-		for _, r := range p.Repos {
-			urls = append(urls, r.URL)
-		}
-	}
-	return urls
-}
-
 func findMatchingHelmPolicies(si *v1alpha1.SourceIntegrityHelm, repoURL string) (policies []*v1alpha1.SourceIntegrityHelmPolicy) {
 	for _, p := range si.Policies {
 		globs := make([]string, 0, len(p.Repos))
@@ -417,19 +408,6 @@ func findMatchingHelmPolicies(si *v1alpha1.SourceIntegrityHelm, repoURL string) 
 		}
 	}
 	return policies
-}
-
-// lookupHelm returns non-nil if there is exactly one matching Helm policy that has verification (provenance).
-func lookupHelm(si *v1alpha1.SourceIntegrity, repoURL string) *v1alpha1.SourceIntegrityHelmPolicy {
-	policies := findMatchingHelmPolicies(si.Helm, repoURL)
-	if len(policies) != 1 {
-		return nil
-	}
-	p := policies[0]
-	if p.Provenance == nil || p.Provenance.Mode == v1alpha1.SourceIntegrityHelmPolicyProvenanceModeNone {
-		return nil
-	}
-	return p
 }
 
 const (

@@ -41,7 +41,7 @@ func VerificationFailureMessage(code, keyID string) string {
 // (code, keyID). Errors if any line has multiple status matches (preserves Git
 // verify-tag --raw behavior).
 func ParseStatusOutputStrict(status string) (code, keyID string, err error) {
-	for _, line := range strings.Split(status, "\n") {
+	for line := range strings.SplitSeq(status, "\n") {
 		matches := StatusSigRegex.FindAllStringSubmatch(line, -1)
 		switch len(matches) {
 		case 0:

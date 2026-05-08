@@ -9,7 +9,7 @@ import (
 type SourceIntegrity struct {
 	// Git - policies for git source verification
 	Git *SourceIntegrityGit `json:"git,omitempty" protobuf:"bytes,1,name=git"`
-	// Helm - policies for Helm chart provenance verification (traditional repo only; OCI out of scope here)
+	// Helm - policies for Helm chart provenance verification (both traditional and OCI repositories)
 	Helm *SourceIntegrityHelm `json:"helm,omitempty" protobuf:"bytes,2,name=helm"`
 }
 

@@ -5836,7 +5836,7 @@ func TestHelmSourceIntegrity_SkippedWhenNoPolicyMatches(t *testing.T) {
 
 func TestHelmSourceIntegrity_OciMissingProvenance(t *testing.T) {
 	root := t.TempDir()
-	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
 		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return([]string{"1.1.0"}, nil)
 		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(nil, errors.New("OCI repo has no index"))
 		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
@@ -5866,7 +5866,7 @@ func TestHelmSourceIntegrity_OciMissingProvenance(t *testing.T) {
 
 func TestHelmSourceIntegrity_OciChartFetchFails(t *testing.T) {
 	root := t.TempDir()
-	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
 		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
 		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
 		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("1.1.0", nil)
@@ -5894,7 +5894,7 @@ func TestHelmSourceIntegrity_OciChartFetchFails(t *testing.T) {
 
 func TestHelmSourceIntegrity_ChartTgzPathFails(t *testing.T) {
 	root := t.TempDir()
-	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
 		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
 			"my-chart": {{Version: "1.1.0"}},
 		}}, nil)
