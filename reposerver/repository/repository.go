@@ -24,6 +24,8 @@ import (
 	gocache "github.com/patrickmn/go-cache"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
+
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
@@ -59,7 +61,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cmp"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -313,11 +314,13 @@ type operationContext struct {
 	appPath string
 
 	// output of 'git verify-(tag/commit)', if signature verification is enabled (otherwise "")
-	verificationResult string
+	//
+	// Deprecated: rely on sourceIntegrityResult. will be removed with the next major version.
+	verificationResult    string
+	sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
 }
 
-// The 'operation' function parameter of 'runRepoOperation' may call this function to retrieve
-// the appPath or GPG verificationResult.
+// The 'operation' function parameter of 'runRepoOperation' may call this function to retrieve operationContext data.
 // Failure to generate either of these values will return an error which may be cached by
 // the calling function (for example, 'runManifestGen')
 type operationContextSrc = func() (*operationContext, error)
@@ -331,7 +334,7 @@ func (s *Service) runRepoOperation(
 	revision string,
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
-	verifyCommit bool,
+	sourceIntegrity *v1alpha1.SourceIntegrity,
 	cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error),
 	operation func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error,
 	settings operationSettings,
@@ -423,7 +426,7 @@ func (s *Service) runRepoOperation(
 		}
 
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{appPath, ""}, nil
+			return &operationContext{appPath, "", nil}, nil
 		})
 	} else if source.IsHelm() {
 		if settings.noCache {
@@ -458,7 +461,7 @@ func (s *Service) runRepoOperation(
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{chartPath, ""}, nil
+			return &operationContext{chartPath, "", nil}, nil
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
@@ -508,27 +511,36 @@ func (s *Service) runRepoOperation(
 	// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
 	// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
 	return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
-		var signature string
-		if verifyCommit {
-			// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
-			// to the verification routine. For everything else, we work with the SHA that the target revision is
-			// pointing to (i.e. the resolved revision).
-			var rev string
-			if gitClient.IsAnnotatedTag(revision) {
-				rev = unresolvedRevision
-			} else {
-				rev = revision
-			}
-			signature, err = gitClient.VerifyCommitSignature(rev)
-			if err != nil {
-				return nil, err
-			}
+		// Pass in the originalRevision to have access to the eventual tag name. Use resolved revision only if the originalRevision is unspecified.
+		var rev string
+		if unresolvedRevision != "" {
+			rev = unresolvedRevision
+		} else {
+			rev = revision
 		}
+		sourceIntegrityResult, _, err := sourceintegrity.VerifyGit(sourceIntegrity, gitClient, rev)
+		if err != nil {
+			return nil, err
+		}
+
+		// Computed and passed to preserve API backwards compatibility only. Decisions are made based on SourceIntegrityResult.
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		if gitClient.IsAnnotatedTag(revision) {
+			rev = unresolvedRevision
+		} else {
+			rev = revision
+		}
+		verificationResult, err := gitClient.VerifyCommitSignature(rev) // nolint:staticcheck
+		if err != nil {
+			return nil, err
+		}
+
 		appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
 		if err != nil {
 			return nil, err
 		}
-		return &operationContext{appPath, signature}, nil
+
+		return &operationContext{appPath, verificationResult, sourceIntegrityResult}, nil
 	})
 }
 
@@ -667,7 +679,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
-	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
+	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.SourceIntegrity, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
 
 	// if the tarDoneCh message is sent it means that the manifest
 	// generation is being managed by the cmp-server. In this case
@@ -729,7 +741,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
-		return &operationContext{appPath, ""}, nil
+		return &operationContext{appPath, "", nil}, nil
 	}, req)
 
 	var res *apiclient.ManifestResponse
@@ -934,7 +946,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID)
+			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 			if cacheErr != nil && !errors.Is(cacheErr, cache.ErrCacheMiss) {
 				logCtx.Warnf("manifest cache get error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
@@ -952,7 +964,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID)
+			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 
 			if cacheErr != nil {
 				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
@@ -975,8 +987,10 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		MostRecentError:                 "",
 	}
 	manifestGenResult.Revision = commitSHA
-	manifestGenResult.VerifyResult = opContext.verificationResult
-	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID)
+	manifestGenResult.SourceIntegrityResult = opContext.sourceIntegrityResult
+	// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+	manifestGenResult.VerifyResult = opContext.verificationResult // nolint:staticcheck
+	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
 	}
@@ -993,7 +1007,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID)
+	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 	if err == nil {
 		// The cache contains an existing value
 
@@ -1010,7 +1024,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -1025,7 +1039,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -1046,7 +1060,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID)
+					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
@@ -2395,7 +2409,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	}
 
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache || q.NoRevisionCache}
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, len(q.RefSources) > 0, q.RefSources)
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, nil, cacheFn, operation, settings, len(q.RefSources) > 0, q.RefSources)
 
 	return res, err
 }
@@ -2641,21 +2655,19 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
+
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
 	if err == nil {
-		// The logic here is that if a signature check on metadata is requested,
-		// but there is none in the cache, we handle as if we have a cache miss
-		// and re-generate the metadata. Otherwise, if there is signature info
-		// in the metadata, but none was requested, we remove it from the data
-		// that we return.
-		if !q.CheckSignature || metadata.SignatureInfo != "" {
+		// The SourceIntegrity criteria could have changed since this was cached - it could have been added, removed, or changed.
+		// If present in request or the cached version, treat this as a cache miss.
+		sourceIntegrity := q.SourceIntegrity != nil || metadata.SourceIntegrityResult != nil
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		signatureChecking := q.CheckSignature || metadata.SignatureInfo != "" // nolint:staticcheck
+		if !sourceIntegrity && !signatureChecking {
 			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
-			if !q.CheckSignature {
-				metadata.SignatureInfo = ""
-			}
 			return metadata, nil
 		}
-		log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
+		log.Infof("revision metadata cache hit, but need to regenerate due to source integrity checks: %s/%s", q.Repo.Repo, q.Revision)
 	} else {
 		if !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
@@ -2681,30 +2693,14 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 
 	defer utilio.Close(closer)
 
-	m, err := gitClient.RevisionMetadata(q.Revision)
+	sourceIntegrityResult, legacySignatureInfo, err := sourceintegrity.VerifyGit(q.SourceIntegrity, gitClient, q.Revision)
 	if err != nil {
 		return nil, err
 	}
 
-	// Run gpg verify-commit on the revision
-	signatureInfo := ""
-	if gpg.IsGPGEnabled() && q.CheckSignature {
-		cs, err := gitClient.VerifyCommitSignature(q.Revision)
-		if err != nil {
-			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", q.Revision, q.Repo.Repo, err)
-			return nil, err
-		}
-
-		if cs != "" {
-			vr := gpg.ParseGitCommitVerification(cs)
-			if vr.Result == gpg.VerifyResultUnknown {
-				signatureInfo = "UNKNOWN signature: " + vr.Message
-			} else {
-				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
-			}
-		} else {
-			signatureInfo = "Revision is not signed."
-		}
+	m, err := gitClient.RevisionMetadata(q.Revision)
+	if err != nil {
+		return nil, err
 	}
 
 	relatedRevisions := make([]v1alpha1.RevisionReference, len(m.References))
@@ -2724,7 +2720,16 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 			},
 		}
 	}
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: &metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo, References: relatedRevisions}
+	metadata = &v1alpha1.RevisionMetadata{
+		Author:                m.Author,
+		Date:                  &metav1.Time{Time: m.Date},
+		Tags:                  m.Tags,
+		Message:               m.Message,
+		References:            relatedRevisions,
+		SourceIntegrityResult: sourceIntegrityResult,
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		SignatureInfo: legacySignatureInfo, // nolint:staticcheck
+	}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }
@@ -3122,10 +3127,6 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	if err := verifyCommitSignature(request.VerifyCommit, gitClient, revision, repo); err != nil {
-		return nil, err
-	}
-
 	// check the cache and return the results if present
 	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
@@ -3145,6 +3146,20 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
 	defer utilio.Close(closer)
+
+	sourceIntegrityResult, _, err := sourceintegrity.VerifyGit(request.SourceIntegrity, gitClient, revision)
+	if err != nil {
+		return nil, err
+	}
+	if err := sourceIntegrityResult.AsError(); err != nil {
+		return nil, err
+	}
+
+	if sourceIntegrityResult != nil {
+		if err := sourceintegrity.CommitSignatureError(request.VerifyCommit, gitClient, revision, repo); err != nil { // nolint:staticcheck
+			return nil, err
+		}
+	}
 
 	gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
 	if err != nil {
@@ -3171,26 +3186,6 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}, nil
 }
 
-func verifyCommitSignature(verifyCommit bool, gitClient git.Client, revision string, repo *v1alpha1.Repository) error {
-	if gpg.IsGPGEnabled() && verifyCommit {
-		cs, err := gitClient.VerifyCommitSignature(revision)
-		if err != nil {
-			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, repo.Repo, err)
-			return err
-		}
-
-		if cs == "" {
-			return fmt.Errorf("revision %s is not signed", revision)
-		}
-		vr := gpg.ParseGitCommitVerification(cs)
-		if vr.Result == gpg.VerifyResultUnknown {
-			return fmt.Errorf("UNKNOWN signature: %s", vr.Message)
-		}
-		log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
-	}
-	return nil
-}
-
 func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
@@ -3202,10 +3197,6 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
-	}
-
-	if err := verifyCommitSignature(request.VerifyCommit, gitClient, revision, repo); err != nil {
-		return nil, err
 	}
 
 	// check the cache and return the results if present
@@ -3227,6 +3218,20 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer utilio.Close(closer)
+
+	sourceIntegrityResult, _, err := sourceintegrity.VerifyGit(request.SourceIntegrity, gitClient, revision)
+	if err != nil {
+		return nil, err
+	}
+	if err := sourceIntegrityResult.AsError(); err != nil {
+		return nil, err
+	}
+
+	if sourceIntegrityResult != nil {
+		if err := sourceintegrity.CommitSignatureError(request.VerifyCommit, gitClient, revision, repo); err != nil { // nolint:staticcheck
+			return nil, err
+		}
+	}
 
 	repoRoot := gitClient.Root()
 	var paths []string

@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">April 26th 2026, 12:50:54 am (UTC+00:00)</p>
+                <p class="timestamp">May 3rd 2026, 12:56:03 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -2186,78 +2186,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Authentication Bypass Using an Alternate Path or Channel</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/hashicorp/vault/api
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/vault/api@v1.15.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/vault/api@v1.15.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Authentication Bypass Using an Alternate Path or Channel in the <code>kvv2</code> process. An attacker can cause unauthorized deletion of secrets by exploiting policy configurations containing a glob pattern, which may result in service disruption.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/hashicorp/vault/api</code> to version 2.0.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://discuss.hashicorp.com/t/hcsec-2026-05-vault-kvv2-metadata-and-secret-deletion-policy-bypass-denial-of-service/77342">HashiCorp Discuss</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPVAULTAPI-16109648">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Asymmetric Resource Consumption (Amplification)</h2>
             <div class="card__section">
         
@@ -2414,6 +2342,152 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-15875221">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Uncaught Exception</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/aws/aws-sdk-go-v2/service/s3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and github.com/aws/aws-sdk-go-v2/service/s3@v1.71.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/aws/aws-sdk-go-v2/service/s3@v1.71.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Uncaught Exception via the <code>eventstream</code> decoder process. An attacker can cause the host process to terminate unexpectedly by sending a crafted EventStream response frame containing a header value type byte outside the valid range.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/aws/aws-sdk-go-v2/service/s3</code> to version 1.97.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/aws/aws-sdk-go-v2/security/advisories/GHSA-xmrv-pmrh-hhx2">GitHub Advisory</a></li>
+        <li><a href="https://github.com/aws/aws-sdk-go-v2/releases/tag/release-2026-03-23">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMAWSAWSSDKGOV2SERVICES3-16316411">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Uncaught Exception</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream@v1.6.7
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream@v1.6.7
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Uncaught Exception via the <code>eventstream</code> decoder process. An attacker can cause the host process to terminate unexpectedly by sending a crafted EventStream response frame containing a header value type byte outside the valid range.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream</code> to version 1.7.8 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/aws/aws-sdk-go-v2/security/advisories/GHSA-xmrv-pmrh-hhx2">GitHub Advisory</a></li>
+        <li><a href="https://github.com/aws/aws-sdk-go-v2/releases/tag/release-2026-03-23">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMAWSAWSSDKGOV2AWSPROTOCOLEVENTSTREAM-16316402">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -6594,80 +6668,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-MUSL-16032152">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Synchronous Access of Remote Resource without Timeout</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--low">
-                        <span class="label__text">low severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/hashicorp/vault/api
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/vault/api@v1.15.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/vault/api@v1.15.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Synchronous Access of Remote Resource without Timeout via the <code>rekey</code> and <code>recovery key</code> operations. An attacker can disrupt service availability by triggering uncontrolled cancellation actions during these processes, which can lead to denial of service.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/hashicorp/vault/api</code> to version 1.20.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/hashicorp/vault/commit/318f8582134a4a79a45ee2a6edad3072d865739b">GitHub Commit</a></li>
-        <li><a href="https://github.com/hashicorp/vault/pull/30794">GitHub PR</a></li>
-        <li><a href="https://discuss.hashicorp.com/t/hcsec-2025-11-vault-vulnerable-to-recovery-key-cancellation-denial-of-service/75570">HashiCorp Discuss</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPVAULTAPI-10562144">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

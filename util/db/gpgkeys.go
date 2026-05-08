@@ -10,7 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 // Validates a single GnuPG key and returns the key's ID
@@ -32,7 +32,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 		}
 	}()
 
-	parsed, err := gpg.ValidatePGPKeys(f.Name())
+	parsed, err := sourceintegrity.ValidatePGPKeys(f.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +69,9 @@ func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1
 	// This is not optimal, but the executil from argo-pkg does not support writing to
 	// stdin of the forked process. So for now, we must live with that.
 	for k, p := range keysCM.Data {
-		expectedKeyID := gpg.KeyID(k)
-		if expectedKeyID == "" {
-			return nil, fmt.Errorf("found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
+		expectedKeyID, err := sourceintegrity.KeyID(k)
+		if err != nil {
+			return nil, fmt.Errorf("found invalid entry with key '%s' in ConfigMap: %s", k, err.Error())
 		}
 		parsedKey, err := validatePGPKey(p)
 		if err != nil {
@@ -91,7 +91,7 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 	result := make(map[string]*appsv1.GnuPGPublicKey)
 	skipped := make([]string, 0)
 
-	keys, err := gpg.ValidatePGPKeysFromString(keyData)
+	keys, err := sourceintegrity.ValidatePGPKeysFromString(keyData)
 	if err != nil {
 		return nil, nil, err
 	}
