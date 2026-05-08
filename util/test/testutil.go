@@ -376,10 +376,12 @@ func MakeSaneFakeClient(fakeClient client.WithWatch) client.WithWatch {
 
 const SUBPROC_ENV_VAR = "SANDBOX_TEST_SUBPROCESS"
 
-func RunInSubprocess(t *testing.T, ignoreCoverageErrors bool, testfunc func()) {
+var counter = 0
+
+func RunInSubprocess(t *testing.T, disableCoverage bool, testfunc func()) {
 	t.Helper()
 	if os.Getenv(SUBPROC_ENV_VAR) != "" {
-		t.Logf("running test %q in subprocess", t.Name())
+		fmt.Fprintf(os.Stderr, "running test %q in subprocess PID=%d PPID=%d", t.Name(), os.Getpid(), os.Getppid())
 		//err :=
 		testfunc()
 		//t.Logf("execution finished")
@@ -390,10 +392,19 @@ func RunInSubprocess(t *testing.T, ignoreCoverageErrors bool, testfunc func()) {
 		// Parent process: re-exec this same test binary, running only this test.
 
 		t.Logf("called with args %v", os.Args)
+		//fd, err =
+		msg := fmt.Sprintf("*** called with args %v\n", os.Args)
+		os.WriteFile(fmt.Sprintf("/tmp/msg_%d", counter), []byte(msg), 0644)
+		counter++
 		cmdArgs := []string{}
 		for _, arg := range os.Args[1:] {
-			if strings.HasPrefix(arg, "-test.run=") || arg == "-test.paniconexit0" ||
-				strings.HasPrefix(arg, "-test.gocoverdir=") {
+			if strings.HasPrefix(arg, "-test.run=") || arg == "-test.paniconexit0" {
+				continue
+			}
+			if disableCoverage && strings.HasPrefix(arg, "-test.gocoverdir=") {
+				continue
+			}
+			if !strings.HasPrefix(arg, "-test.") {
 				continue
 			}
 			cmdArgs = append(cmdArgs, arg)
@@ -402,9 +413,9 @@ func RunInSubprocess(t *testing.T, ignoreCoverageErrors bool, testfunc func()) {
 
 		cmdEnv := []string{}
 		for _, entry := range os.Environ() {
-			//if strings.HasPrefix(entry, "GOCOVERDIR=") {
-			//	continue
-			//}
+			if strings.HasPrefix(entry, "GOCOVERDIR=") {
+				continue
+			}
 			cmdEnv = append(cmdEnv, entry)
 		}
 		cmdEnv = append(cmdEnv, SUBPROC_ENV_VAR+"=1")
@@ -421,7 +432,7 @@ func RunInSubprocess(t *testing.T, ignoreCoverageErrors bool, testfunc func()) {
 
 		if err != nil {
 			if exitErr, ok := err.(*exec.ExitError); ok {
-				if !(ignoreCoverageErrors && regex.Match("error setting GOCOVERDIR: bad os.MkdirTemp return: mkdir /[^\\s]+: permission denied", string(outputStr))) {
+				if !(disableCoverage && regex.Match("error setting GOCOVERDIR: bad os.MkdirTemp return: mkdir /[^\\s]+: permission denied", string(outputStr))) {
 					assert.Fail(t, fmt.Sprintf("expected subprocess exit code 0, but got %d", exitErr.ExitCode()))
 				}
 			} else {
