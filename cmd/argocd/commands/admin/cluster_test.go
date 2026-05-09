@@ -58,7 +58,8 @@ func Test_loadClusters(t *testing.T) {
 	clusters, err := loadClusters(ctx, kubeClient, appClient, 3, "", "argocd", false, cacheSrc, 0, "", "", "")
 	require.NoError(t, err)
 	for i := range clusters {
-		// This changes, nil it to avoid testing it.
+		// These change, nil them to avoid testing them.
+		clusters[i].ConfigHash = nil
 		clusters[i].Info.ConnectionState.ModifiedAt = nil
 	}
 
