@@ -58,9 +58,14 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 			}
 		}
 	})
+
 	cluster := localCluster.DeepCopy()
+
+	cluster.ConfigHash = new(cluster.HashIdentity(rand.Uint64()))
+
 	now := metav1.Now()
 	cluster.Info.ConnectionState.ModifiedAt = &now
+
 	return cluster
 }
 
