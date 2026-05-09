@@ -25,7 +25,7 @@ func TestCreateAccessFSSet(t *testing.T) {
 		{spec: "", result: 0},
 		{spec: "write_file", result: llsyscall.AccessFSWriteFile},
 		{spec: "write_file ,  read_dir", result: llsyscall.AccessFSWriteFile | llsyscall.AccessFSReadDir},
-		{spec: "nowrite", errmsg: "Invalid access specification given: \"nowrite\""},
+		{spec: "nowrite", errmsg: "invalid access specification given: \"nowrite\""},
 	}
 	ll := Landlock{}
 	for _, testCase := range testCases {
