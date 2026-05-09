@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/structpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -36,6 +35,7 @@ import (
 	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	notificationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
@@ -2433,7 +2433,7 @@ func (c *fakeAppServiceClient) List(_ context.Context, _ *applicationpkg.Applica
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListResourceEvents(_ context.Context, _ *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*structpb.Struct, error) {
+func (c *fakeAppServiceClient) ListResourceEvents(_ context.Context, _ *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*eventspkg.EventList, error) {
 	return nil, nil
 }
 
