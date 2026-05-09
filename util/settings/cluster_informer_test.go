@@ -879,72 +879,7 @@ func BenchmarkClusterInformer_GetClusterByURL(b *testing.B) {
 }
 
 func TestClusterInformer_ConfigHash(t *testing.T) {
-	t.Run("valid configHash in secret is parsed and recomputed", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-
-		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster-with-hash",
-				Namespace: "argocd",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			},
-			Data: map[string][]byte{
-				"server":     []byte("https://hash.example.com"),
-				"name":       []byte("cluster-with-hash"),
-				"config":     []byte(`{"bearerToken":"token"}`),
-				"configHash": []byte("12345"),
-			},
-		}
-
-		clientset := fake.NewClientset(secret)
-		informer, err := NewClusterInformer(clientset, "argocd")
-		require.NoError(t, err)
-
-		go informer.Run(ctx.Done())
-		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
-
-		cluster, err := informer.GetClusterByURL("https://hash.example.com")
-		require.NoError(t, err)
-		assert.NotNil(t, cluster.ConfigHash)
-		// The hash should be recomputed (not equal to 12345), but non-zero
-		assert.NotZero(t, *cluster.ConfigHash)
-		assert.NotEqual(t, uint64(12345), *cluster.ConfigHash, "ConfigHash should be recomputed, not use the stored value")
-	})
-
-	t.Run("invalid configHash in secret logs warning and uses default", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-
-		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster-with-invalid-hash",
-				Namespace: "argocd",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			},
-			Data: map[string][]byte{
-				"server":     []byte("https://invalid-hash.example.com"),
-				"name":       []byte("cluster-with-invalid-hash"),
-				"config":     []byte(`{}`),
-				"configHash": []byte("not-a-valid-number"),
-			},
-		}
-
-		clientset := fake.NewClientset(secret)
-		informer, err := NewClusterInformer(clientset, "argocd")
-		require.NoError(t, err)
-
-		go informer.Run(ctx.Done())
-		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
-
-		// Should still successfully return a cluster with a computed hash
-		cluster, err := informer.GetClusterByURL("https://invalid-hash.example.com")
-		require.NoError(t, err)
-		assert.NotNil(t, cluster.ConfigHash)
-		assert.NotZero(t, *cluster.ConfigHash, "ConfigHash should be computed even when stored value is invalid")
-	})
-
-	t.Run("missing configHash results in computed hash", func(t *testing.T) {
+	t.Run("configHash is computed from cluster identity", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 

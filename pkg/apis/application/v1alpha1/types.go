@@ -2416,7 +2416,7 @@ func (c *Cluster) HashIdentity(defaultValue uint64) uint64 {
 
 	result, err := hash.JsonObjectHash(cluster)
 	if err != nil {
-		log.Warnf("failed to encode cluster for hashing : %v. returning default value: %d", err, defaultValue)
+		log.Warnf("failed to encode cluster %s for hashing. returning default value: %d", c.Server, defaultValue)
 		return defaultValue
 	}
 
