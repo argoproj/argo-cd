@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -415,10 +416,6 @@ func clusterToSecret(c *appv1.Cluster, secret *corev1.Secret) error {
 		delete(secret.Annotations, appv1.AnnotationKeyRefresh)
 	}
 
-	if c.ConfigHash != nil {
-		data["configHash"] = []byte(strconv.FormatUint(*c.ConfigHash, 10))
-	}
-
 	addSecretMetadata(secret, common.LabelValueSecretTypeCluster)
 
 	return nil
@@ -472,18 +469,6 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		delete(annotations, common.AnnotationKeyManagedBy)
 	}
 
-	parsedConfigHash := uint64(0)
-
-	if len(s.Data["configHash"]) > 0 {
-		val, err := strconv.ParseUint(string(s.Data["configHash"]), 10, 64)
-
-		if err != nil {
-			log.Warnf("Error while parsing configHash in cluster secret '%s': %v", s.Name, err)
-		} else {
-			parsedConfigHash = val
-		}
-	}
-
 	cluster := appv1.Cluster{
 		ID:                 string(s.UID),
 		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
@@ -498,8 +483,10 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		Annotations:        annotations,
 	}
 
-	// Always recompute the hash as the secret may have been directly updated
-	cluster.ConfigHash = new(cluster.HashIdentity(parsedConfigHash + 1))
+	// Always recompute the config hash as the secret may have been directly updated.
+	// In case of hashing failure, fall back to a random value as it is safer to trigger
+	// observers' change detection anyway.
+	cluster.ConfigHash = new(cluster.HashIdentity(rand.Uint64()))
 
 	return &cluster, nil
 }
