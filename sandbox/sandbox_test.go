@@ -26,7 +26,7 @@ func TestGetModulesFromConfig(t *testing.T) {
 	testCases := []testCase{
 		newTestCase("landlock", ArgocdSandboxConfig{Landlock: &LandlockConfig{DefaultFSDeny: "execute, read_file, read_dir"}}, []string{}, ""),
 		newTestCase("landlock", ArgocdSandboxConfig{Landlock: &LandlockConfig{DefaultFSDeny: "execute, read_file, read_dir"}}, []string{"landlock"}, ""),
-		newTestCase("landlock", ArgocdSandboxConfig{Landlock: &LandlockConfig{DefaultFSDeny: "execute, read_file, read_dir"}}, []string{"dummy"}, "No such sandbox module: \"dummy\""),
+		newTestCase("landlock", ArgocdSandboxConfig{Landlock: &LandlockConfig{DefaultFSDeny: "execute, read_file, read_dir"}}, []string{"dummy"}, "no such sandbox module: \"dummy\""),
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
