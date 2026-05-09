@@ -390,6 +390,17 @@ func TestGetCluster(t *testing.T) {
 		assert.Equal(t, "in-cluster", cluster.Name)
 	})
 
+	t.Run("in-cluster has ConfigHash set", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		cluster, err := db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
+		require.NoError(t, err)
+		assert.NotNil(t, cluster.ConfigHash)
+		assert.NotZero(t, *cluster.ConfigHash)
+	})
+
 	t.Run("in-cluster disabled", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
