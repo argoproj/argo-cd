@@ -71,7 +71,7 @@ func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
 		return "", "", fmt.Errorf("failed to create command context for helm: %w", err)
 	}
 	cmd.Dir = c.WorkDir
-	cmd.Env = os.Environ()
+	//cmd.Env = os.Environ()
 	if !c.IsLocal {
 		cmd.Env = append(cmd.Env,
 			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),

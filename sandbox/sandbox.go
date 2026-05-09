@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	log "github.com/sirupsen/logrus"
@@ -100,14 +101,24 @@ func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName
 		toolOpts = &KustomizeToolOps
 	default:
 		log.Infof("executing command %q without sandbox", cmdName)
-		return exec.CommandContext(ctx, cmdName, args...), nil
+		cmd := exec.CommandContext(ctx, cmdName, args...)
+		cmd.Env = os.Environ()
+		return cmd, nil
 	}
 	binPath, err := exec.LookPath(cmdName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create command context for helm: %w", err)
 	}
 	args = makeSandboxCmdline(toolOpts, sandboxRunOpts, binPath, args...)
-	return exec.CommandContext(ctx, common.CommandSandbox, args...), nil
+	//  FIXME: w/o separate binary
+	cmd := exec.CommandContext(ctx, common.CommandSandbox, args...)
+	cmd.Env = os.Environ()
+	for idx, entry := range cmd.Env {
+		if strings.HasPrefix(entry, "ARGOCD_BINARY_NAME=") {
+			cmd.Env[idx] = common.CommandSandbox
+		}
+	}
+	return cmd, nil
 }
 
 func makeSandboxCmdline(toolOpts *ToolOpts, runOpts *SandboxRunOpts, binPath string, args ...string) []string {
