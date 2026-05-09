@@ -189,6 +189,11 @@ func IsLocal() bool {
 	return !IsRemote()
 }
 
+// IsK3s returns true when tests are running against k3s cluster (typically in CI)
+func IsK3s() bool {
+	return env.ParseBoolFromEnv("ARGOCD_E2E_K3S", false)
+}
+
 // creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
@@ -1272,7 +1277,9 @@ func RemoveSubmodule(t *testing.T) {
 // until the rollout has completed.
 func RestartRepoServer(t *testing.T) {
 	t.Helper()
-	if IsRemote() {
+	// Restart repo-server when running against a real cluster (k3s in CI or remote).
+	// This forces the pod to reload GPG keys and other ConfigMap-mounted data.
+	if IsRemote() || IsK3s() {
 		log.Infof("Waiting for repo server to restart")
 		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
 		workload := "argocd-repo-server"
