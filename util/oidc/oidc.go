@@ -596,7 +596,9 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sid := jwtutil.StringField(claims, "sid")
-	err = a.SetValueInEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, GetTokenExpiration(claims))
+	// TTL = user session duration (not ID token TTL) so the refresh token
+	// outlives the ID token and is available for reactive refresh after expiry
+	err = a.SetValueInEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, a.settings.UserSessionDuration)
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
 		log.Errorf("cannot cache encrypted oidc token: %v (claims=%s)", err, claimsJSON)
@@ -693,7 +695,8 @@ func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.Ma
 	span.SetAttributes(
 		attribute.String("iss", iss),
 		attribute.String("sub", sub),
-		attribute.String("sid", sid))
+		attribute.String("sid", sid),
+	)
 	if GetTokenExpiration(groupClaims) < refreshTokenThreshold {
 		token, err := a.GetUpdatedOidcTokenFromCache(ctx, sub, sid)
 		if err != nil {
@@ -767,7 +770,7 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		err = a.SetValueInEncryptedCache(ctx, cacheKey, oidcTokenCacheJSON, time.Until(token.Expiry))
+		err = a.SetValueInEncryptedCache(ctx, cacheKey, oidcTokenCacheJSON, a.settings.UserSessionDuration)
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
