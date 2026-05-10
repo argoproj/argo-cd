@@ -45,6 +45,7 @@ Target GA date: ___. __, ____
  - [ ] Check master branch Helm version - if a newer Helm version exists, open a PR to update it in master.  
  - [ ] Check master branch Kustomize version - if a newer Kustomize version exists, open a PR to update it in master.  
  - [ ] Check master branch latest K8s version in the e2e matrix - if a newer K8s version exists, open a PR to update it in master.  
+ - [ ] Check master branch Go version (CI, Dockerfiles and go.mod files) - if a newer Go version exists, open a PR to update it in master. 
 
 ## GA Release Checklist
 
