@@ -42,6 +42,9 @@ Target GA date: ___. __, ____
      ```
  - [ ] Monitor support channels for issues, cherry-picking bugfixes and docs fixes as appropriate during the RC period (or delegate this task to an Approver and coordinate timing)
  - [ ] After creating the RC, open a documentation PR for the next minor version using [this](../../docs/operator-manual/templates/minor_version_upgrade.md) template.
+ - [ ] Check master branch Helm version - if a newer Helm version exists, open a PR to update it in master.  
+ - [ ] Check master branch Kustomize version - if a newer Kustomize version exists, open a PR to update it in master.  
+ - [ ] Check master branch latest K8s version in the e2e matrix - if a newer K8s version exists, open a PR to update it in master.  
 
 ## GA Release Checklist
 
