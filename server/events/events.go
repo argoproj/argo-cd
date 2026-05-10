@@ -26,21 +26,21 @@ func K8sEventListToAPIEventList(in *corev1.EventList) *eventspb.EventList {
 
 func k8sEventToAPIEvent(in *corev1.Event) eventspb.Event {
 	return eventspb.Event{
-		Metadata:           in.ObjectMeta,
-		InvolvedObject:     k8sObjectReferenceToAPIObjectReference(in.InvolvedObject),
-		Reason:             in.Reason,
-		Message:            in.Message,
-		Source:             k8sEventSourceToAPIEventSource(in.Source),
-		FirstTimestamp:     in.FirstTimestamp,
-		LastTimestamp:      in.LastTimestamp,
-		Count:              in.Count,
-		Type:               in.Type,
-		EventTime:          in.EventTime,
-		Series:             k8sEventSeriesPtrToAPIEventSeriesPtr(in.Series),
-		Action:             in.Action,
-		Related:            k8sObjectReferencePtrToAPIObjectReferencePtr(in.Related),
-		ReportingComponent: in.ReportingController,
-		ReportingInstance:  in.ReportingInstance,
+		Metadata:            in.ObjectMeta,
+		InvolvedObject:      k8sObjectReferenceToAPIObjectReference(in.InvolvedObject),
+		Reason:              in.Reason,
+		Message:             in.Message,
+		Source:              k8sEventSourceToAPIEventSource(in.Source),
+		FirstTimestamp:      in.FirstTimestamp,
+		LastTimestamp:       in.LastTimestamp,
+		Count:               in.Count,
+		Type:                in.Type,
+		EventTime:           in.EventTime,
+		Series:              k8sEventSeriesPtrToAPIEventSeriesPtr(in.Series),
+		Action:              in.Action,
+		Related:             k8sObjectReferencePtrToAPIObjectReferencePtr(in.Related),
+		ReportingController: in.ReportingController,
+		ReportingInstance:   in.ReportingInstance,
 	}
 }
 

@@ -34,7 +34,7 @@ message Event {
   EventSeries series = 11;
   string action = 12;
   ObjectReference related = 13;
-  string reportingComponent = 14;
+  string reportingComponent = 14 [(gogoproto.customname) = "ReportingController"];
   string reportingInstance = 15;
 }
 

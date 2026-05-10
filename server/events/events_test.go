@@ -113,7 +113,7 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 		require.NotNil(t, got.Related)
 		assert.Equal(t, "Deployment", got.Related.Kind)
 		assert.Equal(t, "dep", got.Related.Name)
-		assert.Equal(t, "argocd-application-controller", got.ReportingComponent)
+		assert.Equal(t, "argocd-application-controller", got.ReportingController)
 		assert.Equal(t, "argocd-0", got.ReportingInstance)
 	})
 }
