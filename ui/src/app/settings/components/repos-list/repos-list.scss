@@ -2,6 +2,13 @@
 @import 'node_modules/argo-ui/src/styles/theme';
 
 .repos-list {
+    &__credential-template-status,
+    &__credential-template-url {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
     &__top-panel {
         padding: 1em;
         & > .columns:first-child {
