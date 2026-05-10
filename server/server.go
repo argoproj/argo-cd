@@ -1568,15 +1568,27 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		return nil, "", ErrNoSession
 	}
 	// A valid argocd-issued token is automatically refreshed here prior to expiration.
-	// OIDC tokens will be verified but will not be refreshed here.
+	// OIDC tokens will be verified and reactively refreshed here if the ID token has expired.
 	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
+	oidcConfig := server.settings.OIDCConfig()
+	if err != nil && claims != nil && (oidcConfig != nil || server.settings.IsDexConfigured()) {
+		// VerifyToken returns claims without sub/sid on expiry, parse JWT directly to recover sub/sid for refresh token cache lookup
+		expiredClaims := jwt.MapClaims{}
+		if _, _, parseErr := jwt.NewParser().ParseUnverified(tokenString, expiredClaims); parseErr == nil {
+			if refreshedToken, refreshErr := server.ssoClientApp.CheckAndRefreshToken(ctx, expiredClaims, server.settings.RefreshTokenThresholdWithConfig(oidcConfig)); refreshErr == nil && refreshedToken != "" {
+				if refreshedClaims, _, vErr := server.sessionMgr.VerifyToken(ctx, refreshedToken); vErr == nil {
+					claims, newToken, err = refreshedClaims, refreshedToken, nil
+					log.Infof("refreshed token for subject: %v", jwtutil.StringField(expiredClaims, "sub"))
+				}
+			}
+		}
+	}
 	if err != nil {
 		span.SetStatus(otel_codes.Error, err.Error())
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
 	finalClaims := claims
-	oidcConfig := server.settings.OIDCConfig()
 	if oidcConfig != nil || server.settings.IsDexConfigured() {
 		updatedClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
