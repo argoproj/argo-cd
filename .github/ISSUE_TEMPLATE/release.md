@@ -44,8 +44,9 @@ Target GA date: ___. __, ____
  - [ ] After creating the RC, open a documentation PR for the next minor version using [this](../../docs/operator-manual/templates/minor_version_upgrade.md) template.
  - [ ] Check master branch Helm version - if a newer Helm version exists, open a PR to update it in master.  
  - [ ] Check master branch Kustomize version - if a newer Kustomize version exists, open a PR to update it in master.  
- - [ ] Check master branch latest K8s version in the e2e matrix - if a newer K8s version exists, open a PR to update it in master.  
- - [ ] Check master branch Go version (CI, Dockerfiles and go.mod files) - if a newer Go version exists, open a PR to update it in master. 
+ - [ ] Check master branch latest K8s version in the CI e2e matrix - if a newer K8s version exists, open a PR to update it in master.  
+ - [ ] Check master branch Go version (CI, Dockerfiles and go.mod files) - if a newer Go version exists, open a PR to update it in master.
+ - [ ] Check master branch `k8s.io/kubernetes` Go client version - if a newer Go K8s client version exists, open a PR to update it in master. 
 
 ## GA Release Checklist
 
