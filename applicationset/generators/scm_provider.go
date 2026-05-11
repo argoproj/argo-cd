@@ -11,6 +11,8 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v3/util/proxy"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
@@ -40,16 +42,37 @@ type SCMConfig struct {
 	enableGitHubAPIMetrics bool
 	GitHubApps             github_app_auth.Credentials
 	tokenRefStrictMode     bool
+	scmProxyURL            string
+	scmNoProxy             string
 }
 
-func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
-	return SCMConfig{
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, opts ...SCMConfigOpts) SCMConfig {
+	c := SCMConfig{
 		scmRootCAPath:          scmRootCAPath,
 		allowedSCMProviders:    allowedSCMProviders,
 		enableSCMProviders:     enableSCMProviders,
 		enableGitHubAPIMetrics: enableGitHubAPIMetrics,
 		GitHubApps:             gitHubApps,
 		tokenRefStrictMode:     tokenRefStrictMode,
+	}
+
+	for _, opt := range opts {
+		opt(&c)
+	}
+	return c
+}
+
+type SCMConfigOpts func(c *SCMConfig)
+
+func WithNoProxyList(noProxyList string) SCMConfigOpts {
+	return func(config *SCMConfig) {
+		config.scmNoProxy = noProxyList
+	}
+}
+
+func WithProxyURL(scmProxyURL string) SCMConfigOpts {
+	return func(config *SCMConfig) {
+		config.scmProxyURL = scmProxyURL
 	}
 }
 
@@ -140,13 +163,14 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	ctx := context.Background()
+	scmHTTPClient := g.newSCMHTTPClient()
 	var provider scm_provider.SCMProviderService
 	switch {
 	case g.overrideProvider != nil:
 		provider = g.overrideProvider
 	case providerConfig.Github != nil:
 		var err error
-		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo)
+		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo, scmHTTPClient)
 		if err != nil {
 			return nil, fmt.Errorf("scm provider: %w", err)
 		}
@@ -164,7 +188,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %w", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.IncludeArchivedRepos, providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts)
+		provider, err = scm_provider.NewGitlabProvider(providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.IncludeArchivedRepos, providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts, g.scmProxyURL, g.scmNoProxy)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %w", err)
 		}
@@ -173,7 +197,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitea token: %w", err)
 		}
-		provider, err = scm_provider.NewGiteaProvider(providerConfig.Gitea.Owner, token, providerConfig.Gitea.API, providerConfig.Gitea.AllBranches, providerConfig.Gitea.Insecure, providerConfig.Gitea.ExcludeArchivedRepos)
+		provider, err = scm_provider.NewGiteaProvider(providerConfig.Gitea.Owner, token, providerConfig.Gitea.API, providerConfig.Gitea.AllBranches, providerConfig.Gitea.Insecure, providerConfig.Gitea.ExcludeArchivedRepos, g.scmProxyURL, g.scmNoProxy)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitea service: %w", err)
 		}
@@ -193,15 +217,15 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
-			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
 		case providerConfig.BasicAuth != nil:
 			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
-			provider, scmError = scm_provider.NewBitbucketServerProviderBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+			provider, scmError = scm_provider.NewBitbucketServerProviderBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
 		default:
-			provider, scmError = scm_provider.NewBitbucketServerProviderNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+			provider, scmError = scm_provider.NewBitbucketServerProviderNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
 		}
 		if scmError != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %w", scmError)
@@ -270,16 +294,14 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	return paramsArray, nil
 }
 
-func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argoprojiov1alpha1.SCMProviderGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (scm_provider.SCMProviderService, error) {
-	var metricsCtx *services.MetricsContext
-	var httpClient *http.Client
-
+func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argoprojiov1alpha1.SCMProviderGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, baseHTTPClient *http.Client) (scm_provider.SCMProviderService, error) {
+	httpClient := baseHTTPClient
 	if g.enableGitHubAPIMetrics {
-		metricsCtx = &services.MetricsContext{
+		metricsCtx := &services.MetricsContext{
 			AppSetNamespace: applicationSetInfo.Namespace,
 			AppSetName:      applicationSetInfo.Name,
 		}
-		httpClient = services.NewGitHubMetricsClient(metricsCtx)
+		httpClient = services.NewGitHubMetricsClientFrom(httpClient, metricsCtx)
 	}
 
 	if github.AppSecretName != "" {
@@ -287,20 +309,23 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Github app secret: %w", err)
 		}
-
-		if g.enableGitHubAPIMetrics {
-			return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
-		}
-		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, github.ExcludeArchivedRepos)
+		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
 	}
 
 	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}
+	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
+}
 
-	if g.enableGitHubAPIMetrics {
-		return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
+func (g *SCMConfig) newSCMHTTPClient() *http.Client {
+	if g.scmProxyURL == "" {
+		return &http.Client{}
 	}
-	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, github.ExcludeArchivedRepos)
+	return &http.Client{
+		Transport: &http.Transport{
+			Proxy: proxy.GetCallback(g.scmProxyURL, g.scmNoProxy),
+		},
+	}
 }
