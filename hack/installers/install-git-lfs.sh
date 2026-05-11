@@ -5,6 +5,7 @@ set -eux -o pipefail
 
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)
 INSTALL_PATH="${BIN:-$PROJECT_ROOT/dist}"
+[ -d "$INSTALL_PATH" ] || mkdir -p "$INSTALL_PATH"
 
 export TARGET_FILE=git-lfs-${INSTALL_OS}-${ARCHITECTURE}-v${git_lfs_version}.tar.gz
 
