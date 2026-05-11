@@ -88,7 +88,7 @@ type ArgoCDWebhookHandler struct {
 	appNs                  []string
 	appClientset           appclientset.Interface
 	appsLister             alpha1.ApplicationLister
-	scmParsers             []Extractor
+	parsers                []Extractor
 	settings               *settings.ArgoCDSettings
 	settingsSrc            settingsSource
 	queue                  chan any
@@ -123,20 +123,35 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
+	// Each upstream constructor returns a nil *Webhook on error; skip those so a
+	// matching request doesn't panic with a nil-pointer dereference in Parse.
+	var parsers []Extractor
+	if azuredevopsWebhook != nil {
+		parsers = append(parsers, &azureDevOpsParser{webhook: azuredevopsWebhook})
+	}
+	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
+	if gogsWebhook != nil {
+		parsers = append(parsers, &gogsParser{webhook: gogsWebhook})
+	}
+	if githubWebhook != nil {
+		parsers = append(parsers, &githubParser{webhook: githubWebhook})
+	}
+	if gitlabWebhook != nil {
+		parsers = append(parsers, &gitlabParser{webhook: gitlabWebhook})
+	}
+	if bitbucketWebhook != nil {
+		parsers = append(parsers, &bitbucketParser{webhook: bitbucketWebhook})
+	}
+	if bitbucketserverWebhook != nil {
+		parsers = append(parsers, &bitbucketServerParser{webhook: bitbucketserverWebhook})
+	}
+	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
+
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:           namespace,
-		appNs:        applicationNamespaces,
-		appClientset: appClientset,
-		scmParsers: []Extractor{
-			&azureDevOpsParser{webhook: azuredevopsWebhook},
-			// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
-			&gogsParser{webhook: gogsWebhook},
-			&githubParser{webhook: githubWebhook},
-			&gitlabParser{webhook: gitlabWebhook},
-			&bitbucketParser{webhook: bitbucketWebhook},
-			&bitbucketServerParser{webhook: bitbucketserverWebhook},
-			newGHCRParser(set.GetWebhookGitHubSecret()),
-		},
+		ns:                     namespace,
+		appNs:                  applicationNamespaces,
+		appClientset:           appClientset,
+		parsers:                parsers,
 		settingsSrc:            settingsSrc,
 		repoCache:              repoCache,
 		serverCache:            serverCache,
@@ -686,8 +701,8 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	payload, err := a.processWebhook(r)
-	if err == nil && payload == nil {
+	payload, handled, err := a.processWebhook(r)
+	if !handled {
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
 		return
 	}
@@ -714,6 +729,13 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parser claimed the request but produced no payload (e.g. GHCR event that
+	// was intentionally skipped). Acknowledge with 200 and skip the queue.
+	if payload == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	select {
 	case a.queue <- payload:
 	default:
@@ -734,13 +756,17 @@ func isParsingPayloadError(err error) bool {
 		errors.Is(err, azuredevops.ErrParsingPayload)
 }
 
-// processSCMWebhook processes a webhook
-func (a *ArgoCDWebhookHandler) processWebhook(r *http.Request) (any, error) {
-	for _, p := range a.scmParsers {
+// processWebhook dispatches the request to the first matching parser.
+// The handled return is true when a parser claimed the request, regardless of
+// whether parsing produced a payload or an error; callers use it to distinguish
+// "unknown webhook event" (false) from "claimed but skipped" (true, nil, nil).
+func (a *ArgoCDWebhookHandler) processWebhook(r *http.Request) (any, bool, error) {
+	for _, p := range a.parsers {
 		if p.CanHandle(r) {
-			return p.Parse(r)
+			payload, err := p.Parse(r)
+			return payload, true, err
 		}
 	}
 	log.Debug("Ignoring unknown webhook event")
-	return nil, nil
+	return nil, false, nil
 }

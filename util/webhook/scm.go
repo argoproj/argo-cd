@@ -18,8 +18,11 @@ import (
 // Extractor dispatches a webhook request to the matching provider.
 //
 // CanHandle inspects request headers to decide whether this parser owns the
-// request. Parse extracts the provider-specific payload and emits a
-// security-audit log line on verification failures.
+// request. Parse extracts the provider-specific payload. On verification
+// failures it either emits a security-audit log line directly or returns a
+// known sentinel error (e.g. ErrHMACVerificationFailed) that the caller logs
+// centrally. A (nil, nil) return signals a request that was claimed but
+// intentionally skipped (e.g. an unsupported sub-event).
 type Extractor interface {
 	CanHandle(r *http.Request) bool
 	Parse(r *http.Request) (any, error)
@@ -64,7 +67,10 @@ type githubParser struct {
 }
 
 func (p *githubParser) CanHandle(r *http.Request) bool {
-	return r.Header.Get("X-GitHub-Event") != ""
+	event := r.Header.Get("X-GitHub-Event")
+	// "package" is delivered via the same X-GitHub-Event header but is owned by
+	// ghcrParser. Excluding it here keeps the parser order independent.
+	return event != "" && event != "package"
 }
 
 func (p *githubParser) Parse(r *http.Request) (any, error) {

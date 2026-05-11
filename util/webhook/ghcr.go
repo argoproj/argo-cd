@@ -16,7 +16,7 @@ import (
 // ghcrParser parses webhook payloads sent by GitHub Container Registry (GHCR).
 //
 // It extracts container image publication events from GitHub package webhooks
-// and converts them into a normalized WebhookRegistryEvent structure.
+// and converts them into a normalized RegistryEvent structure.
 type ghcrParser struct {
 	secret string
 }
@@ -64,10 +64,10 @@ func (p *ghcrParser) CanHandle(r *http.Request) bool {
 // details from a GHCR webhook payload.
 //
 // The method expects a GitHub package event with action "published" for a
-// container package. It returns a normalized WebhookRegistryEvent containing
-// the registry host, repository, tag, and digest. Returns nil, nil for events
-// that are intentionally skipped (unsupported actions, non-container packages,
-// or missing tags). Only returns an error for genuinely malformed payloads or
+// container package. It returns a normalized RegistryEvent containing the
+// registry host, repository, and tag. Returns nil, nil for events that are
+// intentionally skipped (unsupported actions, non-container packages, or
+// missing tags). Only returns an error for genuinely malformed payloads or
 // signature verification failures.
 func (p *ghcrParser) Parse(r *http.Request) (any, error) {
 	body, err := io.ReadAll(r.Body)
