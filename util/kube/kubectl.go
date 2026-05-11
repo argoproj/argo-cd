@@ -30,11 +30,10 @@ func NewKubectl() kube.Kubectl {
 }
 
 func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, onKubectlRun kube.OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
-	return kube.ManageServerSideDiffDryRuns(
-		config,
-		openAPISchema,
-		tracer,
-		logger,
-		onKubectlRun,
-	)
+	k := &kube.KubectlCmd{
+		Log:          logger,
+		Tracer:       tracer,
+		OnKubectlRun: onKubectlRun,
+	}
+	return k.ManageServerSideDiffDryRuns(config, openAPISchema)
 }

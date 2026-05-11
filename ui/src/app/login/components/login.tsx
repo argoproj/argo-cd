@@ -36,21 +36,33 @@ export function Login(props: RouteComponentProps<{}>) {
             setLoginError('');
             setLoginInProgress(true);
             appContext.navigation.goto('.', {sso_error: null});
+
             await services.users.login(username, password);
-            setLoginInProgress(false);
+
+            let redirectPath = '/applications';
+
             if (returnURL) {
-                const url = new URL(returnURL);
-                let redirectURL = url.pathname + url.search;
-                // return url already contains baseHref, so we need to remove it
-                if (appContext.baseHref != '/' && redirectURL.startsWith(appContext.baseHref)) {
-                    redirectURL = redirectURL.substring(appContext.baseHref.length);
+                try {
+                    let url: URL;
+                    if (returnURL.startsWith('http://') || returnURL.startsWith('https://')) {
+                        url = new URL(returnURL);
+                    } else {
+                        url = new URL(returnURL, window.location.origin);
+                    }
+                    redirectPath = url.pathname + url.search;
+                    if (appContext.baseHref != '/' && redirectPath.startsWith(appContext.baseHref)) {
+                        redirectPath = redirectPath.substring(appContext.baseHref.length);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse return URL:', e, 'returnURL:', returnURL);
                 }
-                appContext.navigation.goto(redirectURL);
-            } else {
-                appContext.navigation.goto('/applications');
             }
-        } catch (e) {
-            setLoginError(e.response.body.error);
+
+            appContext.navigation.goto(redirectPath, undefined, {replace: true});
+        } catch (e: any) {
+            const errorMessage = e?.response?.body?.error || e?.response?.data?.error || e?.message || 'Login failed';
+            setLoginError(errorMessage);
+        } finally {
             setLoginInProgress(false);
         }
     };
@@ -88,6 +100,7 @@ export function Login(props: RouteComponentProps<{}>) {
                 {authSettings && !authSettings.userLoginsDisabled && (
                     <Form
                         onSubmit={(params: LoginForm) => login(params.username, params.password, returnUrl)}
+                        onSubmitFailure={() => {}}
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
                             password: !params.password && 'Password is required'
