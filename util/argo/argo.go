@@ -23,8 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/v3/util/gpg"
-
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -239,7 +237,7 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrateType *argoappv1.HydrateType) (*argoappv1.Application, error) {
 	metadata := map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
@@ -247,8 +245,8 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 			},
 		},
 	}
-	if hydrate {
-		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(argoappv1.HydrateTypeNormal)
+	if hydrateType != nil {
+		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
 	}
 
 	var err error
@@ -862,11 +860,6 @@ func verifyGenerateManifests(
 			continue
 		}
 
-		verifySignature := false
-		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
-			verifySignature = true
-		}
-
 		repos := helmRepos
 		helmRepoCreds := repositoryCredentials
 		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
@@ -887,7 +880,6 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
-			VerifySignature:                 verifySignature,
 			Repos:                           repos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
@@ -898,6 +890,8 @@ func verifyGenerateManifests(
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
+			SourceIntegrity:                 proj.EffectiveSourceIntegrity(),
+			VerifySignature:                 proj.EffectiveSourceIntegrity() != nil, // nolint:staticcheck
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
