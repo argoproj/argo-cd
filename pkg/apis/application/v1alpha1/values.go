@@ -68,20 +68,22 @@ func (h *ApplicationSourceHelm) String() string {
 	if h == nil {
 		return "nil"
 	}
-	repeatedStringForParameters := "[]HelmParameter{"
-	var repeatedStringForParametersSb71 strings.Builder
+
+	var parametersBuilder strings.Builder
+	parametersBuilder.WriteString("[]HelmParameter{")
 	for _, f := range h.Parameters {
-		repeatedStringForParametersSb71.WriteString(strings.Replace(strings.Replace(f.String(), "HelmParameter", "HelmParameter", 1), `&`, ``, 1) + ",")
+		parametersBuilder.WriteString(strings.Replace(f.String(), `&`, ``, 1))
+		parametersBuilder.WriteString(",")
 	}
-	repeatedStringForParameters += repeatedStringForParametersSb71.String()
-	repeatedStringForParameters += "}"
-	repeatedStringForFileParameters := "[]HelmFileParameter{"
-	var repeatedStringForFileParametersSb76 strings.Builder
+	parametersBuilder.WriteString("}")
+
+	var fileParametersBuilder strings.Builder
+	fileParametersBuilder.WriteString("[]HelmFileParameter{")
 	for _, f := range h.FileParameters {
-		repeatedStringForFileParametersSb76.WriteString(strings.Replace(strings.Replace(f.String(), "HelmFileParameter", "HelmFileParameter", 1), `&`, ``, 1) + ",")
+		fileParametersBuilder.WriteString(strings.Replace(f.String(), `&`, ``, 1))
+		fileParametersBuilder.WriteString(",")
 	}
-	repeatedStringForFileParameters += repeatedStringForFileParametersSb76.String()
-	repeatedStringForFileParameters += "}"
+	fileParametersBuilder.WriteString("}")
 
 	valuesObjectStr := "nil"
 	if h.ValuesObject != nil {
@@ -93,10 +95,10 @@ func (h *ApplicationSourceHelm) String() string {
 	return strings.Join([]string{
 		`&ApplicationSourceHelm{`,
 		`ValueFiles:` + fmt.Sprintf("%v", h.ValueFiles) + `,`,
-		`Parameters:` + repeatedStringForParameters + `,`,
+		`Parameters:` + parametersBuilder.String() + `,`,
 		`ReleaseName:` + h.ReleaseName + `,`,
 		`Values:` + h.Values + `,`,
-		`FileParameters:` + repeatedStringForFileParameters + `,`,
+		`FileParameters:` + fileParametersBuilder.String() + `,`,
 		`Version:` + h.Version + `,`,
 		`PassCredentials:` + strconv.FormatBool(h.PassCredentials) + `,`,
 		`IgnoreMissingValueFiles:` + strconv.FormatBool(h.IgnoreMissingValueFiles) + `,`,
