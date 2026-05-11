@@ -82,8 +82,12 @@ func NewCommand() *cobra.Command {
 		cmpUseManifestGeneratePaths        bool
 		ociMediaTypes                      []string
 		enableBuiltinGitConfig             bool
+<<<<<<< HEAD
 		clientCAPath                       string
 		disableTLS                         bool
+=======
+		enableTrackingLabelOnCRDs          bool
+>>>>>>> 537b30264 (feat: allow for tracking label on crds)
 	)
 	command := cobra.Command{
 		Use:               common.CommandRepoServer,
@@ -165,8 +169,13 @@ func NewCommand() *cobra.Command {
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
+<<<<<<< HEAD
 				HelmChartCacheExpiration:                     repoCacheExpiration,
 			}, askPassServer, clientCAPath, disableTLS)
+=======
+				EnableTrackingLabelsOnCRDs:                   enableTrackingLabelOnCRDs,
+			}, askPassServer)
+>>>>>>> 537b30264 (feat: allow for tracking label on crds)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {
@@ -281,7 +290,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS for the repo-server gRPC endpoint")
 	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", "/app/config/reposerver/mtls/client-ca.crt"), "Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist.")
-
+	command.Flags().BoolVar(&enableTrackingLabelOnCRDs, "enable-tracking-label-on-crds", env.ParseBoolFromEnv("ARGOCD_ENABLE_TRACKING_LABEL_ON_CRDS", false), "Enable tracking labels to be inserted into Custom Resource Definition resources")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
