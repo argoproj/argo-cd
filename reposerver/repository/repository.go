@@ -941,12 +941,13 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 		// If manifest generation error caching is enabled
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
-			cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+			manifestKey := getManifestCacheKey(cacheKey, appSourceCopy, q, refSourceCommitSHAs)
+			cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifests error", manifestKey)
 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
+			cacheErr := s.cache.GetManifests(manifestKey, innerRes)
 			if cacheErr != nil && !errors.Is(cacheErr, cache.ErrCacheMiss) {
 				logCtx.Warnf("manifest cache get error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
@@ -959,12 +960,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 				innerRes.FirstFailureTimestamp = s.now().Unix()
 			}
 
-			cache.LogDebugManifestCacheKeyFields("setting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+			cache.LogDebugManifestCacheKeyFields("setting manifests cache", "GenerateManifests error", manifestKey)
 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
+			cacheErr = s.cache.SetManifests(manifestKey, innerRes)
 
 			if cacheErr != nil {
 				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
@@ -976,7 +977,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		return
 	}
 
-	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "fresh GenerateManifests response", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+	manifestKey := getManifestCacheKey(cacheKey, appSourceCopy, q, refSourceCommitSHAs)
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "fresh GenerateManifests response", manifestKey)
 
 	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
 	manifestGenCacheEntry := cache.CachedManifestResponse{
@@ -990,7 +992,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	manifestGenResult.SourceIntegrityResult = opContext.sourceIntegrityResult
 	// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	manifestGenResult.VerifyResult = opContext.verificationResult // nolint:staticcheck
-	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
+	err = s.cache.SetManifests(manifestKey, &manifestGenCacheEntry)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
 	}
@@ -1003,11 +1005,28 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 // - If the cache is not empty, but the cache value is an error AND that generation error has expired
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
+func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
+	return cache.ManifestKey{
+		Revision:            revision,
+		AppSource:           appSource,
+		RefSources:          q.RefSources,
+		ClusterInfo:         q,
+		Namespace:           q.Namespace,
+		TrackingMethod:      q.TrackingMethod,
+		AppLabelKey:         q.AppLabelKey,
+		AppName:             q.AppName,
+		RefSourceCommitSHAs: refSourceCommitSHAs,
+		InstallationID:      q.InstallationID,
+		SourceIntegrity:     q.SourceIntegrity,
+	}
+}
+
 func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
-	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+	cacheKeyData := getManifestCacheKey(cacheKey, q.ApplicationSource, q, refSourceCommitSHAs)
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKeyData)
 
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
+	err := s.cache.GetManifests(cacheKeyData, &res)
 	if err == nil {
 		// The cache contains an existing value
 
@@ -1021,10 +1040,10 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 
 					// After X minutes, reset the cache and retry the operation (e.g. perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
-						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKeyData)
 
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
+						err = s.cache.DeleteManifests(cacheKeyData)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -1036,10 +1055,10 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				// Check if enough cached responses have been returned to try generation again (e.g. to exit the 'manifest generation caching' state)
 				if s.initConstants.PauseGenerationOnFailureForRequests > 0 && res.NumberOfCachedResponsesReturned > 0 {
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
-						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKeyData)
 
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
+						err = s.cache.DeleteManifests(cacheKeyData)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -1055,12 +1074,12 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
 
 				if firstInvocation {
-					cache.LogDebugManifestCacheKeyFields("setting manifests cache", "update error count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+					cache.LogDebugManifestCacheKeyFields("setting manifests cache", "update error count", cacheKeyData)
 
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
+					err = s.cache.SetManifests(cacheKeyData, &res)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
@@ -3492,7 +3511,10 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
-	err := s.cache.SetNewRevisionManifests(newRev, oldRev, request.ApplicationSource, request.RefSources, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
+	err := s.cache.SetNewRevisionManifests(
+		getManifestCacheKeyFromUpdateRevisionRequest(request, oldRev, oldRepoRefs),
+		getManifestCacheKeyFromUpdateRevisionRequest(request, newRev, newRepoRefs),
+	)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
 			logCtx.Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
@@ -3503,6 +3525,21 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 
 	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
+}
+
+func getManifestCacheKeyFromUpdateRevisionRequest(request *apiclient.UpdateRevisionForPathsRequest, revision string, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
+	return cache.ManifestKey{
+		Revision:            revision,
+		AppSource:           request.ApplicationSource,
+		RefSources:          request.RefSources,
+		ClusterInfo:         request,
+		Namespace:           request.Namespace,
+		TrackingMethod:      request.TrackingMethod,
+		AppLabelKey:         request.AppLabelKey,
+		AppName:             request.AppName,
+		RefSourceCommitSHAs: refSourceCommitSHAs,
+		InstallationID:      request.InstallationID,
+	}
 }
 
 func (s *Service) ociClientStandardOpts() []oci.ClientOpts {

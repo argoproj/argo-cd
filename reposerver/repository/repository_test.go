@@ -401,7 +401,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil, "", nil)
+	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -426,7 +426,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil, "", nil)
+	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: nil})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -865,7 +865,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil, "", nil)
+		err := service.cache.GetManifests(getManifestCacheKey(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, nil), cachedManifestResponse)
 		require.NoError(t, err)
 		return cachedManifestResponse
 	}
@@ -2301,7 +2301,13 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
 			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
 			// operations is the point of the cache.
-			err = service.cache.GetManifests(mock.Anything, source, v1alpha1.RefTargetRevisionMapping{}, &v1alpha1.ClusterInfo{}, "", "", "", "test", res, nil, "", nil)
+			err = service.cache.GetManifests(cache.ManifestKey{
+				Revision:    mock.Anything,
+				AppSource:   source,
+				RefSources:  v1alpha1.RefTargetRevisionMapping{},
+				ClusterInfo: &v1alpha1.ClusterInfo{},
+				AppName:     "test",
+			}, res)
 			require.NoError(t, err)
 		})
 	})
@@ -5314,18 +5320,20 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 
 	// Seed the manifest cache for the synced revision.
 	err := cacheMocks.cache.SetManifests(
-		syncedRevision,
-		request.ApplicationSource,
-		request.RefSources,
-		request,
-		request.Namespace,
-		request.TrackingMethod,
-		request.AppLabelKey,
-		request.AppName,
+		cache.ManifestKey{
+			Revision:            syncedRevision,
+			AppSource:           request.ApplicationSource,
+			RefSources:          request.RefSources,
+			ClusterInfo:         request,
+			Namespace:           request.Namespace,
+			TrackingMethod:      request.TrackingMethod,
+			AppLabelKey:         request.AppLabelKey,
+			AppName:             request.AppName,
+			RefSourceCommitSHAs: nil,
+			InstallationID:      request.InstallationID,
+			SourceIntegrity:     nil,
+		},
 		&cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
-		nil,
-		request.InstallationID,
-		nil,
 	)
 	require.NoError(t, err)
 
