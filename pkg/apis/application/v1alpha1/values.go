@@ -55,7 +55,7 @@ func (h *ApplicationSourceHelm) ValuesIsEmpty() bool {
 }
 
 // String returns a human-readable representation of ApplicationSourceHelm.
-// It replaces the suppressed auto-generated stringer so  that
+// It replaces the suppressed auto-generated stringer so that
 // ValuesObject is rendered as YAML rather than as a raw byte-array
 // dump. See https://github.com/argoproj/argo-cd/issues/18342
 //
