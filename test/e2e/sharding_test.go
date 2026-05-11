@@ -52,7 +52,8 @@ func TestShardsReconcileAssignedApps(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(ResourceHealthIs("ConfigMap", "app-1-cm", health.HealthStatusHealthy))
 
 	ctx2 := GivenWithSameState(ctx).
 		Path("shards-sync-assigned-apps/app-2").
@@ -64,7 +65,8 @@ func TestShardsReconcileAssignedApps(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(OperationRunning))
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(ResourceHealthIs("ConfigMap", "app-2-cm", health.HealthStatusMissing))
 
 	env[common.EnvControllerShard] = "1"
 	err = RestartProcess(ApplicationControllerProcName, env)
@@ -76,7 +78,8 @@ func TestShardsReconcileAssignedApps(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(ResourceHealthIs("ConfigMap", "app-2-cm", health.HealthStatusHealthy))
 }
 
 // createClusterSecretWithShard creates a cluster secret and assigns it to a shard
