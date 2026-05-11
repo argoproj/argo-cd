@@ -12,14 +12,15 @@ import (
 )
 
 type GiteaProvider struct {
-	client      *gitea.Client
-	owner       string
-	allBranches bool
+	client               *gitea.Client
+	owner                string
+	allBranches          bool
+	excludeArchivedRepos bool
 }
 
 var _ SCMProviderService = &GiteaProvider{}
 
-func NewGiteaProvider(owner, token, url string, allBranches, insecure bool) (*GiteaProvider, error) {
+func NewGiteaProvider(owner, token, url string, allBranches, insecure, excludeArchivedRepos bool) (*GiteaProvider, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
@@ -40,9 +41,10 @@ func NewGiteaProvider(owner, token, url string, allBranches, insecure bool) (*Gi
 		return nil, fmt.Errorf("error creating a new gitea client: %w", err)
 	}
 	return &GiteaProvider{
-		client:      client,
-		owner:       owner,
-		allBranches: allBranches,
+		client:               client,
+		owner:                owner,
+		allBranches:          allBranches,
+		excludeArchivedRepos: excludeArchivedRepos,
 	}, nil
 }
 
@@ -114,6 +116,11 @@ func (g *GiteaProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*R
 		for _, label := range giteaLabels {
 			labels = append(labels, label.Name)
 		}
+
+		if g.excludeArchivedRepos && repo.Archived {
+			continue
+		}
+
 		repos = append(repos, &Repository{
 			Organization: g.owner,
 			Repository:   repo.Name,

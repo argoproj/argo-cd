@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -1388,5 +1389,14 @@ WkBKOclmOV2xlTVuPw==
 				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
 			}
 		})
+	}
+}
+
+func Test_getFilteredGeneratorTypes(t *testing.T) {
+	generators := getFilteredGeneratorTypes()
+	assert.Less(t, 1, len(generators))
+	for name, val := range generators {
+		assert.True(t, val)
+		assert.True(t, strings.HasSuffix(name, "Generator"))
 	}
 }

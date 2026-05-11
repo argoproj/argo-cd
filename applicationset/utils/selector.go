@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -207,12 +208,7 @@ type Requirement struct {
 }
 
 func (r *Requirement) hasValue(value string) bool {
-	for i := range r.strValues {
-		if r.strValues[i] == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.strValues, value)
 }
 
 func (r *Requirement) Matches(ls labels.Labels) bool {

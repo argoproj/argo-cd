@@ -9,9 +9,9 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/log"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
 )
 
 var (
@@ -30,11 +30,10 @@ func NewKubectl() kube.Kubectl {
 }
 
 func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, onKubectlRun kube.OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
-	return kube.ManageServerSideDiffDryRuns(
-		config,
-		openAPISchema,
-		tracer,
-		logger,
-		onKubectlRun,
-	)
+	k := &kube.KubectlCmd{
+		Log:          logger,
+		Tracer:       tracer,
+		OnKubectlRun: onKubectlRun,
+	}
+	return k.ManageServerSideDiffDryRuns(config, openAPISchema)
 }

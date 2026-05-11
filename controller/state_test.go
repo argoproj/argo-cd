@@ -1,18 +1,19 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"dario.cat/mergo"
-	cachemocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	cachemocks "github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -414,6 +415,92 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	assert.Len(t, compRes.managedResources, 1)
 	assert.Empty(t, compRes.reconciliationResult.Hooks)
 	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateSyncHookSyncWave tests that Sync hooks display correct SyncWave
+// This is the specific case from issue #26208
+func TestCompareAppStateSyncHookSyncWave(t *testing.T) {
+	tests := []struct {
+		name             string
+		hookType         string
+		syncWave         string
+		expectedSyncWave int64
+	}{
+		{
+			name:             "Sync hook with wave 2",
+			hookType:         "Sync",
+			syncWave:         "2",
+			expectedSyncWave: 2,
+		},
+		{
+			name:             "PreSync hook with wave 1",
+			hookType:         "PreSync",
+			syncWave:         "1",
+			expectedSyncWave: 1,
+		},
+		{
+			name:             "PostSync hook with negative wave",
+			hookType:         "PostSync",
+			syncWave:         "-1",
+			expectedSyncWave: -1,
+		},
+		{
+			name:             "Sync hook without explicit wave",
+			hookType:         "Sync",
+			syncWave:         "",
+			expectedSyncWave: 0, // default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+
+			// Create hook pod with annotations
+			hookPod := NewPod()
+			hookPod.SetNamespace(test.FakeDestNamespace)
+			annot := map[string]string{
+				synccommon.AnnotationKeyHook: tt.hookType,
+			}
+			if tt.syncWave != "" {
+				annot[synccommon.AnnotationSyncWave] = tt.syncWave
+			}
+			hookPod.SetAnnotations(annot)
+
+			// The hook exists in live state (already created by previous sync)
+			livePod := hookPod.DeepCopy()
+
+			data := fakeData{
+				apps: []runtime.Object{app},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{toJSON(t, hookPod)},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+					kube.GetResourceKey(livePod): livePod,
+				},
+			}
+
+			ctrl := newFakeController(t.Context(), &data, nil)
+			sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			revisions := []string{""}
+
+			compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+			require.NoError(t, err)
+			require.NotNil(t, compRes)
+
+			// For hooks, they go into reconciliationResult.Hooks, not resources
+			// But we should also check resources if the hook appears there
+			for _, res := range compRes.resources {
+				if res.Hook {
+					assert.Equal(t, tt.expectedSyncWave, res.SyncWave,
+						"Hook SyncWave should be %d but got %d", tt.expectedSyncWave, res.SyncWave)
+				}
+			}
+		})
+	}
 }
 
 func TestCompareAppStateRequireDeletion(t *testing.T) {
@@ -1009,17 +1096,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	assert.Empty(t, app.Status.History)
 }
 
-// helper function to read contents of a file to string
-// panics on error
-func mustReadFile(path string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		panic(err.Error())
-	}
-	return string(b)
-}
-
-var signedProj = v1alpha1.AppProject{
+var projWithSourceIntegrity = v1alpha1.AppProject{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "default",
 		Namespace: test.FakeArgoCDNamespace,
@@ -1032,54 +1109,32 @@ var signedProj = v1alpha1.AppProject{
 				Namespace: "*",
 			},
 		},
-		SignatureKeys: []v1alpha1.SignatureKey{
-			{
-				KeyID: "4AEE18F83AFDEB23",
+		SourceIntegrity: &v1alpha1.SourceIntegrity{
+			Git: &v1alpha1.SourceIntegrityGit{
+				Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+					GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+						Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+						Keys: []string{"4AEE18F83AFDEB23"},
+					},
+				}},
 			},
 		},
 	},
 }
 
-func TestSignedResponseNoSignatureRequired(t *testing.T) {
+func TestNoSourceIntegrity(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
-	// We have a good signature response, but project does not require signed commits
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
-	}
-	// We have a bad signature response, but project does not require signed commits
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+				Manifests:             []string{},
+				Namespace:             test.FakeDestNamespace,
+				Server:                test.FakeClusterURL,
+				Revision:              "abc123",
+				SourceIntegrityResult: nil, // No verification requested
+				VerifyResult:          "",
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1099,19 +1154,22 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 	}
 }
 
-func TestSignedResponseSignatureRequired(t *testing.T) {
+func TestValidSourceIntegrity(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
-	// We have a good signature response, valid key, and signing is required - sync!
+	// Source integrity required, and it is valid - sync!
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{}, // Valid
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1120,7 +1178,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1129,16 +1187,19 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Empty(t, compRes.managedResources)
 		assert.Empty(t, app.Status.Conditions)
 	}
-	// We have a bad signature response and signing is required - do not sync
+	// Source integrity required, not valid - do not sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1147,170 +1208,64 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 		assert.Empty(t, compRes.resources)
 		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-	}
-	// We have a malformed signature response and signing is required - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_malformed1.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-	}
-	// We have no signature response (no signature made) and signing is required - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "Some/check: The thing have failed to validate!")
 	}
 
-	// We have a good signature and signing is required, but key is not allowed - do not sync
+	// Source integrity required, unknown key - do not sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(t.Context(), &data, nil)
-		testProj := signedProj
-		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
 		sources := make([]v1alpha1.ApplicationSource, 0)
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 		assert.Empty(t, compRes.resources)
 		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-		assert.Contains(t, app.Status.Conditions[0].Message, "key is not allowed")
-	}
-	// Signature required and local manifests supplied - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		// it doesn't matter for our test whether local manifests are valid
-		localManifests := []string{"foobar"}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "The thing have failed to validate!")
 	}
 
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
-	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
-	}
 
 	// Signature required and local manifests supplied and GPG subsystem is disabled - sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1321,7 +1276,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &projWithSourceIntegrity, revisions, sources, false, false, localManifests, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1549,11 +1504,10 @@ func TestUseDiffCache(t *testing.T) {
 					"{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-svc\",\"namespace\":\"httpbin\"},\"spec\":{\"ports\":[{\"name\":\"http-port\",\"port\":7777,\"targetPort\":80},{\"name\":\"test\",\"port\":333}],\"selector\":{\"app\":\"httpbin\"}}}",
 					"{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-deployment\",\"namespace\":\"httpbin\"},\"spec\":{\"replicas\":2,\"selector\":{\"matchLabels\":{\"app\":\"httpbin\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"httpbin\"}},\"spec\":{\"containers\":[{\"image\":\"kennethreitz/httpbin\",\"imagePullPolicy\":\"Always\",\"name\":\"httpbin\",\"ports\":[{\"containerPort\":80}]}]}}}}",
 				},
-				Namespace:    "",
-				Server:       "",
-				Revision:     revision,
-				SourceType:   "Kustomize",
-				VerifyResult: "",
+				Namespace:  "",
+				Server:     "",
+				Revision:   revision,
+				SourceType: "Kustomize",
 			},
 		}
 	}
@@ -1575,7 +1529,7 @@ func TestUseDiffCache(t *testing.T) {
 				Namespace: namespace,
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Source: ptr.To(source()),
+				Source: new(source()),
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: "httpbin",
@@ -1849,7 +1803,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	assert.True(t, compRes.revisionsMayHaveChanges)
 }
 
-func Test_normalizeClusterScopeTracking(t *testing.T) {
+func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -1859,7 +1813,7 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	c := &cachemocks.ClusterCache{}
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
 	var called bool
-	err := normalizeClusterScopeTracking([]*unstructured.Unstructured{obj}, c, func(u *unstructured.Unstructured) error {
+	_, _, err := NormalizeTargetObjects(test.FakeDestNamespace, []*unstructured.Unstructured{obj}, &resourceInfoProviderStub{}, func(u *unstructured.Unstructured) error {
 		// We expect that the normalization function will call this callback with an obj that has had the namespace set
 		// to empty.
 		called = true
@@ -1870,7 +1824,165 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	require.True(t, called, "normalization function should have called the callback function")
 }
 
-func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) {
+func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
+	// Create three cluster-scoped objects with the same Group/Kind/Name
+	// Using cluster-scoped to work with resourceInfoProviderStub
+	obj1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"get"}, Resources: []string{"pods"}},
+		},
+	})
+	obj2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"list"}, Resources: []string{"pods"}},
+		},
+	})
+	obj3 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"watch"}, Resources: []string{"pods"}},
+		},
+	})
+
+	result, conditions, err := NormalizeTargetObjects(
+		test.FakeDestNamespace,
+		[]*unstructured.Unstructured{obj1, obj2, obj3},
+		&resourceInfoProviderStub{},
+		func(_ *unstructured.Unstructured) error {
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	// Should only keep the last object
+	assert.Len(t, result, 1, "should deduplicate to one object")
+	// Verify it's the last object by checking the rules
+	rules, found, err := unstructured.NestedSlice(result[0].Object, "rules")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Len(t, rules, 1)
+	rule := rules[0].(map[string]any)
+	verbs := rule["verbs"].([]any)
+	assert.Equal(t, "watch", verbs[0], "should keep the last duplicate")
+
+	// Should have one condition warning about duplication
+	require.Len(t, conditions, 1, "should have one duplication warning")
+	assert.Equal(t, v1alpha1.ApplicationConditionRepeatedResourceWarning, conditions[0].Type)
+	assert.Contains(t, conditions[0].Message, "appeared 3 times")
+	assert.Contains(t, conditions[0].Message, "rbac.authorization.k8s.io/ClusterRole//my-cluster-role")
+}
+
+func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
+	// Create two objects with the same generateName
+	obj1 := kube.MustToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-pod-",
+			Namespace:    "default",
+		},
+	})
+	obj2 := kube.MustToUnstructured(&corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-pod-",
+			Namespace:    "default",
+		},
+	})
+
+	result, conditions, err := NormalizeTargetObjects(
+		test.FakeDestNamespace,
+		[]*unstructured.Unstructured{obj1, obj2},
+		&resourceInfoProviderStub{},
+		func(_ *unstructured.Unstructured) error {
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	// Both objects should be present because they get synthetic names (test-pod-0, test-pod-1)
+	assert.Len(t, result, 2, "should keep all objects with different synthetic names")
+	assert.Empty(t, conditions, "should have no duplication warnings for generateName objects")
+}
+
+func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
+	// Create a namespaced resource without namespace set
+	obj := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-config",
+			// No namespace specified
+		},
+		Data: map[string]string{"key": "value"},
+	})
+
+	trackingCalled := false
+	expectedNamespace := "my-app-namespace"
+
+	// Custom info provider that reports ConfigMaps as namespaced
+	namespacedProvider := &namespacedResourceInfoProvider{namespaced: true}
+
+	result, conditions, err := NormalizeTargetObjects(
+		expectedNamespace,
+		[]*unstructured.Unstructured{obj},
+		namespacedProvider,
+		func(u *unstructured.Unstructured) error {
+			// Verify namespace was set before tracking callback
+			assert.Equal(t, expectedNamespace, u.GetNamespace(), "namespace should be set before tracking callback")
+			trackingCalled = true
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	assert.Empty(t, conditions, "should have no conditions")
+	require.Len(t, result, 1, "should have one result")
+
+	// Verify namespace was set
+	assert.Equal(t, expectedNamespace, result[0].GetNamespace(), "namespace should be set on result")
+
+	// Verify tracking callback was called
+	assert.True(t, trackingCalled, "tracking callback should have been called")
+}
+
+// namespacedResourceInfoProvider is a test helper that returns a fixed namespaced status
+type namespacedResourceInfoProvider struct {
+	namespaced bool
+}
+
+func (n *namespacedResourceInfoProvider) IsNamespaced(_ schema.GroupKind) (bool, error) {
+	return n.namespaced, nil
+}
+
+func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	app := newFakeApp()
 	// Enable the manifest-generate-paths annotation and set a synced revision
 	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
@@ -1886,14 +1998,571 @@ func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) 
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
 		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+			Changes:  false,
+			Revision: "abc123",
+		},
 	}
-	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, source)
 
-	_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
+func TestGetRepoObjs_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision:  "abc123",
+		Status:    v1alpha1.SyncStatusCodeSynced,
+		Revisions: []string{"0.0.1", "resolved-abc123", "resolved-main"},
+	}
+
+	app.Spec.Sources = v1alpha1.ApplicationSources{
+		{RepoURL: "oci://example.com/argo/argo-cd", TargetRevision: "0.0.1", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/my-path"}}},
+		{Ref: "values", RepoURL: "https://git.test.com", TargetRevision: "abc123"},
+		{TargetRevision: "main", RepoURL: "https://git.test.com", Path: "path/to/chart"},
+	}
+
+	data := fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "0.0.1",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "main",
+			},
+		},
+		updateRevisionForPathsResponses: []*apiclient.UpdateRevisionForPathsResponse{
+			{Changes: false, Revision: "0.0.1"},
+			{Changes: false, Revision: "resolved-main"},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	revisions := make([]string, 0)
+	revisions = append(revisions, "0.0.1", "abc123", "main")
+
+	sources := app.Spec.Sources
+
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
+func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
+	t.Parallel()
+	t.Run("with hydrateTo: appends waiting message", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "env/prod-next",
+			},
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, nil, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.ErrorContains(t, err, "waiting for an external process to update env/prod from env/prod-next")
+	})
+	t.Run("without hydrateTo: no waiting message appended", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, nil, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.NotContains(t, err.Error(), "waiting for an external process")
+	})
+}
+
+func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
+	for _, tt := range []struct {
+		name                string
+		resourceSyncOptions []string
+		appSyncOptions      []string
+		expected            bool
+	}{
+		{
+			name:     "default",
+			expected: false,
+		},
+		{
+			name:                "confirm delete resource",
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:           "confirm delete app",
+			appSyncOptions: []string{"Delete=confirm"},
+			expected:       true,
+		},
+		{
+			name:           "confirm prune resource",
+			appSyncOptions: []string{"Prune=confirm"},
+			expected:       true,
+		},
+		{
+			name:                "confirm app & resource delete",
+			appSyncOptions:      []string{"Delete=confirm"},
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:                "confirm app & resource override",
+			appSyncOptions:      []string{"Delete=confirm"},
+			resourceSyncOptions: []string{"Delete=foo"},
+			expected:            false,
+		},
+		{
+			name:                "confirm app & resource mixed delete and prune",
+			appSyncOptions:      []string{"Prune=confirm"},
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:                "override prune resource",
+			appSyncOptions:      []string{"Prune=confirm"},
+			resourceSyncOptions: []string{"Prune=foo"},
+			expected:            false,
+		},
+		{
+			name:                "override delete resource and additional delete confirm",
+			appSyncOptions:      []string{"Delete=confirm", "Prune=confirm"},
+			resourceSyncOptions: []string{"Delete=foo"},
+			expected:            true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := NewPod()
+			obj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": strings.Join(tt.resourceSyncOptions, ",")})
+
+			app := newFakeApp()
+			app.Spec.SyncPolicy.SyncOptions = tt.appSyncOptions
+
+			require.Equal(t, tt.expected, isObjRequiresDeletionConfirmation(obj, app))
+		})
+	}
+}
+
+func Test_EvaluateAppRevisionsChanges(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                      string
+		app                       *v1alpha1.Application
+		sources                   []v1alpha1.ApplicationSource
+		revisions                 []string
+		data                      fakeData
+		sendRuntimeState          bool
+		expectedHasChanges        bool
+		expectedResolvedRevisions []string
+	}{
+		{
+			name: "single source with changes (no annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
+		},
+		{
+			name: "multiple sources with changes (no annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeMultiSourceApp()
+				app.Status.Sync.Revisions = []string{"abc123", "xyz789"}
+				return app
+			}(),
+			sources: []v1alpha1.ApplicationSource{
+				{RepoURL: "https://github.com/test/repo1", Path: "path1", TargetRevision: "main"},
+				{RepoURL: "https://github.com/test/repo2", Path: "path2", TargetRevision: "main"},
+			},
+			revisions:                 []string{"abc123", "new-sha"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"abc123", "new-sha"},
+		},
+		{
+			name: "single source without changes (no annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
+		},
+		{
+			name: "single source without changes (with annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions: []string{"def456"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "def456",
+					Changes:  false,
+				},
+			},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"def456"},
+		},
+		{
+			name: "with send runtime state",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          true,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
+		},
+		{
+			name: "dry source with annotation uses UpdateRevisionForPaths",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: app.Spec.Source.TargetRevision,
+						Path:           app.Spec.Source.Path,
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "hydrated/path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
+				app.Status.Sync.Revision = "should-not-be-used"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: app.Spec.Source.TargetRevision,
+						Path:           app.Spec.Source.Path,
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"new-dry-sha"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha",
+					Changes:  true,
+				},
+			},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"new-dry-sha"},
+		},
+		{
+			name: "dry source without annotation uses ResolveRevision",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				// No annotation set
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           app.Spec.Source.Path,
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "hydrated/path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           app.Spec.Source.Path,
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+					{
+						Revision:          "old-dry-sha",
+						AmbiguousRevision: "HEAD",
+					},
+				},
+			},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"old-dry-sha"},
+		},
+		{
+			name: "ref source always returns false",
+			app:  newFakeApp(),
+			sources: []v1alpha1.ApplicationSource{
+				{Ref: "ref-name"},
+			},
+			revisions:                 []string{"any-revision"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"any-revision"},
+		},
+		{
+			name: "same revision no ref sources returns false",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:                 []string{"abc123"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"abc123"},
+		},
+		{
+			name: "dry source with same SHA returns false",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "same-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions:                 []string{"same-sha"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"same-sha"},
+		},
+		{
+			name: "dry source with annotation and changes detected",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha-resolved",
+					Changes:  true,
+				},
+			},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"new-dry-sha-resolved"},
+		},
+		{
+			name: "dry source with annotation but no changes",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha-resolved",
+					Changes:  false,
+				},
+			},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"new-dry-sha-resolved"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := newFakeController(t.Context(), &tc.data, nil)
+
+			hasChanges, resolvedRevisions, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
+				context.Background(),
+				tc.app,
+				tc.sources,
+				tc.revisions,
+				&defaultProj,
+				tc.sendRuntimeState,
+				false,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedHasChanges, hasChanges)
+			require.Len(t, resolvedRevisions, len(tc.sources))
+			assert.Equal(t, tc.expectedResolvedRevisions, resolvedRevisions)
+		})
+	}
 }

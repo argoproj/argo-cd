@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -83,7 +83,7 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		}
 	case "postgresql.cnpg.io":
 		if un.GetKind() == "Cluster" {
-			if err := unstructured.SetNestedStringMap(un.Object, map[string]string{"cnpg.io/reloadedAt": "0001-01-01T00:00:00Z", "kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations"); err != nil {
+			if err := setPgClusterAnnotations(un); err != nil {
 				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 			}
 			if err := unstructured.SetNestedField(un.Object, nil, "status", "targetPrimaryTimestamp"); err != nil {
@@ -134,6 +134,22 @@ func setRestartedAtAnnotationOnPodTemplate(un *unstructured.Unstructured) error 
 // Helper: normalize Flux requestedAt annotation across FluxCD kinds
 func setFluxRequestedAtAnnotation(un *unstructured.Unstructured) error {
 	return unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
+}
+
+// Helper: normalize PostgreSQL CNPG Cluster annotations while preserving existing ones
+func setPgClusterAnnotations(un *unstructured.Unstructured) error {
+	// Get existing annotations or create an empty map
+	existingAnnotations, _, _ := unstructured.NestedStringMap(un.Object, "metadata", "annotations")
+	if existingAnnotations == nil {
+		existingAnnotations = make(map[string]string)
+	}
+
+	// Update only the specific keys
+	existingAnnotations["cnpg.io/reloadedAt"] = "0001-01-01T00:00:00Z"
+	existingAnnotations["kubectl.kubernetes.io/restartedAt"] = "0001-01-01T00:00:00Z"
+
+	// Set the updated annotations back
+	return unstructured.SetNestedStringMap(un.Object, existingAnnotations, "metadata", "annotations")
 }
 
 func (t testNormalizer) normalizeJob(un *unstructured.Unstructured) error {

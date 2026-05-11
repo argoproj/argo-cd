@@ -121,3 +121,50 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, tmpl)
 }
+
+func TestEvaluateAppRevisionsChanges(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        app.Spec.Source.RepoURL,
+			TargetRevision: app.Spec.Source.TargetRevision,
+			Path:           app.Spec.Source.Path,
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "hydrated/path",
+		},
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+
+	data := fakeData{
+		resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+			{
+				Revision:          "new-sha",
+				AmbiguousRevision: app.Spec.SourceHydrator.GetDrySource().TargetRevision,
+			},
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+
+	hasChanges, resolvedRev, err := ctrl.EvaluateAppRevisionsChanges(t.Context(), app, drySource, "HEAD", &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}, false)
+	require.NoError(t, err)
+	assert.True(t, hasChanges)
+	assert.Equal(t, "new-sha", resolvedRev)
+}

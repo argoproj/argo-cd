@@ -5,9 +5,9 @@
 package mocks
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/resourcegroupstaggingapi"
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,71 +38,71 @@ func (_m *AWSTaggingClient) EXPECT() *AWSTaggingClient_Expecter {
 	return &AWSTaggingClient_Expecter{mock: &_m.Mock}
 }
 
-// GetResourcesWithContext provides a mock function for the type AWSTaggingClient
-func (_mock *AWSTaggingClient) GetResourcesWithContext(v aws.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, options ...request.Option) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
-	// request.Option
-	_va := make([]interface{}, len(options))
-	for _i := range options {
-		_va[_i] = options[_i]
+// GetResources provides a mock function for the type AWSTaggingClient
+func (_mock *AWSTaggingClient) GetResources(context1 context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
+	// func(*resourcegroupstaggingapi.Options)
+	_va := make([]interface{}, len(fns))
+	for _i := range fns {
+		_va[_i] = fns[_i]
 	}
 	var _ca []interface{}
-	_ca = append(_ca, v, getResourcesInput)
+	_ca = append(_ca, context1, getResourcesInput)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetResourcesWithContext")
+		panic("no return value specified for GetResources")
 	}
 
 	var r0 *resourcegroupstaggingapi.GetResourcesOutput
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *resourcegroupstaggingapi.GetResourcesInput, ...request.Option) (*resourcegroupstaggingapi.GetResourcesOutput, error)); ok {
-		return returnFunc(v, getResourcesInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *resourcegroupstaggingapi.GetResourcesInput, ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error)); ok {
+		return returnFunc(context1, getResourcesInput, fns...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *resourcegroupstaggingapi.GetResourcesInput, ...request.Option) *resourcegroupstaggingapi.GetResourcesOutput); ok {
-		r0 = returnFunc(v, getResourcesInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *resourcegroupstaggingapi.GetResourcesInput, ...func(*resourcegroupstaggingapi.Options)) *resourcegroupstaggingapi.GetResourcesOutput); ok {
+		r0 = returnFunc(context1, getResourcesInput, fns...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*resourcegroupstaggingapi.GetResourcesOutput)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(aws.Context, *resourcegroupstaggingapi.GetResourcesInput, ...request.Option) error); ok {
-		r1 = returnFunc(v, getResourcesInput, options...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *resourcegroupstaggingapi.GetResourcesInput, ...func(*resourcegroupstaggingapi.Options)) error); ok {
+		r1 = returnFunc(context1, getResourcesInput, fns...)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// AWSTaggingClient_GetResourcesWithContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetResourcesWithContext'
-type AWSTaggingClient_GetResourcesWithContext_Call struct {
+// AWSTaggingClient_GetResources_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetResources'
+type AWSTaggingClient_GetResources_Call struct {
 	*mock.Call
 }
 
-// GetResourcesWithContext is a helper method to define mock.On call
-//   - v aws.Context
+// GetResources is a helper method to define mock.On call
+//   - context1 context.Context
 //   - getResourcesInput *resourcegroupstaggingapi.GetResourcesInput
-//   - options ...request.Option
-func (_e *AWSTaggingClient_Expecter) GetResourcesWithContext(v interface{}, getResourcesInput interface{}, options ...interface{}) *AWSTaggingClient_GetResourcesWithContext_Call {
-	return &AWSTaggingClient_GetResourcesWithContext_Call{Call: _e.mock.On("GetResourcesWithContext",
-		append([]interface{}{v, getResourcesInput}, options...)...)}
+//   - fns ...func(*resourcegroupstaggingapi.Options)
+func (_e *AWSTaggingClient_Expecter) GetResources(context1 interface{}, getResourcesInput interface{}, fns ...interface{}) *AWSTaggingClient_GetResources_Call {
+	return &AWSTaggingClient_GetResources_Call{Call: _e.mock.On("GetResources",
+		append([]interface{}{context1, getResourcesInput}, fns...)...)}
 }
 
-func (_c *AWSTaggingClient_GetResourcesWithContext_Call) Run(run func(v aws.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, options ...request.Option)) *AWSTaggingClient_GetResourcesWithContext_Call {
+func (_c *AWSTaggingClient_GetResources_Call) Run(run func(context1 context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options))) *AWSTaggingClient_GetResources_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 aws.Context
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(aws.Context)
+			arg0 = args[0].(context.Context)
 		}
 		var arg1 *resourcegroupstaggingapi.GetResourcesInput
 		if args[1] != nil {
 			arg1 = args[1].(*resourcegroupstaggingapi.GetResourcesInput)
 		}
-		var arg2 []request.Option
-		variadicArgs := make([]request.Option, len(args)-2)
+		var arg2 []func(*resourcegroupstaggingapi.Options)
+		variadicArgs := make([]func(*resourcegroupstaggingapi.Options), len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
-				variadicArgs[i] = a.(request.Option)
+				variadicArgs[i] = a.(func(*resourcegroupstaggingapi.Options))
 			}
 		}
 		arg2 = variadicArgs
@@ -115,12 +115,12 @@ func (_c *AWSTaggingClient_GetResourcesWithContext_Call) Run(run func(v aws.Cont
 	return _c
 }
 
-func (_c *AWSTaggingClient_GetResourcesWithContext_Call) Return(getResourcesOutput *resourcegroupstaggingapi.GetResourcesOutput, err error) *AWSTaggingClient_GetResourcesWithContext_Call {
+func (_c *AWSTaggingClient_GetResources_Call) Return(getResourcesOutput *resourcegroupstaggingapi.GetResourcesOutput, err error) *AWSTaggingClient_GetResources_Call {
 	_c.Call.Return(getResourcesOutput, err)
 	return _c
 }
 
-func (_c *AWSTaggingClient_GetResourcesWithContext_Call) RunAndReturn(run func(v aws.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, options ...request.Option) (*resourcegroupstaggingapi.GetResourcesOutput, error)) *AWSTaggingClient_GetResourcesWithContext_Call {
+func (_c *AWSTaggingClient_GetResources_Call) RunAndReturn(run func(context1 context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error)) *AWSTaggingClient_GetResources_Call {
 	_c.Call.Return(run)
 	return _c
 }

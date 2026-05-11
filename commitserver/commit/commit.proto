@@ -20,6 +20,10 @@ message CommitHydratedManifestsRequest {
   repeated PathDetails paths = 6;
   // DryCommitMetadata contains metadata about the DRY commit, such as the author and committer.
   github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RevisionMetadata dryCommitMetadata = 7;
+  // AuthorName is the author name to use for the commit. If empty, defaults to "Argo CD".
+  string authorName = 8;
+  // AuthorEmail is the author email to use for the commit. If empty, defaults to "argo-cd@example.com".
+  string authorEmail = 9;
 }
 
 // PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests

@@ -90,7 +90,7 @@ func TestRegistryLogin(t *testing.T) {
 			repo:        "my.registry.com/repo",
 			creds:       &HelmCreds{},
 			execErr:     errors.New("exit status 1"),
-			expectedErr: errors.New("failed to login to registry: failed to get command args to log: exit status 1"),
+			expectedErr: errors.New("failed to login to registry: failed running helm: exit status 1"),
 		},
 		{
 			name:        "invalid repo",
@@ -131,6 +131,36 @@ func TestRegistryLogin(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestDependencyBuild(t *testing.T) {
+	tests := []struct {
+		name        string
+		insecure    bool
+		expectedOut string
+	}{
+		{
+			name:        "without insecure",
+			insecure:    false,
+			expectedOut: "helm dependency build",
+		},
+		{
+			name:        "with insecure",
+			insecure:    true,
+			expectedOut: "helm dependency build --insecure-skip-tls-verify",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				return strings.Join(cmd.Args, " "), nil
+			})
+			require.NoError(t, err)
+			out, err := c.dependencyBuild(tc.insecure)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedOut, out)
 		})
 	}
 }

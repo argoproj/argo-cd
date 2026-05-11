@@ -289,7 +289,7 @@ Plugin commands have access to
 You may leave the `name` field
 empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure 
 it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly 
-specified only that particular plugin will be used iff its discovery pattern/command matches the provided application repo.
+specified only that particular plugin will be used if its discovery pattern/command matches the provided application repo.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -457,7 +457,7 @@ Sidecar plugins can use either discovery rules or a plugin name to match Applica
 then you have to explicitly specify the plugin by name in the app spec or else that particular plugin will not match any app.
 
 If you want to use discovery instead of the plugin name to match applications to your plugin, write rules applicable to 
-your plugin [using the instructions above](#1-write-the-plugin-configuration-file) and add them to your configuration 
+your plugin [using the instructions above](#write-discovery-rules-for-your-plugin) and add them to your configuration 
 file.
 
 To use the name instead of discovery, update the name in your application manifest to `<metadata.name>-<spec.version>` 

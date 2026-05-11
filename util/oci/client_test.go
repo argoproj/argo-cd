@@ -5,16 +5,22 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
@@ -183,7 +189,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("error resolving oci repo from digest, sha256:nonexistentdigest: not found"),
+			expectedError: errors.New("error resolving oci manifest for digest sha256:nonexistentdigest: sha256:nonexistentdigest: not found"),
 		},
 		{
 			name: "extraction with helm chart",
@@ -243,6 +249,31 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				digestFunc: func(store *memory.Store) string {
 					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
 					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
+				},
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
+					manifestDir, err := os.ReadDir(path)
+					require.NoError(t, err)
+					require.Len(t, manifestDir, 1)
+					require.Equal(t, "foo.yaml", manifestDir[0].Name())
+					f, err := os.Open(filepath.Join(path, manifestDir[0].Name()))
+					require.NoError(t, err)
+					contents, err := io.ReadAll(f)
+					require.NoError(t, err)
+					require.Equal(t, "some content", string(contents))
+				},
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
+		{
+			name: "extraction with docker rootfs tar.gzip layer",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.docker.image.rootfs.diff.tar.gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes("application/vnd.docker.image.rootfs.diff.tar.gzip", layerBlob), layerBlob})
 				},
 				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
 					manifestDir, err := os.ReadDir(path)
@@ -736,6 +767,88 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	}
 }
 
+func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
+	// Regression test for https://github.com/argoproj/argo-cd/issues/27521:
+	// DigestMetadata must work on any replica without relying on a local tar
+	// populated by a prior Extract.
+	pushManifest := func(t *testing.T, store *memory.Store, annotations map[string]string) string {
+		t.Helper()
+		configBlob := []byte("config")
+		configDesc := content.NewDescriptorFromBytes("application/vnd.cncf.helm.config.v1+json", configBlob)
+		manifestBlob, err := json.Marshal(imagev1.Manifest{
+			Versioned:   specs.Versioned{SchemaVersion: 2},
+			Config:      configDesc,
+			Annotations: annotations,
+		})
+		require.NoError(t, err)
+		manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
+		require.NoError(t, store.Push(t.Context(), configDesc, bytes.NewReader(configBlob)))
+		require.NoError(t, store.Push(t.Context(), manifestDesc, bytes.NewReader(manifestBlob)))
+		require.NoError(t, store.Tag(t.Context(), manifestDesc, manifestDesc.Digest.String()))
+		return manifestDesc.Digest.String()
+	}
+
+	t.Run("succeeds without any local tar cache", func(t *testing.T) {
+		store := memory.New()
+		annotations := map[string]string{
+			"org.opencontainers.image.version": "1.2.3",
+			"org.opencontainers.image.authors": "me@example.com",
+		}
+		sha := pushManifest(t, store, annotations)
+
+		// Note: no WithImagePaths — there is no local cache directory at all,
+		// mirroring a repo-server replica that never ran Extract for this digest.
+		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil,
+			WithEventHandlers(fakeEventHandlers(t, "repo")))
+
+		manifest, err := c.DigestMetadata(t.Context(), sha)
+		require.NoError(t, err)
+		require.NotNil(t, manifest)
+		assert.Equal(t, annotations, manifest.Annotations)
+	})
+
+	t.Run("propagates not-found errors from the remote", func(t *testing.T) {
+		store := memory.New()
+		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil,
+			WithEventHandlers(fakeEventHandlers(t, "repo")))
+
+		_, err := c.DigestMetadata(t.Context(), "sha256:0000000000000000000000000000000000000000000000000000000000000000")
+		require.Error(t, err)
+	})
+}
+
+func TestNewClientUsesHTTP2(t *testing.T) {
+	t.Run("should negotiate HTTP/2 when TLS is configured", func(t *testing.T) {
+		var requestProtos []string
+		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestProtos = append(requestProtos, r.Proto)
+			t.Logf("called %s with proto %s", r.URL.Path, r.Proto)
+			w.WriteHeader(http.StatusOK)
+		}))
+		// httptest.NewTLSServer only advertises http/1.1 in ALPN, so we must
+		// configure the server to also offer h2 for HTTP/2 negotiation to work.
+		server.TLS = &tls.Config{NextProtos: []string{"h2", "http/1.1"}}
+		server.StartTLS()
+		t.Cleanup(server.Close)
+
+		serverURL, err := url.Parse(server.URL)
+		require.NoError(t, err)
+
+		// NewClient expects oci://host/path format.
+		repoURL := "oci://" + serverURL.Host + "/myorg/myrepo"
+		client, err := NewClient(repoURL, Creds{InsecureSkipVerify: true}, "", "", nil,
+			WithEventHandlers(fakeEventHandlers(t, serverURL.Host+"/myorg/myrepo")))
+		require.NoError(t, err)
+
+		// TestRepo pings the registry's /v2/ endpoint, exercising the transport.
+		_, _ = client.TestRepo(t.Context())
+
+		require.NotEmpty(t, requestProtos, "expected at least one request to the server")
+		hasHTTP2 := slices.Contains(requestProtos, "HTTP/2.0")
+		assert.True(t, hasHTTP2, "expected at least one HTTP/2 request, but got protocols: %v", requestProtos)
+	})
+}
+
 func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 	t.Helper()
 	return EventHandlers{
@@ -745,6 +858,9 @@ func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 		OnTestRepo:        func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
 		OnGetTags:         func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
 		OnGetTagsFail: func(repo string) func() {
+			return func() { require.Equal(t, repoURL, repo) }
+		},
+		OnTestRepoFail: func(repo string) func() {
 			return func() { require.Equal(t, repoURL, repo) }
 		},
 		OnExtractFail: func(repo string) func(revision string) {

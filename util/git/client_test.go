@@ -121,25 +121,30 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial commit", "-a")
 	require.NoError(t, err)
 
-	atag := client.IsAnnotatedTag("master")
+	err = runCmd(ctx, client.Root(), "git", "tag", "annot-tag", "-a", "-m", "Create annotated tag")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, client.Root(), "git", "tag", "light-tag")
+	require.NoError(t, err)
+
+	atag := client.IsAnnotatedTag("HEAD")
 	assert.False(t, atag)
 
-	err = runCmd(ctx, client.Root(), "git", "tag", "some-tag", "-a", "-m", "Create annotated tag")
+	atag = client.IsAnnotatedTag("master")
+	assert.False(t, atag)
+
+	atag = client.IsAnnotatedTag("blorp")
+	assert.False(t, atag)
+
+	sha, err := client.CommitSHA()
 	require.NoError(t, err)
-	atag = client.IsAnnotatedTag("some-tag")
+	atag = client.IsAnnotatedTag(sha)
+	assert.False(t, atag)
+
+	atag = client.IsAnnotatedTag("annot-tag")
 	assert.True(t, atag)
 
-	// Tag effectually points to HEAD, so it's considered the same
-	atag = client.IsAnnotatedTag("HEAD")
-	assert.True(t, atag)
-
-	err = runCmd(ctx, client.Root(), "git", "rm", "README")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "remove README", "-a")
-	require.NoError(t, err)
-
-	// We moved on, so tag doesn't point to HEAD anymore
-	atag = client.IsAnnotatedTag("HEAD")
+	atag = client.IsAnnotatedTag("light-tag")
 	assert.False(t, atag)
 }
 
@@ -405,7 +410,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
-	_, err = client.Checkout(commitSHA, false)
+	_, err = client.Checkout(commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
@@ -413,7 +418,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config
@@ -697,6 +702,11 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		currentCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 		require.NotEqual(t, baseCommitHash, currentCommitHash)
 
+		gitCurrentCommitMessage, err := outputCmd(ctx, tempDir, "git", "log", "--format=%B", "-n", "1", "HEAD")
+		require.NoError(t, err)
+		currentCommitMessage := strings.TrimSpace(string(gitCurrentCommitMessage))
+		require.Contains(t, currentCommitMessage, expectedBranch)
+
 		// get commit count on current branch, verify 1 -> orphan
 		gitCommitCount, err := outputCmd(ctx, tempDir, "git", "rev-list", "--count", actualBranch)
 		require.NoError(t, err)
@@ -888,7 +898,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// make a file then commit and push
@@ -1091,7 +1101,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	var wg sync.WaitGroup
 	callLsFiles := func(client Client, expectedFile string) {
 		defer wg.Done()
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			files, err := client.LsFiles("*", true)
 			require.NoError(t, err)
 			require.Contains(t, files, expectedFile)
@@ -1270,8 +1280,8 @@ func Test_GitNoDetachedMaintenance(t *testing.T) {
 	output, err := native.runCmdOutput(cmd, runOpts{CaptureStderr: true})
 	require.NoError(t, err)
 
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		if strings.Contains(line, "git maintenance run") {
 			assert.NotContains(t, output, "--detach", "Unexpected --detach when running git maintenance")
 			return
@@ -1307,7 +1317,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
@@ -1365,7 +1375,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
@@ -1429,7 +1439,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create the file inside repo root
@@ -1457,4 +1467,42 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	changed, err = client.HasFileChanged(filePath)
 	require.NoError(t, err)
 	require.True(t, changed, "expected modified file to be reported as changed")
+}
+
+func Test_LsSignatures_Error(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: %s", out)
+
+	err = runCmd(ctx, tempDir, "git", "log")
+	require.NoError(t, err)
+
+	tests := []struct {
+		revision    string
+		deep        bool
+		expectedMsg string
+	}{
+		{
+			revision:    "5555.*",
+			deep:        false,
+			expectedMsg: "version matching constraint not found",
+		},
+		{
+			revision:    "5555.*",
+			deep:        true,
+			expectedMsg: "version matching constraint not found",
+		},
+	}
+
+	for _, tt := range tests {
+		signatures, legacy, err := client.LsSignatures(tt.revision, tt.deep)
+		require.ErrorContains(t, err, tt.expectedMsg)
+		assert.Nil(t, signatures)
+		assert.Empty(t, legacy)
+	}
 }

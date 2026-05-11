@@ -3,6 +3,7 @@ package managedfields
 import (
 	"bytes"
 	"fmt"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +40,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 	}
 
 	for _, mf := range live.GetManagedFields() {
-		if trustedManager(mf.Manager, trustedManagers) {
+		if slices.Contains(trustedManagers, mf.Manager) {
 			err := normalize(mf, results)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error normalizing manager %s: %w", mf.Manager, err)
@@ -113,15 +114,4 @@ func newTypedResults(live, config *unstructured.Unstructured, pt *typed.Parseabl
 		config:     typedConfig,
 		comparison: comparison,
 	}, nil
-}
-
-// trustedManager will return true if trustedManagers contains curManager.
-// Returns false otherwise.
-func trustedManager(curManager string, trustedManagers []string) bool {
-	for _, m := range trustedManagers {
-		if m == curManager {
-			return true
-		}
-	}
-	return false
 }

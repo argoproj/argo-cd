@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cr_fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -201,8 +201,9 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		enforcer,
 		nil,
 		fakeAppsClientset,
-		appInformer,
+		appsetInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
+		nil,
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},

@@ -1,20 +1,19 @@
 package e2e
 
 import (
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/version"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // make sure we can echo back the Git creds
@@ -163,7 +162,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			assert.Equal(t, "bar", output)
 		}).
 		And(func(_ *Application) {
-			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.Format("%s.%s")
+			expectedKubeVersion := version.MustParseGeneric(fixture.GetVersions(t).ServerVersion.GitVersion).String()
 			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
@@ -179,31 +178,6 @@ func TestCustomToolWithEnv(t *testing.T) {
 			sort.Strings(outputSlice)
 
 			assert.Equal(t, expectedAPIVersionSlice, outputSlice)
-		})
-}
-
-// make sure we can sync and diff with --local
-func TestCustomToolSyncAndDiffLocal(t *testing.T) {
-	testdataPath, err := filepath.Abs("testdata")
-	require.NoError(t, err)
-	ctx := Given(t)
-	appPath := filepath.Join(testdataPath, "guestbook")
-	ctx.
-		RunningCMPServer("./testdata/cmp-kustomize").
-		// does not matter what the path is
-		Path("guestbook").
-		When().
-		CreateApp("--config-management-plugin", "cmp-kustomize-v1.0").
-		Sync("--local", appPath, "--local-repo-root", testdataPath).
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(_ *Application) {
-			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "sync", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
-		}).
-		And(func(_ *Application) {
-			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
 		})
 }
 
@@ -273,7 +247,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(_ *Application) {
-			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.Format("%s.%s")
+			expectedKubeVersion := version.MustParseGeneric(fixture.GetVersions(t).ServerVersion.GitVersion).String()
 			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)

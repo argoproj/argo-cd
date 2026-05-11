@@ -24,8 +24,8 @@ If the `kustomization.yaml` file exists at the location pointed to by `repoURL` 
 
 The following configuration options are available for Kustomize:
 
-* `namePrefix` is a prefix appended to resources for Kustomize apps
-* `nameSuffix` is a suffix appended to resources for Kustomize apps
+* `namePrefix` overrides the namePrefix in the kustomization.yaml for Kustomize apps
+* `nameSuffix` overrides the nameSuffix in the kustomization.yaml for Kustomize apps
 * `images` is a list of Kustomize image overrides
 * `replicas` is a list of Kustomize replica overrides
 * `commonLabels` is a string map of additional labels

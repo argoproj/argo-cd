@@ -14,8 +14,8 @@ import {ApplicationCreatePanel} from '../application-create-panel/application-cr
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import {ApplicationsFilter, FilteredApp, getFilterResults} from './applications-filter';
-import {ApplicationsStatusBar} from './applications-status-bar';
+import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
+import {AppsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
@@ -53,14 +53,14 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(projects: string[], appNamespace: string, objectListKind: string): Observable<models.AbstractApplication[]> {
-    return from(services.applications.list(projects, objectListKind, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
+function loadApplications(projects: string[], appNamespace: string): Observable<models.Application[]> {
+    return from(services.applications.list(projects, 'application', {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
-            const applications = applicationsList.items;
+            const applications = applicationsList.items as models.Application[];
             return merge(
                 from([applications]),
                 services.applications
-                    .watch(objectListKind, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .watch('application', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
                     .pipe(repeat())
                     .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -140,6 +140,13 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .split(',')
                                 .filter(item => !!item);
                         }
+                        if (params.get('targetRevision') != null) {
+                            viewPref.targetRevisionFilter = params
+                                .get('targetRevision')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
                         if (params.get('cluster') != null) {
                             viewPref.clustersFilter = params
                                 .get('cluster')
@@ -159,6 +166,20 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
+                        if (params.get('annotations') != null) {
+                            viewPref.annotationsFilter = params
+                                .get('annotations')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
+                        if (params.get('repo') != null) {
+                            viewPref.reposFilter = params
+                                .get('repo')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
                         return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
                     })
                 )
@@ -168,18 +189,21 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     );
 };
 
-function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
-    applications = applications.map(app => {
+function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+    const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
-        for (const resource of app.status.resources) {
-            if (resource.kind === 'Application') {
-                isAppOfAppsPattern = true;
-                break;
+        if (app.status?.resources) {
+            for (const resource of app.status.resources) {
+                if (resource.kind === 'Application') {
+                    isAppOfAppsPattern = true;
+                    break;
+                }
             }
         }
         return {...app, isAppOfAppsPattern};
     });
-    const filterResults = getFilterResults(applications, pref);
+    const filterResults = getAppFilterResults(processedApps, pref);
+
     return {
         filterResults,
         filteredApps: filterResults.filter(
@@ -388,7 +412,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
-export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKind: string}) => {
+export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const query = useQuery();
     const observableQuery$ = useObservableQuery();
     const appInput = tryJsonParse(query.get('new'));
@@ -399,10 +423,6 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
-
-    const objectListKind = props.objectListKind;
-    // isListOfApplications will be used when ApplicationSet routes are added
-    // const isListOfApplications = objectListKind === 'application';
 
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -415,10 +435,10 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 loaderRef.current.setData(applications);
             }
         }
-        services.applications.get(appName, appNamespace, objectListKind, 'normal');
+        services.applications.get(appName, appNamespace, 'application', 'normal');
     }
 
-    function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
+    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
         ctx.navigation.goto(
             '.',
@@ -428,9 +448,14 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
+                targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
+                repo: newPref.reposFilter.map(encodeURIComponent).join(','),
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                operation: newPref.operationFilter.join(',')
+                annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
+                operation: newPref.operationFilter.join(','),
+                // Keep URL and preferences consistent. When false, remove the param entirely.
+                showFavorites: newPref.showFavorites ? 'true' : null
             },
             {replace: true}
         );
@@ -461,12 +486,19 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                     key={pref.view}
                                     title={getPageTitle(pref.view)}
                                     useTitleOnly={true}
-                                    toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications'}]}}
+                                    toolbar={{
+                                        breadcrumbs: [
+                                            {
+                                                title: 'Applications',
+                                                path: props.match.url
+                                            }
+                                        ]
+                                    }}
                                     hideAuth={true}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
-                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace'), objectListKind))}
+                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace')))}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -474,7 +506,6 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                         )}>
                                         {(applications: models.Application[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
-                                            const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
                                             const handleCreatePanelClose = async () => {
                                                 const outsideDiv = document.querySelector('.sliding-panel__outside');
                                                 const closeButton = document.querySelector('.sliding-panel__close');
@@ -489,6 +520,10 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                     ctx.navigation.goto('.', {new: null}, {replace: true});
                                                 }
                                             };
+
+                                            const apps = applications as models.Application[];
+                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search);
+
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
@@ -517,7 +552,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                         }}
                                                     />
                                                     <div className='applications-list'>
-                                                        {applications.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
+                                                        {apps.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
                                                                 <h4>No applications available to you just yet</h4>
                                                                 <h5>Create new application to start managing resources in your cluster</h5>
@@ -535,7 +570,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                         {allpref => (
                                                                             <ApplicationsFilter
                                                                                 apps={filterResults}
-                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
                                                                                 pref={pref}
                                                                                 collapsed={allpref.hideSidebar}
                                                                             />
@@ -546,7 +581,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
 
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
-                                                                        header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
+                                                                        header={filteredApps.length > 1 && <AppsStatusBar applications={filteredApps} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
                                                                         preferencesKey='applications-list'
                                                                         page={pref.page}
@@ -558,7 +593,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                                     <a
                                                                                         onClick={() => {
                                                                                             AppsListPreferences.clearFilters(pref);
-                                                                                            onFilterPrefChanged(ctx, pref);
+                                                                                            onAppFilterPrefChanged(ctx, pref);
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>
@@ -630,7 +665,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                 mergeMap(params => {
                                                                     const syncApp = params.get('syncApp');
                                                                     const appNamespace = params.get('appNamespace');
-                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace, objectListKind))) || from([null]);
+                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace, 'application'))) || from([null]);
                                                                 })
                                                             )
                                                         }>
@@ -645,7 +680,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                     </DataLoader>
                                                     <SlidingPanel
                                                         isShown={!!appInput}
-                                                        onClose={() => handleCreatePanelClose()} //Separate handling for outside click.
+                                                        onClose={() => handleCreatePanelClose()}
                                                         header={
                                                             <div>
                                                                 <button

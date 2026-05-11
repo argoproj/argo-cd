@@ -85,7 +85,6 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			clearProxyEnv(t)
 			applyProxyEnv(t, tt.proxyEnv)

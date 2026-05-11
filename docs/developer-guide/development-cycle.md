@@ -23,11 +23,36 @@ All following commands in this guide assume the namespace is already set.
 kubectl config set-context --current --namespace=argocd
 ```
 
-### Pull in all build dependencies
+### Pull in all UI build dependencies
 
-As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required dependencies, issue:
+As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required UI dependencies (NPM packages), issue:
 
 * `make dep-ui` or `make dep-ui-local`
+
+These commands run `pnpm install --frozen-lockfile` command, which only brings package versions that are defined in the `pnpm-lock.yaml` file without trying to resolve and download new package versions.
+
+### Updating UI build dependencies
+
+If you need to add new UI dependencies or update existing ones you need 
+to run a `pnpm` command in the ./ui directory to resolve and download new packages. 
+
+You can run it in the docker container using the `make run-pnpm` make target.
+
+For example, to add new dependency `newpackage` you may run command like
+
+```shell
+make run-pnpm PNPM_COMMAND="add newpackage --ignore-scripts"
+```
+
+To upgrade an existing package:
+
+```shell
+make run-pnpm PNPM_COMMAND="update existingpackage@1.0.2 --ignore-scripts"
+```
+
+Please consider using best security practices when adding or upgrading
+NPM dependencies, such as this
+[guide](https://github.com/lirantal/npm-security-best-practices/blob/main/README.md).
 
 ### Generate API glue code and other assets
 
@@ -60,7 +85,7 @@ The Linter might make some automatic changes to your code, such as indentation f
 * Finally, after the Linter reports no errors, run `git status` or `git diff` to check for any changes made automatically by Lint
 * If there were automatic changes, commit them to your local branch
 
-If you touched UI code, you should also run the Yarn linter on it:
+If you touched UI code, you should also run the linter on it:
 
 * Run `make lint-ui` or `make lint-ui-local`
 * Fix any of the errors reported by it
