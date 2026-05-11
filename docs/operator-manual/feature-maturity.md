@@ -23,7 +23,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Cluster Sharding: round-robin][6]        | v2.8.0     | Alpha  |
 | [Dynamic Cluster Distribution][7]         | v2.9.0     | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | v2.12.0    | Alpha  |
-| [Service Account Impersonation][10]       | v2.13.0    | Alpha  |
+| [Service Account Impersonation][10]       | v2.13.0    | Beta   |
 | [Source Hydrator][11]                     | v2.14.0    | Alpha  |
 
 ## Unstable Configurations
@@ -38,7 +38,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 
 | Feature                             | Property                            | Status |
 | ----------------------------------- | ----------------------------------- | ------ |
-| [Service Account Impersonation][10] | `spec.destinationServiceAccounts.*` | Alpha  |
+| [Service Account Impersonation][10] | `spec.destinationServiceAccounts.*` | Beta   |
 
 ### ApplicationSet CRD
 
@@ -62,7 +62,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Cluster Sharding: round-robin][6]        | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=round-robin`          | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: consistent-hashing`         | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=consistent-hashing`   | Alpha  |
-| [Service Account Impersonation][10]       | `ConfigMap/argocd-cm`                         | `application.sync.impersonation.enabled`                    | Alpha  |
+| [Service Account Impersonation][10]       | `ConfigMap/argocd-cm`                         | `application.sync.impersonation.enabled`                    | Beta   |
 
 [2]: applicationset/Progressive-Syncs.md
 [3]: ../developer-guide/extensions/proxy-extensions.md

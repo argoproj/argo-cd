@@ -32,6 +32,7 @@ export interface AbstractAppDetailsPreferences {
     compactDiff: boolean;
     hideManagedFields?: boolean;
     orphanedResources: boolean;
+    showAppSetParent?: boolean;
 }
 
 export interface AppDetailsPreferences extends AbstractAppDetailsPreferences {
@@ -91,6 +92,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
 
         pref.clustersFilter = [];
         pref.namespacesFilter = [];
+        pref.reposFilter = [];
         pref.targetRevisionFilter = [];
         pref.projectsFilter = [];
         pref.syncFilter = [];
@@ -102,6 +104,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
     public syncFilter: string[];
     public autoSyncFilter: string[];
     public namespacesFilter: string[];
+    public reposFilter: string[];
     public clustersFilter: string[];
     public targetRevisionFilter: string[];
     public operationFilter: string[];
@@ -123,6 +126,9 @@ export interface ViewPreferences {
     hideSidebar: boolean;
     position: string;
     theme: string;
+    // Per-application notice dismissals, keyed by namespaced app + content hash.
+    // See application-notice/notice.ts (dismissalKey).
+    dismissedNotices?: {[key: string]: boolean};
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -140,6 +146,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
+        showAppSetParent: false,
         podView: {
             sortMode: 'node',
             hideUnschedulable: true
@@ -158,6 +165,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         annotationsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
+        reposFilter: new Array<string>(),
         targetRevisionFilter: new Array<string>(),
         clustersFilter: new Array<string>(),
         syncFilter: new Array<string>(),
@@ -175,7 +183,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     hideBannerContent: '',
     hideSidebar: false,
     position: '',
-    theme: 'auto'
+    theme: 'auto',
+    dismissedNotices: {}
 };
 
 export class ViewPreferencesService {
@@ -231,6 +240,7 @@ export class ViewPreferencesService {
         appList.annotationsFilter = appList.annotationsFilter || [];
         appList.projectsFilter = appList.projectsFilter || [];
         appList.namespacesFilter = appList.namespacesFilter || [];
+        appList.reposFilter = appList.reposFilter || [];
         appList.targetRevisionFilter = appList.targetRevisionFilter || [];
         appList.clustersFilter = appList.clustersFilter || [];
         appList.syncFilter = appList.syncFilter || [];

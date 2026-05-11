@@ -118,6 +118,38 @@ func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
 	assert.EqualError(t, err, "failed to set app instance label: unable to truncate label to not end with a special character")
 }
 
+func TestTruncateLabel_Short(t *testing.T) {
+	got, err := TruncateLabel("my-app")
+	require.NoError(t, err)
+	assert.Equal(t, "my-app", got)
+}
+
+func TestTruncateLabel_AtLimit(t *testing.T) {
+	val := "the-very-suspicious-name-with-precisely-sixty-three-characters0"
+	require.Len(t, val, LabelMaxLength)
+	got, err := TruncateLabel(val)
+	require.NoError(t, err)
+	assert.Equal(t, val, got)
+}
+
+func TestTruncateLabel_LongName(t *testing.T) {
+	got, err := TruncateLabel("my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters")
+	require.NoError(t, err)
+	assert.Equal(t, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-cha", got)
+	assert.LessOrEqual(t, len(got), LabelMaxLength)
+}
+
+func TestTruncateLabel_TrailingSpecialCharsStripped(t *testing.T) {
+	got, err := TruncateLabel("the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen")
+	require.NoError(t, err)
+	assert.Equal(t, "the-very-suspicious-name-with-precisely-sixty-three-characters", got)
+}
+
+func TestTruncateLabel_AllSpecialChars(t *testing.T) {
+	_, err := TruncateLabel("----------------------------------------------------------------")
+	assert.EqualError(t, err, "unable to truncate label to not end with a special character")
+}
+
 func TestRemoveAppInstance_LabelOnly(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
