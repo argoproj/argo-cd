@@ -15,8 +15,9 @@ import (
 )
 
 type SandboxRunOpts struct {
-	RODirs []string
-	RWDirs []string
+	RODirs  []string
+	ROFiles []string
+	RWDirs  []string
 }
 
 type SandboxImpl interface {
@@ -90,7 +91,9 @@ func GenerateDefaultSandboxConfig(ops *ToolOpts) (*ArgocdSandboxConfig, error) {
 	return cfg, nil
 }
 
-func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName string, args ...string) (*exec.Cmd, error) {
+func CommandContext(ctx context.Context,
+	sandboxRunOpts *SandboxRunOpts,
+	cmdName string, args ...string) (*exec.Cmd, error) {
 	var toolOpts *ToolOpts
 	switch {
 	case cmdName == "helm" && HelmToolOps.isEnabled:
@@ -108,6 +111,10 @@ func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName
 	binPath, err := exec.LookPath(cmdName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create command context for helm: %w", err)
+	}
+	//sandboxRunOpts := makeSandboxRunOpts(args...)
+	if sandboxRunOpts == nil {
+
 	}
 	args = makeSandboxCmdline(toolOpts, sandboxRunOpts, binPath, args...)
 	//  FIXME: w/o separate binary
