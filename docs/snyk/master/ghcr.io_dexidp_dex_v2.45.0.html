@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="46 known vulnerabilities found in 129 vulnerable dependency paths.">
+  <meta name="description" content="47 known vulnerabilities found in 131 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 3rd 2026, 12:44:23 am (UTC+00:00)</p>
+                <p class="timestamp">May 10th 2026, 12:45:45 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>46</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>129 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>47</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>131 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1192</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1410,6 +1410,93 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE323-OPENSSL-15993268">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Infinite loop</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.45.0/hairyhenderson/gomplate/v5 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/http2
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v5@* and golang.org/x/net/http2@v0.48.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v5@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@v0.48.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@v0.50.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/http2">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.</p>
+        <p>Affected versions of this package are vulnerable to Infinite loop. <br><br><strong>Go Vulnerability Report:</strong><br></p>
+        <p>When processing HTTP/2 SETTINGS frames, transport will enter an infinite loop of writing CONTINUATION frames if it receives a <code>SETTINGS_MAX_FRAME_SIZE</code> with a value of 0.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/http2</code> to version 0.53.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-4918">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/761581">Go Commit</a></li>
+        <li><a href="https://go.dev/cl/761640">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/78476">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/qcCIEXso47M">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-16535157">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
