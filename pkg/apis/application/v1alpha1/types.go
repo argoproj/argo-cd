@@ -546,6 +546,7 @@ type RefTarget struct {
 
 type RefTargetRevisionMapping map[string]*RefTarget
 
+// +protobuf.options.(gogoproto.goproto_stringer)=false
 // ApplicationSourceHelm holds helm specific options
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
