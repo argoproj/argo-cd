@@ -116,7 +116,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	}
 
 	// Fetch target objects from Git to know which hooks should exist
-	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, nil, proj, true)
 	if err != nil {
 		return false, err
 	}
