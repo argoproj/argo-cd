@@ -55,14 +55,13 @@ func (h *ApplicationSourceHelm) ValuesIsEmpty() bool {
 }
 
 // String returns a human-readable representation of ApplicationSourceHelm.
-// It replaces the auto-generated stringer (suppressed via the
-// +protobuf.options.(gogoproto.goproto_stringer)=false marker on the type)
-// so that ValuesObject is rendered as YAML rather than as a raw byte-array
-// dump, which previously flooded logs (see #18342).
+// It replaces the suppressed auto-generated stringer so  that
+// ValuesObject is rendered as YAML rather than as a raw byte-array
+// dump. See https://github.com/argoproj/argo-cd/issues/18342
 //
 // The format mirrors what gogo-proto produces for every other field, so the
 // only observable difference is the ValuesObject rendering. If new fields are
-// added to ApplicationSourceHelm, they must be added here as well — there is
+// added to ApplicationSourceHelm, they must be added here as well - there is
 // no codegen for this method.
 func (h *ApplicationSourceHelm) String() string {
 	if h == nil {
