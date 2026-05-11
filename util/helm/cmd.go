@@ -58,20 +58,192 @@ var redactor = func(text string) string {
 	return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 }
 
-func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
-	// cmd := exec.CommandContext(ctx, "helm", args...)
+func (c Cmd) addRegistryRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
+	numArgs := len(args)
+	if numArgs > 0 {
+		switch args[0] {
+		case "login":
+			// args[1] is registry arg
+			for idx := 2; idx < numArgs; idx++ {
+				switch args[idx] {
+				case "--username":
+					fallthrough
+				case "--password":
+					idx++
+					continue
+				case "--ca-file":
+					fallthrough
+				case "--cert-file":
+					fallthrough
+				case "--key-file":
+					idx++
+					if idx < numArgs {
+						opts.ROFiles = append(opts.ROFiles, args[idx])
+					}
+				case "--insecure":
+				default:
+
+				}
+			}
+		case "logout":
+		default:
+		}
+	}
+}
+
+func (c Cmd) addRepoRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
+	numArgs := len(args)
+	if numArgs > 0 {
+		switch args[0] {
+		case "add":
+			// args[1] is registry arg
+			for idx := 1; idx < numArgs; idx++ {
+				switch args[idx] {
+				case "--username":
+					fallthrough
+				case "--password":
+					idx++
+					continue
+				case "--cert-file":
+					fallthrough
+				case "--ca-file":
+					fallthrough
+				case "--key-file":
+					idx++
+					if idx < numArgs {
+						opts.ROFiles = append(opts.ROFiles, args[idx])
+					}
+				case "--insecure-skip-tls-verify":
+				case "--pass-credentials":
+				default:
+					// name url
+				}
+			}
+		case "logout":
+		default:
+		}
+	}
+}
+
+func (c Cmd) addPullRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
+	numArgs := len(args)
+	// from one because the first argument is Chart
+	idx := 0
+	if numArgs > 0 && !strings.HasPrefix(args[0], "--") {
+		// oci url
+		idx++
+	}
+	for ; idx < numArgs; idx++ {
+		switch args[idx] {
+		case "--destination":
+			fallthrough
+		case "--version":
+			fallthrough
+		case "--username":
+			fallthrough
+		case "--password":
+			idx++
+			continue
+		case "--ca-file":
+			fallthrough
+		case "--cert-file":
+			fallthrough
+		case "--key-file":
+			idx++
+			if idx < numArgs {
+				opts.ROFiles = append(opts.ROFiles, args[idx])
+			}
+			continue
+		case "--repo":
+			idx += 2
+			continue
+		case "--pass-credentials":
+		case "--insecure-skip-tls-verify":
+		default:
+
+		}
+	}
+}
+
+func (c Cmd) addTemplateRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
+	numArgs := len(args)
+	// from one because the first argument is Chart
+	for idx := 1; idx < numArgs; idx++ {
+		switch args[idx] {
+		// FIXME: can values be URL?
+		// FIXME: array limits
+
+		case "--name-template":
+			fallthrough
+		case "--namespace":
+			fallthrough
+		case "--kube-version":
+		case "--set":
+		case "--set-string":
+		case "--api-versions":
+			idx++
+			continue
+		case "--values":
+			idx++
+			if idx < numArgs {
+				opts.ROFiles = append(opts.ROFiles, args[idx])
+			}
+		case "--set-file":
+			idx++
+			if idx < numArgs {
+				arg := args[idx]
+				parts := strings.SplitN(arg, "=", 2)
+				if len(parts) > 1 {
+					// FIXME: unescape --set-file value?
+					opts.ROFiles = append(opts.ROFiles, parts[1])
+				}
+			}
+		case "--include-crds":
+		case "--skip-schema-validation":
+		case "--skip-tests":
+		default:
+
+		}
+	}
+}
+
+func (c Cmd) makeSandboxRunOpts(args ...string) *sandbox.SandboxRunOpts {
 	sandboxRunOpts := sandbox.SandboxRunOpts{
 		RWDirs: []string{
 			c.WorkDir,
 			c.helmHome,
 		},
 	}
-	cmd, err := sandbox.CommandContext(ctx, &sandboxRunOpts, "helm", args...)
+	if len(args) == 0 {
+		return &sandboxRunOpts
+	}
+	switch args[0] {
+	case "template":
+		c.addTemplateRuntimeOpts(&sandboxRunOpts, args[1:]...)
+	case "registry":
+		c.addRegistryRuntimeOpts(&sandboxRunOpts, args[1:]...)
+	case "repo":
+		c.addRepoRuntimeOpts(&sandboxRunOpts, args[1:]...)
+	case "pull":
+		c.addPullRuntimeOpts(&sandboxRunOpts, args[1:]...)
+	case "dependency":
+	case "show":
+		// nothing to do
+	}
+
+	return &sandboxRunOpts
+}
+
+func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
+	// cmd := exec.CommandContext(ctx, "helm", args...)
+	// FIXME run this only  when the tool is enabled!
+	sandboxRunOpts := c.makeSandboxRunOpts(args...)
+	cmd, err := sandbox.CommandContext(ctx, sandboxRunOpts, "helm", args...)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create command context for helm: %w", err)
 	}
 	cmd.Dir = c.WorkDir
-	//cmd.Env = os.Environ()
+	// cmd.Env = os.Environ()
 	if !c.IsLocal {
 		cmd.Env = append(cmd.Env,
 			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
