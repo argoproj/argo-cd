@@ -64,9 +64,9 @@ jobs:
         run: |
           set -xue
           # Update the require line to reference the gitops-engine tag that will be created at release time
-          # Handles both semver (v3.4.1) and pseudo-versions (v0.0.0-20260212142940-0cdd44bda77a)
+          # Requires semver matching the major version (e.g. v3.4.1 for gitops-engine/v3)
           GE_VERSION="v${{ inputs.TARGET_VERSION }}"
-          sed -i "s|github.com/argoproj/argo-cd/gitops-engine v[^ ]*|github.com/argoproj/argo-cd/gitops-engine ${GE_VERSION}|" go.mod
+          sed -i "s|github.com/argoproj/argo-cd/gitops-engine/v3 v[^ ]*|github.com/argoproj/argo-cd/gitops-engine/v3 ${GE_VERSION}|" go.mod
 
         # We install kustomize in the dist directory
       - name: Add dist to PATH

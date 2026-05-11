@@ -14,7 +14,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.37.0
-	github.com/argoproj/argo-cd/gitops-engine v0.0.0-20260507145512-134b428d78ca // Tagged as gitops-engine/vX.Y.Z at release time
+	github.com/argoproj/argo-cd/gitops-engine/v3 v3.5.0 // Tagged as gitops-engine/vX.Y.Z at release time
 	github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717
 	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go-v2 v1.41.7
@@ -364,4 +364,4 @@ replace (
 	k8s.io/sample-controller => k8s.io/sample-controller v0.34.0
 )
 
-replace github.com/argoproj/argo-cd/gitops-engine => ./gitops-engine
+replace github.com/argoproj/argo-cd/gitops-engine/v3 => ./gitops-engine

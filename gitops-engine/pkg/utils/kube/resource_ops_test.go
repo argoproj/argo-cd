@@ -9,8 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
