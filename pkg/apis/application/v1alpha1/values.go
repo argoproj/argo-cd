@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,14 +69,18 @@ func (h *ApplicationSourceHelm) String() string {
 		return "nil"
 	}
 	repeatedStringForParameters := "[]HelmParameter{"
+	var repeatedStringForParametersSb71 strings.Builder
 	for _, f := range h.Parameters {
-		repeatedStringForParameters += strings.Replace(strings.Replace(f.String(), "HelmParameter", "HelmParameter", 1), `&`, ``, 1) + ","
+		repeatedStringForParametersSb71.WriteString(strings.Replace(strings.Replace(f.String(), "HelmParameter", "HelmParameter", 1), `&`, ``, 1) + ",")
 	}
+	repeatedStringForParameters += repeatedStringForParametersSb71.String()
 	repeatedStringForParameters += "}"
 	repeatedStringForFileParameters := "[]HelmFileParameter{"
+	var repeatedStringForFileParametersSb76 strings.Builder
 	for _, f := range h.FileParameters {
-		repeatedStringForFileParameters += strings.Replace(strings.Replace(f.String(), "HelmFileParameter", "HelmFileParameter", 1), `&`, ``, 1) + ","
+		repeatedStringForFileParametersSb76.WriteString(strings.Replace(strings.Replace(f.String(), "HelmFileParameter", "HelmFileParameter", 1), `&`, ``, 1) + ",")
 	}
+	repeatedStringForFileParameters += repeatedStringForFileParametersSb76.String()
 	repeatedStringForFileParameters += "}"
 
 	valuesObjectStr := "nil"
@@ -85,22 +90,23 @@ func (h *ApplicationSourceHelm) String() string {
 		valuesObjectStr = "&runtime.RawExtension{" + h.ValuesString() + "}"
 	}
 
-	return strings.Join([]string{`&ApplicationSourceHelm{`,
+	return strings.Join([]string{
+		`&ApplicationSourceHelm{`,
 		`ValueFiles:` + fmt.Sprintf("%v", h.ValueFiles) + `,`,
 		`Parameters:` + repeatedStringForParameters + `,`,
-		`ReleaseName:` + fmt.Sprintf("%v", h.ReleaseName) + `,`,
-		`Values:` + fmt.Sprintf("%v", h.Values) + `,`,
+		`ReleaseName:` + h.ReleaseName + `,`,
+		`Values:` + h.Values + `,`,
 		`FileParameters:` + repeatedStringForFileParameters + `,`,
-		`Version:` + fmt.Sprintf("%v", h.Version) + `,`,
-		`PassCredentials:` + fmt.Sprintf("%v", h.PassCredentials) + `,`,
-		`IgnoreMissingValueFiles:` + fmt.Sprintf("%v", h.IgnoreMissingValueFiles) + `,`,
-		`SkipCrds:` + fmt.Sprintf("%v", h.SkipCrds) + `,`,
+		`Version:` + h.Version + `,`,
+		`PassCredentials:` + strconv.FormatBool(h.PassCredentials) + `,`,
+		`IgnoreMissingValueFiles:` + strconv.FormatBool(h.IgnoreMissingValueFiles) + `,`,
+		`SkipCrds:` + strconv.FormatBool(h.SkipCrds) + `,`,
 		`ValuesObject:` + valuesObjectStr + `,`,
-		`Namespace:` + fmt.Sprintf("%v", h.Namespace) + `,`,
-		`KubeVersion:` + fmt.Sprintf("%v", h.KubeVersion) + `,`,
+		`Namespace:` + h.Namespace + `,`,
+		`KubeVersion:` + h.KubeVersion + `,`,
 		`APIVersions:` + fmt.Sprintf("%v", h.APIVersions) + `,`,
-		`SkipTests:` + fmt.Sprintf("%v", h.SkipTests) + `,`,
-		`SkipSchemaValidation:` + fmt.Sprintf("%v", h.SkipSchemaValidation) + `,`,
+		`SkipTests:` + strconv.FormatBool(h.SkipTests) + `,`,
+		`SkipSchemaValidation:` + strconv.FormatBool(h.SkipSchemaValidation) + `,`,
 		`}`,
 	}, "")
 }
