@@ -139,7 +139,7 @@ func NewProjectSourceIntegrityGitPoliciesListCommand(clientOpts *argocdclient.Cl
 
 func listGitGpgPolicies(out io.Writer, proj *v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "ID\tGPG-MODE\tGPG-KEYS\tREPO-URLS\n")
+	_, _ = fmt.Fprintln(w, "ID\tGPG-MODE\tGPG-KEYS\tREPO-URLS")
 	for i, policy := range proj.Spec.SourceIntegrity.Git.Policies {
 		gpgMode := "<none>"
 		gpgKeys := "<none>"
