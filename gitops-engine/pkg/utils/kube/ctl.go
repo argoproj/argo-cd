@@ -31,6 +31,7 @@ type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 
 type Kubectl interface {
 	ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error)
+	ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources) (diff.KubeApplier, func(), error)
 	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
@@ -301,7 +302,8 @@ func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.
 	}, cleanup, nil
 }
 
-func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
+// ManageServerSideDiffDryRuns creates a KubeApplier for server-side diff dry runs
+func (k *KubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources) (diff.KubeApplier, func(), error) {
 	f, err := os.CreateTemp(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %w", err)
@@ -320,9 +322,9 @@ func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Reso
 		config:        config,
 		fact:          fact,
 		openAPISchema: openAPISchema,
-		tracer:        tracer,
-		log:           log,
-		onKubectlRun:  onKubectlRun,
+		tracer:        k.Tracer,
+		log:           k.Log,
+		onKubectlRun:  k.OnKubectlRun,
 	}, cleanup, nil
 }
 
@@ -373,7 +375,7 @@ func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun OnKubectlRunFunc) {
 func RunAllAsync(count int, action func(i int) error) error {
 	g, ctx := errgroup.WithContext(context.Background())
 loop:
-	for i := 0; i < count; i++ {
+	for i := range count {
 		index := i
 		g.Go(func() error {
 			return action(index)

@@ -2374,6 +2374,65 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 	}
 }
 
+func TestAppProject_EffectiveSourceIntegrity(t *testing.T) {
+	sourceIntegrity := func(repo string, mode SourceIntegrityGitPolicyGPGMode, keys ...string) *SourceIntegrity {
+		return &SourceIntegrity{
+			Git: &SourceIntegrityGit{
+				Policies: []*SourceIntegrityGitPolicy{{
+					Repos: []SourceIntegrityGitPolicyRepo{{URL: repo}},
+					GPG: &SourceIntegrityGitPolicyGPG{
+						Mode: mode,
+						Keys: keys,
+					},
+				}},
+			},
+		}
+	}
+	tests := []struct {
+		name     string
+		spec     AppProjectSpec
+		expected *SourceIntegrity
+	}{
+		{
+			name:     "no old, no new",
+			spec:     AppProjectSpec{},
+			expected: nil,
+		}, {
+			name: "no old, new unchanged",
+			spec: AppProjectSpec{
+				SourceIntegrity: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "FOO"),
+			},
+			expected: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "FOO"),
+		}, {
+			name: "old, no new",
+			spec: AppProjectSpec{
+				SignatureKeys: []SignatureKey{{"LEGACY"}, {"KEYS"}, {"FOUND"}},
+			},
+			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeHead, "LEGACY", "KEYS", "FOUND"),
+		}, {
+			name: "old ignored, replaced",
+			spec: AppProjectSpec{
+				SignatureKeys:   []SignatureKey{{"LEGACY"}, {"KEYS"}, {"FOUND"}},
+				SourceIntegrity: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
+			},
+			expected: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
+		}, {
+			name: "old, not using Git checks",
+			spec: AppProjectSpec{
+				SignatureKeys:   []SignatureKey{{KeyID: "LEGACY_KEY"}},
+				SourceIntegrity: &SourceIntegrity{}, // Once something non-git is supported, needs checking they merge
+			},
+			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeHead, "LEGACY_KEY"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			appProj := &AppProject{Spec: tt.spec, ObjectMeta: metav1.ObjectMeta{Name: "sut"}}
+			assert.Equal(t, tt.expected, appProj.EffectiveSourceIntegrity())
+		})
+	}
+}
+
 func TestAppProjectSpecWindowWithDescription(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	require.NoError(t, proj.Spec.AddWindow("allow", "* * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, "Ticket AAAAA", false))
@@ -4501,6 +4560,72 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			},
 			sourceIndex: 0,
 			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+		},
+		{
+			name: "HasSourceHydrator_NegativeIndex_ReturnsDrySource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: -1,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "dry-path",
+				TargetRevision: "main",
+			},
+		},
+		{
+			name: "HasSourceHydrator_ZeroIndex_ReturnsSyncSource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: 0,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "sync-path",
+				TargetRevision: "hydrated",
+			},
+		},
+		{
+			name: "HasSourceHydrator_PositiveIndex_ReturnsSyncSource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: 1,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "sync-path",
+				TargetRevision: "hydrated",
+			},
 		},
 	}
 
