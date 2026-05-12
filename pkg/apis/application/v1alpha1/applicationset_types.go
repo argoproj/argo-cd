@@ -53,9 +53,9 @@ type ConfigMapKeyRef struct {
 // +kubebuilder:subresource:status
 type ApplicationSet struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"` // Common: shared with Application
-	Spec              ApplicationSetSpec                                     `json:"spec" protobuf:"bytes,2,opt,name=spec"`               // Common: shared with Application (different type)
-	Status            ApplicationSetStatus                                   `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"` // Common: shared with Application (different type)
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`                            // Common: shared with Application
+	Spec              ApplicationSetSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`               // Common: shared with Application (different type)
+	Status            ApplicationSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"` // Common: shared with Application (different type)
 }
 
 // RBACName formats fully qualified application name for RBAC check.
@@ -871,7 +871,6 @@ const (
 	ApplicationSetReasonErrorOccurred                    = "ErrorOccurred"
 	ApplicationSetReasonApplicationSetUpToDate           = "ApplicationSetUpToDate"
 	ApplicationSetReasonParametersGenerated              = "ParametersGenerated"
-	ApplicationSetReasonApplicationGenerated             = "ApplicationGeneratedSuccessfully"
 	ApplicationSetReasonUpdateApplicationError           = "UpdateApplicationError"
 	ApplicationSetReasonApplicationParamsGenerationError = "ApplicationGenerationFromParamsError"
 	ApplicationSetReasonRenderTemplateParamsError        = "RenderTemplateParamsError"
@@ -881,7 +880,8 @@ const (
 	ApplicationSetReasonApplicationValidationError       = "ApplicationValidationError"
 	ApplicationSetReasonApplicationSetModified           = "ApplicationSetModified"
 	ApplicationSetReasonApplicationSetRolloutComplete    = "ApplicationSetRolloutComplete"
-	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
+	ApplicationSetReasonApplicationSetRolloutError       = "ApplicationSetRolloutError"
+	ApplicationSetReasonInvalidRolloutConfig             = "InvalidRolloutConfig"
 )
 
 // Represents resource health status
