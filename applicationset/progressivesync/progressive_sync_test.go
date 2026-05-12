@@ -2061,7 +2061,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 					// Should have the refresh annotation
 					assert.NotNil(t, retrievedApp.Annotations)
 					assert.Equal(t, string(v1alpha1.RefreshTypeNormal), retrievedApp.Annotations[v1alpha1.AnnotationKeyRefresh])
-					assert.Len(t, len(retrievedApp.Annotations), tt.expectAnnotationLength)
+					assert.Len(t, retrievedApp.Annotations, tt.expectAnnotationLength)
 				}
 			}
 		})
