@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
 	"os"
@@ -725,7 +724,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusMethodNotAllowed
 		}
 		log.Infof("Webhook processing failed: %v", err)
-		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
+		http.Error(w, "Webhook processing failed", status)
 		return
 	}
 
