@@ -651,4 +651,11 @@ export class ApplicationsService {
             .query({appsetNamespace: appNamespace})
             .then(res => (res.body as models.EventList).items || []);
     }
+
+    public appSetGenerate(appSet: models.ApplicationSet): Promise<models.Application[]> {
+        return requests
+            .post(`/applicationsets/generate`)
+            .send({applicationSet: appSet})
+            .then(res => (res.body as {applications?: models.Application[]}).applications || []);
+    }
 }

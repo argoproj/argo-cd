@@ -8,6 +8,7 @@ import {Context} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {HealthStatusIcon, getAppSetHealthStatus, getAppSetConditionCategory} from '../utils';
+import {AppSetPreviewTab} from './appset-preview-tab';
 import './resource-details.scss';
 
 interface AppSetResourceDetailsProps {
@@ -112,6 +113,11 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                         </DataLoader>
                     </div>
                 )
+            },
+            {
+                title: 'PREVIEW',
+                key: 'preview',
+                content: <AppSetPreviewTab appSet={appSet} />
             }
         ];
 
