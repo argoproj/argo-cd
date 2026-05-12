@@ -1067,7 +1067,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 
 	keys := map[string]bool{}
-	for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation} {
+	for _, obj := range []*unstructured.Unstructured{target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation} {
 		if obj == nil {
 			continue
 		}
@@ -1080,12 +1080,12 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 
 	var err error
-	target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, keys, "data")
+	target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, err = hide(target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, keys, "data")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, hideAnnotations, "metadata", "annotations")
+	target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, err = hide(target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, hideAnnotations, "metadata", "annotations")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1127,12 +1127,12 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	return target, live, nil
 }
 
-func hide(target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation *unstructured.Unstructured, keys map[string]bool, fields ...string) (*unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, error) {
+func hide(target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation *unstructured.Unstructured, keys map[string]bool, fields ...string) (*unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, error) {
 	for k := range keys {
 		// we use "+" rather than the more common "*"
 		nextReplacement := replacement
 		valToReplacement := make(map[string]string)
-		for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation} {
+		for _, obj := range []*unstructured.Unstructured{target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation} {
 			var data map[string]any
 			if obj != nil {
 				// handles an edge case when secret data has nil value
@@ -1170,7 +1170,7 @@ func hide(target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation *
 			}
 		}
 	}
-	return target, live, liveLastAppliedAnnotation, targetLastAppliedAnnotation, nil
+	return target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, nil
 }
 
 func toString(val any) string {
