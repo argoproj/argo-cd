@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/resource"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLabels []string) {
@@ -40,6 +41,16 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 
 	for k, v := range un.GetAnnotations() {
 		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			// Annotation values may be either a bare URL or "title|url"; validate
+			// the URL portion to prevent XSS via javascript:/data:/vbscript: URIs
+			// when the value is rendered as an href in the UI.
+			urlPart := v
+			if idx := strings.Index(v, "|"); idx >= 0 {
+				urlPart = v[idx+1:]
+			}
+			if err := settings.ValidateExternalURL(urlPart); err != nil {
+				continue
+			}
 			if res.NetworkingInfo == nil {
 				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
 			}
