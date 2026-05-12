@@ -74,6 +74,7 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
+	EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, []string, error)
 	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
@@ -124,6 +125,78 @@ type appStateManager struct {
 	repoErrorGracePeriod  time.Duration
 	serverSideDiff        bool
 	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
+}
+
+// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
+// If it does not, then the cached manifests are updated to the current revisions.
+// Returns whether any changes were detected across all sources and the resolved revision per source (same order as sources).
+func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, []string, error) {
+	hasChanges := false
+
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get app instance label key: %w", err)
+	}
+
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get trackingMethod: %w", err)
+	}
+
+	installationID, err := m.settingsMgr.GetInstallationID()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get installation ID: %w", err)
+	}
+
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get destination cluster: %w", err)
+	}
+
+	var serverVersion string
+	var apiVersions []string
+	if sendRuntimeState {
+		var apiResources []kubeutil.APIResourceInfo
+		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(destCluster)
+		if err != nil {
+			return false, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
+		}
+		apiVersions = argo.APIResourcesToStrings(apiResources, true)
+	}
+
+	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to connect to repo server: %w", err)
+	}
+	defer utilio.Close(conn)
+
+	refSources, err := argo.GetRefSources(ctx, sources, app.Spec.Project, m.db.GetRepository, revisions)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get ref sources: %w", err)
+	}
+
+	var syncedRefSources v1alpha1.RefTargetRevisionMapping
+	if app.Spec.HasMultipleSources() {
+		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
+	}
+
+	resolvedRevisions := make([]string, 0, len(sources))
+	for i, source := range sources {
+		if len(revisions) < len(sources) || revisions[i] == "" {
+			revisions[i] = source.TargetRevision
+		}
+		resolvedRev, revisionsMayHaveChanges, err := m.evaluateRevisionChanges(ctx, app, source, i, revisions[i], refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient)
+		if err != nil {
+			return false, nil, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
+		}
+		resolvedRevisions = append(resolvedRevisions, resolvedRev)
+
+		if revisionsMayHaveChanges {
+			hasChanges = true
+		}
+	}
+
+	return hasChanges, resolvedRevisions, nil
 }
 
 // GetRepoObjs will generate the manifests for the given application delegating the
@@ -202,12 +275,14 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 	ts.AddCheckpoint("build_options_ms")
 	var serverVersion string
-	var apiResources []kubeutil.APIResourceInfo
+	var apiVersions []string
 	if sendRuntimeState {
+		var apiResources []kubeutil.APIResourceInfo
 		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(destCluster)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
 		}
+		apiVersions = argo.APIResourcesToStrings(apiResources, true)
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -232,33 +307,27 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	}
 
 	revisionsMayHaveChanges := false
-
-	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
-
-	sourceCount := len(sources)
 	for i, source := range sources {
-		if len(revisions) < sourceCount || revisions[i] == "" {
+		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
-		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
-		}
-
 		revision := revisions[i]
 
-		appNamespace := app.Spec.Destination.Namespace
-		apiVersions := argo.APIResourcesToStrings(apiResources, true)
-
-		// Evaluate if the revision has changes
-		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, repoClient, app, &source, i, repo, revision, refSources, syncedRefSources, noRevisionCache, appLabelKey, serverVersion, apiVersions, trackingMethod, installationID, keyManifestGenerateAnnotationExists, keyManifestGenerateAnnotationVal)
+		// Use evaluateRevisionChanges to check for changes and get resolved revision
+		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, app, source, i, revision, refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
 		}
+
 		if hasChanges {
 			revisionsMayHaveChanges = true
 		}
+
+		// Use the resolved revision from evaluateRevisionChanges
 		revision = resolvedRevision
+		revisions[i] = resolvedRevision
+
+		appNamespace := app.Spec.Destination.Namespace
 
 		repos := permittedHelmRepos
 		helmRepoCreds := permittedHelmCredentials
@@ -270,6 +339,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			helmRepoCreds = slices.Clone(permittedHelmCredentials)
 			repos = append(repos, permittedOCIRepos...)
 			helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
+		}
+
+		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
@@ -300,7 +374,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			InstallationID:                  installationID,
 		})
 		if err != nil {
-			genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, sourceCount, err)
+			genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 			if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
 				genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
 			}
@@ -309,18 +383,18 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, sourceCount, err)
+			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
 		}
 		targetObjs = append(targetObjs, targetObj...)
 		manifestInfos = append(manifestInfos, manifestInfo)
 
 		// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
-		if sourceCount > 1 {
+		if len(sources) > 1 {
 			var sourceId string
 			if source.Name != "" {
 				sourceId = "source " + source.Name
 			} else {
-				sourceId = fmt.Sprintf("source %d of %d", i+1, sourceCount)
+				sourceId = fmt.Sprintf("source %d of %d", i+1, len(sources))
 			}
 			manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
 		}
@@ -337,62 +411,62 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
 }
 
-// evaluateRevisionChanges determines if a source revision has changes compared to the synced revision.
-// Returns the resolved revision, whether changes were detected, and any error.
-func (m *appStateManager) evaluateRevisionChanges(
-	ctx context.Context,
-	repoClient apiclient.RepoServerServiceClient,
-	app *v1alpha1.Application,
-	source *v1alpha1.ApplicationSource,
-	sourceIndex int,
-	repo *v1alpha1.Repository,
-	revision string,
-	refSources map[string]*v1alpha1.RefTarget,
-	syncedRefSources v1alpha1.RefTargetRevisionMapping,
-	noRevisionCache bool,
-	appLabelKey string,
-	serverVersion string,
-	apiVersions []string,
-	trackingMethod string,
-	installationID string,
-	keyManifestGenerateAnnotationExists bool,
-	keyManifestGenerateAnnotationVal string,
-) (string, bool, error) {
-	// For ref source specifically, we always return false since their change are evaluated as part of the source
-	// referencing them.
-	if source.IsRef() {
-		return revision, false, nil
+// evaluateRevisionChanges checks if a single source revision has changes without generating manifests.
+// Returns the resolved revision and whether changes were detected.
+func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, sourceIndex int, revision string, refSources v1alpha1.RefTargetRevisionMapping, syncedRefSources v1alpha1.RefTargetRevisionMapping, noRevisionCache bool, trackingMethod string, appLabelKey string, installationID string, serverVersion string, apiVersions []string, proj *v1alpha1.AppProject, repoClient apiclient.RepoServerServiceClient) (string, bool, error) {
+	alwaysResolveRevision := false
+	if revision == "" {
+		revision = source.TargetRevision
 	}
 
-	// Determine the synced revision and source type for this specific source
-	var syncedRevision string
-	if app.Spec.HasMultipleSources() {
+	// Determine the synced revision and source type for comparison
+	syncedRevision := app.Status.Sync.Revision
+	if app.Spec.SourceHydrator != nil {
+		if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
+			// Always resolve the revision even if UpdateRevisionForPaths is not called so we can
+			// correctly compare it with the syncedRevision
+			alwaysResolveRevision = true
+			sourceIndex = -1 // Special case allowing GetSourcePtrByIndex() to return the dry source
+			// Use LastComparedDryRevision as the synced revision for cache lookups
+			syncedRevision = app.Status.SourceHydrator.LastComparedDryRevision
+		}
+	} else if app.Spec.HasMultipleSources() {
 		if sourceIndex < len(app.Status.Sync.Revisions) {
 			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
+		} else {
+			syncedRevision = ""
 		}
-	} else {
-		syncedRevision = app.Status.Sync.Revision
 	}
 
-	// if revisions are the same (and we are not using reference sources), we know there is no changes
-	if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+	if source.IsRef() {
+		// For ref source specifically, we always return false since their change are evaluated as part of the source
+		// referencing them.
 		return revision, false, nil
 	}
 
-	appNamespace := app.Spec.Destination.Namespace
+	if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+		// if revisions are the same (and we are not using reference sources), we know there is no changes
+		// TODO: Could be optimized to not call the repo server at all if we know this specific source does not use reference.
+		return revision, false, nil
+	}
+	repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
+	}
 
-	if repo.Depth == 0 && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
-		// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
+	keyManifestGenerateAnnotationVal := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
+
+	if syncedRevision != "" && repo.Depth == 0 && keyManifestGenerateAnnotationVal != "" {
 		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 			Repo:               repo,
 			Revision:           revision,
 			SyncedRevision:     syncedRevision,
 			NoRevisionCache:    noRevisionCache,
-			Paths:              path.GetSourceRefreshPaths(app, *source),
+			Paths:              path.GetSourceRefreshPaths(app, source),
 			AppLabelKey:        appLabelKey,
 			AppName:            app.InstanceName(m.namespace),
-			Namespace:          appNamespace,
-			ApplicationSource:  source,
+			Namespace:          app.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
 			KubeVersion:        serverVersion,
 			ApiVersions:        apiVersions,
 			TrackingMethod:     trackingMethod,
@@ -402,18 +476,36 @@ func (m *appStateManager) evaluateRevisionChanges(
 			InstallationID:     installationID,
 		})
 		if err != nil {
-			return "", false, err
+			return "", false, fmt.Errorf("failed to update revision for paths: %w", err)
 		}
 
-		// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+		resolvedRevision := revision
 		if updateRevisionResult.Revision != "" {
-			revision = updateRevisionResult.Revision
+			resolvedRevision = updateRevisionResult.Revision
 		}
 
-		return revision, updateRevisionResult.Changes, nil
+		return resolvedRevision, updateRevisionResult.Changes, nil
+	} else if alwaysResolveRevision {
+		resp, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+			Repo:              repo,
+			App:               app,
+			AmbiguousRevision: revision,
+			SourceIndex:       int64(sourceIndex),
+			NoRevisionCache:   noRevisionCache,
+		})
+		if err != nil {
+			return "", false, fmt.Errorf("failed to resolve revision: %w", err)
+		}
+		revision = resp.Revision
+
+		if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+			// if revisions are the same (and we are not using reference sources), we know there is no changes
+			return revision, false, nil
+		}
+		return revision, true, nil
 	}
 
-	// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+	// For any types of sources where we cannot know if revision has changed, we return true as we cannot make assumptions.
 	return revision, true, nil
 }
 
