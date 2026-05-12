@@ -42,7 +42,7 @@ func newVersionConverter(t TypeConverter, o runtime.ObjectConvertor, h schema.Gr
 		hubGetter: func(from schema.GroupVersion) schema.GroupVersion {
 			return schema.GroupVersion{
 				Group:   from.Group,
-				Version: h.Version,
+				Version: runtime.APIVersionInternal,
 			}
 		},
 	}
