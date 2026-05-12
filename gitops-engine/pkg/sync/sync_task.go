@@ -157,7 +157,7 @@ func (t *syncTask) resourceKey() kube.ResourceKey {
 		// To prevent resource lookup issues, we always rely on the namespace of the live object if it is available.
 		// This logic will work for both cluster scoped and namespace scoped resources.
 		//
-		// Refer to https://github.com/argoproj/argo-cd/gitops-engine/v3/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/pkg/sync/sync_context.go#L827-L833
+		// Refer to https://github.com/argoproj/argo-cd/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/gitops-engine/pkg/sync/sync_context.go#L827-L833
 		resourceKey.Namespace = t.liveObj.GetNamespace()
 	}
 	return resourceKey

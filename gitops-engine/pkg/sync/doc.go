@@ -100,6 +100,6 @@ in-sync and healthy.
 
 # Example
 
-Find real-life example in https://github.com/argoproj/argo-cd/gitops-engine/v3/blob/master/pkg/engine/engine.go
+Find real-life example in https://github.com/argoproj/argo-cd/blob/master/gitops-engine/pkg/engine/engine.go
 */
 package sync

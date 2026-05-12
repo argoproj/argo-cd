@@ -38,8 +38,8 @@ for file in .mockery.yaml gitops-engine/go.mod gitops-engine/README.md; do
   sed -i.bak "s~github\.com/argoproj/argo-cd/gitops-engine/v${CURRENT_VERSION}~github\.com/argoproj/argo-cd/gitops-engine/v${NEXT_VERSION}~g" "$file" && echo "  Updated $file" && rm "$file.bak"
 done
 
-echo "Incrementing the gitops-engine major version in go files..."
-find . -name '*.go' -not -path "./vendor/*" -not -path "./dist/*" -exec sed -i.bak "s~github\.com/argoproj/argo-cd/gitops-engine/v${CURRENT_VERSION}~github\.com/argoproj/argo-cd/gitops-engine/v${NEXT_VERSION}~g" {} \; -exec echo "  Updated" {} \; -exec rm {}.bak \;
+echo "Incrementing the gitops-engine major version in go files avoiding comments..."
+find . -name '*.go' -not -path "./vendor/*" -not -path "./dist/*" -exec sed -i.bak "/https:\/\//! s~github\.com/argoproj/argo-cd/gitops-engine/v${CURRENT_VERSION}~github\.com/argoproj/argo-cd/gitops-engine/v${NEXT_VERSION}~g" {} \; -exec echo "  Updated" {} \; -exec rm {}.bak \;
 
 # shellcheck disable=SC2016
 echo 'Finished! Now run `make codegen-local && make lint-local && make test-local` to ensure everything is working as expected.'
