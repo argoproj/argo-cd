@@ -720,10 +720,10 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const groupedResources = state.groupedResourceIds?.length
                                 ? allResources.filter(res => state.groupedResourceIds.includes(res.uid) || state.groupedResourceIds.includes(AppUtils.nodeKey(res)))
                                 : [];
-                            const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
+                            const openGroupNodeDetails = (groupedNodeIds: string[]) => {
                                 setState(prevState => ({
                                     ...prevState,
-                                    groupedResourceIds: groupdedNodeIds || [],
+                                    groupedResourceIds: groupedNodeIds || [],
                                     slidingPanelPage: 0
                                 }));
                             };
