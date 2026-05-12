@@ -13,7 +13,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
-	github.com/alicebob/miniredis/v2 v2.37.0
+	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
 	github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717
 	github.com/argoproj/pkg/v2 v2.0.1
@@ -105,7 +105,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.51.0
-	golang.org/x/net v0.53.0
+	golang.org/x/net v0.54.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.43.0
