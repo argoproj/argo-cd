@@ -32,7 +32,7 @@ interface ResourceDetailsProps {
     isAppSelected: boolean;
     tree: ApplicationTree;
     appCxt: AppContext;
-    appChanged?: BehaviorSubject<any>;
+    appChanged?: BehaviorSubject<models.AbstractApplication>;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
