@@ -1684,9 +1684,13 @@ export function getContainerName(pod: any, containerIndex: number | null): strin
     if (containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
         return pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container'];
     }
-    const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
-    const container = containers[containerIndex || 0];
-    return container.name;
+    const containers = (pod.spec?.containers || []).concat(pod.spec?.initContainers || []);
+    if (containers.length === 0) {
+        return '';
+    }
+    const idx = containerIndex ?? 0;
+    const container = containers[idx] ?? containers[0];
+    return container?.name ?? '';
 }
 
 export function isYoungerThanXMinutes(pod: any, x: number): boolean {
@@ -1801,6 +1805,14 @@ export function getAppUrl(app: appModels.AbstractApplication): string {
         return `${basePath}/${app.metadata.name}`;
     }
     return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
+}
+
+/** RollingSync step for display; backend uses -1 when no step matches the app's labels. */
+export function formatApplicationSetProgressiveSyncStep(step: string | undefined): string {
+    if (step === '-1') {
+        return 'Step: unmatched label';
+    }
+    return `Step: ${step ?? ''}`;
 }
 
 export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string; isButton?: boolean}) => {

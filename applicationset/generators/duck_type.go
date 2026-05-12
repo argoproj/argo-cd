@@ -162,7 +162,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		}
 
 		for key, value := range clusterDecision.(map[string]any) {
-			params[key] = value.(string)
+			params[key] = fmt.Sprintf("%v", value)
 		}
 
 		for key, value := range appSetGenerator.ClusterDecisionResource.Values {
@@ -198,12 +198,12 @@ func buildClusterDecisions(duckResources *unstructured.UnstructuredList, statusL
 func findCluster(clustersFromArgoCD []utils.ClusterSpecifier, cluster any, matchKey string, statusListKey string) *utils.ClusterSpecifier {
 	log.Infof("cluster: %v", cluster)
 	matchValue := cluster.(map[string]any)[matchKey]
-	if matchValue == nil || matchValue.(string) == "" {
+	if matchValue == nil || fmt.Sprintf("%v", matchValue) == "" {
 		log.Warningf("matchKey=%v not found in \"%v\" list: %v\n", matchKey, statusListKey, cluster.(map[string]any))
 		return nil // no match
 	}
 
-	strMatchValue := matchValue.(string)
+	strMatchValue := fmt.Sprintf("%v", matchValue)
 	log.WithField(matchKey, strMatchValue).Debug("validate against ArgoCD")
 
 	for _, argoCluster := range clustersFromArgoCD {

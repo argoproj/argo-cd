@@ -178,6 +178,13 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 }
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{})
+	enabled, err := settingsManager.IsInClusterEnabled()
+	require.NoError(t, err)
+	require.True(t, enabled)
+}
+
+func TestGetSettings_InClusterIsEnabledWithMissingServerSecretKey(t *testing.T) {
 	kubeClient := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -198,15 +205,15 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 				},
 			},
 			Data: map[string][]byte{
-				"admin.password":   nil,
-				"server.secretkey": nil,
+				"admin.password": nil,
 			},
 		},
 	)
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	settings, err := settingsManager.GetSettings()
+	// IsInClusterEnabled reads ConfigMap directly and does not depend on server.secretkey
+	enabled, err := settingsManager.IsInClusterEnabled()
 	require.NoError(t, err)
-	assert.True(t, settings.InClusterEnabled)
+	require.True(t, enabled)
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
@@ -1492,7 +1499,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should have internal cert at this point
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 
 		externalTLSSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1575,7 +1582,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should now have an internal cert
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
@@ -1612,7 +1619,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
-		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "argocd-e2e-server")
 	})
 }
 
@@ -2166,6 +2173,49 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
 	require.NoError(t, err,
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
+}
+
+func TestIsInClusterEnabled(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then IsInClusterEnabled() must return true (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	enabled, err := settingsManager.IsInClusterEnabled()
+	require.True(t, enabled,
+		"with no argocd-cm config map, IsInClusterEnabled() must return true (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, IsInClusterEnabled() must return an error")
+
+	// When there is no in-cluster flag present in the argocd-cm,
+	// Then IsInClusterEnabled() must return true (default value) and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{})
+	enabled, err = settingsManager.IsInClusterEnabled()
+	require.True(t, enabled,
+		"with empty argocd-cm config map, IsInClusterEnabled() must return true (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, IsInClusterEnabled() must not return any error")
+
+	// When user disables in-cluster explicitly,
+	// Then IsInClusterEnabled() must return false and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"cluster.inClusterEnabled": "false",
+	})
+	enabled, err = settingsManager.IsInClusterEnabled()
+	require.False(t, enabled,
+		"when user sets the flag to false in argocd-cm config map, IsInClusterEnabled() must return false")
+	require.NoError(t, err,
+		"when user sets the flag to false in argocd-cm config map, IsInClusterEnabled() must not return any error")
+
+	// When user enables in-cluster explicitly,
+	// Then IsInClusterEnabled() must return true and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"cluster.inClusterEnabled": "true",
+	})
+	enabled, err = settingsManager.IsInClusterEnabled()
+	require.True(t, enabled,
+		"when user sets the flag to true in argocd-cm config map, IsInClusterEnabled() must return true")
+	require.NoError(t, err,
+		"when user sets the flag to true in argocd-cm config map, IsInClusterEnabled() must not return any error")
 }
 
 func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {

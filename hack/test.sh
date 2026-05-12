@@ -9,6 +9,10 @@ which gotestsum || go install gotest.tools/gotestsum@latest
 
 TEST_RESULTS=${TEST_RESULTS:-test-results}
 TEST_FLAGS=${TEST_FLAGS:-}
+DIST_DIR=${DIST_DIR:-dist}
+
+# Add DIST_DIR to PATH so binaries installed for argo are found first
+export PATH="${DIST_DIR}:${PATH}"
 
 if test "${ARGOCD_TEST_PARALLELISM:-}" != ""; then
 	TEST_FLAGS="$TEST_FLAGS -p $ARGOCD_TEST_PARALLELISM"

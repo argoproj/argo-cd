@@ -25,7 +25,7 @@ type Consequences struct {
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
 	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
-	c.context.t.Helper()
+	c.context.T().Helper()
 	var message string
 	var state state
 	sleepIntervals := []time.Duration{
@@ -50,19 +50,19 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 			log.Infof("expectation succeeded: %s", message)
 			return c
 		case failed:
-			c.context.t.Fatalf("failed expectation: %s", message)
+			c.context.T().Fatalf("failed expectation: %s", message)
 			return c
 		}
 		log.Infof("pending: %s", message)
 	}
-	c.context.t.Fatal("timeout waiting for: " + message)
+	c.context.T().Fatal("timeout waiting for: " + message)
 	return c
 }
 
 // ExpectConsistently will continuously evaluate a condition, and it must be true each time it is evaluated, otherwise the test is failed. The condition will be repeatedly evaluated until 'expirationDuration' is met, waiting 'waitDuration' after each success.
 func (c *Consequences) ExpectConsistently(e Expectation, waitDuration time.Duration, expirationDuration time.Duration) *Consequences {
 	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
-	c.context.t.Helper()
+	c.context.T().Helper()
 
 	expiration := time.Now().Add(expirationDuration)
 	for time.Now().Before(expiration) {
@@ -71,7 +71,7 @@ func (c *Consequences) ExpectConsistently(e Expectation, waitDuration time.Durat
 		case succeeded:
 			log.Infof("expectation succeeded: %s", message)
 		case failed:
-			c.context.t.Fatalf("failed expectation: %s", message)
+			c.context.T().Fatalf("failed expectation: %s", message)
 			return c
 		}
 
@@ -85,13 +85,13 @@ func (c *Consequences) ExpectConsistently(e Expectation, waitDuration time.Durat
 }
 
 func (c *Consequences) And(block func(app *v1alpha1.Application)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.app())
 	return c
 }
 
 func (c *Consequences) AndAction(block func()) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block()
 	return c
 }
@@ -106,9 +106,9 @@ func (c *Consequences) When() *Actions {
 }
 
 func (c *Consequences) app() *v1alpha1.Application {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	app, err := c.get()
-	require.NoError(c.context.t, err)
+	require.NoError(c.context.T(), err)
 	return app
 }
 
@@ -117,16 +117,16 @@ func (c *Consequences) get() (*v1alpha1.Application, error) {
 }
 
 func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceStatus {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-	require.NoError(c.context.t, err)
+	require.NoError(c.context.T(), err)
 	defer utilio.Close(closer)
 	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
 		Name:         ptr.To(c.context.AppName()),
 		Projects:     []string{c.context.project},
 		AppNamespace: ptr.To(c.context.appNamespace),
 	})
-	require.NoError(c.context.t, err)
+	require.NoError(c.context.T(), err)
 	for _, r := range app.Status.Resources {
 		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
 			return r
@@ -141,7 +141,7 @@ func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceS
 }
 
 func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.actions.lastOutput, c.actions.lastError)
 	return c
 }

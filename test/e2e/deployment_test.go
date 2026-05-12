@@ -70,7 +70,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
     argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
-`, ctx.AppName(), DeploymentNamespace()))
+`, ctx.AppName(), ctx.DeploymentNamespace()))
 		})
 }
 
@@ -116,7 +116,7 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
     argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
-`, ctx.AppName(), DeploymentNamespace()))
+`, ctx.AppName(), ctx.DeploymentNamespace()))
 		})
 }
 
@@ -128,19 +128,20 @@ func TestDeployToKubernetesAPIURLWithQueryParameter(t *testing.T) {
 	// We test with both a cluster-scoped, and a non-cluster scoped, Argo CD Cluster Secret.
 	clusterScopedParam := []bool{false, true}
 	for _, clusterScoped := range clusterScopedParam {
-		EnsureCleanState(t)
+		ctx := Given(t)
 
 		// Simulate two users, each with their own Argo CD cluster secret that can only deploy to their Namespace
-		users := []string{E2ETestPrefix + "user1", E2ETestPrefix + "user2"}
+		users := []string{"user1", "user2"}
 
 		for _, username := range users {
-			createNamespaceScopedUser(t, username, clusterScoped)
+			ns, _, destName := createNamespaceScopedUser(ctx, username, clusterScoped)
 
-			GivenWithSameState(t).
+			GivenWithSameState(ctx).
 				Name("e2e-test-app-"+username).
+				DestName(destName).
 				Path("deployment").
 				When().
-				CreateWithNoNameSpace("--dest-namespace", username).
+				CreateWithNoNameSpace("--dest-namespace", ns).
 				Sync().
 				Then().
 				Expect(OperationPhaseIs(OperationSucceeded)).
@@ -159,13 +160,23 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 	clusterScopedParam := []bool{ /*false,*/ true}
 
 	for _, clusterScoped := range clusterScopedParam {
-		EnsureCleanState(t)
+		ctx := Given(t)
 
 		// Simulate two users, each with their own Argo CD cluster secret that can only deploy to their Namespace
-		users := []string{E2ETestPrefix + "user1", E2ETestPrefix + "user2"}
+		users := []string{"user1", "user2"}
+		nsInfo := make(map[string]struct {
+			namespace      string
+			serviceAccount string
+			destName       string
+		})
 
 		for _, username := range users {
-			createNamespaceScopedUser(t, username, clusterScoped)
+			ns, sa, destName := createNamespaceScopedUser(ctx, username, clusterScoped)
+			nsInfo[username] = struct {
+				namespace      string
+				serviceAccount string
+				destName       string
+			}{namespace: ns, serviceAccount: sa, destName: destName}
 		}
 
 		for idx, username := range users {
@@ -174,21 +185,21 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 			otherUser := users[(idx+1)%len(users)]
 
 			// e.g. Attempt to deploy to user1's namespace, with user2's cluster Secret. This should fail, as user2's cluster Secret does not have the requisite permissions.
-			consequences := GivenWithSameState(t).
+			consequences := GivenWithSameState(ctx).
 				Name("e2e-test-app-"+username).
-				DestName(E2ETestPrefix+"cluster-"+otherUser).
+				DestName(nsInfo[otherUser].destName).
 				Path("deployment").
 				When().
-				CreateWithNoNameSpace("--dest-namespace", username).IgnoreErrors().
+				CreateWithNoNameSpace("--dest-namespace", nsInfo[username].namespace).IgnoreErrors().
 				Sync().Then()
 
 			// The error message differs based on whether the Argo CD Cluster Secret is namespace-scoped or cluster-scoped, but the idea is the same:
 			// - Even when deploying to the same cluster using 2 separate ServiceAccounts, the RBAC of those ServiceAccounts should continue to fully enforce RBAC boundaries.
 
 			if !clusterScoped {
-				consequences.Expect(Condition(ApplicationConditionComparisonError, "Namespace \""+username+"\" for Deployment \"nginx-deployment\" is not managed"))
+				consequences.Expect(Condition(ApplicationConditionComparisonError, "Namespace \""+nsInfo[username].namespace+"\" for Deployment \"nginx-deployment\" is not managed"))
 			} else {
-				consequences.Expect(OperationMessageContains("User \"system:serviceaccount:" + otherUser + ":" + otherUser + "-serviceaccount\" cannot create resource \"deployments\" in API group \"apps\" in the namespace \"" + username + "\""))
+				consequences.Expect(OperationMessageContains("User \"system:serviceaccount:" + nsInfo[otherUser].namespace + ":" + nsInfo[otherUser].serviceAccount + "\" cannot create resource \"deployments\" in API group \"apps\" in the namespace \"" + nsInfo[username].namespace + "\""))
 			}
 		}
 	}
@@ -196,10 +207,13 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 
 // generateReadOnlyClusterRoleandBindingForServiceAccount creates a ClusterRole/Binding that allows a ServiceAccount in a given namespace to read all resources on a cluster.
 // - This allows the ServiceAccount to be used within a cluster-scoped Argo CD Cluster Secret
-func generateReadOnlyClusterRoleandBindingForServiceAccount(roleSuffix string, serviceAccountNS string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
+func generateReadOnlyClusterRoleandBindingForServiceAccount(c *Context, username, serviceAccountName, namespace string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
 	clusterRole := rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: E2ETestPrefix + "read-all-" + roleSuffix,
+			Name: DnsFriendly("read-all-"+username, "-"+c.ShortID()),
+			Labels: map[string]string{
+				TestingLabel: "true",
+			},
 		},
 		Rules: []rbacv1.PolicyRule{{
 			Verbs:     []string{"get", "list", "watch"},
@@ -210,12 +224,15 @@ func generateReadOnlyClusterRoleandBindingForServiceAccount(roleSuffix string, s
 
 	clusterRoleBinding := rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: E2ETestPrefix + "read-all-" + roleSuffix,
+			Name: DnsFriendly("read-all-"+username, "-"+c.ShortID()),
+			Labels: map[string]string{
+				TestingLabel: "true",
+			},
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      rbacv1.ServiceAccountKind,
-			Namespace: serviceAccountNS,
-			Name:      roleSuffix + "-serviceaccount",
+			Namespace: namespace,
+			Name:      serviceAccountName,
 		}},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -258,26 +275,29 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 // createNamespaceScopedUser
 // - username = name of Namespace the simulated user is able to deploy to
 // - clusterScopedSecrets = whether the Service Account is namespace-scoped or cluster-scoped.
-func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecrets bool) {
-	t.Helper()
+func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets bool) (string, string, string) {
+	c.T().Helper()
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: username,
+			Name: DnsFriendly(username, "-"+c.ShortID()),
+			Labels: map[string]string{
+				TestingLabel: "true",
+			},
 		},
 	}
-	_, err := KubeClientset.CoreV1().Namespaces().Create(t.Context(), &ns, metav1.CreateOptions{})
-	require.NoError(t, err)
+	_, err := KubeClientset.CoreV1().Namespaces().Create(c.T().Context(), &ns, metav1.CreateOptions{})
+	require.NoError(c.T(), err)
 
 	// Create a ServiceAccount in that Namespace, which will be used for the Argo CD Cluster SEcret
-	serviceAccountName := username + "-serviceaccount"
+	serviceAccountName := DnsFriendly(username, "-sa-"+c.ShortID())
 	err = clusterauth.CreateServiceAccount(KubeClientset, serviceAccountName, ns.Name)
-	require.NoError(t, err)
+	require.NoError(c.T(), err)
 
 	// Create a Role that allows the ServiceAccount to read/write all within the Namespace
 	role := rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      E2ETestPrefix + "allow-all",
+			Name:      DnsFriendly("allow-all", "-"+c.ShortID()),
 			Namespace: ns.Name,
 		},
 		Rules: []rbacv1.PolicyRule{{
@@ -286,13 +306,13 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 			APIGroups: []string{"*"},
 		}},
 	}
-	_, err = KubeClientset.RbacV1().Roles(role.Namespace).Create(t.Context(), &role, metav1.CreateOptions{})
-	require.NoError(t, err)
+	_, err = KubeClientset.RbacV1().Roles(role.Namespace).Create(c.T().Context(), &role, metav1.CreateOptions{})
+	require.NoError(c.T(), err)
 
 	// Bind the Role with the ServiceAccount in the Namespace
 	roleBinding := rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      E2ETestPrefix + "allow-all-binding",
+			Name:      DnsFriendly("allow-all-binding", "-"+c.ShortID()),
 			Namespace: ns.Name,
 		},
 		Subjects: []rbacv1.Subject{{
@@ -306,32 +326,32 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 			Name:     role.Name,
 		},
 	}
-	_, err = KubeClientset.RbacV1().RoleBindings(roleBinding.Namespace).Create(t.Context(), &roleBinding, metav1.CreateOptions{})
-	require.NoError(t, err)
+	_, err = KubeClientset.RbacV1().RoleBindings(roleBinding.Namespace).Create(c.T().Context(), &roleBinding, metav1.CreateOptions{})
+	require.NoError(c.T(), err)
 
 	var token string
 
 	// Attempting to patch the ServiceAccount can intermittently fail with 'failed to patch serviceaccount "(...)" with bearer token secret: Operation cannot be fulfilled on serviceaccounts "(...)": the object has been modified; please apply your changes to the latest version and try again'
 	// We thus keep trying for up to 20 seconds.
-	waitErr := wait.PollUntilContextTimeout(t.Context(), 1*time.Second, 20*time.Second, true, func(context.Context) (done bool, err error) {
+	waitErr := wait.PollUntilContextTimeout(c.T().Context(), 1*time.Second, 20*time.Second, true, func(context.Context) (done bool, err error) {
 		// Retrieve the bearer token from the ServiceAccount
 		token, err = clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
 
 		// Success is no error and a real token, otherwise keep trying
 		return (err == nil && token != ""), nil
 	})
-	require.NoError(t, waitErr)
-	require.NotEmpty(t, token)
+	require.NoError(c.T(), waitErr)
+	require.NotEmpty(c.T(), token)
 
 	// In order to test a cluster-scoped Argo CD Cluster Secret, we may optionally grant the ServiceAccount read-all permissions at cluster scope.
 	if clusterScopedSecrets {
-		clusterRole, clusterRoleBinding := generateReadOnlyClusterRoleandBindingForServiceAccount(username, username)
+		clusterRole, clusterRoleBinding := generateReadOnlyClusterRoleandBindingForServiceAccount(c, username, serviceAccountName, ns.Name)
 
-		_, err := KubeClientset.RbacV1().ClusterRoles().Create(t.Context(), &clusterRole, metav1.CreateOptions{})
-		require.NoError(t, err)
+		_, err := KubeClientset.RbacV1().ClusterRoles().Create(c.T().Context(), &clusterRole, metav1.CreateOptions{})
+		require.NoError(c.T(), err)
 
-		_, err = KubeClientset.RbacV1().ClusterRoleBindings().Create(t.Context(), &clusterRoleBinding, metav1.CreateOptions{})
-		require.NoError(t, err)
+		_, err = KubeClientset.RbacV1().ClusterRoleBindings().Create(c.T().Context(), &clusterRoleBinding, metav1.CreateOptions{})
+		require.NoError(c.T(), err)
 	}
 
 	// Build the Argo CD Cluster Secret by using the service account token, and extracting needed values from kube config
@@ -343,10 +363,10 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 	}
 
 	jsonStringBytes, err := json.Marshal(clusterSecretConfigJSON)
-	require.NoError(t, err)
+	require.NoError(c.T(), err)
 
 	_, apiURL, err := extractKubeConfigValues()
-	require.NoError(t, err)
+	require.NoError(c.T(), err)
 
 	clusterResourcesField := ""
 	namespacesField := ""
@@ -358,13 +378,14 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 
 	// We create an Argo CD cluster Secret declaratively, using the K8s client, rather than via CLI, as the CLI doesn't currently
 	// support Kubernetes API server URLs with query parameters.
-
-	secret := buildArgoCDClusterSecret("test-"+username, ArgoCDNamespace, E2ETestPrefix+"cluster-"+username, apiURL+"?user="+username,
+	clusterName := DnsFriendly("test-"+username, "-"+c.ShortID())
+	secret := buildArgoCDClusterSecret(clusterName, ArgoCDNamespace, clusterName, apiURL+"?user="+username,
 		string(jsonStringBytes), clusterResourcesField, namespacesField)
 
 	// Finally, create the Cluster secret in the Argo CD E2E namespace
-	_, err = KubeClientset.CoreV1().Secrets(secret.Namespace).Create(t.Context(), &secret, metav1.CreateOptions{})
-	require.NoError(t, err)
+	_, err = KubeClientset.CoreV1().Secrets(secret.Namespace).Create(c.T().Context(), &secret, metav1.CreateOptions{})
+	require.NoError(c.T(), err)
+	return ns.Name, serviceAccountName, clusterName
 }
 
 // extractKubeConfigValues returns contents of the local environment's kubeconfig, using standard path resolution mechanism.

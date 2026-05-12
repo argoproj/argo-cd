@@ -45,6 +45,10 @@ fi
 # if the tag has not been declared, and we are on a release branch, use the VERSION file.
 if [ "$IMAGE_TAG" = "" ]; then
   branch=$(git rev-parse --abbrev-ref HEAD)
+  # In GitHub Actions PRs, HEAD is detached; use GITHUB_BASE_REF (the target branch) instead
+  if [ "$branch" = "HEAD" ] && [ -n "${GITHUB_BASE_REF:-}" ]; then
+    branch="$GITHUB_BASE_REF"
+  fi
   if [[ $branch = release-* ]]; then
     pwd
     IMAGE_TAG=v$(cat "$SRCROOT/VERSION")

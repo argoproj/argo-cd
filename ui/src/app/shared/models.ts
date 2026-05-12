@@ -531,7 +531,9 @@ export interface HydrateOperation {
     finishedAt?: models.Time;
     phase: HydrateOperationPhase;
     message: string;
+    // drySHA is the sha of the DRY commit being hydrated. This will be empty if the operation is not successful.
     drySHA: string;
+    // hydratedSHA is the sha of the hydrated commit. This will be empty if the operation is not successful.
     hydratedSHA: string;
     sourceHydrator: SourceHydrator;
 }
