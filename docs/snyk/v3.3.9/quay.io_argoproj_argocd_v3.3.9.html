@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="83 known vulnerabilities found in 213 vulnerable dependency paths.">
+  <meta name="description" content="87 known vulnerabilities found in 218 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 3rd 2026, 12:51:03 am (UTC+00:00)</p>
+                <p class="timestamp">May 10th 2026, 12:52:56 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>83</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>213 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>87</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>218 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2330</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -516,6 +516,93 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Infinite loop</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.3.9/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/http2
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and golang.org/x/net/http2@v0.48.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@v0.48.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@v0.47.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/http2">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.</p>
+        <p>Affected versions of this package are vulnerable to Infinite loop. <br><br><strong>Go Vulnerability Report:</strong><br></p>
+        <p>When processing HTTP/2 SETTINGS frames, transport will enter an infinite loop of writing CONTINUATION frames if it receives a <code>SETTINGS_MAX_FRAME_SIZE</code> with a value of 0.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/http2</code> to version 0.53.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-4918">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/761581">Go Commit</a></li>
+        <li><a href="https://go.dev/cl/761640">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/78476">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/qcCIEXso47M">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-16535157">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Untrusted Search Path</h2>
             <div class="card__section">
@@ -1528,6 +1615,88 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-TAR-15978866">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Time-of-check Time-of-use (TOCTOU)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.3.9/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            sed
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.3.9 and sed@4.9-2build2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sed@4.9-2build2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>sed</code> package and not the <code>sed</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
+        <p>When sed is invoked with both -i (in-place edit) and --follow-symlinks, the function open_next_file() performs two separate, non-atomic filesystem operations on the same path: </p>
+        <ol>
+        <li>resolves symlink to its target and stores the resolved path for determining when output is written,</li>
+        <li>opens the original symlink path (not the resolved one) to read the file. 
+        Between these two calls there is a race window. If an attacker atomically replaces the symlink with a different target during that window, sed will: read content from the new (attacker-chosen) symlink target and write the processed result to the path recorded in step 1. This can lead to arbitrary file overwrite with attacker-controlled content in the context of the sed process.</li>
+        </ol>
+        <p>This issue was fixed in version 4.10.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>sed</code> to version 4.9-2ubuntu0.25.10.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-5958">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-5958</a></li>
+        <li><a href="https://cert.pl/en/posts/2026/04/CVE-2026-5958">https://cert.pl/en/posts/2026/04/CVE-2026-5958</a></li>
+        <li><a href="https://www.gnu.org/software/sed/">https://www.gnu.org/software/sed/</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-SED-16117597">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4000,6 +4169,9 @@
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-35352">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-35352</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/05/04/4">http://www.openwall.com/lists/oss-security/2026/05/04/4</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/05/04/5">http://www.openwall.com/lists/oss-security/2026/05/04/5</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/05/04/6">http://www.openwall.com/lists/oss-security/2026/05/04/6</a></li>
         <li><a href="https://github.com/uutils/coreutils/issues/10020">https://github.com/uutils/coreutils/issues/10020</a></li>
         </ul>
         
@@ -5711,6 +5883,87 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Reachable Assertion</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.3.9/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            nghttp2/libnghttp2-14
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.3.9, git@1:2.51.0-1ubuntu1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.51.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.14.1-2ubuntu1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        nghttp2/libnghttp2-14@1.64.0-1.1ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>nghttp2</code> package and not the <code>nghttp2</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
+        <p>nghttp2 is an implementation of the Hypertext Transfer Protocol version 2 in C. Prior to version 1.68.1, the nghttp2 library stops reading the incoming data when user facing public API <code>nghttp2_session_terminate_session</code> or <code>nghttp2_session_terminate_session2</code> is called by the application. They might be called internally by the library when it detects the situation that is subject to connection error. Due to the missing internal state validation, the library keeps reading the rest of the data after one of those APIs is called. Then receiving a malformed frame that causes FRAME_SIZE_ERROR causes assertion failure. nghttp2 v1.68.1 adds missing state validation to avoid assertion failure. No known workarounds are available.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>nghttp2</code> to version 1.64.0-1.1ubuntu1.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-27135">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-27135</a></li>
+        <li><a href="https://github.com/nghttp2/nghttp2/commit/5c7df8fa815ac1004d9ecb9d1f7595c4d37f46e1">https://github.com/nghttp2/nghttp2/commit/5c7df8fa815ac1004d9ecb9d1f7595c4d37f46e1</a></li>
+        <li><a href="https://github.com/nghttp2/nghttp2/security/advisories/GHSA-6933-cjhr-5qg6">https://github.com/nghttp2/nghttp2/security/advisories/GHSA-6933-cjhr-5qg6</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/20/3">http://www.openwall.com/lists/oss-security/2026/03/20/3</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-NGHTTP2-15712602">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Verification of Cryptographic Signature</h2>
             <div class="card__section">
         
@@ -7090,7 +7343,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
         <p>It was discovered that dpkg-deb (a component of dpkg, the Debian package management system) does not properly validate the end of the data stream when uncompressing a zstd-compressed .deb archive, which may result in denial of service (infinite loop spinning the CPU).</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>dpkg</code>.</p>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>dpkg</code> to version 1.22.21ubuntu3.2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-2219">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-2219</a></li>
@@ -7166,7 +7419,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>curl</code>.</p>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>curl</code> to version 8.14.1-2ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-6253">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-6253</a></li>
@@ -7240,7 +7493,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>curl</code>.</p>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>curl</code> to version 8.14.1-2ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-5545">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-5545</a></li>
@@ -7250,6 +7503,80 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-CURL-16335349">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-7168</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.3.9/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.3.9, git@1:2.51.0-1ubuntu1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.51.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.14.1-2ubuntu1.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>curl</code> to version 8.14.1-2ubuntu1.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-7168">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-7168</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-CURL-16335377">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -7314,7 +7641,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>curl</code>.</p>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>curl</code> to version 8.14.1-2ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-6429">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-6429</a></li>
@@ -7969,7 +8296,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>curl</code>.</p>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>curl</code> to version 8.14.1-2ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-6276">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-6276</a></li>
@@ -8043,7 +8370,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>curl</code>.</p>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>curl</code> to version 8.14.1-2ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-5773">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-5773</a></li>
@@ -8117,7 +8444,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>curl</code>.</p>
+        <p>Upgrade <code>Ubuntu:25.10</code> <code>curl</code> to version 8.14.1-2ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-4873">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-4873</a></li>
