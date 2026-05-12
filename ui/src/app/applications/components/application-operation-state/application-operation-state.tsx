@@ -18,6 +18,104 @@ interface Props {
 const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group || ''}-${res.kind || ''}-${res.version || ''}-${res.namespace || ''}-${res.name}`;
 const FilterableMessageStatuses = ['Changed', 'Unchanged'];
 
+interface ResourceFilterAccessors<T> {
+    getStatus: (r: T) => string | undefined;
+    getHealth: (r: T) => string | undefined;
+    getMessage: (r: T) => string | undefined;
+}
+
+interface ResourceFilterState {
+    filters: string[];
+    healthFilters: string[];
+    messageFilters: string[];
+}
+
+const applyResourceFilters = <T,>(resources: T[], accessors: ResourceFilterAccessors<T>, state: ResourceFilterState): T[] => {
+    const {filters, healthFilters, messageFilters} = state;
+    if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
+        return resources;
+    }
+    return resources.filter(r => {
+        if (filters.length !== 0 && !filters.includes(accessors.getStatus(r))) {
+            return false;
+        }
+        if (healthFilters.length !== 0 && !healthFilters.includes(accessors.getHealth(r))) {
+            return false;
+        }
+        if (messageFilters.length !== 0) {
+            return messageFilters.some(filter => {
+                const msg = accessors.getMessage(r)?.toLowerCase();
+                if (filter === 'Changed') {
+                    return msg?.includes('configured');
+                }
+                return msg?.includes(filter.toLowerCase());
+            });
+        }
+        return true;
+    });
+};
+
+const ResourceTableHeader = () => (
+    <div className='argo-table-list__head'>
+        <div className='row'>
+            <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>SYNC WAVE</div>
+            <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
+            <div className='columns large-1 show-for-large'>NAMESPACE</div>
+            <div className='columns large-2 small-2'>NAME</div>
+            <div className='columns large-1 small-2'>STATUS</div>
+            <div className='columns large-1 small-2'>HEALTH</div>
+            <div className='columns large-1 show-for-large'>HOOK</div>
+            <div className='columns large-3 small-4'>MESSAGE</div>
+            <div className='columns large-1 small-2'>IMAGES</div>
+        </div>
+    </div>
+);
+
+interface ResourceTableRowProps {
+    syncWaveContent: React.ReactNode;
+    kindLabel: string;
+    namespace: string;
+    name: string;
+    statusContent: React.ReactNode;
+    statusTitle?: string;
+    healthContent: React.ReactNode;
+    hookContent: React.ReactNode;
+    hookTitle?: string;
+    messageContent: React.ReactNode;
+    messageTitle?: string;
+    imagesContent: React.ReactNode;
+}
+
+const ResourceTableRow = (props: ResourceTableRowProps) => (
+    <div className='argo-table-list__row'>
+        <div className='row'>
+            <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
+                {props.syncWaveContent}
+            </div>
+            <div className='columns large-1 show-for-large'>
+                <span title={props.kindLabel}>{props.kindLabel}</span>
+            </div>
+            <div className='columns large-1 show-for-large' title={props.namespace}>
+                {props.namespace || '-'}
+            </div>
+            <div className='columns large-2 small-2' title={props.name}>
+                {props.name}
+            </div>
+            <div className='columns large-1 small-2' title={props.statusTitle}>
+                {props.statusContent}
+            </div>
+            <div className='columns large-1 small-2'>{props.healthContent}</div>
+            <div className='columns large-1 show-for-large' title={props.hookTitle}>
+                {props.hookContent}
+            </div>
+            <div className='columns large-3 small-4' title={props.messageTitle}>
+                <div className='application-operation-state__message'>{props.messageContent}</div>
+            </div>
+            <div className='columns large-1 small-2'>{props.imagesContent}</div>
+        </div>
+    </div>
+);
+
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
     const {filters, setFilters, options, title, style} = props;
     return (
@@ -210,59 +308,64 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
 
         return syncResultWithHealth;
     });
-    let filtered: models.SyncResourceResult[] = [];
+    const filterState: ResourceFilterState = {filters, healthFilters, messageFilters};
 
-    if (combinedHealthSyncResult && combinedHealthSyncResult.length > 0) {
-        filtered = combinedHealthSyncResult.filter(r => {
-            if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
-                return true;
-            }
-
-            let pass = true;
-            if (filters.length !== 0 && !filters.includes(getStatus(r))) {
-                pass = false;
-            }
-
-            if (pass && healthFilters.length !== 0 && !healthFilters.includes(r.health?.status)) {
-                pass = false;
-            }
-
-            if (pass && messageFilters.length !== 0) {
-                pass = messageFilters.some(filter => {
-                    if (filter === 'Changed') {
-                        return r.message?.toLowerCase().includes('configured');
-                    }
-                    return r.message?.toLowerCase().includes(filter.toLowerCase());
-                });
-            }
-
-            return pass;
-        });
-    }
+    const filtered: models.SyncResourceResult[] =
+        combinedHealthSyncResult && combinedHealthSyncResult.length > 0
+            ? applyResourceFilters<models.SyncResourceResult>(combinedHealthSyncResult, {getStatus, getHealth: r => r.health?.status, getMessage: r => r.message}, filterState)
+            : [];
 
     const filteredDeletionResources: models.ResourceStatus[] = isDeleting
-        ? (application.status.resources || []).filter(r => {
-              if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
-                  return true;
-              }
-              let pass = true;
-              if (filters.length !== 0 && !filters.includes(r.status)) {
-                  pass = false;
-              }
-              if (pass && healthFilters.length !== 0 && !healthFilters.includes(r.health?.status)) {
-                  pass = false;
-              }
-              if (pass && messageFilters.length !== 0) {
-                  pass = messageFilters.some(filter => {
-                      if (filter === 'Changed') {
-                          return r.health?.message?.toLowerCase().includes('configured');
-                      }
-                      return r.health?.message?.toLowerCase().includes(filter.toLowerCase());
-                  });
-              }
-              return pass;
-          })
+        ? applyResourceFilters<models.ResourceStatus>(
+              application.status.resources || [],
+              {getStatus: r => r.status, getHealth: r => r.health?.status, getMessage: r => r.health?.message},
+              filterState
+          )
         : [];
+
+    const filterBar = (
+        <div style={{marginLeft: 'auto'}}>
+            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
+            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
+            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' style={{marginRight: '5px'}} />
+            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
+                <div style={{display: 'inline-block'}}>
+                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
+                </div>
+            </Tooltip>
+        </div>
+    );
+
+    const renderHealthCell = (health?: models.HealthStatus): React.ReactNode =>
+        health ? (
+            <span>
+                <utils.HealthStatusIcon state={health} /> {health.status}
+                {health.message && <HelpIcon title={health.message} />}
+            </span>
+        ) : (
+            <>{'-'}</>
+        );
+
+    const renderImagesCell = (images?: string[]): React.ReactNode =>
+        images && images.length > 0 ? (
+            <Tooltip
+                placement='top'
+                content={
+                    <div>
+                        <ul className='application-operation-state__images-list' style={{margin: '10px'}}>
+                            {images.map((image, idx) => (
+                                <li key={idx}>{image}</li>
+                            ))}
+                        </ul>
+                    </div>
+                }>
+                <span className='application-operation-state__images-count'>
+                    {images.length} image{images.length !== 1 ? 's' : ''}
+                </span>
+            </Tooltip>
+        ) : (
+            '-'
+        );
 
     return (
         <div>
@@ -280,92 +383,38 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                 <React.Fragment>
                     <div style={{display: 'flex'}}>
                         <label style={{display: 'block', marginBottom: '1em'}}>RESULT</label>
-                        <div style={{marginLeft: 'auto'}}>
-                            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
-                            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
-                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' style={{marginRight: '5px'}} />
-                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
-                                <div style={{display: 'inline-block'}}>
-                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
-                                </div>
-                            </Tooltip>
-                        </div>
+                        {filterBar}
                     </div>
                     <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>SYNC WAVE</div>
-                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
-                                <div className='columns large-1 show-for-large'>NAMESPACE</div>
-                                <div className='columns large-2 small-2'>NAME</div>
-                                <div className='columns large-1 small-2'>STATUS</div>
-                                <div className='columns large-1 small-2'>HEALTH</div>
-                                <div className='columns large-1 show-for-large'>HOOK</div>
-                                <div className='columns large-3 small-4'>MESSAGE</div>
-                                <div className='columns large-1 small-2'>IMAGES</div>
-                            </div>
-                        </div>
+                        <ResourceTableHeader />
                         {filtered.length > 0 ? (
                             filtered.map((resource, i) => (
-                                <div className='argo-table-list__row' key={i}>
-                                    <div className='row'>
-                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
+                                <ResourceTableRow
+                                    key={i}
+                                    syncWaveContent={
+                                        <>
                                             <div className='application-operation-state__icons_container'>
                                                 {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                             </div>
                                             {resource.syncWave || '0'}
-                                        </div>
-                                        <div className='columns large-1 show-for-large'>
-                                            <span title={getKind(resource)}>{getKind(resource)}</span>
-                                        </div>
-                                        <div className='columns large-1 show-for-large' title={resource.namespace}>
-                                            {resource.namespace}
-                                        </div>
-                                        <div className='columns large-2 small-2' title={resource.name}>
-                                            {resource.name}
-                                        </div>
-                                        <div className='columns large-1 small-2' title={getStatus(resource)}>
+                                        </>
+                                    }
+                                    kindLabel={getKind(resource)}
+                                    namespace={resource.namespace}
+                                    name={resource.name}
+                                    statusContent={
+                                        <>
                                             <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
-                                        </div>
-                                        <div className='columns large-1 small-2'>
-                                            {resource.health ? (
-                                                <span>
-                                                    <utils.HealthStatusIcon state={resource?.health} /> {resource.health?.status}
-                                                    {resource.health.message && <HelpIcon title={resource.health.message} />}
-                                                </span>
-                                            ) : (
-                                                <>{'-'}</>
-                                            )}
-                                        </div>
-                                        <div className='columns large-1 show-for-large' title={resource.hookType}>
-                                            {resource.hookType}
-                                        </div>
-                                        <div className='columns large-3 small-4' title={resource.message}>
-                                            <div className='application-operation-state__message'>{resource.message}</div>
-                                        </div>
-                                        <div className='columns large-1  small-2'>
-                                            {resource.images && resource.images.length > 0 ? (
-                                                <Tooltip
-                                                    placement='top'
-                                                    content={
-                                                        <div>
-                                                            <ul className='application-operation-state__images-list' style={{margin: '10px'}}>
-                                                                {resource.images.map((image, idx) => (
-                                                                    <li key={idx}>{image}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    }>
-                                                    <span className='application-operation-state__images-count'>
-                                                        {resource.images.length} image{resource.images.length !== 1 ? 's' : ''}
-                                                    </span>
-                                                </Tooltip>
-                                            ) : (
-                                                '-'
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                                        </>
+                                    }
+                                    statusTitle={getStatus(resource)}
+                                    healthContent={renderHealthCell(resource.health)}
+                                    hookContent={resource.hookType}
+                                    hookTitle={resource.hookType}
+                                    messageContent={resource.message}
+                                    messageTitle={resource.message}
+                                    imagesContent={renderImagesCell(resource.images)}
+                                />
                             ))
                         ) : (
                             <div style={{textAlign: 'center', marginTop: '2em', fontSize: '20px'}}>No Sync Results match filter</div>
@@ -377,69 +426,32 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                 <React.Fragment>
                     <div style={{display: 'flex'}}>
                         <label style={{display: 'block', marginBottom: '1em'}}>RESOURCES</label>
-                        <div style={{marginLeft: 'auto'}}>
-                            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
-                            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
-                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' style={{marginRight: '5px'}} />
-                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
-                                <div style={{display: 'inline-block'}}>
-                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
-                                </div>
-                            </Tooltip>
-                        </div>
+                        {filterBar}
                     </div>
                     <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>SYNC WAVE</div>
-                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
-                                <div className='columns large-1 show-for-large'>NAMESPACE</div>
-                                <div className='columns large-2 small-2'>NAME</div>
-                                <div className='columns large-1 small-2'>STATUS</div>
-                                <div className='columns large-1 small-2'>HEALTH</div>
-                                <div className='columns large-1 show-for-large'>HOOK</div>
-                                <div className='columns large-3 small-4'>MESSAGE</div>
-                                <div className='columns large-1 small-2'>IMAGES</div>
-                            </div>
-                        </div>
+                        <ResourceTableHeader />
                         {filteredDeletionResources.length > 0 ? (
                             filteredDeletionResources.map((res, i) => {
                                 const kindLabel = (res.group ? `${res.group}/` : '') + (res.version || '') + `/${res.kind}`;
                                 return (
-                                    <div className='argo-table-list__row' key={i}>
-                                        <div className='row'>
-                                            <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
-                                                {res.syncWave || '0'}
-                                            </div>
-                                            <div className='columns large-1 show-for-large'>
-                                                <span title={kindLabel}>{kindLabel}</span>
-                                            </div>
-                                            <div className='columns large-1 show-for-large' title={res.namespace}>
-                                                {res.namespace || '-'}
-                                            </div>
-                                            <div className='columns large-2 small-2' title={res.name}>
-                                                {res.name}
-                                            </div>
-                                            <div className='columns large-1 small-2' title={res.status}>
+                                    <ResourceTableRow
+                                        key={i}
+                                        syncWaveContent={res.syncWave || '0'}
+                                        kindLabel={kindLabel}
+                                        namespace={res.namespace}
+                                        name={res.name}
+                                        statusContent={
+                                            <>
                                                 <utils.ComparisonStatusIcon status={res.status} resource={res} /> {res.status}
-                                            </div>
-                                            <div className='columns large-1 small-2'>
-                                                {res.health ? (
-                                                    <span>
-                                                        <utils.HealthStatusIcon state={res.health} /> {res.health.status}
-                                                        {res.health.message && <HelpIcon title={res.health.message} />}
-                                                    </span>
-                                                ) : (
-                                                    <>{'-'}</>
-                                                )}
-                                            </div>
-                                            <div className='columns large-1 show-for-large'>-</div>
-                                            <div className='columns large-3 small-4' title={res.health?.message}>
-                                                <div className='application-operation-state__message'>{res.health?.message || '-'}</div>
-                                            </div>
-                                            <div className='columns large-1 small-2'>-</div>
-                                        </div>
-                                    </div>
+                                            </>
+                                        }
+                                        statusTitle={res.status}
+                                        healthContent={renderHealthCell(res.health)}
+                                        hookContent='-'
+                                        messageContent={res.health?.message || '-'}
+                                        messageTitle={res.health?.message}
+                                        imagesContent='-'
+                                    />
                                 );
                             })
                         ) : (
