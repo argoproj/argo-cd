@@ -77,6 +77,7 @@ type fakeData struct {
 	applicationNamespaces           []string
 	updateRevisionForPathsResponse  *apiclient.UpdateRevisionForPathsResponse
 	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
+	resolveRevisionResponses        []*apiclient.ResolveRevisionResponse
 	additionalObjs                  []runtime.Object
 }
 
@@ -122,7 +123,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	} else {
 		if repoErr != nil {
 			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, repoErr).Once()
-		} else {
+		} else if data.manifestResponse != nil {
 			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
 		}
 	}
@@ -138,8 +139,18 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	} else {
 		if revisionPathsErr != nil {
 			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
-		} else {
+		} else if data.updateRevisionForPathsResponse != nil {
 			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		}
+	}
+
+	if len(data.resolveRevisionResponses) > 0 {
+		for _, response := range data.resolveRevisionResponses {
+			if repoErr != nil {
+				mockRepoClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(response, repoErr)
+			} else {
+				mockRepoClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(response, nil)
+			}
 		}
 	}
 
@@ -1814,9 +1825,8 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 func TestSetOperationStateLogRetries(t *testing.T) {
 	hook := utilTest.LogHook{}
 	logrus.AddHook(&hook)
-	t.Cleanup(func() {
-		logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
-	})
+	t.Cleanup(hook.CleanupHook)
+
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil

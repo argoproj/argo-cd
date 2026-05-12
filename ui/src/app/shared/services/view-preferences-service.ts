@@ -32,6 +32,7 @@ export interface AbstractAppDetailsPreferences {
     compactDiff: boolean;
     hideManagedFields?: boolean;
     orphanedResources: boolean;
+    showAppSetParent?: boolean;
 }
 
 export interface AppDetailsPreferences extends AbstractAppDetailsPreferences {
@@ -125,6 +126,9 @@ export interface ViewPreferences {
     hideSidebar: boolean;
     position: string;
     theme: string;
+    // Per-application notice dismissals, keyed by namespaced app + content hash.
+    // See application-notice/notice.ts (dismissalKey).
+    dismissedNotices?: {[key: string]: boolean};
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -142,6 +146,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
+        showAppSetParent: false,
         podView: {
             sortMode: 'node',
             hideUnschedulable: true
@@ -178,7 +183,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     hideBannerContent: '',
     hideSidebar: false,
     position: '',
-    theme: 'auto'
+    theme: 'auto',
+    dismissedNotices: {}
 };
 
 export class ViewPreferencesService {

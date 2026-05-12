@@ -29,7 +29,7 @@ importers:
         version: 6.1.6(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
       argo-ui:
         specifier: git+https://github.com/argoproj/argo-ui.git
-        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12)
+        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/3677c93c2b2bb820cb3352e07d4d2caedee34e96(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12)
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -2173,8 +2173,8 @@ packages:
   arg@4.1.3:
     resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba:
-    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba}
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/3677c93c2b2bb820cb3352e07d4d2caedee34e96:
+    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/3677c93c2b2bb820cb3352e07d4d2caedee34e96}
     version: 1.0.0
     peerDependencies:
       '@types/react': ^16.9.3
@@ -7879,7 +7879,7 @@ snapshots:
 
   arg@4.1.3: {}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12):
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/3677c93c2b2bb820cb3352e07d4d2caedee34e96(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12):
     dependencies:
       '@fortawesome/fontawesome-free': 6.7.2
       '@tippy.js/react': 3.1.1(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
