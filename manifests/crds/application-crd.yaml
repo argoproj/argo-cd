@@ -5639,6 +5639,11 @@ spec:
                     - message
                     - phase
                     type: object
+                  lastComparedDryRevision:
+                    description: |-
+                      LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
+                      This is updated on every evaluation, even when hydration is skipped due to no changes.
+                    type: string
                   lastSuccessfulOperation:
                     description: LastSuccessfulOperation holds info about the most
                       recent successful hydration

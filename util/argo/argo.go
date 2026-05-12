@@ -237,7 +237,7 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrateType *argoappv1.HydrateType) (*argoappv1.Application, error) {
 	metadata := map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
@@ -245,8 +245,8 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 			},
 		},
 	}
-	if hydrate {
-		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(argoappv1.HydrateTypeNormal)
+	if hydrateType != nil {
+		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
 	}
 
 	var err error
@@ -542,8 +542,9 @@ func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources 
 // once (which would lead to ambiguous references).
 func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
-	if len(sources) > 1 {
-		// Validate first to avoid unnecessary DB calls.
+	if len(sources) > 0 {
+		// Validate first to avoid unnecessary DB calls. Use len(sources) > 0 (not > 1) so a sole source with ref:
+		// is populated; otherwise GetSyncedRefSources panics when spec.sources has one element (see #27759).
 		refKeys := make(map[string]bool)
 		for _, source := range sources {
 			if source.Ref == "" {

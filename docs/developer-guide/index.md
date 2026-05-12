@@ -100,5 +100,8 @@ Need help? Start with the [Contributors FAQ](faq.md)
 * [Proxy Extensions](extensions/proxy-extensions.md)
 * [Config Management Plugins](../operator-manual/config-management-plugins.md)
 
+## Generative AI
+Contributions using generative AI tools must follow the [Argo project Generative AI policy](https://github.com/argoproj/argoproj/blob/main/community/genai.md).
+
 ## Contributing to Argo Website
 The Argo website is maintained in the [argo-site](https://github.com/argoproj/argo-site) repository.
