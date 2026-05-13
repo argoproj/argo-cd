@@ -786,6 +786,11 @@ func newBitbucketServerClient(ctx context.Context, repository *v1alpha1.Reposito
 	return bitbucketv1.NewAPIClient(ctx, bitbucketConfig)
 }
 
+// bbServerChangesPageLimit is the page size used when fetching changed files from the Bitbucket Server
+// changes API. It minimizes the round trips. If the server admin has configured a lower hard max, the server
+// silently caps each page at that value and the pagination loop still terminates correctly via isLastPage.
+const bbServerChangesPageLimit = 1000
+
 // fetchChangesFromBitbucketServer retrieves the list of files changed between fromHash and toHash
 // by calling the Bitbucket Server changes REST API.
 func fetchChangesFromBitbucketServer(client *bitbucketv1.APIClient, projectKey, repoSlug, fromHash, toHash string) ([]string, error) {
@@ -797,6 +802,7 @@ func fetchChangesFromBitbucketServer(client *bitbucketv1.APIClient, projectKey, 
 			"since": fromHash,
 			"until": toHash,
 			"start": start,
+			"limit": bbServerChangesPageLimit,
 		}
 		resp, err := client.DefaultApi.GetChanges(projectKey, repoSlug, opts)
 		if err != nil {
