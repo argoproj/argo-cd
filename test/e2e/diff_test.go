@@ -113,8 +113,20 @@ data:
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
+			// Server-Side diff should show a diff with the sensitive value masked
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
+			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
+			assert.Contains(t, diff, "===== /Secret")
+
 			// Revision specific diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--exit-code=false")
+			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
+			assert.Contains(t, diff, "===== /Secret")
+
+			// Revision specific Server-Side diff should show a diff with the sensitive value masked
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
@@ -126,13 +138,8 @@ data:
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Revision specific diff should show a diff with the sensitive value masked with server-side-diff and desired manifest
+			// --server-side-diff is ignored when --compare-desired is set, but validates the result for possible future regression
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", "old-desired-revision", "--server-side-diff", "--compare-desired", "--exit-code=false")
-			require.NoError(t, err)
-			assert.False(t, sensitiveData.MatchString(diff))
-			assert.Contains(t, diff, "===== /Secret")
-
-			// Server-Side diff should show a diff with the sensitive value masked
-			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
@@ -227,8 +234,20 @@ data:
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
+			// Server-Side diff should show a diff with the sensitive value masked
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
+			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
+			assert.Contains(t, diff, "===== /Secret")
+
 			// Revision specific diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--exit-code=false")
+			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
+			assert.Contains(t, diff, "===== /Secret")
+
+			// Revision specific Server-Side diff should show a diff with the sensitive value masked
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
@@ -240,13 +259,8 @@ data:
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Revision specific diff should show a diff with the sensitive value masked with server-side-diff and desired manifest
+			// --server-side-diff is ignored when --compare-desired is set, but validates the result for possible future regression
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", "old-desired-revision", "--server-side-diff", "--compare-desired", "--exit-code=false")
-			require.NoError(t, err)
-			assert.False(t, sensitiveData.MatchString(diff))
-			assert.Contains(t, diff, "===== /Secret")
-
-			// Server-Side diff should show a diff with the sensitive value masked
-			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
@@ -311,7 +325,15 @@ func testDiffResultsAreEmptyWithoutChanges(t *testing.T, appPath string, appName
 			require.NoError(t, err)
 			assert.Empty(t, diff)
 
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", app.Status.Sync.Revision, "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
 			assert.Empty(t, diff)
 
@@ -319,15 +341,11 @@ func testDiffResultsAreEmptyWithoutChanges(t *testing.T, appPath string, appName
 			require.NoError(t, err)
 			assert.Empty(t, diff)
 
-			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
-			require.NoError(t, err)
-			assert.Empty(t, diff)
-
-			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--compare-desired", "--exit-code=false")
-			require.NoError(t, err)
-			assert.Empty(t, diff)
-
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+
+			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
 			assert.Empty(t, diff)
 
