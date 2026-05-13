@@ -91,9 +91,7 @@ func GenerateDefaultSandboxConfig(ops *ToolOpts) (*ArgocdSandboxConfig, error) {
 	return cfg, nil
 }
 
-func CommandContext(ctx context.Context,
-	sandboxRunOpts *SandboxRunOpts,
-	cmdName string, args ...string) (*exec.Cmd, error) {
+func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName string, args ...string) (*exec.Cmd, error) {
 	var toolOpts *ToolOpts
 	switch {
 	case cmdName == "helm" && HelmToolOps.isEnabled:
@@ -112,10 +110,9 @@ func CommandContext(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("failed to create command context for helm: %w", err)
 	}
-	//sandboxRunOpts := makeSandboxRunOpts(args...)
-	if sandboxRunOpts == nil {
-
-	}
+	// sandboxRunOpts := makeSandboxRunOpts(args...)
+	// if sandboxRunOpts == nil {
+	//}
 	args = makeSandboxCmdline(toolOpts, sandboxRunOpts, binPath, args...)
 	//  FIXME: w/o separate binary
 	cmd := exec.CommandContext(ctx, common.CommandSandbox, args...)
