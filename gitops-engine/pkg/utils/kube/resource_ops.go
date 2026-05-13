@@ -58,6 +58,7 @@ type realKubectlOptionsRunner struct {
 	onKubectlRun OnKubectlRunFunc
 }
 
+// Apply will perform https://kubernetes.io/docs/reference/kubectl/generated/kubectl_apply/
 func (f *realKubectlOptionsRunner) Apply(opts *apply.ApplyOptions) error {
 	cleanup, err := f.processKubectlRun("apply")
 	if err != nil {
@@ -67,6 +68,7 @@ func (f *realKubectlOptionsRunner) Apply(opts *apply.ApplyOptions) error {
 	return opts.Run()
 }
 
+// Create will perform https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/
 func (f *realKubectlOptionsRunner) Create(opts *create.CreateOptions, fact cmdutil.Factory, cmd *cobra.Command) error {
 	cleanup, err := f.processKubectlRun("create")
 	if err != nil {
@@ -76,6 +78,7 @@ func (f *realKubectlOptionsRunner) Create(opts *create.CreateOptions, fact cmdut
 	return opts.RunCreate(fact, cmd)
 }
 
+// Replace will perform https://kubernetes.io/docs/reference/kubectl/generated/kubectl_replace/
 func (f *realKubectlOptionsRunner) Replace(opts *replace.ReplaceOptions, fact cmdutil.Factory) error {
 	cleanup, err := f.processKubectlRun("replace")
 	if err != nil {
@@ -85,6 +88,7 @@ func (f *realKubectlOptionsRunner) Replace(opts *replace.ReplaceOptions, fact cm
 	return opts.Run(fact)
 }
 
+// AuthReconcile will perform https://kubernetes.io/docs/reference/kubectl/generated/kubectl_auth/kubectl_auth_reconcile/
 func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) error {
 	cleanup, err := f.processKubectlRun("auth")
 	if err != nil {
