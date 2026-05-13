@@ -922,6 +922,77 @@ func TestServerResourcesRetry(t *testing.T) {
 	}
 }
 
+func TestSync_getSyncTasks_FailureMessage(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil)
+
+	liveSvc := testingutils.NewService()
+	liveSvc.SetName("test-service")
+	liveSvc.SetNamespace(testingutils.FakeArgoCDNamespace)
+	targetSvc := liveSvc.DeepCopy()
+
+	reactorCalls := 0
+	fakeDisco := &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{
+			Resources: []*metav1.APIResourceList{},
+		},
+	}
+	fakeDisco.Fake.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		reactorCalls++
+		return true, nil, errors.New("discovery failed")
+	})
+	syncCtx.disco = fakeDisco
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{liveSvc},
+		Target: []*unstructured.Unstructured{targetSvc},
+	})
+
+	syncCtx.Sync()
+	phase, msg, _ := syncCtx.GetState()
+
+	require.Greater(t, reactorCalls, 0, "FakeDiscovery reactor must have been invoked for this test to be meaningful")
+
+	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.Contains(t, msg, "one or more synchronization tasks are not valid")
+	assert.Contains(t, msg, "discovery failed")
+}
+
+func Test_getSyncTasks_ErrorCaching(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil)
+
+	svc1 := testingutils.NewService()
+	svc1.SetName("svc1")
+	svc1Live := svc1.DeepCopy()
+
+	svc2 := testingutils.NewService()
+	svc2.SetName("svc2")
+	svc2Live := svc2.DeepCopy()
+
+	discoveryCalls := 0
+	fakeDisco := &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{
+			Resources: []*metav1.APIResourceList{},
+		},
+	}
+	fakeDisco.Fake.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		discoveryCalls++
+		return true, nil, errors.New("persistent discovery error")
+	})
+	syncCtx.disco = fakeDisco
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{svc1Live, svc2Live},
+		Target: []*unstructured.Unstructured{svc1, svc2},
+	})
+
+	tasks, ok := syncCtx.getSyncTasks()
+	assert.False(t, ok)
+	assert.NotNil(t, tasks)
+
+	require.Greater(t, discoveryCalls, 0, "FakeDiscovery reactor must have been invoked for the caching test to be meaningful")
+	assert.Equal(t, 1, discoveryCalls, "Discovery should have been called only once due to error caching")
+}
+
 func TestDoNotSyncOrPruneHooks(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, false, false, true))
 	targetPod := testingutils.NewPod()
