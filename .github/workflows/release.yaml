@@ -342,7 +342,7 @@ jobs:
         run: |
           set -xue
           # Create a path-prefixed tag for gitops-engine
-          # so downstream consumers can resolve github.com/argoproj/argo-cd/gitops-engine
+          # so downstream consumers can resolve github.com/argoproj/argo-cd/gitops-engine/v3
           # https://go.dev/doc/modules/managing-source#multiple-module-source
           GE_TAG="gitops-engine/${{ github.ref_name }}"
           if git ls-remote --exit-code --tags origin "refs/tags/${GE_TAG}" >/dev/null 2>&1; then
