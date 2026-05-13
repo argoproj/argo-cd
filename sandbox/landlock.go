@@ -164,6 +164,10 @@ func (m *Landlock) makeFSArgs(accessSpec string, paths []string) []string {
 	result := []string{}
 	prefix := "fs:" + accessSpec + ":"
 	for _, path := range paths {
+		if !filepath.IsAbs(path) {
+			// FIXME
+			path, _ = filepath.Abs(path)
+		}
 		result = append(result, "--landlock-allow", prefix+path)
 	}
 	return result

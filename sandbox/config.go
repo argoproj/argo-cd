@@ -19,10 +19,10 @@ type ArgocdSandboxConfig struct {
 
 type ToolOpts struct {
 	toolName       string
-	isEnabled      bool
+	IsEnabled      bool
 	configFilePath string
 	configStr      string
-	modulesList    []string
+	ModulesList    []string
 	// compatMode     string
 }
 
@@ -50,15 +50,15 @@ var CompatMode = BEST_EFFORT_MODE
 
 var HelmToolOps = ToolOpts{
 	toolName:       "helm",
-	isEnabled:      false,
-	modulesList:    []string{},
+	IsEnabled:      false,
+	ModulesList:    []string{},
 	configFilePath: "",
 }
 
 var KustomizeToolOps = ToolOpts{
 	toolName:       "kustomize",
-	isEnabled:      false,
-	modulesList:    []string{},
+	IsEnabled:      false,
+	ModulesList:    []string{},
 	configFilePath: "",
 }
 
@@ -67,23 +67,23 @@ func AddSandboxFlagsToRepoServerCmd(command *cobra.Command) {
 		env.StringFromEnv("ARGOCD_REPO_SERVER_SANDBOX_COMPAT_MODE", BEST_EFFORT_MODE),
 		"Sandbox compatibility mode")
 
-	command.Flags().BoolVar(&HelmToolOps.isEnabled, "helm-sandbox-enabled",
+	command.Flags().BoolVar(&HelmToolOps.IsEnabled, "helm-sandbox-enabled",
 		env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_HELM_SANDBOX_ENABLED", true),
 		"Run Helm in security sandbox")
 	command.Flags().StringVar(&HelmToolOps.configFilePath, "helm-sandbox-config",
 		env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_SANDBOX_CONFIG", ""),
 		"Path to Helm sandbox configuration file")
-	command.Flags().StringSliceVar(&HelmToolOps.modulesList, "helm-sandbox-modules",
+	command.Flags().StringSliceVar(&HelmToolOps.ModulesList, "helm-sandbox-modules",
 		env.StringsFromEnv("ARGOCD_REPO_SERVER_HELM_SANDBOX_MODULES", []string{"landlock"}, ","),
 		"Security modules enabled for Helm sandbox")
 
-	command.Flags().BoolVar(&KustomizeToolOps.isEnabled, "kustomize-sandbox-enabled",
+	command.Flags().BoolVar(&KustomizeToolOps.IsEnabled, "kustomize-sandbox-enabled",
 		env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_KUSTOMIZE_SANDBOX_ENABLED", true),
 		"Run Kustomize in security sandbox")
 	command.Flags().StringVar(&KustomizeToolOps.configFilePath, "kustomize-sandbox-config",
 		env.StringFromEnv("ARGOCD_REPO_SERVER_KUSTOMIZE_SANDBOX_CONFIG", ""),
 		"Path to Kustomize sandbox configuration file")
-	command.Flags().StringSliceVar(&KustomizeToolOps.modulesList, "kustomize-sandbox-modules",
+	command.Flags().StringSliceVar(&KustomizeToolOps.ModulesList, "kustomize-sandbox-modules",
 		env.StringsFromEnv("ARGOCD_REPO_SERVER_KUSTOMIZE_SANDBOX_MODULES", []string{"landlock"}, ","),
 		"Security modules enabled for Kustomize sandbox")
 }

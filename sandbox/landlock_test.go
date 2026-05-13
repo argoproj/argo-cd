@@ -271,8 +271,8 @@ func TestGenerateLandlockHelmConfig(t *testing.T) {
 	testutil.RunInSubprocess(t, true, func() {
 		ops := &ToolOpts{
 			toolName:       "helm",
-			isEnabled:      false,
-			modulesList:    []string{LANDLOCK},
+			IsEnabled:      false,
+			ModulesList:    []string{LANDLOCK},
 			configFilePath: "",
 		}
 		landlockCfg, err := GenerateDefaultLandlockConfig(ops)

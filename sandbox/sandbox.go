@@ -60,7 +60,7 @@ func ExecuteCommand(cfg *ArgocdSandboxConfig, impls []string, allowRules map[str
 }
 
 func RunStartupTest(ops *ToolOpts) error {
-	if !ops.isEnabled {
+	if !ops.IsEnabled {
 		log.Infof("%s execution sandbox is disabled", ops.toolName)
 		return nil
 	}
@@ -76,7 +76,7 @@ func RunStartupTest(ops *ToolOpts) error {
 func GenerateDefaultSandboxConfig(ops *ToolOpts) (*ArgocdSandboxConfig, error) {
 	cfg := &ArgocdSandboxConfig{}
 	var err error
-	for _, moduleName := range ops.modulesList {
+	for _, moduleName := range ops.ModulesList {
 		log.Infof("Generating default %s configuration for %s", moduleName, ops.toolName)
 		switch moduleName {
 		case LANDLOCK:
@@ -94,10 +94,10 @@ func GenerateDefaultSandboxConfig(ops *ToolOpts) (*ArgocdSandboxConfig, error) {
 func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName string, args ...string) (*exec.Cmd, error) {
 	var toolOpts *ToolOpts
 	switch {
-	case cmdName == "helm" && HelmToolOps.isEnabled:
+	case cmdName == "helm" && HelmToolOps.IsEnabled:
 		log.Infof("executing command %s in sandbox", cmdName)
 		toolOpts = &HelmToolOps
-	case cmdName == "kustomize" && KustomizeToolOps.isEnabled:
+	case cmdName == "kustomize" && KustomizeToolOps.IsEnabled:
 		log.Infof("executing command %s in sandbox", cmdName)
 		toolOpts = &KustomizeToolOps
 	default:
@@ -132,7 +132,7 @@ func makeSandboxCmdline(toolOpts *ToolOpts, runOpts *SandboxRunOpts, binPath str
 	} else if toolOpts.configStr != "" {
 		result = append(result, "--config-str", toolOpts.configStr)
 	}
-	modulesImpls := getModulesForNames(toolOpts.modulesList)
+	modulesImpls := getModulesForNames(toolOpts.ModulesList)
 	for _, module := range modulesImpls {
 		result = append(result, module.MakeArgs(runOpts)...)
 	}
