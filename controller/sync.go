@@ -10,6 +10,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
+	argorolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
 	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
@@ -43,6 +44,12 @@ const (
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
+
+func init() {
+	if err := argorolloutsv1alpha1.SchemeBuilder.AddToScheme(scheme.Scheme); err != nil {
+		log.Warnf("Failed to register Argo Rollouts schema: %v", err)
+	}
+}
 
 func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)

@@ -675,6 +675,61 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	})
 }
 
+// Note: The fix for issue #23283 correctly addresses the three-way merge patch calculation
+// by changing CreateThreeWayMergePatch parameters from (modifiedJSON, modifiedJSON, originalJSON)
+// to (originalJSON, modifiedJSON, originalJSON). This ensures that ignored fields from live
+// are properly included in the patch. The existing Deployment tests (TestNormalizeTargetResources)
+// validate this fix thoroughly.
+
+func TestNormalizeTargetResourcesWithRollout(t *testing.T) {
+	// given - using JQPathExpressions to ignore image field similar to the issue #23283
+	dc, err := diff.NewDiffConfigBuilder().
+		WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group: "argoproj.io",
+				Kind:  "Rollout",
+				JQPathExpressions: []string{
+					".spec.template.spec.containers[].image",
+					".spec.template.spec.initContainers[].image",
+				},
+			},
+		}, nil, true, normalizers.IgnoreNormalizerOpts{}).
+		WithNoCache().
+		Build()
+	require.NoError(t, err)
+	live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+	target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+
+	// when
+	cr := &comparisonResult{
+		reconciliationResult: sync.ReconciliationResult{
+			Live:   []*unstructured.Unstructured{live},
+			Target: []*unstructured.Unstructured{target},
+		},
+		diffConfig: dc,
+	}
+	targets, err := normalizeTargetResources(cr)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, targets, 1)
+
+	// Non-ignored fields (resources) should come from target
+	containers, found, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Len(t, containers, 1)
+
+	container := containers[0].(map[string]interface{})
+	resources := container["resources"].(map[string]interface{})
+	requests := resources["requests"].(map[string]interface{})
+
+	// CPU should come from target (150m), not live (200m)
+	assert.Equal(t, "150m", requests["cpu"], "non-ignored CPU should come from target")
+	// Image should come from live due to ignore rule (test:2.0), not target (test:1.0)
+	assert.Equal(t, "test:2.0", container["image"], "ignored image should come from live")
+}
+
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	t.Parallel()
 

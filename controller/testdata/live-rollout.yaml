@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    iksm-version: '2.0'
+  name: test-rollout
+  namespace: default
+  managedFields:
+    - apiVersion: argoproj.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            'f:iksm-version': {}
+      manager: janitor
+      operation: Apply
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test-container
+        image: test:2.0
+        resources:
+          requests:
+            cpu: 200m
+            memory: 100Mi
