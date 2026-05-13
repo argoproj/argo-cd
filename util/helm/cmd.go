@@ -120,8 +120,14 @@ func (c Cmd) addPullRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
 	}
 	for ; idx < numArgs; idx++ {
 		switch args[idx] {
-		case "--destination", "--version", "--username", "--password":
+		case "--version", "--username", "--password":
 			idx++
+			continue
+		case "--destination":
+			idx++
+			if idx < numArgs {
+				opts.RWDirs = append(opts.RWDirs, args[idx])
+			}
 			continue
 		case "--ca-file", "--cert-file", "--key-file":
 			idx++

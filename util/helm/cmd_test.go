@@ -204,3 +204,20 @@ func TestRegistryLogout(t *testing.T) {
 		})
 	}
 }
+
+// func TestMakeSandboxRunOpts(t *testing.T) {
+// 	sandbox.HelmToolOps.IsEnabled = true
+// 	sandbox.HelmToolOps.ModulesList = []string{"landlock"}
+// 	sandbox.RunStartupTests()
+// 	c, err := NewCmd(".", "v3", "", "")
+// 	require.NoError(t, err)
+// 	args := []string{"pull",
+// 		"oci://localhost:5000/myrepo/helm-oci-with-dependencies",
+// 		"--version", "1.0.0", "--destination", "/tmp/8607055f-6b57-48b1-901d-a7f20eae4a44"}
+// 	sandboxRunOpts := c.makeSandboxRunOpts(args...)
+// 	cmd, err := sandbox.CommandContext(t.Context(), sandboxRunOpts, "helm", args...)
+// 	require.NoError(t, err)
+// 	fmt.Printf("args: %s", cmd.Args)
+// 	//c.addPullRuntimeOpts(nil, args...)
+// 	require.NoError(t, err)
+// }
