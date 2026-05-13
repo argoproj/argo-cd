@@ -6158,6 +6158,7 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
 }
 
+<<<<<<< HEAD
 func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepo(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		Repos: []*v1alpha1.Repository{{
@@ -6194,4 +6195,27 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 
 	require.Len(t, helmRepos, 1)
 	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestGenerateManifests_AppliesTrackingLabelToCRDsWhenEnabled(t *testing.T) {
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{},
+		ApplicationSource:  &src,
+		AppLabelKey:        "test",
+		AppName:            "crd-tracking",
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	res, err := GenerateManifests(t.Context(), "./testdata/crd-tracking", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithTrackingLabelsOnCRDs(true))
+	require.NoError(t, err)
+
+	obj := unstructured.Unstructured{}
+	err = json.Unmarshal([]byte(res.Manifests[0]), &obj)
+	require.NoError(t, err)
+
+	annotations := obj.GetAnnotations()
+	_, exists := annotations[common.AnnotationKeyAppInstance]
+	require.True(t, exists, "AnnotationKeyAppInstance must exist in the returned manifest")
 }
