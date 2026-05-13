@@ -437,6 +437,11 @@ func (proj AppProject) HasFinalizer() bool {
 	return getFinalizerIndex(proj.ObjectMeta, ResourcesFinalizerName) > -1
 }
 
+// AddFinalizer adds a resource finalizer to an AppProject
+func (proj *AppProject) AddFinalizer() {
+	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, true)
+}
+
 // RemoveFinalizer removes a resource finalizer from an AppProject
 func (proj *AppProject) RemoveFinalizer() {
 	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, false)
