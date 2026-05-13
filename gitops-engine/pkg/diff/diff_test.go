@@ -2205,7 +2205,83 @@ spec:
         averageUtilization: 50
 `)
 
+	// Identical config and live should not be modified
 	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+	assert.False(t, result.Modified, "identical config and live should not show as modified")
+}
+
+func TestStructuredMergeDiff_HPAv2ToV1Conversion_Modified(t *testing.T) {
+	// Verifies that a real change is detected when config differs from live
+	// with cross-version managed fields
+	gvkParser := buildGVKParser(t)
+
+	config := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+`)
+
+	live := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+  managedFields:
+  - apiVersion: autoscaling/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:maxReplicas: {}
+        f:minReplicas: {}
+        f:scaleTargetRef: {}
+    manager: helm
+    operation: Apply
+    time: "2024-01-01T00:00:00Z"
+  - apiVersion: autoscaling/v2
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:metrics: {}
+    manager: argocd-controller
+    operation: Apply
+    time: "2024-01-02T00:00:00Z"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.Modified, "different config and live should show as modified")
 }
