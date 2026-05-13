@@ -71,23 +71,16 @@ func (c Cmd) addRegistryRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string
 			// args[1] is registry arg
 			for idx := 2; idx < numArgs; idx++ {
 				switch args[idx] {
-				case "--username":
-					fallthrough
-				case "--password":
+				case "--username", "--password":
 					idx++
 					continue
-				case "--ca-file":
-					fallthrough
-				case "--cert-file":
-					fallthrough
-				case "--key-file":
+				case "--ca-file", "--cert-file", "--key-file":
 					idx++
 					if idx < numArgs {
 						opts.ROFiles = append(opts.ROFiles, args[idx])
 					}
 				case "--insecure":
 				default:
-
 				}
 			}
 		case "logout":
@@ -104,24 +97,16 @@ func (c Cmd) addRepoRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
 			// args[1] is registry arg
 			for idx := 1; idx < numArgs; idx++ {
 				switch args[idx] {
-				case "--username":
-					fallthrough
-				case "--password":
+				case "--username", "--password":
 					idx++
 					continue
-				case "--cert-file":
-					fallthrough
-				case "--ca-file":
-					fallthrough
-				case "--key-file":
+				case "--cert-file", "--ca-file", "--key-file":
 					idx++
 					if idx < numArgs {
 						opts.ROFiles = append(opts.ROFiles, args[idx])
 					}
-				case "--insecure-skip-tls-verify":
-				case "--pass-credentials":
+				case "--insecure-skip-tls-verify", "--pass-credentials":
 				default:
-					// name url
 				}
 			}
 		case "logout":
@@ -140,20 +125,10 @@ func (c Cmd) addPullRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
 	}
 	for ; idx < numArgs; idx++ {
 		switch args[idx] {
-		case "--destination":
-			fallthrough
-		case "--version":
-			fallthrough
-		case "--username":
-			fallthrough
-		case "--password":
+		case "--destination", "--version", "--username", "--password":
 			idx++
 			continue
-		case "--ca-file":
-			fallthrough
-		case "--cert-file":
-			fallthrough
-		case "--key-file":
+		case "--ca-file", "--cert-file", "--key-file":
 			idx++
 			if idx < numArgs {
 				opts.ROFiles = append(opts.ROFiles, args[idx])
@@ -162,10 +137,8 @@ func (c Cmd) addPullRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
 		case "--repo":
 			idx += 2
 			continue
-		case "--pass-credentials":
-		case "--insecure-skip-tls-verify":
+		case "--pass-credentials", "--insecure-skip-tls-verify":
 		default:
-
 		}
 	}
 }
@@ -178,14 +151,7 @@ func (c Cmd) addTemplateRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string
 		// FIXME: can values be URL?
 		// FIXME: array limits
 
-		case "--name-template":
-			fallthrough
-		case "--namespace":
-			fallthrough
-		case "--kube-version":
-		case "--set":
-		case "--set-string":
-		case "--api-versions":
+		case "--name-template", "--namespace", "--kube-version", "--set", "--set-string", "--api-versions":
 			idx++
 			continue
 		case "--values":
@@ -203,11 +169,8 @@ func (c Cmd) addTemplateRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string
 					opts.ROFiles = append(opts.ROFiles, parts[1])
 				}
 			}
-		case "--include-crds":
-		case "--skip-schema-validation":
-		case "--skip-tests":
+		case "--include-crds", "--skip-schema-validation", "--skip-tests":
 		default:
-
 		}
 	}
 }
