@@ -909,6 +909,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                               title: 'AppSet Details',
                                                               iconClassName: 'fa fa-info-circle',
                                                               action: () => selectNode(appFullName)
+                                                          },
+                                                          {
+                                                              title: 'Preview Apps',
+                                                              iconClassName: 'fa fa-eye',
+                                                              action: () => selectNode(appFullName, 0, 'preview')
                                                           }
                                                       ]
                                             },
@@ -1192,7 +1197,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         )}
                                         {!isApplication && (
                                             <SlidingPanel isShown={isAppSelected} onClose={() => selectNode('')}>
-                                                <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />
+                                                {isAppSelected && <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />}
                                             </SlidingPanel>
                                         )}
                                         {isApplication && (

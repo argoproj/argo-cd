@@ -141,7 +141,13 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                 <h1>{appSet.metadata.name}</h1>
                 <HealthStatusIcon state={{status: healthStatus, message: ''}} />
             </div>
-            <Tabs navTransparent={true} tabs={getTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})} />
+            <Tabs
+                key={tab || 'default'}
+                navTransparent={true}
+                tabs={getTabs()}
+                selectedTabKey={tab}
+                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+            />
         </div>
     );
 };
