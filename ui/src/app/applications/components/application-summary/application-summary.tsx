@@ -20,6 +20,7 @@ import {BadgePanel} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {isValidURL} from '../../../shared/utils';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
@@ -272,6 +273,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <div className='application-summary__links-rows'>
                     {urls
                         .map(item => item.split('|'))
+                        // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
+                        // vbscript:) to prevent XSS via attacker-controlled
+                        // link.argocd.argoproj.io/* annotations on managed resources.
+                        .filter(parts => isValidURL(parts.length > 1 ? parts[1] : parts[0]))
                         .map((parts, i) => (
                             <div className='application-summary__links-row'>
                                 <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>

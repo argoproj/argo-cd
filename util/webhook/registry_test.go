@@ -42,7 +42,7 @@ func TestNormalizeOCI(t *testing.T) {
 }
 
 func TestGHCRHandlerCanHandle(t *testing.T) {
-	h := NewGHCRParser("")
+	h := newGHCRParser("")
 
 	tests := []struct {
 		name     string
