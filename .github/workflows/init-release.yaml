@@ -63,10 +63,12 @@ jobs:
       - name: Update go.mod gitops-engine version to release tag
         run: |
           set -xue
-          # Update the require line to reference the gitops-engine tag that will be created at release time
-          # Requires semver matching the major version (e.g. v3.4.1 for gitops-engine/v3)
+          # Update the require line to reference the gitops-engine tag that will be created at release time.
+          # Derive the major version from TARGET_VERSION so this works across future major bumps.
           GE_VERSION="v${{ inputs.TARGET_VERSION }}"
-          sed -i "s|github.com/argoproj/argo-cd/gitops-engine/v3 v[^ ]*|github.com/argoproj/argo-cd/gitops-engine/v3 ${GE_VERSION}|" go.mod
+          MAJOR=$(echo "${{ inputs.TARGET_VERSION }}" | cut -d. -f1)
+          GE_MODULE="github.com/argoproj/argo-cd/gitops-engine/v${MAJOR}"
+          sed -i "s|${GE_MODULE} v[^ ]*|${GE_MODULE} ${GE_VERSION}|" go.mod
 
         # We install kustomize in the dist directory
       - name: Add dist to PATH
