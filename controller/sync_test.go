@@ -720,9 +720,9 @@ func TestNormalizeTargetResourcesWithRollout(t *testing.T) {
 	require.True(t, found)
 	require.Len(t, containers, 1)
 
-	container := containers[0].(map[string]interface{})
-	resources := container["resources"].(map[string]interface{})
-	requests := resources["requests"].(map[string]interface{})
+	container := containers[0].(map[string]any)
+	resources := container["resources"].(map[string]any)
+	requests := resources["requests"].(map[string]any)
 
 	// CPU should come from target (150m), not live (200m)
 	assert.Equal(t, "150m", requests["cpu"], "non-ignored CPU should come from target")
