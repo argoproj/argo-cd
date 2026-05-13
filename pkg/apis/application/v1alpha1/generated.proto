@@ -2623,6 +2623,10 @@ message SourceHydratorStatus {
 
   // CurrentOperation holds the status of the hydrate operation
   optional HydrateOperation currentOperation = 2;
+
+  // LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
+  // This is updated on every evaluation, even when hydration is skipped due to no changes.
+  optional string lastComparedDryRevision = 3;
 }
 
 message SourceIntegrity {
