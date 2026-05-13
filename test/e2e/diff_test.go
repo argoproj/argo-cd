@@ -62,9 +62,9 @@ data:
 		}).
 		When().
 		AddTag("old-desired-revision").
-		WriteFile("secrets.yaml", `[{"op": "replace", "path": "/stringData/username", "value": "NEWSECRETVAL"}]`).
-		WriteFile("secrets.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"token": "NEWSECRETVAL"}}]`).
-		WriteFile("secrets.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"something": "else"}}]`).
+		WritePatch("secrets.yaml", `[{"op": "replace", "path": "/stringData/username", "value": "NEWSECRETVAL"}]`).
+		WritePatch("secrets.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"token": "NEWSECRETVAL"}}]`).
+		WritePatch("secrets.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"something": "else"}}]`).
 		Refresh(RefreshTypeHard).
 		Then().
 		// App should still be healthy since the changes are not committed to git yet
@@ -167,7 +167,7 @@ data:
 		When().
 		AddTag("old-desired-revision").
 		// invalidate secret
-		WriteFile("secrets.yaml", `[{"op": "replace", "path": "/data/password", "value": 12345}]`).
+		WritePatch("secrets.yaml", `[{"op": "replace", "path": "/data/password", "value": 12345}]`).
 		Refresh(RefreshTypeHard).
 		Then().
 		// App should still be healthy since the changes are not committed to git yet
