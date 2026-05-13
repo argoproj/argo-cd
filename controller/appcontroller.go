@@ -2477,7 +2477,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		cache.Indexers{
 			cache.NamespaceIndex: func(obj any) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
-				if ok {
+				if ok && ctrl.projInformer.HasSynced() {
 					// We only generally work with applications that are in one
 					// the allowed namespaces.
 					if ctrl.isAppNamespaceAllowed(app) {
@@ -2500,6 +2500,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 
 				if !ctrl.isAppNamespaceAllowed(app) {
+					return nil, nil
+				}
+
+				if !ctrl.projInformer.HasSynced() {
 					return nil, nil
 				}
 
