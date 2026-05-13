@@ -348,7 +348,7 @@ jobs:
           if git ls-remote --exit-code --tags origin "refs/tags/${GE_TAG}" >/dev/null 2>&1; then
             echo "Tag ${GE_TAG} already exists on origin; skipping"
           else
-            git tag "${GE_TAG}" ${{ github.ref_name }}
+            git tag "${GE_TAG}" "${{ github.ref_name }}^{}"
             git push origin "${GE_TAG}"
           fi
 
