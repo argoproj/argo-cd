@@ -2700,10 +2700,10 @@ message SourceIntegrityHelmPolicy {
 }
 
 // SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).
+// When Keys is non-empty, requires a .prov file, valid signature from an allowed key, and chart checksum match.
+// When Keys is empty, provenance verification is not performed for matching repos.
 message SourceIntegrityHelmPolicyProvenance {
-  optional string mode = 1;
-
-  repeated string keys = 2;
+  repeated string keys = 1;
 }
 
 // SourceIntegrityHelmPolicyRepo restricts which Helm repo URLs the policy applies to (glob).

@@ -29,20 +29,11 @@ type SourceIntegrityHelmPolicyRepo struct {
 	URL string `json:"url" protobuf:"bytes,1,name=url"`
 }
 
-// SourceIntegrityHelmPolicyProvenanceMode controls provenance verification.
-type SourceIntegrityHelmPolicyProvenanceMode string
-
-const (
-	// SourceIntegrityHelmPolicyProvenanceModeNone skips verification (e.g. for exceptions).
-	SourceIntegrityHelmPolicyProvenanceModeNone SourceIntegrityHelmPolicyProvenanceMode = "none"
-	// SourceIntegrityHelmPolicyProvenanceModeProvenance requires a .prov file, valid signature, and chart checksum match.
-	SourceIntegrityHelmPolicyProvenanceModeProvenance SourceIntegrityHelmPolicyProvenanceMode = "provenance"
-)
-
 // SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).
+// When Keys is non-empty, requires a .prov file, valid signature from an allowed key, and chart checksum match.
+// When Keys is empty, provenance verification is not performed for matching repos.
 type SourceIntegrityHelmPolicyProvenance struct {
-	Mode SourceIntegrityHelmPolicyProvenanceMode `json:"mode" protobuf:"bytes,1,name=mode"`
-	Keys []string                                `json:"keys" protobuf:"bytes,2,name=keys"` // Allowed signer key IDs
+	Keys []string `json:"keys" protobuf:"bytes,1,rep,name=keys"` // Allowed signer key IDs
 }
 
 type SourceIntegrityGit struct {

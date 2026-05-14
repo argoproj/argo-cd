@@ -426,12 +426,10 @@ func (s *Service) runRepoOperation(
 		}
 
 		var sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
-		if sourceintegrity.NeedsHelmProvenanceVerification(sourceIntegrity, *source) && source.IsHelmOci() {
+		if sourceintegrity.HasCriteria(sourceIntegrity, *source) && source.IsHelmOci() {
 			chartContent, provContent, chartFilename, errFetch := ociClient.FetchHelmChartAndProvenance(ctx, revision)
 			if errFetch != nil {
-				sourceIntegrityResult = sourceintegrity.HelmProvenanceResult([]string{
-					fmt.Sprintf("could not access OCI helm chart for provenance verification: %v", errFetch),
-				})
+				sourceIntegrityResult = sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, true, errFetch)
 			} else {
 				if chartFilename == "" {
 					chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
@@ -481,7 +479,7 @@ func (s *Service) runRepoOperation(
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			var sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
-			needsVerify := sourceintegrity.NeedsHelmProvenanceVerification(sourceIntegrity, *source)
+			needsVerify := sourceintegrity.HasCriteria(sourceIntegrity, *source)
 			if needsVerify && source.IsHelmOci() {
 				// Helm OCI chart accessed via helm:// protocol
 				ociRepo := repo.DeepCopy()
@@ -500,15 +498,11 @@ func (s *Service) runRepoOperation(
 				ociRepo.Repo = ociChartRepoURL
 				ociClient, digest, errOci := s.newOCIClientResolveRevision(ctx, ociRepo, revision, settings.noCache || settings.noRevisionCache)
 				if errOci != nil {
-					sourceIntegrityResult = sourceintegrity.HelmProvenanceResult([]string{
-						fmt.Sprintf("could not access OCI helm chart for provenance verification: %v", errOci),
-					})
+					sourceIntegrityResult = sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, true, errOci)
 				} else {
 					chartContent, provContent, chartFilename, errFetch := ociClient.FetchHelmChartAndProvenance(ctx, digest)
 					if errFetch != nil {
-						sourceIntegrityResult = sourceintegrity.HelmProvenanceResult([]string{
-							fmt.Sprintf("could not access OCI helm chart for provenance verification: %v", errFetch),
-						})
+						sourceIntegrityResult = sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, true, errFetch)
 					} else {
 						if chartFilename == "" {
 							chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
@@ -524,15 +518,11 @@ func (s *Service) runRepoOperation(
 				// Traditional Helm repository
 				tgzPath, errTgz := helmClient.ChartTgzPath(source.Chart, revision)
 				if errTgz != nil {
-					sourceIntegrityResult = sourceintegrity.HelmProvenanceResult([]string{
-						fmt.Sprintf("could not access chart for provenance verification: %v", errTgz),
-					})
+					sourceIntegrityResult = sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, false, errTgz)
 				} else {
 					chartTgz, errRead := os.ReadFile(tgzPath)
 					if errRead != nil {
-						sourceIntegrityResult = sourceintegrity.HelmProvenanceResult([]string{
-							fmt.Sprintf("could not access chart for provenance verification: %v", errRead),
-						})
+						sourceIntegrityResult = sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, false, errRead)
 					} else {
 						provContent, chartFilename, errProv := helmClient.FetchProvenance(source.Chart, revision)
 						if errProv != nil {

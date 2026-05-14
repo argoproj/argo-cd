@@ -10772,7 +10772,7 @@
       }
     },
     "v1alpha1SourceIntegrityHelmPolicyProvenance": {
-      "description": "SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).",
+      "description": "SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).\nWhen Keys is non-empty, requires a .prov file, valid signature from an allowed key, and chart checksum match.\nWhen Keys is empty, provenance verification is not performed for matching repos.",
       "type": "object",
       "properties": {
         "keys": {
@@ -10780,9 +10780,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "mode": {
-          "type": "string"
         }
       }
     },

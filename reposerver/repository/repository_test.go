@@ -110,11 +110,8 @@ var sourceIntegrityResultGitError = &v1alpha1.SourceIntegrityCheckResult{Checks:
 var sourceIntegrityHelmProvenance = &v1alpha1.SourceIntegrity{
 	Helm: &v1alpha1.SourceIntegrityHelm{
 		Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
-			Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "*"}},
-			Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{
-				Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance,
-				Keys: []string{"27252B168248743B"},
-			},
+			Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "*"}},
+			Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"27252B168248743B"}},
 		}},
 	},
 }
@@ -123,11 +120,8 @@ var sourceIntegrityHelmProvenance = &v1alpha1.SourceIntegrity{
 var sourceIntegrityHelmNoMatch = &v1alpha1.SourceIntegrity{
 	Helm: &v1alpha1.SourceIntegrityHelm{
 		Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
-			Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://other.com/*"}},
-			Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{
-				Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance,
-				Keys: []string{"abc"},
-			},
+			Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://other.com/*"}},
+			Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"abc"}},
 		}},
 	},
 }

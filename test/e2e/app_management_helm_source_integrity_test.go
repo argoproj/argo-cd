@@ -43,7 +43,7 @@ func TestTraditionalHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing
 		HelmProvenanceRepoAdded("helm-provenance-local").
 		Name(helmProvPassName).
 		Project("gpg").
-		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeProvenance, fixture.GpgGoodKeyID)).
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
 		When().
 		IgnoreErrors().
 		CreateFromFile(func(app *Application) {
@@ -70,7 +70,7 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T)
 		HelmProvenanceRepoAdded("helm-provenance-local").
 		Name(helmProvFailName).
 		Project("default").
-		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeProvenance, helmProvWrongKey)).
+		ProjectSpec(appProjectWithHelmSourceIntegrity(helmProvWrongKey)).
 		When().
 		IgnoreErrors().
 		CreateFromFile(func(app *Application) {
@@ -97,7 +97,7 @@ func TestHelmOCISourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
 		HelmOCIRepoAdded("helm-oci-provenance").
 		Name(helmOCIProvPassName).
 		Project("gpg").
-		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeProvenance, fixture.GpgGoodKeyID)).
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
 		When().
 		IgnoreErrors().
 		CreateFromFile(func(app *Application) {
@@ -124,7 +124,7 @@ func TestHelmOCISourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
 		HelmOCIRepoAdded("helm-oci-provenance").
 		Name(helmOCIProvFailName).
 		Project("default").
-		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeProvenance, helmOCIProvWrongKey)).
+		ProjectSpec(appProjectWithHelmSourceIntegrity(helmOCIProvWrongKey)).
 		When().
 		IgnoreErrors().
 		CreateFromFile(func(app *Application) {
@@ -143,17 +143,17 @@ func TestHelmOCISourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "key_id="+fixture.GpgGoodKeyID))
 }
 
-func TestHelmSourceIntegrityModeNonePasses(t *testing.T) {
+func TestHelmSourceIntegrityNoVerificationPasses(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		CustomCACertAdded().
-		HelmRepoAdded("helm-mode-none").
+		HelmRepoAdded("helm-no-verification").
 		RepoURLType(fixture.RepoURLTypeHelm).
 		Chart("helm").
 		Revision("1.0.0").
-		Name("helm-mode-none-pass").
+		Name("helm-no-verification-pass").
 		Project("gpg").
-		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeNone)).
+		ProjectSpec(appProjectWithHelmSourceIntegrityNoVerification()).
 		When().
 		IgnoreErrors().
 		CreateApp().
@@ -165,14 +165,14 @@ func TestHelmSourceIntegrityModeNonePasses(t *testing.T) {
 		Expect(NoConditions())
 }
 
-func TestHelmOCISourceIntegrityModeNonePasses(t *testing.T) {
+func TestHelmOCISourceIntegrityNoVerificationPasses(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry(helmOCIProvChartPath, helmOCIProvChart, helmOCIProvChartV).
-		HelmOCIRepoAdded("helm-oci-mode-none").
-		Name("helm-oci-mode-none-pass").
+		HelmOCIRepoAdded("helm-oci-no-verification").
+		Name("helm-oci-no-verification-pass").
 		Project("gpg").
-		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeNone)).
+		ProjectSpec(appProjectWithHelmSourceIntegrityNoVerification()).
 		When().
 		IgnoreErrors().
 		CreateFromFile(func(app *Application) {
@@ -180,7 +180,7 @@ func TestHelmOCISourceIntegrityModeNonePasses(t *testing.T) {
 				RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
 				Chart:          helmOCIProvChart,
 				TargetRevision: helmOCIProvChartV,
-				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-oci-mode-none-pass"},
+				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-oci-no-verification-pass"},
 			}
 		}).
 		Sync().
@@ -299,7 +299,7 @@ func TestHelmSourceIntegrityRepoClash(t *testing.T) {
 		Chart("helm").
 		Revision("1.0.0").
 		Project("gpg").
-		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeNone))
+		ProjectSpec(appProjectWithHelmSourceIntegrityNoVerification())
 
 	brokenApp := GivenWithSameState(workingApp).
 		Name("helm-repo-clash-broken").
@@ -307,7 +307,7 @@ func TestHelmSourceIntegrityRepoClash(t *testing.T) {
 		Chart("helm").
 		Revision("1.0.0").
 		Project("default").
-		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeProvenance, "D56C4FCA57A46444"))
+		ProjectSpec(appProjectWithHelmSourceIntegrity("D56C4FCA57A46444"))
 
 	expectHelmRepoClashWorkingAppState(workingApp.When().
 		IgnoreErrors().
@@ -347,7 +347,7 @@ func expectHelmRepoClashBrokenAppState(cons *Consequences) {
 		Expect(Condition(ApplicationConditionComparisonError, "provenance file (.prov) is required but missing"))
 }
 
-func appProjectWithHelmSourceIntegrity(mode SourceIntegrityHelmPolicyProvenanceMode, keys ...string) AppProjectSpec {
+func appProjectWithHelmSourceIntegrity(keys ...string) AppProjectSpec {
 	if keys == nil {
 		keys = []string{}
 	}
@@ -358,11 +358,24 @@ func appProjectWithHelmSourceIntegrity(mode SourceIntegrityHelmPolicyProvenanceM
 		SourceIntegrity: &SourceIntegrity{
 			Helm: &SourceIntegrityHelm{
 				Policies: []*SourceIntegrityHelmPolicy{{
-					Repos: []SourceIntegrityHelmPolicyRepo{{URL: "*"}},
-					Provenance: &SourceIntegrityHelmPolicyProvenance{
-						Mode: mode,
-						Keys: keys,
-					},
+					Repos:      []SourceIntegrityHelmPolicyRepo{{URL: "*"}},
+					Provenance: &SourceIntegrityHelmPolicyProvenance{Keys: keys},
+				}},
+			},
+		},
+	}
+}
+
+func appProjectWithHelmSourceIntegrityNoVerification() AppProjectSpec {
+	return AppProjectSpec{
+		SourceRepos:      []string{"*"},
+		SourceNamespaces: []string{"*"},
+		Destinations:     []ApplicationDestination{{Namespace: "*", Server: "*"}},
+		SourceIntegrity: &SourceIntegrity{
+			Helm: &SourceIntegrityHelm{
+				Policies: []*SourceIntegrityHelmPolicy{{
+					Repos:      []SourceIntegrityHelmPolicyRepo{{URL: "*"}},
+					Provenance: &SourceIntegrityHelmPolicyProvenance{Keys: []string{}},
 				}},
 			},
 		},
@@ -377,8 +390,8 @@ func appProjectWithMultipleHelmPolicies(repoURL string) AppProjectSpec {
 		SourceIntegrity: &SourceIntegrity{
 			Helm: &SourceIntegrityHelm{
 				Policies: []*SourceIntegrityHelmPolicy{
-					{Repos: []SourceIntegrityHelmPolicyRepo{{URL: "*"}}, Provenance: &SourceIntegrityHelmPolicyProvenance{Mode: SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{fixture.GpgGoodKeyID}}},
-					{Repos: []SourceIntegrityHelmPolicyRepo{{URL: repoURL}}, Provenance: &SourceIntegrityHelmPolicyProvenance{Mode: SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{fixture.GpgGoodKeyID}}},
+					{Repos: []SourceIntegrityHelmPolicyRepo{{URL: "*"}}, Provenance: &SourceIntegrityHelmPolicyProvenance{Keys: []string{fixture.GpgGoodKeyID}}},
+					{Repos: []SourceIntegrityHelmPolicyRepo{{URL: repoURL}}, Provenance: &SourceIntegrityHelmPolicyProvenance{Keys: []string{fixture.GpgGoodKeyID}}},
 				},
 			},
 		},
@@ -400,7 +413,7 @@ func appProjectWithGitAndHelmSourceIntegrity(helmKeyID string) AppProjectSpec {
 			Helm: &SourceIntegrityHelm{
 				Policies: []*SourceIntegrityHelmPolicy{{
 					Repos:      []SourceIntegrityHelmPolicyRepo{{URL: "*"}},
-					Provenance: &SourceIntegrityHelmPolicyProvenance{Mode: SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{helmKeyID}},
+					Provenance: &SourceIntegrityHelmPolicyProvenance{Keys: []string{helmKeyID}},
 				}},
 			},
 		},

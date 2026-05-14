@@ -30533,21 +30533,17 @@ spec:
                             allowed keys.
                           properties:
                             provenance:
-                              description: SourceIntegrityHelmPolicyProvenance configures
-                                verification of Helm chart provenance (.prov file
-                                and signature).
+                              description: |-
+                                SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).
+                                When Keys is non-empty, requires a .prov file, valid signature from an allowed key, and chart checksum match.
+                                When Keys is empty, provenance verification is not performed for matching repos.
                               properties:
                                 keys:
                                   items:
                                     type: string
                                   type: array
-                                mode:
-                                  description: SourceIntegrityHelmPolicyProvenanceMode
-                                    controls provenance verification.
-                                  type: string
                               required:
                               - keys
-                              - mode
                               type: object
                             repos:
                               items:

@@ -557,8 +557,8 @@ func TestVerifyHelmMultiplePolicies(t *testing.T) {
 	si := &v1alpha1.SourceIntegrity{
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{
-				{Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.bitnami.com/*"}}, Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{"A"}}},
-				{Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.bitnami.com/bitnami"}}, Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{"B"}}},
+				{Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.bitnami.com/*"}}, Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"A"}}},
+				{Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.bitnami.com/bitnami"}}, Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"B"}}},
 			},
 		},
 	}
@@ -569,28 +569,12 @@ func TestVerifyHelmMultiplePolicies(t *testing.T) {
 	assert.Contains(t, result.AsError().Error(), "multiple (2) Helm source integrity policies found for repo URL")
 }
 
-func TestVerifyHelmUnknownMode(t *testing.T) {
-	si := &v1alpha1.SourceIntegrity{
-		Helm: &v1alpha1.SourceIntegrityHelm{
-			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
-				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
-				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceMode("invalid"), Keys: []string{"A"}},
-			}},
-		},
-	}
-	result, err := VerifyHelm(si, "https://charts.example.com/repo", []byte{}, []byte{1}, "chart.tgz")
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.Error(t, result.AsError())
-	assert.Contains(t, result.AsError().Error(), `unknown Helm source integrity provenance mode "invalid"`)
-}
-
 func TestVerifyHelmProvenanceRequiredButMissing(t *testing.T) {
 	si := &v1alpha1.SourceIntegrity{
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
-				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{"0000000000000000"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"0000000000000000"}},
 			}},
 		},
 	}
@@ -601,18 +585,42 @@ func TestVerifyHelmProvenanceRequiredButMissing(t *testing.T) {
 	assert.Contains(t, result.AsError().Error(), "provenance file (.prov) is required but missing")
 }
 
-func TestVerifyHelmModeNone(t *testing.T) {
+func TestVerifyHelmReturnsNilWhenKeysEmpty(t *testing.T) {
 	si := &v1alpha1.SourceIntegrity{
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
-				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeNone, Keys: []string{}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{}},
 			}},
 		},
 	}
 	result, err := VerifyHelm(si, "https://charts.example.com/repo", []byte{}, nil, "chart.tgz")
 	require.NoError(t, err)
-	require.Nil(t, result, "mode none skips verification, returns nil")
+	require.Nil(t, result, "empty keys list skips verification, returns nil")
+}
+
+func TestHelmProvenanceFetchFailed(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"A"}},
+			}},
+		},
+	}
+	cause := fmt.Errorf("network down")
+	result := HelmProvenanceFetchFailed(si, "https://charts.example.com/repo", false, cause)
+	require.NotNil(t, result)
+	require.Error(t, result.AsError())
+	assert.Contains(t, result.AsError().Error(), "could not access chart for provenance verification")
+	assert.Contains(t, result.AsError().Error(), "network down")
+
+	ociResult := HelmProvenanceFetchFailed(si, "https://charts.example.com/repo", true, cause)
+	require.NotNil(t, ociResult)
+	require.Error(t, ociResult.AsError())
+	assert.Contains(t, ociResult.AsError().Error(), "could not access OCI helm chart for provenance verification")
+
+	assert.Nil(t, HelmProvenanceFetchFailed(si, "https://charts.other.com/repo", false, cause), "no matching policy returns nil")
 }
 
 func TestVerifyHelmReturnsNilWhenNoPolicyMatch(t *testing.T) {
@@ -620,7 +628,7 @@ func TestVerifyHelmReturnsNilWhenNoPolicyMatch(t *testing.T) {
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.other.com/*"}},
-				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{"A"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"A"}},
 			}},
 		},
 	}
@@ -643,7 +651,7 @@ func TestVerifyHelmPassWhenGPGDisabled(t *testing.T) {
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
-				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{"A"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"A"}},
 			}},
 		},
 	}
@@ -667,7 +675,7 @@ func TestVerifyHelmPassProvenanceValid(t *testing.T) {
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "http://localhost:*/*"}},
-				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{"C569733D3D05285D"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"C569733D3D05285D"}},
 			}},
 		},
 	}
@@ -691,7 +699,7 @@ func TestVerifyHelmFailUnallowedKey(t *testing.T) {
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "http://localhost:*/*"}},
-				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance, Keys: []string{"0000000000000000"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"0000000000000000"}},
 			}},
 		},
 	}

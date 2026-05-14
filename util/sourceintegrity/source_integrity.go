@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ProtonMail/go-crypto/openpgp/clearsign"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -20,49 +21,31 @@ type gitFunc func(gitClient git.Client, verifiedRevision string) (result *v1alph
 
 var _gpgDisabledLoggedAlready bool
 
-// HasCriteria determines if any of the sources have some criteria declared
+// HasCriteria returns true when any source matches project policy for Git integrity (GPG, etc.),
+// or when any Helm source (including oci:// chart repos) matches a Helm provenance policy
 func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSource) bool {
 	if si == nil {
 		return false
 	}
 
 	for _, source := range sources {
-		if source.IsZero() || source.IsOCI() {
+		if source.IsZero() {
+			continue
+		}
+		if hasHelmProvenanceCriteriaForSource(si, source) {
+			return true
+		}
+		if source.IsOCI() {
 			continue
 		}
 		if !source.IsHelm() {
 			if si.Git != nil && lookupGit(si, source.RepoURL) != nil {
 				return true
 			}
-		} else if hasHelmProvenanceCriteriaForSource(si, source) {
-			return true
 		}
 	}
 
 	return false
-}
-
-// HasHelmProvenanceCriteria returns true only when at least one source is Helm and the project
-// has a matching Helm provenance policy (mode != none).
-func HasHelmProvenanceCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSource) bool {
-	if si == nil {
-		return false
-	}
-	for _, source := range sources {
-		if source.IsZero() || source.IsOCI() {
-			continue
-		}
-		if hasHelmProvenanceCriteriaForSource(si, source) {
-			return true
-		}
-	}
-	return false
-}
-
-// NeedsHelmProvenanceVerification returns true when the given Helm source has a matching
-// project policy that requires provenance verification.
-func NeedsHelmProvenanceVerification(si *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) bool {
-	return hasHelmProvenanceCriteriaForSource(si, source)
 }
 
 func hasHelmProvenanceCriteriaForSource(si *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) bool {
@@ -71,7 +54,7 @@ func hasHelmProvenanceCriteriaForSource(si *v1alpha1.SourceIntegrity, source v1a
 	}
 	policies := findMatchingHelmPolicies(si.Helm, source.RepoURL)
 	for _, p := range policies {
-		if p.Provenance != nil && p.Provenance.Mode == v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance {
+		if p.Provenance != nil && len(p.Provenance.Keys) > 0 {
 			return true
 		}
 	}
@@ -330,16 +313,37 @@ func VerifyHelm(si *v1alpha1.SourceIntegrity, repoURL string, chartContent []byt
 	return helmProvenanceResult(problems), nil
 }
 
-// HelmProvenanceResult builds a SourceIntegrityCheckResult for the HELM/PROVENANCE check.
-func HelmProvenanceResult(problems []string) *v1alpha1.SourceIntegrityCheckResult {
+// HelmProvenanceFetchFailed returns a HELM/PROVENANCE check result when the chart
+// or provenance data cannot be retrieved for verification.
+// Policy resolution follows resolveHelmProvenancePolicy, including handling:
+//   - multiple matching policies,
+//   - unsupported provenance modes,
+//   - or no matching provenance policy.
+//
+// If no provenance policy applies, the function returns nil.
+// ociChart controls whether the returned message is for an OCI chart or a traditional Helm repository.
+func HelmProvenanceFetchFailed(si *v1alpha1.SourceIntegrity, repoURL string, ociChart bool, cause error) *v1alpha1.SourceIntegrityCheckResult {
+	policy, earlyResult := resolveHelmProvenancePolicy(si, repoURL)
+	if earlyResult != nil {
+		return earlyResult
+	}
+	if policy == nil {
+		return nil
+	}
+	var msg string
+	if ociChart {
+		msg = fmt.Sprintf("could not access OCI helm chart for provenance verification: %v", cause)
+	} else {
+		msg = fmt.Sprintf("could not access chart for provenance verification: %v", cause)
+	}
+	return helmProvenanceResult([]string{msg})
+}
+
+func helmProvenanceResult(problems []string) *v1alpha1.SourceIntegrityCheckResult {
 	return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 		Name:     CheckNameHelmProvenance,
 		Problems: problems,
 	}}}
-}
-
-func helmProvenanceResult(problems []string) *v1alpha1.SourceIntegrityCheckResult {
-	return HelmProvenanceResult(problems)
 }
 
 func resolveHelmProvenancePolicy(si *v1alpha1.SourceIntegrity, repoURL string) (*v1alpha1.SourceIntegrityHelmPolicy, *v1alpha1.SourceIntegrityCheckResult) {
@@ -356,11 +360,8 @@ func resolveHelmProvenancePolicy(si *v1alpha1.SourceIntegrity, repoURL string) (
 		return nil, helmProvenanceResult([]string{msg})
 	}
 	policy := policies[0]
-	if policy.Provenance == nil || policy.Provenance.Mode == v1alpha1.SourceIntegrityHelmPolicyProvenanceModeNone {
+	if policy.Provenance == nil || len(policy.Provenance.Keys) == 0 {
 		return nil, nil
-	}
-	if policy.Provenance.Mode != v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance {
-		return nil, helmProvenanceResult([]string{fmt.Sprintf("unknown Helm source integrity provenance mode %q", policy.Provenance.Mode)})
 	}
 	return policy, nil
 }
@@ -410,31 +411,15 @@ func findMatchingHelmPolicies(si *v1alpha1.SourceIntegrityHelm, repoURL string) 
 	return policies
 }
 
-const (
-	pgpSignedMessageHeader = "-----BEGIN PGP SIGNED MESSAGE-----"
-	pgpSignatureHeader     = "-----BEGIN PGP SIGNATURE-----"
-)
-
 // extractProvSignedBody extracts the signed body from a PGP cleartext-signed message (e.g. Helm .prov file).
+// Uses the openpgp/clearsign library to properly parse the cleartext-signed message format.
 func extractProvSignedBody(provContent []byte) ([]byte, error) {
-	s := string(provContent)
-	// Find the signature boundary
-	bodyWithHeader, _, found := strings.Cut(s, "\n"+pgpSignatureHeader)
-	if !found {
-		return nil, fmt.Errorf("provenance missing %s boundary", pgpSignatureHeader)
+	block, _ := clearsign.Decode(provContent)
+	if block == nil {
+		return nil, errors.New("provenance is not a valid PGP cleartext-signed message")
 	}
-	bodyWithHeader = strings.TrimSuffix(bodyWithHeader, "\n")
-	// Ignore "-----BEGIN PGP SIGNED MESSAGE-----" and "Hash: SHA256" and the blank line after.
-	if !strings.HasPrefix(bodyWithHeader, pgpSignedMessageHeader) {
-		return nil, fmt.Errorf("provenance missing %s", pgpSignedMessageHeader)
-	}
-	rest := bodyWithHeader[len(pgpSignedMessageHeader):]
-	// Rest is "\nHash: SHA256\n\n" + body (or "\nHash: ...\n\n" + body)
-	_, body, found := strings.Cut(rest, "\n\n")
-	if !found {
-		return nil, errors.New("provenance signed body has no blank line after Hash")
-	}
-	return []byte(body), nil
+	// block.Plaintext contains the signed body (the content between headers and signature)
+	return block.Plaintext, nil
 }
 
 // provFilesDigestRegex matches a line like "  helm-1.0.0.tgz: sha256:<64 hex chars>"
