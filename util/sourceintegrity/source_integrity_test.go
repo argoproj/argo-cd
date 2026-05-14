@@ -1,6 +1,7 @@
 package sourceintegrity
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -608,7 +609,7 @@ func TestHelmProvenanceFetchFailed(t *testing.T) {
 			}},
 		},
 	}
-	cause := fmt.Errorf("network down")
+	cause := errors.New("network down")
 	result := HelmProvenanceFetchFailed(si, "https://charts.example.com/repo", false, cause)
 	require.NotNil(t, result)
 	require.Error(t, result.AsError())
