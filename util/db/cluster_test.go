@@ -66,15 +66,13 @@ func Test_secretToCluster(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, v1alpha1.Cluster{
-		Name:   "test",
-		Server: "http://mycluster",
-		Config: v1alpha1.ClusterConfig{
-			Username: "foo",
-		},
-		Labels:      labels,
-		Annotations: annotations,
-	}, *cluster)
+	assert.Equal(t, "test", cluster.Name)
+	assert.Equal(t, "http://mycluster", cluster.Server)
+	assert.Equal(t, v1alpha1.ClusterConfig{Username: "foo"}, cluster.Config)
+	assert.Equal(t, labels, cluster.Labels)
+	assert.Equal(t, annotations, cluster.Annotations)
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
 }
 
 func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
@@ -145,12 +143,12 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, v1alpha1.Cluster{
-		Name:        "test",
-		Server:      "http://mycluster",
-		Labels:      map[string]string{},
-		Annotations: map[string]string{},
-	}, *cluster)
+	assert.Equal(t, "test", cluster.Name)
+	assert.Equal(t, "http://mycluster", cluster.Server)
+	assert.Equal(t, map[string]string{}, cluster.Labels)
+	assert.Equal(t, map[string]string{}, cluster.Annotations)
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
 }
 
 func Test_secretToCluster_InvalidConfig(t *testing.T) {
@@ -390,6 +388,17 @@ func TestGetCluster(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, cluster.Server)
 		assert.Equal(t, "in-cluster", cluster.Name)
+	})
+
+	t.Run("in-cluster has ConfigHash set", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		cluster, err := db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
+		require.NoError(t, err)
+		assert.NotNil(t, cluster.ConfigHash)
+		assert.NotZero(t, *cluster.ConfigHash)
 	})
 
 	t.Run("in-cluster disabled", func(t *testing.T) {
@@ -942,4 +951,58 @@ func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 		_, _ = db.UpdateCluster(ctx, clusterCopy)
 		time.Sleep(time.Millisecond * 500)
 	}
+}
+
+// ConfigHash tests - configHash is ephemeral and never persisted to secrets
+func Test_clusterToSecret_ConfigHash_NotPersisted(t *testing.T) {
+	// Verify that configHash is never stored in the secret, even when set on the cluster
+	testHash := uint64(12345)
+	cluster := &v1alpha1.Cluster{
+		Server:     "https://example.com",
+		Name:       "test-cluster",
+		ConfigHash: &testHash,
+		Config:     v1alpha1.ClusterConfig{},
+	}
+	s := &corev1.Secret{}
+	err := clusterToSecret(cluster, s)
+	require.NoError(t, err)
+
+	// configHash should never be stored in secret data
+	assert.Empty(t, s.Data["configHash"])
+}
+
+func Test_clusterToSecret_ConfigHash_Nil_NotPersisted(t *testing.T) {
+	cluster := &v1alpha1.Cluster{
+		Server:     "https://example.com",
+		Name:       "test-cluster",
+		ConfigHash: nil,
+		Config:     v1alpha1.ClusterConfig{},
+	}
+	s := &corev1.Secret{}
+	err := clusterToSecret(cluster, s)
+	require.NoError(t, err)
+
+	// configHash should never be stored in secret data
+	assert.Empty(t, s.Data["configHash"])
+}
+
+func Test_secretToCluster_ConfigHash_Computed(t *testing.T) {
+	// Verify that a fresh configHash is computed when loading from secret
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster-secret",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test-cluster"),
+			"server": []byte("https://example.com"),
+			"config": []byte("{}"),
+		},
+	}
+	cluster, err := SecretToCluster(secret)
+	require.NoError(t, err)
+
+	// Should have a freshly computed hash based on cluster identity
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
 }
