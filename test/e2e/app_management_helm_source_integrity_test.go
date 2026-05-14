@@ -13,7 +13,6 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
 )
 
 const (
@@ -39,7 +38,8 @@ func TestTraditionalHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		CustomCACertAdded().
-		And(func() { gpgkeys.AddGPGPublicKey(t) }).
+		GPGPublicKeyAdded().
+		Sleep(2).
 		HelmProvenanceRepoAdded("helm-provenance-local").
 		Name(helmProvPassName).
 		Project("gpg").
@@ -66,7 +66,8 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T)
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		CustomCACertAdded().
-		And(func() { gpgkeys.AddGPGPublicKey(t) }).
+		GPGPublicKeyAdded().
+		Sleep(2).
 		HelmProvenanceRepoAdded("helm-provenance-local").
 		Name(helmProvFailName).
 		Project("default").
@@ -93,7 +94,8 @@ func TestHelmOCISourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartWithProvenanceToOCIRegistry(helmOCIProvChartPath, helmOCIProvChart, helmOCIProvChartV).
-		And(func() { gpgkeys.AddGPGPublicKey(t) }).
+		GPGPublicKeyAdded().
+		Sleep(2).
 		HelmOCIRepoAdded("helm-oci-provenance").
 		Name(helmOCIProvPassName).
 		Project("gpg").
@@ -120,7 +122,8 @@ func TestHelmOCISourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartWithProvenanceToOCIRegistry(helmOCIProvChartPath, helmOCIProvChart, helmOCIProvChartV).
-		And(func() { gpgkeys.AddGPGPublicKey(t) }).
+		GPGPublicKeyAdded().
+		Sleep(2).
 		HelmOCIRepoAdded("helm-oci-provenance").
 		Name(helmOCIProvFailName).
 		Project("default").
@@ -196,7 +199,8 @@ func TestHelmSourceIntegrityMultiplePoliciesFails(t *testing.T) {
 	repoURL := helmProvenanceLocalRepoURL()
 	Given(t).
 		CustomCACertAdded().
-		And(func() { gpgkeys.AddGPGPublicKey(t) }).
+		GPGPublicKeyAdded().
+		Sleep(2).
 		HelmProvenanceRepoAdded("helm-multi-pol").
 		Name("helm-multi-pol-fail").
 		Project("default").
@@ -268,7 +272,8 @@ func TestMultiSourceGitHelmOCIProvenanceAllPass(t *testing.T) {
 
 	Given(t).
 		CustomCACertAdded().
-		And(func() { gpgkeys.AddGPGPublicKey(t) }).
+		GPGPublicKeyAdded().
+		Sleep(2).
 		HelmProvenanceRepoAdded("helm-multi").
 		PushChartWithProvenanceToOCIRegistry(helmOCIProvChartPath, helmOCIProvChart, helmOCIProvChartV).
 		HelmOCIRepoAdded("helm-oci-multi").
