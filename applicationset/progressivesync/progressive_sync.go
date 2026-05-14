@@ -105,7 +105,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
 
-	condition := m.getProgressingCondition(ctx, &appset)
+	condition := m.getProgressingCondition(&appset)
 	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset, condition)
 
 	return appsToSync, nil
