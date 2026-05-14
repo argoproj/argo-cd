@@ -2689,6 +2689,12 @@ spec:
               key: reposerver.helm.user.agent
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_ENABLE_TRACKING_LABEL_ON_CRDS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.enable.trackingcrds
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
