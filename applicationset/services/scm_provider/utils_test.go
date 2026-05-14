@@ -32,7 +32,7 @@ func TestFilterRepoMatch(t *testing.T) {
 			RepositoryMatch: new("n|hr"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -61,7 +61,7 @@ func TestFilterLabelMatch(t *testing.T) {
 			LabelMatch: new("^prod-.*$"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -87,7 +87,7 @@ func TestFilterPathExists(t *testing.T) {
 			PathsExist: []string{"two"},
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "two", repos[0].Repository)
@@ -112,7 +112,7 @@ func TestFilterPathDoesntExists(t *testing.T) {
 			PathsDoNotExist: []string{"two"},
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 }
@@ -130,7 +130,7 @@ func TestFilterRepoMatchBadRegexp(t *testing.T) {
 			RepositoryMatch: new("("),
 		},
 	}
-	_, err := ListRepos(t.Context(), provider, filters, "")
+	_, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.Error(t, err)
 }
 
@@ -147,7 +147,7 @@ func TestFilterLabelMatchBadRegexp(t *testing.T) {
 			LabelMatch: new("("),
 		},
 	}
-	_, err := ListRepos(t.Context(), provider, filters, "")
+	_, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.Error(t, err)
 }
 
@@ -181,7 +181,7 @@ func TestFilterBranchMatch(t *testing.T) {
 			BranchMatch: new("w"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -213,10 +213,144 @@ func TestMultiFilterAnd(t *testing.T) {
 			LabelMatch:      new("^prod-.*$"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "two", repos[0].Repository)
+}
+
+// TestMixedFilterRepoAndPathsExist verifies that when enableCrossStageFiltering is true,
+// a filter with both repositoryMatch (repo-level) and pathsExist (branch-level) conditions
+// correctly ANDs them together.
+func TestMixedFilterRepoAndPathsExist(t *testing.T) {
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "eks-app-one",
+				Branch:     "main",
+			},
+			{
+				Repository: "eks-app-two",
+				Branch:     "main",
+			},
+			{
+				Repository: "other-app",
+				Branch:     "main",
+			},
+		},
+	}
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			RepositoryMatch: new("^eks"),
+			PathsExist:      []string{"eks-app-one"},
+		},
+	}
+	repos, err := ListRepos(t.Context(), provider, filters, "", true)
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
+	assert.Equal(t, "eks-app-one", repos[0].Repository)
+}
+
+// TestMixedFilterRepoAndPathsExistLegacy verifies that without enableCrossStageFiltering,
+// the legacy behavior is preserved where mixed filters are classified by FilterType and
+// the repositoryMatch is ignored (filter is classified as branch-only).
+func TestMixedFilterRepoAndPathsExistLegacy(t *testing.T) {
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "eks-app-one",
+				Branch:     "main",
+			},
+			{
+				Repository: "eks-app-two",
+				Branch:     "main",
+			},
+			{
+				Repository: "other-app",
+				Branch:     "main",
+			},
+		},
+	}
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			RepositoryMatch: new("^eks"),
+			PathsExist:      []string{"eks-app-one"},
+		},
+	}
+	// Legacy behavior: the filter gets FilterType=FilterTypeBranch (pathsExist overwrites repositoryMatch's FilterType),
+	// so repositoryMatch is effectively ignored during branch filtering, and all repos with the path match.
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
+	require.NoError(t, err)
+	// In legacy mode, repositoryMatch is still checked in matchFilterLegacy, so only eks repos
+	// with the path match. But the filter is only in the branch group, so all repos pass the
+	// repo phase (no repo filters), then in the branch phase matchFilterLegacy checks ALL conditions.
+	// So: eks-app-one matches (^eks AND has path "eks-app-one"), other-app doesn't match ^eks.
+	// eks-app-two matches ^eks but doesn't have path. Result: only eks-app-one.
+	assert.Len(t, repos, 1)
+	assert.Equal(t, "eks-app-one", repos[0].Repository)
+}
+
+// TestMixedFilterRepoAndPathsDoNotExist verifies that repositoryMatch and pathsDoNotExist are ANDed
+// when enableCrossStageFiltering is true.
+func TestMixedFilterRepoAndPathsDoNotExist(t *testing.T) {
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "eks-app-one",
+				Branch:     "main",
+			},
+			{
+				Repository: "eks-app-two",
+				Branch:     "main",
+			},
+			{
+				Repository: "other-app",
+				Branch:     "main",
+			},
+		},
+	}
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			RepositoryMatch: new("^eks"),
+			PathsDoNotExist: []string{"eks-app-one"},
+		},
+	}
+	repos, err := ListRepos(t.Context(), provider, filters, "", true)
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
+	assert.Equal(t, "eks-app-two", repos[0].Repository)
+}
+
+// TestMixedFilterRepoAndBranchMatch verifies that repositoryMatch and branchMatch are ANDed
+// when enableCrossStageFiltering is true.
+func TestMixedFilterRepoAndBranchMatch(t *testing.T) {
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "eks-app",
+				Branch:     "main",
+			},
+			{
+				Repository: "eks-app",
+				Branch:     "develop",
+			},
+			{
+				Repository: "other-app",
+				Branch:     "main",
+			},
+		},
+	}
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			RepositoryMatch: new("^eks"),
+			BranchMatch:     new("^main$"),
+		},
+	}
+	repos, err := ListRepos(t.Context(), provider, filters, "", true)
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
+	assert.Equal(t, "eks-app", repos[0].Repository)
+	assert.Equal(t, "main", repos[0].Branch)
 }
 
 func TestMultiFilterOr(t *testing.T) {
@@ -244,7 +378,7 @@ func TestMultiFilterOr(t *testing.T) {
 			LabelMatch: new("^prod-.*$"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.NoError(t, err)
 	assert.Len(t, repos, 3)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -270,7 +404,7 @@ func TestNoFilters(t *testing.T) {
 		},
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(t.Context(), provider, filters, "", false)
 	require.NoError(t, err)
 	assert.Len(t, repos, 3)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -278,9 +412,8 @@ func TestNoFilters(t *testing.T) {
 	assert.Equal(t, "three", repos[2].Repository)
 }
 
-// tests the getApplicableFilters function, passing in all the filters, and an unset filter, plus an additional
-// branch filter
-func TestApplicableFilterMap(t *testing.T) {
+// tests the getApplicableFilters function with legacy FilterType-based categorization
+func TestApplicableFilterMapLegacy(t *testing.T) {
 	branchFilter := Filter{
 		BranchMatch: &regexp.Regexp{},
 		FilterType:  FilterTypeBranch,
@@ -311,8 +444,68 @@ func TestApplicableFilterMap(t *testing.T) {
 	filterMap := getApplicableFilters([]*Filter{
 		&branchFilter, &repoFilter,
 		&pathExistsFilter, &labelMatchFilter, &unsetFilter, &additionalBranchFilter, &pathDoesntExistsFilter,
-	})
+	}, false)
 
 	assert.Len(t, filterMap[FilterTypeRepo], 2)
 	assert.Len(t, filterMap[FilterTypeBranch], 4)
+}
+
+// tests the getApplicableFilters function categorizes filters based on their actual conditions
+// when enableCrossStage is true
+func TestApplicableFilterMapCrossStage(t *testing.T) {
+	branchFilter := Filter{
+		BranchMatch: &regexp.Regexp{},
+	}
+	repoFilter := Filter{
+		RepositoryMatch: &regexp.Regexp{},
+	}
+	pathExistsFilter := Filter{
+		PathsExist: []string{"test"},
+	}
+	pathDoesntExistsFilter := Filter{
+		PathsDoNotExist: []string{"test"},
+	}
+	labelMatchFilter := Filter{
+		LabelMatch: &regexp.Regexp{},
+	}
+	additionalBranchFilter := Filter{
+		BranchMatch: &regexp.Regexp{},
+	}
+	filterMap := getApplicableFilters([]*Filter{
+		&branchFilter, &repoFilter,
+		&pathExistsFilter, &labelMatchFilter, &additionalBranchFilter, &pathDoesntExistsFilter,
+	}, true)
+
+	// repoFilter and labelMatchFilter have repo-level conditions
+	assert.Len(t, filterMap[FilterTypeRepo], 2)
+	// branchFilter, pathExistsFilter, additionalBranchFilter, pathDoesntExistsFilter have branch-level conditions
+	assert.Len(t, filterMap[FilterTypeBranch], 4)
+}
+
+// tests that a filter with both repo and branch conditions is added to both filter groups
+// when enableCrossStage is true
+func TestApplicableFilterMapMixedFilter(t *testing.T) {
+	mixedFilter := Filter{
+		RepositoryMatch: &regexp.Regexp{},
+		PathsExist:      []string{"test"},
+	}
+	repoOnlyFilter := Filter{
+		RepositoryMatch: &regexp.Regexp{},
+	}
+	branchOnlyFilter := Filter{
+		BranchMatch: &regexp.Regexp{},
+	}
+	filterMap := getApplicableFilters([]*Filter{
+		&mixedFilter, &repoOnlyFilter, &branchOnlyFilter,
+	}, true)
+
+	// mixedFilter and repoOnlyFilter have repo-level conditions
+	assert.Len(t, filterMap[FilterTypeRepo], 2)
+	assert.Contains(t, filterMap[FilterTypeRepo], &mixedFilter)
+	assert.Contains(t, filterMap[FilterTypeRepo], &repoOnlyFilter)
+
+	// mixedFilter and branchOnlyFilter have branch-level conditions
+	assert.Len(t, filterMap[FilterTypeBranch], 2)
+	assert.Contains(t, filterMap[FilterTypeBranch], &mixedFilter)
+	assert.Contains(t, filterMap[FilterTypeBranch], &branchOnlyFilter)
 }

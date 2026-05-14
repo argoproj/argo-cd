@@ -487,7 +487,7 @@ func TestBitbucketListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewBitBucketCloudProvider(c.owner, "user", "password", c.allBranches)
-			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto, false)
 			if c.hasError {
 				require.Error(t, err)
 			} else {

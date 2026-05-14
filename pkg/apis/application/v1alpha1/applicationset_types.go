@@ -453,6 +453,11 @@ type SCMProviderGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
+	// EnableCrossStageFiltering enables proper AND logic for filters that combine repo-level conditions
+	// (repositoryMatch, labelMatch) with branch-level conditions (branchMatch, pathsExist, pathsDoNotExist).
+	// When true, a single filter with both repo-level and branch-level conditions will enforce all conditions.
+	// When false (default), legacy behavior is preserved where mixed filters may only apply to one phase.
+	EnableCrossStageFiltering bool `json:"enableCrossStageFiltering,omitempty" protobuf:"varint,13,opt,name=enableCrossStageFiltering"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
