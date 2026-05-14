@@ -542,8 +542,9 @@ func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources 
 // once (which would lead to ambiguous references).
 func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
-	if len(sources) > 1 {
-		// Validate first to avoid unnecessary DB calls.
+	if len(sources) > 0 {
+		// Validate first to avoid unnecessary DB calls. Use len(sources) > 0 (not > 1) so a sole source with ref:
+		// is populated; otherwise GetSyncedRefSources panics when spec.sources has one element (see #27759).
 		refKeys := make(map[string]bool)
 		for _, source := range sources {
 			if source.Ref == "" {
