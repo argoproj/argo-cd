@@ -8,4 +8,4 @@ template-data:
 packages:
   github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube:
     interfaces:
-      KubectlCommandFacade: {}
+      KubectlOptionsRunner: {}

@@ -285,13 +285,23 @@ func (spec *ApplicationSpec) HasMultipleSources() bool {
 	return spec.SourceHydrator == nil && len(spec.Sources) > 0
 }
 
+// GetSourcePtrByPosition returns the source pointer by position.
+// The position is 1-based index.
+// If the source is using hydrator, use 0 to return the dry source or 1 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	return spec.GetSourcePtrByIndex(sourcePosition - 1)
 }
 
+// GetSourcePtrByIndex returns the source pointer by index.
+// If the source is using hydrator, use -1 to return the dry source or 0 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	if spec.SourceHydrator != nil {
+		if sourceIndex < 0 {
+			// If the index is -1, return the dry source.
+			source := spec.SourceHydrator.GetDrySource()
+			return &source
+		}
 		source := spec.SourceHydrator.GetSyncSource()
 		return &source
 	}
@@ -522,8 +532,10 @@ const (
 type HydrateType string
 
 const (
-	// HydrateTypeNormal is a normal hydration
+	// HydrateTypeNormal forces reevaluation of whether the dry requires hydration
 	HydrateTypeNormal HydrateType = "normal"
+	// HydrateTypeHard forces an app hydration of the dry source
+	HydrateTypeHard HydrateType = "hard"
 )
 
 type RefTarget struct {
@@ -535,6 +547,7 @@ type RefTarget struct {
 type RefTargetRevisionMapping map[string]*RefTarget
 
 // ApplicationSourceHelm holds helm specific options
+// +protobuf.options.(gogoproto.goproto_stringer)=false
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
@@ -1220,6 +1233,9 @@ type SourceHydratorStatus struct {
 	LastSuccessfulOperation *SuccessfulHydrateOperation `json:"lastSuccessfulOperation,omitempty" protobuf:"bytes,1,opt,name=lastSuccessfulOperation"`
 	// CurrentOperation holds the status of the hydrate operation
 	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
+	// LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
+	// This is updated on every evaluation, even when hydration is skipped due to no changes.
+	LastComparedDryRevision string `json:"lastComparedDryRevision,omitempty" protobuf:"bytes,3,opt,name=lastComparedDryRevision"`
 }
 
 func (status *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
@@ -1693,9 +1709,12 @@ type RevisionMetadata struct {
 	// Message contains the message associated with the revision, most likely the commit message.
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
-	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+	//
+	// Deprecated: Use SourceIntegrityResult for more detailed information. SignatureInfo will be removed with the next major version.
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// References contains references to information that's related to this commit in some way.
-	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	References            []RevisionReference         `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	SourceIntegrityResult *SourceIntegrityCheckResult `json:"sourceIntegrityResult,omitempty" protobuf:"bytes,7,opt,name=sourceIntegrityResult"`
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository
@@ -2765,7 +2784,9 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 }
 
 // SignatureKey is the specification of a key required to verify commit signatures with
-type SignatureKey struct {
+//
+// Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
+type SignatureKey struct { // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// The ID of the key in hexadecimal notation
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }
@@ -2792,7 +2813,9 @@ type AppProjectSpec struct {
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 	// SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
-	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
+	//
+	// Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
+	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []ClusterResourceRestrictionItem `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 	// SourceNamespaces defines the namespaces application resources are allowed to be created in
@@ -2801,6 +2824,50 @@ type AppProjectSpec struct {
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+	// SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
+	// Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
+	SourceIntegrity *SourceIntegrity `json:"sourceIntegrity,omitempty" protobuf:"bytes,15,name=sourceIntegrity"`
+}
+
+// EffectiveSourceIntegrity incorporates the legacy SignatureKeys into SourceIntegrity, if possible
+// SignatureKeys are added as a Git GPG policy for repos specified with `*`. If such a policy exists, the SignatureKeys
+// are ignored with warning.
+func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
+	var legacyKeys []string
+	for _, k := range proj.Spec.SignatureKeys {
+		legacyKeys = append(legacyKeys, k.KeyID)
+	}
+
+	if len(legacyKeys) == 0 {
+		// Already using the modern version
+		return proj.Spec.SourceIntegrity
+	}
+
+	migratedGit := &SourceIntegrityGit{
+		Policies: []*SourceIntegrityGitPolicy{{
+			Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+			GPG: &SourceIntegrityGitPolicyGPG{
+				Mode: SourceIntegrityGitPolicyGPGModeHead,
+				Keys: legacyKeys,
+			},
+		}},
+	}
+
+	if proj.Spec.SourceIntegrity == nil {
+		log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+		return &SourceIntegrity{Git: migratedGit}
+	}
+
+	if proj.Spec.SourceIntegrity.Git != nil {
+		log.Errorf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.", proj.Name)
+		return proj.Spec.SourceIntegrity
+	}
+
+	log.Warnf("Merging SourceIntegrity with legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+	// Merge with non-git checks without modifying the AppProject - use deep-copy and amend
+	deepCopy := proj.Spec.SourceIntegrity.DeepCopy()
+	deepCopy.Git = migratedGit
+	return deepCopy
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
@@ -3488,20 +3555,21 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	return refreshType, true
 }
 
-// IsHydrateRequested returns whether hydration has been requested for an application
-func (app *Application) IsHydrateRequested() bool {
+// IsHydrateRequested returns whether hydration has been requested for an application and the type of hydration
+func (app *Application) IsHydrateRequested() (bool, HydrateType) {
 	annotations := app.GetAnnotations()
 	if annotations == nil {
-		return false
+		return false, ""
 	}
 	typeStr, ok := annotations[AnnotationKeyHydrate]
 	if !ok {
-		return false
+		return false, ""
 	}
-	if typeStr == string(HydrateTypeNormal) {
-		return true
+	hydrateType := HydrateTypeNormal
+	if typeStr == string(HydrateTypeHard) {
+		hydrateType = HydrateTypeHard
 	}
-	return false
+	return true, hydrateType
 }
 
 func (app *Application) HasPreDeleteFinalizer(stage ...string) bool {
