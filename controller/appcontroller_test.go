@@ -233,7 +233,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	defer cancelApp()
 	clusterCacheMock := &mocks.ClusterCache{}
 	clusterCacheMock.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
-	clusterCacheMock.EXPECT().GetOpenAPISchema().Return(nil)
 	clusterCacheMock.EXPECT().GetGVKParser().Return(nil)
 
 	mockStateCache := &mockstatecache.LiveStateCache{}
