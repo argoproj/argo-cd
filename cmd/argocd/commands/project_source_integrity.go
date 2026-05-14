@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"maps"
@@ -280,7 +279,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 
 			closer, gpgKeyClient := newGpgKeyClient(clientOpts, c)
 			defer utilio.Close(closer)
-			warnOnProblems(c.ErrOrStderr(), &newPolicy, gpgKeyClient)
+			warnOnProblems(c, &newPolicy, gpgKeyClient)
 
 			if proj.Spec.SourceIntegrity == nil {
 				proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{}
@@ -450,7 +449,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 
 			closer, gpgKeyClient := newGpgKeyClient(clientOpts, c)
 			defer utilio.Close(closer)
-			warnOnProblems(c.ErrOrStderr(), policy, gpgKeyClient)
+			warnOnProblems(c, policy, gpgKeyClient)
 
 			_, err = projects.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
@@ -470,7 +469,8 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 }
 
 // warnOnProblems checks if a policy has empty repo URLs or GPG keys and prints warnings
-func warnOnProblems(stderr io.Writer, policy *v1alpha1.SourceIntegrityGitPolicy, gpgKeyClient gpgkey.GPGKeyServiceClient) {
+func warnOnProblems(c *cobra.Command, policy *v1alpha1.SourceIntegrityGitPolicy, gpgKeyClient gpgkey.GPGKeyServiceClient) {
+	stderr := c.ErrOrStderr()
 	if len(policy.Repos) == 0 {
 		_, _ = fmt.Fprintln(stderr, "Warning: Policy has no repository URLs and will never be used")
 	}
@@ -482,7 +482,7 @@ func warnOnProblems(stderr io.Writer, policy *v1alpha1.SourceIntegrityGitPolicy,
 			absent[key] = nil
 		}
 
-		keyring, err := gpgKeyClient.List(context.TODO(), &gpgkey.GnuPGPublicKeyQuery{})
+		keyring, err := gpgKeyClient.List(c.Context(), &gpgkey.GnuPGPublicKeyQuery{})
 		errors.CheckError(err)
 		for _, keyringKey := range keyring.Items {
 			delete(absent, keyringKey.KeyID)
