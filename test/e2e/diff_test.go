@@ -194,7 +194,7 @@ data:
 			diff, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
-			assert.Contains(t, diff, "===== /Secret", "Secret kind should never return diffs for their encrypted data")
+			assert.NotContains(t, diff, "===== /Secret", "Secret kind should never return diffs for their encrypted data")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked with desired manifest
 			// If only the encrypted data is different, the diff should not contain the Secret kind
