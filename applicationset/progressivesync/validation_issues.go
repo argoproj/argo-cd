@@ -2,9 +2,10 @@ package progressivesync
 
 import (
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // ValidationIssues holds all validation problems detected during progressive sync
@@ -12,6 +13,7 @@ type ValidationIssues struct {
 	InvalidMatchExpressions []InvalidMatchExpression
 	DuplicateAppSelections  []DuplicateAppSelection
 	EmptySteps              []int // step indices (0-based) with no matching apps
+	NoSteps                 string
 	InvalidMaxUpdates       []InvalidMaxUpdate
 }
 
@@ -40,6 +42,7 @@ func (v *ValidationIssues) HasIssues() bool {
 	return len(v.InvalidMatchExpressions) > 0 ||
 		len(v.DuplicateAppSelections) > 0 ||
 		len(v.EmptySteps) > 0 ||
+		v.NoSteps != "" ||
 		len(v.InvalidMaxUpdates) > 0
 }
 

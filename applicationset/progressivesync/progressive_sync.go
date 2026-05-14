@@ -214,6 +214,9 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 				}
 			}
 		}
+		if len(steps) == 0 {
+			issues.NoSteps = "No steps defined for rollout"
+		}
 	}
 
 	// Detect empty steps
@@ -617,45 +620,40 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 			Message: "ApplicationSet is performing rollout of step " + progressingStep,
 			Reason:  argov1alpha1.ApplicationSetReasonApplicationSetModified,
 		}
-	} else {
-		// prioritize other Progressive Sync rollout scenarios here:
-		var rolloutReason string
-		var rolloutMessage string
+	}
+	// prioritize other Progressive Sync rollout scenarios here:
+	var rolloutReason string
+	var rolloutMessage string
 
-		// priority 1: no steps defined in AppSet
-		if len(applicationSet.Spec.Strategy.RollingSync.Steps) == 0 {
-			rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutError
-			rolloutMessage = "No steps defined for rollout"
-			// Priority 2: Invalid matchExpression operators
-		} else if m.validationIssues != nil && len(m.validationIssues.InvalidMatchExpressions) > 0 {
-			rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-			rolloutMessage = m.validationIssues.formatInvalidMatchExpressionMessage()
-			// Priority 3: Apps selected by multiple steps
-		} else if m.validationIssues != nil && len(m.validationIssues.DuplicateAppSelections) > 0 {
-			rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-			rolloutMessage = m.validationIssues.formatDuplicateAppSelectionMessage()
-			// Priority 4: Invalid maxUpdate values
-		} else if m.validationIssues != nil && len(m.validationIssues.InvalidMaxUpdates) > 0 {
-			rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-			rolloutMessage = m.validationIssues.formatInvalidMaxUpdateMessage()
-			// Priority 5: Steps with no matching apps
-		} else if m.validationIssues != nil && len(m.validationIssues.EmptySteps) > 0 {
-			rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-			rolloutMessage = m.validationIssues.formatEmptyStepsMessage()
-			// no issues during
-		} else {
-			rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete
-			rolloutMessage = "ApplicationSet Rollout has completed"
-		}
+	switch {
+	case m.validationIssues.NoSteps != "":
+		rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutError
+		rolloutMessage = m.validationIssues.NoSteps
+	case m.validationIssues != nil && len(m.validationIssues.InvalidMatchExpressions) > 0:
+		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
+		rolloutMessage = m.validationIssues.formatInvalidMatchExpressionMessage()
+	case m.validationIssues != nil && len(m.validationIssues.DuplicateAppSelections) > 0:
+		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
+		rolloutMessage = m.validationIssues.formatDuplicateAppSelectionMessage()
+	case m.validationIssues != nil && len(m.validationIssues.InvalidMaxUpdates) > 0:
+		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
+		rolloutMessage = m.validationIssues.formatInvalidMaxUpdateMessage()
+	case m.validationIssues != nil && len(m.validationIssues.EmptySteps) > 0:
+		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
+		rolloutMessage = m.validationIssues.formatEmptyStepsMessage()
+	default:
+		rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete
+		rolloutMessage = "ApplicationSet Rollout has completed"
+	}
 
-		return argov1alpha1.ApplicationSetCondition{
-			Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
-			Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-			Message: rolloutMessage,
-			Reason:  rolloutReason,
-		}
+	return argov1alpha1.ApplicationSetCondition{
+		Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
+		Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+		Message: rolloutMessage,
+		Reason:  rolloutReason,
 	}
 }
+
 func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition argov1alpha1.ApplicationSetCondition) []argov1alpha1.ApplicationSetCondition {
 	if !IsRollingSyncStrategy(applicationSet) {
 		return applicationSet.Status.Conditions
