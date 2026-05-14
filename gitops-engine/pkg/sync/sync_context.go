@@ -29,12 +29,12 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
 
 type reconciledResource struct {

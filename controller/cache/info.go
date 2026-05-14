@@ -9,8 +9,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/cespare/xxhash/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"

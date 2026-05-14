@@ -33,9 +33,9 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 )
 
 // ResourceOperations provides methods to manage k8s resources
