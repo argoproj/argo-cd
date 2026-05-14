@@ -1,4 +1,5 @@
-import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
+import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
@@ -14,6 +15,7 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
+import {createMatcher} from './applications-list-search';
 import {AppsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
@@ -94,7 +96,7 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean}) => React.ReactNode}) => {
     const observableQuery$ = useObservableQuery();
 
     return (
@@ -180,7 +182,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                        return {
+                            ...viewPref,
+                            page: parseInt(params.get('page') || '0', 10),
+                            search: params.get('search') || '',
+                            searchRegex: params.get('searchRegex') === 'true'
+                        };
                     })
                 )
             }>
@@ -189,7 +196,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     );
 };
 
-function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+function filterApplications(
+    applications: models.Application[],
+    pref: AppsListPreferences,
+    search: string,
+    searchRegex: boolean
+): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
         if (app.status?.resources) {
@@ -203,12 +215,11 @@ function filterApplications(applications: models.Application[], pref: AppsListPr
         return {...app, isAppOfAppsPattern};
     });
     const filterResults = getAppFilterResults(processedApps, pref);
+    const matchesSearch = createMatcher(search, searchRegex);
 
     return {
         filterResults,
-        filteredApps: filterResults.filter(
-            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
-        )
+        filteredApps: filterResults.filter(app => matchesSearch(app.metadata.name, app.metadata.namespace) && Object.values(app.filterResult).every(val => val))
     };
 }
 
@@ -220,8 +231,20 @@ function tryJsonParse(input: string) {
     }
 }
 
-const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
-    const {content, ctx, apps} = {...props};
+const SearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
+    const {content, searchRegex, ctx, apps} = {...props};
+
+    const regexValid = React.useMemo(() => {
+        if (!searchRegex || !content) {
+            return true;
+        }
+        try {
+            new RegExp(content);
+            return true;
+        } catch {
+            return false;
+        }
+    }, [searchRegex, content]);
 
     const searchBar = React.useRef<HTMLDivElement>(null);
 
@@ -260,7 +283,12 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
         <Autocomplete
             filterSuggestions={true}
             renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
+                <div
+                    className={classNames('applications-list__search', {
+                        'applications-list__search--regex': searchRegex && regexValid,
+                        'applications-list__search--regex-invalid': searchRegex && !regexValid
+                    })}
+                    ref={searchBar}>
                     <i
                         className='fa fa-search'
                         style={{marginRight: '9px', cursor: 'pointer'}}
@@ -280,8 +308,22 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                         }}
                         style={{fontSize: '14px'}}
                         className='argo-field'
-                        placeholder='Search applications...'
+                        placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
                     />
+                    <Tooltip
+                        content={searchRegex ? (regexValid ? 'Regex search enabled, click to switch to plain text' : 'Invalid regex pattern') : 'Click to enable regex search'}>
+                        <button
+                            type='button'
+                            aria-label='Toggle regex search'
+                            aria-pressed={searchRegex}
+                            className={classNames('applications-list__regex-toggle', {
+                                'applications-list__regex-toggle--active': searchRegex,
+                                'applications-list__regex-toggle--invalid': searchRegex && !regexValid
+                            })}
+                            onClick={() => ctx.navigation.goto('.', {searchRegex: !searchRegex || null}, {replace: true})}>
+                            .*
+                        </button>
+                    </Tooltip>
                     <div className='keyboard-hint'>/</div>
                     {content && (
                         <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
@@ -312,17 +354,19 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
 
 interface ApplicationsToolbarProps {
     applications: models.Application[];
-    pref: AppsListPreferences & {page: number; search: string};
+    pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean};
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
 const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
+    // Read searchRegex from the URL rather than from pref: the surrounding DataLoader caches its
+    // children, so the toggle state has to come from a reactive source for the SearchBar to re-render.
     const query = useQuery();
 
     return (
         <React.Fragment key='app-list-tools'>
-            <SearchBar content={query.get('search')} apps={applications} ctx={ctx} />
+            <SearchBar content={query.get('search')} searchRegex={query.get('searchRegex') === 'true'} apps={applications} ctx={ctx} />
             <ViewTypeSwitcher pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />
         </React.Fragment>
     );
@@ -438,7 +482,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                             };
 
                                             const apps = applications as models.Application[];
-                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search);
+                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex);
 
                                             return (
                                                 <React.Fragment>
