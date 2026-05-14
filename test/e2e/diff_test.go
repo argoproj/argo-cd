@@ -190,16 +190,18 @@ data:
 			assert.Contains(t, err.Error(), "--compare-desired cannot be specified when no target manifests are provided")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked
+			// If only the encrypted data is different, the diff should not contain the Secret kind
 			diff, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
-			assert.Contains(t, diff, "===== /Secret")
+			assert.Contains(t, diff, "===== /Secret", "Secret kind should never return diffs for their encrypted data")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked with desired manifest
+			// If only the encrypted data is different, the diff should not contain the Secret kind
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--compare-desired", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
-			assert.Contains(t, diff, "===== /Secret")
+			assert.NotContains(t, diff, "===== /Secret", "Secret kind should never return diffs for their encrypted data")
 
 			// Local diff should exclude secret resources completely
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", appPath, "--local-repo-root", localRepoRoot, "--exit-code=false")
@@ -253,17 +255,19 @@ data:
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Revision specific diff should show a diff with the sensitive value masked with desired manifest
+			// If only the encrypted data is different, the diff should not contain the Secret kind
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", "old-desired-revision", "--compare-desired", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
-			assert.Contains(t, diff, "===== /Secret")
+			assert.NotContains(t, diff, "===== /Secret", "Secret kind should never return diffs for their encrypted data")
 
 			// Revision specific diff should show a diff with the sensitive value masked with server-side-diff and desired manifest
+			// If only the encrypted data is different, the diff should not contain the Secret kind
 			// --server-side-diff is ignored when --compare-desired is set, but validates the result for possible future regression
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--revision", "old-desired-revision", "--server-side-diff", "--compare-desired", "--exit-code=false")
 			require.NoError(t, err)
 			assert.False(t, sensitiveData.MatchString(diff))
-			assert.Contains(t, diff, "===== /Secret")
+			assert.NotContains(t, diff, "===== /Secret", "Secret kind should never return diffs for their encrypted data")
 		})
 }
 
