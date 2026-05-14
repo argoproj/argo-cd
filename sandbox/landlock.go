@@ -165,7 +165,7 @@ func (m *Landlock) makeFSArgs(accessSpec string, paths []string) []string {
 	prefix := "fs:" + accessSpec + ":"
 	for _, path := range paths {
 		if !filepath.IsAbs(path) {
-			// FIXME
+			// FIXME: is this the right place for this check
 			path, _ = filepath.Abs(path)
 		}
 		result = append(result, "--landlock-allow", prefix+path)
@@ -239,6 +239,22 @@ func GenerateDefaultLandlockConfig(ops *ToolOpts) (*LandlockConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("command %q not found in PATH: %w", ops.toolName, err)
 	}
+	readPaths := []string{"/dev/null", "/dev/urandom"}
+	if ops.IsNetworkEnabled {
+		readPaths = append(readPaths, "/etc/resolv.conf", "/etc/nsswitch.conf", "/etc/hosts",
+			// FIXME: select correct at runtime!  the
+			// possibilities are:
+			// /etc/ssl/certs/ca-certificates.crt
+			// /etc/pki/tls/certs/ca-bundle.crt
+			// /etc/ssl/ca-bundle.pem
+			// /etc/pki/tls/cacert.pem
+			// /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+			// /etc/ssl/cert.pem
+			// support env vars:
+			"/etc/ssl/certs/ca-certificates.crt",
+			"/dev/urandom",
+			/*"/etc/services", "/etc/protocols"*/)
+	}
 	result.AllowedPaths = append(result.AllowedPaths,
 		LandlockAllowedPath{
 			Access: "read_file,execute",
@@ -246,7 +262,7 @@ func GenerateDefaultLandlockConfig(ops *ToolOpts) (*LandlockConfig, error) {
 		},
 		LandlockAllowedPath{
 			Access: "read_file",
-			Paths:  []string{"/dev/null"},
+			Paths:  readPaths,
 		},
 	)
 

@@ -24,6 +24,7 @@ type ToolOpts struct {
 	configStr      string
 	ModulesList    []string
 	// compatMode     string
+	IsNetworkEnabled bool
 }
 
 func ReadSandboxConfig(filePath string) (*ArgocdSandboxConfig, error) {
@@ -49,17 +50,19 @@ func ReadSandboxConfigStr(configStr string) (*ArgocdSandboxConfig, error) {
 var CompatMode = BEST_EFFORT_MODE
 
 var HelmToolOps = ToolOpts{
-	toolName:       "helm",
-	IsEnabled:      false,
-	ModulesList:    []string{},
-	configFilePath: "",
+	toolName:         "helm",
+	IsEnabled:        false,
+	ModulesList:      []string{},
+	configFilePath:   "",
+	IsNetworkEnabled: true,
 }
 
 var KustomizeToolOps = ToolOpts{
-	toolName:       "kustomize",
-	IsEnabled:      false,
-	ModulesList:    []string{},
-	configFilePath: "",
+	toolName:         "kustomize",
+	IsEnabled:        false,
+	ModulesList:      []string{},
+	configFilePath:   "",
+	IsNetworkEnabled: true,
 }
 
 func AddSandboxFlagsToRepoServerCmd(command *cobra.Command) {
