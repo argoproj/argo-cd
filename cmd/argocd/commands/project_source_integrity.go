@@ -368,6 +368,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 			if index < 0 || index >= originalPolicyCount {
 				log.Fatalf("POLICY_ID %d is out of range (0-%d)", index, originalPolicyCount-1)
 			}
+			policy := proj.Spec.SourceIntegrity.Git.Policies[index]
 
 			if len(gpgKeys) > 0 && (len(deleteGPGKeys) > 0 || len(addGPGKeys) > 0) {
 				log.Fatal("Option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key")
@@ -382,38 +383,38 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				for _, url := range repoURLs {
 					repos = append(repos, v1alpha1.SourceIntegrityGitPolicyRepo{URL: url})
 				}
-				proj.Spec.SourceIntegrity.Git.Policies[index].Repos = repos
+				policy.Repos = repos
 			}
 			for _, url := range deleteRepoURLs {
-				for i := 0; i < len(proj.Spec.SourceIntegrity.Git.Policies[index].Repos); i++ {
-					if proj.Spec.SourceIntegrity.Git.Policies[index].Repos[i].URL == url {
-						proj.Spec.SourceIntegrity.Git.Policies[index].Repos = append(proj.Spec.SourceIntegrity.Git.Policies[index].Repos[:i], proj.Spec.SourceIntegrity.Git.Policies[index].Repos[i+1:]...)
+				for i := 0; i < len(policy.Repos); i++ {
+					if policy.Repos[i].URL == url {
+						policy.Repos = append(policy.Repos[:i], policy.Repos[i+1:]...)
 						i--
 					}
 				}
 			}
 			for _, url := range addRepoURLs {
 				found := false
-				for _, repo := range proj.Spec.SourceIntegrity.Git.Policies[index].Repos {
+				for _, repo := range policy.Repos {
 					if repo.URL == url {
 						found = true
 						break
 					}
 				}
 				if !found {
-					proj.Spec.SourceIntegrity.Git.Policies[index].Repos = append(proj.Spec.SourceIntegrity.Git.Policies[index].Repos, v1alpha1.SourceIntegrityGitPolicyRepo{URL: url})
+					policy.Repos = append(policy.Repos, v1alpha1.SourceIntegrityGitPolicyRepo{URL: url})
 				}
 			}
 
 			// There are no other types for now, so turning GPG is the only sensible thing
-			if proj.Spec.SourceIntegrity.Git.Policies[index].GPG == nil {
-				proj.Spec.SourceIntegrity.Git.Policies[index].GPG = &v1alpha1.SourceIntegrityGitPolicyGPG{}
+			if policy.GPG == nil {
+				policy.GPG = &v1alpha1.SourceIntegrityGitPolicyGPG{}
 			}
 
 			// Reset mode
 			if gpgMode != "" {
-				proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Mode = validateGpgMode(gpgMode)
-			} else if proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Mode == "" {
+				policy.GPG.Mode = validateGpgMode(gpgMode)
+			} else if policy.GPG.Mode == "" {
 				// The policy is updated to a gpg, but this mandatory field is unset
 				log.Fatal("gpg-mode must be set")
 			}
@@ -426,12 +427,12 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 						log.Fatalf("Invalid GPG key ID '%s': %v", key, err)
 					}
 				}
-				proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys = gpgKeys
+				policy.GPG.Keys = gpgKeys
 			}
 			for _, key := range deleteGPGKeys {
-				for i := 0; i < len(proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys); i++ {
-					if proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys[i] == key {
-						proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys = append(proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys[:i], proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys[i+1:]...)
+				for i := 0; i < len(policy.GPG.Keys); i++ {
+					if policy.GPG.Keys[i] == key {
+						policy.GPG.Keys = append(policy.GPG.Keys[:i], policy.GPG.Keys[i+1:]...)
 						i--
 					}
 				}
@@ -441,15 +442,15 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				if err != nil {
 					log.Fatalf("Invalid GPG key ID '%s': %v", key, err)
 				}
-				found := slices.Contains(proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys, key)
+				found := slices.Contains(policy.GPG.Keys, key)
 				if !found {
-					proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys = append(proj.Spec.SourceIntegrity.Git.Policies[index].GPG.Keys, key)
+					policy.GPG.Keys = append(policy.GPG.Keys, key)
 				}
 			}
 
 			closer, gpgKeyClient := newGpgKeyClient(clientOpts, c)
 			defer utilio.Close(closer)
-			warnOnProblems(c.ErrOrStderr(), proj.Spec.SourceIntegrity.Git.Policies[index], gpgKeyClient)
+			warnOnProblems(c.ErrOrStderr(), policy, gpgKeyClient)
 
 			_, err = projects.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
