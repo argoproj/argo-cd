@@ -83,7 +83,7 @@ func mockGpgKeysClient(t *testing.T) *gpgkeymocks.GPGKeyServiceClient {
 
 // mockKeyring fakes that keys are added to a repo-server through `argocd gpg add`, so those do not show up in warnings.
 func mockKeyring(mockClient *gpgkeymocks.GPGKeyServiceClient, keys ...string) *mock.Call {
-	items := make([]appsv1.GnuPGPublicKey, len(keys))
+	items := make([]appsv1.GnuPGPublicKey, 0, len(keys))
 	for _, key := range keys {
 		items = append(items, appsv1.GnuPGPublicKey{KeyID: key})
 	}

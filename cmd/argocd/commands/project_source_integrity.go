@@ -145,17 +145,15 @@ func listGitGpgPolicies(out io.Writer, proj *v1alpha1.AppProject) {
 		if policy.GPG != nil {
 			gpgMode = string(policy.GPG.Mode)
 			if len(policy.GPG.Keys) > 0 {
-				keys := make([]string, len(policy.GPG.Keys))
-				copy(keys, policy.GPG.Keys)
-				gpgKeys = strings.Join(keys, ", ")
+				gpgKeys = strings.Join(policy.GPG.Keys, ", ")
 			}
 		}
 
 		repoURLs := "<none>"
 		if len(policy.Repos) > 0 {
-			urls := make([]string, len(policy.Repos))
-			for j, repo := range policy.Repos {
-				urls[j] = repo.URL
+			urls := make([]string, 0, len(policy.Repos))
+			for _, repo := range policy.Repos {
+				urls = append(urls, repo.URL)
 			}
 			repoURLs = strings.Join(urls, ", ")
 		}
