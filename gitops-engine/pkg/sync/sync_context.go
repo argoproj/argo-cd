@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -229,7 +228,6 @@ func NewSyncContext(
 	rawConfig *rest.Config,
 	kubectl kubeutil.Kubectl,
 	namespace string,
-	openAPISchema openapi.Resources,
 	opts ...SyncOpt,
 ) (SyncContext, func(), error) {
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
@@ -244,7 +242,7 @@ func NewSyncContext(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create extensions client: %w", err)
 	}
-	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig, openAPISchema)
+	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to manage resources: %w", err)
 	}
