@@ -13,6 +13,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/util/oci"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -246,7 +248,7 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 		"helm",
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		"oci://"+fixture.HelmOCIRegistryURL,
+		oci.Prefix+fixture.HelmOCIRegistryURL,
 	))
 }
 
@@ -280,7 +282,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"helm",
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		"oci://"+fixture.HelmAuthenticatedOCIRegistryURL,
+		oci.Prefix+fixture.HelmAuthenticatedOCIRegistryURL,
 	))
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
@@ -301,7 +303,7 @@ func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
 		imagePath,
 		"oras",
 		"push",
-		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), filepath.Base(pathName)), tag),
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, oci.Prefix), filepath.Base(pathName)), tag),
 		".",
 	))
 }
@@ -315,7 +317,7 @@ func PushImageToAuthenticatedOCIRegistry(t *testing.T, pathName, tag string) {
 		imagePath,
 		"oras",
 		"push",
-		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL, "oci://"), filepath.Base(pathName)), tag),
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL, oci.Prefix), filepath.Base(pathName)), tag),
 		".",
 	))
 }
