@@ -21,9 +21,10 @@ export interface ApplicationTileProps {
     syncApplication: (appName: string, appNamespace: string) => void;
     refreshApplication: (appName: string, appNamespace: string) => void;
     deleteApplication: (appName: string, appNamespace: string) => void;
+    showDiff: (app: models.Application) => void;
 }
 
-export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication}: ApplicationTileProps) => {
+export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication, showDiff}: ApplicationTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
 
@@ -267,6 +268,16 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                     <i className='fa fa-sync' /> Sync
                 </button>
                 &nbsp;
+                {app.status.sync.status !== models.SyncStatuses.Synced && (
+                    <>
+                        <Tooltip className='custom-tooltip' content={'Diff'}>
+                            <button type='button' className='argo-button argo-button--base' qe-id='applications-tiles-button-diff' onClick={() => showDiff(app)}>
+                                <i className='fa fa-file-medical' /> <span className='show-for-xxlarge'>Diff</span>
+                            </button>
+                        </Tooltip>
+                        &nbsp;
+                    </>
+                )}
                 <Tooltip className='custom-tooltip' content={'Refresh'}>
                     {/* Spreading refreshLinkAttrs (= {disabled: isAppRefreshing(app)}) onto a real
                         <button> would actively block clicks while a refresh is in flight, leaving
