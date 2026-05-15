@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	apppath "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -177,15 +178,46 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	return items
 }
 
-// FilterByPath returns an application
+// FilterByPath returns applications whose source path matches the given path.
+// Multi-source applications are matched if any of their sources has the given path.
 func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
 	if path == "" {
 		return apps
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().Path == path {
-			items = append(items, apps[i])
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.Path == path {
+				items = append(items, apps[i])
+				break
+			}
+		}
+	}
+	return items
+}
+
+// FilterByFiles returns applications that may be affected by changes to the given files.
+// It evaluates each source's path and the manifest-generate-paths annotation.
+// Sources with no path and no annotation (e.g. Helm chart-only sources) are skipped.
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+	items := []argoappv1.Application{}
+	for i := range apps {
+		for _, source := range apps[i].Spec.GetSources() {
+			_, hasAnnotation := apps[i].Annotations[argoappv1.AnnotationKeyManifestGeneratePaths]
+			if source.Path == "" && !hasAnnotation {
+				continue
+			}
+			refreshPaths := apppath.GetSourceRefreshPaths(&apps[i], source)
+			if len(refreshPaths) == 0 {
+				refreshPaths = []string{source.Path}
+			}
+			if apppath.AppFilesHaveChanged(refreshPaths, files) {
+				items = append(items, apps[i])
+				break
+			}
 		}
 	}
 	return items
