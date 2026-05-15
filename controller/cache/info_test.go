@@ -62,6 +62,30 @@ var (
       ingress:
       - hostname: localhost`)
 
+	testMaliciousLinkAnnotatedService = strToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+    uid: "4"
+    annotations:
+      link.argocd.argoproj.io/javascript: 'javascript:alert(1)'
+      link.argocd.argoproj.io/data: 'data:text/html,<script>alert(1)</script>'
+      link.argocd.argoproj.io/vbscript: 'vbscript:msgbox(1)'
+      link.argocd.argoproj.io/titled-javascript: 'click me|javascript:alert(1)'
+      link.argocd.argoproj.io/no-scheme: 'example.com/foo'
+      link.argocd.argoproj.io/safe: 'http://my-grafana.example.com/pre-generated-link'
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`)
+
 	testIngress = strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
@@ -1138,6 +1162,15 @@ func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 		Ingress:      []corev1.LoadBalancerIngress{{Hostname: "localhost"}},
 		ExternalURLs: []string{"http://my-grafana.example.com/pre-generated-link"},
 	}, info.NetworkingInfo)
+}
+
+func TestMaliciousLinkAnnotatedServiceInfoFiltered(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testMaliciousLinkAnnotatedService, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Only the http URL should make it through; javascript:, data:, vbscript:,
+	// "title|javascript:..." and scheme-less values must be dropped.
+	assert.Equal(t, []string{"http://my-grafana.example.com/pre-generated-link"}, info.NetworkingInfo.ExternalURLs)
 }
 
 func TestGetIstioVirtualServiceInfo(t *testing.T) {

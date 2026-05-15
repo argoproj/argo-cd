@@ -531,6 +531,7 @@ message ApplicationSourceDirectory {
 }
 
 // ApplicationSourceHelm holds helm specific options
+// +protobuf.options.(gogoproto.goproto_stringer)=false
 message ApplicationSourceHelm {
   // ValuesFiles is a list of Helm value files to use when generating a template
   repeated string valueFiles = 1;
