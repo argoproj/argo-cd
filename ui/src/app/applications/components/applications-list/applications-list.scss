@@ -225,3 +225,14 @@ i.menu_icon {
         display: none !important;
     }
 }
+
+
+@media (prefers-reduced-motion: reduce) {
+    .fa-spin,
+    .icon.spin,
+    .status-icon--spin {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+  
