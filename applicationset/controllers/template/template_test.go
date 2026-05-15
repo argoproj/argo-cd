@@ -348,3 +348,78 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 		})
 	}
 }
+
+// Test nested template rendering in application set templates, where the output of one template function
+// is used as input for another template function in the same application set template
+func TestNestedAppTemplateRendering(t *testing.T) {
+	for _, cases := range []struct {
+		name        string
+		params      []map[string]any
+		template    v1alpha1.ApplicationSetTemplate
+		expectedApp []v1alpha1.Application
+	}{
+		{
+			name: "Generate an application with nested template rendering",
+			params: []map[string]any{
+				{
+					"nestedValue":    "Nested",
+					"nestedTemplate": "Hello from {{ .nestedValue }}",
+				},
+			},
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name: "AppSet-{{.nestedValue}}",
+					Annotations: map[string]string{
+						"template1": "{{ tpl .nestedTemplate . }}",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			expectedApp: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "AppSet-Nested",
+						Annotations: map[string]string{
+							"template1": "Hello from Nested",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{},
+				},
+			},
+		},
+	} {
+		t.Run(cases.name, func(t *testing.T) {
+			generatorMock := &genmock.Generator{}
+			generator := v1alpha1.ApplicationSetGenerator{
+				Git: &v1alpha1.GitGenerator{},
+			}
+
+			generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+				Return(cases.params, nil)
+
+			generatorMock.EXPECT().GetTemplate(&generator).
+				Return(&cases.template)
+
+			generators := map[string]generators.Generator{
+				"Git": generatorMock,
+			}
+			renderer := &utils.Render{}
+
+			gotApp, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{},
+					}},
+					Template: cases.template,
+				},
+			},
+				generators,
+				renderer,
+				nil,
+			)
+			assert.Equal(t, cases.expectedApp[0].Name, gotApp[0].Name)
+			assert.Equal(t, cases.expectedApp[0].Annotations["template1"], gotApp[0].Annotations["template1"])
+		})
+	}
+}
