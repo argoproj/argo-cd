@@ -8,7 +8,6 @@
         align-items: center;
         height: 100%;
         flex-wrap: wrap;
-        padding-top: 0.5em;
     }
 
     &__label {
@@ -19,6 +18,24 @@
         line-height: 14px;
         margin: 0.3em 0;
         margin-right: 2px;
+    }
+
+    &__label_light {
+        background-color: $argo-color-gray-2;
+        color: $argo-color-gray-8;
+        border-radius: 4px;
+        border: 1px solid $argo-color-gray-5;
+        line-height: 18px;
+        margin: 0.3em 0.6em 0.3em 0;
+        padding: 0 4px 0 4px;
+
+        > em {
+            font-style: normal;
+            background-color: $argo-color-gray-5;
+            color: white;
+            margin: 0 4px 0 -4px;
+            padding: 0 4px;
+        }
     }
 
     &__sort-icon {
@@ -90,6 +107,21 @@
         .argo-form-row__error-msg {
             position: static;
             line-height: 1;
+        }
+    }
+}
+
+.theme-dark {
+    .application-summary {
+
+        &__label_light {
+            background-color: $argo-color-gray-5;
+            border-color: $argo-color-gray-6;
+            color: white;
+
+            em {
+                background-color: $argo-color-gray-6;
+            }
         }
     }
 }
