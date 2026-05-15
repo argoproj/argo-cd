@@ -35,7 +35,7 @@ GOCACHE?=$(HOME)/.cache/go-build
 # Docker command to use
 DOCKER?=docker
 ifeq ($(DOCKER),podman)
-PODMAN_ARGS=--userns keep-id
+PODMAN_ARGS=--userns keep-id --security-opt label=disable
 else
 PODMAN_ARGS=
 endif
