@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/example/repo.git
+      targetRevision: "v1.0.0"
+      ref: components
+    - repoURL: https://charts.example.com
+      chart: my-chart
+      targetRevision: "1.0.0"
+      path: ""
+      helm:
+        valueFiles:
+          - values.yaml
