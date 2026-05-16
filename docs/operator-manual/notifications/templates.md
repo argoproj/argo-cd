@@ -18,13 +18,59 @@ data:
 
 Each template has access to the following fields:
 
-- `app` holds the application object.
-- `appProject` holds the AppProject object associated with the application. This provides access to project-level details like RBAC roles, policies, source repository restrictions, and destination cluster restrictions.
+- `app` holds the full [Application](../../declarative-setup.md#applications) resource object. See [commonly used `app` fields](#commonly-used-app-fields) below for details.
+- `appProject` holds the [AppProject](../../declarative-setup.md#projects) object associated with the application. This provides access to project-level details like RBAC roles, policies, source repository restrictions, and destination cluster restrictions.
 - `context` is a user-defined string map and might include any string keys and values.
 - `secrets` provides access to sensitive data stored in `argocd-notifications-secret`
 - `serviceType` holds the notification service type name (such as "slack" or "email). The field can be used to conditionally
 render service-specific fields.
 - `recipient` holds the recipient name.
+- `time` provides time parsing functions. See [Change the timezone](#change-the-timezone) for usage.
+- `strings` provides string manipulation functions.
+- `repo` provides access to the Git repository. For example, `(call .repo.GetCommitMetadata .app.status.sync.revision)` returns commit metadata.
+
+## Commonly used `app` fields
+
+The `app` variable contains the full Application resource as an unstructured object. You can access any field using dot notation. The most commonly used fields in notification templates are:
+
+**Metadata:**
+
+| Expression | Description |
+|------------|-------------|
+| `.app.metadata.name` | Application name |
+| `.app.metadata.namespace` | Application namespace |
+| `.app.metadata.annotations` | Application annotations (map) |
+| `.app.metadata.labels` | Application labels (map) |
+
+**Spec (desired state):**
+
+| Expression | Description |
+|------------|-------------|
+| `.app.spec.project` | Project name |
+| `.app.spec.source.repoURL` | Git repository URL |
+| `.app.spec.source.path` | Path within the repository |
+| `.app.spec.source.targetRevision` | Target branch, tag, or commit |
+| `.app.spec.source.chart` | Helm chart name (for Helm apps) |
+| `.app.spec.destination.server` | Destination cluster URL |
+| `.app.spec.destination.namespace` | Destination namespace |
+
+**Status (actual state):**
+
+| Expression | Description |
+|------------|-------------|
+| `.app.status.sync.status` | Sync status (`Synced`, `OutOfSync`, `Unknown`) |
+| `.app.status.sync.revision` | Currently synced Git revision |
+| `.app.status.health.status` | Health status (`Healthy`, `Degraded`, `Progressing`, `Missing`, `Suspended`, `Unknown`) |
+| `.app.status.health.message` | Health status message |
+| `.app.status.operationState.phase` | Operation phase (`Succeeded`, `Failed`, `Error`, `Running`) |
+| `.app.status.operationState.message` | Operation result message |
+| `.app.status.operationState.startedAt` | Operation start time |
+| `.app.status.operationState.finishedAt` | Operation finish time |
+| `.app.status.operationState.syncResult.revision` | Revision of the last sync operation |
+| `.app.status.summary.images` | List of container images used by the application |
+| `.app.status.conditions` | List of application conditions |
+
+For the complete Application spec, refer to the [Application CRD reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/application.yaml).
 
 ## Defining user-defined `context`
 
