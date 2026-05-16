@@ -125,7 +125,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
 	}
 
-	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
+	if sessionmgr.LoggedIn(ctx) || s.disableAuth || argoCDSettings.AnonymousUserEnabled {
 		set.UiBannerContent = argoCDSettings.UiBannerContent
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
