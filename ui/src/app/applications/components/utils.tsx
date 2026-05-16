@@ -1784,24 +1784,37 @@ export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
     return isApp(abstractApp) ? '/applications' : '/applicationsets';
 }
 
-// Get ApplicationSet health status from its conditions
-// Priority: ErrorOccurred=True → Degraded, RolloutProgressing=True → Progressing, ResourcesUpToDate=True → Healthy, else Unknown
+function getAppSetResourcesHealthStatus(appSet: appModels.ApplicationSet): appModels.HealthStatusCode | undefined {
+    return appSet.status?.resources
+        ?.map(resource => resource.health?.status as appModels.HealthStatusCode | undefined)
+        .filter((status): status is appModels.HealthStatusCode => !!status && status !== 'Healthy' && appModels.HealthPriority[status] !== undefined)
+        .sort((left, right) => appModels.HealthPriority[left] - appModels.HealthPriority[right])[0];
+}
+
+// Get ApplicationSet health status from its conditions and generated Applications.
+// Priority: ErrorOccurred=True → Degraded, RolloutProgressing=True → Progressing, generated Application health, ResourcesUpToDate=True → Healthy, else Unknown
 export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appModels.HealthStatusCode {
     const conditions = appSet.status?.conditions;
-    if (!conditions || conditions.length === 0) {
-        return 'Unknown';
-    }
 
     // Check for errors first (indicates degraded state)
-    const errorCondition = conditions.find(c => c.type === 'ErrorOccurred' && c.status === 'True');
+    const errorCondition = conditions?.find(c => c.type === 'ErrorOccurred' && c.status === 'True');
     if (errorCondition) {
         return 'Degraded';
+    }
+
+    if (!conditions || conditions.length === 0) {
+        return getAppSetResourcesHealthStatus(appSet) || 'Unknown';
     }
 
     // Check if rollout is progressing
     const progressingCondition = conditions.find(c => c.type === 'RolloutProgressing' && c.status === 'True');
     if (progressingCondition) {
         return 'Progressing';
+    }
+
+    const resourcesHealthStatus = getAppSetResourcesHealthStatus(appSet);
+    if (resourcesHealthStatus) {
+        return resourcesHealthStatus;
     }
 
     // Check if resources are up to date (healthy state)

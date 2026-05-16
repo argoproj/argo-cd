@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as renderer from 'react-test-renderer';
 import {
     Application,
+    ApplicationSet,
     HealthStatus,
     HealthStatuses,
     OperationPhases,
@@ -13,6 +14,7 @@ import {
 import * as jsYaml from 'js-yaml';
 import {
     ComparisonStatusIcon,
+    getAppSetHealthStatus,
     getAppOperationState,
     getOperationType,
     getPodStateReason,
@@ -74,6 +76,50 @@ test('getOperationType.Unknown', () => {
     const state = getOperationType({metadata: {}, status: {}} as Application);
 
     expect(state).toBe('Unknown');
+});
+
+describe('getAppSetHealthStatus', () => {
+    it('returns Missing when a generated application is missing', () => {
+        const healthStatus = getAppSetHealthStatus({
+            status: {
+                conditions: [{type: 'ResourcesUpToDate', status: 'True', message: 'all applications are up to date'}],
+                resources: [
+                    {
+                        group: 'argoproj.io',
+                        version: 'v1alpha1',
+                        kind: 'Application',
+                        namespace: 'argocd',
+                        name: 'guestbook',
+                        status: 'OutOfSync',
+                        health: {status: 'Missing', message: ''}
+                    }
+                ]
+            }
+        } as ApplicationSet);
+
+        expect(healthStatus).toBe('Missing');
+    });
+
+    it('keeps ApplicationSet errors higher priority than generated application health', () => {
+        const healthStatus = getAppSetHealthStatus({
+            status: {
+                conditions: [{type: 'ErrorOccurred', status: 'True', message: 'generator failed'}],
+                resources: [
+                    {
+                        group: 'argoproj.io',
+                        version: 'v1alpha1',
+                        kind: 'Application',
+                        namespace: 'argocd',
+                        name: 'guestbook',
+                        status: 'Synced',
+                        health: {status: 'Healthy', message: ''}
+                    }
+                ]
+            }
+        } as ApplicationSet);
+
+        expect(healthStatus).toBe('Degraded');
+    });
 });
 
 test('OperationState.undefined', () => {
