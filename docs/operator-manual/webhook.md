@@ -63,6 +63,7 @@ provider's webhook secret configured in step 1.
 | Gogs            | `webhook.gogs.secret`            |
 | Azure DevOps    | `webhook.azuredevops.username`   |
 |                 | `webhook.azuredevops.password`   |
+| Harbor          | `webhook.harbor.secret`          |
 
 Edit the Argo CD Kubernetes secret:
 
@@ -210,3 +211,64 @@ For example, these `repoURL` values all match a webhook event for `ghcr.io/myorg
 - `oci://ghcr.io/myorg/myimage`
 - `oci://GHCR.IO/MyOrg/MyImage`
 - `oci://ghcr.io/myorg/myimage/`
+
+### Harbor
+
+[Harbor](https://goharbor.io/) is a CNCF open-source OCI-compliant registry that supports sending webhook events when artifacts are pushed. Argo CD can be configured to receive these events and instantly refresh applications backed by OCI artifacts stored in Harbor.
+
+> [!NOTE]
+> Harbor does not send a distinctive request header to identify webhook events, unlike GitHub which sends `X-GitHub-Event`.
+> Authentication is performed via a configurable **Authorization** header value that you set in both Harbor's webhook
+> configuration and in the ArgoCD secret. Configuring the secret (`webhook.harbor.secret`) is **required** for Harbor webhook support.
+
+#### Configure the Webhook Secret
+
+In `argocd-secret`, set the Harbor webhook secret. This value must match the **Auth Header** you configure in Harbor's webhook settings:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.harbor.secret: <your-harbor-auth-header-value>
+```
+
+#### Configure the Webhook in Harbor
+
+1. Log in to the Harbor portal with project administrator privileges.
+2. Navigate to your **Project** → **Webhooks** → **Add Webhook**.
+3. Select notify type **HTTP**.
+4. Select payload format **Default**.
+5. Enable the **Artifact pushed** event type.
+6. Set **Endpoint URL** to `https://<argocd-server>/api/webhook`.
+7. Set **Auth Header** to the same value you configured in `webhook.harbor.secret`.
+8. Click **Add** to save the webhook.
+
+> [!NOTE]
+> Argo CD only acts on `PUSH_ARTIFACT` events (artifact push). Other events such as `PULL_ARTIFACT`,
+> `DELETE_ARTIFACT`, and scan events are ignored. Push events for resources that have no tag
+> (digest-only pushes) are also ignored.
+
+#### Example Application
+
+When an OCI artifact is pushed to Harbor, Argo CD refreshes Applications with a matching `repoURL`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: oci://harbor.example.com/myproject
+    targetRevision: v1.0.0
+    chart: mychart
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+The `targetRevision` field supports exact tags as well as semver constraints (e.g. `^1.0.0`, `>=1.2.0`). See the [GHCR semver constraint table](#example-application) for details and examples.
