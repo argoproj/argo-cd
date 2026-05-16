@@ -5809,13 +5809,15 @@
       }
     },
     "eventsEvent": {
-      "description": "Event mirrors corev1.Event and exposes the fields consumed by the Argo CD\nAPI and UI.",
+      "description": "Event mirrors corev1.Event and exposes the fields consumed by the Argo CD\nAPI and UI. Event is a report of an event somewhere in the cluster. Events\nhave a limited retention time and triggers and messages may evolve with\ntime. Event consumers should not rely on the timing of an event with a\ngiven Reason reflecting a consistent underlying trigger, or the continued\nexistence of events with that Reason. Events should be treated as\ninformative, best-effort, supplemental data.",
       "type": "object",
       "properties": {
         "action": {
+          "description": "What action was taken/failed regarding to the Regarding object.",
           "type": "string"
         },
         "count": {
+          "description": "The number of times this event has occurred.",
           "type": "integer",
           "format": "int32"
         },
@@ -5832,21 +5834,25 @@
           "$ref": "#/definitions/v1Time"
         },
         "message": {
+          "description": "A human-readable description of the status of this operation.",
           "type": "string"
         },
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
         },
         "reason": {
+          "description": "This should be a short, machine understandable string that gives the\nreason for the transition into the object's current status.",
           "type": "string"
         },
         "related": {
           "$ref": "#/definitions/eventsObjectReference"
         },
         "reportingComponent": {
+          "description": "Name of the controller that emitted this Event, e.g.\n`kubernetes.io/kubelet`.",
           "type": "string"
         },
         "reportingInstance": {
+          "description": "ID of the controller instance, e.g. `kubelet-xyzf`.",
           "type": "string"
         },
         "series": {
@@ -5856,6 +5862,7 @@
           "$ref": "#/definitions/eventsEventSource"
         },
         "type": {
+          "description": "Type of this event (Normal, Warning), new types could be added in the\nfuture.",
           "type": "string"
         }
       }
@@ -5865,6 +5872,7 @@
       "type": "object",
       "properties": {
         "items": {
+          "description": "List of events.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/eventsEvent"
@@ -5876,9 +5884,11 @@
       }
     },
     "eventsEventSeries": {
+      "description": "EventSeries contain information on series of events, i.e. thing that was/is\nhappening continuously for some time.",
       "type": "object",
       "properties": {
         "count": {
+          "description": "Number of occurrences in this series up to the last heartbeat time.",
           "type": "integer",
           "format": "int32"
         },
@@ -5888,38 +5898,49 @@
       }
     },
     "eventsEventSource": {
+      "description": "EventSource contains information for an event.",
       "type": "object",
       "properties": {
         "component": {
+          "description": "Component from which the event is generated.",
           "type": "string"
         },
         "host": {
+          "description": "Node name on which the event is generated.",
           "type": "string"
         }
       }
     },
     "eventsObjectReference": {
+      "description": "ObjectReference contains enough information to let you inspect or modify\nthe referred object.",
       "type": "object",
       "properties": {
         "apiVersion": {
+          "description": "API version of the referent.",
           "type": "string"
         },
         "fieldPath": {
+          "description": "If referring to a piece of an object instead of an entire object, this\nstring should contain a valid JSON/Go field access statement, such as\ndesiredState.manifest.containers[2]. For example, if the object reference\nis to a container within a pod, this would take on a value like:\n\"spec.containers{name}\" (where \"name\" refers to the name of the container\nthat triggered the event) or if no container name is specified\n\"spec.containers[2]\" (container with index 2 in this pod).",
           "type": "string"
         },
         "kind": {
+          "description": "Kind of the referent.",
           "type": "string"
         },
         "name": {
+          "description": "Name of the referent.",
           "type": "string"
         },
         "namespace": {
+          "description": "Namespace of the referent.",
           "type": "string"
         },
         "resourceVersion": {
+          "description": "Specific resourceVersion to which this reference is made, if any.",
           "type": "string"
         },
         "uid": {
+          "description": "UID of the referent.",
           "type": "string"
         }
       }

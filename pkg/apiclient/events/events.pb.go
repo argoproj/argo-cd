@@ -33,11 +33,13 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // field-for-field but is defined in Argo CD's apiclient package to avoid
 // pulling Kubernetes protobuf types into the public gRPC surface.
 type EventList struct {
-	Metadata             v1.ListMeta `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata"`
-	Items                []Event     `protobuf:"bytes,2,rep,name=items,proto3" json:"items"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	// Standard list metadata.
+	Metadata v1.ListMeta `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata"`
+	// List of events.
+	Items                []Event  `protobuf:"bytes,2,rep,name=items,proto3" json:"items"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *EventList) Reset()         { *m = EventList{} }
@@ -88,26 +90,52 @@ func (m *EventList) GetItems() []Event {
 }
 
 // Event mirrors corev1.Event and exposes the fields consumed by the Argo CD
-// API and UI.
+// API and UI. Event is a report of an event somewhere in the cluster. Events
+// have a limited retention time and triggers and messages may evolve with
+// time. Event consumers should not rely on the timing of an event with a
+// given Reason reflecting a consistent underlying trigger, or the continued
+// existence of events with that Reason. Events should be treated as
+// informative, best-effort, supplemental data.
 type Event struct {
-	Metadata             v1.ObjectMeta    `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata"`
-	InvolvedObject       ObjectReference  `protobuf:"bytes,2,opt,name=involvedObject,proto3" json:"involvedObject"`
-	Reason               string           `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	Message              string           `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	Source               EventSource      `protobuf:"bytes,5,opt,name=source,proto3" json:"source"`
-	FirstTimestamp       v1.Time          `protobuf:"bytes,6,opt,name=firstTimestamp,proto3" json:"firstTimestamp"`
-	LastTimestamp        v1.Time          `protobuf:"bytes,7,opt,name=lastTimestamp,proto3" json:"lastTimestamp"`
-	Count                int32            `protobuf:"varint,8,opt,name=count,proto3" json:"count,omitempty"`
-	Type                 string           `protobuf:"bytes,9,opt,name=type,proto3" json:"type,omitempty"`
-	EventTime            v1.MicroTime     `protobuf:"bytes,10,opt,name=eventTime,proto3" json:"eventTime"`
-	Series               *EventSeries     `protobuf:"bytes,11,opt,name=series,proto3" json:"series,omitempty"`
-	Action               string           `protobuf:"bytes,12,opt,name=action,proto3" json:"action,omitempty"`
-	Related              *ObjectReference `protobuf:"bytes,13,opt,name=related,proto3" json:"related,omitempty"`
-	ReportingController  string           `protobuf:"bytes,14,opt,name=reportingComponent,proto3" json:"reportingComponent,omitempty"`
-	ReportingInstance    string           `protobuf:"bytes,15,opt,name=reportingInstance,proto3" json:"reportingInstance,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
-	XXX_unrecognized     []byte           `json:"-"`
-	XXX_sizecache        int32            `json:"-"`
+	// Standard object's metadata.
+	Metadata v1.ObjectMeta `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata"`
+	// The object that this event is about.
+	InvolvedObject ObjectReference `protobuf:"bytes,2,opt,name=involvedObject,proto3" json:"involvedObject"`
+	// This should be a short, machine understandable string that gives the
+	// reason for the transition into the object's current status.
+	Reason string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	// A human-readable description of the status of this operation.
+	Message string `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	// The component reporting this event. Should be a short machine
+	// understandable string.
+	Source EventSource `protobuf:"bytes,5,opt,name=source,proto3" json:"source"`
+	// The time at which the event was first recorded. (Time of server receipt
+	// is in TypeMeta.)
+	FirstTimestamp v1.Time `protobuf:"bytes,6,opt,name=firstTimestamp,proto3" json:"firstTimestamp"`
+	// The time at which the most recent occurrence of this event was recorded.
+	LastTimestamp v1.Time `protobuf:"bytes,7,opt,name=lastTimestamp,proto3" json:"lastTimestamp"`
+	// The number of times this event has occurred.
+	Count int32 `protobuf:"varint,8,opt,name=count,proto3" json:"count,omitempty"`
+	// Type of this event (Normal, Warning), new types could be added in the
+	// future.
+	Type string `protobuf:"bytes,9,opt,name=type,proto3" json:"type,omitempty"`
+	// Time when this Event was first observed.
+	EventTime v1.MicroTime `protobuf:"bytes,10,opt,name=eventTime,proto3" json:"eventTime"`
+	// Data about the Event series this event represents or nil if it's a
+	// singleton Event.
+	Series *EventSeries `protobuf:"bytes,11,opt,name=series,proto3" json:"series,omitempty"`
+	// What action was taken/failed regarding to the Regarding object.
+	Action string `protobuf:"bytes,12,opt,name=action,proto3" json:"action,omitempty"`
+	// Optional secondary object for more complex actions.
+	Related *ObjectReference `protobuf:"bytes,13,opt,name=related,proto3" json:"related,omitempty"`
+	// Name of the controller that emitted this Event, e.g.
+	// `kubernetes.io/kubelet`.
+	ReportingController string `protobuf:"bytes,14,opt,name=reportingComponent,proto3" json:"reportingComponent,omitempty"`
+	// ID of the controller instance, e.g. `kubelet-xyzf`.
+	ReportingInstance    string   `protobuf:"bytes,15,opt,name=reportingInstance,proto3" json:"reportingInstance,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *Event) Reset()         { *m = Event{} }
@@ -248,8 +276,11 @@ func (m *Event) GetReportingInstance() string {
 	return ""
 }
 
+// EventSource contains information for an event.
 type EventSource struct {
-	Component            string   `protobuf:"bytes,1,opt,name=component,proto3" json:"component,omitempty"`
+	// Component from which the event is generated.
+	Component string `protobuf:"bytes,1,opt,name=component,proto3" json:"component,omitempty"`
+	// Node name on which the event is generated.
 	Host                 string   `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -303,8 +334,12 @@ func (m *EventSource) GetHost() string {
 	return ""
 }
 
+// EventSeries contain information on series of events, i.e. thing that was/is
+// happening continuously for some time.
 type EventSeries struct {
-	Count                int32        `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	// Number of occurrences in this series up to the last heartbeat time.
+	Count int32 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	// Time of the last occurrence observed.
 	LastObservedTime     v1.MicroTime `protobuf:"bytes,2,opt,name=lastObservedTime,proto3" json:"lastObservedTime"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
@@ -358,13 +393,28 @@ func (m *EventSeries) GetLastObservedTime() v1.MicroTime {
 	return v1.MicroTime{}
 }
 
+// ObjectReference contains enough information to let you inspect or modify
+// the referred object.
 type ObjectReference struct {
-	Kind                 string   `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	Name                 string   `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	UID                  string   `protobuf:"bytes,4,opt,name=uid,proto3" json:"uid,omitempty"`
-	APIVersion           string   `protobuf:"bytes,5,opt,name=apiVersion,proto3" json:"apiVersion,omitempty"`
-	ResourceVersion      string   `protobuf:"bytes,6,opt,name=resourceVersion,proto3" json:"resourceVersion,omitempty"`
+	// Kind of the referent.
+	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Namespace of the referent.
+	Namespace string `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	// Name of the referent.
+	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	// UID of the referent.
+	UID string `protobuf:"bytes,4,opt,name=uid,proto3" json:"uid,omitempty"`
+	// API version of the referent.
+	APIVersion string `protobuf:"bytes,5,opt,name=apiVersion,proto3" json:"apiVersion,omitempty"`
+	// Specific resourceVersion to which this reference is made, if any.
+	ResourceVersion string `protobuf:"bytes,6,opt,name=resourceVersion,proto3" json:"resourceVersion,omitempty"`
+	// If referring to a piece of an object instead of an entire object, this
+	// string should contain a valid JSON/Go field access statement, such as
+	// desiredState.manifest.containers[2]. For example, if the object reference
+	// is to a container within a pod, this would take on a value like:
+	// "spec.containers{name}" (where "name" refers to the name of the container
+	// that triggered the event) or if no container name is specified
+	// "spec.containers[2]" (container with index 2 in this pod).
 	FieldPath            string   `protobuf:"bytes,7,opt,name=fieldPath,proto3" json:"fieldPath,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

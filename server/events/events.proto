@@ -14,46 +14,96 @@ import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 // field-for-field but is defined in Argo CD's apiclient package to avoid
 // pulling Kubernetes protobuf types into the public gRPC surface.
 message EventList {
+  // Standard list metadata.
   k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.nullable) = false];
+  // List of events.
   repeated Event items = 2 [(gogoproto.nullable) = false];
 }
 
 // Event mirrors corev1.Event and exposes the fields consumed by the Argo CD
-// API and UI.
+// API and UI. Event is a report of an event somewhere in the cluster. Events
+// have a limited retention time and triggers and messages may evolve with
+// time. Event consumers should not rely on the timing of an event with a
+// given Reason reflecting a consistent underlying trigger, or the continued
+// existence of events with that Reason. Events should be treated as
+// informative, best-effort, supplemental data.
 message Event {
+  // Standard object's metadata.
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.nullable) = false];
+  // The object that this event is about.
   ObjectReference involvedObject = 2 [(gogoproto.nullable) = false];
+  // This should be a short, machine understandable string that gives the
+  // reason for the transition into the object's current status.
   string reason = 3;
+  // A human-readable description of the status of this operation.
   string message = 4;
+  // The component reporting this event. Should be a short machine
+  // understandable string.
   EventSource source = 5 [(gogoproto.nullable) = false];
+  // The time at which the event was first recorded. (Time of server receipt
+  // is in TypeMeta.)
   k8s.io.apimachinery.pkg.apis.meta.v1.Time firstTimestamp = 6 [(gogoproto.nullable) = false];
+  // The time at which the most recent occurrence of this event was recorded.
   k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTimestamp = 7 [(gogoproto.nullable) = false];
+  // The number of times this event has occurred.
   int32 count = 8;
+  // Type of this event (Normal, Warning), new types could be added in the
+  // future.
   string type = 9;
+  // Time when this Event was first observed.
   k8s.io.apimachinery.pkg.apis.meta.v1.MicroTime eventTime = 10 [(gogoproto.nullable) = false];
+  // Data about the Event series this event represents or nil if it's a
+  // singleton Event.
   EventSeries series = 11;
+  // What action was taken/failed regarding to the Regarding object.
   string action = 12;
+  // Optional secondary object for more complex actions.
   ObjectReference related = 13;
+  // Name of the controller that emitted this Event, e.g.
+  // `kubernetes.io/kubelet`.
   string reportingComponent = 14 [(gogoproto.customname) = "ReportingController"];
+  // ID of the controller instance, e.g. `kubelet-xyzf`.
   string reportingInstance = 15;
 }
 
+// EventSource contains information for an event.
 message EventSource {
+  // Component from which the event is generated.
   string component = 1;
+  // Node name on which the event is generated.
   string host = 2;
 }
 
+// EventSeries contain information on series of events, i.e. thing that was/is
+// happening continuously for some time.
 message EventSeries {
+  // Number of occurrences in this series up to the last heartbeat time.
   int32 count = 1;
+  // Time of the last occurrence observed.
   k8s.io.apimachinery.pkg.apis.meta.v1.MicroTime lastObservedTime = 2 [(gogoproto.nullable) = false];
 }
 
+// ObjectReference contains enough information to let you inspect or modify
+// the referred object.
 message ObjectReference {
+  // Kind of the referent.
   string kind = 1;
+  // Namespace of the referent.
   string namespace = 2;
+  // Name of the referent.
   string name = 3;
+  // UID of the referent.
   string uid = 4 [(gogoproto.customname) = "UID"];
+  // API version of the referent.
   string apiVersion = 5 [(gogoproto.customname) = "APIVersion"];
+  // Specific resourceVersion to which this reference is made, if any.
   string resourceVersion = 6;
+  // If referring to a piece of an object instead of an entire object, this
+  // string should contain a valid JSON/Go field access statement, such as
+  // desiredState.manifest.containers[2]. For example, if the object reference
+  // is to a container within a pod, this would take on a value like:
+  // "spec.containers{name}" (where "name" refers to the name of the container
+  // that triggered the event) or if no container name is specified
+  // "spec.containers[2]" (container with index 2 in this pod).
   string fieldPath = 7;
 }
