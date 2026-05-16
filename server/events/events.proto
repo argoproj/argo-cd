@@ -10,9 +10,9 @@ package events;
 import "gogoproto/gogo.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 
-// EventList is a list of Kubernetes core/v1 Events. It mirrors corev1.EventList
-// but is defined in Argo CD's apiclient package to avoid pulling Kubernetes
-// protobuf types into the public gRPC surface.
+// EventList is a list of Argo CD Event messages. It mirrors corev1.EventList
+// field-for-field but is defined in Argo CD's apiclient package to avoid
+// pulling Kubernetes protobuf types into the public gRPC surface.
 message EventList {
   k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.nullable) = false];
   repeated Event items = 2 [(gogoproto.nullable) = false];

@@ -5861,7 +5861,7 @@
       }
     },
     "eventsEventList": {
-      "description": "EventList is a list of Kubernetes core/v1 Events. It mirrors corev1.EventList\nbut is defined in Argo CD's apiclient package to avoid pulling Kubernetes\nprotobuf types into the public gRPC surface.",
+      "description": "EventList is a list of Argo CD Event messages. It mirrors corev1.EventList\nfield-for-field but is defined in Argo CD's apiclient package to avoid\npulling Kubernetes protobuf types into the public gRPC surface.",
       "type": "object",
       "properties": {
         "items": {

@@ -29,9 +29,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// EventList is a list of Kubernetes core/v1 Events. It mirrors corev1.EventList
-// but is defined in Argo CD's apiclient package to avoid pulling Kubernetes
-// protobuf types into the public gRPC surface.
+// EventList is a list of Argo CD Event messages. It mirrors corev1.EventList
+// field-for-field but is defined in Argo CD's apiclient package to avoid
+// pulling Kubernetes protobuf types into the public gRPC surface.
 type EventList struct {
 	Metadata             v1.ListMeta `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata"`
 	Items                []Event     `protobuf:"bytes,2,rep,name=items,proto3" json:"items"`
