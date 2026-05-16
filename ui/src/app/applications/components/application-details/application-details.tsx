@@ -768,7 +768,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         },
                                         nodeMenu: (node: ResourceTreeNode) =>
                                             AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged.current, () =>
-                                                getApplicationActionMenu(application as appModels.Application, false)
+                                                getApplicationActionMenu(application as appModels.Application, false, true)
                                             ),
                                         app: application as appModels.Application,
                                         showOrphanedResources: pref.orphanedResources,
@@ -1092,7 +1092,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                             onItemClick={fullName => selectNode(fullName)}
                                                             nodeMenu={node =>
                                                                 AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged.current, () =>
-                                                                    getApplicationActionMenu(application as appModels.Application, false)
+                                                                    getApplicationActionMenu(application as appModels.Application, false, true)
                                                                 )
                                                             }
                                                             quickStarts={node =>
@@ -1136,7 +1136,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                                               tree,
                                                                                               appContext,
                                                                                               appChanged.current,
-                                                                                              () => getApplicationActionMenu(application as appModels.Application, false)
+                                                                                              () => getApplicationActionMenu(application as appModels.Application, false, true)
                                                                                           )
                                                                                     : undefined
                                                                             }
@@ -1174,7 +1174,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         tree,
                                                                         appContext,
                                                                         appChanged.current,
-                                                                        () => getApplicationActionMenu(application as appModels.Application, false)
+                                                                        () => getApplicationActionMenu(application as appModels.Application, false, true)
                                                                     )
                                                                 }
                                                                 tree={tree}
@@ -1302,7 +1302,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
     );
 
     const getApplicationActionMenu = useCallback(
-        (app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) => {
+        (app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean, includeToggleAutoSync = false) => {
             const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
             const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
             const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
@@ -1327,41 +1327,45 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     action: () => AppUtils.showDeploy('all', null, appContext),
                     disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
                 },
-                {
-                    iconClassName: 'fa fa-toggle-on',
-                    title: <ActionMenuItem actionLabel='Toggle Auto-Sync' />,
-                    action: async () => {
-                        const isEnabled = app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
-                        const confirmationTitle = isEnabled ? 'Disable Auto-Sync?' : 'Enable Auto-Sync?';
-                        const confirmed = await appContext.popup.confirm(
-                            confirmationTitle,
-                            isEnabled
-                                ? 'Are you sure you want to disable automated application synchronization'
-                                : 'If enabled, application will automatically sync when changes are detected'
-                        );
-                        if (!confirmed) return;
-                        try {
-                            await services.applications.runResourceAction(
-                                app.metadata.name,
-                                app.metadata.namespace,
-                                {
-                                    name: app.metadata.name,
-                                    namespace: app.metadata.namespace,
-                                    group: 'argoproj.io',
-                                    kind: 'Application',
-                                    version: 'v1alpha1'
-                                } as appModels.ResourceNode,
-                                'toggle-auto-sync',
-                                []
-                            );
-                        } catch (e) {
-                            appContext.notifications.show({
-                                content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
-                                type: NotificationType.Error
-                            });
-                        }
-                    }
-                },
+                ...(includeToggleAutoSync
+                    ? [
+                          {
+                              iconClassName: 'fa fa-toggle-on',
+                              title: <ActionMenuItem actionLabel='Toggle Auto-Sync' />,
+                              action: async () => {
+                                  const isEnabled = app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
+                                  const confirmationTitle = isEnabled ? 'Disable Auto-Sync?' : 'Enable Auto-Sync?';
+                                  const confirmed = await appContext.popup.confirm(
+                                      confirmationTitle,
+                                      isEnabled
+                                          ? 'Are you sure you want to disable automated application synchronization'
+                                          : 'If enabled, application will automatically sync when changes are detected'
+                                  );
+                                  if (!confirmed) return;
+                                  try {
+                                      await services.applications.runResourceAction(
+                                          app.metadata.name,
+                                          app.metadata.namespace,
+                                          {
+                                              name: app.metadata.name,
+                                              namespace: app.metadata.namespace,
+                                              group: 'argoproj.io',
+                                              kind: 'Application',
+                                              version: 'v1alpha1'
+                                          } as appModels.ResourceNode,
+                                          'toggle-auto-sync',
+                                          []
+                                      );
+                                  } catch (e) {
+                                      appContext.notifications.show({
+                                          content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
+                                          type: NotificationType.Error
+                                      });
+                                  }
+                              }
+                          }
+                      ]
+                    : []),
                 ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
                     ? [
                           {
