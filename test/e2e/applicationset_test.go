@@ -15,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -145,7 +147,7 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
@@ -323,13 +325,13 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		Then().
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Then().
 		Expect(ApplicationsExist([]v1alpha1.Application{expectedAppExternalNamespace2})).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppExternalNamespace2}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppExternalNamespace2}))
 }
 
 func TestSimpleListGenerator(t *testing.T) {
@@ -418,7 +420,7 @@ func TestSimpleListGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSimpleListGeneratorGoTemplate(t *testing.T) {
@@ -507,7 +509,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestRenderHelmValuesObject(t *testing.T) {
@@ -579,7 +581,7 @@ func TestRenderHelmValuesObject(t *testing.T) {
 	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestTemplatePatch(t *testing.T) {
@@ -613,26 +615,6 @@ func TestTemplatePatch(t *testing.T) {
 		},
 	}
 
-	templatePatch := `{
-		"metadata": {
-			"annotations": {
-				{{- range $k, $v := .annotations }}
-				"{{ $k }}": "{{ $v }}"
-				{{- end }}
-			}
-		},
-		{{- if .createNamespace }}
-		"spec": {
-			"syncPolicy": {
-				"syncOptions": [
-					"CreateNamespace=true"
-				]
-			}
-		}
-		{{- end }}
-	}
-	`
-
 	var expectedAppNewNamespace *v1alpha1.Application
 	var expectedAppNewMetadata *v1alpha1.Application
 
@@ -656,7 +638,25 @@ func TestTemplatePatch(t *testing.T) {
 					},
 				},
 			},
-			TemplatePatch: &templatePatch,
+			TemplatePatch: new(`{
+		"metadata": {
+			"annotations": {
+				{{- range $k, $v := .annotations }}
+				"{{ $k }}": "{{ $v }}"
+				{{- end }}
+			}
+		},
+		{{- if .createNamespace }}
+		"spec": {
+			"syncPolicy": {
+				"syncOptions": [
+					"CreateNamespace=true"
+				]
+			}
+		}
+		{{- end }}
+	}
+	`),
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
 					List: &v1alpha1.ListGenerator{
@@ -703,7 +703,7 @@ func TestTemplatePatch(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestUpdateHelmValuesObject(t *testing.T) {
@@ -785,7 +785,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 		Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 		When().
 		// Delete the ApplicationSet, and verify it deletes the Applications
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestSyncPolicyCreateUpdate(t *testing.T) {
@@ -876,9 +876,8 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			appset.Spec.Template.Labels = map[string]string{
 				"label-key": "label-value",
 			}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateUpdate
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateUpdate),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
@@ -896,7 +895,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
@@ -974,9 +973,8 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateDelete
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateDelete),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
@@ -992,7 +990,7 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 
 		// Delete the ApplicationSet
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSyncPolicyCreateOnly(t *testing.T) {
@@ -1073,9 +1071,8 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateOnly),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
@@ -1093,7 +1090,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -1332,9 +1329,6 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	Given(t).
 		// Create an SCMProviderGenerator-based ApplicationSet
 		When().Create(v1alpha1.ApplicationSet{
@@ -1363,7 +1357,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1404,9 +1398,6 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	Given(t).
 		// Create an SCMProviderGenerator-based ApplicationSet
 		When().Create(v1alpha1.ApplicationSet{
@@ -1436,7 +1427,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1471,9 +1462,6 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	ctx := Given(t)
 	// Create an SCMProviderGenerator-based ApplicationSet
 	ctx.When().Create(v1alpha1.ApplicationSet{
@@ -1503,7 +1491,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1580,7 +1568,7 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
@@ -1645,7 +1633,7 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -1719,9 +1707,6 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	Given(t).
 		And(func() {
 			_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
@@ -1770,7 +1755,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1821,9 +1806,6 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	ctx := Given(t)
 	ctx.And(func() {
 		_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
@@ -1873,7 +1855,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -2172,5 +2154,51 @@ func TestApplicationSetAPIListResourceEvents(t *testing.T) {
 			// Events list should be returned (may be empty if no events have been generated yet)
 			assert.NotNil(t, events)
 		}).
-		When().Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
+		When().Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
+}
+
+// TestApplicationSetHealthStatusCLI tests that the CLI commands display the health status field for an ApplicationSet.
+func TestApplicationSetHealthStatusCLI(t *testing.T) {
+	Given(t).
+		When().Create(v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "health-cli-guestbook"},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().
+		// Wait for the ApplicationSet to be ready
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasHealthStatus(health.HealthStatusHealthy)).
+		// Test 'argocd appset get' shows Health Status field
+		When().AppSetGet().
+		Then().
+		Expect(Success("Health Status:      Healthy")).
+		// Test 'argocd appset list' shows HEALTH column header
+		When().AppSetList().
+		Then().
+		Expect(Success("PROJECT  SYNCPOLICY  HEALTH   CONDITIONS")).
+		Expect(Success("default  nil         Healthy  "))
 }

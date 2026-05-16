@@ -59,6 +59,7 @@
 
     $pod-size: 25px;
     $gutter: 3px;
+    // Keep in sync with `POD_GROUP_PODS_PER_ROW` in `application-resource-tree.tsx`.
     $pods-per-row: 8;
     $pods-per-column: 4;
     $max-rows: 5;
@@ -159,6 +160,14 @@
         &--pod {
             @include themify($themes) {
                 background-color: themed('pod-cyan') !important;
+            }
+        }
+
+        &--applicationset {
+            border: 1.5px dashed $argo-color-teal-6 !important;
+            opacity: 0.65;
+            @include themify($themes) {
+                background-color: themed('light-argo-teal-1');
             }
         }
 
@@ -369,13 +378,13 @@
             left: -20px;
             top: -8px;
             text-align: center;
+            color: $white-color;
 
             @include themify($themes) {
                 border: 4px solid themed('background-2');
             }
 
             i {
-                color: $white-color;
                 line-height: 56px;
                 font-size: 28px;
             }
@@ -397,6 +406,18 @@
         font-size: 0.6em;
         text-transform: lowercase;
         margin-right: 1px;
+
+        &--appset {
+            background-color: $argo-color-teal-2;
+            color: $argo-color-teal-7;
+            border-color: $argo-color-teal-5;
+            cursor: pointer;
+            text-transform: none;
+
+            &:hover {
+                background-color: $argo-color-teal-3;
+            }
+        }
     }
 
 

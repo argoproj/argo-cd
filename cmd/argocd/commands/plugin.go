@@ -170,9 +170,9 @@ func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
 
 			// Check if the file is a valid argocd plugin
 			pluginPrefix := prefix + "-"
-			if strings.HasPrefix(name, pluginPrefix) {
+			if after, ok := strings.CutPrefix(name, pluginPrefix); ok {
 				// Extract the plugin command name (everything after the prefix)
-				pluginName := strings.TrimPrefix(name, pluginPrefix)
+				pluginName := after
 
 				// Skip empty plugin names or names with path separators
 				if pluginName == "" || strings.Contains(pluginName, "/") || strings.Contains(pluginName, "\\") {

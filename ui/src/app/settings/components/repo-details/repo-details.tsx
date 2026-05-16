@@ -1,7 +1,7 @@
 import * as React from 'react';
-import {FormField} from 'argo-ui';
+import {FormField, HelpIcon} from 'argo-ui';
 import {FormApi, Text} from 'react-form';
-import {EditablePanel, EditablePanelItem} from '../../../shared/components';
+import {EditablePanel, EditablePanelItem, NumberField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {NewHTTPSRepoParams} from '../repos-list/repos-list';
 import {AuthSettingsCtx} from '../../../shared/context';
@@ -80,6 +80,19 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             });
         }
 
+        if (repository.type === 'git') {
+            items.push({
+                title: 'Depth (optional)',
+                view: (repository.depth || 0).toString(),
+                edit: (formApi: FormApi) => (
+                    <>
+                        <FormField formApi={formApi} field='depth' component={NumberField} />
+                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                    </>
+                )
+            });
+        }
+
         return items;
     };
 
@@ -100,7 +113,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         enableOCI: repo.enableOCI || false,
         forceHttpBasicAuth: repo.forceHttpBasicAuth || false,
         useAzureWorkloadIdentity: repo.useAzureWorkloadIdentity || false,
-        insecureOCIForceHttp: repo.insecureOCIForceHttp || false
+        insecureOCIForceHttp: repo.insecureOCIForceHttp || false,
+        depth: repo.depth || 0
     };
 
     return (
@@ -109,7 +123,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             validate={input => ({
                 username: !input.username && input.password && 'Username is required if password is given.',
                 password: !input.password && input.username && 'Password is required if username is given.',
-                bearerToken: input.password && input.bearerToken && 'Either the password or the bearer token must be set, but not both.'
+                bearerToken: input.password && input.bearerToken && 'Either the password or the bearer token must be set, but not both.',
+                depth: input.depth != undefined && input.depth < 0 && 'Depth must be a non-negative number'
             })}
             save={async input => {
                 const params: NewHTTPSRepoParams = {...newRepo, write};
@@ -117,6 +132,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 params.username = input.username || '';
                 params.password = input.password || '';
                 params.bearerToken = input.bearerToken || '';
+                params.depth = input.depth || 0;
                 save(params);
             }}
             title='CONNECTED REPOSITORY'

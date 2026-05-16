@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"sort"
@@ -16,8 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -135,7 +138,6 @@ func TestGetExtensionConfigs(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// When
 			output := getExtensionConfigs(tc.input)
@@ -178,6 +180,13 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 }
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{})
+	enabled, err := settingsManager.IsInClusterEnabled()
+	require.NoError(t, err)
+	require.True(t, enabled)
+}
+
+func TestGetSettings_InClusterIsEnabledWithMissingServerSecretKey(t *testing.T) {
 	kubeClient := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -198,15 +207,15 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 				},
 			},
 			Data: map[string][]byte{
-				"admin.password":   nil,
-				"server.secretkey": nil,
+				"admin.password": nil,
 			},
 		},
 	)
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	settings, err := settingsManager.GetSettings()
+	// IsInClusterEnabled reads ConfigMap directly and does not depend on server.secretkey
+	enabled, err := settingsManager.IsInClusterEnabled()
 	require.NoError(t, err)
-	assert.True(t, settings.InClusterEnabled)
+	require.True(t, enabled)
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
@@ -545,9 +554,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 }
 
 func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string {
-	for k, v := range mapA {
-		mapB[k] = v
-	}
+	maps.Copy(mapB, mapA)
 	return mapB
 }
 
@@ -1073,6 +1080,48 @@ func TestGetOIDCConfig(t *testing.T) {
 				assert.NotNil(t, oidcConfig)
 
 				assert.Equal(t, time.Duration(0), settings.RefreshTokenThreshold())
+			},
+		},
+		{
+			name: "enableUserInfoEndpoints success",
+			configMapData: map[string]string{
+				"oidc.config": `
+enableUserInfoGroups: true
+userInfoPath: "/userinfo"
+userInfoBaseURL: "https://users.example.com"
+userInfoCacheExpiration: "5m"
+`,
+			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				assert.Equal(t, 5*time.Minute, settings.UserInfoCacheExpiration())
+				assert.Equal(t, "/userinfo", settings.UserInfoPath())
+				assert.Equal(t, "https://users.example.com", settings.UserInfoBaseURL())
+				assert.True(t, settings.UserInfoGroupsEnabled())
+			},
+		},
+		{
+			name: "userInfoBaseURL malformed url",
+			configMapData: map[string]string{
+				"oidc.config": `
+userInfoBaseURL: "://users.example.com"
+`,
+			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				assert.Empty(t, settings.UserInfoBaseURL())
 			},
 		},
 	}
@@ -1873,8 +1922,6 @@ rootCA: "invalid"`},
 	}
 
 	for _, testCase := range testCases {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			if testCase.expectNilTLSConfig {
 				assert.Nil(t, testCase.settings.OIDCTLSConfig())
@@ -2132,7 +2179,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
+		"with no argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, IsImpersonationEnabled() must return an error")
 
@@ -2168,6 +2215,49 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }
 
+func TestIsInClusterEnabled(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then IsInClusterEnabled() must return true (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	enabled, err := settingsManager.IsInClusterEnabled()
+	require.True(t, enabled,
+		"with no argocd-cm config map, IsInClusterEnabled() must return true (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, IsInClusterEnabled() must return an error")
+
+	// When there is no in-cluster flag present in the argocd-cm,
+	// Then IsInClusterEnabled() must return true (default value) and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{})
+	enabled, err = settingsManager.IsInClusterEnabled()
+	require.True(t, enabled,
+		"with empty argocd-cm config map, IsInClusterEnabled() must return true (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, IsInClusterEnabled() must not return any error")
+
+	// When user disables in-cluster explicitly,
+	// Then IsInClusterEnabled() must return false and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"cluster.inClusterEnabled": "false",
+	})
+	enabled, err = settingsManager.IsInClusterEnabled()
+	require.False(t, enabled,
+		"when user sets the flag to false in argocd-cm config map, IsInClusterEnabled() must return false")
+	require.NoError(t, err,
+		"when user sets the flag to false in argocd-cm config map, IsInClusterEnabled() must not return any error")
+
+	// When user enables in-cluster explicitly,
+	// Then IsInClusterEnabled() must return true and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"cluster.inClusterEnabled": "true",
+	})
+	enabled, err = settingsManager.IsInClusterEnabled()
+	require.True(t, enabled,
+		"when user sets the flag to true in argocd-cm config map, IsInClusterEnabled() must return true")
+	require.NoError(t, err,
+		"when user sets the flag to true in argocd-cm config map, IsInClusterEnabled() must not return any error")
+}
+
 func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and an error with appropriate error message.
@@ -2175,7 +2265,7 @@ func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return return false (default value)")
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
 }
@@ -2299,6 +2389,258 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 			keys := settingsManager.GetAllowedNodeLabels()
 			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
+		})
+	}
+}
+
+func TestSecretsInformerExcludesClusterSecrets(t *testing.T) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}
+	argoSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{},
+	}
+	repoSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "repo-secret",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"url": []byte("https://github.com/example/repo"),
+		},
+	}
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-secret",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://cluster.example.com"),
+			"name":   []byte("test-cluster"),
+			"config": []byte("{}"),
+		},
+	}
+
+	kubeClient := fake.NewClientset(cm, argoSecret, repoSecret, clusterSecret)
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	t.Run("secrets lister excludes cluster secrets", func(t *testing.T) {
+		lister, err := settingsManager.GetSecretsLister()
+		require.NoError(t, err)
+
+		secrets, err := lister.Secrets("default").List(labels.Everything())
+		require.NoError(t, err)
+
+		secretNames := make([]string, 0, len(secrets))
+		for _, s := range secrets {
+			secretNames = append(secretNames, s.Name)
+		}
+		assert.Contains(t, secretNames, "repo-secret", "repository secret should be in secrets informer")
+		assert.NotContains(t, secretNames, "cluster-secret", "cluster secret should be excluded from secrets informer")
+	})
+
+	t.Run("cluster informer includes cluster secrets", func(t *testing.T) {
+		informer, err := settingsManager.GetClusterInformer()
+		require.NoError(t, err)
+
+		cluster, err := informer.GetClusterByURL("https://cluster.example.com")
+		require.NoError(t, err)
+		assert.Equal(t, "test-cluster", cluster.Name)
+	})
+
+	t.Run("cluster informer excludes non-cluster secrets", func(t *testing.T) {
+		informer, err := settingsManager.GetClusterInformer()
+		require.NoError(t, err)
+
+		clusters, err := informer.ListClusters()
+		require.NoError(t, err)
+		for _, c := range clusters {
+			assert.NotEqual(t, "repo-secret", c.ObjectMeta.Name, "repository secret should not appear in cluster informer")
+		}
+	})
+}
+
+func TestIsRepositorySecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      any
+		expected bool
+	}{
+		{
+			name: "repository secret matches",
+			obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			}},
+			expected: true,
+		},
+		{
+			name:     "unlabeled secret does not match",
+			obj:      &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
+			expected: false,
+		},
+		{
+			name: "cluster secret does not match",
+			obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			}},
+			expected: false,
+		},
+		{
+			name: "tombstone wrapping repository secret matches",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+				}},
+			},
+			expected: true,
+		},
+		{
+			name: "tombstone wrapping non-repository secret does not match",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
+			},
+			expected: false,
+		},
+		{
+			name:     "unknown type does not match",
+			obj:      "unexpected-type",
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isRepositorySecret(tt.obj))
+		})
+	}
+}
+
+func TestIsSettingsObject(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      any
+		expected bool
+	}{
+		{
+			name: "secret with part-of=argocd matches",
+			obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			}},
+			expected: true,
+		},
+		{
+			name:     "unlabeled secret does not match",
+			obj:      &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
+			expected: false,
+		},
+		{
+			name: "secret with different part-of value does not match",
+			obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"app.kubernetes.io/part-of": "other-app"},
+			}},
+			expected: false,
+		},
+		{
+			name: "configmap with part-of=argocd matches",
+			obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			}},
+			expected: true,
+		},
+		{
+			name: "tombstone wrapping labeled secret matches",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+				}},
+			},
+			expected: true,
+		},
+		{
+			name: "tombstone wrapping unlabeled secret does not match",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
+			},
+			expected: false,
+		},
+		{
+			name:     "unknown type does not match",
+			obj:      "unexpected-type",
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isSettingsObject(tt.obj))
+		})
+	}
+}
+
+func TestIsArgoCDConfigMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      any
+		expected bool
+	}{
+		{
+			name: "argocd-cm matches",
+			obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Name: common.ArgoCDConfigMapName,
+			}},
+			expected: true,
+		},
+		{
+			name: "other configmap does not match",
+			obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Name: common.ArgoCDRBACConfigMapName,
+			}},
+			expected: false,
+		},
+		{
+			name: "tombstone wrapping argocd-cm matches",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+					Name: common.ArgoCDConfigMapName,
+				}},
+			},
+			expected: true,
+		},
+		{
+			name: "tombstone wrapping other configmap does not match",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+					Name: common.ArgoCDRBACConfigMapName,
+				}},
+			},
+			expected: false,
+		},
+		{
+			name:     "unknown type does not match",
+			obj:      "unexpected-type",
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isArgoCDConfigMap(tt.obj))
 		})
 	}
 }

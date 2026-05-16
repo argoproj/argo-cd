@@ -10,7 +10,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -23,8 +23,8 @@ import (
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 
-const gitAttributesContents = `*/README.md linguist-generated=true
-*/hydrator.metadata linguist-generated=true`
+const gitAttributesContents = `**/README.md linguist-generated=true
+**/hydrator.metadata linguist-generated=true`
 
 func init() {
 	// Avoid allowing the user to learn things about the environment.
@@ -102,9 +102,6 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 	}
 	// if no manifest changes then skip commit
-	if !atleastOneManifestChanged {
-		return false, nil
-	}
 	return atleastOneManifestChanged, nil
 }
 
@@ -140,11 +137,13 @@ func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommit
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create README file: %w", err)
 	}
+	defer func() {
+		err := readmeFile.Close()
+		if err != nil {
+			log.WithError(err).Error("failed to close README file")
+		}
+	}()
 	err = readmeTemplate.Execute(readmeFile, metadata)
-	closeErr := readmeFile.Close()
-	if closeErr != nil {
-		log.WithError(closeErr).Error("failed to close README file")
-	}
 	if err != nil {
 		return fmt.Errorf("failed to execute readme template: %w", err)
 	}
@@ -247,9 +246,5 @@ func AddNote(gitClient git.Client, drySha, commitSha string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal commit note: %w", err)
 	}
-	err = gitClient.AddAndPushNote(commitSha, NoteNamespace, string(jsonBytes))
-	if err != nil {
-		return fmt.Errorf("failed to add commit note: %w", err)
-	}
-	return nil
+	return gitClient.AddAndPushNote(commitSha, NoteNamespace, string(jsonBytes)) // nolint:wrapcheck // wrapping the error wouldn't add any information
 }

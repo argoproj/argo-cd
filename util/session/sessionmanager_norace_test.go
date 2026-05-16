@@ -1,5 +1,4 @@
 //go:build !race
-// +build !race
 
 package session
 
@@ -27,7 +26,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 	mgr.sleep = func(d time.Duration) {
 		sleptFor = d
 	}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		sleptFor = 0
 		start := time.Now()
 		require.NoError(t, mgr.VerifyUsernamePassword("admin", "password"))

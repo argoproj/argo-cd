@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 )
 
 func TestSetSettings(t *testing.T) {

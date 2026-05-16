@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 var progressingStatus = &HealthStatus{
@@ -137,7 +137,9 @@ func checkConditions(conditions []hpaCondition, progressingStatus *HealthStatus)
 				Message: condition.Message,
 			}, nil
 		}
+	}
 
+	for _, condition := range conditions {
 		if isHealthy(&condition) {
 			return &HealthStatus{
 				Status:  HealthStatusHealthy,
@@ -154,6 +156,10 @@ func isDegraded(condition *hpaCondition) bool {
 		{Type: "AbleToScale", Reason: "FailedGetScale"},
 		{Type: "AbleToScale", Reason: "FailedUpdateScale"},
 		{Type: "ScalingActive", Reason: "FailedGetResourceMetric"},
+		{Type: "ScalingActive", Reason: "FailedGetObjectMetric"},
+		{Type: "ScalingActive", Reason: "FailedGetPodsMetric"},
+		{Type: "ScalingActive", Reason: "FailedGetExternalMetric"},
+		{Type: "ScalingActive", Reason: "FailedComputeMetricsReplicas"},
 		{Type: "ScalingActive", Reason: "InvalidSelector"},
 	}
 	for _, degraded_state := range degraded_states {

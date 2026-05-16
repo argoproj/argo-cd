@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	glob "github.com/bmatcuk/doublestar/v4"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -144,7 +144,7 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		err = json.Unmarshal(jsonBytes, healthStatus)
 		if err != nil {
 			// Validate if the error is caused by an empty object
-			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(healthStatus)}
+			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeFor[*health.HealthStatus]()}
 			if errors.As(err, &typeError) {
 				return &health.HealthStatus{}, nil
 			}

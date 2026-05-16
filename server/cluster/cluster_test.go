@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
@@ -374,7 +373,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{
 		Cluster: &appv1.Cluster{
 			Server: "https://127.0.0.1",
-			Shard:  ptr.To(int64(1)),
+			Shard:  new(int64(1)),
 		},
 		UpdatedFields: []string{"shard"},
 	})
@@ -682,8 +681,6 @@ func TestListCluster(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
