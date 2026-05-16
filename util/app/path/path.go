@@ -111,7 +111,8 @@ func CheckOutOfBoundsSymlinks(basePath string, skipPaths ...string) error {
 // The source parameter influences the returned refresh paths:
 //   - if source hydrator configured AND source is syncSource: use sync source path (ignores annotation)
 //   - if source hydrator configured AND source is drySource WITH annotation: use annotation paths with drySource base
-//   - if source hydrator not configured: use annotation paths with source base, or empty if no annotation
+//   - if source hydrator not configured AND annotation present then use annotation paths with source base
+//   - if source hydrator not configured AND no annotation AND source.Path set: use source.Path as default
 func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.ApplicationSource) []string {
 	annotationPaths, hasAnnotation := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
@@ -145,8 +146,10 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 			// add the path relative to the source path
 			paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
 		}
+	} else if !hasAnnotation && source.Path != "" && app.Spec.SourceHydrator == nil {
+		// No annotation set then use source.Path as the default refresh path.
+		paths = append(paths, source.Path)
 	}
-
 	return paths
 }
 
