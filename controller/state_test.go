@@ -2530,6 +2530,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				app.Annotations = map[string]string{
 					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
 				}
+				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
 				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
 					DrySource: v1alpha1.DrySource{
 						RepoURL:        app.Spec.Source.RepoURL,
