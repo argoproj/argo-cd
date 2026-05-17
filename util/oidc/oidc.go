@@ -340,7 +340,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 			if len(sanitizedURL) > 100 {
 				sanitizedURL = sanitizedURL[:100]
 			}
-			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedURL)
+			log.Warnf("Failed to verify app state - got invalid redirectURL %q (client: %s)", sanitizedURL, httputil.ClientIP(r))
 			return "", "", fmt.Errorf("failed to verify app state: %w", ErrInvalidRedirectURL)
 		}
 		redirectURL = parts[1]
@@ -443,7 +443,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	stateNonce, err := a.generateAppState(returnURL, pkceVerifier, w)
 	if err != nil {
-		log.Errorf("Failed to initiate login flow: %v", err)
+		log.Errorf("Failed to initiate login flow (client: %s): %v", httputil.ClientIP(r), err)
 		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
 		return
 	}
@@ -455,7 +455,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	case GrantTypeImplicit:
 		url, err = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
 		if err != nil {
-			log.Errorf("Failed to initiate implicit login flow: %v", err)
+			log.Errorf("Failed to initiate implicit login flow (client: %s): %v", httputil.ClientIP(r), err)
 			http.Error(w, "Failed to initiate implicit login flow", http.StatusInternalServerError)
 			return
 		}
@@ -512,7 +512,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Infof("Callback: %s", r.URL)
+	log.Infof("Callback: %s (client: %s)", r.URL, httputil.ClientIP(r))
 	if errMsg := r.FormValue("error"); errMsg != "" {
 		errorDesc := r.FormValue("error_description")
 		http.Error(w, html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
@@ -566,7 +566,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	idToken, err := a.provider.Verify(ctx, idTokenRAW, a.settings)
 	if err != nil {
-		log.Warnf("Failed to verify oidc token: %s", err)
+		log.Warnf("Failed to verify oidc token (client: %s): %s", httputil.ClientIP(r), err)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
@@ -614,7 +614,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claimsJSON, _ := json.Marshal(claims)
-	log.Infof("Web login successful. Claims: %s", claimsJSON)
+	log.Infof("Web login successful (client: %s). Claims: %s", httputil.ClientIP(r), claimsJSON)
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
