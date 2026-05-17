@@ -1052,6 +1052,16 @@ func (a *ClientApp) getScopes() []string {
 	} else if a.settings.IsDexConfigured() {
 		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
 	}
+	// Ensure offline_access is requested when the provider supports it, so that
+	// Dex issues a refresh token. Without this, the web login flow never receives
+	// a refresh token and OIDC session refresh does not work (see issue #27829).
+	if a.provider != nil {
+		if oidcConf, err := a.provider.ParseConfig(); err == nil && oidcConf != nil {
+			if OfflineAccess(oidcConf.ScopesSupported) {
+				scopes = append(scopes, gooidc.ScopeOfflineAccess)
+			}
+		}
+	}
 	return scopes
 }
 
