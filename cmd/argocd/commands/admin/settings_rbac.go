@@ -303,13 +303,9 @@ argocd admin settings rbac validate --namespace argocd
 // Load user policy file if requested or use Kubernetes client to get the
 // appropriate ConfigMap from the current context
 func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string) {
-	var err error
 	if policyFile != "" {
 		// load from file
-		userPolicy, defaultRole, matchMode, err = getPolicyFromFile(policyFile)
-		if err != nil {
-			log.Fatalf("could not read policy file: %v", err)
-		}
+		userPolicy, defaultRole, matchMode = getPolicyFromFile(policyFile)
 	} else {
 		cm, err := getPolicyConfigMap(ctx, kubeClient, namespace)
 		if err != nil {
@@ -321,9 +317,10 @@ func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Int
 	return userPolicy, defaultRole, matchMode
 }
 
-// getPolicyFromFile loads a RBAC policy from given path
-// nolint:unparam // complains about the error being always nil which is false-positive
-func getPolicyFromFile(policyFile string) (string, string, string, error) {
+// getPolicyFromFile loads an RBAC policy from the given path. The file may be
+// raw policy text or a serialized ConfigMap. If [os.ReadFile] fails, it calls
+// log.Fatalf (which exits the process) and does not return to the caller.
+func getPolicyFromFile(policyFile string) (string, string, string) {
 	var (
 		userPolicy  string
 		defaultRole string
@@ -333,7 +330,6 @@ func getPolicyFromFile(policyFile string) (string, string, string, error) {
 	upol, err := os.ReadFile(policyFile)
 	if err != nil {
 		log.Fatalf("error opening policy file: %v", err)
-		return "", "", "", err
 	}
 
 	// Try to unmarshal the input file as ConfigMap first. If it succeeds, we
@@ -346,7 +342,7 @@ func getPolicyFromFile(policyFile string) (string, string, string, error) {
 		userPolicy, defaultRole, matchMode = getPolicyFromConfigMap(upolCM)
 	}
 
-	return userPolicy, defaultRole, matchMode, nil
+	return userPolicy, defaultRole, matchMode
 }
 
 // Retrieve policy information from a ConfigMap

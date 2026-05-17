@@ -11,14 +11,15 @@ import login from './login';
 import settings from './settings';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {Page} from './shared/components/page/page';
+import {Spinner} from './shared/components/spinner';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
-import {hashCode} from './shared/utils';
+import {hashCode, isSSOConfigured} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
-import {AuthSettings} from './shared/models';
+import {AuthSettings, UserInfo} from './shared/models';
 import {SystemLevelExtension} from './shared/services/extensions-service';
 
 services.viewPreferences.init();
@@ -33,7 +34,7 @@ const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
     // TODO: Uncomment when ApplicationSet details page is fully implemented
-    // '/applicationsets': {component: applications.component},
+    '/applicationsets': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component}
@@ -52,6 +53,12 @@ const navItems: NavItem[] = [
         tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
+    },
+    {
+        title: 'ApplicationSets',
+        tooltip: 'Manage your ApplicationSets, and diagnose health problems.',
+        path: '/applicationsets',
+        iconClassName: 'argo-icon argo-icon-applicationset'
     },
     {
         title: 'Settings',
@@ -74,20 +81,48 @@ const navItems: NavItem[] = [
 
 const versionLoader = services.version.version();
 
+async function fetchUserInfoSafe(): Promise<UserInfo> {
+    try {
+        return await services.users.get();
+    } catch (err: any) {
+        if (err?.response?.status === 401 || err?.status === 401) {
+            return {loggedIn: false, username: '', iss: 'argocd', groups: []};
+        }
+        throw err;
+    }
+}
+
+function sessionFromBootstrap(userInfo: UserInfo, authSettings: AuthSettings, versionInfo: any): {loggedIn: boolean; isSSO: boolean} {
+    const loggedIn = userInfo?.loggedIn ?? false;
+    if (loggedIn) {
+        return {loggedIn: true, isSSO: false};
+    }
+    const serverAuthDisabled = !loggedIn && !!(versionInfo?.KustomizeVersion?.length || versionInfo?.HelmVersion?.length);
+    if (serverAuthDisabled) {
+        return {loggedIn: true, isSSO: false};
+    }
+    const hasSSO = isSSOConfigured(userInfo, authSettings);
+    return {loggedIn: false, isSSO: hasSSO};
+}
+
+function getBaseHref(): string {
+    return document.querySelector('head > base')?.getAttribute('href')?.replace(/\/$/, '') || '';
+}
+
 async function isExpiredSSO() {
     try {
-        const {iss} = await services.users.get();
+        const user = await services.users.get();
         const authSettings = await services.authService.settings();
-        if (iss && iss !== 'argocd') {
-            return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
-        }
+        return isSSOConfigured(user, authSettings);
     } catch {
         return false;
     }
-    return false;
 }
 
-export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
+export class App extends React.Component<
+    {},
+    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings; sessionResolved: boolean}
+> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -107,7 +142,15 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, authSettings: null};
+        this.state = {
+            popupProps: null,
+            error: null,
+            showVersionPanel: false,
+            navItems: [],
+            routes: null,
+            authSettings: null,
+            sessionResolved: false
+        };
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -118,19 +161,34 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
         services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
     }
 
-    public async componentDidMount() {
+    public componentDidMount() {
         this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
         this.subscribeUnauthorized().then(subscription => {
             this.unauthorizedSubscription = subscription;
         });
-        const authSettings = await services.authService.settings();
+
+        void this.bootstrapAppSession().catch((err: unknown) => {
+            console.error('Failed to bootstrap app session', err);
+            this.setState(prev => ({
+                ...prev,
+                error: err instanceof Error ? err : new Error(String(err)),
+                sessionResolved: true
+            }));
+        });
+    }
+
+    private async bootstrapAppSession(): Promise<void> {
+        const [authSettings, userInfoResult, versionInfo] = await Promise.all([services.authService.settings(), fetchUserInfoSafe(), versionLoader]);
+
+        const {loggedIn, isSSO} = sessionFromBootstrap(userInfoResult, authSettings, versionInfo);
+
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
-        const {loggedIn, username} = await services.users.get();
+        const {loggedIn: userLoggedIn, username} = userInfoResult;
         if (trackingID) {
             const ga = await import('react-ga');
             ga.initialize(trackingID);
             const trackPageView = () => {
-                if (loggedIn && username) {
+                if (userLoggedIn && username) {
                     const userId = !anonymizeUsers ? username : hashCode(username).toString();
                     ga.set({userId});
                 }
@@ -147,7 +205,24 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
             document.head.appendChild(link);
         }
 
-        this.setState({...this.state, navItems: this.navItems, routes: this.routes, authSettings});
+        const pathname = history.location.pathname;
+        const onLoginPage = pathname === '/login';
+
+        if (!onLoginPage && !loggedIn) {
+            if (isSSO) {
+                window.location.href = `${getBaseHref()}/auth/login?return_url=${encodeURIComponent(location.href)}`;
+                return;
+            }
+            history.replace(`/login?return_url=${encodeURIComponent(location.href)}`);
+        }
+
+        this.setState(prev => ({
+            ...prev,
+            navItems: this.navItems,
+            routes: this.routes,
+            authSettings,
+            sessionResolved: true
+        }));
     }
 
     public componentWillUnmount() {
@@ -173,6 +248,21 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                     <br />
                     <p>Stacktrace:</p>
                     <pre>{stack}</pre>
+                </React.Fragment>
+            );
+        }
+
+        if (!this.state.sessionResolved) {
+            return (
+                <React.Fragment>
+                    <Helmet>
+                        <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32' />
+                        <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
+                    </Helmet>
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '12px'}}>
+                        <Spinner show={true} />
+                        <span style={{color: '#6d7f8b'}}>Checking session…</span>
+                    </div>
                 </React.Fragment>
             );
         }
@@ -278,6 +368,6 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
         extendedRoutes[extension.path] = {
             component: component as React.ComponentType<React.ComponentProps<any>>
         };
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes});
+        this.setState(prev => ({...prev, navItems: extendedNavItems, routes: extendedRoutes}));
     }
 }
