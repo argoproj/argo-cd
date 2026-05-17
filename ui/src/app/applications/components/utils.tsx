@@ -701,6 +701,15 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
         .catch(() => [] as ActionMenuItem[]);
 }
 
+function isTopLevelResource(resource: ResourceTreeNode, application: appModels.AbstractApplication): boolean {
+    const resourceID = `/${resource.namespace}/${resource.group}/${resource.kind}/${resource.name}`;
+    return (
+        application.status?.resources?.some(
+            (resourceStatus: appModels.ResourceStatus) => `/${resourceStatus.namespace}/${resourceStatus.group}/${resourceStatus.kind}/${resourceStatus.name}` === resourceID
+        ) || false
+    );
+}
+
 function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.AbstractApplication,
@@ -709,14 +718,6 @@ function getActionItems(
     appChanged: BehaviorSubject<appModels.AbstractApplication>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    function isTopLevelResource(res: ResourceTreeNode, app: appModels.AbstractApplication): boolean {
-        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
-        return (
-            app.status?.resources?.some((resStatus: appModels.ResourceStatus) => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes) ||
-            false
-        );
-    }
-
     const isPod = resource.kind === 'Pod';
     const isManaged = isTopLevelResource(resource, application);
     const childResources = isApp(application) ? findChildResources(resource, tree as appModels.ApplicationTree) : [];
@@ -899,16 +900,63 @@ export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.Rea
     );
 }
 
-export function renderResourceButtons(
-    resource: ResourceTreeNode,
-    application: appModels.AbstractApplication,
-    tree: appModels.AbstractApplicationTree,
-    apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.AbstractApplication>
-): React.ReactNode {
-    const menuItems: Observable<ActionMenuItem[]> = getActionItems(resource, application, tree, apis, appChanged, true);
+interface ResourceButtonsProps {
+    resource: ResourceTreeNode;
+    application: appModels.AbstractApplication;
+    tree: appModels.AbstractApplicationTree;
+    apis: ContextApis;
+    appChanged: BehaviorSubject<appModels.AbstractApplication>;
+}
+
+const objectIds = new WeakMap<object, number>();
+let nextObjectId = 1;
+
+function getObjectId(value: object) {
+    let id = objectIds.get(value);
+    if (id === undefined) {
+        id = nextObjectId++;
+        objectIds.set(value, id);
+    }
+    return id;
+}
+
+// Keep quickstart action loading stable across unrelated PodView rerenders.
+const ResourceButtons = React.memo(({resource, application, tree, apis, appChanged}: ResourceButtonsProps) => {
+    const isManaged = React.useMemo(() => isTopLevelResource(resource, application), [resource, application]);
+    const childResourceKeys = React.useMemo(
+        () =>
+            isApp(application)
+                ? findChildResources(resource, tree as appModels.ApplicationTree)
+                      .map(node => nodeKey(node))
+                      .sort()
+                : [],
+        [resource, application, tree]
+    );
+    const hasLogsTarget = React.useMemo(
+        () => resource.kind === 'Pod' || (isApp(application) && !!findChildPod(resource, tree as appModels.ApplicationTree)),
+        [resource, application, tree]
+    );
+    const input = React.useMemo(
+        () => ({
+            resourceKey: nodeKey(resource),
+            applicationKind: application.kind,
+            applicationName: application.metadata.name,
+            applicationNamespace: application.metadata.namespace,
+            applicationProject: isApp(application) ? application.spec.project : '',
+            isManaged,
+            childResourceKeys,
+            hasLogsTarget,
+            popupId: getObjectId(apis.popup),
+            notificationsId: getObjectId(apis.notifications),
+            navigationId: getObjectId(apis.navigation),
+            baseHref: apis.baseHref,
+            appChangedId: getObjectId(appChanged)
+        }),
+        [resource, application, isManaged, childResourceKeys, hasLogsTarget, apis.popup, apis.notifications, apis.navigation, apis.baseHref, appChanged]
+    );
+
     return (
-        <DataLoader load={() => menuItems}>
+        <DataLoader input={input} load={() => getActionItems(resource, application, tree, apis, appChanged, true)}>
             {items => (
                 <div className='pod-view__node__quick-start-actions'>
                     {items.map((item, i) => (
@@ -930,6 +978,17 @@ export function renderResourceButtons(
             )}
         </DataLoader>
     );
+});
+ResourceButtons.displayName = 'ResourceButtons';
+
+export function renderResourceButtons(
+    resource: ResourceTreeNode,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
+    apis: ContextApis,
+    appChanged: BehaviorSubject<appModels.AbstractApplication>
+): React.ReactNode {
+    return <ResourceButtons resource={resource} application={application} tree={tree} apis={apis} appChanged={appChanged} />;
 }
 
 export function getSyncRevisionLabelSuffix(repoUrl: string, targetRevision: string, revision: string, chart?: string) {
