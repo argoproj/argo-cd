@@ -3325,7 +3325,7 @@ func TestFetchWithDepth(t *testing.T) {
 		gitClient := &gitmocks.Client{}
 		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(false)
 		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(false)
-		gitClient.EXPECT().Fetch(revision1, int64(1)).Return(fmt.Errorf("fetch failed"))
+		gitClient.EXPECT().Fetch(revision1, int64(1)).Return(errors.New("fetch failed"))
 
 		err := fetch(gitClient, []string{revision1, revision2}, 1)
 		require.Error(t, err)
