@@ -1575,14 +1575,14 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		// VerifyToken returns claims without sub/sid on expiry, parse JWT directly to recover sub/sid for refresh token cache lookup
 		expiredClaims := jwt.MapClaims{}
 		if _, _, parseErr := jwt.NewParser().ParseUnverified(tokenString, expiredClaims); parseErr != nil {
-			log.Errorf("failed to parse expired token for refresh: %v", parseErr)
+			log.Warnf("failed to parse expired token for refresh: %v", parseErr)
 		} else {
 			refreshedToken, refreshErr := server.ssoClientApp.CheckAndRefreshToken(ctx, expiredClaims, server.settings.RefreshTokenThresholdWithConfig(oidcConfig))
 			if refreshErr != nil {
-				log.Errorf("failed to refresh token: %v", refreshErr)
+				log.Warnf("failed to refresh token: %v", refreshErr)
 			} else if refreshedToken != "" {
 				if refreshedClaims, _, vErr := server.sessionMgr.VerifyToken(ctx, refreshedToken); vErr != nil {
-					log.Errorf("failed to verify refreshed token: %v", vErr)
+					log.Warnf("failed to verify refreshed token: %v", vErr)
 				} else {
 					claims, newToken, err = refreshedClaims, refreshedToken, nil
 					log.Infof("refreshed token for subject: %v", jwtutil.StringField(expiredClaims, "sub"))
