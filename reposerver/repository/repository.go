@@ -2951,8 +2951,10 @@ func fetch(gitClient git.Client, targetRevisions []string, depth int64) error {
 	}
 	if depth > 0 {
 		for _, revision := range targetRevisions {
-			if err := gitClient.Fetch(revision, depth); err != nil {
-				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
+			if !gitClient.IsRevisionPresent(revision) {
+				if err := gitClient.Fetch(revision, depth); err != nil {
+					return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
+				}
 			}
 		}
 		return nil
