@@ -122,9 +122,9 @@ func parseHarborRegistryURL(resourceURL string) (string, error) {
 	if i := strings.Index(u, "://"); i != -1 {
 		u = u[i+3:]
 	}
-	idx := strings.Index(u, "/")
-	if idx == -1 {
+	before, _, ok := strings.Cut(u, "/")
+	if !ok {
 		return "", fmt.Errorf("harbor webhook: cannot parse registry hostname from resource_url %q", resourceURL)
 	}
-	return u[:idx], nil
+	return before, nil
 }
