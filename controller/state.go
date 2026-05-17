@@ -421,6 +421,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 
 	// Determine the synced revision and source type for comparison
 	syncedRevision := app.Status.Sync.Revision
+	sourceType := app.Status.SourceType
 	if app.Spec.SourceHydrator != nil {
 		if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
 			// Always resolve the revision even if UpdateRevisionForPaths is not called so we can
@@ -435,6 +436,9 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
 		} else {
 			syncedRevision = ""
+		}
+		if sourceIndex >= 0 && sourceIndex < len(app.Status.SourceTypes) {
+			sourceType = app.Status.SourceTypes[sourceIndex]
 		}
 	}
 
@@ -484,6 +488,13 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 			resolvedRevision = updateRevisionResult.Revision
 		}
 
+		// For Directory sources, Status.Sync.Revision may already contain the
+		// resolved revision from comparison even though no sync attempted it yet.
+		// Keep UpdateRevisionForPaths for cache updates, but let auto-sync compare
+		// the resolved revision against the last actual sync result.
+		if sourceType == v1alpha1.ApplicationSourceTypeDirectory {
+			return resolvedRevision, true, nil
+		}
 		return resolvedRevision, updateRevisionResult.Changes, nil
 	} else if alwaysResolveRevision {
 		resp, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{

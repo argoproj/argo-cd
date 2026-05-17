@@ -2283,6 +2283,32 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
+			name: "directory source with annotation reports possible changes after resolving revision",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
+				app.Status.Sync.Revision = "resolved-head-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "resolved-head-sha",
+					Changes:  false,
+				},
+			},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"resolved-head-sha"},
+		},
+		{
 			name: "with send runtime state",
 			app: func() *v1alpha1.Application {
 				app := newFakeApp()
