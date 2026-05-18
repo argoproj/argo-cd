@@ -471,7 +471,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
 
-	req := resourcehelper.PodRequests(&pod, resourcehelper.PodResourcesOptions{})
+	req := resourcehelper.PodRequests(&pod, resourcehelper.PodResourcesOptions{UseStatusResources: true})
 
 	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
