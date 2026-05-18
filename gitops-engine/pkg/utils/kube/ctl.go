@@ -13,8 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/managedfields"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kube-openapi/pkg/util/proto"
 	"k8s.io/kubectl/pkg/util/openapi"
@@ -29,7 +31,8 @@ type CleanupFunc func()
 type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 
 type Kubectl interface {
-	ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error)
+	ManageResources(config *rest.Config) (ResourceOperations, func(), error)
+	ManageServerSideDiffDryRuns(config *rest.Config) (diff.KubeApplier, func(), error)
 	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
@@ -275,7 +278,7 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 	return resourceIf.Delete(ctx, name, deleteOptions)
 }
 
-func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error) {
+func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, func(), error) {
 	f, err := os.CreateTemp(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %w", err)
@@ -291,16 +294,21 @@ func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.
 		utils.DeleteFile(f.Name())
 	}
 	return &kubectlResourceOperations{
-		config:        config,
-		fact:          fact,
-		openAPISchema: openAPISchema,
-		tracer:        k.Tracer,
-		log:           k.Log,
-		onKubectlRun:  k.OnKubectlRun,
+		config: config,
+		getClientFunc: func() (kubernetes.Interface, error) {
+			return kubernetes.NewForConfig(config)
+		},
+		fact:   fact,
+		tracer: k.Tracer,
+		log:    k.Log,
+		optionsRunner: &realKubectlOptionsRunner{
+			onKubectlRun: k.OnKubectlRun,
+		},
 	}, cleanup, nil
 }
 
-func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
+// ManageServerSideDiffDryRuns creates a KubeApplier for server-side diff dry runs
+func (k *KubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config) (diff.KubeApplier, func(), error) {
 	f, err := os.CreateTemp(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %w", err)
@@ -316,12 +324,13 @@ func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Reso
 		utils.DeleteFile(f.Name())
 	}
 	return &kubectlServerSideDiffDryRunApplier{
-		config:        config,
-		fact:          fact,
-		openAPISchema: openAPISchema,
-		tracer:        tracer,
-		log:           log,
-		onKubectlRun:  onKubectlRun,
+		config: config,
+		fact:   fact,
+		tracer: k.Tracer,
+		log:    k.Log,
+		optionsRunner: &realKubectlOptionsRunner{
+			onKubectlRun: k.OnKubectlRun,
+		},
 	}, cleanup, nil
 }
 
@@ -349,7 +358,15 @@ func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get server version: %w", err)
 	}
-	return fmt.Sprintf("%s.%s", v.Major, v.Minor), nil
+
+	ver, err := version.ParseGeneric(v.GitVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse server version: %w", err)
+	}
+	// ParseGeneric removes the leading "v" and any vendor-specific suffix (e.g. "-gke.100", "-eks-123", "+k3s1").
+	// Helm expects a semver-like Kubernetes version with a "v" prefix for capability checks, so we normalize the
+	// version to "v<major>.<minor>.<patch>".
+	return "v" + ver.String(), nil
 }
 
 func (k *KubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
@@ -364,7 +381,7 @@ func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun OnKubectlRunFunc) {
 func RunAllAsync(count int, action func(i int) error) error {
 	g, ctx := errgroup.WithContext(context.Background())
 loop:
-	for i := 0; i < count; i++ {
+	for i := range count {
 		index := i
 		g.Go(func() error {
 			return action(index)

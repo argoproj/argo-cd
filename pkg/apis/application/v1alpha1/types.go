@@ -285,13 +285,23 @@ func (spec *ApplicationSpec) HasMultipleSources() bool {
 	return spec.SourceHydrator == nil && len(spec.Sources) > 0
 }
 
+// GetSourcePtrByPosition returns the source pointer by position.
+// The position is 1-based index.
+// If the source is using hydrator, use 0 to return the dry source or 1 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	return spec.GetSourcePtrByIndex(sourcePosition - 1)
 }
 
+// GetSourcePtrByIndex returns the source pointer by index.
+// If the source is using hydrator, use -1 to return the dry source or 0 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	if spec.SourceHydrator != nil {
+		if sourceIndex < 0 {
+			// If the index is -1, return the dry source.
+			source := spec.SourceHydrator.GetDrySource()
+			return &source
+		}
 		source := spec.SourceHydrator.GetSyncSource()
 		return &source
 	}
@@ -431,6 +441,10 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 		RepoURL:        s.DrySource.RepoURL,
 		Path:           s.DrySource.Path,
 		TargetRevision: s.DrySource.TargetRevision,
+		Helm:           s.DrySource.Helm,
+		Kustomize:      s.DrySource.Kustomize,
+		Directory:      s.DrySource.Directory,
+		Plugin:         s.DrySource.Plugin,
 	}
 }
 
@@ -518,8 +532,10 @@ const (
 type HydrateType string
 
 const (
-	// HydrateTypeNormal is a normal hydration
+	// HydrateTypeNormal forces reevaluation of whether the dry requires hydration
 	HydrateTypeNormal HydrateType = "normal"
+	// HydrateTypeHard forces an app hydration of the dry source
+	HydrateTypeHard HydrateType = "hard"
 )
 
 type RefTarget struct {
@@ -531,6 +547,7 @@ type RefTarget struct {
 type RefTargetRevisionMapping map[string]*RefTarget
 
 // ApplicationSourceHelm holds helm specific options
+// +protobuf.options.(gogoproto.goproto_stringer)=false
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
@@ -685,9 +702,9 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for Kustomize apps
+	// NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// NameSuffix is a suffix appended to resources for Kustomize apps
+	// NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images is a list of Kustomize image override specifications
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
@@ -1216,6 +1233,9 @@ type SourceHydratorStatus struct {
 	LastSuccessfulOperation *SuccessfulHydrateOperation `json:"lastSuccessfulOperation,omitempty" protobuf:"bytes,1,opt,name=lastSuccessfulOperation"`
 	// CurrentOperation holds the status of the hydrate operation
 	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
+	// LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
+	// This is updated on every evaluation, even when hydration is skipped due to no changes.
+	LastComparedDryRevision string `json:"lastComparedDryRevision,omitempty" protobuf:"bytes,3,opt,name=lastComparedDryRevision"`
 }
 
 func (status *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
@@ -1461,6 +1481,18 @@ func (o SyncOptions) HasOption(option string) bool {
 	return slices.Contains(o, option)
 }
 
+// GetOptionValue returns true if the list of sync options contains given option
+// This function only support options that are defined as key=value and not standalone.
+func (o SyncOptions) GetOptionValue(optionKey string) *string {
+	prefix := optionKey + "="
+	for _, i := range o {
+		if val, found := strings.CutPrefix(i, prefix); found {
+			return new(val)
+		}
+	}
+	return nil
+}
+
 type ManagedNamespaceMetadata struct {
 	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,1,opt,name=labels"`
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,opt,name=annotations"`
@@ -1559,13 +1591,37 @@ type Backoff struct {
 // SyncPolicyAutomated controls the behavior of an automated sync
 type SyncPolicyAutomated struct {
 	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
-	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	Prune *bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
-	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	SelfHeal *bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
-	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	AllowEmpty *bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
 	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
+}
+
+// GetPrune returns the value of Prune, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetPrune() bool {
+	if a == nil || a.Prune == nil {
+		return false
+	}
+	return *a.Prune
+}
+
+// GetSelfHeal returns the value of SelfHeal, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetSelfHeal() bool {
+	if a == nil || a.SelfHeal == nil {
+		return false
+	}
+	return *a.SelfHeal
+}
+
+// GetAllowEmpty returns the value of AllowEmpty, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetAllowEmpty() bool {
+	if a == nil || a.AllowEmpty == nil {
+		return false
+	}
+	return *a.AllowEmpty
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -1653,9 +1709,12 @@ type RevisionMetadata struct {
 	// Message contains the message associated with the revision, most likely the commit message.
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
-	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+	//
+	// Deprecated: Use SourceIntegrityResult for more detailed information. SignatureInfo will be removed with the next major version.
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// References contains references to information that's related to this commit in some way.
-	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	References            []RevisionReference         `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	SourceIntegrityResult *SourceIntegrityCheckResult `json:"sourceIntegrityResult,omitempty" protobuf:"bytes,7,opt,name=sourceIntegrityResult"`
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository
@@ -2273,7 +2332,7 @@ type Cluster struct {
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	metav1.ObjectMeta `json:"-,omitempty"`
+	metav1.ObjectMeta `json:"-"`
 }
 
 func (c *Cluster) Sanitized() *Cluster {
@@ -2725,7 +2784,9 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 }
 
 // SignatureKey is the specification of a key required to verify commit signatures with
-type SignatureKey struct {
+//
+// Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
+type SignatureKey struct { // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// The ID of the key in hexadecimal notation
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }
@@ -2752,7 +2813,9 @@ type AppProjectSpec struct {
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 	// SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
-	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
+	//
+	// Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
+	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []ClusterResourceRestrictionItem `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 	// SourceNamespaces defines the namespaces application resources are allowed to be created in
@@ -2761,6 +2824,50 @@ type AppProjectSpec struct {
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+	// SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
+	// Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
+	SourceIntegrity *SourceIntegrity `json:"sourceIntegrity,omitempty" protobuf:"bytes,15,name=sourceIntegrity"`
+}
+
+// EffectiveSourceIntegrity incorporates the legacy SignatureKeys into SourceIntegrity, if possible
+// SignatureKeys are added as a Git GPG policy for repos specified with `*`. If such a policy exists, the SignatureKeys
+// are ignored with warning.
+func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
+	var legacyKeys []string
+	for _, k := range proj.Spec.SignatureKeys {
+		legacyKeys = append(legacyKeys, k.KeyID)
+	}
+
+	if len(legacyKeys) == 0 {
+		// Already using the modern version
+		return proj.Spec.SourceIntegrity
+	}
+
+	migratedGit := &SourceIntegrityGit{
+		Policies: []*SourceIntegrityGitPolicy{{
+			Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+			GPG: &SourceIntegrityGitPolicyGPG{
+				Mode: SourceIntegrityGitPolicyGPGModeHead,
+				Keys: legacyKeys,
+			},
+		}},
+	}
+
+	if proj.Spec.SourceIntegrity == nil {
+		log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+		return &SourceIntegrity{Git: migratedGit}
+	}
+
+	if proj.Spec.SourceIntegrity.Git != nil {
+		log.Errorf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.", proj.Name)
+		return proj.Spec.SourceIntegrity
+	}
+
+	log.Warnf("Merging SourceIntegrity with legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+	// Merge with non-git checks without modifying the AppProject - use deep-copy and amend
+	deepCopy := proj.Spec.SourceIntegrity.DeepCopy()
+	deepCopy.Git = migratedGit
+	return deepCopy
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
@@ -2797,6 +2904,10 @@ type SyncWindow struct {
 	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
 	// Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
 	Description string `json:"description,omitempty" protobuf:"bytes,10,opt,name=description"`
+	// SyncOverrun allows ongoing syncs to continue in two scenarios:
+	// For deny windows: allows syncs that started before the deny window became active to continue running
+	// For allow windows: allows syncs that started during the allow window to continue after the window ends
+	SyncOverrun bool `json:"syncOverrun,omitempty" protobuf:"bytes,11,opt,name=syncOverrun"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -2894,7 +3005,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string, syncOverrun bool) error {
 	if knd == "" || sch == "" || dur == "" {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
@@ -2907,6 +3018,7 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		TimeZone:       timeZone,
 		UseAndOperator: andOperator,
 		Description:    description,
+		SyncOverrun:    syncOverrun,
 	}
 
 	if len(app) > 0 {
@@ -3022,7 +3134,12 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
+// The operationStartTime parameter supports sync overrun functionality, which allows ongoing syncs to continue in two scenarios:
+//  1. When a deny window becomes active: If the operation started when sync was allowed and the deny window has syncOverrun enabled,
+//     the sync can continue even though a deny window is now active.
+//  2. When an allow window ends: If the operation started during an allow window with syncOverrun enabled, the sync can continue
+//     even after the allow window has ended (and no other allow windows are active).
+func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (bool, error) {
 	if !w.HasWindows() {
 		return true, nil
 	}
@@ -3037,6 +3154,18 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 		if isManual && manualEnabled {
 			return true, nil
 		}
+
+		// Check if operation started before deny window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && active.denyAllowsOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err != nil {
+				return false, err
+			}
+			if wasAllowed {
+				return true, nil // Allow sync to continue (overrun into deny window)
+			}
+		}
+
 		return false, nil
 	}
 
@@ -3052,6 +3181,18 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
 		}
+
+		// Check if operation started during an allow window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && inactiveAllows.inactiveAllowsAllowOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err != nil {
+				return false, err
+			}
+			if wasAllowed {
+				return true, nil // Allow sync to continue (overrun out of allow window)
+			}
+		}
+
 		return false, nil
 	}
 
@@ -3107,6 +3248,82 @@ func (w *SyncWindows) manualEnabled() bool {
 		}
 	}
 	return true
+}
+
+// denyAllowsOverrun will iterate over the deny SyncWindows and return true if all deny windows have
+// SyncOverrun set to true. Returns false if it finds at least one deny window with
+// SyncOverrun set to false. This is used to determine if a sync can continue when a deny
+// window becomes active after the operation started.
+func (w *SyncWindows) denyAllowsOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasDeny := false
+	for _, s := range *w {
+		if s.Kind == "deny" {
+			hasDeny = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasDeny
+}
+
+// inactiveAllowsAllowOverrun checks if all inactive allow windows have SyncOverrun enabled.
+// This is used to determine if a sync can continue after an allow window has ended.
+// Similar to allowsOverrun() for deny windows, ALL allow windows must have SyncOverrun enabled.
+func (w *SyncWindows) inactiveAllowsAllowOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasAllow := false
+	for _, s := range *w {
+		if s.Kind == "allow" {
+			hasAllow = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasAllow
+}
+
+// canSyncAtTime checks if a sync would have been allowed at a specific time
+func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, error) {
+	if !w.HasWindows() {
+		return true, nil
+	}
+
+	active, err := w.active(checkTime)
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	hasActiveDeny, manualEnabled := active.hasDeny()
+
+	if hasActiveDeny {
+		if isManual && manualEnabled {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	if active.hasAllow() {
+		return true, nil
+	}
+
+	inactiveAllows, err := w.inactiveAllows(checkTime)
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // Active returns true if the sync window is currently active
@@ -3338,20 +3555,21 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	return refreshType, true
 }
 
-// IsHydrateRequested returns whether hydration has been requested for an application
-func (app *Application) IsHydrateRequested() bool {
+// IsHydrateRequested returns whether hydration has been requested for an application and the type of hydration
+func (app *Application) IsHydrateRequested() (bool, HydrateType) {
 	annotations := app.GetAnnotations()
 	if annotations == nil {
-		return false
+		return false, ""
 	}
 	typeStr, ok := annotations[AnnotationKeyHydrate]
 	if !ok {
-		return false
+		return false, ""
 	}
-	if typeStr == string(HydrateTypeNormal) {
-		return true
+	hydrateType := HydrateTypeNormal
+	if typeStr == string(HydrateTypeHard) {
+		hydrateType = HydrateTypeHard
 	}
-	return false
+	return true, hydrateType
 }
 
 func (app *Application) HasPreDeleteFinalizer(stage ...string) bool {

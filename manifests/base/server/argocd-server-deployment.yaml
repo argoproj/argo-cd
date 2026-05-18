@@ -316,6 +316,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.webhook.parallelism.limit
                   optional: true
+            - name: ARGOCD_SERVER_GLOB_CACHE_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.glob.cache.size
+                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
               valueFrom:
                 configMapKeyRef:

@@ -89,6 +89,7 @@ func TestHPA(t *testing.T) {
 	assertAppHealth(t, "./testdata/hpa-v2beta1-healthy-disabled.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v2beta1-healthy.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v1-degraded.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/hpa-v1-degraded-failedgetobjectmetric.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/hpa-v1-healthy.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v1-healthy-toofew.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v1-progressing.yaml", HealthStatusProgressing)

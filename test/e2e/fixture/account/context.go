@@ -12,7 +12,8 @@ import (
 type Context struct {
 	*fixture.TestState
 
-	project string
+	project    string
+	configPath string
 }
 
 func Given(t *testing.T) *Context {
@@ -31,6 +32,15 @@ func GivenWithSameState(ctx fixture.TestContext) *Context {
 func (c *Context) Project(project string) *Context {
 	c.project = project
 	return c
+}
+
+func (c *Context) ConfigPath(configPath string) *Context {
+	c.configPath = configPath
+	return c
+}
+
+func (c *Context) GetConfigPath() string {
+	return c.configPath
 }
 
 func (c *Context) Name(name string) *Context {

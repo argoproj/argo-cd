@@ -789,17 +789,13 @@ func Test_getOrUpdateShardNumberForController(t *testing.T) {
 }
 
 func TestGetClusterSharding(t *testing.T) {
-	IntPtr := func(i int32) *int32 {
-		return &i
-	}
-
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.DefaultApplicationControllerName,
 			Namespace: "argocd",
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: IntPtr(1),
+			Replicas: new(int32(1)),
 		},
 	}
 
@@ -809,7 +805,7 @@ func TestGetClusterSharding(t *testing.T) {
 			Namespace: "argocd",
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: IntPtr(3),
+			Replicas: new(int32(3)),
 		},
 	}
 

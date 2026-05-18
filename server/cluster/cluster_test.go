@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
@@ -374,7 +373,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{
 		Cluster: &appv1.Cluster{
 			Server: "https://127.0.0.1",
-			Shard:  ptr.To(int64(1)),
+			Shard:  new(int64(1)),
 		},
 		UpdatedFields: []string{"shard"},
 	})

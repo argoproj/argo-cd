@@ -1009,8 +1009,8 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	params := []*applicationpkg.ResourceActionParameters{
 		{
-			Name:  func() *string { s := "replicas"; return &s }(),
-			Value: func() *string { s := "3"; return &s }(),
+			Name:  new("replicas"),
+			Value: new("3"),
 		},
 	}
 

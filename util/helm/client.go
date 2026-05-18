@@ -373,6 +373,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 		Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 		TLSClientConfig:   tlsConf,
 		DisableKeepAlives: true,
+		ForceAttemptHTTP2: true,
 	}
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
@@ -492,6 +493,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
+			ForceAttemptHTTP2: true,
 		}
 
 		// Wrap transport to add User-Agent header to all requests

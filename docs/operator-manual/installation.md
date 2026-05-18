@@ -1,6 +1,6 @@
 # Installation
 
-Argo CD has two type of installations: multi-tenant and core.
+Argo CD has two types of installations: multi-tenant and core.
 
 ## Multi-Tenant
 
@@ -11,9 +11,9 @@ The end-users can access Argo CD via the API server using the Web UI or `argocd`
 
 Two types of installation manifests are provided:
 
-### Non High Availability:
+### Non-High Availability:
 
-Not recommended for production use. This type of installation is typically used during evaluation period for demonstrations and testing.
+Not recommended for production use. This type of installation is typically used during an evaluation period for demonstrations and testing.
 
 * [install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/install.yaml) - Standard Argo CD installation with cluster-admin access. Use this
   manifest set if you plan to use Argo CD to deploy applications in the same cluster that Argo CD runs
@@ -30,7 +30,7 @@ Not recommended for production use. This type of installation is typically used 
   on inputted cluster credentials. An example of using this set of manifests is if you run several
   Argo CD instances for different teams, where each instance will be deploying applications to
   external clusters. It will still be possible to deploy to the same cluster (kubernetes.svc.default)
-  with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster --namespace <YOUR NAMESPACE>`).
+  with provided credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster --namespace <YOUR NAMESPACE>`).
   With the default roles included, you will only be able to deploy Argo CD resources (Applications, ApplicationSets
   and AppProjects)  in the same cluster, as it's only supporting the GitOps mode with real deployments being
   done to external clusters.
@@ -60,13 +60,13 @@ The Argo CD Core installation is primarily used to deploy Argo CD in
 headless mode. This type of installation is most suitable for cluster
 administrators who independently use Argo CD and don't need
 multi-tenancy features. This installation includes fewer components
-and is easier to setup. The bundle does not include the API server or
+and is easier to set up. The bundle does not include the API server or
 UI, and installs the lightweight (non-HA) version of each component.
 
 Installation manifest is available at [core-install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/core-install.yaml).
 
 For more details about Argo CD Core please refer to the [official
-documentation](./core.md)
+documentation](./core.md).
 
 ## Kustomize
 

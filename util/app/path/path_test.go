@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	fileutil "github.com/argoproj/argo-cd/v3/test/fixture/path"
@@ -84,6 +83,11 @@ func TestBadSymlinks3(t *testing.T) {
 	assert.Equal(t, "badlink", oobError.File)
 }
 
+func TestBadSymlinksExcluded(t *testing.T) {
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink", "badlink")
+	assert.NoError(t, err)
+}
+
 // No absolute symlinks allowed
 func TestAbsSymlink(t *testing.T) {
 	const testDir = "./testdata/abslink"
@@ -146,25 +150,25 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 	}{
 		{
 			name:          "single source without annotation",
-			app:           getApp(nil, ptr.To("source/path")),
+			app:           getApp(nil, new("source/path")),
 			source:        v1alpha1.ApplicationSource{Path: "source/path"},
 			expectedPaths: []string{},
 		},
 		{
 			name:          "single source with annotation",
-			app:           getApp(ptr.To(".;dev/deploy;other/path"), ptr.To("source/path")),
+			app:           getApp(new(".;dev/deploy;other/path"), new("source/path")),
 			source:        v1alpha1.ApplicationSource{Path: "source/path"},
 			expectedPaths: []string{"source/path", "source/path/dev/deploy", "source/path/other/path"},
 		},
 		{
 			name:          "single source with empty annotation",
-			app:           getApp(ptr.To(".;;"), ptr.To("source/path")),
+			app:           getApp(new(".;;"), new("source/path")),
 			source:        v1alpha1.ApplicationSource{Path: "source/path"},
 			expectedPaths: []string{"source/path"},
 		},
 		{
 			name:          "single source with absolute path annotation",
-			app:           getApp(ptr.To("/fullpath/deploy;other/path"), ptr.To("source/path")),
+			app:           getApp(new("/fullpath/deploy;other/path"), new("source/path")),
 			source:        v1alpha1.ApplicationSource{Path: "source/path"},
 			expectedPaths: []string{"fullpath/deploy", "source/path/other/path"},
 		},
@@ -182,19 +186,19 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		},
 		{
 			name:          "source hydrator sync source with annotation",
-			app:           getSourceHydratorApp(ptr.To("deploy"), "dry/path", "sync/path"),
+			app:           getSourceHydratorApp(new("deploy"), "dry/path", "sync/path"),
 			source:        v1alpha1.ApplicationSource{Path: "sync/path"},
 			expectedPaths: []string{"sync/path"},
 		},
 		{
 			name:          "source hydrator dry source with annotation",
-			app:           getSourceHydratorApp(ptr.To("deploy"), "dry/path", "sync/path"),
+			app:           getSourceHydratorApp(new("deploy"), "dry/path", "sync/path"),
 			source:        v1alpha1.ApplicationSource{Path: "dry/path"},
 			expectedPaths: []string{"dry/path/deploy"},
 		},
 		{
 			name:   "annotation paths with spaces after semicolon",
-			app:    getApp(ptr.To(".; dev/deploy; other/path"), ptr.To("source/path")),
+			app:    getApp(new(".; dev/deploy; other/path"), new("source/path")),
 			source: v1alpha1.ApplicationSource{Path: "source/path"},
 			expectedPaths: []string{
 				"source/path",
@@ -204,7 +208,7 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		},
 		{
 			name:   "annotation paths with spaces before semicolon",
-			app:    getApp(ptr.To(". ;dev/deploy ;other/path"), ptr.To("source/path")),
+			app:    getApp(new(". ;dev/deploy ;other/path"), new("source/path")),
 			source: v1alpha1.ApplicationSource{Path: "source/path"},
 			expectedPaths: []string{
 				"source/path",
@@ -214,7 +218,7 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		},
 		{
 			name:   "annotation paths with spaces around absolute path",
-			app:    getApp(ptr.To(" /fullpath/deploy ; other/path "), ptr.To("source/path")),
+			app:    getApp(new(" /fullpath/deploy ; other/path "), new("source/path")),
 			source: v1alpha1.ApplicationSource{Path: "source/path"},
 			expectedPaths: []string{
 				"fullpath/deploy",
@@ -223,7 +227,7 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		},
 		{
 			name:   "annotation paths only spaces and separators",
-			app:    getApp(ptr.To(" ; ; . ; "), ptr.To("source/path")),
+			app:    getApp(new(" ; ; . ; "), new("source/path")),
 			source: v1alpha1.ApplicationSource{Path: "source/path"},
 			expectedPaths: []string{
 				"source/path",

@@ -91,7 +91,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	)
 	command := &cobra.Command{
 		Use:   "add CONTEXT",
-		Short: cliName + " cluster add CONTEXT",
+		Short: common.CommandCLI + " cluster add CONTEXT",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -377,15 +377,15 @@ func formatNamespaces(cluster argoappv1.Cluster) string {
 
 func printClusterDetails(clusters []argoappv1.Cluster) {
 	for _, cluster := range clusters {
-		fmt.Printf("Cluster information\n\n")
+		fmt.Print("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
 		fmt.Printf("  Server Version:        %s\n", cluster.Info.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
-		fmt.Printf("\nTLS configuration\n\n")
+		fmt.Print("\nTLS configuration\n\n")
 		fmt.Printf("  Client cert:           %v\n", len(cluster.Config.CertData) != 0)
 		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.Insecure)
-		fmt.Printf("\nAuthentication\n\n")
+		fmt.Print("\nAuthentication\n\n")
 		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
@@ -468,7 +468,7 @@ argocd cluster rm cluster-name`,
 // Print table of cluster information
 func printClusterTable(clusters []argoappv1.Cluster) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\tPROJECT\n")
+	_, _ = fmt.Fprint(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\tPROJECT\n")
 	for _, c := range clusters {
 		server := c.Server
 		if len(c.Namespaces) > 0 {
@@ -549,7 +549,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "rotate-auth SERVER/NAME",
-		Short: cliName + " cluster rotate-auth SERVER/NAME",
+		Short: common.CommandCLI + " cluster rotate-auth SERVER/NAME",
 		Example: `argocd cluster rotate-auth https://12.34.567.89
 argocd cluster rotate-auth cluster-name`,
 		Run: func(c *cobra.Command, args []string) {

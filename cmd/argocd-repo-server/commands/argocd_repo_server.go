@@ -31,17 +31,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/profile"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
-)
-
-const (
-	// CLIName is the name of the CLI
-	cliName = "argocd-repo-server"
 )
 
 var (
@@ -85,7 +80,7 @@ func NewCommand() *cobra.Command {
 		enableBuiltinGitConfig             bool
 	)
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandRepoServer,
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
@@ -206,13 +201,13 @@ func NewCommand() *cobra.Command {
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), mux)) }()
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
-			if gpg.IsGPGEnabled() {
+			if sourceintegrity.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
-				err = gpg.InitializeGnuPG()
+				err = sourceintegrity.InitializeGnuPG()
 				errors.CheckError(err)
 
 				log.Infof("Populating GnuPG keyring with keys from %s", gnuPGSourcePath)
-				added, removed, err := gpg.SyncKeyRingFromDirectory(gnuPGSourcePath)
+				added, removed, err := sourceintegrity.SyncKeyRingFromDirectory(gnuPGSourcePath)
 				errors.CheckError(err)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
