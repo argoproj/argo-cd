@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -69,7 +70,7 @@ func (p *harborParser) CanHandle(r *http.Request) bool {
 	if p.secret == "" {
 		return false
 	}
-	return r.Header.Get("Authorization") == p.secret
+	return subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte(p.secret)) == 1
 }
 
 // Parse reads the request body, validates that it is a Harbor push event,

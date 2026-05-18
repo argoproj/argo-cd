@@ -221,6 +221,16 @@ For example, these `repoURL` values all match a webhook event for `ghcr.io/myorg
 > Authentication is performed via a configurable **Authorization** header value that you set in both Harbor's webhook
 > configuration and in the ArgoCD secret. Configuring the secret (`webhook.harbor.secret`) is **required** for Harbor webhook support.
 
+> [!WARNING]
+> Harbor's Authorization header is a static bearer token, which is weaker than HMAC-based signing used by GitHub/GitLab.
+> Unlike HMAC, a captured token can be replayed indefinitely and does not provide payload integrity guarantees.
+> To reduce risk:
+>
+> - **Always use HTTPS** between Harbor and Argo CD so the token cannot be intercepted in transit.
+> - **Use a strong, randomly generated secret** (e.g. `openssl rand -hex 32`).
+> - **Rotate the secret periodically** by updating both `webhook.harbor.secret` in `argocd-secret` and the Auth Header in Harbor's webhook configuration.
+> - **Restrict network access** to the `/api/webhook` endpoint at the network/firewall level so only your Harbor instance can reach it.
+
 #### Configure the Webhook Secret
 
 In `argocd-secret`, set the Harbor webhook secret. This value must match the **Auth Header** you configure in Harbor's webhook settings:
