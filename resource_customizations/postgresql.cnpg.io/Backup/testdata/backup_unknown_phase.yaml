@@ -1,0 +1,11 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: test-backup
+  namespace: default
+spec:
+  cluster:
+    name: test-cluster
+status:
+  phase: unknownPhase
+  startedAt: "2024-01-01T00:00:00Z"
