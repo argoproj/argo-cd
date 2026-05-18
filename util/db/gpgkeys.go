@@ -17,13 +17,13 @@ import (
 func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	f, err := os.CreateTemp("", "gpg-public-key")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating temp file for GPG key: %w", err)
 	}
 	defer os.Remove(f.Name())
 
 	err = os.WriteFile(f.Name(), []byte(keyData), 0o600)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error writing GPG key to temp file: %w", err)
 	}
 	defer func() {
 		err = f.Close()
@@ -34,7 +34,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 
 	parsed, err := sourceintegrity.ValidatePGPKeys(f.Name())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating PGP key: %w", err)
 	}
 
 	// Each key/value pair in the config map must exactly contain one public key, with the (short) GPG key ID as key
@@ -61,7 +61,7 @@ func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1
 	result := make(map[string]*appsv1.GnuPGPublicKey)
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting GPG keys configmap: %w", err)
 	}
 
 	// We have to verify all PGP keys in the ConfigMap to be valid keys before. To do so,
@@ -71,11 +71,11 @@ func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1
 	for k, p := range keysCM.Data {
 		expectedKeyID, err := sourceintegrity.KeyID(k)
 		if err != nil {
-			return nil, fmt.Errorf("found invalid entry with key '%s' in ConfigMap: %s", k, err.Error())
+			return nil, fmt.Errorf("error validating key ID %q in GPG keys configmap: %w", k, err)
 		}
 		parsedKey, err := validatePGPKey(p)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
+			return nil, fmt.Errorf("error parsing GPG key for entry %q: %w", expectedKeyID, err)
 		}
 		if expectedKeyID != parsedKey.KeyID {
 			return nil, fmt.Errorf("key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
@@ -93,12 +93,12 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 
 	keys, err := sourceintegrity.ValidatePGPKeysFromString(keyData)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error validating PGP keys from input: %w", err)
 	}
 
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error getting GPG keys configmap: %w", err)
 	}
 
 	for kid, key := range keys {
@@ -114,7 +114,7 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 
 	err = db.settingsMgr.SaveGPGPublicKeyData(ctx, keysCM.Data)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error saving GPG public key data: %w", err)
 	}
 
 	return result, skipped, nil
@@ -124,7 +124,7 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting GPG keys configmap: %w", err)
 	}
 
 	if _, ok := keysCM.Data[keyID]; !ok {
@@ -134,5 +134,8 @@ func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 	delete(keysCM.Data, keyID)
 
 	err = db.settingsMgr.SaveGPGPublicKeyData(ctx, keysCM.Data)
-	return err
+	if err != nil {
+		return fmt.Errorf("error saving GPG public key data: %w", err)
+	}
+	return nil
 }
