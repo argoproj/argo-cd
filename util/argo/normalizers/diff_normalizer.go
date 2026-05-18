@@ -210,7 +210,9 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 		patchedDocData, err := patch.Apply(docData)
 		if err != nil {
 			if shouldLogError(err) {
-				log.Debugf("Failed to apply normalization: %v", err)
+				log.Debugf("Skipping normalization patch (rule: %s %s/%s) for resource %s/%s: %v",
+					patch.GetGroupKind(), patch.GetNamespace(), patch.GetName(),
+					un.GetNamespace(), un.GetName(), err)
 			}
 			continue
 		}
