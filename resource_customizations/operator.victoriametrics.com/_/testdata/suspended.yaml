@@ -1,12 +1,50 @@
 apiVersion: operator.victoriametrics.com/v1beta1
-kind: VMAlertmanager
+kind: VMAgent
 metadata:
+  finalizers:
+    - apps.victoriametrics.com/finalizer
+  generation: 2
   name: example
-  namespace: monitoring
-  generation: 4
-  annotations:
-    operator.victoriametrics.com/pause-reconcile: "true"
-spec: {}
+  namespace: demo
+spec:
+  paused: true
+  remoteWrite:
+    - url: http://vmsingle-example.demo.svc:8429/api/v1/write
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  selectAllByDefault: true
 status:
-  observedGeneration: 4
+  lastAppliedSpec:
+    arbitraryFSAccessThroughSMs: {}
+    configReloaderImage: victoriametrics/operator:config-reloader-v0.70.0
+    configReloaderResources:
+      requests:
+        cpu: 10m
+        memory: 25Mi
+    disableSelfServiceScrape: false
+    dnsPolicy: ClusterFirst
+    image:
+      pullPolicy: IfNotPresent
+      repository: victoriametrics/vmagent
+      tag: v1.143.0
+    ingestOnlyMode: false
+    port: "8429"
+    remoteWrite:
+      - url: http://vmsingle-example.demo.svc:8429/api/v1/write
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+    schedulerName: default-scheduler
+    selectAllByDefault: true
+    terminationGracePeriodSeconds: 30
+    useDefaultResources: true
+    useStrictSecurity: false
+  observedGeneration: 2
+  replicas: 1
+  selector: app.kubernetes.io/component=monitoring,app.kubernetes.io/instance=example,app.kubernetes.io/name=vmagent,managed-by=vm-operator
   updateStatus: paused

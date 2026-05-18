@@ -14,8 +14,6 @@ end
 -- The operator has not observed the latest spec yet.
 if obj.metadata ~= nil and obj.metadata.generation ~= nil and obj.status.observedGeneration ~= nil
     and obj.status.observedGeneration ~= obj.metadata.generation then
-  hs.status = "Progressing"
-  hs.message = "Waiting for the operator to observe the latest generation"
   return hs
 end
 
@@ -26,10 +24,10 @@ local reason = obj.status.reason or ""
 if updateStatus == "operational" then
   hs.status = "Healthy"
   hs.message = "All components are operational"
--- expanding => rollout in progress
+-- expanding => reconciliation in progress
 elseif updateStatus == "expanding" then
   hs.status = "Progressing"
-  hs.message = reason ~= "" and reason or "Rollout is in progress"
+  hs.message = reason ~= "" and reason or "Reconciliation in progress"
 -- paused => reconciliation intentionally paused by the user
 elseif updateStatus == "paused" then
   hs.status = "Suspended"

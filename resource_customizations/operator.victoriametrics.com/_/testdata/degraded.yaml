@@ -1,11 +1,57 @@
-apiVersion: operator.victoriametrics.com/v1
-kind: VLCluster
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
 metadata:
+  finalizers:
+    - apps.victoriametrics.com/finalizer
+  generation: 5
   name: example
-  namespace: monitoring
-  generation: 4
-spec: {}
+  namespace: demo
+spec:
+  additionalScrapeConfigs:
+    key: prometheus-additional.yaml
+    name: nonexistent-secret
+  paused: false
+  remoteWrite:
+    - url: http://vmsingle-example.demo.svc:8429/api/v1/write
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  selectAllByDefault: true
 status:
-  observedGeneration: 4
+  lastAppliedSpec:
+    additionalScrapeConfigs:
+      key: prometheus-additional.yaml
+      name: nonexistent-secret
+    arbitraryFSAccessThroughSMs: {}
+    configReloaderImage: victoriametrics/operator:config-reloader-v0.70.0
+    configReloaderResources:
+      requests:
+        cpu: 10m
+        memory: 25Mi
+    disableSelfServiceScrape: false
+    dnsPolicy: ClusterFirst
+    image:
+      pullPolicy: IfNotPresent
+      repository: victoriametrics/vmagent
+      tag: v1.143.0
+    ingestOnlyMode: false
+    port: "8429"
+    remoteWrite:
+      - url: http://vmsingle-example.demo.svc:8429/api/v1/write
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+    schedulerName: default-scheduler
+    selectAllByDefault: true
+    terminationGracePeriodSeconds: 30
+    useDefaultResources: true
+    useStrictSecurity: false
+  observedGeneration: 5
+  reason: 'generating config for vmagent failed: loading additional scrape configs from Secret failed: unable to fetch secret="nonexistent-secret", ns="demo": secrets "nonexistent-secret" not found'
+  replicas: 1
+  selector: app.kubernetes.io/component=monitoring,app.kubernetes.io/instance=example,app.kubernetes.io/name=vmagent,managed-by=vm-operator
   updateStatus: failed
-  reason: "failed to reconcile vmstorage: statefulset rollout timed out"
