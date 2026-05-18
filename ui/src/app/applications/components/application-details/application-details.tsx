@@ -1,4 +1,5 @@
 import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
+import {KeybindingProvider} from 'argo-ui/v2';
 import classNames from 'classnames';
 import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
@@ -895,7 +896,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     title: isApplication ? 'Applications' : 'ApplicationSets',
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
-                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
+                                                {
+                                                    title: (
+                                                        <KeybindingProvider>
+                                                            <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />
+                                                        </KeybindingProvider>
+                                                    )
+                                                }
                                             ],
                                             actionMenu: {
                                                 items: isApplication
