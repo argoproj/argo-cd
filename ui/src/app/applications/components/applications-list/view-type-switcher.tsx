@@ -1,5 +1,5 @@
 import {Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
 import {ContextApis} from '../../../shared/context';
 import {AppsListPreferences, AppsListViewKey, HealthStatusBarPreferences, services} from '../../../shared/services';
