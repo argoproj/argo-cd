@@ -385,6 +385,89 @@ $header: 120px;
     }
 }
 
+.application-details-app-dropdown {
+    display: inline-block;
+    position: relative;
+
+    &__anchor {
+        cursor: pointer;
+        i {
+            color: $argo-color-gray-6;
+        }
+    }
+
+    &__panel {
+        position: fixed;
+        min-width: 260px;
+        max-height: 380px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        z-index: 100;
+        box-shadow: 0 0 4px rgba(#000, 0.2);
+        transform-origin: top left;
+        animation: application-details-app-dropdown__panel-in 140ms cubic-bezier(0.2, 0, 0.13, 1.5);
+        @include themify($themes) {
+            background-color: rgba(themed('background-2'), 1);
+            border: 1px solid themed('border');
+        }
+    }
+
+    @keyframes application-details-app-dropdown__panel-in {
+        from {
+            opacity: 0;
+            transform: translateY(-4px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    &__search {
+        padding: 0.5em 1em;
+        input.argo-field {
+            width: 100%;
+        }
+    }
+
+    &__list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        overflow-y: auto;
+        flex: 1 1 auto;
+    }
+
+    &__item {
+        padding: 0.5em 1em;
+        font-size: 14px;
+        cursor: pointer;
+        color: $argo-color-gray-6;
+        border-bottom: 1px solid $argo-color-gray-2;
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        &:hover {
+            background-color: $argo-color-gray-2;
+        }
+
+        &--active {
+            background-color: $argo-color-teal-3;
+            color: $argo-color-gray-8;
+        }
+    }
+
+    &__empty {
+        padding: 0.5em 1em;
+        font-size: 14px;
+        color: $argo-color-gray-6;
+        list-style: none;
+    }
+}
+
 .resource-parent-node-info-title {
     flex-direction: column;
     color: $argo-color-gray-6;
