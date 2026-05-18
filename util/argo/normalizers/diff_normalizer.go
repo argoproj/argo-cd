@@ -159,7 +159,25 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			})
 		}
 		for _, pathExpression := range ignore[i].JQPathExpressions {
-			jqDeletionQuery, err := gojq.Parse(fmt.Sprintf("del(%s)", pathExpression))
+			// Check if this is a conditional expression (contains if/then/else or variable assignment)
+			isConditional := strings.Contains(pathExpression, "if ") ||
+				strings.Contains(pathExpression, " then ") ||
+				strings.Contains(pathExpression, " else ") ||
+				strings.Contains(pathExpression, " as $")
+
+			var jqDeletionQuery *gojq.Query
+			var err error
+
+			if isConditional {
+				// For conditional expressions, wrap the entire expression in del() with parentheses
+				// This allows: del((.metadata?.annotations?["key"] as $var | if $var == "true" then .spec.replicas else empty end))
+				// The 'empty' ensures nothing is deleted when the condition is false
+				jqDeletionQuery, err = gojq.Parse(fmt.Sprintf("del((%s))", pathExpression))
+			} else {
+				// For simple paths, use the original behavior: del(.path)
+				jqDeletionQuery, err = gojq.Parse(fmt.Sprintf("del(%s)", pathExpression))
+			}
+
 			if err != nil {
 				return nil, err
 			}
