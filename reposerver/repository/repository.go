@@ -379,7 +379,9 @@ func (s *Service) runRepoOperation(
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	if settings.sem != nil {
+		acquireStart := time.Now()
 		err = settings.sem.Acquire(ctx, 1)
+		s.metricsServer.ObserveParallelismWaitDuration(time.Since(acquireStart))
 		if err != nil {
 			return err
 		}
