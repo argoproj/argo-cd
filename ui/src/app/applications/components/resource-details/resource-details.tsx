@@ -35,11 +35,16 @@ interface ResourceDetailsProps {
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
-    const [activeContainer, setActiveContainer] = useState();
+    const [activeContainer, setActiveContainer] = useState<number | null>(null);
     const appContext = React.useContext(Context);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
+
+    React.useEffect(() => {
+        setActiveContainer(null);
+    }, [selectedNodeKey]);
+
     const [pageNumber, setPageNumber] = React.useState(0);
     const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
     const handleCollapse = (i: number, isCollapsed: boolean) => {
@@ -93,8 +98,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             }
 
             const onClickContainer = (group: any, i: number, activeTab: string) => {
-                setActiveContainer(group.offset + i);
-                SelectNode(selectedNodeKey, activeContainer, activeTab, appContext);
+                const newIndex = group.offset + i;
+                setActiveContainer(newIndex);
+                SelectNode(selectedNodeKey, newIndex, activeTab, appContext);
             };
 
             if (logsAllowed) {

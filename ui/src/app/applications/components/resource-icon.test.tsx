@@ -129,5 +129,12 @@ describe('ResourceIcon', () => {
             const icon = document.querySelector('i.argo-icon-application');
             expect(icon).toBeTruthy();
         });
+
+        it('should show applicationset icon for kind=ApplicationSet', () => {
+            const testRenderer = renderer.create(<ResourceIcon group='argoproj.io' kind='ApplicationSet' />);
+            const testInstance = testRenderer.root;
+            const icons = testInstance.findAll(node => node.type === 'i' && typeof node.props.className === 'string' && node.props.className.includes('argo-icon-applicationset'));
+            expect(icons.length).toBeGreaterThan(0);
+        });
     });
 });

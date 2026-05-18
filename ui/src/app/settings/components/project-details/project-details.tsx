@@ -49,6 +49,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
             merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
             merged.sourceNamespaces = merged.sourceNamespaces.concat(proj.spec.sourceNamespaces || []);
+            merged.destinationServiceAccounts = merged.destinationServiceAccounts.concat(proj.spec.destinationServiceAccounts || []);
 
             merged.sourceRepos = merged.sourceRepos.filter((item, index) => {
                 return (
@@ -593,7 +594,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
                                         <div className='columns small-3'>Namespace</div>
-                                        <div className='columns small-5'>DefaultServiceAccount</div>
+                                        <div className='columns small-5'>ServiceAccount</div>
                                     </div>
                                     {proj.spec.destinationServiceAccounts.map((dest, i) => (
                                         <div className='row white-box__details-row' key={i}>
@@ -615,7 +616,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
                                         <div className='columns small-3'>Namespace</div>
-                                        <div className='columns small-5'>DefaultServiceAccount</div>
+                                        <div className='columns small-5'>ServiceAccount</div>
                                     </div>
                                     {(formApi.values.spec.destinationServiceAccounts || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>

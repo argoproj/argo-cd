@@ -4,6 +4,7 @@ import * as React from 'react';
 import {Cluster} from '../../../shared/components';
 import {ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
+import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
@@ -78,6 +79,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>
                             </Tooltip>
+                            <NoticeIcon annotations={app.metadata.annotations} />
                         </div>
                         <div className={app.status.summary?.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                             <div className='applications-list__external-link'>
