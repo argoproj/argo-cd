@@ -563,6 +563,11 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 		return nil, err
 	}
 	_, err = s.db.UpdateRepository(ctx, q.Repo)
+	if err == nil {
+		if cacheErr := s.cache.SetRepoConnectionState(q.Repo.Repo, q.Repo.Project, nil); cacheErr != nil {
+			log.Warnf("error invalidating connection state cache for repo %s: %v", q.Repo.Repo, cacheErr)
+		}
+	}
 	return &v1alpha1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
 }
 
