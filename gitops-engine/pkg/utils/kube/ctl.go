@@ -304,6 +304,7 @@ func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, f
 		optionsRunner: &realKubectlOptionsRunner{
 			onKubectlRun: k.OnKubectlRun,
 		},
+		outputMode: outputModeLog,
 	}, cleanup, nil
 }
 
@@ -323,14 +324,18 @@ func (k *KubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config) (diff.Kube
 	cleanup := func() {
 		utils.DeleteFile(f.Name())
 	}
-	return &kubectlServerSideDiffDryRunApplier{
+	return &kubectlResourceOperations{
 		config: config,
+		getClientFunc: func() (kubernetes.Interface, error) {
+			return kubernetes.NewForConfig(config)
+		},
 		fact:   fact,
 		tracer: k.Tracer,
 		log:    k.Log,
 		optionsRunner: &realKubectlOptionsRunner{
 			onKubectlRun: k.OnKubectlRun,
 		},
+		outputMode: outputModeJSON,
 	}, cleanup, nil
 }
 
