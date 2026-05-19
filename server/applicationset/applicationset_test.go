@@ -842,6 +842,54 @@ func TestListResourceEvents(t *testing.T) {
 	})
 }
 
+func TestRefreshAppSet(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
+
+	t.Run("Refresh sets annotation in default namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+
+		res, err := appSetServer.Refresh(t.Context(), &applicationset.ApplicationSetGetQuery{Name: "AppSet1"})
+		require.NoError(t, err)
+		assert.Equal(t, "true", res.Annotations[common.AnnotationApplicationSetRefresh])
+	})
+
+	t.Run("Refresh in named namespace", func(t *testing.T) {
+		ns := "external-namespace"
+		namespacedAppSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+			appset.Name = "AppSet1"
+			appset.Namespace = ns
+		})
+		appSetServer := newTestAppSetServer(t, namespacedAppSet)
+
+		res, err := appSetServer.Refresh(t.Context(), &applicationset.ApplicationSetGetQuery{
+			Name:            "AppSet1",
+			AppsetNamespace: ns,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "true", res.Annotations[common.AnnotationApplicationSetRefresh])
+	})
+
+	t.Run("Refresh in not allowed namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+
+		_, err := appSetServer.Refresh(t.Context(), &applicationset.ApplicationSetGetQuery{
+			Name:            "AppSet1",
+			AppsetNamespace: "NOT-ALLOWED",
+		})
+		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+
+	t.Run("Refresh for non-existent appset", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+
+		_, err := appSetServer.Refresh(t.Context(), &applicationset.ApplicationSetGetQuery{Name: "DoesNotExist"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting ApplicationSet")
+	})
+}
+
 func TestAppSet_Generate_Cluster(t *testing.T) {
 	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"

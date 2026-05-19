@@ -1620,6 +1620,23 @@ export function refreshLinkAttrs(app: appModels.Application) {
     return {disabled: isAppRefreshing(app)};
 }
 
+export function isAppSetRefreshing(appSet: appModels.ApplicationSet) {
+    return !!(appSet.metadata.annotations && appSet.metadata.annotations[appModels.ApplicationSetAnnotationRefreshKey]);
+}
+
+export function setAppSetRefreshing(appSet: appModels.ApplicationSet) {
+    if (!appSet.metadata.annotations) {
+        appSet.metadata.annotations = {};
+    }
+    if (!appSet.metadata.annotations[appModels.ApplicationSetAnnotationRefreshKey]) {
+        appSet.metadata.annotations[appModels.ApplicationSetAnnotationRefreshKey] = 'true';
+    }
+}
+
+export function appSetRefreshLinkAttrs(appSet: appModels.ApplicationSet) {
+    return {disabled: isAppSetRefreshing(appSet)};
+}
+
 export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWindowsState; window: appModels.SyncWindow}) => {
     let className = '';
     let color = '';
