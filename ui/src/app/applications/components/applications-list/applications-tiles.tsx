@@ -15,6 +15,7 @@ export interface ApplicationTilesProps {
     applications: models.AbstractApplication[];
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
+    refreshApplicationSet: (appSetName: string, appSetNamespace: string) => void;
     deleteApplication: (appName: string, appNamespace: string) => any;
 }
 
@@ -45,7 +46,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     return itemsPer || 1;
 };
 
-export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
+export const ApplicationTiles = ({applications, syncApplication, refreshApplication, refreshApplicationSet, deleteApplication}: ApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(applications.length);
 
     const ctxh = React.useContext(Context);
@@ -124,6 +125,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         pref={pref}
                                         ctx={ctx}
                                         tileRef={i === 0 ? firstTileRef : undefined}
+                                        refreshApplicationSet={refreshApplicationSet}
                                     />
                                 )
                             )}
