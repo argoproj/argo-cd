@@ -5,7 +5,7 @@ import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {getAppUrl, getAppDisplayName} from '../utils';
 
-export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectListKind: string}) => {
+export const ApplicationsDetailsAppDropdown = (props: {appName: string; appDisplayName?: string; objectListKind: string}) => {
     const [opened, setOpened] = React.useState(false);
     const [appFilter, setAppFilter] = React.useState('');
     const ctx = React.useContext(Context);
@@ -15,7 +15,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
             isMenu={true}
             anchor={() => (
                 <>
-                    <i className='fa fa-search' /> <span>{props.appName}</span>
+                    <i className='fa fa-search' /> <span>{props.appDisplayName || props.appName}</span>
                 </>
             )}>
             {opened && (

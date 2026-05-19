@@ -895,7 +895,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     title: isApplication ? 'Applications' : 'ApplicationSets',
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
-                                                {title: <ApplicationsDetailsAppDropdown appName={AppUtils.getAppDisplayName(application)} objectListKind={objectListKind} />}
+                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} appDisplayName={AppUtils.getAppDisplayName(application)} objectListKind={objectListKind} />}
                                             ],
                                             actionMenu: {
                                                 items: isApplication
