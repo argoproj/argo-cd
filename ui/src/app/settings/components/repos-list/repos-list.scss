@@ -36,10 +36,39 @@
     }
     textarea.argo-field {
         height: 20em;
-        width: 1024em;
         white-space: pre;
         overflow-wrap: normal;
         overflow-x: scroll;
+    }
+
+    // Checkbox: render label inline beside checkbox, not overlapping via floating-label grid.
+    .argo-form-row .argo-field-container:has(> .argo-checkbox) {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding-top: 0;
+        gap: 8px;
+
+        label.argo-label-placeholder {
+            transform: none;
+            font-size: 13px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+    }
+
+    // Textarea: anchor floating label to top so it animates out correctly on focus.
+    .argo-form-row .argo-field-container:has(> textarea) {
+        label.argo-label-placeholder {
+            align-self: start;
+            transform: translateY(10px);
+        }
+
+        > textarea.argo-field:focus + label.argo-label-placeholder,
+        > textarea.argo-field.argo-has-value + label.argo-label-placeholder {
+            transform: translateY(-25px);
+            font-size: 12px;
+        }
     }
 
     .argo-container {
