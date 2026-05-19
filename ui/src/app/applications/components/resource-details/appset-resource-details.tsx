@@ -1,5 +1,6 @@
-import {MockupList, Tab, Tabs} from 'argo-ui';
+import {MockupList, Tab, Tabs, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import classNames from 'classnames';
 import {DataLoader, EventsList, Expandable, YamlEditor} from '../../../shared/components';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
@@ -7,16 +8,18 @@ import {services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
+import * as AppUtils from '../utils';
 import {HealthStatusIcon, getAppSetHealthStatus, getAppSetConditionCategory} from '../utils';
 import {AppSetPreviewTab} from './appset-preview-tab';
 import './resource-details.scss';
 
 interface AppSetResourceDetailsProps {
     appSet: models.ApplicationSet;
+    onRefresh?: () => void;
 }
 
 export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
-    const {appSet} = props;
+    const {appSet, onRefresh} = props;
     const appContext = React.useContext(Context);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
 
@@ -140,6 +143,18 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                 </div>
                 <h1>{appSet.metadata.name}</h1>
                 <HealthStatusIcon state={{status: healthStatus, message: ''}} />
+                {onRefresh && (
+                    <Tooltip content='Refresh'>
+                        <button
+                            type='button'
+                            className='argo-button argo-button--base'
+                            style={{marginLeft: '10px'}}
+                            {...AppUtils.appSetRefreshLinkAttrs(appSet)}
+                            onClick={onRefresh}>
+                            <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppSetRefreshing(appSet)})} /> Refresh
+                        </button>
+                    </Tooltip>
+                )}
             </div>
             <Tabs
                 key={tab || 'default'}

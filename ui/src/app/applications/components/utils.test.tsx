@@ -2,6 +2,7 @@ import * as React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server.node';
 import {
     Application,
+    ApplicationSet,
     HealthStatus,
     HealthStatuses,
     OperationPhases,
@@ -13,6 +14,7 @@ import {
 import * as jsYaml from 'js-yaml';
 import {
     appRBACName,
+    appSetRefreshLinkAttrs,
     ComparisonStatusIcon,
     getAppDrySource,
     getAppHydratorSyncSource,
@@ -22,8 +24,10 @@ import {
     getOperationType,
     getPodStateReason,
     HealthStatusIcon,
+    isAppSetRefreshing,
     OperationState,
-    ResourceResultIcon
+    ResourceResultIcon,
+    setAppSetRefreshing
 } from './utils';
 
 const zero = new Date(0).toISOString();
@@ -1058,5 +1062,26 @@ describe('getAppSpecDefaultSource', () => {
             targetRevision: 'env/test',
             path: 'out'
         });
+    });
+});
+
+describe('ApplicationSet refresh helpers', () => {
+    const appSet = {
+        metadata: {
+            name: 'guestbook',
+            namespace: 'argocd',
+            annotations: {}
+        }
+    } as ApplicationSet;
+
+    it('setAppSetRefreshing adds refresh annotation', () => {
+        setAppSetRefreshing(appSet);
+        expect(appSet.metadata.annotations['argocd.argoproj.io/application-set-refresh']).toBe('true');
+        expect(isAppSetRefreshing(appSet)).toBe(true);
+    });
+
+    it('appSetRefreshLinkAttrs disables while refreshing', () => {
+        setAppSetRefreshing(appSet);
+        expect(appSetRefreshLinkAttrs(appSet)).toEqual({disabled: true});
     });
 });
