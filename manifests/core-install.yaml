@@ -542,6 +542,13 @@ spec:
                         description: RepoURL is the URL to the repository (Git or
                           Helm) that contains the application manifests
                         type: string
+                      tagPrefix:
+                        description: |-
+                          TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                          The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                          For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                          "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                        type: string
                       targetRevision:
                         description: |-
                           TargetRevision defines the revision of the source to sync the application to.
@@ -930,6 +937,13 @@ spec:
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
                             Helm) that contains the application manifests
+                          type: string
+                        tagPrefix:
+                          description: |-
+                            TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                            The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                            For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                            "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                           type: string
                         targetRevision:
                           description: |-
@@ -1425,6 +1439,13 @@ spec:
                   repoURL:
                     description: RepoURL is the URL to the repository (Git or Helm)
                       that contains the application manifests
+                    type: string
+                  tagPrefix:
+                    description: |-
+                      TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                      The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                      For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                      "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                     type: string
                   targetRevision:
                     description: |-
@@ -2217,6 +2238,13 @@ spec:
                       description: RepoURL is the URL to the repository (Git or Helm)
                         that contains the application manifests
                       type: string
+                    tagPrefix:
+                      description: |-
+                        TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                        The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                        For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                        "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                      type: string
                     targetRevision:
                       description: |-
                         TargetRevision defines the revision of the source to sync the application to.
@@ -2777,6 +2805,13 @@ spec:
                           description: RepoURL is the URL to the repository (Git or
                             Helm) that contains the application manifests
                           type: string
+                        tagPrefix:
+                          description: |-
+                            TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                            The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                            For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                            "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                          type: string
                         targetRevision:
                           description: |-
                             TargetRevision defines the revision of the source to sync the application to.
@@ -3172,6 +3207,13 @@ spec:
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
+                            type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                             type: string
                           targetRevision:
                             description: |-
@@ -3724,6 +3766,13 @@ spec:
                                 description: RepoURL is the URL to the repository
                                   (Git or Helm) that contains the application manifests
                                 type: string
+                              tagPrefix:
+                                description: |-
+                                  TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                  The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                  For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                  "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                                type: string
                               targetRevision:
                                 description: |-
                                   TargetRevision defines the revision of the source to sync the application to.
@@ -4138,6 +4187,13 @@ spec:
                                 repoURL:
                                   description: RepoURL is the URL to the repository
                                     (Git or Helm) that contains the application manifests
+                                  type: string
+                                tagPrefix:
+                                  description: |-
+                                    TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                    The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                    For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                    "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                                   type: string
                                 targetRevision:
                                   description: |-
@@ -4665,6 +4721,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -5069,6 +5132,13 @@ spec:
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
                                 or Helm) that contains the application manifests
+                              type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                               type: string
                             targetRevision:
                               description: |-
@@ -6565,6 +6635,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -6969,6 +7046,13 @@ spec:
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
                                 or Helm) that contains the application manifests
+                              type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                               type: string
                             targetRevision:
                               description: |-
@@ -7389,6 +7473,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -7888,6 +7974,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -8297,6 +8385,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -8796,6 +8886,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -9206,6 +9298,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -9705,6 +9799,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -10093,6 +10189,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -10592,6 +10690,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -11005,6 +11105,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -11504,6 +11606,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -11913,6 +12017,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -12412,6 +12518,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -12822,6 +12930,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -13321,6 +13431,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -13709,6 +13821,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -14208,6 +14322,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -14604,6 +14720,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -15103,6 +15221,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -15726,6 +15846,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -16225,6 +16347,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -16845,6 +16969,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -17345,6 +17471,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -17748,6 +17876,8 @@ spec:
                                     ref:
                                       type: string
                                     repoURL:
+                                      type: string
+                                    tagPrefix:
                                       type: string
                                     targetRevision:
                                       type: string
@@ -18248,6 +18378,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -18663,6 +18795,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -19162,6 +19296,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -19571,6 +19707,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -20070,6 +20208,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -20480,6 +20620,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -20979,6 +21121,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -21367,6 +21511,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -21866,6 +22012,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -22262,6 +22410,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -22761,6 +22911,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -23384,6 +23536,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -23883,6 +24037,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -24503,6 +24659,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -25003,6 +25161,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -25411,6 +25571,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -25910,6 +26072,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -26305,6 +26469,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -26804,6 +26970,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -27427,6 +27595,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -27926,6 +28096,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -28546,6 +28718,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -29046,6 +29220,8 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      tagPrefix:
+                                        type: string
                                       targetRevision:
                                         type: string
                                     required:
@@ -29526,6 +29702,8 @@ spec:
                           ref:
                             type: string
                           repoURL:
+                            type: string
+                          tagPrefix:
                             type: string
                           targetRevision:
                             type: string
@@ -30026,6 +30204,8 @@ spec:
                             ref:
                               type: string
                             repoURL:
+                              type: string
+                            tagPrefix:
                               type: string
                             targetRevision:
                               type: string
