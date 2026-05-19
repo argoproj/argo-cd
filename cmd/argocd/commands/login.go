@@ -155,12 +155,14 @@ argocd login cd.argoproj.io --core`,
 				localCfg = &localconfig.LocalConfig{}
 			}
 			localCfg.UpsertServer(localconfig.Server{
-				Server:          server,
-				PlainText:       clientOpts.PlainText,
-				Insecure:        clientOpts.Insecure,
-				GRPCWeb:         clientOpts.GRPCWeb,
-				GRPCWebRootPath: clientOpts.GRPCWebRootPath,
-				Core:            clientOpts.Core,
+				Server:               server,
+				PlainText:            clientOpts.PlainText,
+				Insecure:             clientOpts.Insecure,
+				GRPCWeb:              clientOpts.GRPCWeb,
+				GRPCWebRootPath:      clientOpts.GRPCWebRootPath,
+				Core:                 clientOpts.Core,
+				PortForward:          clientOpts.PortForward,
+				PortForwardNamespace: clientOpts.PortForwardNamespace,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
