@@ -26,8 +26,8 @@ func NewMap() Map {
 // Supports deletion syntax (e.g., "key-").
 func (lm Map) Parse(labels []string) error {
 	for _, r := range labels {
-		key, found := strings.CutSuffix(r, "-")
-		if found {
+		if !strings.Contains(r, labelFieldDelimiter) && strings.HasSuffix(r, "-") {
+			key := strings.TrimSuffix(r, "-")
 			if key == "" {
 				return fmt.Errorf("invalid label deletion syntax: %s", r)
 			}
@@ -63,7 +63,7 @@ func (lm Map) Merge(existing map[string]string) map[string]string {
 func Parse(labels []string) (map[string]string, error) {
 	selectedLabels := map[string]string{}
 	for _, r := range labels {
-		if strings.HasSuffix(r, "-") {
+		if !strings.Contains(r, labelFieldDelimiter) && strings.HasSuffix(r, "-") {
 			return nil, errors.New("deletion syntax not supported in Parse(), use ParseMap() instead")
 		}
 		fields := strings.Split(r, labelFieldDelimiter)

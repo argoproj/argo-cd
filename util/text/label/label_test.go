@@ -17,6 +17,12 @@ func TestParseLabels(t *testing.T) {
 	assert.Equal(t, "bar", result["foo"])
 	assert.Equal(t, "inc", result["intuit"])
 
+	// Values ending with a hyphen are valid assignments, not deletions.
+	hyphenValue := []string{"key=value-"}
+	result, err = Parse(hyphenValue)
+	require.NoError(t, err)
+	assert.Equal(t, "value-", result["key"])
+
 	invalidLabels := []string{"key=value", "too=many=equals"}
 	_, err = Parse(invalidLabels)
 	require.Error(t, err)
@@ -36,6 +42,10 @@ func TestParseRejectsDeletionSyntax(t *testing.T) {
 	_, err = Parse([]string{"x=5", "y-"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "deletion syntax not supported")
+
+	// key=value- is an assignment, not deletion syntax
+	_, err = Parse([]string{"key=value-"})
+	require.NoError(t, err)
 
 	// ParseMap should accept deletion syntax
 	lm, err := ParseMap([]string{"x-"})
@@ -66,6 +76,12 @@ func TestParseMap(t *testing.T) {
 	assert.Equal(t, "5", result["x"].Value)
 	assert.False(t, result["x"].Delete)
 	assert.True(t, result["y"].Delete)
+
+	// Test that key=value- is treated as assignment, not deletion
+	result, err = ParseMap([]string{"key=value-"})
+	require.NoError(t, err)
+	assert.Equal(t, "value-", result["key"].Value)
+	assert.False(t, result["key"].Delete)
 
 	// Test invalid deletion syntax
 	_, err = ParseMap([]string{"-"})
