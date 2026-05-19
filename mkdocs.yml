@@ -6,6 +6,8 @@ extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
+- assets/lib/mermaid-11.12.2.min.js
+- assets/mermaid-init.js
 markdown_extensions:
 - markdown_include.include
 - codehilite:

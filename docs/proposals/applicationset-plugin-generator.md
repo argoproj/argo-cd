@@ -97,12 +97,16 @@ Here is a diagram describing what the plugin generator should do to get the para
 
 ```mermaid
 sequenceDiagram
+    participant Generator
+    participant K8S
+    participant PluginEndpoint as Plugin endpoint
     alt generator is plugin
-    Generator->>K8S: Get configmap {configMapRef}
-    K8S-->>Generator: (url,token)
-    Generator->>Plugin endpoint: POST {url}/v1/generator.getParams<br/>Authorization: Bearer {token}<br/>Content-Type: application/json<br/>{params}
-    Plugin endpoint-->>Generator: []map{string}interface{}
-    end 
+        Generator->>K8S: Get configmap {configMapRef}
+        K8S-->>Generator: (url,token)
+        Generator->>PluginEndpoint: POST {url}/v1/generator.getParams
+        Note right of PluginEndpoint: Authorization: Bearer {token}<br/>Content-Type: application/json<br/>{params}
+        PluginEndpoint-->>Generator: []map{string}interface{}
+    end
 ```
 
 
