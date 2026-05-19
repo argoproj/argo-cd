@@ -99,7 +99,7 @@ of high or critical severity. Automation generates a [new Snyk scan weekly](../s
 
 ### Upgrading Helm and Kustomize
 
-When starting to work on a new Argo CD minor release, the bundled Helm and Kustomize need to be [upgraded](https://github.com/argoproj/argo-cd/blob/master/hack/tool-versions.sh) to the latest available version. Please note that sometimes an upgrade to those versions results in breaking changes that need to be addressed on Argo CD side and documented in this Argo CD version upgrade instructions.
+When starting to work on a new Argo CD minor release, the bundled Helm and Kustomize need to be [upgraded](https://github.com/argoproj/argo-cd/blob/master/hack/tool-versions.sh) to the latest available version. Please note that sometimes an upgrade to those versions results in breaking changes that need to be addressed on Argo CD side and documented in this [Argo CD version upgrade instructions](../operator-manual/upgrading/overview.md).
 
 ### Upgrading Go version that Argo CD uses
 
