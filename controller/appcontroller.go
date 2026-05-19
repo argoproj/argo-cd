@@ -2173,30 +2173,30 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	if err != nil {
 		if apierrors.IsRequestEntityTooLargeError(err) {
 			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
-			fallBackStatus := orig.Status.DeepCopy()
-			fallBackStatus.SetConditions([]appv1.ApplicationCondition{
+			fallbackStatus := orig.Status.DeepCopy()
+			fallbackStatus.SetConditions([]appv1.ApplicationCondition{
 				{
-					Type: appv1.ApplicationConditionUnknownError,
-					Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, lower spec.revisionHistoryLimit, or split the Application.",
+					Type:    appv1.ApplicationConditionUnknownError,
+					Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
 				},
 			},
-			map[appv1.ApplicationConditionType]bool{
-				appv1.ApplicationConditionUnknownError: true,
-			})
+				map[appv1.ApplicationConditionType]bool{
+					appv1.ApplicationConditionUnknownError: true,
+				})
 
 			fallbackPatch, modified, mpErr := createMergePatch(
 				&appv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: orig.GetAnnotations(),
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: orig.GetAnnotations(),
+					},
+					Status: orig.Status,
 				},
-				Status: orig.Status,
-			},
-			   &appv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: newAnnotations,
+				&appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: newAnnotations,
+					},
+					Status: *fallbackStatus,
 				},
-				Status: *fallBackStatus,
-			},
 			)
 			if mpErr != nil {
 				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
