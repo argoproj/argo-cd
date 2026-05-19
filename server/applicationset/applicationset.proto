@@ -117,6 +117,14 @@ service ApplicationSetService {
 		option (google.api.http).get = "/api/v1/applicationsets/{name}/events";
 	}
 
+	// Refresh requests immediate reconciliation of an ApplicationSet
+	rpc Refresh(ApplicationSetGetQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSet) {
+		option (google.api.http) = {
+			post: "/api/v1/applicationsets/{name}/refresh"
+			body: "*"
+		};
+	}
+
 	rpc Watch (ApplicationSetWatchQuery) returns (stream github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSetWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applicationsets";
 	}
