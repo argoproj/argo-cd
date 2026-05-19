@@ -113,5 +113,5 @@ When starting to work on a new Argo CD minor release, the Go version needs to be
 
 All the above affect the Go version that Argo CD is built with and that is shipped in the Argo CD image. Also, those are the relevant places to change when we need to cherry-pick bumps of Go version to the previous Argo CD releases, for security reasons.
 
-Please note that Go version in `go.mod` files should only be bumped if we wanna use new language features in this Go version. If using the new language features is not required at this point in time, we should leave the `go.mod` version as is, even after bumping it in CI and in the Docker files, in order to not force Argo CD library users to upgrade their Go versions upon upgrading Argo CD.
+Please note that Go version in `go.mod` files should only be bumped if we want to use new language features in this Go version. If using the new language features is not required at this point in time, we should leave the `go.mod` version as is, even after bumping it in CI and in the Dockerfiles, in order to not force Argo CD library users to upgrade their Go versions upon upgrading Argo CD.
 
