@@ -524,12 +524,6 @@ func NewClusterConfig() *cobra.Command {
 		Short:             "Generates kubeconfig for the specified cluster",
 		DisableAutoGenTag: true,
 		Example: `
-#Generate a kubeconfig for a cluster named "my-cluster" on console
-argocd admin cluster kubeconfig my-cluster
-
-#Listing available kubeconfigs for clusters managed by argocd
-argocd admin cluster kubeconfig
-
 #Removing a specific kubeconfig file 
 argocd admin cluster kubeconfig my-cluster --delete
 
