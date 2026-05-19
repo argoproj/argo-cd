@@ -36,10 +36,23 @@
     }
     textarea.argo-field {
         height: 20em;
-        width: 1024em;
         white-space: pre;
         overflow-wrap: normal;
         overflow-x: scroll;
+    }
+
+    // Textarea: anchor floating label to top so it animates out correctly on focus.
+    .argo-form-row .argo-field-container:has(> textarea) {
+        label.argo-label-placeholder {
+            align-self: start;
+            transform: translateY(10px);
+        }
+
+        > textarea.argo-field:focus + label.argo-label-placeholder,
+        > textarea.argo-field.argo-has-value + label.argo-label-placeholder {
+            transform: translateY(-25px);
+            font-size: 12px;
+        }
     }
 
     .argo-container {
