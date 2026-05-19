@@ -70,7 +70,7 @@ data:
   matchKey: clusterName
 ```
 
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/clusterDecisionResource).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/clusterDecisionResource)*)
 
 This example leverages the cluster management capabilities of the [open-cluster-management.io community](https://open-cluster-management.io/). By creating a `ConfigMap` with the GVK for the `open-cluster-management.io` Placement rule, your ApplicationSet can provision to different clusters in a number of novel ways. One example is to have the ApplicationSet maintain only two Argo CD Applications across 3 or more clusters. Then as maintenance or outages occur, the ApplicationSet will always maintain two Applications, moving the application to available clusters under the Placement rule's direction. 
 
@@ -79,7 +79,9 @@ The ApplicationSet needs to be created in the Argo CD namespace, placing the `Co
 
 The ClusterDecisionResource generator passes the 'name', 'server' and any other key/value in the duck-type resource's status list as parameters into the ApplicationSet template. In this example, the decision array contained an additional key `clusterName`, which is now available to the ApplicationSet template.
 
-!!! note "Clusters listed as `Status.Decisions` must be predefined in Argo CD"
-    The cluster names listed in the `Status.Decisions` *must* be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD.
-
-    The Default Cluster list key is `clusters`.
+> [!NOTE]
+> **Clusters listed as `Status.Decisions` must be predefined in Argo CD**
+>
+> The cluster names listed in the `Status.Decisions` *must* be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD.
+>
+> The Default Cluster list key is `clusters`.

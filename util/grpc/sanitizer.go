@@ -19,7 +19,7 @@ const (
 // ErrorSanitizerUnaryServerInterceptor returns a new unary server interceptor that sanitizes error messages
 // and provides Sanitizer to define replacements.
 func ErrorSanitizerUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		sanitizer := NewSanitizer()
 		resp, err = handler(ContextWithSanitizer(ctx, sanitizer), req)
 		if err == nil {

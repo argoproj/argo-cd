@@ -1,0 +1,46 @@
+apiVersion: azure.m.upbound.io/v1beta1
+kind: ResourceGroup
+metadata:
+  annotations:
+    crossplane.io/external-create-pending: '2025-11-22T08:33:27Z'
+    crossplane.io/external-create-succeeded: '2025-11-22T08:33:27Z'
+    crossplane.io/external-name: example-resources
+  name: example-resources
+spec:
+  forProvider:
+    location: Switzerland North
+  initProvider: {}
+  managementPolicies:
+    - '*'
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: default
+status:
+  atProvider:
+    id: >-
+      /subscriptions/uuid/resourceGroups/example-resources
+    location: westeurope
+    managedBy: ''
+  conditions:
+    - lastTransitionTime: '2025-11-22T08:33:40Z'
+      reason: Available
+      status: 'True'
+      type: Ready
+    - lastTransitionTime: '2025-11-22T08:36:12Z'
+      message: >-
+        update failed: async update failed: refuse to update the external
+        resource because the following update requires replacing it: cannot
+        change the value of the argument "location" from "westeurope" to
+        "switzerlandnorth"
+      observedGeneration: 3
+      reason: ReconcileError
+      status: 'False'
+      type: Synced
+    - lastTransitionTime: '2025-11-22T08:36:11Z'
+      message: >-
+        async update failed: refuse to update the external resource because the
+        following update requires replacing it: cannot change the value of the
+        argument "location" from "westeurope" to "switzerlandnorth"
+      reason: AsyncUpdateFailure
+      status: 'False'
+      type: LastAsyncOperation

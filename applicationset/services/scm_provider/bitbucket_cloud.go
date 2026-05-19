@@ -2,6 +2,7 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -29,7 +30,7 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 	urlStr += fmt.Sprintf("/repositories/%s/%s/src/%s/%s?format=meta", c.owner, repo.Repository, repo.SHA, path)
 	body := strings.NewReader("")
 
-	req, err := http.NewRequest(http.MethodGet, urlStr, body)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, urlStr, body)
 	if err != nil {
 		return false, err
 	}
@@ -51,9 +52,13 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 
 var _ SCMProviderService = &BitBucketCloudProvider{}
 
-func NewBitBucketCloudProvider(ctx context.Context, owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
+func NewBitBucketCloudProvider(owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
+	bitbucketClient, err := bitbucket.NewBasicAuth(user, password)
+	if err != nil {
+		return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
+	}
 	client := &ExtendedClient{
-		bitbucket.NewBasicAuth(user, password),
+		bitbucketClient,
 		user,
 		password,
 		owner,
@@ -61,7 +66,7 @@ func NewBitBucketCloudProvider(ctx context.Context, owner string, user string, p
 	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches}, nil
 }
 
-func (g *BitBucketCloudProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+func (g *BitBucketCloudProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
 	repos := []*Repository{}
 	branches, err := g.listBranches(repo)
 	if err != nil {
@@ -86,7 +91,7 @@ func (g *BitBucketCloudProvider) GetBranches(ctx context.Context, repo *Reposito
 	return repos, nil
 }
 
-func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *BitBucketCloudProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
 	if cloneProtocol == "" {
 		cloneProtocol = "ssh"
 	}
@@ -100,7 +105,7 @@ func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol st
 		return nil, fmt.Errorf("error listing repositories for %s: %w", g.owner, err)
 	}
 	for _, bitBucketRepo := range accountReposResp.Items {
-		cloneUrl, err := findCloneURL(cloneProtocol, &bitBucketRepo)
+		cloneURL, err := findCloneURL(cloneProtocol, &bitBucketRepo)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching clone url for repo %s: %w", bitBucketRepo.Slug, err)
 		}
@@ -108,7 +113,7 @@ func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol st
 			Organization: g.owner,
 			Repository:   bitBucketRepo.Slug,
 			Branch:       bitBucketRepo.Mainbranch.Name,
-			URL:          *cloneUrl,
+			URL:          *cloneURL,
 			Labels:       []string{},
 			RepositoryId: bitBucketRepo.Uuid,
 		})
@@ -116,7 +121,7 @@ func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol st
 	return repos, nil
 }
 
-func (g *BitBucketCloudProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
+func (g *BitBucketCloudProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
 	contents, err := g.client.GetContents(repo, path)
 	if err != nil {
 		return false, err
@@ -153,19 +158,19 @@ func (g *BitBucketCloudProvider) listBranches(repo *Repository) ([]bitbucket.Rep
 }
 
 func findCloneURL(cloneProtocol string, repo *bitbucket.Repository) (*string, error) {
-	cloneLinks, ok := repo.Links["clone"].([]interface{})
+	cloneLinks, ok := repo.Links["clone"].([]any)
 	if !ok {
-		return nil, fmt.Errorf("unknown type returned from repo links")
+		return nil, errors.New("unknown type returned from repo links")
 	}
 	for _, link := range cloneLinks {
-		linkEntry, ok := link.(map[string]interface{})
+		linkEntry, ok := link.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("unknown type returned from clone link")
+			return nil, errors.New("unknown type returned from clone link")
 		}
 		if linkEntry["name"] == cloneProtocol {
 			url, ok := linkEntry["href"].(string)
 			if !ok {
-				return nil, fmt.Errorf("could not find href for clone link")
+				return nil, errors.New("could not find href for clone link")
 			}
 			return &url, nil
 		}

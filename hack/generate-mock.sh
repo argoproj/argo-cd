@@ -13,6 +13,10 @@ PROJECT_ROOT=$(
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 
 # output tool versions
-mockery --version
+mockery version
 
-mockery --config ${PROJECT_ROOT}/.mockery.yaml
+mockery --config "${PROJECT_ROOT}"/.mockery.yaml
+
+# Generate mocks for gitops-engine
+cd "${PROJECT_ROOT}"/gitops-engine
+mockery --config .mockery.yaml

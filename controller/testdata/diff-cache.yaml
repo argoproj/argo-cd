@@ -51,7 +51,7 @@ spec:
       - name: RELEASE_NAME
         value: test-lla
       - name: CHART_REPOSITORY
-        value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        value: oci://europe-west1-docker.pkg.dev/foo/charts
       - name: CHART_NAME
         value: velero
       - name: PREVIEW
@@ -67,7 +67,7 @@ spec:
       - name: HELM_ARGS
         value: ""
       name: cmp-helm-v2
-    repoURL: https://github.com/mirakl/manifests-velero.git
+    repoURL: https://github.com/foo/manifests-velero.git
     targetRevision: test-lla
   syncPolicy:
     retry:
@@ -98,7 +98,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -114,7 +114,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-04T22:08:29Z"
     deployedAt: "2024-03-04T22:08:30Z"
@@ -127,7 +127,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -143,7 +143,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-04T22:09:16Z"
     deployedAt: "2024-03-04T22:09:16Z"
@@ -156,7 +156,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -172,7 +172,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-04T22:11:41Z"
     deployedAt: "2024-03-04T22:11:41Z"
@@ -185,7 +185,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -201,7 +201,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-04T22:50:55Z"
     deployedAt: "2024-03-04T22:50:55Z"
@@ -214,7 +214,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -230,7 +230,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-04T22:52:56Z"
     deployedAt: "2024-03-04T22:52:56Z"
@@ -243,7 +243,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -259,7 +259,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-04T22:56:15Z"
     deployedAt: "2024-03-04T22:56:15Z"
@@ -272,7 +272,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -288,7 +288,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-05T07:31:56Z"
     deployedAt: "2024-03-05T07:31:57Z"
@@ -301,7 +301,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -317,7 +317,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-05T07:32:44Z"
     deployedAt: "2024-03-05T07:32:44Z"
@@ -330,7 +330,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -346,7 +346,7 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   - deployStartedAt: "2024-03-05T07:33:03Z"
     deployedAt: "2024-03-05T07:33:04Z"
@@ -359,7 +359,7 @@ status:
         - name: RELEASE_NAME
           value: test-lla
         - name: CHART_REPOSITORY
-          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          value: oci://europe-west1-docker.pkg.dev/foo/charts
         - name: CHART_NAME
           value: velero
         - name: PREVIEW
@@ -375,14 +375,14 @@ status:
         - name: HELM_ARGS
           value: ""
         name: cmp-helm-v2
-      repoURL: https://github.com/mirakl/manifests-velero.git
+      repoURL: https://github.com/foo/manifests-velero.git
       targetRevision: test-lla
   operationState:
     finishedAt: "2024-03-05T07:33:04Z"
     message: successfully synced (all tasks run)
     operation:
       initiatedBy:
-        username: laurent.lavaud@mirakl.com
+        username: foo@example.com
       retry:
         backoff:
           duration: 5s
@@ -425,7 +425,7 @@ status:
           - name: RELEASE_NAME
             value: test-lla
           - name: CHART_REPOSITORY
-            value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+            value: oci://europe-west1-docker.pkg.dev/foo/charts
           - name: CHART_NAME
             value: velero
           - name: PREVIEW
@@ -441,7 +441,7 @@ status:
           - name: HELM_ARGS
             value: ""
           name: cmp-helm-v2
-        repoURL: https://github.com/mirakl/manifests-velero.git
+        repoURL: https://github.com/foo/manifests-velero.git
         targetRevision: test-lla
   reconciledAt: "2024-03-05T07:33:04Z"
   resources:
@@ -476,7 +476,7 @@ status:
           - name: RELEASE_NAME
             value: test-lla
           - name: CHART_REPOSITORY
-            value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+            value: oci://europe-west1-docker.pkg.dev/foo/charts
           - name: CHART_NAME
             value: velero
           - name: PREVIEW
@@ -492,7 +492,7 @@ status:
           - name: HELM_ARGS
             value: ""
           name: cmp-helm-v2
-        repoURL: https://github.com/mirakl/manifests-velero.git
+        repoURL: https://github.com/foo/manifests-velero.git
         targetRevision: test-lla
     revision: rev1
     status: Synced

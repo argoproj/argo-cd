@@ -7,14 +7,14 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	ioutil "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
-	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
+	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
 
-	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Settings service
@@ -24,6 +24,8 @@ type Server struct {
 	authenticator             Authenticator
 	disableAuth               bool
 	appsInAnyNamespaceEnabled bool
+	hydratorEnabled           bool
+	syncWithReplaceAllowed    bool
 }
 
 type Authenticator interface {
@@ -31,12 +33,12 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool) *Server {
-	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool) *Server {
+	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled, syncWithReplaceAllowed: syncWithReplaceAllowed}
 }
 
 // Get returns Argo CD settings
-func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
+func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
 	resourceOverrides, err := s.mgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
@@ -88,10 +90,15 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		return nil, err
 	}
 
+	installationID, err := s.mgr.GetInstallationID()
+	if err != nil {
+		return nil, err
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
+		AdditionalURLs:     argoCDSettings.AdditionalURLs,
 		AppLabelKey:        appInstanceLabelKey,
-		ResourceOverrides:  overrides,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
 		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
 		KustomizeOptions: &v1alpha1.KustomizeOptions{
@@ -110,9 +117,12 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		KustomizeVersions:         kustomizeVersions,
 		UiCssURL:                  argoCDSettings.UiCssURL,
 		TrackingMethod:            trackingMethod,
+		InstallationID:            installationID,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
+		HydratorEnabled:           s.hydratorEnabled,
+		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -121,6 +131,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 		set.ControllerNamespace = s.mgr.GetNamespace()
+		set.ResourceOverrides = overrides
 	}
 	if sessionmgr.LoggedIn(ctx) {
 		set.PasswordPattern = argoCDSettings.PasswordPattern
@@ -149,7 +160,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 }
 
 // GetPlugins returns a list of plugins
-func (s *Server) GetPlugins(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.SettingsPluginsResponse, error) {
+func (s *Server) GetPlugins(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.SettingsPluginsResponse, error) {
 	plugins, err := s.plugins(ctx)
 	if err != nil {
 		return nil, err
@@ -162,7 +173,7 @@ func (s *Server) plugins(ctx context.Context) ([]*settingspkg.Plugin, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
-	defer ioutil.Close(closer)
+	defer utilio.Close(closer)
 
 	pluginList, err := client.ListPlugins(ctx, &empty.Empty{})
 	if err != nil {

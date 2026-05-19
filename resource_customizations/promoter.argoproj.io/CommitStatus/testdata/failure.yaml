@@ -1,0 +1,14 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: CommitStatus
+metadata:
+  name: test
+  generation: 2
+status:
+  conditions:
+    - type: Ready
+      status: True
+      observedGeneration: 2
+  id: test-2
+  sha: abc1234
+  phase: failure
+

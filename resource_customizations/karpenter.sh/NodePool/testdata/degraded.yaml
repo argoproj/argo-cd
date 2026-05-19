@@ -1,0 +1,36 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: nodepool
+spec:
+  disruption:
+    budgets:
+      - nodes: 100%
+    consolidateAfter: 10m
+    consolidationPolicy: WhenEmptyOrUnderutilized
+  limits:
+    cpu: 10001
+  template:
+    spec:
+      expireAfter: 720h
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default1
+      requirements:
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - m51
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values:
+            - large1
+            - xlarge1
+            - 2xlarge1
+status:
+  conditions:
+    - message: NodePool is not ready
+      reason: NotReady
+      status: "False"
+      type: Ready

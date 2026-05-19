@@ -130,7 +130,7 @@ In the UI, a new tab in the Resource View will be made available. The contents o
 
 At a high level an Argo CD extension is simply a React component, which is dynamically loaded at runtime by the Argo CD API server.
 
-In order for the component to render some visualization about a resource, it needs to be supplied at least two key peices of information:
+In order for the component to render some visualization about a resource, it needs to be supplied at least two key pieces of information:
 1. The full resource object itself
 2. The entire Application Resource Tree
 
@@ -142,7 +142,7 @@ We provide the entire application tree to accomplish two things:
 Further, if an Extension needs richer information than that provided by the Resource Tree, it can request additional information about a resource from the Argo CD API server.
 
 ```typescript
-interface Extention {
+interface Extension {
     ResourceTab: React.Component<{resource: any}>;
 }
 ```
@@ -165,7 +165,7 @@ Some changes are required in the Argo CD API server:
 2. It will retrieve Actions Lua scripts from the same well known location mounted by the sidecar instead of from `argocd-cm`
 
 
-### UI Extention Interface
+### UI Extension Interface
 
 TODO
 

@@ -1,0 +1,13 @@
+apiVersion: k8s.keycloak.org/v1alpha1
+kind: Keycloak
+metadata:
+  name: keycloak-23
+  namespace: keycloak
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2025-05-06T12:00:00Z" # Non-nil lastTransitionTime
+    - type: HasErrors
+      status: "False"
+      lastTransitionTime: null # Nil lastTransitionTime

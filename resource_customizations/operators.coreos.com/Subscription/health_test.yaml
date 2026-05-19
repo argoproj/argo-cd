@@ -1,25 +1,29 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: "An install plan for a subscription is pending installation"
+    message: "1: CatalogSourcesUnhealthy | False\n.status.state not yet known\n"
+  inputPath: testdata/first_update_with_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "1: CatalogSourcesUnhealthy | False\n2: InstallPlanPending | True\n.status.state is 'UpgradePending'\n"
   inputPath: testdata/install_plan_pending.yaml
 - healthStatus:
     status: Degraded
-    message: "1: CatalogSourcesUnhealthy | True\n"
+    message: "1: CatalogSourcesUnhealthy | True\n.status.state not yet known\n"
   inputPath: testdata/catalog_sources_unhealthy.yaml
 - healthStatus:
     status: Healthy
-    message: "1: CatalogSourcesUnhealthy | False\n2: InstallPlanMissing | True\n"
+    message: "1: CatalogSourcesUnhealthy | False\n2: InstallPlanMissing | True\n.status.state is 'AtLatestKnown'\n"
   inputPath: testdata/install_plan_missing.yaml
 - healthStatus:
     status: Degraded
-    message: "1: CatalogSourcesUnhealthy | False\n2: InstallPlanFailed | True\n"
+    message: "1: CatalogSourcesUnhealthy | False\n2: InstallPlanFailed | True\n.status.state is 'AtLatestKnown'\n"
   inputPath: testdata/install_plan_failed.yaml
 - healthStatus:
     status: Degraded
-    message: "1: CatalogSourcesUnhealthy | True\n2: ResolutionFailed | True\n"
+    message: "1: CatalogSourcesUnhealthy | True\n2: ResolutionFailed | True\n.status.state not yet known\n"
   inputPath: testdata/resolution_failed.yaml
 - healthStatus:
     status: Healthy
-    message: "1: CatalogSourcesUnhealthy | False\n"
+    message: "1: CatalogSourcesUnhealthy | False\n.status.state is 'AtLatestKnown'\n"
   inputPath: testdata/healthy.yaml

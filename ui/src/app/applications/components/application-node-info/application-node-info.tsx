@@ -12,6 +12,7 @@ import {ApplicationResourcesDiff} from '../application-resources-diff/applicatio
 import {ComparisonStatusIcon, formatCreationTimestamp, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon} from '../utils';
 import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
+import Moment from 'react-moment';
 
 const RenderContainerState = (props: {container: any}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
@@ -59,17 +60,20 @@ const RenderContainerState = (props: {container: any}) => {
                         {' '}
                         It exited with <span className='application-node-info__container--highlight'>exit code {props.container.state.terminated.exitCode}.</span>
                     </>
-                )}
-                <>
-                    {' '}
-                    It is <span className='application-node-info__container--highlight'>{props.container?.started ? 'started' : 'not started'}</span>
-                    <span className='application-node-info__container--highlight'>{status === 'Completed' ? '.' : props.container?.ready ? ' and ready.' : ' and not ready.'}</span>
-                </>
+                )}{' '}
+                It is <span className='application-node-info__container--highlight'>{props.container?.started ? 'started' : 'not started'}</span>
+                <span className='application-node-info__container--highlight'>{status === 'Completed' ? '.' : props.container?.ready ? ' and ready.' : ' and not ready.'}</span>
                 <br />
                 {lastState && (
                     <>
                         <>
-                            The container last terminated with <span className='application-node-info__container--highlight'>exit code {lastState?.exitCode}</span>
+                            The container last terminated{' '}
+                            <span className='application-node-info__container--highlight'>
+                                <Moment fromNow={true} ago={true}>
+                                    {lastState.finishedAt}
+                                </Moment>{' '}
+                                ago with exit code {lastState?.exitCode}
+                            </span>
                         </>
                         {lastState?.reason && ' because of '}
                         <span title={props.container.lastState?.message || ''}>
@@ -266,15 +270,20 @@ export const ApplicationNodeInfo = (props: {
                                 ) : (
                                     <div className='application-node-info__err_msg'>
                                         Resource not found in cluster:{' '}
-                                        {`${props?.controlled?.state?.targetState?.apiVersion}/${props?.controlled?.state?.targetState?.kind}:${props.node.name}`}
-                                        <br />
-                                        {props?.controlled?.state?.normalizedLiveState?.apiVersion && (
-                                            <span>
-                                                Please update your resource specification to use the latest Kubernetes API resources supported by the target cluster. The
-                                                recommended syntax is{' '}
-                                                {`${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}`}
-                                            </span>
+                                        {typeof props?.controlled?.state?.targetState !== 'undefined' && (
+                                            <span>{`${props.controlled.state.targetState.apiVersion}/${props.controlled.state.targetState.kind}:`}</span>
                                         )}
+                                        {`${props.node.name}`}
+                                        <br />
+                                        {props?.controlled?.state?.normalizedLiveState?.apiVersion &&
+                                            `${props?.controlled?.state?.targetState?.apiVersion}/${props?.controlled?.state?.targetState?.kind}:${props.node.name}` !==
+                                                `${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}` && (
+                                                <span>
+                                                    Please update your resource specification to use the latest Kubernetes API resources supported by the target cluster. The
+                                                    recommended syntax is{' '}
+                                                    {`${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}`}
+                                                </span>
+                                            )}
                                     </div>
                                 )}
                             </React.Fragment>

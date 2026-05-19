@@ -2,11 +2,10 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Fake implementation for testing
-func NewFakeAppsetMetrics(client ctrlclient.WithWatch) *ApplicationsetMetrics {
+func NewFakeAppsetMetrics() *ApplicationsetMetrics {
 	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "argocd_appset_reconcile",

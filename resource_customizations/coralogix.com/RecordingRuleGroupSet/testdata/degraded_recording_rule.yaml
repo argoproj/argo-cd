@@ -1,0 +1,47 @@
+apiVersion: coralogix.com/v1alpha1
+kind: RecordingRuleGroupSet
+metadata:
+  name: rules
+spec:
+  groups:
+    - name: k8s_rules
+      rules:
+        - expr: >-
+            sum(rate(container_cpu_usage_seconds_total{job="kubelet",
+            metrics_path="/metrics/cadvisor", image!="", container!="POD"}[5m]))
+            by (namespace)
+status:
+  conditions:
+  - lastTransitionTime: "2025-07-17T14:41:18Z"
+    message: |-
+      error on creating remote recordingRuleGroupSet: SDK API error from /com.coralogixapis.metrics_rule_manager.v1.RuleGroupSets/Create for feature group recording-rules: rpc error: code = InvalidArgument desc = {
+        "groups": {
+          "0": {
+            "rules": {
+              "0": {
+                "record": [
+                  {
+                    "code": "length",
+                    "message": null,
+                    "params": {
+                      "value": "",
+                      "min": 1
+                    }
+                  },
+                  {
+                    "code": "invalid_promql",
+                    "message": "SingleExpr: unexpected token ; want \"\"(\", \"{\", \"-\", \"+\"\"",
+                    "params": {
+                      "value": ""
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    observedGeneration: 1
+    reason: RemoteCreationFailed
+    status: "False"
+    type: RemoteSynced

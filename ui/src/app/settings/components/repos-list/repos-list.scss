@@ -1,18 +1,16 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .repos-list {
     &__top-panel {
         padding: 1em;
-
         & > .columns:first-child {
             font-size: 8em;
             text-align: center;
         }
-
         & > .columns:last-child {
             text-align: center;
             border-left: 2px solid $argo-color-gray-4;
-
             & > p {
                 margin-bottom: 0;
                 margin-top: 24px;
@@ -20,17 +18,14 @@
                     font-size: 1.25em;
                 }
             }
-
             & > button {
                 width: 15em;
             }
         }
     }
-
     .argo-table-list {
         .item-clickable {
             cursor: pointer;
-
             &:hover {
                 box-shadow: 1px 2px 3px rgba($argo-color-gray-9, 0.1), 0 0 0 1px rgba($argo-color-teal-5, 0.5);
             }
@@ -39,12 +34,24 @@
             float: right;
         }
     }
-
     textarea.argo-field {
         height: 20em;
         width: 1024em;
         white-space: pre;
         overflow-wrap: normal;
         overflow-x: scroll;
+    }
+
+    .argo-container {
+        @include themify($themes) {
+            input.argo-field {
+                border-bottom: 2px solid themed('light-argo-teal-5') !important;
+            }
+        }
+
+        input.argo-field:focus {
+            outline: none;
+            border-bottom: 2px solid $argo-color-teal-6 !important;
+        }
     }
 }

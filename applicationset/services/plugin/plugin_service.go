@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	internalhttp "github.com/argoproj/argo-cd/v2/applicationset/services/internal/http"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	internalhttp "github.com/argoproj/argo-cd/v3/applicationset/services/internal/http"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 // ServiceRequest is the request object sent to the plugin service.
@@ -20,7 +20,7 @@ type ServiceRequest struct {
 
 type Output struct {
 	// Parameters is the list of parameter sets returned by the plugin.
-	Parameters []map[string]interface{} `json:"parameters"`
+	Parameters []map[string]any `json:"parameters"`
 }
 
 // ServiceResponse is the response object returned by the plugin service.
@@ -34,7 +34,7 @@ type Service struct {
 	appSetName string
 }
 
-func NewPluginService(ctx context.Context, appSetName string, baseURL string, token string, requestTimeout int) (*Service, error) {
+func NewPluginService(appSetName string, baseURL string, token string, requestTimeout int) (*Service, error) {
 	var clientOptionFns []internalhttp.ClientOptionFunc
 
 	clientOptionFns = append(clientOptionFns, internalhttp.WithToken(token))
@@ -55,14 +55,14 @@ func NewPluginService(ctx context.Context, appSetName string, baseURL string, to
 }
 
 func (p *Service) List(ctx context.Context, parameters v1alpha1.PluginParameters) (*ServiceResponse, error) {
-	req, err := p.client.NewRequest(http.MethodPost, "api/v1/getparams.execute", ServiceRequest{ApplicationSetName: p.appSetName, Input: v1alpha1.PluginInput{Parameters: parameters}}, nil)
+	req, err := p.client.NewRequestWithContext(ctx, http.MethodPost, "api/v1/getparams.execute", ServiceRequest{ApplicationSetName: p.appSetName, Input: v1alpha1.PluginInput{Parameters: parameters}})
 	if err != nil {
 		return nil, fmt.Errorf("NewRequest returned unexpected error: %w", err)
 	}
 
 	var data ServiceResponse
 
-	_, err = p.client.Do(ctx, req, &data)
+	_, err = p.client.Do(req, &data)
 	if err != nil {
 		return nil, fmt.Errorf("error get api '%s': %w", p.appSetName, err)
 	}

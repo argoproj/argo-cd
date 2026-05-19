@@ -80,7 +80,7 @@ The `discovery.lua` script must return a table where the key name represents the
 
 Each action name must be represented in the list of `definitions` with an accompanying `action.lua` script to control the resource modifications. The `obj` is a global variable which contains the resource. Each action script returns an optionally modified version of the resource. In this example, we are simply setting `.spec.suspend` to either `true` or `false`.
 
-By default, defining a resource action customization will override any built-in action for this resource kind. If you want to retain the built-in actions, you can set the `mergeBuiltinActions` key to `true`. Your custom actions will have precedence over the built-in actions.
+By default, defining a resource action customization will override any built-in action for this resource kind. As of Argo CD version 2.13.0, if you want to retain the built-in actions, you can set the `mergeBuiltinActions` key to `true`. Your custom actions will have precedence over the built-in actions.
 ```yaml        
 resource.customizations.actions.argoproj.io_Rollout: |
   mergeBuiltinActions: true
@@ -96,10 +96,10 @@ resource.customizations.actions.argoproj.io_Rollout: |
 
 #### Creating new resources with a custom action
 
-!!! important
-    Creating resources via the Argo CD UI is an intentional, strategic departure from GitOps principles. We recommend 
-    that you use this feature sparingly and only for resources that are not part of the desired state of the 
-    application.
+> [!IMPORTANT]
+> Creating resources via the Argo CD UI is an intentional, strategic departure from GitOps principles. We recommend 
+> that you use this feature sparingly and only for resources that are not part of the desired state of the 
+> application.
 
 The resource the action is invoked on would be referred to as the `source resource`.  
 The new resource and all the resources implicitly created as a result, must be permitted on the AppProject level, otherwise the creation will fail.
@@ -202,4 +202,76 @@ resource.customizations.actions.ConfigMap: |
       result[1] = impactedResource1
       result[2] = impactedResource2
       return result		  
+```
+
+### Action Icons and Display Names
+
+By default, an action will appear in the UI by the name specified in the `actions` key, and it will have no icon. You 
+can customize the display name and icon of an action by adding the `iconClass` and `displayName` keys to the action 
+definition.
+
+The icon class name is the name of a FontAwesome icon from [the set of free icons](https://fontawesome.com/search?ic=free).
+The `fa-fw` class ensures that the icon is displayed with a fixed width, to avoid alignment issues with other icons.
+
+```lua
+local actions = {}
+actions["create-workflow"] = {
+  ["iconClass"] = "fa fa-fw fa-plus",
+  ["displayName"] = "Create Workflow"
+}
+return actions
+```
+
+### Action Parameters
+
+You can define parameters for your custom actions. The parameters are defined in the `parameters` key of the action discovery definition.
+
+<!-- Link directly to the script for people reading the docs in GitHub where embedding doesn't work. -->
+See the [Deployment actions discovery script](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/apps/Deployment/actions/discovery.lua):
+
+<!-- Embed the actual script so ReadTheDocs always has an up-to-date example. -->
+```lua
+{!resource_customizations/apps/Deployment/actions/discovery.lua!}
+```
+
+The [resource scale actions](../user-guide/scale_application_resources.md) documentation shows how this function behaves in the UI.
+
+## Contributing a Custom Resource Action
+
+A resource action can be bundled into Argo CD. Custom resource action scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). Each contributed custom action needs to have a Lua script for discovery and a Lua script for the actual action logic. It also needs to have testdata and expected K8s resource manifests, which represent the outcome of performing the action.
+
+The following directory structure must be respected:
+
+```
+argo-cd
+|-- resource_customizations
+|    |-- your.crd.group.io                         # CRD group
+|    |    |-- MyKind                               # Resource kind
+|    |    |    |-- actions                         # Actions folder
+|    |    |    |    |-- action_test.yaml           # Test inputs and expected results
+|    |    |    |    |-- testdata                   # Folder with sample K8s manifest yaml files, for testing the outcome of performing the custom actions 
+|    |    |    |    |-- discovery.lua              # Conditions upon which the custom action would be visible in the UI
+|    |    |    |    |-- <action_name>              # Folder for each custom action, named as the custom action
+|    |    |    |    |    |-- action.lua            # Custom action logic Lua script 
+```
+It is required to provide both discovery tests and action tests for your custom action.
+
+Example of a [complete custom action](https://github.com/argoproj/argo-cd/tree/master/resource_customizations/argoproj.io/AnalysisRun/actions) called `terminate` for AnalysisRun.
+
+
+Example of `action_test.yaml` file content with `discoveryTests` and `actionTests`:
+``` yaml
+discoveryTests:
+- inputPath: testdata/runningAnalysisRun.yaml
+  result:
+  - name: terminate
+    disabled: false
+- inputPath: testdata/failedAnalysisRun.yaml
+  result:
+  - name: terminate
+    disabled: true
+actionTests:
+- action: terminate
+  inputPath: testdata/runningAnalysisRun.yaml
+  expectedOutputPath: testdata/runningAnalysisRun_terminated.yaml
 ```

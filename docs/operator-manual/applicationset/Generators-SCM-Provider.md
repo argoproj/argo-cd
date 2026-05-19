@@ -19,11 +19,11 @@ spec:
 
 * `cloneProtocol`: Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers necessarily support all protocols, see provider documentation below for available options.
 
-!!! note
-    Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets)
-    to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the
-    `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of
-    out-of-bounds resources.
+> [!NOTE]
+> Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets)
+> to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the
+> `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of
+> out-of-bounds resources.
 
 ## GitHub
 
@@ -44,6 +44,8 @@ spec:
         api: https://git.example.com/
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
+        # Exclude repos that are archived
+        excludeArchivedRepos: true
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: github-token
@@ -59,6 +61,7 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
+* `excludeArchivedRepos`: exclude repositories that are archived. defaults to false
 
 [repo-creds]: ../declarative-setup.md#repository-credentials
 
@@ -90,6 +93,8 @@ spec:
         # If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default.
         # If false only search Projects under the same path. Defaults to true.
         includeSharedProjects: false
+        # Include repos that are archived
+        includeArchivedRepos: true   
         # filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
         topic: "my-topic"
         # Reference to a Secret containing an access token. (optional)
@@ -111,6 +116,7 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `includeSubgroups`: By default (false) the controller will only search for repos directly in the base group. If this is true, it will recurse through all the subgroups searching for repos to scan.
 * `includeSharedProjects`: If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default. If false only search Projects under the same path. In general most would want the behaviour when set to false. Defaults to true.
+* `includeArchivedRepos`: include repositories that are archived. defaults to false
 * `topic`: filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
@@ -147,6 +153,8 @@ spec:
         api: https://gitea.mydomain.com/
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
+        # Exclude repos that are archived
+        excludeArchivedRepos: true   
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: gitea-token
@@ -160,6 +168,7 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: Allow for self-signed TLS certificates.
+* `excludeArchivedRepos`: exclude repositories that are archived. defaults to false
 
 This SCM provider does not yet support label filtering
 
@@ -221,7 +230,7 @@ If you want to access a private repository, you must also provide the credential
 In case of Bitbucket App Token, go with `bearerToken` section.
 * `tokenRef`: A `Secret` name and key containing the app token to use for requests.
 
-In case self-signed BitBucket Server certificates, the following options can be usefully:
+In case of self-signed BitBucket Server certificates, the following options can be useful:
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
@@ -442,6 +451,7 @@ spec:
 
 * `organization`: The name of the organization the repository is in.
 * `repository`: The name of the repository.
+* `repository_id`: The id of the repository.
 * `url`: The clone URL for the repository.
 * `branch`: The default branch of the repository.
 * `sha`: The Git commit SHA for the branch.
@@ -491,7 +501,7 @@ spec:
         namespace: default
 ```
 
-!!! note
-    The `values.` prefix is always prepended to values provided via `generators.scmProvider.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+> [!NOTE]
+> The `values.` prefix is always prepended to values provided via `generators.scmProvider.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate all fields set by the SCM generator as mentioned above.

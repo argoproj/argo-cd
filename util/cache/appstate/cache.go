@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 var (
@@ -47,16 +47,16 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 	}
 }
 
-func (c *Cache) GetItem(key string, item interface{}) error {
+func (c *Cache) GetItem(key string, item any) error {
 	return c.Cache.GetItem(key, item)
 }
 
-func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: delete})
+func (c *Cache) SetItem(key string, item any, expiration time.Duration, deletion bool) error {
+	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: deletion})
 }
 
 func appManagedResourcesKey(appName string) string {
-	return fmt.Sprintf("app|managed-resources|%s", appName)
+	return "app|managed-resources|" + appName
 }
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
@@ -72,7 +72,7 @@ func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1
 }
 
 func appResourcesTreeKey(appName string, shard int64) string {
-	key := fmt.Sprintf("app|resources-tree|%s", appName)
+	key := "app|resources-tree|" + appName
 	if shard > 0 {
 		key = fmt.Sprintf("%s|%d", key, shard)
 	}
@@ -80,7 +80,7 @@ func appResourcesTreeKey(appName string, shard int64) string {
 }
 
 func clusterInfoKey(server string) string {
-	return fmt.Sprintf("cluster|info|%s", server)
+	return "cluster|info|" + server
 }
 
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
@@ -88,7 +88,8 @@ func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) 
 	if res.ShardsCount > 1 {
 		for i := int64(1); i < res.ShardsCount; i++ {
 			var shard appv1.ApplicationTree
-			if err = c.GetItem(appResourcesTreeKey(appName, i), &shard); err != nil {
+			err = c.GetItem(appResourcesTreeKey(appName, i), &shard)
+			if err != nil {
 				return err
 			}
 			res.Merge(&shard)

@@ -14,7 +14,7 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestIsAppSyncStatusRefreshed(t *testing.T) {
@@ -29,8 +29,8 @@ func TestIsAppSyncStatusRefreshed(t *testing.T) {
 		{
 			name: "No OperationState",
 			app: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{},
+				Object: map[string]any{
+					"status": map[string]any{},
 				},
 			},
 			expectedValue: true,
@@ -38,9 +38,9 @@ func TestIsAppSyncStatusRefreshed(t *testing.T) {
 		{
 			name: "No FinishedAt, Completed Phase",
 			app: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
-						"operationState": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
+						"operationState": map[string]any{
 							"phase": "Succeeded",
 						},
 					},
@@ -51,9 +51,9 @@ func TestIsAppSyncStatusRefreshed(t *testing.T) {
 		{
 			name: "FinishedAt After ReconciledAt & ObservedAt",
 			app: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
-						"operationState": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
+						"operationState": map[string]any{
 							"finishedAt": "2021-01-01T01:05:00Z",
 							"phase":      "Succeeded",
 						},
@@ -67,9 +67,9 @@ func TestIsAppSyncStatusRefreshed(t *testing.T) {
 		{
 			name: "FinishedAt Before ReconciledAt & ObservedAt",
 			app: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"status": map[string]interface{}{
-						"operationState": map[string]interface{}{
+				Object: map[string]any{
+					"status": map[string]any{
+						"operationState": map[string]any{
 							"finishedAt": "2021-01-01T01:02:00Z",
 							"phase":      "Succeeded",
 						},
@@ -92,8 +92,8 @@ func TestIsAppSyncStatusRefreshed(t *testing.T) {
 
 func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
 	app := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"spec": map[string]interface{}{},
+		Object: map[string]any{
+			"spec": map[string]any{},
 		},
 	}
 	informer := cache.NewSharedIndexInformer(nil, nil, 0, nil)
@@ -105,9 +105,7 @@ func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
 func TestInit(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.SchemeBuilder.AddToScheme(scheme)
-	if err != nil {
-		t.Fatalf("Error registering the resource: %v", err)
-	}
+	require.NoErrorf(t, err, "Error registering the resource")
 	dynamicClient := fake.NewSimpleDynamicClient(scheme)
 	k8sClient := k8sfake.NewSimpleClientset()
 	appLabelSelector := "app=test"
@@ -129,7 +127,7 @@ func TestInit(t *testing.T) {
 
 		assert.NotNil(t, nc)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 
 		err = nc.Init(ctx)
@@ -141,9 +139,7 @@ func TestInit(t *testing.T) {
 func TestInitTimeout(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.SchemeBuilder.AddToScheme(scheme)
-	if err != nil {
-		t.Fatalf("Error registering the resource: %v", err)
-	}
+	require.NoErrorf(t, err, "Error registering the resource")
 	dynamicClient := fake.NewSimpleDynamicClient(scheme)
 	k8sClient := k8sfake.NewSimpleClientset()
 	appLabelSelector := "app=test"
@@ -164,20 +160,19 @@ func TestInitTimeout(t *testing.T) {
 	assert.NotNil(t, nc)
 
 	// Use a short timeout to simulate a timeout during cache synchronization
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
 	defer cancel()
 
 	err = nc.Init(ctx)
 
 	// Expect an error & add assertion for the error message
-	require.Error(t, err)
-	assert.Equal(t, "Timed out waiting for caches to sync", err.Error())
+	assert.EqualError(t, err, "timed out waiting for caches to sync")
 }
 
 func TestCheckAppNotInAdditionalNamespaces(t *testing.T) {
 	app := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"spec": map[string]interface{}{},
+		Object: map[string]any{
+			"spec": map[string]any{},
 		},
 	}
 	namespace := "argocd"

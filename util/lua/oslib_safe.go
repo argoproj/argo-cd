@@ -6,7 +6,7 @@ package lua
 // github.com/yuin/gopher-lua.
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,13 +36,13 @@ func osTime(l *lua.LState) int {
 	} else {
 		tbl := l.CheckTable(1)
 		sec := getIntField(tbl, "sec", 0)
-		min := getIntField(tbl, "min", 0)
+		minutes := getIntField(tbl, "min", 0)
 		hour := getIntField(tbl, "hour", 12)
 		day := getIntField(tbl, "day", -1)
 		month := getIntField(tbl, "month", -1)
 		year := getIntField(tbl, "year", -1)
 		isdst := getBoolField(tbl, "isdst", false)
-		t := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.Local)
+		t := time.Date(year, time.Month(month), day, hour, minutes, sec, 0, time.Local)
 		// TODO dst
 		if false {
 			print(isdst)
@@ -116,7 +116,7 @@ func strftime(t time.Time, cfmt string) string {
 				} else {
 					switch c {
 					case 'w':
-						sc.AppendString(fmt.Sprint(int(t.Weekday())))
+						sc.AppendString(strconv.Itoa(int(t.Weekday())))
 					default:
 						sc.AppendChar('%')
 						sc.AppendChar(c)
@@ -162,22 +162,21 @@ func (fs *flagScanner) Next() (byte, bool) {
 			fs.AppendString(fs.end)
 		}
 		return c, true
-	} else {
-		c = fs.str[fs.Pos]
-		if c == fs.flag {
-			if fs.Pos < (fs.Length-1) && fs.str[fs.Pos+1] == fs.flag {
-				fs.HasFlag = false
-				fs.AppendChar(fs.flag)
-				fs.Pos += 2
-				return fs.Next()
-			} else if fs.Pos != fs.Length-1 {
-				if fs.HasFlag {
-					fs.AppendString(fs.end)
-				}
-				fs.AppendString(fs.start)
-				fs.ChangeFlag = true
-				fs.HasFlag = true
+	}
+	c = fs.str[fs.Pos]
+	if c == fs.flag {
+		if fs.Pos < (fs.Length-1) && fs.str[fs.Pos+1] == fs.flag {
+			fs.HasFlag = false
+			fs.AppendChar(fs.flag)
+			fs.Pos += 2
+			return fs.Next()
+		} else if fs.Pos != fs.Length-1 {
+			if fs.HasFlag {
+				fs.AppendString(fs.end)
 			}
+			fs.AppendString(fs.start)
+			fs.ChangeFlag = true
+			fs.HasFlag = true
 		}
 	}
 	fs.Pos++

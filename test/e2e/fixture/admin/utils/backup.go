@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
-	yaml "gopkg.in/yaml.v3"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	yaml "go.yaml.in/yaml/v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -13,15 +13,15 @@ type ExportedResources []unstructured.Unstructured
 
 func GetExportedResourcesFromOutput(output string) (ExportedResources, error) {
 	var resources []unstructured.Unstructured
-	docs := strings.Split(output, "---")
+	docs := strings.SplitSeq(output, "\n---\n")
 
-	for _, doc := range docs {
+	for doc := range docs {
 		doc = strings.TrimSpace(doc)
-		if len(doc) == 0 {
+		if doc == "" {
 			continue
 		}
 
-		var resourceData map[string]interface{}
+		var resourceData map[string]any
 
 		if err := yaml.Unmarshal([]byte(doc), &resourceData); err != nil {
 			return nil, fmt.Errorf("error unmarshaling YAML: %w", err)

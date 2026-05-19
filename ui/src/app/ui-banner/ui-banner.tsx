@@ -41,9 +41,7 @@ const CustomBanner = (props: {
                         Don't show again
                     </button>
                 </>
-            ) : (
-                <></>
-            )}
+            ) : null}
         </div>
     );
 };

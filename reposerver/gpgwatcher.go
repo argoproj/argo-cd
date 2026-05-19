@@ -1,6 +1,7 @@
 package reposerver
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"time"
@@ -8,7 +9,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 const maxRecreateRetries = 5
@@ -46,24 +47,23 @@ func StartGPGWatcher(sourcePath string) error {
 							if err != nil {
 								log.Errorf("Error re-creating watcher on %s: %v", sourcePath, err)
 								if attempt < maxRecreateRetries {
-									attempt += 1
+									attempt++
 									log.Infof("Retrying to re-create watcher, attempt %d of %d", attempt, maxRecreateRetries)
 									time.Sleep(1 * time.Second)
 									continue
-								} else {
-									log.Errorf("Maximum retries exceeded.")
-									close(done)
-									return
 								}
+								log.Errorf("Maximum retries exceeded.")
+								close(done)
+								return
 							}
 							break
 						}
 						// Force sync because we probably missed an event
 						forceSync = true
 					}
-					if gpg.IsShortKeyID(path.Base(event.Name)) || forceSync {
+					if sourceintegrity.IsShortKeyID(path.Base(event.Name)) || forceSync {
 						log.Infof("Updating GPG keyring on filesystem event")
-						added, removed, err := gpg.SyncKeyRingFromDirectory(sourcePath)
+						added, removed, err := sourceintegrity.SyncKeyRingFromDirectory(sourcePath)
 						if err != nil {
 							log.Errorf("Could not sync keyring: %s", err.Error())
 						} else {
@@ -86,5 +86,5 @@ func StartGPGWatcher(sourcePath string) error {
 		return fmt.Errorf("failed to add a new source to the watcher: %w", err)
 	}
 	<-done
-	return fmt.Errorf("Abnormal termination of GPG watcher, refusing to continue.")
+	return errors.New("abnormal termination of GPG watcher, refusing to continue")
 }

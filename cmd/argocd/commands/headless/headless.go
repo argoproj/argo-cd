@@ -13,30 +13,30 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	runtimeUtil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/server"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/initialize"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/server"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
 type forwardCacheClient struct {
@@ -86,7 +86,7 @@ func (c *forwardCacheClient) Rename(oldKey string, newKey string, expiration tim
 	})
 }
 
-func (c *forwardCacheClient) Get(key string, obj interface{}) error {
+func (c *forwardCacheClient) Get(key string, obj any) error {
 	return c.doLazy(func(client cache.CacheClient) error {
 		return client.Get(key, obj)
 	})
@@ -120,14 +120,14 @@ type forwardRepoClientset struct {
 	kubeClientset  kubernetes.Interface
 }
 
-func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
+func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclient.RepoServerServiceClient, error) {
 	c.init.Do(func() {
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
 		repoServerName := c.repoServerName
 		repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServererviceLabelSelector})
 		if err != nil {
 			c.err = err
 			return
@@ -162,7 +162,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to create version client: %w", err)
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 	_, err = versionClient.Version(ctx, &empty.Empty{})
 	if err != nil {
 		return fmt.Errorf("failed to get version: %w", err)
@@ -175,22 +175,21 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 //
 // If the clientOpts enables core mode, but the local config does not have core mode enabled, this function will
 // not start the local server.
-func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType, clientConfig clientcmd.ClientConfig) error {
+func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, clientConfig clientcmd.ClientConfig) (func(), error) {
 	if clientConfig == nil {
-		flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
-		clientConfig = cli.AddKubectlFlagsToSet(flags)
+		clientConfig = newClientConfig(clientOpts.KubeOverrides)
 	}
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
 		// Core mode is enabled on client options. Check the local config to see if we should start the API server.
 		localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 		if err != nil {
-			return fmt.Errorf("error reading local config: %w", err)
+			return nil, fmt.Errorf("error reading local config: %w", err)
 		}
 		if localCfg != nil {
 			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
 			if err != nil {
-				return fmt.Errorf("error resolving context: %w", err)
+				return nil, fmt.Errorf("error resolving context: %w", err)
 			}
 			// There was a local config file, so determine whether core mode is enabled per the config file.
 			startInProcessAPI = configCtx.Server.Core
@@ -198,66 +197,78 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 	// If we're in core mode, start the API server on the fly.
 	if !startInProcessAPI {
-		return nil
+		return nil, nil
 	}
 
 	// get rid of logging error handler
-	runtime.ErrorHandlers = runtime.ErrorHandlers[1:]
+	runtimeUtil.ErrorHandlers = runtimeUtil.ErrorHandlers[1:]
 	cli.SetLogLevel(log.ErrorLevel.String())
 	log.SetLevel(log.ErrorLevel)
 	os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
 	if address == nil {
-		address = ptr.To("localhost")
+		address = new("localhost")
 	}
 	if port == nil || *port == 0 {
-		addr := fmt.Sprintf("%s:0", *address)
-		ln, err := net.Listen("tcp", addr)
+		addr := *address + ":0"
+		lc := &net.ListenConfig{}
+		ln, err := lc.Listen(ctx, "tcp", addr)
 		if err != nil {
-			return fmt.Errorf("failed to listen on %q: %w", addr, err)
+			return nil, fmt.Errorf("failed to listen on %q: %w", addr, err)
 		}
 		port = &ln.Addr().(*net.TCPAddr).Port
-		io.Close(ln)
+		utilio.Close(ln)
 	}
 
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		return fmt.Errorf("error creating client config: %w", err)
+		return nil, fmt.Errorf("error creating client config: %w", err)
 	}
 	appClientset, err := appclientset.NewForConfig(restConfig)
 	if err != nil {
-		return fmt.Errorf("error creating app clientset: %w", err)
+		return nil, fmt.Errorf("error creating app clientset: %w", err)
 	}
 	kubeClientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		return fmt.Errorf("error creating kubernetes clientset: %w", err)
+		return nil, fmt.Errorf("error creating kubernetes clientset: %w", err)
 	}
 
 	dynamicClientset, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
-		return fmt.Errorf("error creating kubernetes dynamic clientset: %w", err)
+		return nil, fmt.Errorf("error creating kubernetes dynamic clientset: %w", err)
 	}
 
-	controllerClientset, err := client.New(restConfig, client.Options{})
+	scheme := runtime.NewScheme()
+	err = v1alpha1.AddToScheme(scheme)
 	if err != nil {
-		return fmt.Errorf("error creating kubernetes controller clientset: %w", err)
+		return nil, fmt.Errorf("error adding argo resources to scheme: %w", err)
+	}
+	err = corev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("error adding corev1 resources to scheme: %w", err)
+	}
+	controllerClientset, err := client.New(restConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creating kubernetes controller clientset: %w", err)
 	}
 	controllerClientset = client.NewDryRunClient(controllerClientset)
 
 	namespace, _, err := clientConfig.Namespace()
 	if err != nil {
-		return fmt.Errorf("error getting namespace: %w", err)
+		return nil, fmt.Errorf("error getting namespace: %w", err)
 	}
 
 	mr, err := miniredis.Run()
 	if err != nil {
-		return fmt.Errorf("error running miniredis: %w", err)
+		return nil, fmt.Errorf("error running miniredis: %w", err)
 	}
 	redisOptions := &redis.Options{Addr: mr.Addr()}
 	if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClientset, namespace, redisOptions); err != nil {
 		log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
 	}
 
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: cache.RedisCompressionType(clientOpts.RedisCompression), redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:              false,
 		Namespace:               namespace,
@@ -265,7 +276,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		AppClientset:            appClientset,
 		DisableAuth:             true,
 		RedisClient:             redis.NewClient(redisOptions),
-		Cache:                   servercache.NewCache(appstateCache, 0, 0, 0),
+		Cache:                   servercache.NewCache(appstateCache, 0, 0),
 		KubeClientset:           kubeClientset,
 		DynamicClientset:        dynamicClientset,
 		KubeControllerClientset: controllerClientset,
@@ -278,7 +289,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 
 	lns, err := srv.Listen()
 	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
+		return nil, fmt.Errorf("failed to listen: %w", err)
 	}
 	go srv.Run(ctx, lns)
 	clientOpts.ServerAddr = fmt.Sprintf("%s:%d", *address, *port)
@@ -288,7 +299,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 
 	tries := 5
-	for i := 0; i < tries; i++ {
+	for range tries {
 		err = testAPI(ctx, clientOpts)
 		if err == nil {
 			break
@@ -296,19 +307,19 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		time.Sleep(time.Second)
 	}
 	if err != nil {
-		return fmt.Errorf("all retries failed: %w", err)
+		return nil, fmt.Errorf("all retries failed: %w", err)
 	}
-	return nil
+	return srv.Shutdown, nil
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
 func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
 	ctx := c.Context()
 
-	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
+	ctxStr := resolveAndApplyKubeContext(opts, c)
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
-	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone, nil)
+	_, err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -317,4 +328,44 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 		log.Fatal(err)
 	}
 	return client
+}
+
+// newClientConfig creates a new clientcmd.ClientConfig based on the provided overrides.
+func newClientConfig(overrides *clientcmd.ConfigOverrides) clientcmd.ClientConfig {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+
+	configOverrides := clientcmd.ConfigOverrides{}
+	if overrides != nil {
+		configOverrides = *overrides
+	}
+
+	return clientcmd.NewInteractiveDeferredLoadingClientConfig(
+		loadingRules,
+		&configOverrides,
+		os.Stdin,
+	)
+}
+
+// resolveAndApplyKubeContext resolves the kube context name to use.
+// If the context flag was explicitly set and opts is non-nil, it applies that
+// value to opts.KubeOverrides.CurrentContext.
+func resolveAndApplyKubeContext(opts *apiclient.ClientOptions, c *cobra.Command) string {
+	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
+	if opts == nil {
+		return ctxStr
+	}
+	if ctxStr != "" {
+		if opts.KubeOverrides == nil {
+			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
+		}
+		opts.KubeOverrides.CurrentContext = ctxStr
+		return ctxStr
+	}
+
+	if opts.KubeOverrides != nil {
+		return opts.KubeOverrides.CurrentContext
+	}
+
+	return ""
 }

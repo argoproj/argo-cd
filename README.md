@@ -13,12 +13,13 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/argoproj?style=social)](https://twitter.com/argoproj)
 [![Slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://argoproj.github.io/community/join-slack)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-argoproj-blue.svg?logo=linkedin)](https://www.linkedin.com/company/argoproj/)
+[![Bluesky](https://img.shields.io/badge/Bluesky-argoproj-blue.svg?style=social&logo=bluesky)](https://bsky.app/profile/argoproj.bsky.social)
 
 # Argo CD - Declarative Continuous Delivery for Kubernetes
 
 ## What is Argo CD?
 
-Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
+Argo CD is a declarative GitOps continuous delivery tool for Kubernetes.
 
 ![Argo CD UI](docs/assets/argocd-ui.gif)
 
@@ -44,7 +45,7 @@ Check live demo at https://cd.apps.argoproj.io/.
 
  You can reach the Argo CD community and developers via the following channels:
 
-* Q & A : [Github Discussions](https://github.com/argoproj/argo-cd/discussions)
+* Q & A : [GitHub Discussions](https://github.com/argoproj/argo-cd/discussions)
 * Chat : [The #argo-cd Slack channel](https://argoproj.github.io/community/join-slack)
 * Contributors Office Hours: [Every Thursday](https://calendar.google.com/calendar/u/0/embed?src=argoproj@gmail.com) | [Agenda](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
 * User Community meeting: [First Wednesday of the month](https://calendar.google.com/calendar/u/0/embed?src=argoproj@gmail.com) | [Agenda](https://docs.google.com/document/d/1ttgw98MO45Dq7ZUHpIiOIEfbyeitKHNfMjbY5dLLMKQ)

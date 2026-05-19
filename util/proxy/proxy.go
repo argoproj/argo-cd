@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -9,6 +8,19 @@ import (
 
 	"golang.org/x/net/http/httpproxy"
 )
+
+// DefaultProxyCallback is the default proxy callback function that reads from environment variables. http.ProxyFromEnvironment
+// is cached on first call, so we can't use it for tests. When writing a test that uses t.Setenv for some proxy env var,
+// call UseTestingProxyCallback.
+var DefaultProxyCallback = http.ProxyFromEnvironment
+
+// UseTestingProxyCallback sets the DefaultProxyCallback to use httpproxy.FromEnvironment. This is useful for tests that
+// use t.Setenv to set proxy env variables.
+func UseTestingProxyCallback() {
+	DefaultProxyCallback = func(r *http.Request) (*url.URL, error) {
+		return httpproxy.FromEnvironment().ProxyFunc()(r.URL)
+	}
+}
 
 // UpsertEnv removes the existing proxy env variables and adds the custom proxy variables
 func UpsertEnv(cmd *exec.Cmd, proxy string, noProxy string) []string {
@@ -43,17 +55,17 @@ func GetCallback(proxy string, noProxy string) func(*http.Request) (*url.URL, er
 		}
 	}
 	// read proxy from env variable if custom proxy is missing
-	return http.ProxyFromEnvironment
+	return DefaultProxyCallback
 }
 
 func httpProxy(url string) string {
-	return fmt.Sprintf("http_proxy=%s", url)
+	return "http_proxy=" + url
 }
 
 func httpsProxy(url string) string {
-	return fmt.Sprintf("https_proxy=%s", url)
+	return "https_proxy=" + url
 }
 
 func noProxyVar(noProxy string) string {
-	return fmt.Sprintf("no_proxy=%s", noProxy)
+	return "no_proxy=" + noProxy
 }

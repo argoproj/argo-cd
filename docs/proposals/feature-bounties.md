@@ -20,7 +20,7 @@ We'd like to have the ability to offer monetary rewards for significant features
 ## Motivation
 The Argo Project is driven by community contributions and in shared trust with maintainer companies. Sometimes there are important features worth investing in that represent substantial work and are tougher, or take longer to implement. 
 
-By providing a financial incentive, we can spur additional development from the community and indepdent contributors. 
+By providing a financial incentive, we can spur additional development from the community and independent contributors. 
 
 ## Proposal
 Add the ability to mark a proposal with a bounty and a specific amount. When a PR is successfully merged, release payment to the PR author(s). 
@@ -42,7 +42,7 @@ A bounty is a special proposal created under `docs/proposals/feature-bounties`.
 #### Claiming a Bounty
 * Argo will pay out bounties once a pull request implementing the requested features/changes/fixes is merged.
 * A bounty is limited to a single successful PR.
-* Those interested in working on the bounty are encouraged to comment on the issue, and users may team up to split a bounty if they prefer but collaboration is not required and users should not shame eachother for their preferences to work alone or together.
+* Those interested in working on the bounty are encouraged to comment on the issue, and users may team up to split a bounty if they prefer but collaboration is not required and users should not shame each other for their preferences to work alone or together.
 * A comment of interest does not constitute a claim and will not be treated as such.
 * The first pull request submitted that is ready for merge will be reviewed by maintainers. Maintainers will also consider any competing pull requests submitted within 24-hours. We expect this will be a very rare circumstance. If multiple, high-quality, merge ready pull requests are submitted, 3-5 Approvers for the sub-project will vote to decide the final pull request merged.
 

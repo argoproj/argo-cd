@@ -1,17 +1,29 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: "Waiting for MonoVertex status"
-  inputPath: testdata/progressing.yaml
+    message: "Not yet reconciled"
+  inputPath: testdata/MonoVertexRollout/progressing-observedgen.yaml
 - healthStatus:
     status: Healthy
-    message: "Successful"
-  inputPath: testdata/healthy.yaml
+    message: "Healthy"
+  inputPath: testdata/MonoVertexRollout/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "MonoVertex paused"
+  inputPath: testdata/MonoVertexRollout/paused.yaml
 - healthStatus:
     status: Degraded
     message: "MonoVertex Failed"
-  inputPath: testdata/degraded.yaml
+  inputPath: testdata/MonoVertexRollout/degraded.yaml
 - healthStatus:
     status: Progressing
-    message: "Waiting for MonoVertex status"
-  inputPath: testdata/progressing-reason.yaml
+    message: "Child Progressing"
+  inputPath: testdata/MonoVertexRollout/progressing-reason.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/MonoVertexRollout/pending-upgrade-in-progress.yaml
+- healthStatus:
+    status: Degraded
+    message: "Progressive upgrade failed"
+  inputPath: testdata/MonoVertexRollout/progressive-failed.yaml

@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// Bar ...
+// Bar is a simple progress bar for command line applications.
 type Bar struct {
 	percent int64  // progress percentage
 	cur     int64  // current progress
@@ -30,7 +30,7 @@ func (bar *Bar) getPercent() int64 {
 }
 
 func (bar *Bar) Increment() {
-	bar.cur += 1
+	bar.cur++
 }
 
 func (bar *Bar) Play() {

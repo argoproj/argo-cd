@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -18,10 +19,10 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	argocderrors "github.com/argoproj/argo-cd/v2/util/errors"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v3/common"
+	argocderrors "github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rand"
 )
 
 const (
@@ -31,11 +32,11 @@ const (
 
 type noopCodec struct{}
 
-func (noopCodec) Marshal(v interface{}) ([]byte, error) {
+func (noopCodec) Marshal(v any) ([]byte, error) {
 	return v.([]byte), nil
 }
 
-func (noopCodec) Unmarshal(data []byte, v interface{}) error {
+func (noopCodec) Unmarshal(data []byte, v any) error {
 	pointer := v.(*[]byte)
 	*pointer = data
 	return nil
@@ -52,7 +53,7 @@ func toFrame(msg []byte) []byte {
 	return frame
 }
 
-func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
+func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
 	schema := "https"
 	if c.PlainText {
 		schema = "http"
@@ -65,7 +66,8 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	} else {
 		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
 	}
-	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
+	// Use context in the HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +86,9 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		if resp.Body != nil {
+			utilio.Close(resp.Body)
+		}
 		return nil, fmt.Errorf("%s %s failed with status code %d", req.Method, req.URL, resp.StatusCode)
 	}
 	var code codes.Code
@@ -95,19 +100,23 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 			code = codes.Code(statusInt)
 		}
 		if code != codes.OK {
+			if resp.Body != nil {
+				utilio.Close(resp.Body)
+			}
 			return nil, status.Error(code, resp.Header.Get("Grpc-Message"))
 		}
 	}
 	return resp, nil
 }
 
-func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
+func (c *client) startGRPCProxy(ctx context.Context) (*grpc.Server, net.Listener, error) {
 	randSuffix, err := rand.String(16)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate random socket filename: %w", err)
 	}
 	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
-	ln, err := net.Listen("unix", serverAddr)
+	lc := &net.ListenConfig{}
+	ln, err := lc.Listen(ctx, "unix", serverAddr)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -118,10 +127,10 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
-		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
+		grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
-				return fmt.Errorf("Unable to get method name from stream context.")
+				return errors.New("unable to get method name from stream context")
 			}
 			msg := make([]byte, 0)
 			err := stream.RecvMsg(&msg)
@@ -137,16 +146,16 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			md = metadata.Join(md, headersMD)
 
-			resp, err := c.executeRequest(fullMethodName, msg, md)
+			resp, err := c.executeRequest(stream.Context(), fullMethodName, msg, md)
 			if err != nil {
 				return err
 			}
 
 			go func() {
 				<-stream.Context().Done()
-				argoio.Close(resp.Body)
+				utilio.Close(resp.Body)
 			}()
-			defer argoio.Close(resp.Body)
+			defer utilio.Close(resp.Body)
 			c.httpClient.CloseIdleConnections()
 
 			for {
@@ -169,9 +178,8 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 						return err
 					} else if read < length {
 						return io.ErrUnexpectedEOF
-					} else {
-						return nil
 					}
+					return nil
 				}
 
 				if err := stream.SendMsg(data); err != nil {
@@ -187,20 +195,20 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 }
 
 // useGRPCProxy ensures that grpc proxy server is started and return closer which stops server when no one uses it
-func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
+func (c *client) useGRPCProxy(ctx context.Context) (net.Addr, io.Closer, error) {
 	c.proxyMutex.Lock()
 	defer c.proxyMutex.Unlock()
 
 	if c.proxyListener == nil {
 		var err error
-		c.proxyServer, c.proxyListener, err = c.startGRPCProxy()
+		c.proxyServer, c.proxyListener, err = c.startGRPCProxy(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 	c.proxyUsersCount = c.proxyUsersCount + 1
 
-	return c.proxyListener.Addr(), argoio.NewCloser(func() error {
+	return c.proxyListener.Addr(), utilio.NewCloser(func() error {
 		c.proxyMutex.Lock()
 		defer c.proxyMutex.Unlock()
 		c.proxyUsersCount = c.proxyUsersCount - 1

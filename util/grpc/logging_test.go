@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 )
 
 func Test_JSONLogging(t *testing.T) {
@@ -22,14 +23,14 @@ func Test_JSONLogging(t *testing.T) {
 	l.SetOutput(&buf)
 	entry := logrus.NewEntry(l)
 
-	c := context.Background()
+	c := t.Context()
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return nil, nil
 	}
-	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+	decider := func(_ context.Context, _ interceptors.CallMeta) bool {
 		return true
 	}
 	interceptor := PayloadUnaryServerInterceptor(entry, false, decider)
@@ -37,20 +38,20 @@ func Test_JSONLogging(t *testing.T) {
 	require.NoError(t, err)
 
 	out := buf.String()
-	assert.Contains(t, out, fmt.Sprintf(`"grpc.request.content":{"name":"%s"`, req.Name))
+	assert.Contains(t, out, fmt.Sprintf(`"grpc.request.content":{"name":%q`, req.Name))
 }
 
 func Test_logRequest(t *testing.T) {
-	c := context.Background()
+	c := t.Context()
 	//nolint:staticcheck
 	c = context.WithValue(c, "claims", jwt.MapClaims{"groups": []string{"expected-group-claim"}})
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return nil, nil
 	}
-	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+	decider := func(_ context.Context, _ interceptors.CallMeta) bool {
 		return true
 	}
 
