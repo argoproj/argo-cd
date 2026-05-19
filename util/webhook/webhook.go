@@ -87,17 +87,11 @@ type ArgoCDWebhookHandler struct {
 	appNs                  []string
 	appClientset           appclientset.Interface
 	appsLister             alpha1.ApplicationLister
-	github                 *github.Webhook
-	gitlab                 *gitlab.Webhook
-	bitbucket              *bitbucket.Webhook
-	bitbucketserver        *bitbucketserver.Webhook
-	azuredevops            *azuredevops.Webhook
-	gogs                   *gogs.Webhook
+	parsers                []Extractor
 	settings               *settings.ArgoCDSettings
 	settingsSrc            settingsSource
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
-	ghcrHandler            *GHCRParser
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
@@ -128,16 +122,35 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
+	// Each upstream constructor returns a nil *Webhook on error; skip those so a
+	// matching request doesn't panic with a nil-pointer dereference in Parse.
+	var parsers []Extractor
+	if azuredevopsWebhook != nil {
+		parsers = append(parsers, &azureDevOpsParser{webhook: azuredevopsWebhook})
+	}
+	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
+	if gogsWebhook != nil {
+		parsers = append(parsers, &gogsParser{webhook: gogsWebhook})
+	}
+	if githubWebhook != nil {
+		parsers = append(parsers, &githubParser{webhook: githubWebhook})
+	}
+	if gitlabWebhook != nil {
+		parsers = append(parsers, &gitlabParser{webhook: gitlabWebhook})
+	}
+	if bitbucketWebhook != nil {
+		parsers = append(parsers, &bitbucketParser{webhook: bitbucketWebhook})
+	}
+	if bitbucketserverWebhook != nil {
+		parsers = append(parsers, &bitbucketServerParser{webhook: bitbucketserverWebhook})
+	}
+	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
+
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
 		appNs:                  applicationNamespaces,
 		appClientset:           appClientset,
-		github:                 githubWebhook,
-		gitlab:                 gitlabWebhook,
-		bitbucket:              bitbucketWebhook,
-		bitbucketserver:        bitbucketserverWebhook,
-		azuredevops:            azuredevopsWebhook,
-		gogs:                   gogsWebhook,
+		parsers:                parsers,
 		settingsSrc:            settingsSrc,
 		repoCache:              repoCache,
 		serverCache:            serverCache,
@@ -146,7 +159,6 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 		appsLister:             appsLister,
-		ghcrHandler:            NewGHCRParser(set.GetWebhookGitHubSecret()),
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -431,22 +443,22 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					refreshPaths := path.GetSourceRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						hydrate := false
+						var hydrateType *v1alpha1.HydrateType
 						if app.Spec.SourceHydrator != nil {
 							drySource := app.Spec.SourceHydrator.GetDrySource()
 							if (&source).Equals(&drySource) {
-								hydrate = true
+								ht := v1alpha1.HydrateTypeNormal
+								hydrateType = &ht
 							}
 						}
 
 						// refresh paths have changed, so we need to refresh the app
 						log.Infof("refreshing app '%s' from webhook", app.Name)
-						if hydrate {
-							// log if we need to hydrate the app
+						if hydrateType != nil {
 							log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
 						}
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						if _, err := argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, hydrate); err != nil {
+						if _, err := argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, hydrateType); err != nil {
 							log.Errorf("Failed to refresh app '%s': %v", app.Name, err)
 						}
 						break // we don't need to check other sources
@@ -687,44 +699,19 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload any
-	var err error
-
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-
-	if event, handled, err := a.processRegistryWebhook(r); handled {
-		if err != nil {
-			if errors.Is(err, ErrHMACVerificationFailed) {
-				log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-			log.Infof("Registry webhook processing failed: %s", err)
-			http.Error(w, "Registry webhook processing failed", http.StatusBadRequest)
-			return
-		}
-		if event == nil {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		select {
-		case a.queue <- event:
-		default:
-			log.Info("Queue is full, discarding registry webhook payload")
-			http.Error(w, "Queue is full, discarding registry webhook payload", http.StatusServiceUnavailable)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("Registry event received. Processing triggered."))
-		return
-	}
-
-	payload, err = a.processSCMWebhook(r)
-	if err == nil && payload == nil {
+	payload, handled, err := a.processWebhook(r)
+	if !handled {
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
 		return
 	}
 	if err != nil {
+		if errors.Is(err, ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		// If the error is due to a large payload, return a more user-friendly error message
 		if isParsingPayloadError(err) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", a.maxWebhookPayloadSizeB/1024/1024, err)
@@ -741,15 +728,21 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload != nil {
-		select {
-		case a.queue <- payload:
-		default:
-			log.Info("Queue is full, discarding webhook payload")
-			http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
-			return
-		}
+	// Parser claimed the request but produced no payload (e.g. GHCR event that
+	// was intentionally skipped). Acknowledge with 200 and skip the queue.
+	if payload == nil {
+		w.WriteHeader(http.StatusOK)
+		return
 	}
+
+	select {
+	case a.queue <- payload:
+	default:
+		log.Info("Queue is full, discarding webhook payload")
+		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // isParsingPayloadError returns a bool if the error is parsing payload error
@@ -762,59 +755,17 @@ func isParsingPayloadError(err error) bool {
 		errors.Is(err, azuredevops.ErrParsingPayload)
 }
 
-// processRegistryWebhook routes an incoming request to the appropriate registry
-// handler. It returns the parsed event, a boolean indicating whether any handler
-// claimed the request, and any error from parsing. When handled is false, the
-// caller should fall through to SCM webhook processing.
-func (a *ArgoCDWebhookHandler) processRegistryWebhook(r *http.Request) (*RegistryEvent, bool, error) {
-	if a.ghcrHandler.CanHandle(r) {
-		event, err := a.ghcrHandler.ProcessWebhook(r)
-		return event, true, err
-		// TODO: add dockerhub, ecr handler cases in future
+// processWebhook dispatches the request to the first matching parser.
+// The handled return is true when a parser claimed the request, regardless of
+// whether parsing produced a payload or an error; callers use it to distinguish
+// "unknown webhook event" (false) from "claimed but skipped" (true, nil, nil).
+func (a *ArgoCDWebhookHandler) processWebhook(r *http.Request) (any, bool, error) {
+	for _, p := range a.parsers {
+		if p.CanHandle(r) {
+			payload, err := p.Parse(r)
+			return payload, true, err
+		}
 	}
+	log.Debug("Ignoring unknown webhook event")
 	return nil, false, nil
-}
-
-// processSCMWebhook processes an SCM webhook
-func (a *ArgoCDWebhookHandler) processSCMWebhook(r *http.Request) (any, error) {
-	var payload any
-	var err error
-	switch {
-	case r.Header.Get("X-Vss-Activityid") != "":
-		payload, err = a.azuredevops.Parse(r, azuredevops.GitPushEventType)
-		if errors.Is(err, azuredevops.ErrBasicAuthVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
-		}
-	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
-	case r.Header.Get("X-Gogs-Event") != "":
-		payload, err = a.gogs.Parse(r, gogs.PushEvent)
-		if errors.Is(err, gogs.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Gogs webhook HMAC verification failed")
-		}
-	case r.Header.Get("X-GitHub-Event") != "":
-		payload, err = a.github.Parse(r, github.PushEvent, github.PingEvent)
-		if errors.Is(err, github.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitHub webhook HMAC verification failed")
-		}
-	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents)
-		if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
-		}
-	case r.Header.Get("X-Hook-UUID") != "":
-		payload, err = a.bitbucket.Parse(r, bitbucket.RepoPushEvent)
-		if errors.Is(err, bitbucket.ErrUUIDVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook UUID verification failed")
-		}
-	case r.Header.Get("X-Event-Key") != "":
-		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent, bitbucketserver.DiagnosticsPingEvent)
-		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook HMAC verification failed")
-		}
-	default:
-		log.Debug("Ignoring unknown webhook event")
-		return nil, nil
-	}
-
-	return payload, err
 }
