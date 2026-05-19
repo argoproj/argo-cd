@@ -372,6 +372,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return(strnote, nil).Once()
 		mockGitClient.EXPECT().CommitSHA().Return("dupe-test-sha", nil).Once()
+		mockGitClient.EXPECT().HasFileChanged("manifest.yaml").Return(false, nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		request := &apiclient.CommitHydratedManifestsRequest{
@@ -398,6 +399,65 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, "dupe-test-sha", resp.HydratedSha, "Should return existing hydrated SHA when already hydrated")
+	})
+
+	t.Run("already hydrated but new path added - should proceed with full hydration", func(t *testing.T) {
+		t.Parallel()
+
+		strnote := "{\"drySha\":\"abc123\"}"
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return(strnote, nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("hydrated-sha-before-new-path", nil).Once()
+		// Check first path - exists and unchanged
+		mockGitClient.EXPECT().HasFileChanged("app1/manifest.yaml").Return(false, nil).Once()
+		// Check second path - new path (file changed = true means new or modified)
+		mockGitClient.EXPECT().HasFileChanged("app2/manifest.yaml").Return(true, nil).Once()
+		// Since a new path is detected, proceed with full WriteForPaths
+		mockGitClient.EXPECT().HasFileChanged("app1/manifest.yaml").Return(false, nil).Once()
+		mockGitClient.EXPECT().HasFileChanged("app2/manifest.yaml").Return(true, nil).Once()
+		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("new-hydrated-sha", nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		request := &apiclient.CommitHydratedManifestsRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			TargetBranch:  "main",
+			SyncBranch:    "env/test",
+			DrySha:        "abc123",
+			CommitMessage: "test commit message",
+			Paths: []*apiclient.PathDetails{
+				{
+					Path: "app1",
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"app1"}}`,
+						},
+					},
+				},
+				{
+					Path: "app2",
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"app2"}}`,
+						},
+					},
+				},
+			},
+		}
+
+		resp, err := service.CommitHydratedManifests(t.Context(), request)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "new-hydrated-sha", resp.HydratedSha, "Should create new commit when new path is added")
 	})
 
 	t.Run("root path with dot - no changes to manifest - should commit note only", func(t *testing.T) {
@@ -454,4 +514,15 @@ func newServiceWithMocks(t *testing.T) (*Service, *mocks.RepoClientFactory) {
 	service.repoClientFactory = mockRepoClientFactory
 
 	return service, mockRepoClientFactory
+}
+
+func Test_allHydratedManifestsUnchanged(t *testing.T) {
+	t.Run("empty paths list", func(t *testing.T) {
+		mockGitClient := gitmocks.NewClient(t)
+		paths := []*apiclient.PathDetails{}
+
+		result, err := allHydratedManifestsUnchanged(mockGitClient, paths)
+		require.NoError(t, err)
+		assert.True(t, result, "Should return true when paths list is empty")
+	})
 }
