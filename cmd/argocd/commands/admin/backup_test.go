@@ -9,9 +9,12 @@ import (
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	dynfake "k8s.io/client-go/dynamic/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
@@ -486,4 +489,403 @@ func TestIsSkipLabelMatches(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestRunExport(t *testing.T) {
+	scheme := k8sruntime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	cmdParamsCM := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      common.ArgoCDCmdParamsConfigMapName,
+				"namespace": "argocd",
+			},
+		},
+	}
+
+	cm := newConfigmapObject()
+	cm.SetName(common.ArgoCDConfigMapName)
+	cm.SetNamespace("argocd")
+	cm.SetAPIVersion("v1")
+	cm.SetKind("ConfigMap")
+
+	rbacCM := newConfigmapObject()
+	rbacCM.SetName(common.ArgoCDRBACConfigMapName)
+	rbacCM.SetNamespace("argocd")
+	rbacCM.SetAPIVersion("v1")
+	rbacCM.SetKind("ConfigMap")
+
+	knownHostsCM := newConfigmapObject()
+	knownHostsCM.SetName(common.ArgoCDKnownHostsConfigMapName)
+	knownHostsCM.SetNamespace("argocd")
+	knownHostsCM.SetAPIVersion("v1")
+	knownHostsCM.SetKind("ConfigMap")
+
+	tlsCM := newConfigmapObject()
+	tlsCM.SetName(common.ArgoCDTLSCertsConfigMapName)
+	tlsCM.SetNamespace("argocd")
+	tlsCM.SetAPIVersion("v1")
+	tlsCM.SetKind("ConfigMap")
+
+	secret := newSecretsObject()
+	secret.SetNamespace("argocd")
+	secret.SetAPIVersion("v1")
+	secret.SetKind("Secret")
+
+	proj := newAppProject()
+	proj.SetNamespace("argocd")
+	proj.SetAPIVersion("argoproj.io/v1alpha1")
+	proj.SetKind("AppProject")
+
+	app := newApplication("argocd")
+	app.SetNamespace("argocd")
+	app.SetAPIVersion("argoproj.io/v1alpha1")
+	app.SetKind("Application")
+
+	appSet := newApplicationSet("argocd")
+	appSet.SetNamespace("argocd")
+	appSet.SetAPIVersion("argoproj.io/v1alpha1")
+	appSet.SetKind("ApplicationSet")
+
+	fakeDynClient := dynfake.NewSimpleDynamicClient(scheme, cmdParamsCM, cm, rbacCM, knownHostsCM, tlsCM, secret, proj, app, appSet)
+
+	acdClients := &argoCDClientsets{
+		configMaps:      fakeDynClient.Resource(configMapResource).Namespace("argocd"),
+		secrets:         fakeDynClient.Resource(secretResource).Namespace("argocd"),
+		projects:        fakeDynClient.Resource(appprojectsResource).Namespace("argocd"),
+		applications:    fakeDynClient.Resource(applicationsResource).Namespace("argocd"),
+		applicationSets: fakeDynClient.Resource(appplicationSetResource).Namespace("argocd"),
+	}
+
+	var buf bytes.Buffer
+	err := runExport(t.Context(), acdClients, fakeDynClient, "argocd", &buf, nil, nil)
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "argocd-cm")
+	assert.Contains(t, output, "argocd-rbac-cm")
+	assert.Contains(t, output, "argocd-ssh-known-hosts-cm")
+	assert.Contains(t, output, "argocd-tls-certs-cm")
+	assert.Contains(t, output, "argocd-secret")
+	assert.Contains(t, output, "default")
+	assert.Contains(t, output, "test")
+	assert.Contains(t, output, "test-appset")
+}
+
+func TestNewExportCommand(t *testing.T) {
+	cmd := NewExportCommand()
+	require.NotNil(t, cmd)
+	assert.Equal(t, "export", cmd.Name())
+}
+
+func TestNewImportCommand(t *testing.T) {
+	cmd := NewImportCommand()
+	require.NotNil(t, cmd)
+	assert.Equal(t, "import", cmd.Name())
+}
+
+func TestRunImport_CreatesNewObjects(t *testing.T) {
+	scheme := k8sruntime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	cmdParamsCM := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      common.ArgoCDCmdParamsConfigMapName,
+				"namespace": "argocd",
+			},
+		},
+	}
+
+	fakeDynClient := dynfake.NewSimpleDynamicClient(scheme, cmdParamsCM)
+
+	acdClients := &argoCDClientsets{
+		configMaps:      fakeDynClient.Resource(configMapResource).Namespace("argocd"),
+		secrets:         fakeDynClient.Resource(secretResource).Namespace("argocd"),
+		projects:        fakeDynClient.Resource(appprojectsResource).Namespace("argocd"),
+		applications:    fakeDynClient.Resource(applicationsResource).Namespace("argocd"),
+		applicationSets: fakeDynClient.Resource(appplicationSetResource).Namespace("argocd"),
+	}
+
+	// Build backup YAML
+	var buf bytes.Buffer
+	cm := newConfigmapObject()
+	cm.SetName(common.ArgoCDConfigMapName)
+	cm.SetNamespace("argocd")
+	cm.SetAPIVersion("v1")
+	cm.SetKind("ConfigMap")
+	export(&buf, *cm, "argocd")
+
+	secret := newSecretsObject()
+	secret.SetNamespace("argocd")
+	secret.SetAPIVersion("v1")
+	secret.SetKind("Secret")
+	export(&buf, *secret, "argocd")
+
+	proj := newAppProject()
+	proj.SetNamespace("argocd")
+	proj.SetAPIVersion("argoproj.io/v1alpha1")
+	proj.SetKind("AppProject")
+	export(&buf, *proj, "argocd")
+
+	app := newApplication("argocd")
+	app.SetNamespace("argocd")
+	app.SetAPIVersion("argoproj.io/v1alpha1")
+	app.SetKind("Application")
+	export(&buf, *app, "argocd")
+
+	appSet := newApplicationSet("argocd")
+	appSet.SetNamespace("argocd")
+	appSet.SetAPIVersion("argoproj.io/v1alpha1")
+	appSet.SetKind("ApplicationSet")
+	export(&buf, *appSet, "argocd")
+
+	err := runImport(t.Context(), acdClients, fakeDynClient, "argocd", buf.Bytes(), false, false, false, false, false, false, false, "", nil, nil)
+	require.NoError(t, err)
+
+	// Verify objects were created
+	_, err = fakeDynClient.Resource(configMapResource).Namespace("argocd").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err)
+	_, err = fakeDynClient.Resource(secretResource).Namespace("argocd").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	_, err = fakeDynClient.Resource(appprojectsResource).Namespace("argocd").Get(t.Context(), "default", metav1.GetOptions{})
+	require.NoError(t, err)
+	_, err = fakeDynClient.Resource(applicationsResource).Namespace("argocd").Get(t.Context(), "test", metav1.GetOptions{})
+	require.NoError(t, err)
+	_, err = fakeDynClient.Resource(appplicationSetResource).Namespace("argocd").Get(t.Context(), "test-appset", metav1.GetOptions{})
+	require.NoError(t, err)
+}
+
+func TestRunImport_UpdatesExisting(t *testing.T) {
+	scheme := k8sruntime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	cmdParamsCM := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      common.ArgoCDCmdParamsConfigMapName,
+				"namespace": "argocd",
+			},
+		},
+	}
+
+	existingCM := newConfigmapObject()
+	existingCM.SetName(common.ArgoCDConfigMapName)
+	existingCM.SetNamespace("argocd")
+	existingCM.SetAPIVersion("v1")
+	existingCM.SetKind("ConfigMap")
+	existingCM.Object["data"] = map[string]any{"old": "value"}
+
+	fakeDynClient := dynfake.NewSimpleDynamicClient(scheme, cmdParamsCM, existingCM)
+
+	acdClients := &argoCDClientsets{
+		configMaps:      fakeDynClient.Resource(configMapResource).Namespace("argocd"),
+		secrets:         fakeDynClient.Resource(secretResource).Namespace("argocd"),
+		projects:        fakeDynClient.Resource(appprojectsResource).Namespace("argocd"),
+		applications:    fakeDynClient.Resource(applicationsResource).Namespace("argocd"),
+		applicationSets: fakeDynClient.Resource(appplicationSetResource).Namespace("argocd"),
+	}
+
+	// Build backup YAML with new data
+	var buf bytes.Buffer
+	cm := newConfigmapObject()
+	cm.SetName(common.ArgoCDConfigMapName)
+	cm.SetNamespace("argocd")
+	cm.SetAPIVersion("v1")
+	cm.SetKind("ConfigMap")
+	cm.Object["data"] = map[string]any{"new": "value"}
+	export(&buf, *cm, "argocd")
+
+	err := runImport(t.Context(), acdClients, fakeDynClient, "argocd", buf.Bytes(), false, false, false, false, false, false, false, "", nil, nil)
+	require.NoError(t, err)
+
+	updatedCM, err := fakeDynClient.Resource(configMapResource).Namespace("argocd").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err)
+	data, _, _ := unstructured.NestedMap(updatedCM.Object, "data")
+	assert.Equal(t, map[string]any{"new": "value"}, data)
+}
+
+func TestRunImport_Prune(t *testing.T) {
+	scheme := k8sruntime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	cmdParamsCM := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      common.ArgoCDCmdParamsConfigMapName,
+				"namespace": "argocd",
+			},
+		},
+	}
+
+	existingSecret := newSecretsObject()
+	existingSecret.SetNamespace("argocd")
+	existingSecret.SetAPIVersion("v1")
+	existingSecret.SetKind("Secret")
+
+	fakeDynClient := dynfake.NewSimpleDynamicClient(scheme, cmdParamsCM, existingSecret)
+
+	acdClients := &argoCDClientsets{
+		configMaps:      fakeDynClient.Resource(configMapResource).Namespace("argocd"),
+		secrets:         fakeDynClient.Resource(secretResource).Namespace("argocd"),
+		projects:        fakeDynClient.Resource(appprojectsResource).Namespace("argocd"),
+		applications:    fakeDynClient.Resource(applicationsResource).Namespace("argocd"),
+		applicationSets: fakeDynClient.Resource(appplicationSetResource).Namespace("argocd"),
+	}
+
+	// Build backup YAML with only a ConfigMap (no secret)
+	var buf bytes.Buffer
+	cm := newConfigmapObject()
+	cm.SetName(common.ArgoCDConfigMapName)
+	cm.SetNamespace("argocd")
+	cm.SetAPIVersion("v1")
+	cm.SetKind("ConfigMap")
+	export(&buf, *cm, "argocd")
+
+	err := runImport(t.Context(), acdClients, fakeDynClient, "argocd", buf.Bytes(), true, false, false, false, false, false, false, "", nil, nil)
+	require.NoError(t, err)
+
+	// Verify secret was pruned
+	_, err = fakeDynClient.Resource(secretResource).Namespace("argocd").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+	require.Error(t, err)
+}
+
+func TestRunImport_DryRun(t *testing.T) {
+	scheme := k8sruntime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	cmdParamsCM := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      common.ArgoCDCmdParamsConfigMapName,
+				"namespace": "argocd",
+			},
+		},
+	}
+
+	fakeDynClient := dynfake.NewSimpleDynamicClient(scheme, cmdParamsCM)
+
+	acdClients := &argoCDClientsets{
+		configMaps:      fakeDynClient.Resource(configMapResource).Namespace("argocd"),
+		secrets:         fakeDynClient.Resource(secretResource).Namespace("argocd"),
+		projects:        fakeDynClient.Resource(appprojectsResource).Namespace("argocd"),
+		applications:    fakeDynClient.Resource(applicationsResource).Namespace("argocd"),
+		applicationSets: fakeDynClient.Resource(appplicationSetResource).Namespace("argocd"),
+	}
+
+	var buf bytes.Buffer
+	cm := newConfigmapObject()
+	cm.SetName(common.ArgoCDConfigMapName)
+	cm.SetNamespace("argocd")
+	cm.SetAPIVersion("v1")
+	cm.SetKind("ConfigMap")
+	export(&buf, *cm, "argocd")
+
+	err := runImport(t.Context(), acdClients, fakeDynClient, "argocd", buf.Bytes(), false, true, false, false, false, false, false, "", nil, nil)
+	require.NoError(t, err)
+
+	// Verify object was NOT created because dryRun=true
+	_, err = fakeDynClient.Resource(configMapResource).Namespace("argocd").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.Error(t, err)
+}
+
+func TestRunImport_SkipLabel(t *testing.T) {
+	scheme := k8sruntime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	cmdParamsCM := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      common.ArgoCDCmdParamsConfigMapName,
+				"namespace": "argocd",
+			},
+		},
+	}
+
+	fakeDynClient := dynfake.NewSimpleDynamicClient(scheme, cmdParamsCM)
+
+	acdClients := &argoCDClientsets{
+		configMaps:      fakeDynClient.Resource(configMapResource).Namespace("argocd"),
+		secrets:         fakeDynClient.Resource(secretResource).Namespace("argocd"),
+		projects:        fakeDynClient.Resource(appprojectsResource).Namespace("argocd"),
+		applications:    fakeDynClient.Resource(applicationsResource).Namespace("argocd"),
+		applicationSets: fakeDynClient.Resource(appplicationSetResource).Namespace("argocd"),
+	}
+
+	var buf bytes.Buffer
+	cm := newConfigmapObject()
+	cm.SetName(common.ArgoCDConfigMapName)
+	cm.SetNamespace("argocd")
+	cm.SetAPIVersion("v1")
+	cm.SetKind("ConfigMap")
+	cm.SetLabels(map[string]string{"skip-label": "true"})
+	export(&buf, *cm, "argocd")
+
+	err := runImport(t.Context(), acdClients, fakeDynClient, "argocd", buf.Bytes(), false, false, false, false, false, false, false, "skip-label=true", nil, nil)
+	require.NoError(t, err)
+
+	// Verify object was NOT created because it has the skip label
+	_, err = fakeDynClient.Resource(configMapResource).Namespace("argocd").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.Error(t, err)
+}
+
+func TestRunImport_NamespaceFilter(t *testing.T) {
+	scheme := k8sruntime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	cmdParamsCM := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":      common.ArgoCDCmdParamsConfigMapName,
+				"namespace": "argocd",
+			},
+		},
+	}
+
+	fakeDynClient := dynfake.NewSimpleDynamicClient(scheme, cmdParamsCM)
+
+	acdClients := &argoCDClientsets{
+		configMaps:      fakeDynClient.Resource(configMapResource).Namespace("argocd"),
+		secrets:         fakeDynClient.Resource(secretResource).Namespace("argocd"),
+		projects:        fakeDynClient.Resource(appprojectsResource).Namespace("argocd"),
+		applications:    fakeDynClient.Resource(applicationsResource).Namespace("argocd"),
+		applicationSets: fakeDynClient.Resource(appplicationSetResource).Namespace("argocd"),
+	}
+
+	var buf bytes.Buffer
+	app := newApplication("unauthorized-ns")
+	app.SetNamespace("unauthorized-ns")
+	app.SetAPIVersion("argoproj.io/v1alpha1")
+	app.SetKind("Application")
+	export(&buf, *app, "argocd")
+
+	// Only allow "argocd" namespace
+	err := runImport(t.Context(), acdClients, fakeDynClient, "argocd", buf.Bytes(), false, false, false, false, false, false, false, "", []string{"argocd"}, nil)
+	require.NoError(t, err)
+
+	// Verify app was NOT created because namespace is not enabled
+	_, err = fakeDynClient.Resource(applicationsResource).Namespace("unauthorized-ns").Get(t.Context(), "test", metav1.GetOptions{})
+	require.Error(t, err)
 }

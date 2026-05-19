@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -67,73 +68,8 @@ func NewExportCommand() *cobra.Command {
 				}()
 			}
 
-			if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
-				defaultNs := getAdditionalNamespaces(ctx, acdClients.configMaps)
-				if len(applicationNamespaces) == 0 {
-					applicationNamespaces = defaultNs.applicationNamespaces
-				}
-				if len(applicationsetNamespaces) == 0 {
-					applicationsetNamespaces = defaultNs.applicationsetNamespaces
-				}
-			}
-			// To support applications and applicationsets in any namespace, we must list ALL namespaces and filter them afterwards
-			if len(applicationNamespaces) > 0 {
-				acdClients.applications = client.Resource(applicationsResource)
-			}
-			if len(applicationsetNamespaces) > 0 {
-				acdClients.applicationSets = client.Resource(appplicationSetResource)
-			}
-
-			acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+			err = runExport(ctx, acdClients, client, namespace, writer, applicationNamespaces, applicationsetNamespaces)
 			errors.CheckError(err)
-			export(writer, *acdConfigMap, namespace)
-			acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
-			export(writer, *acdRBACConfigMap, namespace)
-			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
-			export(writer, *acdKnownHostsConfigMap, namespace)
-			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
-			export(writer, *acdTLSCertsConfigMap, namespace)
-
-			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, secret := range secrets.Items {
-				if isArgoCDSecret(secret) {
-					export(writer, secret, namespace)
-				}
-			}
-
-			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, proj := range projects.Items {
-				export(writer, proj, namespace)
-			}
-
-			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, app := range applications.Items {
-				// Export application only if it is in one of the enabled namespaces
-				if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
-					export(writer, app, namespace)
-				}
-			}
-			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
-			if err != nil && !apierrors.IsNotFound(err) {
-				if apierrors.IsForbidden(err) {
-					log.Warn(err)
-				} else {
-					errors.CheckError(err)
-				}
-			}
-			if applicationSets != nil {
-				for _, appSet := range applicationSets.Items {
-					if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
-						export(writer, appSet, namespace)
-					}
-				}
-			}
 		},
 	}
 
@@ -152,6 +88,349 @@ func NewExportCommand() *cobra.Command {
 		"If the ConfigMap value is not set, only ApplicationSets from the control plane namespace are exported.",
 		applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	return &command
+}
+
+func runExport(ctx context.Context, acdClients *argoCDClientsets, client dynamic.Interface, namespace string, writer io.Writer, applicationNamespaces, applicationsetNamespaces []string) error {
+	if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
+		defaultNs := getAdditionalNamespaces(ctx, acdClients.configMaps)
+		if len(applicationNamespaces) == 0 {
+			applicationNamespaces = defaultNs.applicationNamespaces
+		}
+		if len(applicationsetNamespaces) == 0 {
+			applicationsetNamespaces = defaultNs.applicationsetNamespaces
+		}
+	}
+	// To support applications and applicationsets in any namespace, we must list ALL namespaces and filter them afterwards
+	if len(applicationNamespaces) > 0 {
+		acdClients.applications = client.Resource(applicationsResource)
+	}
+	if len(applicationsetNamespaces) > 0 {
+		acdClients.applicationSets = client.Resource(appplicationSetResource)
+	}
+
+	acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	export(writer, *acdConfigMap, namespace)
+	acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	export(writer, *acdRBACConfigMap, namespace)
+	acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	export(writer, *acdKnownHostsConfigMap, namespace)
+	acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	export(writer, *acdTLSCertsConfigMap, namespace)
+
+	secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, secret := range secrets.Items {
+		if isArgoCDSecret(secret) {
+			export(writer, secret, namespace)
+		}
+	}
+
+	projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, proj := range projects.Items {
+		export(writer, proj, namespace)
+	}
+
+	applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, app := range applications.Items {
+		// Export application only if it is in one of the enabled namespaces
+		if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
+			export(writer, app, namespace)
+		}
+	}
+	applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		if !apierrors.IsForbidden(err) {
+			return err
+		}
+		log.Warn(err)
+	}
+	if applicationSets != nil {
+		for _, appSet := range applicationSets.Items {
+			if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
+				export(writer, appSet, namespace)
+			}
+		}
+	}
+	return nil
+}
+
+func runImport(
+	ctx context.Context,
+	acdClients *argoCDClientsets,
+	client dynamic.Interface,
+	namespace string,
+	input []byte,
+	prune bool,
+	dryRun bool,
+	verbose bool,
+	stopOperation bool,
+	ignoreTracking bool,
+	overrideOnConflict bool,
+	promptsEnabled bool,
+	skipResourcesWithLabel string,
+	applicationNamespaces []string,
+	applicationsetNamespaces []string,
+) error {
+	fmt.Printf("import process started %s\n", namespace)
+	tt := time.Now()
+	var dryRunMsg string
+	if dryRun {
+		dryRunMsg = " (dry run)"
+	}
+
+	if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
+		defaultNs := getAdditionalNamespaces(ctx, acdClients.configMaps)
+		if len(applicationNamespaces) == 0 {
+			applicationNamespaces = defaultNs.applicationNamespaces
+		}
+		if len(applicationsetNamespaces) == 0 {
+			applicationsetNamespaces = defaultNs.applicationsetNamespaces
+		}
+	}
+	// To support applications and applicationsets in any namespace, we must list ALL namespaces and filter them afterwards
+	if len(applicationNamespaces) > 0 {
+		acdClients.applications = client.Resource(applicationsResource)
+	}
+	if len(applicationsetNamespaces) > 0 {
+		acdClients.applicationSets = client.Resource(appplicationSetResource)
+	}
+
+	// pruneObjects tracks live objects, and it's current resource version. any remaining
+	// items in this map indicates the resource should be pruned since it no longer appears
+	// in the backup
+	pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
+	configMaps, err := acdClients.configMaps.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, cm := range configMaps.Items {
+		if isArgoCDConfigMap(cm.GetName()) {
+			pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName(), Namespace: cm.GetNamespace()}] = cm
+		}
+	}
+
+	secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, secret := range secrets.Items {
+		if isArgoCDSecret(secret) {
+			pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName(), Namespace: secret.GetNamespace()}] = secret
+		}
+	}
+	applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, app := range applications.Items {
+		if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
+			pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationKind, Name: app.GetName(), Namespace: app.GetNamespace()}] = app
+		}
+	}
+	projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, proj := range projects.Items {
+		pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: proj.GetName(), Namespace: proj.GetNamespace()}] = proj
+	}
+	applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
+	if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+		log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
+	} else if err != nil {
+		return err
+	}
+	if applicationSets != nil {
+		for _, appSet := range applicationSets.Items {
+			if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
+				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationSetKind, Name: appSet.GetName(), Namespace: appSet.GetNamespace()}] = appSet
+			}
+		}
+	}
+	// Create or replace existing object
+	backupObjects, err := kube.SplitYAML(input)
+	if err != nil {
+		return err
+	}
+	for _, bakObj := range backupObjects {
+		gvk := bakObj.GroupVersionKind()
+		// For objects without namespace, assume they belong in ArgoCD namespace
+		if bakObj.GetNamespace() == "" {
+			bakObj.SetNamespace(namespace)
+		}
+		key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
+		liveObj, exists := pruneObjects[key]
+		delete(pruneObjects, key)
+
+		// If the resource in backup matches the skip label, do not import it
+		if isSkipLabelMatches(bakObj, skipResourcesWithLabel) {
+			fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
+			continue
+		}
+
+		var dynClient dynamic.ResourceInterface
+		switch bakObj.GetKind() {
+		case "Secret":
+			dynClient = client.Resource(secretResource).Namespace(bakObj.GetNamespace())
+		case "ConfigMap":
+			dynClient = client.Resource(configMapResource).Namespace(bakObj.GetNamespace())
+		case application.AppProjectKind:
+			dynClient = client.Resource(appprojectsResource).Namespace(bakObj.GetNamespace())
+		case application.ApplicationKind:
+			// If application is not in one of the allowed namespaces do not import it
+			if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationNamespaces) {
+				continue
+			}
+			dynClient = client.Resource(applicationsResource).Namespace(bakObj.GetNamespace())
+		case application.ApplicationSetKind:
+			// If applicationset is not in one of the allowed namespaces do not import it
+			if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationsetNamespaces) {
+				continue
+			}
+			dynClient = client.Resource(appplicationSetResource).Namespace(bakObj.GetNamespace())
+		}
+
+		// If there is a live object, remove the tracking annotations/label that might conflict
+		// when argo is managed with an application.
+		if ignoreTracking && exists {
+			updateTracking(bakObj, &liveObj)
+		}
+
+		switch {
+		case !exists:
+			isForbidden := false
+			if !dryRun {
+				_, err = dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
+				if err != nil {
+					if !apierrors.IsForbidden(err) && !apierrors.IsNotFound(err) {
+						return err
+					}
+					isForbidden = true
+					log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
+				}
+			}
+			if !isForbidden {
+				fmt.Printf("%s/%s %s in namespace %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
+			}
+		case specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation):
+			if verbose {
+				fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+			}
+		default:
+			isForbidden := false
+			if !dryRun {
+				newLive := updateLive(bakObj, &liveObj, stopOperation)
+				_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+				if apierrors.IsConflict(err) {
+					fmt.Printf("Failed to update %s/%s %s in namespace %s: %v\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
+					if overrideOnConflict {
+						err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+							fmt.Printf("Resource conflict: retrying update for Group: %s, Kind: %s, Name: %s, Namespace: %s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace())
+							liveObj, getErr := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
+							if getErr != nil {
+								return getErr
+							}
+							newLive.SetResourceVersion(liveObj.GetResourceVersion())
+							_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+							return err
+						})
+					}
+				}
+				if err != nil {
+					if !apierrors.IsForbidden(err) && !apierrors.IsNotFound(err) {
+						return err
+					}
+					isForbidden = true
+					log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
+				}
+			}
+			if !isForbidden {
+				fmt.Printf("%s/%s %s in namespace %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
+			}
+		}
+	}
+
+	promptUtil := utils.NewPrompt(promptsEnabled)
+
+	// Delete objects not in backup
+	for key, liveObj := range pruneObjects {
+		// If a live resource has a label to skip the import, it should never be pruned
+		if isSkipLabelMatches(&liveObj, skipResourcesWithLabel) {
+			fmt.Printf("Skipping pruning of %s/%s %s in namespace %s\n", key.Group, key.Kind, liveObj.GetName(), liveObj.GetNamespace())
+			continue
+		}
+
+		if prune {
+			var dynClient dynamic.ResourceInterface
+			switch key.Kind {
+			case "Secret":
+				dynClient = client.Resource(secretResource).Namespace(liveObj.GetNamespace())
+			case application.AppProjectKind:
+				dynClient = client.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
+			case application.ApplicationKind:
+				dynClient = client.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
+				if !dryRun {
+					if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
+						newLive := liveObj.DeepCopy()
+						newLive.SetFinalizers(nil)
+						_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+						if err != nil && !apierrors.IsNotFound(err) {
+							return err
+						}
+					}
+				}
+			case application.ApplicationSetKind:
+				dynClient = client.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
+			default:
+				log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
+			}
+			isForbidden := false
+
+			if !dryRun {
+				canPrune := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to prune %s/%s %s ? [y/n]", key.Group, key.Kind, key.Name))
+				if canPrune {
+					err = dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
+					if err != nil {
+						if !apierrors.IsForbidden(err) && !apierrors.IsNotFound(err) {
+							return err
+						}
+						isForbidden = true
+						log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
+					}
+				} else {
+					fmt.Printf("The command to prune %s/%s %s was cancelled.\n", key.Group, key.Kind, key.Name)
+				}
+			}
+			if !isForbidden {
+				fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
+			}
+		} else {
+			fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
+		}
+	}
+	duration := time.Since(tt)
+	fmt.Printf("Import process completed successfully in namespace %s at %s, duration: %s\n", namespace, time.Now().Format(time.RFC3339), duration)
+	return nil
 }
 
 // NewImportCommand defines a new command for exporting Kubernetes and Argo CD resources.
@@ -188,8 +467,7 @@ func NewImportCommand() *cobra.Command {
 			acdClients := newArgoCDClientsets(config, namespace)
 			client, err := dynamic.NewForConfig(config)
 			errors.CheckError(err)
-			fmt.Printf("import process started %s\n", namespace)
-			tt := time.Now()
+
 			var input []byte
 			if in := args[0]; in == "-" {
 				input, err = io.ReadAll(os.Stdin)
@@ -197,232 +475,9 @@ func NewImportCommand() *cobra.Command {
 				input, err = os.ReadFile(in)
 			}
 			errors.CheckError(err)
-			var dryRunMsg string
-			if dryRun {
-				dryRunMsg = " (dry run)"
-			}
 
-			if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
-				defaultNs := getAdditionalNamespaces(ctx, acdClients.configMaps)
-				if len(applicationNamespaces) == 0 {
-					applicationNamespaces = defaultNs.applicationNamespaces
-				}
-				if len(applicationsetNamespaces) == 0 {
-					applicationsetNamespaces = defaultNs.applicationsetNamespaces
-				}
-			}
-			// To support applications and applicationsets in any namespace, we must list ALL namespaces and filter them afterwards
-			if len(applicationNamespaces) > 0 {
-				acdClients.applications = client.Resource(applicationsResource)
-			}
-			if len(applicationsetNamespaces) > 0 {
-				acdClients.applicationSets = client.Resource(appplicationSetResource)
-			}
-
-			// pruneObjects tracks live objects, and it's current resource version. any remaining
-			// items in this map indicates the resource should be pruned since it no longer appears
-			// in the backup
-			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
-			configMaps, err := acdClients.configMaps.List(ctx, metav1.ListOptions{})
-
+			err = runImport(ctx, acdClients, client, namespace, input, prune, dryRun, verbose, stopOperation, ignoreTracking, overrideOnConflict, promptsEnabled, skipResourcesWithLabel, applicationNamespaces, applicationsetNamespaces)
 			errors.CheckError(err)
-			for _, cm := range configMaps.Items {
-				if isArgoCDConfigMap(cm.GetName()) {
-					pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName(), Namespace: cm.GetNamespace()}] = cm
-				}
-			}
-
-			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, secret := range secrets.Items {
-				if isArgoCDSecret(secret) {
-					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName(), Namespace: secret.GetNamespace()}] = secret
-				}
-			}
-			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, app := range applications.Items {
-				if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
-					pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationKind, Name: app.GetName(), Namespace: app.GetNamespace()}] = app
-				}
-			}
-			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, proj := range projects.Items {
-				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: proj.GetName(), Namespace: proj.GetNamespace()}] = proj
-			}
-			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
-			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-				log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
-			} else {
-				errors.CheckError(err)
-			}
-			if applicationSets != nil {
-				for _, appSet := range applicationSets.Items {
-					if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
-						pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationSetKind, Name: appSet.GetName(), Namespace: appSet.GetNamespace()}] = appSet
-					}
-				}
-			}
-			// Create or replace existing object
-			backupObjects, err := kube.SplitYAML(input)
-
-			errors.CheckError(err)
-			for _, bakObj := range backupObjects {
-				gvk := bakObj.GroupVersionKind()
-				// For objects without namespace, assume they belong in ArgoCD namespace
-				if bakObj.GetNamespace() == "" {
-					bakObj.SetNamespace(namespace)
-				}
-				key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
-				liveObj, exists := pruneObjects[key]
-				delete(pruneObjects, key)
-
-				// If the resource in backup matches the skip label, do not import it
-				if isSkipLabelMatches(bakObj, skipResourcesWithLabel) {
-					fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
-					continue
-				}
-
-				var dynClient dynamic.ResourceInterface
-				switch bakObj.GetKind() {
-				case "Secret":
-					dynClient = client.Resource(secretResource).Namespace(bakObj.GetNamespace())
-				case "ConfigMap":
-					dynClient = client.Resource(configMapResource).Namespace(bakObj.GetNamespace())
-				case application.AppProjectKind:
-					dynClient = client.Resource(appprojectsResource).Namespace(bakObj.GetNamespace())
-				case application.ApplicationKind:
-					// If application is not in one of the allowed namespaces do not import it
-					if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationNamespaces) {
-						continue
-					}
-					dynClient = client.Resource(applicationsResource).Namespace(bakObj.GetNamespace())
-				case application.ApplicationSetKind:
-					// If applicationset is not in one of the allowed namespaces do not import it
-					if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationsetNamespaces) {
-						continue
-					}
-					dynClient = client.Resource(appplicationSetResource).Namespace(bakObj.GetNamespace())
-				}
-
-				// If there is a live object, remove the tracking annotations/label that might conflict
-				// when argo is managed with an application.
-				if ignoreTracking && exists {
-					updateTracking(bakObj, &liveObj)
-				}
-
-				switch {
-				case !exists:
-					isForbidden := false
-					if !dryRun {
-						_, err = dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
-						if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-							isForbidden = true
-							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
-						} else {
-							errors.CheckError(err)
-						}
-					}
-					if !isForbidden {
-						fmt.Printf("%s/%s %s in namespace %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
-					}
-				case specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation):
-					if verbose {
-						fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
-					}
-				default:
-					isForbidden := false
-					if !dryRun {
-						newLive := updateLive(bakObj, &liveObj, stopOperation)
-						_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-						if apierrors.IsConflict(err) {
-							fmt.Printf("Failed to update %s/%s %s in namespace %s: %v\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
-							if overrideOnConflict {
-								err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-									fmt.Printf("Resource conflict: retrying update for Group: %s, Kind: %s, Name: %s, Namespace: %s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace())
-									liveObj, getErr := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
-									if getErr != nil {
-										errors.CheckError(getErr)
-									}
-									newLive.SetResourceVersion(liveObj.GetResourceVersion())
-									_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-									return err
-								})
-							}
-						}
-						if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-							isForbidden = true
-							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
-						} else {
-							errors.CheckError(err)
-						}
-					}
-					if !isForbidden {
-						fmt.Printf("%s/%s %s in namespace %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
-					}
-				}
-			}
-
-			promptUtil := utils.NewPrompt(promptsEnabled)
-
-			// Delete objects not in backup
-			for key, liveObj := range pruneObjects {
-				// If a live resource has a label to skip the import, it should never be pruned
-				if isSkipLabelMatches(&liveObj, skipResourcesWithLabel) {
-					fmt.Printf("Skipping pruning of %s/%s %s in namespace %s\n", key.Group, key.Kind, liveObj.GetName(), liveObj.GetNamespace())
-					continue
-				}
-
-				if prune {
-					var dynClient dynamic.ResourceInterface
-					switch key.Kind {
-					case "Secret":
-						dynClient = client.Resource(secretResource).Namespace(liveObj.GetNamespace())
-					case application.AppProjectKind:
-						dynClient = client.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
-					case application.ApplicationKind:
-						dynClient = client.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
-						if !dryRun {
-							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
-								newLive := liveObj.DeepCopy()
-								newLive.SetFinalizers(nil)
-								_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-								if err != nil && !apierrors.IsNotFound(err) {
-									errors.CheckError(err)
-								}
-							}
-						}
-					case application.ApplicationSetKind:
-						dynClient = client.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
-					default:
-						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
-					}
-					isForbidden := false
-
-					if !dryRun {
-						canPrune := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to prune %s/%s %s ? [y/n]", key.Group, key.Kind, key.Name))
-						if canPrune {
-							err = dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
-							if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-								isForbidden = true
-								log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
-							} else {
-								errors.CheckError(err)
-							}
-						} else {
-							fmt.Printf("The command to prune %s/%s %s was cancelled.\n", key.Group, key.Kind, key.Name)
-						}
-					}
-					if !isForbidden {
-						fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
-					}
-				} else {
-					fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
-				}
-			}
-			duration := time.Since(tt)
-			fmt.Printf("Import process completed successfully in namespace %s at %s, duration: %s\n", namespace, time.Now().Format(time.RFC3339), duration)
 		},
 	}
 
