@@ -1,57 +1,76 @@
 package generators
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-// filterGitPaths filters paths based on Git directory inclusion/exclusion rules.
-func filterGitPaths(directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
-	return filterPaths(allPaths, len(directories),
-		func(i int) (string, bool) {
-			return directories[i].Path, directories[i].Exclude
-		})
+// repoSourceKind identifies the type of repository source backing a generator.
+type repoSourceKind string
+
+const (
+	repoSourceKindGit repoSourceKind = "git"
+	repoSourceKindOCI repoSourceKind = "oci"
+)
+
+// pathPattern is an include/exclude path rule for directory or file matching.
+type pathPattern struct {
+	Path    string
+	Exclude bool
 }
 
-// filterOciPaths filters paths based on OCI directory inclusion/exclusion rules.
-func filterOciPaths(directories []argoprojiov1alpha1.OciDirectoryGeneratorItem, allPaths []string) []string {
-	return filterPaths(allPaths, len(directories),
-		func(i int) (string, bool) {
-			return directories[i].Path, directories[i].Exclude
-		})
+// repoSourceSpec holds the per-call configuration shared by the Git and OCI generators.
+type repoSourceSpec struct {
+	URL             string
+	Revision        string
+	PathParamPrefix string
+	Values          map[string]string
+	Directories     []pathPattern
+	Files           []pathPattern
 }
 
-// filterPaths is the common filtering logic extracted from both Git and OCI generators.
-func filterPaths(allPaths []string, numPatterns int, getPattern func(int) (path string, exclude bool)) []string {
+// repoSource is implemented by GitGenerator and OciGenerator to back the shared directory/file traversal logic.
+type repoSource interface {
+	// resolveSourceIntegrity returns the source-integrity policy for the generator's AppProject,
+	// or nil if the backend doesn't support signing.
+	resolveSourceIntegrity(ctx context.Context, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) (*argoprojiov1alpha1.SourceIntegrity, error)
+
+	listDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) ([]string, error)
+	getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error)
+}
+
+// filterPaths filters paths based on directory inclusion/exclusion rules.
+func filterPaths(dirs []pathPattern, allPaths []string) []string {
 	var res []string
 	for _, appPath := range allPaths {
 		appInclude := false
 		appExclude := false
-		// Iterating over each appPath and check whether directories object has requestedPath that matches the appPath
-		for i := range numPatterns {
-			patternPath, exclude := getPattern(i)
-			match, err := path.Match(patternPath, appPath)
+		for _, dir := range dirs {
+			match, err := path.Match(dir.Path, appPath)
 			if err != nil {
 				log.WithError(err).
-					WithField("requestedPath", patternPath).
+					WithField("requestedPath", dir.Path).
 					WithField("appPath", appPath).
 					Error("error while matching appPath to requestedPath")
 				continue
 			}
-			if match && !exclude {
+			if match && !dir.Exclude {
 				appInclude = true
 			}
-			if match && exclude {
+			if match && dir.Exclude {
 				appExclude = true
 			}
 		}
@@ -216,4 +235,106 @@ func resolveProjectName(project string) string {
 	}
 
 	return project
+}
+
+// generateRepoSourceParams resolves source integrity and dispatches to directory or file-based generation.
+func generateRepoSourceParams(src repoSource, kind repoSourceKind, spec repoSourceSpec, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
+	noRevisionCache := appSet.RefreshRequired()
+
+	sourceIntegrity, err := src.resolveSourceIntegrity(context.TODO(), appSet, client)
+	if err != nil {
+		return nil, err
+	}
+
+	project := resolveProjectName(appSet.Spec.Template.Spec.Project)
+
+	var res []map[string]any
+	switch {
+	case len(spec.Directories) != 0:
+		res, err = generateRepoSourceDirectoryParams(context.TODO(), src, kind, spec, project, noRevisionCache, sourceIntegrity, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+	case len(spec.Files) != 0:
+		res, err = generateRepoSourceFileParams(context.TODO(), src, spec, project, noRevisionCache, sourceIntegrity, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+	default:
+		return nil, ErrEmptyAppSetGenerator
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error generating params from %s: %w", kind, err)
+	}
+
+	return res, nil
+}
+
+// generateRepoSourceDirectoryParams lists directories from src, applies path filters, and returns parameter maps.
+func generateRepoSourceDirectoryParams(ctx context.Context, src repoSource, kind repoSourceKind, spec repoSourceSpec, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
+	allPaths, err := src.listDirectories(ctx, spec.URL, spec.Revision, project, noRevisionCache, sourceIntegrity)
+	if err != nil {
+		return nil, fmt.Errorf("error getting directories from %s: %w", kind, err)
+	}
+
+	log.WithFields(log.Fields{
+		"allPaths":        allPaths,
+		"total":           len(allPaths),
+		"repoURL":         spec.URL,
+		"revision":        spec.Revision,
+		"pathParamPrefix": spec.PathParamPrefix,
+	}).Info("applications result from the repo service")
+
+	requestedApps := filterPaths(spec.Directories, allPaths)
+
+	res, err := generateParamsFromPaths(requestedApps, spec.PathParamPrefix, spec.Values, useGoTemplate, goTemplateOptions)
+	if err != nil {
+		return nil, fmt.Errorf("error generating params from apps: %w", err)
+	}
+
+	return res, nil
+}
+
+// generateRepoSourceFileParams fetches files from src and parses each as YAML/JSON to produce parameter maps.
+func generateRepoSourceFileParams(ctx context.Context, src repoSource, spec repoSourceSpec, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
+	fileContentMap := make(map[string][]byte)
+	var includePatterns []string
+	var excludePatterns []string
+
+	for _, req := range spec.Files {
+		if req.Exclude {
+			excludePatterns = append(excludePatterns, req.Path)
+		} else {
+			includePatterns = append(includePatterns, req.Path)
+		}
+	}
+
+	for _, includePattern := range includePatterns {
+		retrievedFiles, err := src.getFiles(ctx, spec.URL, spec.Revision, project, includePattern, noRevisionCache, sourceIntegrity)
+		if err != nil {
+			return nil, err
+		}
+		maps.Copy(fileContentMap, retrievedFiles)
+	}
+
+	for _, excludePattern := range excludePatterns {
+		matchingFiles, err := src.getFiles(ctx, spec.URL, spec.Revision, project, excludePattern, noRevisionCache, sourceIntegrity)
+		if err != nil {
+			return nil, err
+		}
+		for absPath := range matchingFiles {
+			delete(fileContentMap, absPath)
+		}
+	}
+
+	var filePaths []string
+	for p := range fileContentMap {
+		filePaths = append(filePaths, p)
+	}
+	sort.Strings(filePaths)
+
+	var allParams []map[string]any
+	for _, filePath := range filePaths {
+		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], spec.PathParamPrefix, spec.Values, useGoTemplate, goTemplateOptions)
+		if err != nil {
+			return nil, fmt.Errorf("unable to process file '%s': %w", filePath, err)
+		}
+		allParams = append(allParams, paramsFromFileArray...)
+	}
+
+	return allParams, nil
 }

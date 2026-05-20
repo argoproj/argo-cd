@@ -146,7 +146,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from git: error"),
 		},
 	}
 
@@ -447,7 +447,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from git: error"),
 		},
 	}
 

@@ -146,7 +146,7 @@ func TestOciGenerateParamsFromDirectories(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from OCI: error getting directories from OCI artifact: error"),
+			expectedError: errors.New("error generating params from oci: error getting directories from oci: error"),
 		},
 	}
 
@@ -447,7 +447,7 @@ func TestOciGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from OCI: error getting directories from OCI artifact: error"),
+			expectedError: errors.New("error generating params from oci: error getting directories from oci: error"),
 		},
 	}
 
@@ -647,7 +647,7 @@ func TestOciGenerateParamsFromFiles(t *testing.T) {
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   errors.New("paths error"),
 			expected:         []map[string]any{},
-			expectedError:    errors.New("error generating params from OCI: paths error"),
+			expectedError:    errors.New("error generating params from oci: paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
@@ -657,7 +657,7 @@ func TestOciGenerateParamsFromFiles(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]any{},
-			expectedError:  errors.New("error generating params from OCI: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
+			expectedError:  errors.New("error generating params from oci: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",

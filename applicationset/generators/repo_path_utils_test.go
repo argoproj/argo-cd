@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestParseFileParams(t *testing.T) {
@@ -212,40 +210,40 @@ foo:
 	}
 }
 
-func TestFilterGitPaths(t *testing.T) {
+func TestFilterPaths(t *testing.T) {
 	tests := []struct {
 		name        string
-		directories []v1alpha1.GitDirectoryGeneratorItem
+		directories []pathPattern
 		allPaths    []string
 		expected    []string
 	}{
 		{
 			name:        "single wildcard matches all top-level",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories: []pathPattern{{Path: "*"}},
 			allPaths:    []string{"app1", "app2", "p1/app3"},
 			expected:    []string{"app1", "app2"},
 		},
 		{
 			name:        "nested wildcard",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*"}},
+			directories: []pathPattern{{Path: "p1/*"}},
 			allPaths:    []string{"app1", "p1/app2", "p1/p2/app3"},
 			expected:    []string{"p1/app2"},
 		},
 		{
 			name:        "exclude pattern",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "app1", Exclude: true}},
+			directories: []pathPattern{{Path: "*"}, {Path: "app1", Exclude: true}},
 			allPaths:    []string{"app1", "app2", "app3"},
 			expected:    []string{"app2", "app3"},
 		},
 		{
 			name:        "exclude takes precedence",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
+			directories: []pathPattern{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
 			allPaths:    []string{"app1", "p1/app2", "p2/app3"},
 			expected:    []string{"app1", "p2/app3"},
 		},
 		{
 			name:        "multiple patterns with exclusions",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*/prod"}, {Path: "*/staging"}, {Path: "old/*", Exclude: true}},
+			directories: []pathPattern{{Path: "*/prod"}, {Path: "*/staging"}, {Path: "old/*", Exclude: true}},
 			allPaths:    []string{"cluster1/prod", "cluster1/staging", "cluster2/prod", "old/prod", "old/staging"},
 			expected:    []string{"cluster1/prod", "cluster1/staging", "cluster2/prod"},
 		},
@@ -253,48 +251,7 @@ func TestFilterGitPaths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := filterGitPaths(tt.directories, tt.allPaths)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestFilterOciPaths(t *testing.T) {
-	tests := []struct {
-		name        string
-		directories []v1alpha1.OciDirectoryGeneratorItem
-		allPaths    []string
-		expected    []string
-	}{
-		{
-			name:        "single wildcard matches all top-level",
-			directories: []v1alpha1.OciDirectoryGeneratorItem{{Path: "*"}},
-			allPaths:    []string{"app1", "app2", "p1/app3"},
-			expected:    []string{"app1", "app2"},
-		},
-		{
-			name:        "nested wildcard",
-			directories: []v1alpha1.OciDirectoryGeneratorItem{{Path: "p1/*"}},
-			allPaths:    []string{"app1", "p1/app2", "p1/p2/app3"},
-			expected:    []string{"p1/app2"},
-		},
-		{
-			name:        "exclude pattern",
-			directories: []v1alpha1.OciDirectoryGeneratorItem{{Path: "*"}, {Path: "app1", Exclude: true}},
-			allPaths:    []string{"app1", "app2", "app3"},
-			expected:    []string{"app2", "app3"},
-		},
-		{
-			name:        "exclude takes precedence",
-			directories: []v1alpha1.OciDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
-			allPaths:    []string{"app1", "p1/app2", "p2/app3"},
-			expected:    []string{"app1", "p2/app3"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := filterOciPaths(tt.directories, tt.allPaths)
+			result := filterPaths(tt.directories, tt.allPaths)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
