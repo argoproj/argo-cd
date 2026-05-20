@@ -89,8 +89,10 @@ func main() {
 	// such as if the error is from the execution of a normal argocd command,
 	// unknown command error or any other.
 	if err != nil {
-		pluginErr := cli.NewDefaultPluginHandler().HandleCommandExecutionError(err, isArgocdCLI, os.Args)
+		errMsg, pluginErr := cli.NewDefaultPluginHandler().HandleCommandExecutionError(err, isArgocdCLI, os.Args)
 		if pluginErr != nil {
+			os.Stdout.WriteString(errMsg)
+			// os.Stderr.WriteString(errMsg)
 			var exitErr *exec.ExitError
 			if errors.As(pluginErr, &exitErr) {
 				// Return the actual plugin exit code

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"regexp"
 	"testing"
@@ -93,6 +94,9 @@ func mockKeyring(mockClient *gpgkeymocks.GPGKeyServiceClient, keys ...string) *m
 
 func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, stderr string, e error) {
 	t.Helper()
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
 	cmd.SetArgs(args)
 
 	var outbuf bytes.Buffer
@@ -101,6 +105,13 @@ func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, st
 	cmd.SetErr(&errbuf)
 
 	err := cmd.ExecuteContext(t.Context())
+
+	// Make sure the messare from the error reported by Command.RunE() is appended to the errbuf for verification (same as in main.go)
+	if err != nil {
+		errMsg, _ := NewDefaultPluginHandler().HandleCommandExecutionError(err, true, args)
+		errbuf.WriteString(errMsg)
+	}
+
 	return outbuf.String(), errbuf.String(), err
 }
 
@@ -213,14 +224,16 @@ func TestProjectSourceIntegrityListCommand(t *testing.T) {
 	projectName := "test-project"
 
 	testCases := []struct {
-		name           string
-		projectName    string
-		expectedStdout string
-		expectedStderr string
+		name            string
+		sourceIntegrity *appsv1.SourceIntegrity
+		projectName     string
+		expectedStdout  string
+		expectedStderr  string
 	}{
 		{
-			name:        "with policies",
-			projectName: projectName,
+			name:            "with policies",
+			sourceIntegrity: dummySourceIntegrity(),
+			projectName:     projectName,
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git
@@ -228,22 +241,29 @@ func TestProjectSourceIntegrityListCommand(t *testing.T) {
 			expectedStderr: "",
 		},
 		{
-			name:           "without policies",
-			projectName:    "no-source-integrity",
-			expectedStdout: "",
-			expectedStderr: "No source integrity git policies defined for project\n",
+			name:            "without policies",
+			sourceIntegrity: nil,
+			projectName:     projectName,
+			expectedStdout:  "",
+			expectedStderr:  "Error: No source integrity git policies defined for project \"test-project\"\n",
+		},
+		{
+			name:            "no project",
+			sourceIntegrity: dummySourceIntegrity(),
+			projectName:     "not-a-project",
+			expectedStdout:  "",
+			expectedStderr:  "Error: Failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			projects := mockProjectClient(t)
-			mockProjectGet(projects, projectName, dummyProject(projectName, dummySourceIntegrity()), nil).Maybe()
-			mockProjectGet(projects, "no-source-integrity", dummyProject(projectName, nil), nil).Maybe()
+			mockProjectGet(projects, projectName, dummyProject(projectName, tc.sourceIntegrity), nil).Maybe()
+			mockProjectGet(projects, "not-a-project", nil, errors.New(`rpc error: code = NotFound desc = appprojects.argoproj.io "not-a-project" not found`)).Maybe()
 
 			cmd := NewProjectSourceIntegrityGitPoliciesListCommand(&argocdclient.ClientOptions{})
-			out, stderr, err := runCmd(t, cmd, tc.projectName)
-			require.NoError(t, err)
+			out, stderr, _ := runCmd(t, cmd, tc.projectName)
 
 			tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
 			assert.Equal(t, tc.expectedStdout, tabbedOut)
@@ -258,15 +278,18 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 	mockKeyring(mockGpgKeysClient(t), "ABCD1234ABCD1234")
 
 	testCases := []struct {
-		name           string
-		args           []string
+		name            string
+		sourceIntegrity *appsv1.SourceIntegrity
+		args            []string
+
 		expectedStdout string
 		expectedStderr string
 		expectedPolicy *appsv1.SourceIntegrityGitPolicy
 	}{
 		{
-			name: "Set GPG mode",
-			args: []string{projectName, "0", "--gpg-mode=strict"},
+			name:            "Set GPG mode",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "0", "--gpg-mode=strict"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	strict	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git
@@ -285,8 +308,9 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			},
 		},
 		{
-			name: "Set GPG keys",
-			args: []string{projectName, "1", "--gpg-key=FEDCBA9876543210", "--gpg-key=FEDCBA9876543219"},
+			name:            "Set GPG keys",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "1", "--gpg-key=FEDCBA9876543210", "--gpg-key=FEDCBA9876543219"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git
 1	strict	FEDCBA9876543210, FEDCBA9876543219	https://github.com/argoproj/argo-cd.git
@@ -303,8 +327,9 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			},
 		},
 		{
-			name: "Delete GPG key",
-			args: []string{projectName, "0", "--delete-gpg-key=ABCD1234ABCD1234"},
+			name:            "Delete GPG key",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "0", "--delete-gpg-key=ABCD1234ABCD1234"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	<none>	*, !https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git
@@ -323,8 +348,9 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			},
 		},
 		{
-			name: "Set repo URLs",
-			args: []string{projectName, "1", "--repo-url=https://github.com/example/repo.git", "--repo-url=https://github.com/example/other.git"},
+			name:            "Set repo URLs",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "1", "--repo-url=https://github.com/example/repo.git", "--repo-url=https://github.com/example/other.git"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/example/repo.git, https://github.com/example/other.git
@@ -343,8 +369,9 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			},
 		},
 		{
-			name: "Remove repo URL",
-			args: []string{projectName, "0", "--delete-repo-url=*", "--delete-repo-url=not://present.is/ignored"},
+			name:            "Remove repo URL",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "0", "--delete-repo-url=*", "--delete-repo-url=not://present.is/ignored"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	ABCD1234ABCD1234	!https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git
@@ -361,7 +388,8 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			},
 		},
 		{
-			name: "Update multiple attributes at once",
+			name:            "Update multiple attributes at once",
+			sourceIntegrity: dummySourceIntegrity(),
 			args: []string{
 				projectName, "0", "--gpg-mode=none",
 				"--add-gpg-key=9876543210FEDCBA",
@@ -386,38 +414,64 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:            "Update policy with invalid project name",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{"not-a-project", "0", "--gpg-mode=strict"},
+			expectedStderr:  "Error: Failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
+		},
+		{
+			name:            "Update policy with invalid ID",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "42", "--gpg-mode=strict"},
+			expectedStderr:  "Error: POLICY_ID 42 is out of range (0-1)\n",
+		},
+		{
+			name:            "Update policy with incorrect ID",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "the first one, bro", "--gpg-mode=strict"},
+			expectedStderr:  "Error: Invalid POLICY_ID 'the first one, bro'\n",
+		},
+		{
+			name:            "Update policy when no Source Integrity",
+			sourceIntegrity: nil,
+			args:            []string{projectName, "0", "--gpg-mode=strict"},
+			expectedStderr:  "Error: No source integrity git policies defined for project \"test-project\"\n",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			projects := mockProjectClient(t)
-			mockProjectGet(projects, projectName, dummyProject(projectName, dummySourceIntegrity()), nil).Maybe()
-			projects.On("Update", mock.Anything, mock.Anything).Return(nil, nil)
+			mockProjectGet(projects, projectName, dummyProject(projectName, tc.sourceIntegrity), nil).Maybe()
+			mockProjectGet(projects, "not-a-project", nil, errors.New(`rpc error: code = NotFound desc = appprojects.argoproj.io "not-a-project" not found`)).Maybe()
+			projects.On("Update", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 			cmd := NewProjectSourceIntegrityGitPoliciesUpdateCommand(&argocdclient.ClientOptions{})
-			out, stderr, err := runCmd(t, cmd, tc.args...)
-			require.NoError(t, err)
+			out, stderr, _ := runCmd(t, cmd, tc.args...)
 
 			tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
 			assert.Equal(t, tc.expectedStdout, tabbedOut)
 			assert.Equal(t, tc.expectedStderr, stderr)
 
-			updatedProject := captureProjectUpdate(t, projects, projectName)
-			require.NotNil(t, updatedProject)
-			require.NotNil(t, updatedProject.Spec.SourceIntegrity)
-			si := updatedProject.Spec.SourceIntegrity
-			require.NotNil(t, si.Git)
+			if tc.expectedPolicy != nil {
+				updatedProject := captureProjectUpdate(t, projects, projectName)
+				require.NotNil(t, updatedProject)
+				require.NotNil(t, updatedProject.Spec.SourceIntegrity)
+				si := updatedProject.Spec.SourceIntegrity
+				require.NotNil(t, si.Git)
 
-			// Extract the policy ID from args to verify the correct policy was updated
-			policyID := tc.args[1]
-			var idx int
-			if policyID == "0" {
-				idx = 0
-			} else {
-				idx = 1
+				// Extract the policy ID from args to verify the correct policy was updated
+				policyID := tc.args[1]
+				var idx int
+				if policyID == "0" {
+					idx = 0
+				} else {
+					idx = 1
+				}
+
+				assert.Equal(t, tc.expectedPolicy, si.Git.Policies[idx])
 			}
-
-			assert.Equal(t, tc.expectedPolicy, si.Git.Policies[idx])
 		})
 	}
 }
@@ -426,13 +480,17 @@ func TestProjectSourceIntegrityDeleteCommand(t *testing.T) {
 	projectName := "test-project"
 
 	testCases := []struct {
-		name       string
-		args       []string
-		expectedSI *appsv1.SourceIntegrity
+		name            string
+		sourceIntegrity *appsv1.SourceIntegrity
+		args            []string
+
+		expectedSI     *appsv1.SourceIntegrity
+		expectedStderr string
 	}{
 		{
-			name: "Delete source integrity verification policy 0",
-			args: []string{projectName, "0"},
+			name:            "Delete source integrity verification policy 0",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "0"},
 			expectedSI: &appsv1.SourceIntegrity{
 				Git: &appsv1.SourceIntegrityGit{
 					Policies: []*appsv1.SourceIntegrityGitPolicy{{
@@ -448,8 +506,9 @@ func TestProjectSourceIntegrityDeleteCommand(t *testing.T) {
 			},
 		},
 		{
-			name: "Delete source integrity verification policy 1",
-			args: []string{projectName, "1"},
+			name:            "Delete source integrity verification policy 1",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "1"},
 			expectedSI: &appsv1.SourceIntegrity{
 				Git: &appsv1.SourceIntegrityGit{
 					Policies: []*appsv1.SourceIntegrityGitPolicy{{
@@ -467,29 +526,58 @@ func TestProjectSourceIntegrityDeleteCommand(t *testing.T) {
 			},
 		},
 		{
-			name:       "Delete source integrity verification policies (asc)",
-			args:       []string{projectName, "0", "1"},
-			expectedSI: nil,
+			name:            "Delete source integrity verification policies (asc)",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "0", "1"},
+			expectedSI:      nil,
 		},
 		{
-			name:       "Delete source integrity verification policies (desc)",
-			args:       []string{projectName, "1", "0"},
-			expectedSI: nil,
+			name:            "Delete source integrity verification policies (desc)",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "1", "0"},
+			expectedSI:      nil,
+		},
+		{
+			name:            "Delete policy with invalid project name",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{"not-a-project", "0"},
+			expectedStderr:  "Error: Failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
+		},
+		{
+			name:            "Delete policy with invalid ID",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "42"},
+			expectedStderr:  "Error: POLICY_ID 42 is out of range (0-1)\n",
+		},
+		{
+			name:            "Delete policy with incorrect ID",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "the first one, bro"},
+			expectedStderr:  "Error: Invalid POLICY_ID 'the first one, bro'\n",
+		},
+		{
+			name:            "Delete policy when there is no Source Integrity",
+			sourceIntegrity: nil,
+			args:            []string{projectName, "0"},
+			expectedStderr:  "Error: No source integrity git policies defined for project \"test-project\"\n",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			projects := mockProjectClient(t)
-			mockProjectGet(projects, projectName, dummyProject(projectName, dummySourceIntegrity()), nil).Maybe()
-			projects.On("Update", mock.Anything, mock.Anything).Return(nil, nil)
+			mockProjectGet(projects, projectName, dummyProject(projectName, tc.sourceIntegrity), nil).Maybe()
+			mockProjectGet(projects, "not-a-project", nil, errors.New(`rpc error: code = NotFound desc = appprojects.argoproj.io "not-a-project" not found`)).Maybe()
+			projects.On("Update", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 			cmd := NewProjectSourceIntegrityGitPoliciesDeleteCommand(&argocdclient.ClientOptions{})
-			_, _, err := runCmd(t, cmd, tc.args...)
-			require.NoError(t, err)
+			stdout, stderr, err := runCmd(t, cmd, tc.args...)
+			assert.Equal(t, tc.expectedStderr, stderr, "Err: %w, Out: %s", err, stdout)
 
-			updatedProject := captureProjectUpdate(t, projects, projectName)
-			assert.Equal(t, tc.expectedSI, updatedProject.Spec.SourceIntegrity)
+			if tc.expectedSI != nil {
+				updatedProject := captureProjectUpdate(t, projects, projectName)
+				assert.Equal(t, tc.expectedSI, updatedProject.Spec.SourceIntegrity)
+			}
 		})
 	}
 }
