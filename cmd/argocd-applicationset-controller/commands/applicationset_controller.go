@@ -2,12 +2,13 @@ package command
 
 import (
 	"fmt"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"math"
 	"net/http"
 	"os"
 	"runtime/debug"
 	"time"
+
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 

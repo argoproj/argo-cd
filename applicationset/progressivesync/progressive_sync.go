@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 	"reflect"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/google/go-cmp/cmp"
@@ -91,7 +92,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 
 	// Ensure all applications are reconciled before proceeding with progressive sync
 	// Use the previous transition time to check, not the one we just set
-	allReconciled, err := m.ensureApplicationsReconciled(ctx, logCtx, &appset, applications, previousWaitingTime, updatedAppsetApplicationStatus)
+	allReconciled, err := m.ensureApplicationsReconciled(logCtx, &appset, applications, previousWaitingTime, updatedAppsetApplicationStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to ensure applications reconciled: %w", err)
 	}
@@ -498,7 +499,7 @@ func hasPendingChanges(appStatus argov1alpha1.ApplicationSetApplicationStatus) b
 }
 
 // addRefreshAnnotationToApplications adds the refresh annotation to all Applications owned by the ApplicationSet
-func (m *Manager) addRefreshAnnotationToApplications(ctx context.Context, logCtx *log.Entry, applications []argov1alpha1.Application) error {
+func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applications []argov1alpha1.Application) error {
 	for _, app := range applications {
 		// Check if annotation already exists
 		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
@@ -585,7 +586,7 @@ func needsReconcile(logCtx *log.Entry, app argov1alpha1.Application, statusMap m
 // It adds refresh annotations if needed and checks if all apps have been reconciled
 // previousWaitingTime is the transition time captured before updateApplicationSetApplicationStatus ran,
 // to avoid checking against the transition time that was just set in the current reconcile loop
-func (m *Manager) ensureApplicationsReconciled(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, previousWaitingTime *metav1.Time, appSetAppStatus []argov1alpha1.ApplicationSetApplicationStatus) (bool, error) {
+func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, previousWaitingTime *metav1.Time, appSetAppStatus []argov1alpha1.ApplicationSetApplicationStatus) (bool, error) {
 	// Use the provided previous transition time to check reconciliation status
 	// This prevents the endless loop where apps can never catch up to a transition time
 	// that was just set in the current reconcile loop
@@ -619,7 +620,7 @@ func (m *Manager) ensureApplicationsReconciled(ctx context.Context, logCtx *log.
 
 	// add refresh annotations to trigger reconciliation
 	logCtx.Info("Applications have pending changes, adding refresh annotations to Applications to trigger reconciliation")
-	err := m.addRefreshAnnotationToApplications(ctx, logCtx, appsNeedReconcile)
+	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
 	}

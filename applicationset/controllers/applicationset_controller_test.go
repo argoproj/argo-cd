@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 
 	log "github.com/sirupsen/logrus"
@@ -775,7 +777,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source: &v1alpha1.ApplicationSource{
+						Source:  &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -5271,6 +5273,9 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
+			// Create empty appClientSet for progressive sync manager
+			appClientSet := appfake.NewSimpleClientset()
+
 			r := ApplicationSetReconciler{
 				Client:                 client,
 				Scheme:                 scheme,
@@ -5282,7 +5287,7 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 				Metrics:                metrics,
 				EnableProgressiveSyncs: cc.progressiveSyncEnabled,
 			}
-			r.ProgressiveSyncManager = progressivesync.NewManager(r.Client, &r)
+			r.ProgressiveSyncManager = progressivesync.NewManager(r.Client, appClientSet, &r)
 
 			req := ctrl.Request{
 				NamespacedName: types.NamespacedName{
@@ -5542,17 +5547,23 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initObjs := []crtclient.Object{&tt.appset}
+			appObjs := []runtime.Object{}
 			for i := range tt.applications {
 				initObjs = append(initObjs, &tt.applications[i])
+				appObjs = append(appObjs, &tt.applications[i])
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).
 				WithStatusSubresource(&v1alpha1.ApplicationSet{}).Build()
+
+			// Create appClientSet with Application objects for RefreshApp to use
+			appClientSet := appfake.NewSimpleClientset(appObjs...)
+
 			r := ApplicationSetReconciler{
 				Client: client,
 				Scheme: scheme,
 			}
-			manager := progressivesync.NewManager(client, &r)
+			manager := progressivesync.NewManager(client, appClientSet, &r)
 
 			syncMap, err := manager.PerformProgressiveSyncs(
 				t.Context(),

@@ -1,9 +1,10 @@
 package progressivesync
 
 import (
-	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"testing"
 	"time"
+
+	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -1972,14 +1973,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 				AppClientset: appclientSet,
 			}
 
-			reconciled, err := manager.ensureApplicationsReconciled(
-				t.Context(),
-				log.NewEntry(log.StandardLogger()),
-				&tt.appset,
-				tt.applications,
-				tt.latestTransitionTime,
-				tt.updatedAppStatus,
-			)
+			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, tt.updatedAppStatus)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -2087,7 +2081,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 				AppClientset: appClientSet,
 			}
 
-			err := manager.addRefreshAnnotationToApplications(t.Context(), log.NewEntry(log.StandardLogger()), tt.applications)
+			err := manager.addRefreshAnnotationToApplications(log.NewEntry(log.StandardLogger()), tt.applications)
 
 			if tt.expectError {
 				assert.Error(t, err)
