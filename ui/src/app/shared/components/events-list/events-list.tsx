@@ -38,8 +38,9 @@ export const EventsList = (props: {events: models.Event[]}) => {
                     <div className='argo-table-list__head'>
                         <div className='row'>
                             <div className='columns small-2 xxlarge-2'>REASON</div>
-                            <div className='columns small-4 xxlarge-5'>MESSAGE</div>
-                            <div className='columns small-2 xxlarge-1'>COUNT</div>
+                            <div className='columns small-3 xxlarge-3'>MESSAGE</div>
+                            <div className='columns small-2 xxlarge-2'>COMPONENT</div>
+                            <div className='columns small-1 xxlarge-1'>COUNT</div>
                             <div className='columns small-2 xxlarge-2'>FIRST OCCURRED</div>
                             <div className='columns small-2 xxlarge-2'>LAST OCCURRED</div>
                         </div>
@@ -48,10 +49,11 @@ export const EventsList = (props: {events: models.Event[]}) => {
                         <div className={`argo-table-list__row events-list__event events-list__event--${event.type}`} key={event.metadata.uid}>
                             <div className='row'>
                                 <div className='columns small-2 xxlarge-2'>{event.reason}</div>
-                                <div className='columns small-4 xxlarge-5' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
+                                <div className='columns small-3 xxlarge-3' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
                                     {event.message}
                                 </div>
-                                <div className='columns small-2 xxlarge-1'>{event.count}</div>
+                                <div className='columns small-2 xxlarge-2'>{event.reportingComponent || event.source?.component}</div>
+                                <div className='columns small-1 xxlarge-1'>{event.count}</div>
                                 <div className='columns small-2 xxlarge-2'>{event.firstTimestamp ? getTimeElements(event.firstTimestamp) : getTimeElements(event.eventTime)}</div>
                                 <div className='columns small-2 xxlarge-2'>{event.lastTimestamp ? getTimeElements(event.lastTimestamp) : getTimeElements(event.eventTime)}</div>
                             </div>
