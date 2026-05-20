@@ -37,72 +37,6 @@ func (_m *Client) EXPECT() *Client_Expecter {
 	return &Client_Expecter{mock: &_m.Mock}
 }
 
-// GetChartTgzPath provides a mock function for the type Client
-func (_mock *Client) GetChartTgzPath(chart string, version string) (string, error) {
-	ret := _mock.Called(chart, version)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetChartTgzPath")
-	}
-
-	var r0 string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) (string, error)); ok {
-		return returnFunc(chart, version)
-	}
-	if returnFunc, ok := ret.Get(0).(func(string, string) string); ok {
-		r0 = returnFunc(chart, version)
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = returnFunc(chart, version)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Client_GetChartTgzPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetChartTgzPath'
-type Client_GetChartTgzPath_Call struct {
-	*mock.Call
-}
-
-// GetChartTgzPath is a helper method to define mock.On call
-//   - chart string
-//   - version string
-func (_e *Client_Expecter) GetChartTgzPath(chart interface{}, version interface{}) *Client_GetChartTgzPath_Call {
-	return &Client_GetChartTgzPath_Call{Call: _e.mock.On("GetChartTgzPath", chart, version)}
-}
-
-func (_c *Client_GetChartTgzPath_Call) Run(run func(chart string, version string)) *Client_GetChartTgzPath_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *Client_GetChartTgzPath_Call) Return(s string, err error) *Client_GetChartTgzPath_Call {
-	_c.Call.Return(s, err)
-	return _c
-}
-
-func (_c *Client_GetChartTgzPath_Call) RunAndReturn(run func(chart string, version string) (string, error)) *Client_GetChartTgzPath_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // CleanChartCache provides a mock function for the type Client
 func (_mock *Client) CleanChartCache(chart string, version string) error {
 	ret := _mock.Called(chart, version)
@@ -322,6 +256,72 @@ func (_c *Client_FetchProvenance_Call) Return(provContent []byte, chartFilename 
 }
 
 func (_c *Client_FetchProvenance_Call) RunAndReturn(run func(chart string, version string) ([]byte, string, error)) *Client_FetchProvenance_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetChartTgzPath provides a mock function for the type Client
+func (_mock *Client) GetChartTgzPath(chart string, version string) (string, error) {
+	ret := _mock.Called(chart, version)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetChartTgzPath")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) (string, error)); ok {
+		return returnFunc(chart, version)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = returnFunc(chart, version)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = returnFunc(chart, version)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_GetChartTgzPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetChartTgzPath'
+type Client_GetChartTgzPath_Call struct {
+	*mock.Call
+}
+
+// GetChartTgzPath is a helper method to define mock.On call
+//   - chart string
+//   - version string
+func (_e *Client_Expecter) GetChartTgzPath(chart interface{}, version interface{}) *Client_GetChartTgzPath_Call {
+	return &Client_GetChartTgzPath_Call{Call: _e.mock.On("GetChartTgzPath", chart, version)}
+}
+
+func (_c *Client_GetChartTgzPath_Call) Run(run func(chart string, version string)) *Client_GetChartTgzPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_GetChartTgzPath_Call) Return(s string, err error) *Client_GetChartTgzPath_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Client_GetChartTgzPath_Call) RunAndReturn(run func(chart string, version string) (string, error)) *Client_GetChartTgzPath_Call {
 	_c.Call.Return(run)
 	return _c
 }
