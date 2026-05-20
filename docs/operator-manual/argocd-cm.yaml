@@ -357,6 +357,11 @@ data:
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
   exec.enabled: "false"
 
+  # sso.auto-login enables automatic redirection to the SSO provider on the login page when SSO is
+  # configured. When set to "true", users are redirected immediately without having to click the
+  # login button. Disabled by default.
+  sso.auto-login: "false"
+
   # exec.shells restricts which shells are allowed for `exec`, and in which order they are attempted
   exec.shells: "bash,sh,powershell,cmd"
 
