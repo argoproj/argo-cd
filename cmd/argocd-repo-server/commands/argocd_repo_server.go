@@ -156,7 +156,7 @@ func NewCommand() *cobra.Command {
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
-				EnableTrackingLabelsOnCRDs:                   enableTrackingLabelOnCRDs,
+				EnableTrackingLabelOnCRDs:                    enableTrackingLabelOnCRDs,
 			}, askPassServer)
 			errors.CheckError(err)
 

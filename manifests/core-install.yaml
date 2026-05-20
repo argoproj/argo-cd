@@ -31817,7 +31817,7 @@ spec:
         - name: ARGOCD_REPO_SERVER_ENABLE_TRACKING_LABEL_ON_CRDS
           valueFrom:
             configMapKeyRef:
-              key: reposerver.enable.trackingcrds
+              key: reposerver.enable.tracking.label.on.crds
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
