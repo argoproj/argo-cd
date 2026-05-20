@@ -17,6 +17,7 @@ type MetricsServer struct {
 	gitRequestCounter             *prometheus.CounterVec
 	gitRequestHistogram           *prometheus.HistogramVec
 	repoPendingRequestsGauge      *prometheus.GaugeVec
+	parallelismWaitHistogram      prometheus.Histogram
 	redisRequestCounter           *prometheus.CounterVec
 	redisRequestHistogram         *prometheus.HistogramVec
 	ociExtractFailCounter         *prometheus.CounterVec
@@ -87,6 +88,15 @@ func NewMetricsServer() *MetricsServer {
 		[]string{"repo"},
 	)
 	registry.MustRegister(repoPendingRequestsGauge)
+
+	parallelismWaitHistogram := prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "argocd_repo_parallelism_wait_duration_seconds",
+			Help:    "Time spent waiting for the repo-server manifest generation parallelism semaphore. Observed on every acquire attempt, including those that fail (e.g. context canceled).",
+			Buckets: []float64{0.1, 0.25, .5, 1, 2, 4, 10, 20, 60, 120},
+		},
+	)
+	registry.MustRegister(parallelismWaitHistogram)
 
 	redisRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -178,6 +188,7 @@ func NewMetricsServer() *MetricsServer {
 		gitRequestCounter:             gitRequestCounter,
 		gitRequestHistogram:           gitRequestHistogram,
 		repoPendingRequestsGauge:      repoPendingRequestsGauge,
+		parallelismWaitHistogram:      parallelismWaitHistogram,
 		redisRequestCounter:           redisRequestCounter,
 		redisRequestHistogram:         redisRequestHistogram,
 		ociRequestCounter:             ociRequestCounter,
@@ -218,6 +229,14 @@ func (m *MetricsServer) ObserveGitRequestDuration(repo string, requestType GitRe
 
 func (m *MetricsServer) DecPendingRepoRequest(repo string) {
 	m.repoPendingRequestsGauge.WithLabelValues(repo).Dec()
+}
+
+// ObserveParallelismWaitDuration records the time spent waiting on the
+// manifest generation parallelism semaphore. Callers should observe even when
+// Acquire fails, since starved acquires are the signal this metric exists to
+// capture.
+func (m *MetricsServer) ObserveParallelismWaitDuration(duration time.Duration) {
+	m.parallelismWaitHistogram.Observe(duration.Seconds())
 }
 
 func (m *MetricsServer) IncRedisRequest(failed bool) {
