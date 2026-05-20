@@ -85,6 +85,12 @@ get the actual cluster state.
   processors if your Argo CD instance manages too many applications.
   For 1000 applications, we use 50 for `--status-processors` and 25 for `--operation-processors`
 
+* when the [Source Hydrator](../user-guide/source-hydrator.md) is enabled, the controller hydrates manifests using a
+  separate queue whose concurrency is controlled by the `--hydration-processors` flag (5 by default). The hydration
+  queue is keyed by source repo, target revision, and destination branch, so the same key is never hydrated by more
+  than one processor at a time; increasing the count only parallelizes hydration across distinct keys. Increase it if a
+  single controller hydrates many independent repositories or branches and hydration becomes a bottleneck.
+
 * The manifest generation typically takes the most time during reconciliation. The duration of manifest generation is
   limited to make sure the controller refresh queue does not overflow.
   The app reconciliation fails with `Context deadline exceeded` error if the manifest generation is taking too much
