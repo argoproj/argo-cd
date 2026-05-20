@@ -126,7 +126,7 @@ type RepoServerInitConstants struct {
 	CMPUseManifestGeneratePaths                  bool
 	EnableBuiltinGitConfig                       bool
 	HelmUserAgent                                string
-	EnableTrackingLabelsOnCRDs                   bool
+	EnableTrackingLabelOnCRDs                    bool
 }
 
 var manifestGenerateLock = sync.NewKeyLock()
@@ -926,7 +926,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithTrackingLabelsOnCRDs(s.initConstants.EnableTrackingLabelsOnCRDs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithTrackingLabelOnCRDs(s.initConstants.EnableTrackingLabelOnCRDs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1692,7 +1692,7 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	}
 }
 
-func WithTrackingLabelsOnCRDs(enabled bool) GenerateManifestOpt {
+func WithTrackingLabelOnCRDs(enabled bool) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.trackingLabelsOnCRDs = enabled
 	}
