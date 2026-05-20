@@ -170,7 +170,7 @@ message ApplicationRollbackRequest {
 message ApplicationResourceRequest {
 	required string name = 1;
 	optional string namespace = 2;
-	required string resourceName = 3;
+	optional string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
 	required string kind = 6;
@@ -181,7 +181,7 @@ message ApplicationResourceRequest {
 message ApplicationResourcePatchRequest {
 	required string name = 1;
 	optional string namespace = 2;
-	required string resourceName = 3;
+	optional string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
 	required string kind = 6;
@@ -194,7 +194,7 @@ message ApplicationResourcePatchRequest {
 message ApplicationResourceDeleteRequest {
 	required string name = 1;
 	optional string namespace = 2;
-	required string resourceName = 3;
+	optional string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
 	required string kind = 6;
@@ -215,7 +215,7 @@ message ResourceActionRunRequest {
 	option deprecated = true;
 	required string name = 1;
 	optional string namespace = 2;
-	required string resourceName = 3;
+	optional string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
 	required string kind = 6;
@@ -227,7 +227,7 @@ message ResourceActionRunRequest {
 message ResourceActionRunRequestV2 {
 	required string name = 1;
 	optional string namespace = 2;
-	required string resourceName = 3;
+	optional string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
 	required string kind = 6;
