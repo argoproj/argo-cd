@@ -1,6 +1,7 @@
 package progressivesync
 
 import (
+	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"testing"
 	"time"
 
@@ -1958,13 +1959,17 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initObjs := []crtclient.Object{&tt.appset}
+			appObjs := []runtime.Object{}
 			for i := range tt.applications {
 				initObjs = append(initObjs, &tt.applications[i])
+				appObjs = append(appObjs, &tt.applications[i])
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			appclientSet := appfake.NewSimpleClientset(appObjs...)
 			manager := &Manager{
-				Client: client,
+				Client:       client,
+				AppClientset: appclientSet,
 			}
 
 			reconciled, err := manager.ensureApplicationsReconciled(

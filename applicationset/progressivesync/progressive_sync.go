@@ -2,9 +2,10 @@ package progressivesync
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 	"reflect"
 	"slices"
 	"sort"
@@ -63,13 +64,15 @@ type Dependencies interface {
 
 type Manager struct {
 	Client       client.Client
+	AppClientset appclientset.Interface
 	dependencies Dependencies
 }
 
 // NewManager creates a new manager with dependencies
-func NewManager(client client.Client, dependencies Dependencies) *Manager {
+func NewManager(client client.Client, appClientset appclientset.Interface, dependencies Dependencies) *Manager {
 	return &Manager{
 		Client:       client,
+		AppClientset: appClientset,
 		dependencies: dependencies,
 	}
 }
@@ -504,19 +507,8 @@ func (m *Manager) addRefreshAnnotationToApplications(ctx context.Context, logCtx
 		}
 
 		// Patch the application with the refresh annotation
-		patch := map[string]any{
-			"metadata": map[string]any{
-				"annotations": map[string]string{
-					argov1alpha1.AnnotationKeyRefresh: string(argov1alpha1.RefreshTypeNormal),
-				},
-			},
-		}
-		patchJSON, err := json.Marshal(patch)
-		if err != nil {
-			return fmt.Errorf("error marshaling refresh annotation patch for app %s: %w", app.Name, err)
-		}
-
-		err = m.Client.Patch(ctx, &app, client.RawPatch(types.MergePatchType, patchJSON))
+		appClient := m.AppClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+		_, err := argoutil.RefreshApp(appClient, app.Name, argov1alpha1.RefreshTypeNormal, nil)
 		if err != nil {
 			return fmt.Errorf("error adding refresh annotation to app %s: %w", app.Name, err)
 		}
@@ -627,7 +619,6 @@ func (m *Manager) ensureApplicationsReconciled(ctx context.Context, logCtx *log.
 
 	// add refresh annotations to trigger reconciliation
 	logCtx.Info("Applications have pending changes, adding refresh annotations to Applications to trigger reconciliation")
-	// TODO: check if util/argo/argo.go RefreshApp can be used instead
 	err := m.addRefreshAnnotationToApplications(ctx, logCtx, appsNeedReconcile)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
