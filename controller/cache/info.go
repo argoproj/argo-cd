@@ -14,7 +14,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	resourcehelper "k8s.io/kubectl/pkg/util/resource"
+	resourcehelper "k8s.io/component-helpers/resource"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -471,7 +471,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
 
-	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+	req := resourcehelper.PodRequests(&pod, resourcehelper.PodResourcesOptions{UseStatusResources: true})
 
 	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
