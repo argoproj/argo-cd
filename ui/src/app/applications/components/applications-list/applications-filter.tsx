@@ -1,5 +1,4 @@
 import {useData, Checkbox} from 'argo-ui/v2';
-import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {
     Application,
@@ -20,6 +19,8 @@ import {createMetadataSelector} from '../selectors';
 import {ComparisonStatusIcon, getAppAllSources, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
+
+const minimatch = require('minimatch');
 
 export interface FilterResult {
     sync: boolean;
