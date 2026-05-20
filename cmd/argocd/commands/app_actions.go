@@ -44,6 +44,7 @@ var appActionExample = templates.Examples(`
 
 // NewApplicationResourceActionsCommand returns a new instance of an `argocd app actions` command
 func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var appNamespace string
 	command := &cobra.Command{
 		Use:     "actions",
 		Short:   "Manage Resource actions",
@@ -53,13 +54,14 @@ func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions
 			os.Exit(1)
 		},
 	}
-	command.AddCommand(NewApplicationResourceActionsListCommand(clientOpts))
-	command.AddCommand(NewApplicationResourceActionsRunCommand(clientOpts))
+	command.AddCommand(NewApplicationResourceActionsListCommand(clientOpts, &appNamespace))
+	command.PersistentFlags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
+	command.AddCommand(NewApplicationResourceActionsRunCommand(clientOpts, &appNamespace))
 	return command
 }
 
 // NewApplicationResourceActionsListCommand returns a new instance of an `argocd app actions list` command
-func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOptions, appNamespace *string) *cobra.Command {
 	var namespace string
 	var kind string
 	var group string
@@ -80,7 +82,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], *appNamespace)
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer utilio.Close(conn)
 		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
@@ -141,7 +143,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 }
 
 // NewApplicationResourceActionsRunCommand returns a new instance of an `argocd app actions run` command
-func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions, appNamespace *string) *cobra.Command {
 	var namespace string
 	var resourceName string
 	var kind string
@@ -171,7 +173,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], *appNamespace)
 		actionName := args[1]
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
