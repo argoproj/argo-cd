@@ -135,17 +135,19 @@ In the event that an ApplicationSet spec or template is modified and a target Ap
 
 #### "Pausing" Application Changes During Rollout
 To implement the “paused” functionality of Applications that are not yet ready to be updated, we have a few options.
+
 * Disable auto-sync.
-** Potentially conflicts with user provided auto-sync settings.
-** Provides the benefit of being able to see the full diff of the ApplicationSet change.
+  * Potentially conflicts with user provided auto-sync settings.
+  * Provides the benefit of being able to see the full diff of the ApplicationSet change.
 * “Pause” the Application.
-** Not Yet Implemented: https://github.com/argoproj/argo-cd/issues/4808
+  * Not Yet Implemented: https://github.com/argoproj/argo-cd/issues/4808
 * Prevent any updates at all to the live Applications via the rolling update strategy defined.
-** This is likely the initial implementation method we'll target.
+  * This is likely the initial implementation method we'll target.
 
 #### Draft Pull Request
+
 This PR is now functional and ready for comment. We are actively working on unit tests and documentation.
-https://github.com/wmgroot/argo-cd/pull/1
+[https://github.com/wmgroot/argo-cd/pull/1](https://github.com/wmgroot/argo-cd/pull/1)
 
 ### Security Considerations
 We do not believe this proposal results in any new security considerations for the ApplicationSet controller.
