@@ -571,7 +571,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 	}
 	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
-	command.Flags().StringVar(&output, "output", "", `Output format. One of: tree|tree=detailed. 
+	command.Flags().StringVar(&output, "output", "", `Output format. One of: tree|tree=detailed.
   tree: Shows resource hierarchy with parent-child relationships
   tree=detailed: Same as tree, but includes AGE, HEALTH, and REASON columns`)
 	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
