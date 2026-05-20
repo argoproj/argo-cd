@@ -888,7 +888,20 @@ func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, ap
 }
 
 // Run starts the Application CRD controller.
-func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int) {
+// normalizeHydrationProcessors clamps the configured number of manifest hydration workers to a safe
+// minimum. The --hydration-processors flag / ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS env var
+// can be set to 0 or a negative value on the command line (the env default is clamped, but an explicit
+// flag value is not). Starting zero workers would silently stall hydration, so fall back to a single
+// worker and warn. See https://github.com/argoproj/argo-cd/issues/27926.
+func normalizeHydrationProcessors(hydrationProcessors int) int {
+	if hydrationProcessors < 1 {
+		log.Warnf("hydration-processors was set to %d; hydration requires at least one worker, using 1 instead", hydrationProcessors)
+		return 1
+	}
+	return hydrationProcessors
+}
+
+func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int, hydrationProcessors int) {
 	defer runtime.HandleCrash()
 	defer ctrl.appRefreshQueue.ShutDown()
 	defer ctrl.appComparisonTypeRefreshQueue.ShutDown()
@@ -956,15 +969,26 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}, time.Second, ctx.Done())
 
 	if ctrl.hydrator != nil {
+		// The app hydrate queue is intentionally drained by a single worker. It is keyed per
+		// application and only marks each app's hydration phase before enqueuing the (deduped)
+		// hydration key, so it is cheap and ordering-sensitive; parallelizing it would widen the
+		// race window described in hydrator.ProcessHydrationQueueItem without any throughput benefit.
 		go wait.Until(func() {
 			for ctrl.processAppHydrateQueueItem() {
 			}
 		}, time.Second, ctx.Done())
 
-		go wait.Until(func() {
-			for ctrl.processHydrationQueueItem() {
-			}
-		}, time.Second, ctx.Done())
+		// The hydration queue does the heavy lifting (generating manifests and committing to the
+		// hydrated branch) and is keyed by {SourceRepoURL, SourceTargetRevision, DestinationBranch}.
+		// Because it is a rate-limiting workqueue, the same key is never processed by two workers at
+		// once, so additional workers only parallelize hydration across *distinct* keys. This is the
+		// concurrency knob requested in https://github.com/argoproj/argo-cd/issues/27926.
+		for range normalizeHydrationProcessors(hydrationProcessors) {
+			go wait.Until(func() {
+				for ctrl.processHydrationQueueItem() {
+				}
+			}, time.Second, ctx.Done())
+		}
 	}
 
 	<-ctx.Done()
