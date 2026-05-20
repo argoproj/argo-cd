@@ -1,12 +1,11 @@
-import {Autocomplete, MockupList, Toolbar, Tooltip} from 'argo-ui';
-import classNames from 'classnames';
+import {Autocomplete, MockupList} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {AddAuthToToolbar, DataLoader, EmptyState, Page, Paginate} from '../../../shared/components';
+import {DataLoader, EmptyState, Page, Paginate} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, AppSetsListPreferences, HealthStatusBarPreferences, services, ViewPreferences} from '../../../shared/services';
@@ -18,11 +17,12 @@ import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
 import {ApplicationSetsSummary} from './application-sets-summary';
+import {FlexTopBar} from './flex-top-bar';
+import {ViewTypeSwitcher} from './view-type-switcher';
 
 import './applications-list.scss';
 import './applications-table.scss';
 import './applications-tiles.scss';
-import './flex-top-bar.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -227,96 +227,12 @@ const ApplicationSetsToolbar = (props: {
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }) => {
-    const {List, Summary, Tiles} = AppsListViewKey;
     const query = useQuery();
 
     return (
         <React.Fragment key='appset-list-tools'>
             <ApplicationSetsSearchBar content={query.get('search')} appSets={props.appSets} ctx={props.ctx} />
-            <Tooltip content='Toggle Health Status Bar'>
-                <button
-                    className={`applications-list__accordion argo-button argo-button--base${props.healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
-                    style={{border: 'none'}}
-                    onClick={() => {
-                        props.healthBarPrefs.showHealthStatusBar = !props.healthBarPrefs.showHealthStatusBar;
-                        services.viewPreferences.updatePreferences({
-                            appList: {
-                                ...props.pref,
-                                statusBarView: {
-                                    ...props.healthBarPrefs,
-                                    showHealthStatusBar: props.healthBarPrefs.showHealthStatusBar
-                                }
-                            }
-                        });
-                    }}>
-                    <i className='fas fa-ruler-horizontal' />
-                </button>
-            </Tooltip>
-            <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
-                <i
-                    className={classNames('fa fa-th', {selected: props.pref.view === Tiles}, 'menu_icon')}
-                    title='Tiles'
-                    onClick={() => {
-                        props.ctx.navigation.goto('.', {view: Tiles});
-                        services.viewPreferences.updatePreferences({appList: {...props.pref, view: Tiles}});
-                    }}
-                />
-                <i
-                    className={classNames('fa fa-th-list', {selected: props.pref.view === List}, 'menu_icon')}
-                    title='List'
-                    onClick={() => {
-                        props.ctx.navigation.goto('.', {view: List});
-                        services.viewPreferences.updatePreferences({appList: {...props.pref, view: List}});
-                    }}
-                />
-                <i
-                    className={classNames('fa fa-chart-pie', {selected: props.pref.view === Summary}, 'menu_icon')}
-                    title='Summary'
-                    onClick={() => {
-                        props.ctx.navigation.goto('.', {view: Summary});
-                        services.viewPreferences.updatePreferences({appList: {...props.pref, view: Summary}});
-                    }}
-                />
-            </div>
-        </React.Fragment>
-    );
-};
-
-const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
-    const ctx = React.useContext(Context);
-    const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
-    return (
-        <React.Fragment>
-            <div className='top-bar row flex-top-bar' key='tool-bar'>
-                <DataLoader load={() => loadToolbar}>
-                    {toolbar => (
-                        <React.Fragment>
-                            <div className='flex-top-bar__actions'>
-                                {toolbar.actionMenu && (
-                                    <React.Fragment>
-                                        {toolbar.actionMenu.items.map((item, i) => (
-                                            <Tooltip className='custom-tooltip' content={item.title} key={item.qeId || i}>
-                                                <button
-                                                    disabled={!!item.disabled}
-                                                    qe-id={item.qeId}
-                                                    className='argo-button argo-button--base'
-                                                    onClick={() => item.action()}
-                                                    style={{marginRight: 2}}
-                                                    key={i}>
-                                                    {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                                    <span className='show-for-large'>{item.title}</span>
-                                                </button>
-                                            </Tooltip>
-                                        ))}
-                                    </React.Fragment>
-                                )}
-                            </div>
-                            <div className='flex-top-bar__tools'>{toolbar.tools}</div>
-                        </React.Fragment>
-                    )}
-                </DataLoader>
-            </div>
-            <div className='flex-top-bar__padder' />
+            <ViewTypeSwitcher pref={props.pref} ctx={props.ctx} healthBarPrefs={props.healthBarPrefs} />
         </React.Fragment>
     );
 };

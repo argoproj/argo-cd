@@ -15,6 +15,7 @@ import {ApplicationResourceEvents} from '../application-resource-events/applicat
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationSummary} from '../application-summary/application-summary';
+import {AppSetResourceNodePreview} from './appset-resource-node-preview';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
@@ -62,7 +63,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         tabs: Tab[],
         execEnabled: boolean,
         execAllowed: boolean,
-        logsAllowed: boolean
+        logsAllowed: boolean,
+        controlledState: {summary: models.ResourceStatus; state: models.ResourceDiff} | null
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -148,6 +150,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     }
                 ]);
             }
+        }
+        if (node?.kind === 'ApplicationSet' && node?.group === 'argoproj.io') {
+            const appSetSyncStatus = controlledState?.summary?.status || SyncStatuses.Unknown;
+            tabs.push({
+                title: 'PREVIEW',
+                key: 'preview',
+                badge: appSetSyncStatus === SyncStatuses.OutOfSync ? '!' : null,
+                content: <AppSetResourceNodePreview liveAppSet={state} targetAppSet={controlledState?.state?.targetState} syncStatus={appSetSyncStatus} />
+            });
         }
         if (state) {
             extensionTabs.forEach((tabExtensions, i) => {
@@ -356,7 +367,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     ],
                                     data.execEnabled,
                                     data.execAllowed,
-                                    data.logsAllowed
+                                    data.logsAllowed,
+                                    data.controlledState
                                 )}
                                 selectedTabKey={tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}

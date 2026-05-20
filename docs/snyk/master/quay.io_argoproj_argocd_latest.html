@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="72 known vulnerabilities found in 197 vulnerable dependency paths.">
+  <meta name="description" content="73 known vulnerabilities found in 198 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 10th 2026, 12:46:23 am (UTC+00:00)</p>
+                <p class="timestamp">May 17th 2026, 12:48:24 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,9 +506,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>72</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>197 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2430</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>73</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>198 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2435</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -570,7 +570,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         helm.sh/helm/v3@*
                                          <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/net/http2@v0.48.0
+                                        golang.org/x/net/http2@v0.52.0
                                         
                                 </span>
         
@@ -600,6 +600,152 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-16535157">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Insufficiently Protected Credentials</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-git/go-git/v5/plumbing/transport/http
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/plumbing/transport/http@v5.14.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/http@v5.14.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Insufficiently Protected Credentials in the <code>advertisedReferences()</code> function. The headers - including Authorization headers - from an initial <code>/info/refs</code> request are forwarded to redirect targets. An attacker can obtain authentication credentials by controlling a redirect target, and those credentials may be reused on other endpoints or attempted against other repositories owned by the victim. This is only exploitable if the client interacts with untrusted or misconfigured remote servers, or uses HTTP (not HTTPS) connections.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/transport/http</code> to version 5.18.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-3xc5-wrhm-f963">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/bcd20a9c525826081262a06a9ed9c3167abfcd53">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGTRANSPORTHTTP-16109639">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Incorrect Behavior Order: Validate Before Canonicalize</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-git/go-git/v5/plumbing/object
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/plumbing/object@v5.14.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/object@v5.14.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Incorrect Behavior Order: Validate Before Canonicalize in the parsing of Git objects with malformed or ambiguous <code>commit</code> or <code>tag</code> objects. An attacker can cause inconsistent interpretation of object metadata or signature validation by introducing specially crafted objects that are parsed differently than by upstream Git, potentially leading to the acceptance of commits with misleading or unintended metadata.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/object</code> to version 5.19.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-389r-gv7p-r3rp">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/bc930f4cbe095a3e1d49273655f73fcef7d41a42">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGOBJECT-16638689">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -6051,7 +6197,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v3@* and github.com/hashicorp/go-version@v1.7.0
+                                github.com/argoproj/argo-cd/v3@* and github.com/hashicorp/go-version@v1.9.0
         
                     </li>
                 </ul>
@@ -6066,7 +6212,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@*
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-version@v1.7.0
+                                        github.com/hashicorp/go-version@v1.9.0
                                         
                                 </span>
         
@@ -6472,79 +6618,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insufficiently Protected Credentials</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/go-git/go-git/v5/plumbing/transport/http
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/plumbing/transport/http@v5.14.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@v5.14.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Insufficiently Protected Credentials in the <code>advertisedReferences()</code> function. The headers - including Authorization headers - from an initial <code>/info/refs</code> request are forwarded to redirect targets. An attacker can obtain authentication credentials by controlling a redirect target, and those credentials may be reused on other endpoints or attempted against other repositories owned by the victim. This is only exploitable if the client interacts with untrusted or misconfigured remote servers, or uses HTTP (not HTTPS) connections.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/transport/http</code> to version 5.18.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-3xc5-wrhm-f963">GitHub Advisory</a></li>
-        <li><a href="https://github.com/go-git/go-git/commit/bcd20a9c525826081262a06a9ed9c3167abfcd53">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGTRANSPORTHTTP-16109639">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
@@ -6847,6 +6920,7 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-66382">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-66382</a></li>
         <li><a href="https://github.com/libexpat/libexpat/issues/1076">https://github.com/libexpat/libexpat/issues/1076</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/12/02/1">http://www.openwall.com/lists/oss-security/2025/12/02/1</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-082556.html">https://cert-portal.siemens.com/productcert/html/ssa-082556.html</a></li>
         </ul>
         
               <hr/>
