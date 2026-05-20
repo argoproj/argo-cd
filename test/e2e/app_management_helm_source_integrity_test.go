@@ -13,21 +13,25 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
 )
 
 const (
-	helmOCIProvChartPath = "testdata/helm-oci-provenance"
-	helmProvPathSuffix   = "/provenance" // appended to RepoURLTypeHelmParent
-	helmProvChart        = "helm-provenance"
-	helmProvChartV       = "1.0.0"
-	helmProvPassName     = "helm-prov-local-pass"
-	helmProvFailName     = "helm-prov-local-fail"
-	helmProvWrongKey     = "0000000000000000"
-	helmOCIProvChart     = "demo-chart"
-	helmOCIProvChartV    = "1.0.0"
-	helmOCIProvPassName  = "helm-oci-prov-pass"
-	helmOCIProvFailName  = "helm-oci-prov-fail"
-	helmOCIProvWrongKey  = "0000000000000000"
+	helmOCIProvChartPath        = "testdata/helm-oci-provenance"
+	helmProvPathSuffix          = "/provenance" // appended to RepoURLTypeHelmParent
+	helmProvChart               = "helm-provenance"
+	helmProvChartV              = "1.0.0"
+	helmProvMirrorAllFailChartV = "1.0.1" // index entry with no .prov on any mirror URL
+	helmProvPassName            = "helm-prov-local-pass"
+	helmProvMirrorPassName      = "helm-prov-mirror-pass"
+	helmProvMirrorFailName      = "helm-prov-mirror-fail"
+	helmProvFailName            = "helm-prov-local-fail"
+	helmProvWrongKey            = "0000000000000000"
+	helmOCIProvChart            = "demo-chart"
+	helmOCIProvChartV           = "1.0.0"
+	helmOCIProvPassName         = "helm-oci-prov-pass"
+	helmOCIProvFailName         = "helm-oci-prov-fail"
+	helmOCIProvWrongKey         = "0000000000000000"
 )
 
 func helmProvenanceLocalRepoURL() string {
@@ -38,8 +42,7 @@ func TestTraditionalHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		CustomCACertAdded().
-		GPGPublicKeyAdded().
-		Sleep(2).
+		And(func() { gpgkeys.AddGPGPublicKey(t) }).
 		HelmProvenanceRepoAdded("helm-provenance-local").
 		Name(helmProvPassName).
 		Project("gpg").
@@ -62,12 +65,73 @@ func TestTraditionalHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing
 		Expect(NoConditions())
 }
 
-func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
+// TestTraditionalHelmSourceIntegrityProvenanceMirrorFallback verifies that Argo CD checks
+// all chart URLs from the index for a .prov file and completes GPG provenance verification
+func TestTraditionalHelmSourceIntegrityProvenanceMirrorFallback(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		CustomCACertAdded().
 		GPGPublicKeyAdded().
 		Sleep(2).
+		HelmProvenanceRepoAdded("helm-provenance-mirror").
+		Name(helmProvMirrorPassName).
+		Project("gpg").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        helmProvenanceLocalRepoURL(),
+				Chart:          helmProvChart,
+				TargetRevision: helmProvChartV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: helmProvMirrorPassName},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+// TestTraditionalHelmSourceIntegrityProvenanceMirrorAllFail verifies that when every
+// index mirror lacks a .prov file, sync fails with a provenance fetch error after all URLs are tried.
+func TestTraditionalHelmSourceIntegrityProvenanceMirrorAllFail(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		GPGPublicKeyAdded().
+		Sleep(2).
+		HelmProvenanceRepoAdded("helm-provenance-mirror-fail").
+		Name(helmProvMirrorFailName).
+		Project("gpg").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        helmProvenanceLocalRepoURL(),
+				Chart:          helmProvChart,
+				TargetRevision: helmProvMirrorAllFailChartV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: helmProvMirrorFailName},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification")).
+		Expect(Condition(ApplicationConditionComparisonError, "failed to fetch provenance")).
+		Expect(Condition(ApplicationConditionComparisonError, "2 URL(s)"))
+}
+
+func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		And(func() { gpgkeys.AddGPGPublicKey(t) }).
 		HelmProvenanceRepoAdded("helm-provenance-local").
 		Name(helmProvFailName).
 		Project("default").
@@ -94,8 +158,7 @@ func TestHelmOCISourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartWithProvenanceToOCIRegistry(helmOCIProvChartPath, helmOCIProvChart, helmOCIProvChartV).
-		GPGPublicKeyAdded().
-		Sleep(2).
+		And(func() { gpgkeys.AddGPGPublicKey(t) }).
 		HelmOCIRepoAdded("helm-oci-provenance").
 		Name(helmOCIProvPassName).
 		Project("gpg").
@@ -122,8 +185,7 @@ func TestHelmOCISourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartWithProvenanceToOCIRegistry(helmOCIProvChartPath, helmOCIProvChart, helmOCIProvChartV).
-		GPGPublicKeyAdded().
-		Sleep(2).
+		And(func() { gpgkeys.AddGPGPublicKey(t) }).
 		HelmOCIRepoAdded("helm-oci-provenance").
 		Name(helmOCIProvFailName).
 		Project("default").
@@ -199,8 +261,7 @@ func TestHelmSourceIntegrityMultiplePoliciesFails(t *testing.T) {
 	repoURL := helmProvenanceLocalRepoURL()
 	Given(t).
 		CustomCACertAdded().
-		GPGPublicKeyAdded().
-		Sleep(2).
+		And(func() { gpgkeys.AddGPGPublicKey(t) }).
 		HelmProvenanceRepoAdded("helm-multi-pol").
 		Name("helm-multi-pol-fail").
 		Project("default").
@@ -272,8 +333,7 @@ func TestMultiSourceGitHelmOCIProvenanceAllPass(t *testing.T) {
 
 	Given(t).
 		CustomCACertAdded().
-		GPGPublicKeyAdded().
-		Sleep(2).
+		And(func() { gpgkeys.AddGPGPublicKey(t) }).
 		HelmProvenanceRepoAdded("helm-multi").
 		PushChartWithProvenanceToOCIRegistry(helmOCIProvChartPath, helmOCIProvChart, helmOCIProvChartV).
 		HelmOCIRepoAdded("helm-oci-multi").
@@ -349,7 +409,7 @@ func expectHelmRepoClashBrokenAppState(cons *Consequences) {
 	cons.
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(Condition(ApplicationConditionComparisonError, "provenance file (.prov) is required but missing"))
+		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification"))
 }
 
 func appProjectWithHelmSourceIntegrity(keys ...string) AppProjectSpec {

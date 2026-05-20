@@ -1,6 +1,7 @@
 package sourceintegrity
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -563,7 +564,7 @@ func TestVerifyHelmMultiplePolicies(t *testing.T) {
 			},
 		},
 	}
-	result, err := VerifyHelm(si, "https://charts.bitnami.com/bitnami", []byte{}, []byte{}, "chart.tgz")
+	result, err := VerifyHelm(context.Background(), si, "https://charts.bitnami.com/bitnami", []byte{}, []byte{}, "chart.tgz")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Error(t, result.AsError())
@@ -579,7 +580,7 @@ func TestVerifyHelmProvenanceRequiredButMissing(t *testing.T) {
 			}},
 		},
 	}
-	result, err := VerifyHelm(si, "https://charts.example.com/repo", []byte("chart"), nil, "chart.tgz")
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte("chart"), nil, "chart.tgz")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Error(t, result.AsError())
@@ -595,7 +596,7 @@ func TestVerifyHelmReturnsNilWhenKeysEmpty(t *testing.T) {
 			}},
 		},
 	}
-	result, err := VerifyHelm(si, "https://charts.example.com/repo", []byte{}, nil, "chart.tgz")
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte{}, nil, "chart.tgz")
 	require.NoError(t, err)
 	require.Nil(t, result, "empty keys list skips verification, returns nil")
 }
@@ -633,13 +634,13 @@ func TestVerifyHelmReturnsNilWhenNoPolicyMatch(t *testing.T) {
 			}},
 		},
 	}
-	result, err := VerifyHelm(si, "https://charts.example.com/repo", []byte{}, []byte{}, "chart.tgz")
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte{}, []byte{}, "chart.tgz")
 	require.NoError(t, err)
 	require.Nil(t, result, "no matching policy returns nil")
 }
 
 func TestVerifyHelmReturnsNilWhenNilSI(t *testing.T) {
-	result, err := VerifyHelm(nil, "https://charts.example.com/repo", []byte{}, []byte{}, "chart.tgz")
+	result, err := VerifyHelm(context.Background(), nil, "https://charts.example.com/repo", []byte{}, []byte{}, "chart.tgz")
 	require.NoError(t, err)
 	require.Nil(t, result)
 }
@@ -656,7 +657,7 @@ func TestVerifyHelmPassWhenGPGDisabled(t *testing.T) {
 			}},
 		},
 	}
-	result, err := VerifyHelm(si, "https://charts.example.com/repo", []byte("chart"), nil, "chart.tgz")
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte("chart"), nil, "chart.tgz")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.True(t, result.IsValid(), "when GPG disabled, verification is skipped and result passes")
@@ -670,7 +671,7 @@ func TestVerifyHelmPassProvenanceValid(t *testing.T) {
 	chartContent, err := os.ReadFile("testdata/demo-chart-1.0.0.tgz")
 	require.NoError(t, err)
 	old := helmProvenanceVerifier
-	helmProvenanceVerifier = func([]byte) (string, error) { return "C569733D3D05285D", nil }
+	helmProvenanceVerifier = func(context.Context, []byte) (string, error) { return "C569733D3D05285D", nil }
 	t.Cleanup(func() { helmProvenanceVerifier = old })
 	si := &v1alpha1.SourceIntegrity{
 		Helm: &v1alpha1.SourceIntegrityHelm{
@@ -680,7 +681,7 @@ func TestVerifyHelmPassProvenanceValid(t *testing.T) {
 			}},
 		},
 	}
-	result, err := VerifyHelm(si, "http://localhost:8000/charts", chartContent, provContent, "demo-chart-1.0.0.tgz")
+	result, err := VerifyHelm(context.Background(), si, "http://localhost:8000/charts", chartContent, provContent, "demo-chart-1.0.0.tgz")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.True(t, result.IsValid(), "valid signed provenance with allowed key should pass")
@@ -694,7 +695,7 @@ func TestVerifyHelmFailUnallowedKey(t *testing.T) {
 	chartContent, err := os.ReadFile("testdata/demo-chart-1.0.0.tgz")
 	require.NoError(t, err)
 	old := helmProvenanceVerifier
-	helmProvenanceVerifier = func([]byte) (string, error) { return "C569733D3D05285D", nil }
+	helmProvenanceVerifier = func(context.Context, []byte) (string, error) { return "C569733D3D05285D", nil }
 	t.Cleanup(func() { helmProvenanceVerifier = old })
 	si := &v1alpha1.SourceIntegrity{
 		Helm: &v1alpha1.SourceIntegrityHelm{
@@ -704,7 +705,7 @@ func TestVerifyHelmFailUnallowedKey(t *testing.T) {
 			}},
 		},
 	}
-	result, err := VerifyHelm(si, "http://localhost:8000/charts", chartContent, provContent, "demo-chart-1.0.0.tgz")
+	result, err := VerifyHelm(context.Background(), si, "http://localhost:8000/charts", chartContent, provContent, "demo-chart-1.0.0.tgz")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.False(t, result.IsValid())

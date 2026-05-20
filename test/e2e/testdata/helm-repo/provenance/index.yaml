@@ -3,6 +3,15 @@ entries:
   helm-provenance:
     - created: 2025-01-01T00:00:00Z
       urls:
+        # Primary mirror: chart only (no .prov); exercises provenance fetch fallback to second URL.
+        - http://127.0.0.1:9080/argo-e2e/testdata.git/helm-repo/provenance/helm-provenance-primary-1.0.0.tgz
         - http://127.0.0.1:9080/argo-e2e/testdata.git/helm-repo/provenance/helm-provenance-1.0.0.tgz
       version: 1.0.0
+      name: helm-provenance
+    - created: 2025-01-01T00:00:00Z
+      urls:
+        # Both mirrors ship the chart but no .prov; provenance fetch exhausts all URLs.
+        - http://127.0.0.1:9080/argo-e2e/testdata.git/helm-repo/provenance/helm-provenance-primary-1.0.0.tgz
+        - http://127.0.0.1:9080/argo-e2e/testdata.git/helm-repo/provenance/helm-provenance-primary-1.0.0.tgz
+      version: 1.0.1
       name: helm-provenance

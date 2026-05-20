@@ -119,7 +119,10 @@ spec:
   - "argocd-apps-*"
 
   # Source Integrity declares criteria for application source repositories, such as cryptographic signing, etc.
+  # At least one of git or helm must be set. See:
   # https://argo-cd.readthedocs.io/en/latest/user-guide/source-integrity/
+  # https://argo-cd.readthedocs.io/en/latest/user-guide/source-integrity-git-gpg.md
+  # https://argo-cd.readthedocs.io/en/latest/user-guide/source-integrity-helm-provenance.md
   sourceIntegrity:
     git:
       policies:
@@ -130,3 +133,10 @@ spec:
             mode: strict
             keys:
               - "D56C4FCA57A46444"
+    # helm:
+    #   policies:
+    #     - repos:
+    #         - url: 'https://charts.example.com/*'
+    #       provenance:
+    #         keys:
+    #           - "4AEE18F83AFDEB23"

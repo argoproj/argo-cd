@@ -20,7 +20,6 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 )
 
 // Regular expression to match public key beginning
@@ -420,68 +419,6 @@ func DeletePGPKey(keyID string) error {
 	return nil
 }
 
-// VerifyCleartextSignedMessage verifies a PGP cleartext-signed message (e.g. Helm .prov file).
-// It returns the signer's key ID (long form) on success. Uses --status-fd for reliable parsing.
-// Parses the same GPG status-fd format as Git (GOODSIG, ERRSIG, BADSIG, etc.)
-func VerifyCleartextSignedMessage(clearsigned []byte) (signerKeyID string, err error) {
-	f, err := os.CreateTemp("", "gpg-verify-")
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-	if _, err := f.Write(clearsigned); err != nil {
-		return "", err
-	}
-	if err := f.Sync(); err != nil {
-		return "", err
-	}
-
-	pr, pw, err := os.Pipe()
-	if err != nil {
-		return "", err
-	}
-	defer pr.Close()
-	defer pw.Close()
-
-	ctx := context.Background()
-	cmd := exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--verify", "--status-fd", "3", f.Name())
-	cmd.Env = getGPGEnviron()
-	cmd.ExtraFiles = []*os.File{pw}
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-
-	if err := cmd.Start(); err != nil {
-		return "", err
-	}
-	pw.Close()
-	var sb strings.Builder
-	buf := make([]byte, 512)
-	for {
-		n, err := pr.Read(buf)
-		if n > 0 {
-			sb.Write(buf[:n])
-		}
-		if err != nil {
-			break
-		}
-	}
-	_ = cmd.Wait()
-
-	status := sb.String()
-	code, keyID, err := gpg.ParseStatusOutputStrict(status)
-	if err != nil {
-		if errors.Is(err, gpg.ErrNoStatusFound) {
-			return "", fmt.Errorf("gpg verify did not report GOODSIG (status-fd output: %q)", status)
-		}
-		return "", err
-	}
-	if code == "GOODSIG" {
-		return keyID, nil
-	}
-	return "", fmt.Errorf("%s", gpg.VerificationFailureMessage(code, keyID))
-}
-
 // IsSecretKey returns true if the keyID also has a private key in the keyring
 func IsSecretKey(keyID string) (bool, error) {
 	args := append([]string{}, "--no-permission-warning", "--list-secret-keys", keyID)
@@ -510,7 +447,7 @@ func IsSecretKey(keyID string) (bool, error) {
 }
 
 func isExecNotFound(err error) bool {
-	return strings.Contains(err.Error(), "executable file not found") || strings.Contains(err.Error(), "no such file or directory")
+	return errors.Is(err, exec.ErrNotFound)
 }
 
 // GetInstalledPGPKeys runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs

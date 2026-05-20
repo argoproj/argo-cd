@@ -184,6 +184,7 @@ nav:
   - Source Integrity Verification:
     - user-guide/source-integrity.md
     - Git GnuPG verification: user-guide/source-integrity-git-gpg.md
+    - Helm chart provenance verification: user-guide/source-integrity-helm-provenance.md
   - user-guide/auto_sync.md
   - Diffing:
     - Diff Strategies: user-guide/diff-strategies.md

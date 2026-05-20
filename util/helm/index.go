@@ -34,16 +34,16 @@ func (i *Index) GetEntries(chart string) (Entries, error) {
 	return entries, nil
 }
 
-// GetChartURL returns the first URL for the given chart and version (e.g. for provenance .prov fetch).
-func (i *Index) GetChartURL(chart string, version string) (string, error) {
+// GetChartURLs returns all chart package URLs for the given chart and version (mirrors per Helm index spec).
+func (i *Index) GetChartURLs(chart string, version string) ([]string, error) {
 	entries, err := i.GetEntries(chart)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	for _, e := range entries {
 		if e.Version == version && len(e.Urls) > 0 {
-			return e.Urls[0], nil
+			return append([]string(nil), e.Urls...), nil
 		}
 	}
-	return "", fmt.Errorf("chart '%s' version '%s' not found in index", chart, version)
+	return nil, fmt.Errorf("chart '%s' version '%s' not found in index", chart, version)
 }

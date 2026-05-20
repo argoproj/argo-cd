@@ -5962,7 +5962,7 @@ func TestHelmSourceIntegrity_OciChartFetchFails(t *testing.T) {
 	assert.Contains(t, res.SourceIntegrityResult.AsError().Error(), "could not access OCI helm chart for provenance verification")
 }
 
-func TestHelmSourceIntegrity_ChartTgzPathFails(t *testing.T) {
+func TestHelmSourceIntegrity_GetChartTgzPathFails(t *testing.T) {
 	root := t.TempDir()
 	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
 		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
@@ -5971,7 +5971,7 @@ func TestHelmSourceIntegrity_ChartTgzPathFails(t *testing.T) {
 		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
 		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
 		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
-		helmClient.EXPECT().ChartTgzPath("my-chart", "1.1.0").Return("", errors.New("chart tgz not cached"))
+		helmClient.EXPECT().GetChartTgzPath("my-chart", "1.1.0").Return("", errors.New("chart tgz not cached"))
 		ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
 		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
@@ -5993,4 +5993,56 @@ func TestHelmSourceIntegrity_ChartTgzPathFails(t *testing.T) {
 	require.NotNil(t, res.SourceIntegrityResult)
 	require.Error(t, res.SourceIntegrityResult.AsError())
 	assert.Contains(t, res.SourceIntegrityResult.AsError().Error(), "could not access chart for provenance verification")
+}
+
+func TestBuildHelmOCIChartRepoURL(t *testing.T) {
+	repo := &v1alpha1.Repository{Repo: "registry.example.com/charts"}
+	source := &v1alpha1.ApplicationSource{RepoURL: "registry.example.com/charts", Chart: "mychart"}
+	assert.Equal(t, "oci://registry.example.com/charts/mychart", buildHelmOCIChartRepoURL(repo, source))
+
+	repo.Repo = ""
+	source.RepoURL = "oci://registry.example.com/charts"
+	source.Chart = "/mychart"
+	assert.Equal(t, "oci://registry.example.com/charts/mychart", buildHelmOCIChartRepoURL(repo, source))
+
+	repo.Repo = "oci://registry.example.com/charts/mychart"
+	source.Chart = "mychart"
+	assert.Equal(t, "oci://registry.example.com/charts/mychart", buildHelmOCIChartRepoURL(repo, source))
+}
+
+func TestHelmSourceIntegrity_FetchProvenanceFails(t *testing.T) {
+	root := t.TempDir()
+	chartTgzPath := filepath.Join(root, "my-chart-1.1.0.tgz")
+	require.NoError(t, os.WriteFile(chartTgzPath, []byte("chart-bytes"), 0o600))
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+			"my-chart": {{Version: "1.1.0"}},
+		}}, nil)
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
+		helmClient.EXPECT().GetChartTgzPath("my-chart", "1.1.0").Return(chartTgzPath, nil)
+		helmClient.EXPECT().FetchProvenance("my-chart", "1.1.0").Return(nil, "", errors.New("provenance fetch returned 404 Not Found"))
+		ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+	source := &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0", RepoURL: "https://helm.example.com"}
+	request := &apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{Repo: "https://helm.example.com"},
+		ApplicationSource:  source,
+		NoCache:            true,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		SourceIntegrity:    sourceIntegrityHelmProvenance,
+	}
+	res, err := service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
+	require.NotNil(t, res.SourceIntegrityResult)
+	require.Error(t, res.SourceIntegrityResult.AsError())
+	assert.Contains(t, res.SourceIntegrityResult.AsError().Error(), "could not access chart for provenance verification")
+	assert.Contains(t, res.SourceIntegrityResult.AsError().Error(), "404")
 }
