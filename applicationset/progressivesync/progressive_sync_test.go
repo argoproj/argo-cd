@@ -2077,14 +2077,14 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 				},
 			}
 
-			initObjs := []crtclient.Object{&appset}
+			initObjs := []runtime.Object{&appset}
 			for i := range tt.applications {
 				initObjs = append(initObjs, &tt.applications[i])
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			appClientSet := appfake.NewSimpleClientset(initObjs...)
 			manager := &Manager{
-				Client: client,
+				AppClientset: appClientSet,
 			}
 
 			err := manager.addRefreshAnnotationToApplications(t.Context(), log.NewEntry(log.StandardLogger()), tt.applications)
@@ -2096,11 +2096,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 
 				// Verify annotations were added (except for apps that already had them)
 				for _, app := range tt.applications {
-					var retrievedApp v1alpha1.Application
-					err := client.Get(t.Context(), crtclient.ObjectKey{
-						Name:      app.Name,
-						Namespace: app.Namespace,
-					}, &retrievedApp)
+					retrievedApp, err := appClientSet.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 					require.NoError(t, err)
 
 					// Should have the refresh annotation
