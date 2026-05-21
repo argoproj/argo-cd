@@ -798,6 +798,7 @@ func (server *ArgoCDServer) watchSettings() {
 	prevBitbucketServerSecret := server.settings.GetWebhookBitbucketServerSecret()
 	prevGogsSecret := server.settings.GetWebhookGogsSecret()
 	prevExtConfig := server.settings.ExtensionConfig
+	prevSecrets := server.settings.Secrets
 	var prevCert, prevCertKey string
 	if server.settings.Certificate != nil && !server.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*server.settings.Certificate)
@@ -844,8 +845,9 @@ func (server *ArgoCDServer) watchSettings() {
 			log.Infof("gogs secret modified. restarting")
 			break
 		}
-		if !reflect.DeepEqual(prevExtConfig, server.settings.ExtensionConfig) {
+		if !reflect.DeepEqual(prevExtConfig, server.settings.ExtensionConfig) || !reflect.DeepEqual(prevSecrets, server.settings.Secrets) {
 			prevExtConfig = server.settings.ExtensionConfig
+			prevSecrets = server.settings.Secrets
 			log.Infof("extensions configs modified. Updating proxy registry...")
 			err := server.extensionManager.UpdateExtensionRegistry(server.settings)
 			if err != nil {
