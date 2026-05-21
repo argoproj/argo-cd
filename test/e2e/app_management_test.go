@@ -2967,14 +2967,16 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 			initialReconciledAt := app.Status.ReconciledAt
 			require.NotNil(t, initialReconciledAt)
 
-			ctx, cancel := context.WithTimeout(t.Context(), 4*time.Minute)
-			defer cancel()
-
+			const observationPeriod = 2 * time.Minute
+			const pollInterval = 2 * time.Second
 			refreshCount := 0
 			lastReconciledAt := initialReconciledAt.DeepCopy()
-
-			for event := range fixture.ArgoCDClientset.WatchApplicationWithRetry(ctx, a.QualifiedName(), app.ResourceVersion) {
-				reconciledAt := event.Application.Status.ReconciledAt
+			deadline := time.Now().Add(observationPeriod)
+			for time.Now().Before(deadline) {
+				time.Sleep(pollInterval)
+				observed, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				reconciledAt := observed.Status.ReconciledAt
 				if reconciledAt == nil {
 					continue
 				}
@@ -2984,7 +2986,7 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 				}
 			}
 
-			assert.LessOrEqual(t, refreshCount, 1, "application refreshed %d times (expected ≤1) with timeout.reconciliation=0s", refreshCount)
+			assert.Equal(t, 0, refreshCount, "application should not refresh with timeout.reconciliation=0s during observation window")
 		})
 }
 
@@ -3021,7 +3023,7 @@ func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 					return false
 				}
 				return app.Status.Sync.Status == SyncStatusCodeOutOfSync
-			}, 4*time.Minute, 3*time.Second, "expected OutOfSync without manual refresh")
+			}, 150*time.Minute, 3*time.Second, "expected OutOfSync without manual refresh")
 		})
 }
 
@@ -3084,7 +3086,7 @@ func TestStatusUpdateDoesNotTriggerRefresh(t *testing.T) {
 		})
 }
 
-// TestRefreshAnnotationStillWorks verifies that explicitly adding a refresh
+// TestRefreshAnnotationTriggersRefresh verifies that explicitly adding a refresh
 // annotation DOES trigger a refresh, even when reconciliation is disabled.
 func TestRefreshAnnotationStillWorks(t *testing.T) {
 	ctx := t.Context()

@@ -1019,53 +1019,17 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		return processNext
 	}
 
-	var app *appv1.Application
-	var logCtx *log.Entry
-
 	if !exists {
-		parts := strings.Split(appKey, "/")
-		if len(parts) != 2 {
-			log.WithField("appkey", appKey).Warn("Unexpected appKey format, expected namespace/name")
-			return processNext
-		}
-		appNamespace, appName := parts[0], parts[1]
-		freshApp, apiErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(context.Background(), appName, metav1.GetOptions{})
-		if apiErr != nil {
-			if apierrors.IsNotFound(apiErr) {
-				return processNext
-			}
-			log.WithField("appkey", appKey).WithError(apiErr).Error("Failed to retrieve application from API server")
-			return processNext
-		}
-		if freshApp.Operation == nil {
-			return processNext
-		}
-		app = freshApp
-		logCtx = log.WithFields(applog.GetAppLogFields(app))
-	} else {
-		origApp, ok := obj.(*appv1.Application)
-		if !ok {
-			log.WithField("appkey", appKey).Warn("Key in index is not an application")
-			return processNext
-		}
-		app = origApp.DeepCopy()
-		logCtx = log.WithFields(applog.GetAppLogFields(app))
-
-		if app.Operation != nil {
-			freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-			if err != nil {
-				if !apierrors.IsNotFound(err) {
-					logCtx.WithError(err).Error("Failed to retrieve latest application state")
-				}
-				return processNext
-			}
-			if freshApp.Operation == nil {
-				return processNext
-			}
-			app = freshApp
-		}
+		// This happens after app was deleted, but the work queue still had an entry for it.
+		return processNext
 	}
-
+	origApp, ok := obj.(*appv1.Application)
+	if !ok {
+		log.WithField("appkey", appKey).Warn("Key in index is not an application")
+		return processNext
+	}
+	app := origApp.DeepCopy()
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	ts := stats.NewTimingStats()
 	defer func() {
 		for k, v := range ts.Timings() {
@@ -1074,6 +1038,21 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing app operation queue item")
 	}()
+
+	if app.Operation != nil {
+		// If we get here, we are about to process an operation, but we cannot rely on informer since it might have stale data.
+		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
+		// We cannot rely on informer since applications might be updated by both application controller and api server.
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		if err != nil {
+			logCtx.WithError(err).Error("Failed to retrieve latest application state")
+			return processNext
+		}
+		if freshApp.Operation == nil {
+			return processNext
+		}
+		app = freshApp
+	}
 	ts.AddCheckpoint("get_fresh_app_ms")
 
 	if app.Operation != nil {
@@ -2505,14 +2484,42 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
+// operationChanged reports whether the Application's requested sync operation (app.Operation)
+// was added or modified.
 func operationChanged(oldApp, newApp *appv1.Application) bool {
-	return (oldApp.Operation == nil && newApp.Operation != nil) ||
-		(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
+	oldExists := oldApp.Operation != nil
+	newExists := newApp.Operation != nil
+
+	// Operation was added.
+	if !oldExists && newExists {
+		return true
+	}
+
+	// Operation was modified (both exist but differ).
+	if oldExists && newExists {
+		return !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation)
+	}
+
+	// No operation, or operation was removed (completion handled by the operation queue).
+	return false
 }
 
+// deletionTimestampChanged reports whether the Application deletion timestamp was set or updated.
 func deletionTimestampChanged(oldApp, newApp *appv1.Application) bool {
-	return (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
-		(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
+	oldHasTimestamp := oldApp.DeletionTimestamp != nil
+	newHasTimestamp := newApp.DeletionTimestamp != nil
+
+	// Deletion was initiated.
+	if !oldHasTimestamp && newHasTimestamp {
+		return true
+	}
+
+	// Deletion timestamp was updated.
+	if oldHasTimestamp && newHasTimestamp {
+		return !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp)
+	}
+
+	return false
 }
 
 // noSpecOperationOrDeletionChange is true when Spec, Operation (sync op), and deletion timestamp semantics are
@@ -2525,7 +2532,7 @@ func noSpecOperationOrDeletionChange(oldApp, newApp *appv1.Application) bool {
 	if operationChanged(oldApp, newApp) {
 		return false
 	}
-	if deletionTimestampChanged(oldApp, newApp) || newApp.DeletionTimestamp != nil {
+	if newApp.DeletionTimestamp != nil || deletionTimestampChanged(oldApp, newApp) {
 		return false
 	}
 	return true
@@ -2580,7 +2587,7 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 				ctrl.clusterSharding.UpdateApp(newApp)
 				return
 			}
-			if ctrl.applicationComparisonExpired(newApp) && !refreshAnnotAppeared && !hydrateAnnotAppeared {
+			if !refreshAnnotAppeared && !hydrateAnnotAppeared && ctrl.applicationComparisonExpired(newApp) {
 				delay = ctrl.resyncRefreshAfter()
 			}
 		}
@@ -2693,6 +2700,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 			},
 			UpdateFunc: func(old, new any) {
+				if !ctrl.canProcessApp(new) {
+					return
+				}
+
 				key, err := cache.MetaNamespaceKeyFunc(new)
 				if err != nil {
 					return
@@ -2700,10 +2711,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 				oldApp, oldOK := old.(*appv1.Application)
 				newApp, newOK := new.(*appv1.Application)
-
-				if !ctrl.canProcessApp(new) {
-					return
-				}
 
 				ctrl.applicationInformerProcessUpdate(oldOK, oldApp, newOK, newApp, key)
 			},
