@@ -377,3 +377,56 @@ func TestGetAccessToken_ReuseTokenIfExistingIsNotExpired(t *testing.T) {
 func resetAzureTokenCache() {
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
+
+func TestGetARMTokenResource(t *testing.T) {
+	tests := []struct {
+		name           string
+		armResourceEnv string
+		authorityHost  string
+		want           string
+	}{
+		{
+			name:           "explicit override wins over authority host",
+			armResourceEnv: "https://custom.example.com",
+			authorityHost:  "https://login.microsoftonline.us",
+			want:           "https://custom.example.com",
+		},
+		{
+			name:          "us government authority host",
+			authorityHost: "https://login.microsoftonline.us",
+			want:          "https://management.core.usgovcloudapi.net",
+		},
+		{
+			name:          "us government authority host with trailing slash",
+			authorityHost: "https://login.microsoftonline.us/",
+			want:          "https://management.core.usgovcloudapi.net",
+		},
+		{
+			name:          "china authority host",
+			authorityHost: "https://login.partner.microsoftonline.cn",
+			want:          "https://management.core.chinacloudapi.cn",
+		},
+		{
+			name:          "commercial authority host",
+			authorityHost: "https://login.microsoftonline.com",
+			want:          "https://management.core.windows.net",
+		},
+		{
+			name: "unset env returns commercial default",
+			want: "https://management.core.windows.net",
+		},
+		{
+			name:          "unknown authority host falls back to commercial default",
+			authorityHost: "https://login.example.gov",
+			want:          "https://management.core.windows.net",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("AZURE_ARM_TOKEN_RESOURCE", tc.armResourceEnv)
+			t.Setenv("AZURE_AUTHORITY_HOST", tc.authorityHost)
+			assert.Equal(t, tc.want, getARMTokenResource())
+		})
+	}
+}
