@@ -235,3 +235,74 @@ func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {
 	assert.Contains(t, patched, "team-a")
 	assert.NotContains(t, patched, "kube-system")
 }
+
+func TestHandleRegistryEvent_HelmOCI(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	tests := []struct {
+		name        string
+		chart       string
+		wantRefresh bool
+		wantLog     string
+	}{
+		{
+			name:        "chart name matches event repository",
+			chart:       "mychart",
+			wantRefresh: true,
+			wantLog:     "Requested app 'helm-oci-app' refresh",
+		},
+		{
+			name:        "chart name does not match event repository",
+			chart:       "other-chart",
+			wantRefresh: false,
+			wantLog:     "Skipping app: OCI repository URLs do not match",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hook := test.NewGlobal()
+			patchedApps := []string{}
+			reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
+				patch := action.(kubetesting.PatchAction)
+				patchedApps = append(patchedApps, patch.GetName())
+				return true, nil, nil
+			}
+
+			h := NewMockHandler(
+				&reactorDef{"patch", "applications", reaction},
+				[]string{},
+				&v1alpha1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "helm-oci-app",
+						Namespace: "argocd",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Sources: v1alpha1.ApplicationSources{
+							{
+								RepoURL:        "ghcr.io/myorg/charts",
+								Chart:          tt.chart,
+								TargetRevision: "1.2.3",
+							},
+						},
+					},
+				},
+			)
+
+			event := &RegistryEvent{
+				RegistryURL: "ghcr.io",
+				Repository:  "myorg/charts/mychart",
+				Tag:         "1.2.3",
+			}
+
+			h.HandleRegistryEvent(event)
+
+			if tt.wantRefresh {
+				assert.Contains(t, patchedApps, "helm-oci-app")
+			} else {
+				assert.NotContains(t, patchedApps, "helm-oci-app")
+			}
+			assert.Contains(t, hook.LastEntry().Message, tt.wantLog)
+		})
+	}
+}
