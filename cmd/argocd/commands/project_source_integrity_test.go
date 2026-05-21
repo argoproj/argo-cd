@@ -105,7 +105,6 @@ func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, st
 	cmd.SetErr(&errbuf)
 
 	err := cmd.ExecuteContext(t.Context())
-
 	// Make sure the messare from the error reported by Command.RunE() is appended to the errbuf for verification (same as in main.go)
 	if err != nil {
 		errMsg, _ := NewDefaultPluginHandler().HandleCommandExecutionError(err, true, args)

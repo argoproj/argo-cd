@@ -19,6 +19,7 @@ argocd proj source-integrity git policies delete PROJECT POLICY_ID... [flags]
 
 ```
   -h, --help   help for delete
+  -y, --yes    Skip explicit confirmation
 ```
 
 ### Options inherited from parent commands

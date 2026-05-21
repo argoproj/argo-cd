@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -212,7 +213,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 			if !yes {
 				idsStr := make([]string, 0, len(idsToDelete))
 				for i := range maps.Keys(idsToDelete) {
-					idsStr = append(idsStr, fmt.Sprintf("%d", i))
+					idsStr = append(idsStr, strconv.Itoa(i))
 				}
 				sort.Strings(idsStr)
 				prompt := fmt.Sprintf("Are you sure you want to delete policie(s) %s from project %q? [y/N] ", strings.Join(idsStr, ", "), projName)
@@ -336,16 +337,12 @@ func validateGpgMode(gpgMode string) (v1alpha1.SourceIntegrityGitPolicyGPGMode, 
 	out := v1alpha1.SourceIntegrityGitPolicyGPGMode(gpgMode)
 
 	switch gpgMode {
-	case "strict":
-		fallthrough
-	case "head":
-		fallthrough
-	case "none":
+	case "strict", "head", "none":
 		return out, nil
 	case "":
-		return out, fmt.Errorf("gpg-mode must be set")
+		return out, errors.New("gpg-mode must be set")
 	default:
-		return v1alpha1.SourceIntegrityGitPolicyGPGMode(""), fmt.Errorf("gpg-mode must be one of: strict, head, none")
+		return out, errors.New("gpg-mode must be one of: strict, head, none")
 	}
 }
 
@@ -410,11 +407,11 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 			policy := proj.Spec.SourceIntegrity.Git.Policies[index]
 
 			if len(gpgKeys) > 0 && (len(deleteGPGKeys) > 0 || len(addGPGKeys) > 0) {
-				return fmt.Errorf("Option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key")
+				return errors.New("Option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key")
 			}
 
 			if len(repoURLs) > 0 && (len(deleteRepoURLs) > 0 || len(addRepoURLs) > 0) {
-				return fmt.Errorf("Option --repo-url, cannot be combined with --add-repo-url or --delete-repo-url")
+				return errors.New("Option --repo-url, cannot be combined with --add-repo-url or --delete-repo-url")
 			}
 
 			if len(repoURLs) > 0 {
@@ -459,7 +456,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				policy.GPG.Mode = mode
 			} else if policy.GPG.Mode == "" {
 				// The policy is updated to a gpg one, but this mandatory field is unset
-				return fmt.Errorf("gpg-mode must be set")
+				return errors.New("gpg-mode must be set")
 			}
 
 			// Reset keys
