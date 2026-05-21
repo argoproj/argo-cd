@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -1181,4 +1182,343 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_va
 			"foo": "some",
 		},
 	}}, params)
+}
+
+func TestMatrixGenerateNestedMatrixElementsYamlUsesInnerGeneratorParamsGoTemplate(t *testing.T) {
+	appSet := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "set",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate:        true,
+			GoTemplateOptions: []string{"missingkey=error"},
+		},
+	}
+
+	nestedMatrix := mustJSON(t, v1alpha1.NestedMatrixGenerator{
+		Generators: v1alpha1.ApplicationSetTerminalGenerators{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						mustJSON(t, map[string]any{
+							"app": map[string]any{
+								"name": "guestbook",
+								"charts": []any{
+									map[string]any{
+										"releaseName": "component1",
+										"chart":       "chart1",
+									},
+									map[string]any{
+										"releaseName": "component2",
+										"chart":       "chart2",
+									},
+								},
+							},
+							"revision": "{{ .head_sha }}",
+						}),
+					},
+				},
+			},
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements:     []apiextensionsv1.JSON{},
+					ElementsYaml: "{{ .app.charts | toJson }}",
+				},
+			},
+		},
+	})
+
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"List": &ListGenerator{},
+	})
+
+	got, err := matrixGenerator.GenerateParams(
+		&v1alpha1.ApplicationSetGenerator{
+			Matrix: &v1alpha1.MatrixGenerator{
+				Generators: []v1alpha1.ApplicationSetNestedGenerator{
+					{
+						List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{
+								mustJSON(t, map[string]any{
+									"branch":   "feature/foo",
+									"head_sha": "abc123",
+								}),
+							},
+						},
+					},
+					{
+						Matrix: &nestedMatrix,
+					},
+				},
+			},
+		},
+		appSet,
+		nil,
+	)
+
+	require.NoError(t, err)
+
+	expectedApp := map[string]any{
+		"name": "guestbook",
+		"charts": []any{
+			map[string]any{
+				"releaseName": "component1",
+				"chart":       "chart1",
+			},
+			map[string]any{
+				"releaseName": "component2",
+				"chart":       "chart2",
+			},
+		},
+	}
+
+	assert.Equal(t, []map[string]any{
+		{
+			"branch":      "feature/foo",
+			"head_sha":    "abc123",
+			"revision":    "abc123",
+			"app":         expectedApp,
+			"releaseName": "component1",
+			"chart":       "chart1",
+		},
+		{
+			"branch":      "feature/foo",
+			"head_sha":    "abc123",
+			"revision":    "abc123",
+			"app":         expectedApp,
+			"releaseName": "component2",
+			"chart":       "chart2",
+		},
+	}, got)
+}
+
+func TestMatrixGenerateNestedMatrixUsesInheritedParamsWhenKeysConflictGoTemplate(t *testing.T) {
+	appSet := &v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+		},
+	}
+
+	nestedMatrix := mustJSON(t, v1alpha1.NestedMatrixGenerator{
+		Generators: v1alpha1.ApplicationSetTerminalGenerators{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						mustJSON(t, map[string]any{
+							"env": "staging",
+							"app": map[string]any{
+								"charts": []any{
+									map[string]any{
+										"releaseName": "component1",
+									},
+								},
+							},
+						}),
+					},
+				},
+			},
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{},
+					ElementsYaml: `[
+						{
+							"releaseName": "component1",
+							"observedEnv": "{{ .env }}"
+						}
+					]`,
+				},
+			},
+		},
+	})
+
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"List": &ListGenerator{},
+	})
+
+	got, err := matrixGenerator.GenerateParams(
+		&v1alpha1.ApplicationSetGenerator{
+			Matrix: &v1alpha1.MatrixGenerator{
+				Generators: []v1alpha1.ApplicationSetNestedGenerator{
+					{
+						List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{
+								mustJSON(t, map[string]any{
+									"env": "prod",
+								}),
+							},
+						},
+					},
+					{
+						Matrix: &nestedMatrix,
+					},
+				},
+			},
+		},
+		appSet,
+		nil,
+	)
+
+	require.NoError(t, err)
+
+	assert.Equal(t, []map[string]any{
+		{
+			"env":         "prod",
+			"observedEnv": "staging",
+			"releaseName": "component1",
+			"app": map[string]any{
+				"charts": []any{
+					map[string]any{
+						"releaseName": "component1",
+					},
+				},
+			},
+		},
+	}, got)
+}
+
+func TestMatrixGenerateNestedMatrixSecondChildCanUseOuterAndInnerParamsGoTemplate(t *testing.T) {
+	appSet := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "set",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate:        true,
+			GoTemplateOptions: []string{"missingkey=error"},
+		},
+	}
+
+	nestedMatrix := mustJSON(t, v1alpha1.NestedMatrixGenerator{
+		Generators: v1alpha1.ApplicationSetTerminalGenerators{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						mustJSON(t, map[string]any{
+							"key2": "value2",
+						}),
+					},
+				},
+			},
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						mustJSON(t, map[string]any{
+							"substitute1": "{{ .key1 }}",
+							"substitute2": "{{ .key2 }}",
+						}),
+					},
+				},
+			},
+		},
+	})
+
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"List": &ListGenerator{},
+	})
+
+	got, err := matrixGenerator.GenerateParams(
+		&v1alpha1.ApplicationSetGenerator{
+			Matrix: &v1alpha1.MatrixGenerator{
+				Generators: []v1alpha1.ApplicationSetNestedGenerator{
+					{
+						List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{
+								mustJSON(t, map[string]any{
+									"key1": "value1",
+								}),
+							},
+						},
+					},
+					{
+						Matrix: &nestedMatrix,
+					},
+				},
+			},
+		},
+		appSet,
+		nil,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]any{
+		{
+			"key1":        "value1",
+			"key2":        "value2",
+			"substitute1": "value1",
+			"substitute2": "value2",
+		},
+	}, got)
+}
+
+func TestMatrixGenerateAppliesSelectorOnNestedMatrix(t *testing.T) {
+	appSet := &v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}
+
+	nestedMatrix := mustJSON(t, v1alpha1.NestedMatrixGenerator{
+		Generators: v1alpha1.ApplicationSetTerminalGenerators{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						mustJSON(t, map[string]any{"component": "api"}),
+						mustJSON(t, map[string]any{"component": "worker"}),
+					},
+				},
+			},
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						mustJSON(t, map[string]any{"cluster": "prod"}),
+					},
+				},
+			},
+		},
+	})
+
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"List": &ListGenerator{},
+	})
+
+	got, err := matrixGenerator.GenerateParams(
+		&v1alpha1.ApplicationSetGenerator{
+			Matrix: &v1alpha1.MatrixGenerator{
+				Generators: []v1alpha1.ApplicationSetNestedGenerator{
+					{
+						List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{
+								mustJSON(t, map[string]any{"env": "prod"}),
+							},
+						},
+					},
+					{
+						Matrix: &nestedMatrix,
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"component": "api",
+							},
+						},
+					},
+				},
+			},
+		},
+		appSet,
+		nil,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]any{
+		{
+			"env":       "prod",
+			"component": "api",
+			"cluster":   "prod",
+		},
+	}, got)
+}
+
+func mustJSON(t *testing.T, v any) apiextensionsv1.JSON {
+	t.Helper()
+
+	raw, err := json.Marshal(v)
+	require.NoError(t, err)
+
+	return apiextensionsv1.JSON{Raw: raw}
 }
