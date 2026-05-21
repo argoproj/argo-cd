@@ -218,6 +218,20 @@ func TestProjectSourceIntegrityAddCommand(t *testing.T) {
 		assert.Equal(t, expectedOut, tabbedOut)
 		assert.Equal(t, "Warning: Policy has no repository URLs and will never be used\nWarning: Policy has no GPG keys and will never validate any revision\n", stderr)
 	})
+
+	t.Run("Add source integrity verification policy without gpg-mode", func(t *testing.T) {
+		projects := mockProjectClient(t)
+		mockProjectGet(projects, projectName, dummyProject(projectName, dummySourceIntegrity()), nil).Maybe()
+
+		cmd := NewProjectSourceIntegrityGitPoliciesAddCommand(&argocdclient.ClientOptions{})
+		_, stderr, err := runCmd(t, cmd,
+			"--gpg-key=0123456789ABCDEF",
+			"--repo-url=*",
+			projectName,
+		)
+		require.Error(t, err)
+		assert.Equal(t, "Error: gpg-mode must be set\n", stderr)
+	})
 }
 
 func TestProjectSourceIntegrityListCommand(t *testing.T) {
@@ -437,6 +451,18 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			sourceIntegrity: nil,
 			args:            []string{projectName, "0", "--gpg-mode=strict"},
 			expectedStderr:  "Error: No source integrity git policies defined for project \"test-project\"\n",
+		},
+		{
+			name:            "Set and add key",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "0", "--gpg-key=FAKE", "--add-gpg-key=FAKE2", "--gpg-mode=strict"},
+			expectedStderr:  "Error: Option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key\n",
+		},
+		{
+			name:            "Set and add repo",
+			sourceIntegrity: dummySourceIntegrity(),
+			args:            []string{projectName, "0", "--repo-url=FAKE", "--delete-repo-url=FAKE2", "--gpg-mode=strict"},
+			expectedStderr:  "Error: Option --repo-url, cannot be combined with --add-repo-url or --delete-repo-url\n",
 		},
 	}
 

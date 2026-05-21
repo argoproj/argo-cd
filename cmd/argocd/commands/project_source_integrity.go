@@ -20,8 +20,6 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	"github.com/argoproj/argo-cd/v3/util/templates"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -271,16 +269,18 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 				return fmt.Errorf("Failed getting project %q: %w", projName, err)
 			}
 
-			newPolicy := v1alpha1.SourceIntegrityGitPolicy{GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
-				Mode: validateGpgMode(gpgMode),
-			}}
+			mode, err := validateGpgMode(gpgMode)
+			if err != nil {
+				return err
+			}
+			newPolicy := v1alpha1.SourceIntegrityGitPolicy{GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: mode}}
 			for _, url := range repoURLs {
 				newPolicy.Repos = append(newPolicy.Repos, v1alpha1.SourceIntegrityGitPolicyRepo{URL: url})
 			}
 			for _, key := range gpgKeys {
 				_, err := sourceintegrity.KeyID(key)
 				if err != nil {
-					log.Fatalf("Invalid GPG key ID '%s': %v", key, err)
+					return fmt.Errorf("Invalid GPG key ID '%s': %w", key, err)
 				}
 			}
 			newPolicy.GPG.Keys = gpgKeys
@@ -315,14 +315,21 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 	return command
 }
 
-func validateGpgMode(gpgMode string) v1alpha1.SourceIntegrityGitPolicyGPGMode {
+func validateGpgMode(gpgMode string) (v1alpha1.SourceIntegrityGitPolicyGPGMode, error) {
 	out := v1alpha1.SourceIntegrityGitPolicyGPGMode(gpgMode)
-	if out != v1alpha1.SourceIntegrityGitPolicyGPGModeStrict &&
-		out != v1alpha1.SourceIntegrityGitPolicyGPGModeHead &&
-		out != v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
-		log.Fatal("gpg-mode must be one of: strict, head, none")
+
+	switch gpgMode {
+	case "strict":
+		fallthrough
+	case "head":
+		fallthrough
+	case "none":
+		return out, nil
+	case "":
+		return out, fmt.Errorf("gpg-mode must be set")
+	default:
+		return out, fmt.Errorf("gpg-mode must be one of: strict, head, none")
 	}
-	return out
 }
 
 // NewProjectSourceIntegrityGitPoliciesUpdateCommand returns a new instance of an `argocd proj source-integrity git policies update` command
@@ -428,10 +435,14 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 
 			// Reset mode
 			if gpgMode != "" {
-				policy.GPG.Mode = validateGpgMode(gpgMode)
+				mode, err := validateGpgMode(gpgMode)
+				if err != nil {
+					return err
+				}
+				policy.GPG.Mode = mode
 			} else if policy.GPG.Mode == "" {
-				// The policy is updated to a gpg, but this mandatory field is unset
-				log.Fatal("gpg-mode must be set")
+				// The policy is updated to a gpg one, but this mandatory field is unset
+				return fmt.Errorf("gpg-mode must be set")
 			}
 
 			// Reset keys
@@ -439,7 +450,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				for _, key := range gpgKeys {
 					_, err := sourceintegrity.KeyID(key)
 					if err != nil {
-						log.Fatalf("Invalid GPG key ID '%s': %v", key, err)
+						return fmt.Errorf("Invalid GPG key ID '%s': %w", key, err)
 					}
 				}
 				policy.GPG.Keys = gpgKeys
@@ -455,7 +466,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 			for _, key := range addGPGKeys {
 				_, err := sourceintegrity.KeyID(key)
 				if err != nil {
-					log.Fatalf("Invalid GPG key ID '%s': %v", key, err)
+					return fmt.Errorf("Invalid GPG key ID '%s': %w", key, err)
 				}
 				found := slices.Contains(policy.GPG.Keys, key)
 				if !found {
