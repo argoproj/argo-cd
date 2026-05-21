@@ -62,7 +62,7 @@ func NewCommand() *cobra.Command {
 		cacheSrc                           func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer                tls.ConfigCustomizer
 		tlsConfigCustomizerSrc             func() (tls.ConfigCustomizer, error)
-		redisClient                        *redis.Client
+		redisClient                        redis.UniversalClient
 		disableTLS                         bool
 		maxCombinedDirectoryManifestsSize  string
 		cmpTarExcludedGlobs                []string
@@ -268,7 +268,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
+		OnClientCreated: func(client redis.UniversalClient) {
 			redisClient = client
 		},
 	})

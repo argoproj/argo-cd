@@ -239,7 +239,7 @@ type ArgoCDServerOpts struct {
 	RepoClientset           repoapiclient.Clientset
 	Cache                   *servercache.Cache
 	RepoServerCache         *repocache.Cache
-	RedisClient             *redis.Client
+	RedisClient             redis.UniversalClient
 	TLSConfigCustomizer     tlsutil.ConfigCustomizer
 	XFrameOptions           string
 	ContentSecurityPolicy   string

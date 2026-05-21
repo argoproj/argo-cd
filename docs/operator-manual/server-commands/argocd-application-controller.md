@@ -56,13 +56,14 @@ argocd-application-controller [flags]
       --password string                                           Password for basic authentication to the API server
       --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy
-      --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379). 
+      --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379); comma-separated for Redis cluster (e.g. argocd-redis1:6379,argocd-redis2:6379).
       --redis-ca-certificate string                               Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                           Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string                                   Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-cluster-mode                                        Redis cluster mode.
       --redis-compress string                                     Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
       --redis-insecure-skip-tls-verify                            Skip Redis server certificate validation.
-      --redis-use-tls                                             Use TLS when connecting to Redis. 
+      --redis-use-tls                                             Use TLS when connecting to Redis.
       --redisdb int                                               Redis database.
       --repo-error-grace-period-seconds int                       Grace period in seconds for ignoring consecutive errors while communicating with repo server. (default 180)
       --repo-server string                                        Repo server address. (default "argocd-repo-server:8081")
@@ -74,7 +75,7 @@ argocd-application-controller [flags]
       --self-heal-backoff-factor int                              Specifies factor of exponential timeout between application self heal attempts (default 3)
       --self-heal-backoff-timeout-seconds int                     Specifies initial timeout of exponential backoff between self heal attempts (default 2)
       --self-heal-timeout-seconds int                             Specifies timeout between application self heal attempts
-      --sentinel stringArray                                      Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
+      --sentinel stringArray                                      Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379).
       --sentinelmaster string                                     Redis sentinel master group name. (default "master")
       --server string                                             The address and port of the Kubernetes API server
       --server-side-diff-enabled                                  Feature flag to enable ServerSide diff. Default ("false")
