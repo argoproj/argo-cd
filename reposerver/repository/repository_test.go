@@ -1901,6 +1901,59 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.NotEmpty(t, res.SignatureInfo) // nolint:staticcheck
 }
 
+func TestGetRevisionMetadata_NewClientError(t *testing.T) {
+	service, _, _ := newServiceWithMocks(t, "../..")
+
+	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (git.Client, error) {
+		return nil, errors.New("failed to create git client")
+	}
+
+	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:     &v1alpha1.Repository{},
+		Revision: "c0b400fc458875d925171398f9ba9eabd5529923",
+	})
+
+	require.ErrorContains(t, err, "failed to create git client")
+	assert.Nil(t, res)
+}
+
+func TestGetRevisionMetadata_NonSHARevisionError(t *testing.T) {
+	service, _, _ := newServiceWithMocks(t, "../..")
+
+	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:     &v1alpha1.Repository{},
+		Revision: "main",
+	})
+
+	require.ErrorContains(t, err, "must be resolved")
+	assert.Nil(t, res)
+}
+
+func TestGetRevisionMetadata_CacheError(t *testing.T) {
+	service, gitClient, cacheMocks := newServiceWithMocks(t, "../..")
+	now := time.Now()
+
+	gitClient.EXPECT().RevisionMetadata(mock.Anything).Return(&git.RevisionMetadata{
+		Message: "test",
+		Author:  "author",
+		Date:    now,
+		Tags:    []string{},
+	}, nil)
+
+	// Simulate a non-cache-miss error so the warning branch (cache.ErrCacheMiss) is exercised
+	cacheMocks.mockCache.RedisClient.On("Get", mock.Anything, mock.Anything).Unset()
+	cacheMocks.mockCache.RedisClient.On("Get", mock.Anything, mock.Anything).Return(errors.New("internal cache error"))
+
+	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:     &v1alpha1.Repository{},
+		Revision: "c0b400fc458875d925171398f9ba9eabd5529923",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "test", res.Message)
+	assert.Equal(t, "author", res.Author)
+}
+
 func TestGetSignatureVerificationResult(t *testing.T) {
 	// Commit with signature and verification requested
 	{
@@ -4614,12 +4667,14 @@ func TestGetGitDirectories(t *testing.T) {
 	directories, err := s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"})
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", directories.ResolvedRevision)
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
 	directories, err = s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"}, directories.GetPaths())
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", directories.ResolvedRevision)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
 		ExternalGets: 2,
@@ -4648,12 +4703,14 @@ func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 	directories, err := s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"})
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", directories.ResolvedRevision)
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
 	directories, err = s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"}, directories.GetPaths())
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", directories.ResolvedRevision)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
 		ExternalGets: 2,
@@ -4751,12 +4808,14 @@ func TestGetGitFiles(t *testing.T) {
 	fileResponse, err := s.GetGitFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", fileResponse.ResolvedRevision)
 
 	// do the same request again to use the cache
 	// we only allow LsFiles to be called once in the mock
 	fileResponse, err = s.GetGitFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", fileResponse.ResolvedRevision)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
 		ExternalGets: 2,
