@@ -40,7 +40,7 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     unzip \
     zip && \
     if [ "$(uname -m)" = "aarch64" ]; then \
-       apt-get install --fix-missing -y binutils-gold; \
+    apt-get install --fix-missing -y binutils-gold; \
     fi && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -64,16 +64,16 @@ COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 COPY gitops-engine/go.* ./gitops-engine/
 
-RUN ./install.sh helm && \
-    ./install.sh kustomize && \
-    ./install.sh codegen-tools && \
-    ./install.sh codegen-go-tools && \
-    ./install.sh lint-tools && \
-    ./install.sh gotestsum && \
-    ./install.sh git-lfs && \
+RUN BIN=/usr/local/bin ./install.sh helm && \
+    BIN=/usr/local/bin ./install.sh kustomize && \
+    BIN=/usr/local/bin ./install.sh codegen-tools && \
+    BIN=/usr/local/bin ./install.sh codegen-go-tools && \
+    BIN=/usr/local/bin ./install.sh lint-tools && \
+    BIN=/usr/local/bin ./install.sh test-go-tools && \
+    BIN=/usr/local/bin ./install.sh gotestsum && \
+    BIN=/usr/local/bin ./install.sh git-lfs && \
     go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest && \
-    go install github.com/jstemmer/go-junit-report@latest && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
     rm -rf /tmp/ks_*
