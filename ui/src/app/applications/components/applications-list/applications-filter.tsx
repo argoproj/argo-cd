@@ -57,6 +57,17 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
+// Deleting and Terminated states are grouped under the "Syncing" filter option in the UI
+// (see combinedSyncingCount in getOperationOptions). Normalize them so the filter matches
+// the count shown in the badge.
+function getOperationStateTitleForFilter(app: Application): OperationStateTitle {
+    const title = getOperationStateTitle(app);
+    if (title === OperationStateTitles.Deleting || title === OperationStateTitles.Terminated) {
+        return OperationStateTitles.Syncing;
+    }
+    return title;
+}
+
 export function getAppFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
     const labelSelector = createMetadataSelector(pref.labelsFilter || []);
     const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
@@ -94,7 +105,7 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                     pref.targetRevisionFilter.length === 0 || pref.targetRevisionFilter.some(filter => targetRevisions.some(targetRevision => minimatch(targetRevision, filter))),
                 labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
                 annotations: pref.annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations),
-                operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
+                operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitleForFilter(app))
             }
         };
     });
