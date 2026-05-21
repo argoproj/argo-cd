@@ -3088,7 +3088,7 @@ func TestStatusUpdateDoesNotTriggerRefresh(t *testing.T) {
 
 // TestRefreshAnnotationTriggersRefresh verifies that explicitly adding a refresh
 // annotation DOES trigger a refresh, even when reconciliation is disabled.
-func TestRefreshAnnotationStillWorks(t *testing.T) {
+func TestRefreshAnnotationTriggersRefresh(t *testing.T) {
 	ctx := t.Context()
 	namespace := fixture.TestNamespace()
 
