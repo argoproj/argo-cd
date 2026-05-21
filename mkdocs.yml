@@ -82,6 +82,7 @@ nav:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/awssqs.md
       - operator-manual/notifications/services/email.md
+      - operator-manual/notifications/services/gcppubsub.md
       - operator-manual/notifications/services/github.md
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
@@ -136,6 +137,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.4-3.5.md
     - operator-manual/upgrading/3.3-3.4.md
     - operator-manual/upgrading/3.2-3.3.md
     - operator-manual/upgrading/3.1-3.2.md
@@ -179,7 +181,9 @@ nav:
   - user-guide/private-repositories.md
   - user-guide/plugins.md
   - user-guide/multiple_sources.md
-  - GnuPG verification: user-guide/gpg-verification.md
+  - Source Integrity Verification:
+    - user-guide/source-integrity.md
+    - Git GnuPG verification: user-guide/source-integrity-git-gpg.md
   - user-guide/auto_sync.md
   - Diffing:
     - Diff Strategies: user-guide/diff-strategies.md
@@ -205,6 +209,7 @@ nav:
   - user-guide/status-badge.md
   - user-guide/external-url.md
   - user-guide/extra_info.md
+  - user-guide/application-notice.md
   - Notification subscriptions: user-guide/subscriptions.md
   - user-guide/annotations-and-labels.md
   - Command Reference: user-guide/commands/argocd.md

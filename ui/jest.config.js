@@ -1,13 +1,12 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
+  setupFiles: ['./jest.setup.js'],
   reporters: ['default', 'jest-junit'],
   collectCoverage: true,
-  transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
+  transformIgnorePatterns: ['node_modules/(?!(argo-ui|.*\\.pnpm.*argo-ui.*)/)'],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      isolatedModules: true,
-    }]
+    '^.+\\.tsx?$': ['ts-jest']
   },
   globals: {
     'self': {}

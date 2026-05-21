@@ -313,7 +313,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
 					_, _ = fmt.Fprintf(os.Stdout, "%s\n", logs)
 				}
 				if i != len(groups)-1 {
-					_, _ = fmt.Fprintf(os.Stdout, "\n")
+					_, _ = fmt.Fprint(os.Stdout, "\n")
 				}
 			}
 		},
@@ -429,7 +429,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 					return
 				}
 
-				_, _ = fmt.Printf("Following fields are ignored:\n\n")
+				_, _ = fmt.Print("Following fields are ignored:\n\n")
 				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
 			})
 		},
@@ -476,7 +476,7 @@ argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml -
 					return
 				}
 
-				_, _ = fmt.Printf("Following fields are ignored:\n\n")
+				_, _ = fmt.Print("Following fields are ignored:\n\n")
 				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
 			})
 		},
@@ -551,7 +551,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 				})
 
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				_, _ = fmt.Fprintf(w, "NAME\tDISABLED\n")
+				_, _ = fmt.Fprint(w, "NAME\tDISABLED\n")
 				for _, action := range availableActions {
 					_, _ = fmt.Fprintf(w, "%s\t%s\n", action.Name, strconv.FormatBool(action.Disabled))
 				}
@@ -622,7 +622,7 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 							return
 						}
 
-						_, _ = fmt.Printf("Following fields have been changed:\n\n")
+						_, _ = fmt.Print("Following fields have been changed:\n\n")
 						_ = cli.PrintDiff(res.GetName(), &res, result)
 					case lua.CreateOperation:
 						yamlBytes, err := yaml.Marshal(impactedResource.UnstructuredObj)

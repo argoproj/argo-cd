@@ -1,12 +1,13 @@
-import {Tooltip} from 'argo-ui';
+import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../utils';
-import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus} from '../utils';
+import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 import {ResourceIcon} from '../resource-icon';
+import {isValidManagedByURL} from '../../../shared/utils';
 
 export interface AppSetTileProps {
     appSet: models.ApplicationSet;
@@ -22,6 +23,8 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
 
     const linkInfo = getApplicationLinkURL(appSet, ctx.baseHref);
     const healthStatus = getAppSetHealthStatus(appSet);
+    const managedByURL = getManagedByURL(appSet);
+    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -35,6 +38,18 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
 
     const handleExternalLinkClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (managedByURLInvalid) {
+            ctx.notifications.show({
+                content: (
+                    <div>
+                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
+                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
+                    </div>
+                ),
+                type: NotificationType.Warning
+            });
+            return;
+        }
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
@@ -58,9 +73,20 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                         </div>
                         <div className='columns small-1'>
                             <div className='applications-list__external-link'>
-                                <button onClick={handleExternalLinkClick} title={getManagedByURL(appSet) ? `Managed by: ${getManagedByURL(appSet)}` : 'Open application'}>
-                                    <i className='fa fa-external-link-alt' />
-                                </button>
+                                {managedByURLInvalid ? (
+                                    <button
+                                        type='button'
+                                        className='managed-by-url-invalid'
+                                        onClick={handleExternalLinkClick}
+                                        style={{cursor: 'not-allowed'}}
+                                        title={MANAGED_BY_URL_INVALID_TEXT}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                ) : (
+                                    <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                )}
                                 <button
                                     title={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
                                     className='large-text-height'

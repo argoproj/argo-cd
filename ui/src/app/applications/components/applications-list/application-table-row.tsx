@@ -1,12 +1,14 @@
-import {DropDownMenu, Tooltip} from 'argo-ui';
+import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
 import {Cluster} from '../../../shared/components';
 import {ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
+import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
+import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
+import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
@@ -27,6 +29,8 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
     const healthStatus = app.status.health.status;
     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const source = getAppDefaultSource(app);
+    const managedByURL = getManagedByURL(app);
+    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -40,6 +44,18 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
 
     const handleExternalLinkClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (managedByURLInvalid) {
+            ctx.notifications.show({
+                content: (
+                    <div>
+                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
+                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
+                    </div>
+                ),
+                type: NotificationType.Warning
+            });
+            return;
+        }
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
@@ -79,6 +95,10 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                         <div className='columns small-2' />
                         <div className='show-for-xxlarge columns small-4'>Name:</div>
                         <div className='columns small-12 xxlarge-6'>
+                            {/* Rendered before the name so it stays visible when the name truncates with ellipsis;
+                                the column's `overflow:hidden; white-space:nowrap` (argo-ui table-list) clips trailing
+                                inline children. The tile view does the opposite because there the title wraps. */}
+                            <NoticeIcon annotations={app.metadata.annotations} />
                             <Tooltip
                                 content={
                                     <>
@@ -92,9 +112,11 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                 <span>{app.metadata.name}</span>
                             </Tooltip>
                             <button
+                                type='button'
+                                className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
                                 onClick={handleExternalLinkClick}
-                                style={{marginLeft: '0.5em'}}
-                                title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}>
+                                style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
+                                title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
                                 <i className='fa fa-external-link-alt' />
                             </button>
                         </div>

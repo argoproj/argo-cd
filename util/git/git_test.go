@@ -22,6 +22,10 @@ func TestMain(m *testing.M) {
 	// Ensure tests use non-cached proxy callback
 	proxy.UseTestingProxyCallback()
 
+	cwd, _ := os.Getwd()
+	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	os.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(cwd, "testdata", "gitconfig"))
+
 	os.Exit(m.Run())
 }
 
@@ -354,7 +358,7 @@ func TestLFSClient(t *testing.T) {
 func TestVerifyCommitSignature(t *testing.T) {
 	p := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
+	client, err := NewClientExt("https://github.com/argoproj/argocd-example-apps.git", p, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -371,8 +375,8 @@ func TestVerifyCommitSignature(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch the specific commits needed for signature verification
-	signedCommit := "28027897aad1262662096745f2ce2d4c74d02b7f"
-	unsignedCommit := "85d660f0b967960becce3d49bd51c678ba2a5d24"
+	signedCommit := "723b86e01bea11dcf72316cb172868fcbf05d69e"
+	unsignedCommit := "1ccdee0a611224ccc6b9ff7919fe7002f905436e"
 	err = client.Fetch(signedCommit, 1)
 	require.NoError(t, err)
 	err = client.Fetch(unsignedCommit, 1)

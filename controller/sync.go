@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -25,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
@@ -33,29 +31,17 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
-	"github.com/argoproj/argo-cd/v3/util/glob"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
-
-	// serviceAccountDisallowedCharSet contains the characters that are not allowed to be present
-	// in a DefaultServiceAccount configured for a DestinationServiceAccount
-	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
-
-func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
-	cluster, err := m.liveStateCache.GetClusterCache(server)
-	if err != nil {
-		return nil, err
-	}
-	return cluster.GetOpenAPISchema(), nil
-}
 
 func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
@@ -70,16 +56,11 @@ func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields
 // cleanup function that must be called to remove the generated kube config for this
 // server.
 func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
-	}
-
 	rawConfig, err := cluster.RawRestConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, clusterCache.GetOpenAPISchema(), m.onKubectlRun)
+	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, m.onKubectlRun)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
@@ -249,13 +230,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		clientSideApplyManager = managerValue
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(destCluster)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
-		return
-	}
-
 	reconciliationResult := compareResult.reconciliationResult
 
 	// if RespectIgnoreDifferences is enabled, it should normalize the target
@@ -288,7 +262,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		return
 	}
 	if impersonationEnabled {
-		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(project, app, destCluster)
+		serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(project, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
@@ -349,7 +323,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		rawConfig,
 		m.kubectl,
 		app.Spec.Destination.Namespace,
-		openAPISchema,
 		opts...,
 	)
 	if err != nil {
@@ -547,50 +520,20 @@ func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) (bool, error) {
 	window := proj.Spec.SyncWindows.Matches(app)
 	isManual := false
+	var operationStartTime *time.Time
 	if app.Status.OperationState != nil {
 		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
+		if !app.Status.OperationState.StartedAt.IsZero() {
+			t := app.Status.OperationState.StartedAt.Time
+			operationStartTime = &t
+		}
 	}
-	canSync, err := window.CanSync(isManual)
+	canSync, err := window.CanSync(isManual, operationStartTime)
 	if err != nil {
 		// prevents sync because sync window has an error
 		return true, err
 	}
 	return !canSync, nil
-}
-
-// deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.
-// The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
-func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application, destCluster *v1alpha1.Cluster) (string, error) {
-	// spec.Destination.Namespace is optional. If not specified, use the Application's
-	// namespace
-	serviceAccountNamespace := application.Spec.Destination.Namespace
-	if serviceAccountNamespace == "" {
-		serviceAccountNamespace = application.Namespace
-	}
-	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
-	// if so, return the service account specified for that destination.
-	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched, err := glob.MatchWithError(item.Server, destCluster.Server)
-		if err != nil {
-			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
-		}
-		dstNamespaceMatched, err := glob.MatchWithError(item.Namespace, application.Spec.Destination.Namespace)
-		if err != nil {
-			return "", fmt.Errorf("invalid glob pattern for destination namespace: %w", err)
-		}
-		if dstServerMatched && dstNamespaceMatched {
-			if strings.Trim(item.DefaultServiceAccount, " ") == "" || strings.ContainsAny(item.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
-				return "", fmt.Errorf("default service account contains invalid chars '%s'", item.DefaultServiceAccount)
-			} else if strings.Contains(item.DefaultServiceAccount, ":") {
-				// service account is specified along with its namespace.
-				return "system:serviceaccount:" + item.DefaultServiceAccount, nil
-			}
-			// service account needs to be prefixed with a namespace
-			return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
-		}
-	}
-	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.
-	return "", fmt.Errorf("no matching service account found for destination server %s and namespace %s", application.Spec.Destination.Server, serviceAccountNamespace)
 }
 
 // validateSyncPermissions checks whether the given resource is permitted by the project's

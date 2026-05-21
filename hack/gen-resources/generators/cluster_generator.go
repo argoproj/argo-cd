@@ -251,7 +251,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
-	log.Printf("Clean clusters")
+	log.Print("Clean clusters")
 	namespaces, err := cg.clientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err

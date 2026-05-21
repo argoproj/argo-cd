@@ -1,7 +1,8 @@
 # Submitting PRs
 
 ## Prerequisites
-1. [Development Environment](development-environment.md)   
+
+1. [Development Environment](development-environment.md)
 2. [Toolchain Guide](toolchain-guide.md)
 3. [Development Cycle](development-cycle.md)
 
@@ -10,7 +11,7 @@
 > [!NOTE]
 > **Before you start**
 >
-> The Argo CD project continuously grows, both in terms of features and community size. It gets adopted by more and more organizations which entrust Argo CD to handle their critical production workloads. Thus, we need to take great care with any changes that affect compatibility, performance, scalability, stability and security of Argo CD. For this reason, every new feature or larger enhancement must be properly designed and discussed before it gets accepted into the code base.
+> The Argo CD project continuously grows, both in terms of features and community size. It gets adopted by more and more organizations which entrust Argo CD to handle their critical production workloads. Thus, we need to take great care with any changes that affect compatibility, performance, scalability, stability and security of Argo CD. For this reason, every new feature or larger enhancement must be properly designed and discussed before it gets accepted into the codebase.
 >
 > We do welcome and encourage everyone to participate in the Argo CD project, but please understand that we can't accept each and every contribution from the community, for various reasons. If you want to submit code for a great new feature or enhancement, we kindly ask you to take a look at the
 > [code contribution guide](code-contributions.md#) before you start to write code or submit a PR.
@@ -21,10 +22,10 @@ If you need guidance with submitting a PR, or have any other questions regarding
 
 ## Before Submitting a PR
 
-1. Rebase your branch against upstream main:
+1. Rebase your branch against upstream master:
 ```shell
 git fetch upstream
-git rebase upstream/main
+git rebase upstream/master
 ```
 
 2. Run pre-commit checks:
@@ -39,9 +40,9 @@ When you submit a PR against Argo CD's GitHub repository, a couple of CI checks 
 > [!NOTE]
 > Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from Argo CD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
 
-Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer as expected.
+Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer than expected.
 
-The following read will help you to submit a PR that meets the standards of our CI tests:
+The following guide will help you to submit a PR that meets the standards of our CI tests:
 
 ## Title of the PR
 
@@ -56,6 +57,7 @@ We use [PR title checker](https://github.com/marketplace/actions/pr-title-checke
 * `docs` - Your PR improves the documentation
 * `chore` - Your PR improves any internals of Argo CD, such as the build process, unit tests, etc
 * `refactor` - Your PR refactors the code base, without adding new features or fixing bugs
+* `revert` - Your PR reverts a previous commit
 
 Please prefix the title of your PR with one of the valid categories. For example, if you chose the title your PR `Add documentation for GitHub SSO integration`, please use `docs: Add documentation for GitHub SSO integration` instead.
 

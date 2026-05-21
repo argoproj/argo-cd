@@ -182,7 +182,7 @@ on how your workloads connect to the repository server.
 
 ### Configuring TLS to argocd-repo-server
 
-The componenets `argocd-server`, `argocd-application-controller`, `argocd-notifications-controller`, 
+The components `argocd-server`, `argocd-application-controller`, `argocd-notifications-controller`, 
 and `argocd-applicationset-controller` communicate with the `argocd-repo-server` 
 using a gRPC API over TLS. By default, `argocd-repo-server` generates a non-persistent, 
 self-signed certificate to use for its gRPC endpoint on startup. Because the 
@@ -190,7 +190,7 @@ self-signed certificate to use for its gRPC endpoint on startup. Because the
 is not available to outside consumers for verification. These components will use a 
 non-validating connection to the `argocd-repo-server` for this reason.
 
-To change this behavior to be more secure by having these componenets validate the TLS certificate of the
+To change this behavior to be more secure by having these components validate the TLS certificate of the
 `argocd-repo-server` endpoint, the following steps need to be performed:
 
 * Create a persistent TLS certificate to be used by `argocd-repo-server`, as

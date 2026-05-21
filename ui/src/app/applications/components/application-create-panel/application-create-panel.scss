@@ -1,4 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .application-create-panel {
 
@@ -24,5 +25,133 @@
 
     .row.argo-form-row .columns {
         padding-left: 0;
+    }
+
+    &__add-source {
+        margin-top: 0.75em;
+    }
+
+    &__multi-source-block {
+        margin-bottom: 0.5em;
+
+        .argo-field-container {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: stretch;
+            padding-top: 0;
+            min-height: 0;
+        }
+
+        .argo-field-container > .argo-field,
+        .argo-field-container > .argo-textarea {
+            grid-area: unset;
+        }
+
+        .argo-field-container > label.argo-label-placeholder {
+            position: static;
+            grid-area: unset;
+            align-self: flex-start;
+            transform: none !important;
+            font-size: 12px;
+            line-height: 1.25;
+            margin: 0 0 2px;
+            padding: 0;
+            pointer-events: none;
+            @include themify($themes) {
+                color: themed('text-2');
+            }
+        }
+
+        .argo-field-container > .argo-field:focus + label.argo-label-placeholder,
+        .argo-field-container > .argo-textarea:focus + label.argo-label-placeholder {
+            font-size: 12px;
+            transform: none !important;
+            @include themify($themes) {
+                color: themed('light-argo-teal-7');
+            }
+        }
+    }
+
+    &__multi-source-title {
+        font-weight: 600;
+    }
+
+    &__multi-source-section.white-box {
+        margin-bottom: 1rem;
+        @include themify($themes) {
+            border: 1px solid themed('light-argo-gray-4');
+            background-color: themed('background-2');
+        }
+        box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.12);
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    &__multi-source-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    &__multi-source-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    &__multi-source-label {
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        @include themify($themes) {
+            color: themed('text-2');
+        }
+    }
+
+    &__multi-source-remove-btn {
+        white-space: nowrap;
+    }
+
+    &__multi-source-collapse-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        line-height: 1;
+        @include themify($themes) {
+            color: themed('light-argo-teal-7');
+        }
+    }
+
+    &__multi-source-section .revision-form-field {
+        width: 100%;
+
+        .revision-form-field__main {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+    }
+
+    &__multi-source-collapsed {
+        margin-bottom: 12px;
+        cursor: pointer;
+    }
+
+    &__multi-source-params {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid $argo-color-gray-4;
+
+        .application-parameters > .white-box.editable-panel {
+            box-shadow: none;
+            margin-bottom: 0;
+        }
+
+        .white-box__details {
+            padding-top: 0;
+        }
     }
 }

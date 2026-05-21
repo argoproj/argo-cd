@@ -438,6 +438,55 @@ spec:
 > paths
 > provided in the annotation. The application path serves as the deepest path that can be selected as the root.
 
+#### Measuring Annotation Efficiency
+
+You can use the following metrics to evaluate how effectively the `argocd.argoproj.io/manifest-generate-paths`
+annotation is reducing unnecessary manifest regeneration:
+
+- **`argocd_webhook_requests_total`** (label: `repo`) — counts incoming webhook events per repository. Use this as the
+  baseline for how many push events Argo CD is receiving.
+
+- **`argocd_webhook_store_cache_attempts_total`** (labels: `repo`, `successful`) — counts attempts to reuse the previously
+  cached manifests for the new commit SHA when an application's refresh paths have _not_ changed. A `successful=true`
+  result means the cache was warmed for the new revision without re-generating manifests, which is the desired outcome.
+
+To assess efficiency, compare the rate of `successful=true` attempts against the total webhook rate. A high ratio
+indicates the annotation is working well and preventing unnecessary manifest regeneration.
+
+Note that some `successful=false` results are expected and not a cause for concern — they occur when Argo CD has not
+yet cached manifests for an application (e.g. after a restart or first sync), so there is nothing to carry forward to
+the new revision.
+
+#### Disabling Manifest Cache Warming in Webhooks
+
+In some cases, the manifest cache warming done by the webhook handler can hurt performance rather than help it:
+
+- **Plain YAML repositories**: if applications use plain YAML manifests (no Helm or Kustomize rendering), manifest
+  generation is fast and caching provides little benefit. Attempting to warm the cache for thousands of unaffected
+  applications on every commit adds significant overhead.
+- **Large monorepos**: with many applications sharing a single repository, each webhook event triggers a cache warm
+  attempt for every application whose paths did not change. With thousands of applications, this can cause the webhook
+  handler to spend significant time on Redis operations, delaying the actual reconciliation trigger for the affected
+  application.
+
+When disabled, the webhook handler will only trigger reconciliation for applications whose files have changed and
+will skip all Redis cache operations for unaffected applications. This is the recommended setting for large monorepos
+with plain YAML manifests.
+
+**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: true` on the repository via the
+ArgoCD CLI or UI:
+
+```bash
+argocd repo edit https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+```
+
+**Global setting**: to disable cache warming for all repositories, set the following environment variable on
+`argocd-server`:
+
+```
+ARGOCD_WEBHOOK_MANIFEST_CACHE_WARM_DISABLED=true
+```
+
 ### Application Sync Timeout & Jitter
 
 Argo CD has a timeout for application syncs. It will trigger a refresh for each application periodically when the

@@ -32,29 +32,39 @@ argocd repocreds add REPOURL [flags]
   # Add credentials with GCP credentials for all repositories under https://source.developers.google.com/p/my-google-cloud-project/r/
   argocd repocreds add https://source.developers.google.com/p/my-google-cloud-project/r/ --gcp-service-account-key-path service-account-key.json
 
+  # Add credentials with Azure Service Principal to use for all repositories under https://dev.azure.com/my-devops-organization
+  argocd repocreds add https://dev.azure.com/my-devops-organization --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012
+
+  # Add credentials with Azure Service Principal to use for all repositories under https://dev.azure.com/my-devops-organization when not using default Azure public cloud
+  argocd repocreds add https://dev.azure.com/my-devops-organization --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012 --azure-active-directory-endpoint https://login.microsoftonline.de
+
 ```
 
 ### Options
 
 ```
-      --bearer-token string                     bearer token to the Git repository
-      --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
-      --force-http-basic-auth                   whether to force basic auth when connecting via HTTP
-      --gcp-service-account-key-path string     service account key for the Google Cloud Platform
-      --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
-      --github-app-id int                       id of the GitHub Application
-      --github-app-installation-id int          installation id of the GitHub Application (optional, will be auto-discovered if not provided)
-      --github-app-private-key-path string      private key of the GitHub Application
-  -h, --help                                    help for add
-      --password string                         password to the repository
-      --proxy-url string                        If provided, this URL will be used to connect via proxy
-      --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string         path to the TLS client cert's key (must be PEM format)
-      --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
-      --type string                             type of the repository, "git" or "helm" (default "git")
-      --upsert                                  Override an existing repository with the same name even if the spec differs
-      --use-azure-workload-identity             whether to use azure workload identity for authentication
-      --username string                         username to the repository
+      --azure-active-directory-endpoint string         Active Directory endpoint when not using default Azure public cloud (e.g. https://login.microsoftonline.de)
+      --azure-service-principal-client-id string       client id of the Azure Service Principal
+      --azure-service-principal-client-secret string   client secret of the Azure Service Principal
+      --azure-service-principal-tenant-id string       tenant id of the Azure Service Principal
+      --bearer-token string                            bearer token to the Git repository
+      --enable-oci                                     Specifies whether helm-oci support should be enabled for this repo
+      --force-http-basic-auth                          whether to force basic auth when connecting via HTTP
+      --gcp-service-account-key-path string            service account key for the Google Cloud Platform
+      --github-app-enterprise-base-url string          base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
+      --github-app-id int                              id of the GitHub Application
+      --github-app-installation-id int                 installation id of the GitHub Application (optional, will be auto-discovered if not provided)
+      --github-app-private-key-path string             private key of the GitHub Application
+  -h, --help                                           help for add
+      --password string                                password to the repository
+      --proxy-url string                               If provided, this URL will be used to connect via proxy
+      --ssh-private-key-path string                    path to the private ssh key (e.g. ~/.ssh/id_rsa)
+      --tls-client-cert-key-path string                path to the TLS client cert's key (must be PEM format)
+      --tls-client-cert-path string                    path to the TLS client cert (must be PEM format)
+      --type string                                    type of the repository, "git" or "helm" (default "git")
+      --upsert                                         Override an existing repository with the same name even if the spec differs
+      --use-azure-workload-identity                    whether to use azure workload identity for authentication
+      --username string                                username to the repository
 ```
 
 ### Options inherited from parent commands

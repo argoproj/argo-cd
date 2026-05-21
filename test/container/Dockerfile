@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.6.1@sha256:315270d166080f537bbdf1b489b603aaaa213cb55a544acfa51feb7481abb1c0 AS redis
+FROM docker.io/library/redis:8.6.3@sha256:e628485c98f8cfe942d8b6f34d461dabf069884bf18932ccbdd9dd9af20b1acc AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -8,13 +8,13 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:22.9.0@sha256:8398ea18b8b72817c84af283f72daed9629af2958c4f618fe6db4f453c5c9328 AS node
 
-FROM docker.io/library/golang:1.26.1@sha256:c7e98cc0fd4dfb71ee7465fee6c9a5f079163307e4bf141b336bb9dae00159a5 AS golang
+FROM docker.io/library/golang:1.26.3@sha256:8530a4fd262b294857b6c1d07203f57261863cafe5924f90ebdb4ba96b16ad15 AS golang
 
-FROM docker.io/library/registry:3.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e AS registry
+FROM docker.io/library/registry:3.1@sha256:85347ed2ecde64161c7a4788a4d7d3dcc9d6f86f7be95834022e3c6a423a945a AS registry
 
 FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
 
-FROM docker.io/library/ubuntu:26.04@sha256:5798086f1a3a79f93e33f22d50cb326ebe769272cb84f646259d4995c019877b
+FROM docker.io/library/ubuntu:26.04@sha256:f3d28607ddd78734bb7f71f117f3c6706c666b8b76cbff7c9ff6e5718d46ff64
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -102,7 +102,6 @@ COPY --from=registry /etc/distribution/config.yml /etc/docker/registry/config.ym
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/node /usr/local/bin
-COPY --from=node /opt/yarn-v1.22.22 /opt/yarn-v1.22.22
 
 # Entrypoint is required for container's user management
 COPY ./test/container/entrypoint.sh /usr/local/bin
@@ -135,8 +134,8 @@ RUN userdel -r ubuntu && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    ln -s /opt/yarn-v1.22.22/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.22/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    npm install -g corepack@0.34.6 && \
+    corepack enable && \
     mkdir -p /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
