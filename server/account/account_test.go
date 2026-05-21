@@ -188,10 +188,25 @@ func TestUpdatePassword_OldSSOToken(t *testing.T) {
 	accountServer, _ := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
-	ctx := ssoAdminContext(t.Context(), time.Now().Add(-2*common.ChangePasswordSSOTokenMaxAge))
+	ctx := ssoAdminContext(t.Context(), time.Now().Add(-2*common.DefaultChangePasswordSSOTokenMaxAge))
 
 	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
 	require.Error(t, err)
+}
+
+func TestUpdatePassword_SSOTokenWithCustomMaxAge(t *testing.T) {
+	// Test that environment variable is respected
+	t.Setenv(common.EnvChangePasswordSSOTokenMaxAge, "10m")
+
+	accountServer, _ := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+		cm.Data["accounts.anotherUser"] = "login"
+	})
+
+	// Token is 7 minutes old - should fail with default 5m, but pass with 10m
+	ctx := ssoAdminContext(t.Context(), time.Now().Add(-7*time.Minute))
+
+	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
+	require.NoError(t, err, "Should succeed with custom 10m max age")
 }
 
 func TestUpdatePassword_SSOUserUpdatesAnotherUser(t *testing.T) {
