@@ -68,25 +68,45 @@ func IsWorse(current, new HealthStatusCode) bool {
 
 // GetResourceHealth returns the health of a k8s resource
 func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOverride) (health *HealthStatus, err error) {
-	if obj.GetDeletionTimestamp() != nil && !hook.HasHookFinalizer(obj) {
-		return &HealthStatus{
-			Status:  HealthStatusProgressing,
-			Message: "Pending deletion",
-		}, nil
-	}
+	deleting := obj.GetDeletionTimestamp() != nil && !hook.HasHookFinalizer(obj)
 
+	var luaHealth *HealthStatus
 	if healthOverride != nil {
-		health, err := healthOverride.GetResourceHealth(obj)
+		luaHealth, err = healthOverride.GetResourceHealth(obj)
 		if err != nil {
+			if deleting {
+				// We used to skip Lua health checks on terminating resources. Now that we report errors, we fall back to Progressing
+				// on errors, just in case there are bugs in Lua health checks that are only triggered by terminating resources.
+				return &HealthStatus{
+					Status:  HealthStatusProgressing,
+					Message: "Pending deletion. Error from health check: " + err.Error(),
+				}, nil
+			}
 			health = &HealthStatus{
 				Status:  HealthStatusUnknown,
 				Message: err.Error(),
 			}
 			return health, fmt.Errorf("failed to get resource health for %s/%s: %w", obj.GetNamespace(), obj.GetName(), err)
 		}
-		if health != nil {
-			return health, nil
+	}
+
+	if deleting {
+		// Terminating resources are always Progressing. Lua may supply message detail; built-in Go health
+		// must not report Healthy while deletion is in progress.
+		if luaHealth != nil && luaHealth.Message != "" {
+			return &HealthStatus{
+				Status:  HealthStatusProgressing,
+				Message: "Pending deletion: " + luaHealth.Message,
+			}, nil
 		}
+		return &HealthStatus{
+			Status:  HealthStatusProgressing,
+			Message: "Pending deletion",
+		}, nil
+	}
+
+	if luaHealth != nil {
+		return luaHealth, nil
 	}
 
 	if healthCheck := GetHealthCheckFunc(obj.GroupVersionKind()); healthCheck != nil {

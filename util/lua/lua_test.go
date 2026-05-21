@@ -998,6 +998,52 @@ return hs`
 	})
 }
 
+const terminatingPodYAML = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  deletionTimestamp: "2024-01-01T00:00:00Z"
+`
+
+// minimalLuaPendingDeletionDemo is a tiny health.lua stand-in: Lua supplies detail text; GetResourceHealth still
+// forces Progressing and prefixes the message for terminating resources.
+const minimalLuaPendingDeletionDemo = `
+hs = {}
+hs.status = "Healthy"
+hs.message = "waiting on example.io/example-finalizer"
+return hs
+`
+
+// TestGetResourceHealthUsesLuaPendingDeletionDetail asserts health.GetResourceHealth composes Lua detail with
+// the pending-deletion prefix for terminating objects, and falls back to bare "Pending deletion" without Lua.
+func TestGetResourceHealthUsesLuaPendingDeletionDetail(t *testing.T) {
+	var obj unstructured.Unstructured
+	err := yaml.Unmarshal([]byte(terminatingPodYAML), &obj.Object)
+	require.NoError(t, err)
+	require.NotNil(t, obj.GetDeletionTimestamp())
+
+	overrides := ResourceHealthOverrides{
+		"Pod": appv1.ResourceOverride{
+			HealthLua: minimalLuaPendingDeletionDemo,
+		},
+	}
+
+	hs, err := health.GetResourceHealth(&obj, overrides)
+	require.NoError(t, err)
+	require.NotNil(t, hs)
+
+	require.Equal(t, health.HealthStatusProgressing, hs.Status)
+	require.Equal(t, "Pending deletion: waiting on example.io/example-finalizer", hs.Message)
+
+	baseline, err := health.GetResourceHealth(&obj, nil)
+	require.NoError(t, err)
+	require.NotNil(t, baseline)
+	require.Equal(t, health.HealthStatusProgressing, baseline.Status)
+	require.Equal(t, "Pending deletion", baseline.Message)
+}
+
 func TestExecuteResourceActionWithParams(t *testing.T) {
 	deploymentObj := createMockResource("Deployment", "test-deployment", 1)
 	statefulSetObj := createMockResource("StatefulSet", "test-statefulset", 1)
