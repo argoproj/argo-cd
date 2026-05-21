@@ -185,6 +185,8 @@ azure:
    `_claim_sources`).
 2. **Scope Check**: Verifies the access token contains the `User.Read` scope.
 3. **Graph API Call**: Calls `POST /me/getMemberGroups` to fetch all group IDs (up to 2048).
+   Only security-enabled groups are returned (not distribution lists), which is appropriate
+   for RBAC evaluation.
 4. **Caching**: Encrypts and caches the resolved groups for the duration of the token or a
    configured expiration.
 5. **RBAC Integration**: The resolved group IDs are added to the user's claims for RBAC evaluation.
@@ -199,9 +201,15 @@ azure:
 | Logs show "no access token cached" | Token expired | User must re-authenticate |
 
 > [!WARNING]
+> This feature depends on the Microsoft Graph API being reachable at authentication time. If the
+> Graph API is unavailable (network issues, outage, etc.), users with 200+ group memberships will
+> be unable to authenticate until service is restored. Users with fewer than 200 groups are
+> unaffected since their groups are included directly in the ID token.
+>
 > Graph API failures (missing scope, permission denied, network errors) will cause authentication
 > to fail with a 401 Unauthorized response. This is consistent with how the UserInfo endpoint
-> behaves. Ensure the prerequisites above are met to avoid authentication issues.
+> behaves. Only enable this feature if you need group-based RBAC for users with 200+ groups, and
+> ensure the prerequisites above are met to avoid authentication issues.
 
 ## Entra ID SAML Enterprise App Auth using Dex
 ### Configure a new Entra ID Enterprise App

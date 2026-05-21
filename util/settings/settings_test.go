@@ -2242,6 +2242,27 @@ func TestAzureGraphAPIEndpoint(t *testing.T) {
 			ExpectedResult: "https://graph.microsoft.us/v1.0",
 		},
 		{
+			Name: "custom endpoint for China cloud",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://microsoftgraph.chinacloudapi.cn/v1.0"}}`,
+			},
+			ExpectedResult: "https://microsoftgraph.chinacloudapi.cn/v1.0",
+		},
+		{
+			Name: "non-https endpoint returns empty string",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "http://graph.microsoft.com/v1.0"}}`,
+			},
+			ExpectedResult: "",
+		},
+		{
+			Name: "non-Microsoft hostname returns empty string",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://evil.example.com/v1.0"}}`,
+			},
+			ExpectedResult: "",
+		},
+		{
 			Name: "empty string when no azure section",
 			Settings: &ArgoCDSettings{
 				OIDCConfigRAW: `{}`,

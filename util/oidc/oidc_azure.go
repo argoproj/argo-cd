@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -84,7 +85,8 @@ func (a *ClientApp) GetUserGroupsFromAzureOverageClaim(ctx context.Context, grou
 	return groups, nil
 }
 
-// cacheAzureGroupsOverageResponse encrypts and caches the resolved groups.
+// cacheAzureGroupsOverageResponse encrypts and caches the resolved groups. Errors are logged
+// but not returned because the groups were already fetched successfully; caching is best-effort.
 func (a *ClientApp) cacheAzureGroupsOverageResponse(cacheKey string, groups []string, claims jwt.MapClaims) {
 	rawGroups, err := json.Marshal(groups)
 	if err != nil {
@@ -152,14 +154,9 @@ func (a *ClientApp) fetchGroupsFromGraphAPI(ctx context.Context, accessToken, gr
 		}
 		return response.Value, nil
 
-	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, fmt.Errorf("insufficient permissions for Graph API (status %d)", resp.StatusCode)
-
-	case http.StatusTooManyRequests:
-		return nil, fmt.Errorf("graph API rate limited (status %d)", resp.StatusCode)
-
 	default:
-		return nil, fmt.Errorf("graph API request failed with status %d", resp.StatusCode)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return nil, fmt.Errorf("graph API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 }
 

@@ -307,3 +307,211 @@ func TestFormatAzureGroupsOverageResponseCacheKey(t *testing.T) {
 	key := FormatAzureGroupsOverageResponseCacheKey("user123")
 	assert.Equal(t, "azure_groups_overage_response_user123", key)
 }
+
+func TestCacheAzureGroupsOverageResponse(t *testing.T) {
+	overageClaims := jwt.MapClaims{
+		"sub": "user123",
+		"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
+		"_claim_sources": map[string]any{
+			"src1": map[string]any{},
+		},
+		"_claim_names": map[string]any{
+			"groups": "src1",
+		},
+	}
+
+	t.Run("successful cache write is readable", func(t *testing.T) {
+		signature, err := util.MakeSignature(32)
+		require.NoError(t, err)
+		cdSettings := &settings.ArgoCDSettings{
+			ServerSignature: signature,
+			OIDCConfigRAW:   `{"azure": {"enableUserGroupOverageClaim": true}}`,
+		}
+		encryptionKey, err := cdSettings.GetServerEncryptionKey()
+		require.NoError(t, err)
+
+		testCache := cache.NewInMemoryCache(24 * time.Hour)
+		a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+		require.NoError(t, err)
+
+		groups := []string{"group-1", "group-2"}
+		cacheKey := FormatAzureGroupsOverageResponseCacheKey("user123")
+		a.cacheAzureGroupsOverageResponse(cacheKey, groups, overageClaims)
+
+		var encValue []byte
+		err = testCache.Get(cacheKey, &encValue)
+		require.NoError(t, err)
+
+		decrypted, err := crypto.Decrypt(encValue, encryptionKey)
+		require.NoError(t, err)
+
+		var got []string
+		err = json.Unmarshal(decrypted, &got)
+		require.NoError(t, err)
+		assert.Equal(t, groups, got)
+	})
+
+	t.Run("cache uses token expiry when no custom setting", func(t *testing.T) {
+		signature, err := util.MakeSignature(32)
+		require.NoError(t, err)
+		cdSettings := &settings.ArgoCDSettings{
+			ServerSignature: signature,
+			OIDCConfigRAW:   `{"azure": {"enableUserGroupOverageClaim": true}}`,
+		}
+
+		testCache := cache.NewInMemoryCache(24 * time.Hour)
+		a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+		require.NoError(t, err)
+
+		groups := []string{"group-a"}
+		cacheKey := FormatAzureGroupsOverageResponseCacheKey("user123")
+		// No custom expiry configured — must fall back to token expiry without panic.
+		a.cacheAzureGroupsOverageResponse(cacheKey, groups, overageClaims)
+
+		var encValue []byte
+		err = testCache.Get(cacheKey, &encValue)
+		require.NoError(t, err)
+		assert.NotEmpty(t, encValue)
+	})
+
+	t.Run("cache uses custom expiry when shorter than token expiry", func(t *testing.T) {
+		signature, err := util.MakeSignature(32)
+		require.NoError(t, err)
+		// Set a custom expiry of 1 minute, shorter than the 5-minute token expiry.
+		cdSettings := &settings.ArgoCDSettings{
+			ServerSignature: signature,
+			OIDCConfigRAW:   `{"azure": {"enableUserGroupOverageClaim": true, "userGroupOverageClaimCacheExpiration": "1m"}}`,
+		}
+
+		testCache := cache.NewInMemoryCache(24 * time.Hour)
+		a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+		require.NoError(t, err)
+
+		groups := []string{"group-b"}
+		cacheKey := FormatAzureGroupsOverageResponseCacheKey("user123")
+		a.cacheAzureGroupsOverageResponse(cacheKey, groups, overageClaims)
+
+		var encValue []byte
+		err = testCache.Get(cacheKey, &encValue)
+		require.NoError(t, err)
+		assert.NotEmpty(t, encValue)
+	})
+}
+
+func TestGetUserGroupsFromAzureOverageClaim_CacheHitAfterFetch(t *testing.T) {
+	overageClaims := jwt.MapClaims{
+		"sub": "user123",
+		"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
+		"_claim_sources": map[string]any{
+			"src1": map[string]any{
+				"endpoint": "https://graph.windows.net/tenant-id/users/user-id/getMemberObjects",
+			},
+		},
+		"_claim_names": map[string]any{
+			"groups": "src1",
+		},
+	}
+
+	graphCallCount := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		graphCallCount++
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(map[string]any{
+			"value": []string{"group-id-1", "group-id-2"},
+		})
+		require.NoError(t, err)
+	}))
+	defer ts.Close()
+
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	cdSettings := &settings.ArgoCDSettings{
+		ServerSignature: signature,
+		OIDCConfigRAW:   `{"azure": {"enableUserGroupOverageClaim": true}}`,
+	}
+	encryptionKey, err := cdSettings.GetServerEncryptionKey()
+	require.NoError(t, err)
+
+	testCache := cache.NewInMemoryCache(24 * time.Hour)
+	a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+	require.NoError(t, err)
+
+	accessToken := createTestJWT(t, jwt.MapClaims{"scp": "User.Read profile email"})
+	encAccessToken, err := crypto.Encrypt([]byte(accessToken), encryptionKey)
+	require.NoError(t, err)
+	err = testCache.Set(&cache.Item{Key: FormatAccessTokenCacheKey("user123"), Object: encAccessToken})
+	require.NoError(t, err)
+
+	// First call — should hit the Graph API.
+	groups, err := a.GetUserGroupsFromAzureOverageClaim(t.Context(), overageClaims, ts.URL)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"group-id-1", "group-id-2"}, groups)
+	assert.Equal(t, 1, graphCallCount)
+
+	// Second call — groups should come from cache; Graph API must not be called again.
+	groups, err = a.GetUserGroupsFromAzureOverageClaim(t.Context(), overageClaims, ts.URL)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"group-id-1", "group-id-2"}, groups)
+	assert.Equal(t, 1, graphCallCount, "Graph API should only be called once; second call must use cache")
+}
+
+func TestGetUserGroupsFromAzureOverageClaim_CorruptCacheCallsAPI(t *testing.T) {
+	overageClaims := jwt.MapClaims{
+		"sub": "user123",
+		"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
+		"_claim_sources": map[string]any{
+			"src1": map[string]any{
+				"endpoint": "https://graph.windows.net/tenant-id/users/user-id/getMemberObjects",
+			},
+		},
+		"_claim_names": map[string]any{
+			"groups": "src1",
+		},
+	}
+
+	graphCallCount := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		graphCallCount++
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(map[string]any{
+			"value": []string{"group-from-api"},
+		})
+		require.NoError(t, err)
+	}))
+	defer ts.Close()
+
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	cdSettings := &settings.ArgoCDSettings{
+		ServerSignature: signature,
+		OIDCConfigRAW:   `{"azure": {"enableUserGroupOverageClaim": true}}`,
+	}
+	encryptionKey, err := cdSettings.GetServerEncryptionKey()
+	require.NoError(t, err)
+
+	testCache := cache.NewInMemoryCache(24 * time.Hour)
+	a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+	require.NoError(t, err)
+
+	// Populate cache with corrupt (non-JSON) data that is still validly encrypted.
+	corruptData, err := crypto.Encrypt([]byte("not valid json"), encryptionKey)
+	require.NoError(t, err)
+	err = testCache.Set(&cache.Item{
+		Key:    FormatAzureGroupsOverageResponseCacheKey("user123"),
+		Object: corruptData,
+	})
+	require.NoError(t, err)
+
+	// Populate the access token cache so the Graph API call can proceed.
+	accessToken := createTestJWT(t, jwt.MapClaims{"scp": "User.Read profile email"})
+	encAccessToken, err := crypto.Encrypt([]byte(accessToken), encryptionKey)
+	require.NoError(t, err)
+	err = testCache.Set(&cache.Item{Key: FormatAccessTokenCacheKey("user123"), Object: encAccessToken})
+	require.NoError(t, err)
+
+	// Corrupt cache should be skipped and the Graph API called as fallback.
+	groups, err := a.GetUserGroupsFromAzureOverageClaim(t.Context(), overageClaims, ts.URL)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"group-from-api"}, groups)
+	assert.Equal(t, 1, graphCallCount, "Graph API should be called when cached data is corrupt")
+}

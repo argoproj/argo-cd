@@ -582,8 +582,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	sub := jwtutil.StringField(claims, "sub")
 
 	// Invalidate cached groups from previous sessions so a fresh login picks up updated memberships
-	_ = a.clientCache.Delete(FormatUserInfoResponseCacheKey(sub))
-	_ = a.clientCache.Delete(FormatAzureGroupsOverageResponseCacheKey(sub))
+	if err := a.clientCache.Delete(FormatUserInfoResponseCacheKey(sub)); err != nil {
+		log.Warnf("failed to invalidate UserInfo cache for %s: %v", sub, err)
+	}
+	if err := a.clientCache.Delete(FormatAzureGroupsOverageResponseCacheKey(sub)); err != nil {
+		log.Warnf("failed to invalidate Azure groups overage cache for %s: %v", sub, err)
+	}
 
 	err = a.SetValueInEncryptedCache(ctx, FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
 	if err != nil {

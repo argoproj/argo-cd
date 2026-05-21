@@ -1965,7 +1965,15 @@ func ValidateOIDCConfig(configStr string) error {
 		return err
 	}
 	err = ValidateExternalURL(settings.UserInfoBaseURL)
-	return err
+	if err != nil {
+		return err
+	}
+	if settings.Azure != nil && settings.Azure.GraphAPIEndpoint != "" {
+		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -2126,15 +2134,46 @@ func (a *ArgoCDSettings) AzureUserGroupOverageClaimEnabled() bool {
 	return false
 }
 
+// knownGraphAPIHosts is the set of trusted Microsoft Graph API hostnames across all clouds.
+var knownGraphAPIHosts = map[string]bool{
+	"graph.microsoft.com":             true, // public cloud
+	"graph.microsoft.us":              true, // US Government
+	"graph.microsoft.de":              true, // Germany (legacy)
+	"microsoftgraph.chinacloudapi.cn": true, // China
+}
+
+const defaultGraphAPIEndpoint = "https://graph.microsoft.com/v1.0"
+
+// ValidateAzureGraphAPIEndpoint returns an error if endpoint is not a trusted Microsoft Graph API URL.
+// A valid endpoint must use the https scheme and a known Microsoft Graph hostname.
+func ValidateAzureGraphAPIEndpoint(endpoint string) error {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("invalid graphApiEndpoint URL %q: %w", endpoint, err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("graphApiEndpoint %q must use https", endpoint)
+	}
+	if !knownGraphAPIHosts[u.Hostname()] {
+		return fmt.Errorf("graphApiEndpoint %q hostname is not a known Microsoft Graph API host", endpoint)
+	}
+	return nil
+}
+
 // AzureGraphAPIEndpoint returns the Microsoft Graph API endpoint URL.
 // Defaults to https://graph.microsoft.com/v1.0 for public cloud.
 // Can be overridden for sovereign clouds (e.g., https://graph.microsoft.us/v1.0).
+// Returns empty string if the configured endpoint fails validation, which disables the overage feature.
 func (a *ArgoCDSettings) AzureGraphAPIEndpoint() string {
 	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
 		if oidcConfig.Azure.GraphAPIEndpoint != "" {
+			if err := ValidateAzureGraphAPIEndpoint(oidcConfig.Azure.GraphAPIEndpoint); err != nil {
+				log.Warnf("Invalid graphApiEndpoint, Azure groups overage feature disabled: %v", err)
+				return ""
+			}
 			return oidcConfig.Azure.GraphAPIEndpoint
 		}
-		return "https://graph.microsoft.com/v1.0"
+		return defaultGraphAPIEndpoint
 	}
 	return ""
 }
