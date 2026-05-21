@@ -41,8 +41,10 @@ require (
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
-	// DO NOT BUMP UNTIL go-git/go-git#1551 is fixed
-	github.com/go-git/go-git/v5 v5.14.0
+	// go-git/go-git#1551 (SSH "knownhosts: key mismatch" regression from PR
+	// #1515) is mitigated in util/git by populating HostKeyAlgorithms via
+	// skeema/knownhosts. Keep that fix in place when bumping further.
+	github.com/go-git/go-git/v5 v5.19.1
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/go-logr/logr v1.4.3
 	github.com/go-openapi/loads v0.23.3
@@ -262,7 +264,7 @@ require (
 	github.com/olekukonko/ll v0.1.6 // indirect
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.2.23 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/pjbgf/sha1cd v0.3.2 // indirect
+	github.com/pjbgf/sha1cd v0.6.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -272,7 +274,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	github.com/skeema/knownhosts v1.3.1 // indirect
+	github.com/skeema/knownhosts v1.3.1
 	github.com/slack-go/slack v0.16.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
@@ -321,6 +323,8 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.20.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
+
+require github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 
 replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
