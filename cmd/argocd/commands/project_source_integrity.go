@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	msgNoGitPolicies = "No source integrity git policies defined for project %q"
+	msgNoGitPolicies = "no source integrity git policies defined for project %q"
 	msgExamples      = `
 # List git policies
 argocd proj source-integrity git policies list PROJECT
@@ -123,7 +123,7 @@ func NewProjectSourceIntegrityGitPoliciesListCommand(clientOpts *argocdclient.Cl
 
 			proj, err := projects.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			if err != nil {
-				return fmt.Errorf("Failed getting project %q: %w", projName, err)
+				return fmt.Errorf("failed getting project %q: %w", projName, err)
 			}
 
 			if proj.Spec.SourceIntegrity == nil || proj.Spec.SourceIntegrity.Git == nil || len(proj.Spec.SourceIntegrity.Git.Policies) == 0 {
@@ -188,7 +188,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 
 			proj, err := projects.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			if err != nil {
-				return fmt.Errorf("Failed getting project %q: %w", projName, err)
+				return fmt.Errorf("failed getting project %q: %w", projName, err)
 			}
 
 			if proj.Spec.SourceIntegrity == nil || proj.Spec.SourceIntegrity.Git == nil || len(proj.Spec.SourceIntegrity.Git.Policies) == 0 {
@@ -200,11 +200,11 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 			for _, policyId := range args[1:] {
 				index, err := strconv.Atoi(policyId)
 				if err != nil {
-					return fmt.Errorf("Invalid POLICY_ID '%s'", args[1])
+					return fmt.Errorf("invalid POLICY_ID '%s'", args[1])
 				}
 
 				if index < 0 || index >= originalPolicyCount {
-					return fmt.Errorf("POLICY_ID %d is out of range (0-%d)", index, originalPolicyCount-1)
+					return fmt.Errorf("the POLICY_ID %d is out of range (0-%d)", index, originalPolicyCount-1)
 				}
 
 				idsToDelete[index] = nil
@@ -236,7 +236,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 
 			_, err = projects.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			if err != nil {
-				return fmt.Errorf("Failed updating project %q: %w", projName, err)
+				return fmt.Errorf("failed updating project %q: %w", projName, err)
 			}
 
 			return nil
@@ -284,7 +284,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 			projName := args[0]
 			proj, err := projects.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			if err != nil {
-				return fmt.Errorf("Failed getting project %q: %w", projName, err)
+				return fmt.Errorf("failed getting project %q: %w", projName, err)
 			}
 
 			mode, err := validateGpgMode(gpgMode)
@@ -298,7 +298,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 			for _, key := range gpgKeys {
 				_, err := sourceintegrity.KeyID(key)
 				if err != nil {
-					return fmt.Errorf("Invalid GPG key ID '%s': %w", key, err)
+					return fmt.Errorf("invalid GPG key ID '%s': %w", key, err)
 				}
 			}
 			newPolicy.GPG.Keys = gpgKeys
@@ -319,7 +319,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 
 			_, err = projects.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			if err != nil {
-				return fmt.Errorf("Failed updating project %q: %w", projName, err)
+				return fmt.Errorf("failed updating project %q: %w", projName, err)
 			}
 
 			// Print resulting policies out of convenience
@@ -389,7 +389,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 			projName := args[0]
 			proj, err := projects.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			if err != nil {
-				return fmt.Errorf("Failed getting project %q: %w", projName, err)
+				return fmt.Errorf("failed getting project %q: %w", projName, err)
 			}
 
 			if proj.Spec.SourceIntegrity == nil || proj.Spec.SourceIntegrity.Git == nil || len(proj.Spec.SourceIntegrity.Git.Policies) == 0 {
@@ -398,20 +398,20 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 
 			index, err := strconv.Atoi(args[1])
 			if err != nil {
-				return fmt.Errorf("Invalid POLICY_ID '%s'", args[1])
+				return fmt.Errorf("invalid POLICY_ID '%s'", args[1])
 			}
 			originalPolicyCount := len(proj.Spec.SourceIntegrity.Git.Policies)
 			if index < 0 || index >= originalPolicyCount {
-				return fmt.Errorf("POLICY_ID %d is out of range (0-%d)", index, originalPolicyCount-1)
+				return fmt.Errorf("the POLICY_ID %d is out of range (0-%d)", index, originalPolicyCount-1)
 			}
 			policy := proj.Spec.SourceIntegrity.Git.Policies[index]
 
 			if len(gpgKeys) > 0 && (len(deleteGPGKeys) > 0 || len(addGPGKeys) > 0) {
-				return errors.New("Option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key")
+				return errors.New("option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key")
 			}
 
 			if len(repoURLs) > 0 && (len(deleteRepoURLs) > 0 || len(addRepoURLs) > 0) {
-				return errors.New("Option --repo-url, cannot be combined with --add-repo-url or --delete-repo-url")
+				return errors.New("option --repo-url, cannot be combined with --add-repo-url or --delete-repo-url")
 			}
 
 			if len(repoURLs) > 0 {
@@ -464,7 +464,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				for _, key := range gpgKeys {
 					_, err := sourceintegrity.KeyID(key)
 					if err != nil {
-						return fmt.Errorf("Invalid GPG key ID '%s': %w", key, err)
+						return fmt.Errorf("invalid GPG key ID '%s': %w", key, err)
 					}
 				}
 				policy.GPG.Keys = gpgKeys
@@ -480,7 +480,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 			for _, key := range addGPGKeys {
 				_, err := sourceintegrity.KeyID(key)
 				if err != nil {
-					return fmt.Errorf("Invalid GPG key ID '%s': %w", key, err)
+					return fmt.Errorf("invalid GPG key ID '%s': %w", key, err)
 				}
 				found := slices.Contains(policy.GPG.Keys, key)
 				if !found {

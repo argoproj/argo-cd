@@ -258,14 +258,14 @@ func TestProjectSourceIntegrityListCommand(t *testing.T) {
 			sourceIntegrity: nil,
 			projectName:     projectName,
 			expectedStdout:  "",
-			expectedStderr:  "Error: No source integrity git policies defined for project \"test-project\"\n",
+			expectedStderr:  "Error: no source integrity git policies defined for project \"test-project\"\n",
 		},
 		{
 			name:            "no project",
 			sourceIntegrity: dummySourceIntegrity(),
 			projectName:     "not-a-project",
 			expectedStdout:  "",
-			expectedStderr:  "Error: Failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
+			expectedStderr:  "Error: failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
 		},
 	}
 
@@ -431,37 +431,37 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			name:            "Update policy with invalid project name",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{"not-a-project", "0", "--gpg-mode=strict"},
-			expectedStderr:  "Error: Failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
+			expectedStderr:  "Error: failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
 		},
 		{
 			name:            "Update policy with invalid ID",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "42", "--gpg-mode=strict"},
-			expectedStderr:  "Error: POLICY_ID 42 is out of range (0-1)\n",
+			expectedStderr:  "Error: the POLICY_ID 42 is out of range (0-1)\n",
 		},
 		{
 			name:            "Update policy with incorrect ID",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "the first one, bro", "--gpg-mode=strict"},
-			expectedStderr:  "Error: Invalid POLICY_ID 'the first one, bro'\n",
+			expectedStderr:  "Error: invalid POLICY_ID 'the first one, bro'\n",
 		},
 		{
 			name:            "Update policy when no Source Integrity",
 			sourceIntegrity: nil,
 			args:            []string{projectName, "0", "--gpg-mode=strict"},
-			expectedStderr:  "Error: No source integrity git policies defined for project \"test-project\"\n",
+			expectedStderr:  "Error: no source integrity git policies defined for project \"test-project\"\n",
 		},
 		{
 			name:            "Set and add key",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "0", "--gpg-key=FAKE", "--add-gpg-key=FAKE2", "--gpg-mode=strict"},
-			expectedStderr:  "Error: Option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key\n",
+			expectedStderr:  "Error: option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key\n",
 		},
 		{
 			name:            "Set and add repo",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "0", "--repo-url=FAKE", "--delete-repo-url=FAKE2", "--gpg-mode=strict"},
-			expectedStderr:  "Error: Option --repo-url, cannot be combined with --add-repo-url or --delete-repo-url\n",
+			expectedStderr:  "Error: option --repo-url, cannot be combined with --add-repo-url or --delete-repo-url\n",
 		},
 	}
 
@@ -566,25 +566,25 @@ func TestProjectSourceIntegrityDeleteCommand(t *testing.T) {
 			name:            "Delete policy with invalid project name",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{"not-a-project", "--yes", "0"},
-			expectedStderr:  "Error: Failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
+			expectedStderr:  "Error: failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
 		},
 		{
 			name:            "Delete policy with invalid ID",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "--yes", "42"},
-			expectedStderr:  "Error: POLICY_ID 42 is out of range (0-1)\n",
+			expectedStderr:  "Error: the POLICY_ID 42 is out of range (0-1)\n",
 		},
 		{
 			name:            "Delete policy with incorrect ID",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "--yes", "the first one, bro"},
-			expectedStderr:  "Error: Invalid POLICY_ID 'the first one, bro'\n",
+			expectedStderr:  "Error: invalid POLICY_ID 'the first one, bro'\n",
 		},
 		{
 			name:            "Delete policy when there is no Source Integrity",
 			sourceIntegrity: nil,
 			args:            []string{projectName, "--yes", "0"},
-			expectedStderr:  "Error: No source integrity git policies defined for project \"test-project\"\n",
+			expectedStderr:  "Error: no source integrity git policies defined for project \"test-project\"\n",
 		},
 	}
 
