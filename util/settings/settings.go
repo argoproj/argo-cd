@@ -223,7 +223,10 @@ type OIDCConfig struct {
 }
 
 type AzureOIDCConfig struct {
-	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
+	UseWorkloadIdentity                  bool   `json:"useWorkloadIdentity,omitempty"`
+	EnableUserGroupOverageClaim          bool   `json:"enableUserGroupOverageClaim,omitempty"`
+	GraphAPIEndpoint                     string `json:"graphApiEndpoint,omitempty"`
+	UserGroupOverageClaimCacheExpiration string `json:"userGroupOverageClaimCacheExpiration,omitempty"`
 }
 
 var (
@@ -1962,7 +1965,15 @@ func ValidateOIDCConfig(configStr string) error {
 		return err
 	}
 	err = ValidateExternalURL(settings.UserInfoBaseURL)
-	return err
+	if err != nil {
+		return err
+	}
+	if settings.Azure != nil && settings.Azure.GraphAPIEndpoint != "" {
+		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -2111,6 +2122,73 @@ func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
 		return oidcConfig.Azure.UseWorkloadIdentity
 	}
 	return false
+}
+
+// AzureUserGroupOverageClaimEnabled returns whether group claims should be fetched from the Microsoft Graph API
+// when Azure AD returns a groups overage claim (user has 200+ group memberships).
+// See https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference#groups-overage-claim
+func (a *ArgoCDSettings) AzureUserGroupOverageClaimEnabled() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		return oidcConfig.Azure.EnableUserGroupOverageClaim
+	}
+	return false
+}
+
+// knownGraphAPIHosts is the set of trusted Microsoft Graph API hostnames across all clouds.
+var knownGraphAPIHosts = map[string]bool{
+	"graph.microsoft.com":             true, // public cloud
+	"graph.microsoft.us":              true, // US Government
+	"graph.microsoft.de":              true, // Germany (legacy)
+	"microsoftgraph.chinacloudapi.cn": true, // China
+}
+
+const defaultGraphAPIEndpoint = "https://graph.microsoft.com/v1.0"
+
+// ValidateAzureGraphAPIEndpoint returns an error if endpoint is not a trusted Microsoft Graph API URL.
+// A valid endpoint must use the https scheme and a known Microsoft Graph hostname.
+func ValidateAzureGraphAPIEndpoint(endpoint string) error {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("invalid graphApiEndpoint URL %q: %w", endpoint, err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("graphApiEndpoint %q must use https", endpoint)
+	}
+	if !knownGraphAPIHosts[u.Hostname()] {
+		return fmt.Errorf("graphApiEndpoint %q hostname is not a known Microsoft Graph API host", endpoint)
+	}
+	return nil
+}
+
+// AzureGraphAPIEndpoint returns the Microsoft Graph API endpoint URL.
+// Defaults to https://graph.microsoft.com/v1.0 for public cloud.
+// Can be overridden for sovereign clouds (e.g., https://graph.microsoft.us/v1.0).
+// Returns empty string if the configured endpoint fails validation, which disables the overage feature.
+func (a *ArgoCDSettings) AzureGraphAPIEndpoint() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		if oidcConfig.Azure.GraphAPIEndpoint != "" {
+			if err := ValidateAzureGraphAPIEndpoint(oidcConfig.Azure.GraphAPIEndpoint); err != nil {
+				log.Warnf("Invalid graphApiEndpoint, Azure groups overage feature disabled: %v", err)
+				return ""
+			}
+			return oidcConfig.Azure.GraphAPIEndpoint
+		}
+		return defaultGraphAPIEndpoint
+	}
+	return ""
+}
+
+// AzureUserGroupOverageClaimCacheExpiration returns the cache duration for Azure groups overage claim results.
+func (a *ArgoCDSettings) AzureUserGroupOverageClaimCacheExpiration() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil && oidcConfig.Azure.UserGroupOverageClaimCacheExpiration != "" {
+		cacheExpiration, err := time.ParseDuration(oidcConfig.Azure.UserGroupOverageClaimCacheExpiration)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.azure.userGroupOverageClaimCacheExpiration' key: %v", err)
+			return 0
+		}
+		return cacheExpiration
+	}
+	return 0
 }
 
 // OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
