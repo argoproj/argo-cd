@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -98,12 +100,18 @@ func (p *harborParser) Parse(r *http.Request) (any, error) {
 		}
 		registryURL, err := parseHarborRegistryURL(resource.ResourceURL)
 		if err != nil {
+			log.Warnf("harbor webhook: skipping resource with unparseable resource_url %q: %v", resource.ResourceURL, err)
 			continue
 		}
 		repository := payload.EventData.Repository.RepoFullName
 		if repository == "" {
 			// Fall back to constructing namespace/name if repo_full_name is absent.
-			repository = payload.EventData.Repository.Namespace + "/" + payload.EventData.Repository.Name
+			ns := payload.EventData.Repository.Namespace
+			name := payload.EventData.Repository.Name
+			if ns == "" || name == "" {
+				return nil, fmt.Errorf("harbor webhook: repository name cannot be determined (repo_full_name, namespace, and name are all empty)")
+			}
+			repository = ns + "/" + name
 		}
 		return &RegistryEvent{
 			RegistryURL: registryURL,
@@ -117,6 +125,12 @@ func (p *harborParser) Parse(r *http.Request) (any, error) {
 
 // parseHarborRegistryURL extracts the registry hostname from a Harbor resource URL.
 // resource_url format: "<hostname>/<namespace>/<repo>:<tag>" or "<hostname>/<namespace>/<repo>@<digest>"
+//
+// net/url is intentionally avoided here: Harbor's resource_url frequently omits
+// the scheme (e.g. "hub.harbor.com/project/repo:tag"), which causes url.Parse to
+// treat the entire string as a path rather than a host. Working around that would
+// require prepending a dummy scheme and adding extra validation, making the code
+// less readable than the simple strings.
 func parseHarborRegistryURL(resourceURL string) (string, error) {
 	// Strip any scheme that may have been prepended.
 	u := resourceURL

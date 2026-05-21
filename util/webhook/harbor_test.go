@@ -176,6 +176,29 @@ func TestHarborParser_Parse(t *testing.T) {
 			body:      `{invalid json}`,
 			expectErr: true,
 		},
+		{
+			name: "repo_full_name, namespace, and name all absent",
+			body: `{
+				"type": "PUSH_ARTIFACT",
+				"occur_at": 1680501893,
+				"operator": "admin",
+				"event_data": {
+					"resources": [
+						{
+							"digest": "sha256:abc123",
+							"tag": "v1.0.0",
+							"resource_url": "registry.corp.com/project/app:v1.0.0"
+						}
+					],
+					"repository": {
+						"name": "",
+						"namespace": "",
+						"repo_full_name": ""
+					}
+				}
+			}`,
+			expectErr: true,
+		},
 	}
 
 	parser := newHarborParser(testHarborSecret)
@@ -202,43 +225,6 @@ func TestHarborParser_Parse(t *testing.T) {
 			require.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-func TestHarborParser_ParseReturnsRegistryEvent(t *testing.T) {
-	parser := newHarborParser(testHarborSecret)
-
-	body := `{
-		"type": "PUSH_ARTIFACT",
-		"occur_at": 1680501893,
-		"operator": "admin",
-		"event_data": {
-			"resources": [
-				{
-					"digest": "sha256:abc123",
-					"tag": "v1.0.0",
-					"resource_url": "harbor.example.com/ci/service:v1.0.0"
-				}
-			],
-			"repository": {
-				"name": "service",
-				"namespace": "ci",
-				"repo_full_name": "ci/service",
-				"repo_type": "private"
-			}
-		}
-	}`
-
-	req := httptest.NewRequestWithContext(t.Context(), "POST", "/api/webhook",
-		strings.NewReader(body))
-	result, err := parser.Parse(req)
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	event, ok := result.(*RegistryEvent)
-	require.True(t, ok, "expected *RegistryEvent, got %T", result)
-	assert.Equal(t, "harbor.example.com", event.RegistryURL)
-	assert.Equal(t, "ci/service", event.Repository)
-	assert.Equal(t, "v1.0.0", event.Tag)
 }
 
 func TestParseHarborRegistryURL(t *testing.T) {
