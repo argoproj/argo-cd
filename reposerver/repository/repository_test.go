@@ -7109,7 +7109,7 @@ func TestGenerateManifests_TrackingLabelOnCRDs(t *testing.T) {
 
 			annotations := obj.GetAnnotations()
 			_, exists := annotations[common.AnnotationKeyAppInstance]
-			require.Equal(t, tt.shouldHaveLabel, exists, "AnnotationKeyAppInstance must exist in the returned manifest")
+			require.Equal(t, tt.shouldHaveLabel, exists, "unexpected AnnotationKeyAppInstance presence on CRD manifest")
 		})
 	}
 }
