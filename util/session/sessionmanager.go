@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
@@ -588,7 +589,8 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			errorMsg := "Failed to verify session token: " + err.Error()
+			clientAddr := grpcutil.ClientAddrFromContext(ctx)
+			errorMsg := fmt.Sprintf("Failed to verify session token (client: %s): %s", clientAddr, err)
 			span.SetStatus(otel_codes.Error, errorMsg)
 			log.Warn(errorMsg)
 			tokenExpiredError := &oidc.TokenExpiredError{}
