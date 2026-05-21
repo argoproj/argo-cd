@@ -2575,19 +2575,31 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 		if noSpecOperationOrDeletionChange(oldApp, newApp) {
 			oldAnnotations := oldApp.GetAnnotations()
 			newAnnotations := newApp.GetAnnotations()
-			refreshAnnotAppeared := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
-				(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyRefresh] != "")
-			hydrateAnnotAppeared := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
-				(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
+			oldRefreshAnnot, newRefreshAnnot := "", ""
+			if oldAnnotations != nil {
+				oldRefreshAnnot = oldAnnotations[appv1.AnnotationKeyRefresh]
+			}
+			if newAnnotations != nil {
+				newRefreshAnnot = newAnnotations[appv1.AnnotationKeyRefresh]
+			}
+			oldHydrateAnnot, newHydrateAnnot := "", ""
+			if oldAnnotations != nil {
+				oldHydrateAnnot = oldAnnotations[appv1.AnnotationKeyHydrate]
+			}
+			if newAnnotations != nil {
+				newHydrateAnnot = newAnnotations[appv1.AnnotationKeyHydrate]
+			}
+			refreshAnnotChanged := newRefreshAnnot != "" && oldRefreshAnnot != newRefreshAnnot
+			hydrateAnnotChanged := newHydrateAnnot != "" && oldHydrateAnnot != newHydrateAnnot
 
-			if !refreshAnnotAppeared && !hydrateAnnotAppeared && !ctrl.applicationComparisonExpired(newApp) {
+			if !refreshAnnotChanged && !hydrateAnnotChanged && !ctrl.applicationComparisonExpired(newApp) {
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 				return
 			}
-			if !refreshAnnotAppeared && !hydrateAnnotAppeared && ctrl.applicationComparisonExpired(newApp) {
+			if !refreshAnnotChanged && !hydrateAnnotChanged && ctrl.applicationComparisonExpired(newApp) {
 				delay = ctrl.resyncRefreshAfter()
 			}
 		}
@@ -2598,14 +2610,15 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 		}
 	}
 
-	ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-	if !newOK {
+	if newOK {
+		ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
+		if ctrl.hydrator != nil {
+			ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+		}
+		ctrl.clusterSharding.UpdateApp(newApp)
+	} else {
 		ctrl.appOperationQueue.AddRateLimited(key)
 	}
-	if ctrl.hydrator != nil {
-		ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-	}
-	ctrl.clusterSharding.UpdateApp(newApp)
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {

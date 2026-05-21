@@ -2297,6 +2297,26 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		assertInformerRefreshSignal(t, ctrl, app.QualifiedName(), false, "Status-only update with annotation REMOVAL")
 	})
 
+	t.Run("Status-only update with refresh annotation value change SHOULD trigger refresh", func(t *testing.T) {
+		clearTestRefreshSignals(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "10a"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-30 * time.Second)}
+		if oldApp.Annotations == nil {
+			oldApp.Annotations = make(map[string]string)
+		}
+		oldApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "10b"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeHard)
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerRefreshSignal(t, ctrl, app.QualifiedName(), true, "Status-only update with refresh annotation value change")
+	})
+
 	t.Run("Spec change SHOULD trigger refresh", func(t *testing.T) {
 		clearTestRefreshSignals(ctrl)
 

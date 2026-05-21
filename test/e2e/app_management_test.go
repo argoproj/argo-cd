@@ -3023,7 +3023,7 @@ func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 					return false
 				}
 				return app.Status.Sync.Status == SyncStatusCodeOutOfSync
-			}, 150*time.Minute, 3*time.Second, "expected OutOfSync without manual refresh")
+			}, 150*time.Second, 3*time.Second, "expected OutOfSync without manual refresh")
 		})
 }
 
