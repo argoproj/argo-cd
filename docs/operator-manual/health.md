@@ -149,60 +149,7 @@ By default, health typically returns a `Progressing` status.
 
 ### Way 2. Contribute a Custom Health Check
 
-A health check can be bundled into Argo CD. Custom health check scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). This must have the following directory structure:
-
-```
-argo-cd
-|-- resource_customizations
-|    |-- your.crd.group.io               # CRD group
-|    |    |-- MyKind                     # Resource kind
-|    |    |    |-- health.lua            # Health check
-|    |    |    |-- health_test.yaml      # Test inputs and expected results
-|    |    |    +-- testdata              # Directory with test resource YAML definitions
-```
-
-Each health check must have tests defined in `health_test.yaml` file. The `health_test.yaml` is a YAML file with the following structure:
-
-```yaml
-tests:
-- healthStatus:
-    status: ExpectedStatus
-    message: Expected message
-  inputPath: testdata/test-resource-definition.yaml
-```
-
-To test the implemented custom health checks, run `go test -v ./util/lua/`.
-
-The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
-
-#### Wildcard Support for Built-in Health Checks
-
-You can use a single health check for multiple resources by using a wildcard in the group or kind directory names.
-
-The `_` character behaves like a `*` wildcard. For example, consider the following directory structure:
-
-```
-argo-cd
-|-- resource_customizations
-|    |-- _.group.io               # CRD group
-|    |    |-- _                   # Resource kind
-|    |    |    |-- health.lua     # Health check
-```
-
-Any resource with a group that ends with `.group.io` will use the health check in `health.lua`.
-
-Wildcard checks are only evaluated if there is no specific check for the resource.
-
-If multiple wildcard checks match, the first one in the directory structure is used.
-
-We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
-only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
-
-> [!IMPORTANT]
-> **Avoid Massive Scripts**
->
-> Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
-> duplicate the relevant parts in resource-specific scripts.
+A health check can be bundled into Argo CD. Use [this guide](../developer-guide/index.md#contributing-to-argo-cd-custom-healthchecks) to contribute a health check.
 
 ## Overriding Go-Based Health Checks
 
