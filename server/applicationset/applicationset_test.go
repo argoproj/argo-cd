@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubetesting "k8s.io/client-go/testing"
@@ -967,8 +965,8 @@ func TestRefreshAppSetTooManyConflicts(t *testing.T) {
 
 	_, err := appSetServer.refreshAppSet(context.Background(), appSet1)
 	require.Error(t, err)
-	assert.Equal(t, codes.Internal, status.Code(err))
-	assert.Contains(t, status.Convert(err).Message(), "Too many conflicts")
+	assert.Contains(t, err.Error(), "error updating ApplicationSet")
+	assert.True(t, apierrors.IsConflict(errors.Unwrap(err)), "expected conflict after backoff retries are exhausted")
 }
 
 func TestWaitSync(t *testing.T) {
