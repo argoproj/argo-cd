@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
@@ -30,6 +32,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -133,22 +136,31 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// By default, watch all namespaces
-			var watchedNamespace string
-			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
-			if len(applicationSetNamespaces) == 1 {
-				watchedNamespace = (applicationSetNamespaces)[0]
-			} else if enableScmProviders && len(allowedScmProviders) == 0 {
+			if len(applicationSetNamespaces) > 1 && enableScmProviders && len(allowedScmProviders) == 0 {
 				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
 				os.Exit(1)
 			}
 
+			// Restrict the cache to only the namespaces managed by this controller.
+			// If applicationSetNamespaces contains any glob/regex pattern, ByObject cannot be used
+			// In that case we fall back to the cluster-wide cache.
 			cacheOpt := ctrlcache.Options{SyncPeriod: &cacheSyncPeriod}
-
-			if watchedNamespace != "" {
-				cacheOpt.DefaultNamespaces = map[string]ctrlcache.Config{
-					watchedNamespace: {},
+			hasPattern := slices.ContainsFunc(applicationSetNamespaces, func(ns string) bool {
+				return strings.ContainsAny(ns, "*?[") ||
+					(strings.HasPrefix(ns, "/") && strings.HasSuffix(ns, "/"))
+			})
+			if !hasPattern {
+				appSetNsConfig := make(map[string]ctrlcache.Config, len(applicationSetNamespaces))
+				for _, ns := range applicationSetNamespaces {
+					appSetNsConfig[ns] = ctrlcache.Config{}
 				}
+				cacheOpt.ByObject = map[ctrlclient.Object]ctrlcache.ByObject{
+					&corev1.Secret{}: {
+						Namespaces: appSetNsConfig,
+					},
+				}
+			} else {
+				log.Warn("applicationset-namespaces contains a glob or regex pattern")
 			}
 
 			cfg := ctrl.GetConfigOrDie()
