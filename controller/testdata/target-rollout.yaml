@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+  namespace: default
+  annotations:
+    argocd.argoproj.io/tracking-id: 'guestbook:argoproj.io/Rollout:default/guestbook'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guestbook
+  template:
+    metadata:
+      labels:
+        app: guestbook
+    spec:
+      containers:
+        - name: guestbook
+          image: 'quay.io/argoprojlabs/argocd-e2e-container:0.1'
