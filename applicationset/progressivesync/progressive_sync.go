@@ -61,8 +61,9 @@ type Dependencies interface {
 }
 
 type Manager struct {
-	Client       client.Client
-	dependencies Dependencies
+	Client           client.Client
+	dependencies     Dependencies
+	validationIssues *ValidationIssues // collected during progressive sync execution
 }
 
 // NewManager creates a new manager with dependencies
@@ -74,7 +75,17 @@ func NewManager(client client.Client, dependencies Dependencies) *Manager {
 }
 
 func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, error) {
-	appDependencyList, appStepMap := buildAppDependencyList(logCtx, appset, desiredApplications)
+	// Initialize validation tracking
+	m.validationIssues = &ValidationIssues{}
+
+	appDependencyList, appStepMap, buildIssues := buildAppDependencyList(logCtx, appset, desiredApplications)
+
+	// Merge validation issues from build phase
+	if buildIssues.HasIssues() {
+		m.validationIssues.InvalidMatchExpressions = buildIssues.InvalidMatchExpressions
+		m.validationIssues.DuplicateAppSelections = buildIssues.DuplicateAppSelections
+		m.validationIssues.EmptySteps = buildIssues.EmptySteps
+	}
 
 	_, err := m.UpdateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
 	if err != nil {
@@ -94,7 +105,8 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
 
-	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset)
+	condition := m.getProgressingCondition(&appset)
+	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset, condition)
 
 	return appsToSync, nil
 }
@@ -110,7 +122,7 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 	}
 
 	// Get Rolling Sync Step Maps
-	_, appStepMap := buildAppDependencyList(logCtx, appset, currentApps)
+	_, appStepMap, _ := buildAppDependencyList(logCtx, appset, currentApps)
 	// reverse the AppStepMap to perform deletion
 	var reverseDeleteAppSteps []deleteInOrder
 	for appName, appStep := range appStepMap {
@@ -149,9 +161,11 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 }
 
 // this list tracks which Applications belong to each RollingUpdate step
-func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) ([][]string, map[string]int) {
+func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) ([][]string, map[string]int, *ValidationIssues) {
+	issues := &ValidationIssues{}
+
 	if applicationSet.Spec.Strategy == nil || applicationSet.Spec.Strategy.Type == "" || applicationSet.Spec.Strategy.Type == "AllAtOnce" {
-		return [][]string{}, map[string]int{}
+		return [][]string{}, map[string]int{}, issues
 	}
 
 	steps := []argov1alpha1.ApplicationSetRolloutStep{}
@@ -173,7 +187,7 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 
 			for _, matchExpression := range step.MatchExpressions {
 				if val, ok := app.Labels[matchExpression.Key]; ok {
-					valueMatched := labelMatchedExpression(logCtx, val, matchExpression)
+					valueMatched := labelMatchedExpression(logCtx, val, matchExpression, i, issues)
 
 					if !valueMatched { // none of the matchExpression values was a match with the Application's labels
 						selected = false
@@ -189,19 +203,41 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 				appDependencyList[i] = append(appDependencyList[i], app.Name)
 				if val, ok := appStepMap[app.Name]; ok {
 					logCtx.Warnf("AppSet '%v' has a invalid matchExpression that selects Application '%v' label twice, in steps %v and %v", applicationSet.Name, app.Name, val+1, i+1)
+					// Collect duplicate selection issue
+					issues.DuplicateAppSelections = append(issues.DuplicateAppSelections, DuplicateAppSelection{
+						AppName: app.Name,
+						Step1:   val,
+						Step2:   i,
+					})
 				} else {
 					appStepMap[app.Name] = i
 				}
 			}
 		}
+		if len(steps) == 0 {
+			issues.NoSteps = "No steps defined for rollout"
+		}
 	}
 
-	return appDependencyList, appStepMap
+	// Detect empty steps
+	for stepIdx, apps := range appDependencyList {
+		if len(apps) == 0 {
+			issues.EmptySteps = append(issues.EmptySteps, stepIdx)
+		}
+	}
+
+	return appDependencyList, appStepMap, issues
 }
 
-func labelMatchedExpression(logCtx *log.Entry, val string, matchExpression argov1alpha1.ApplicationMatchExpression) bool {
+func labelMatchedExpression(logCtx *log.Entry, val string, matchExpression argov1alpha1.ApplicationMatchExpression, stepIndex int, issues *ValidationIssues) bool {
 	if matchExpression.Operator != "In" && matchExpression.Operator != "NotIn" {
 		logCtx.Errorf("skipping AppSet rollingUpdate step Application selection, invalid matchExpression operator provided: %q ", matchExpression.Operator)
+
+		// Collect validation issue
+		issues.InvalidMatchExpressions = append(issues.InvalidMatchExpressions, InvalidMatchExpression{
+			StepIndex: stepIndex,
+			Operator:  matchExpression.Operator,
+		})
 		return false
 	}
 
@@ -489,6 +525,25 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 				maxUpdateVal, err := intstr.GetScaledValueFromIntOrPercent(maxUpdate, totalCountMap[appStepMap[appStatus.Application]], false)
 				if err != nil {
 					statusLogCtx.Warnf("AppSet has a invalid maxUpdate value '%+v', ignoring maxUpdate logic for this step: %v", maxUpdate, err)
+
+					// Collect validation issue (only add once per step)
+					if m.validationIssues != nil {
+						stepIdx := appStepMap[appStatus.Application]
+						alreadyRecorded := false
+						for _, issue := range m.validationIssues.InvalidMaxUpdates {
+							if issue.StepIndex == stepIdx {
+								alreadyRecorded = true
+								break
+							}
+						}
+						if !alreadyRecorded {
+							m.validationIssues.InvalidMaxUpdates = append(m.validationIssues.InvalidMaxUpdates, InvalidMaxUpdate{
+								StepIndex: stepIdx,
+								MaxUpdate: maxUpdate,
+								Error:     err.Error(),
+							})
+						}
+					}
 				}
 
 				// ensure that percentage values greater than 0% always result in at least 1 Application being selected
@@ -529,11 +584,10 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 	return appStatuses, nil
 }
 
-func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet) []argov1alpha1.ApplicationSetCondition {
+func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.ApplicationSet) argov1alpha1.ApplicationSetCondition {
 	if !IsRollingSyncStrategy(applicationSet) {
-		return applicationSet.Status.Conditions
+		return argov1alpha1.ApplicationSetCondition{}
 	}
-
 	completedWaves := map[string]bool{}
 	for _, appStatus := range applicationSet.Status.ApplicationStatus {
 		if v, ok := completedWaves[appStatus.Step]; !ok {
@@ -560,26 +614,57 @@ func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Co
 	}
 
 	if isProgressing {
-		_ = m.dependencies.SetApplicationSetStatusCondition(ctx,
-			applicationSet,
-			argov1alpha1.ApplicationSetCondition{
-				Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
-				Message: "ApplicationSet is performing rollout of step " + progressingStep,
-				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetModified,
-				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			}, true,
-		)
-	} else {
-		_ = m.dependencies.SetApplicationSetStatusCondition(ctx,
-			applicationSet,
-			argov1alpha1.ApplicationSetCondition{
-				Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
-				Message: "ApplicationSet Rollout has completed",
-				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
-				Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-			}, true,
-		)
+		return argov1alpha1.ApplicationSetCondition{
+			Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
+			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+			Message: "ApplicationSet is performing rollout of step " + progressingStep,
+			Reason:  argov1alpha1.ApplicationSetReasonApplicationSetModified,
+		}
 	}
+	// prioritize other Progressive Sync rollout scenarios here:
+	var rolloutReason string
+	var rolloutMessage string
+
+	switch {
+	case m.validationIssues.NoSteps != "":
+		rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutError
+		rolloutMessage = m.validationIssues.NoSteps
+	case m.validationIssues != nil && len(m.validationIssues.InvalidMatchExpressions) > 0:
+		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
+		rolloutMessage = m.validationIssues.formatInvalidMatchExpressionMessage()
+	case m.validationIssues != nil && len(m.validationIssues.DuplicateAppSelections) > 0:
+		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
+		rolloutMessage = m.validationIssues.formatDuplicateAppSelectionMessage()
+	case m.validationIssues != nil && len(m.validationIssues.InvalidMaxUpdates) > 0:
+		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
+		rolloutMessage = m.validationIssues.formatInvalidMaxUpdateMessage()
+	case m.validationIssues != nil && len(m.validationIssues.EmptySteps) > 0:
+		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
+		rolloutMessage = m.validationIssues.formatEmptyStepsMessage()
+	default:
+		rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete
+		rolloutMessage = "ApplicationSet Rollout has completed"
+	}
+
+	return argov1alpha1.ApplicationSetCondition{
+		Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
+		Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+		Message: rolloutMessage,
+		Reason:  rolloutReason,
+	}
+}
+
+func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition argov1alpha1.ApplicationSetCondition) []argov1alpha1.ApplicationSetCondition {
+	if !IsRollingSyncStrategy(applicationSet) {
+		return applicationSet.Status.Conditions
+	}
+
+	_ = m.dependencies.SetApplicationSetStatusCondition(ctx,
+		applicationSet,
+		condition,
+		true,
+	)
+
 	return applicationSet.Status.Conditions
 }
 

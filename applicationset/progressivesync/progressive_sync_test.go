@@ -744,7 +744,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			appDependencyList, appStepMap := buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
+			appDependencyList, appStepMap, _ := buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
 		})
