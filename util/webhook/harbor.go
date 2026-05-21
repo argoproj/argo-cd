@@ -3,6 +3,7 @@ package webhook
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -109,7 +110,7 @@ func (p *harborParser) Parse(r *http.Request) (any, error) {
 			ns := payload.EventData.Repository.Namespace
 			name := payload.EventData.Repository.Name
 			if ns == "" || name == "" {
-				return nil, fmt.Errorf("harbor webhook: repository name cannot be determined (repo_full_name, namespace, and name are all empty)")
+				return nil, errors.New("harbor webhook: repository name cannot be determined (repo_full_name, namespace, and name are all empty)")
 			}
 			repository = ns + "/" + name
 		}
