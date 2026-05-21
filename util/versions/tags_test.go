@@ -64,6 +64,12 @@ func TestTags_MaxVersion(t *testing.T) {
 		_, err := MaxVersion("0.7.*", []string{})
 		require.Error(t, err)
 	})
+	t.Run("SHA256 digest", func(t *testing.T) {
+		sha256Digest := "sha256:5dd1328526a5de7577ace7b6734e6b5b4f4d2c52a7013461559d598336b67fe5"
+		version, err := MaxVersion(sha256Digest, tags)
+		require.NoError(t, err)
+		assert.Equal(t, sha256Digest, version)
+	})
 }
 
 func TestTags_IsConstraint(t *testing.T) {
@@ -87,5 +93,8 @@ func TestTags_IsConstraint(t *testing.T) {
 	})
 	t.Run("Constraint", func(t *testing.T) {
 		assert.True(t, IsConstraint("*"))
+	})
+	t.Run("SHA256 digest", func(t *testing.T) {
+		assert.False(t, IsConstraint("sha256:5dd1328526a5de7577ace7b6734e6b5b4f4d2c52a7013461559d598336b67fe5"))
 	})
 }
