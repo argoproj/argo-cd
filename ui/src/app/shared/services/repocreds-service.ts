@@ -69,6 +69,20 @@ export class RepoCredsService {
             .then(res => res.body as models.RepoCreds);
     }
 
+    public updateHTTPS(creds: HTTPSCreds): Promise<models.RepoCreds> {
+        return requests
+            .put(`/repocreds/${encodeURIComponent(creds.url)}`)
+            .send(creds)
+            .then(res => res.body as models.RepoCreds);
+    }
+
+    public updateHTTPSWrite(creds: HTTPSCreds): Promise<models.RepoCreds> {
+        return requests
+            .put(`/write-repocreds/${encodeURIComponent(creds.url)}`)
+            .send(creds)
+            .then(res => res.body as models.RepoCreds);
+    }
+
     public createHTTPSWrite(creds: HTTPSCreds): Promise<models.RepoCreds> {
         return requests
             .post('/write-repocreds')
