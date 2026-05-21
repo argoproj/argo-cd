@@ -145,6 +145,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		parsers = append(parsers, &bitbucketServerParser{webhook: bitbucketserverWebhook})
 	}
 	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
+	parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
 
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
