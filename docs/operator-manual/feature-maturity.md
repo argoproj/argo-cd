@@ -6,9 +6,9 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 > [!CAUTION]
 > **Using Alpha/Beta features risks**
 >
-> Alpha and Beta features do not guarantee backward compatibility and are subject to breaking changes in the future releases.
-> It is highly suggested for Argo users not to rely on these features in production environments, especially if you do not have
-> control over the Argo CD upgrades.
+> Alpha and Beta features do not guarantee backward compatibility and are subject to breaking changes in future releases.
+> It is highly recommended for Argo users not to rely on these features in production environments, especially if you do not have
+> control over Argo CD upgrades.
 > 
 > Furthermore, removal of Alpha features may modify your resources to an unpredictable state after Argo CD is upgraded.
 > You should make sure to document which features are in use and review the [release notes](./upgrading/overview.md) before upgrading.
