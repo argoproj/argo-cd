@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var flags map[string]string
+var flags map[string][]string
 
 func init() {
 	err := LoadFlags()
@@ -21,7 +21,7 @@ func init() {
 }
 
 func LoadFlags() error {
-	flags = make(map[string]string)
+	flags = make(map[string][]string)
 
 	opts, err := shellquote.Split(os.Getenv("ARGOCD_OPTS"))
 	if err != nil {
@@ -33,28 +33,26 @@ func LoadFlags() error {
 		switch {
 		case strings.HasPrefix(opt, "--"):
 			if key != "" {
-				flags[key] = "true"
+				flags[key] = append(flags[key], "true")
 			}
 			key = strings.TrimPrefix(opt, "--")
 		case key != "":
-			flags[key] = opt
+			flags[key] = append(flags[key], opt)
 			key = ""
 		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
 	}
 	if key != "" {
-		flags[key] = "true"
+		flags[key] = append(flags[key], "true")
 	}
 	// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
 	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
-	for k, v := range flags {
-		if strings.Contains(k, "=") && v == "true" {
+	for k, vals := range flags {
+		if strings.Contains(k, "=") && len(vals) == 1 && vals[0] == "true" {
 			kv := strings.SplitN(k, "=", 2)
 			actualKey, actualValue := kv[0], kv[1]
-			if _, ok := flags[actualKey]; !ok {
-				flags[actualKey] = actualValue
-			}
+			flags[actualKey] = append(flags[actualKey], actualValue)
 		}
 	}
 	return nil
@@ -62,8 +60,8 @@ func LoadFlags() error {
 
 func GetFlag(key, fallback string) string {
 	val, ok := flags[key]
-	if ok {
-		return val
+	if ok && len(val) > 0 {
+		return val[0]
 	}
 	return fallback
 }
@@ -74,11 +72,11 @@ func GetBoolFlag(key string) bool {
 
 func GetIntFlag(key string, fallback int) int {
 	val, ok := flags[key]
-	if !ok {
+	if !ok || len(val) == 0 {
 		return fallback
 	}
 
-	v, err := strconv.Atoi(val)
+	v, err := strconv.Atoi(val[0])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -91,14 +89,21 @@ func GetStringSliceFlag(key string, fallback []string) []string {
 		return fallback
 	}
 
-	if val == "" {
+	if len(val) == 0 {
 		return []string{}
 	}
-	stringReader := strings.NewReader(val)
-	csvReader := csv.NewReader(stringReader)
-	v, err := csvReader.Read()
-	if err != nil {
-		log.Fatal(err)
+
+	// If there's a single value with commas, split it as CSV
+	// (backwards compatibility with comma-separated headers)
+	if len(val) == 1 {
+		stringReader := strings.NewReader(val[0])
+		csvReader := csv.NewReader(stringReader)
+		v, err := csvReader.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+		return v
 	}
-	return v
+
+	return val
 }

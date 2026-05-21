@@ -148,3 +148,40 @@ func TestFlagWithEqualSign(t *testing.T) {
 
 	assert.Equal(t, "bar", GetFlag("foo", ""))
 }
+
+func TestStringSliceFlagMultipleFlags(t *testing.T) {
+	loadOpts(t, "--header 'CF-Access-Client-Id: foo' --header 'CF-Access-Client-Secret: bar'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+}
+
+func TestStringSliceFlagMultipleFlagsMixedWithOtherFlags(t *testing.T) {
+	loadOpts(t, "--insecure --header 'CF-Access-Client-Id: foo' --header 'CF-Access-Client-Secret: bar' --grpc-web")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+	assert.True(t, GetBoolFlag("insecure"))
+	assert.True(t, GetBoolFlag("grpc-web"))
+}
+
+func TestStringSliceFlagSingleFlagWithCSVBackwardsCompatible(t *testing.T) {
+	loadOpts(t, "--header='Content-Type: application/json; charset=utf-8' --header='Strict-Transport-Security: max-age=31536000'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "Content-Type: application/json; charset=utf-8", strings[0])
+	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[1])
+}
+
+func TestStringSliceFlagSingleValue(t *testing.T) {
+	loadOpts(t, "--header 'CF-Access-Client-Id: foo'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 1)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+}
