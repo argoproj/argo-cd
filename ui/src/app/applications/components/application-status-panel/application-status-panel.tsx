@@ -81,7 +81,7 @@ const renderSyncStatusRevision = (application: models.Application) => {
     }
 
     const prefix = status === models.SyncStatuses.Synced ? 'to' : 'from';
-    const branchName = source.targetRevision || 'HEAD';
+    const branchName = (source.tagPrefix || '') + (source.targetRevision || 'HEAD');
     const resolvedRevision = application.status.sync.revision || branchName;
     const extra = getAppDefaultSyncRevisionExtra(application);
     const revisionLink = revisionUrl(source.repoURL, resolvedRevision, false);
