@@ -1182,3 +1182,55 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_va
 		},
 	}}, params)
 }
+
+func TestMatrixGenerateGoTemplateDoesNotShareNestedParams(t *testing.T) {
+	t.Parallel()
+
+	appSet := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "set",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+		},
+	}
+
+	matrixGenerator := NewMatrixGenerator(
+		map[string]Generator{
+			"List": &ListGenerator{},
+		},
+	)
+
+	got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"nestedConfig": {"enabled": true}}`)},
+						},
+					},
+				},
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"name": "prod"}`)},
+							{Raw: []byte(`{"name": "qa"}`)},
+							{Raw: []byte(`{"name": "staging"}`)},
+						},
+					},
+				},
+			},
+			Template: v1alpha1.ApplicationSetTemplate{},
+		},
+	}, appSet, nil)
+
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+
+	got[1]["nestedConfig"].(map[string]any)["enabled"] = false
+
+	assert.Equal(t, true, got[0]["nestedConfig"].(map[string]any)["enabled"])
+	assert.Equal(t, false, got[1]["nestedConfig"].(map[string]any)["enabled"])
+	assert.Equal(t, true, got[2]["nestedConfig"].(map[string]any)["enabled"])
+}
