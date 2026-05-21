@@ -1474,9 +1474,11 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     if (!app) {
         return null;
     }
-    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
-
-    return {repoURL, targetRevision, path};
+    if (app.spec.sourceHydrator?.drySource) {
+        const {path, targetRevision, repoURL} = app.spec.sourceHydrator.drySource;
+        return {repoURL, targetRevision, path};
+    }
+    return getAppDefaultSource(app);
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
