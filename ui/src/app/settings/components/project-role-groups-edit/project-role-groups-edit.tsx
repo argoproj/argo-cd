@@ -1,6 +1,5 @@
 import {FormField} from 'argo-ui';
-import * as ReactForm from 'react-form';
-import {Form, Text} from 'react-form';
+import {ReactForm, Form, Text} from 'argo-ui';
 
 import React from 'react';
 

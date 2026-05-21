@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {FormApi, Text} from 'react-form';
+import {FormApi, Text} from 'argo-ui';
 import {AutocompleteField, FormField} from 'argo-ui';
 
 import * as models from '../../../shared/models';

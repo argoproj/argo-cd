@@ -1,6 +1,5 @@
 import {Duration, Ticker} from 'argo-ui';
 import * as moment from 'moment';
-import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
 import {Revision, Timestamp} from '../../../shared/components';
@@ -71,8 +70,4 @@ export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = 
             </div>
         </div>
     );
-};
-
-ApplicationHydrateOperationState.contextTypes = {
-    apis: PropTypes.object
 };

@@ -378,7 +378,7 @@ jobs:
           cd ui && pnpm i --frozen-lockfile
       - name: Build UI code
         run: |
-          pnpm test
+          NODE_ENV=test pnpm test
           pnpm build
         env:
           NODE_ENV: production
