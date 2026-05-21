@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
 
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -364,7 +367,7 @@ func TestBestEffortSystemCertPool(t *testing.T) {
 
 func TestCreateServerTLSConfig(t *testing.T) {
 	t.Run("Configuration from a valid key/cert pair", func(t *testing.T) {
-		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost", "argocd-repo-server"})
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost", "argocd-repo-server"}, "")
 		require.NoError(t, err)
 		assert.Len(t, tlsc.Certificates, 1)
 		c, err := x509.ParseCertificate(tlsc.Certificates[0].Certificate[0])
@@ -373,24 +376,44 @@ func TestCreateServerTLSConfig(t *testing.T) {
 	})
 
 	t.Run("Self-signed creation due to non-existing cert", func(t *testing.T) {
-		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", []string{"localhost", "argocd-repo-server"})
+		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", []string{"localhost", "argocd-repo-server"}, "")
 		require.NoError(t, err)
 		assert.Len(t, tlsc.Certificates, 1)
 		c, err := x509.ParseCertificate(tlsc.Certificates[0].Certificate[0])
 		require.NoError(t, err)
 		assert.Equal(t, []string{"Argo CD"}, c.Subject.Organization)
+		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
 	})
 
 	t.Run("Self-signed creation fails due to hosts being nil", func(t *testing.T) {
-		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", nil)
+		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", nil, "")
 		require.Error(t, err)
 		assert.Nil(t, tlsc)
 	})
 
 	t.Run("Self-signed creation fails due to invalid certificates", func(t *testing.T) {
-		tlsc, err := CreateServerTLSConfig("testdata/empty_tls.crt", "testdata/empty_tls.key", nil)
+		tlsc, err := CreateServerTLSConfig("testdata/empty_tls.crt", "testdata/empty_tls.key", nil, "")
 		require.Error(t, err)
 		assert.Nil(t, tlsc)
+	})
+
+	t.Run("Configuration with client CA", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		defer hook.Reset()
+
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost"}, "testdata/valid_tls.crt")
+		require.NoError(t, err)
+		assert.NotNil(t, tlsc.ClientCAs)
+		assert.Equal(t, tls.RequireAndVerifyClientCert, tlsc.ClientAuth)
+		require.NotNil(t, hook.LastEntry())
+		assert.Contains(t, hook.LastEntry().Message, "mTLS enabled for repo-server: requiring client certificates from CA=testdata/valid_tls.crt")
+	})
+
+	t.Run("Self-signed creation with NoClientCert when no ClientCA", func(t *testing.T) {
+		tlsc, err := CreateServerTLSConfig("testdata/nonexistent.crt", "testdata/nonexistent.key", []string{"localhost"}, "")
+		require.NoError(t, err)
+		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
+		assert.Nil(t, tlsc.ClientCAs)
 	})
 }
 
@@ -458,6 +481,98 @@ func TestLoadX509CertPool(t *testing.T) {
 		p, err := LoadX509CertPool("testdata/empty_tls.crt", "testdata/valid_tls2.crt")
 		require.Error(t, err)
 		require.Nil(t, p)
+	})
+}
+
+func TestAddTLSFlagsToCmdWithPrefix(t *testing.T) {
+	t.Run("Empty prefix uses standard environment variables", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.1")
+		AddTLSFlagsToCmdWithPrefix(cmd, "")
+
+		minVersion, err := cmd.Flags().GetString("tlsminversion")
+		require.NoError(t, err)
+		assert.Equal(t, "1.1", minVersion)
+	})
+
+	t.Run("Prefix is used for flag names and environment variables", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("SERVER_ARGOCD_TLS_MIN_VERSION", "1.1")
+		AddTLSFlagsToCmdWithPrefix(cmd, "server")
+
+		minVersion, err := cmd.Flags().GetString("server-tlsminversion")
+		require.NoError(t, err)
+		assert.Equal(t, "1.1", minVersion)
+	})
+}
+
+func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
+	t.Run("Empty prefix uses standard environment variables", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("ARGOCD_REPO_SERVER_CA_CERT", "test-ca-cert")
+		AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
+		require.NoError(t, err)
+		assert.Equal(t, "test-ca-cert", caCert)
+	})
+
+	t.Run("Prefix is used for flag names and environment variables", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT", "test-ca-cert-prefixed")
+		AddClientTLSFlagsToCmdWithPrefix(cmd, "APPLICATION_CONTROLLER")
+
+		caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
+		require.NoError(t, err)
+		assert.Equal(t, "test-ca-cert-prefixed", caCert)
+	})
+
+	t.Run("mTLS client certificate is configured only by explicit flags", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		err := cmd.Flags().Set("repo-server-client-cert", "test-client-cert")
+		require.NoError(t, err)
+		err = cmd.Flags().Set("repo-server-client-cert-key", "test-client-cert-key")
+		require.NoError(t, err)
+
+		config, err := configSrc()
+		require.NoError(t, err)
+		assert.Empty(t, config.ClientCertificates)
+		assert.Equal(t, "test-client-cert", config.ClientCertFile)
+		assert.Equal(t, "test-client-cert-key", config.ClientCertKeyFile)
+	})
+
+	t.Run("No mTLS client certificate by default", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		config, err := configSrc()
+		require.NoError(t, err)
+		assert.Empty(t, config.ClientCertificates)
+		assert.Empty(t, config.ClientCertFile)
+		assert.Empty(t, config.ClientCertKeyFile)
+	})
+
+	t.Run("Repeated invocations do not leak strict validation state", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		certFile := path.Join("testdata", "single.pem")
+		err := cmd.Flags().Set("repo-server-ca-cert", certFile)
+		require.NoError(t, err)
+
+		configWithCA, err := configSrc()
+		require.NoError(t, err)
+		assert.True(t, configWithCA.StrictValidation)
+		assert.NotNil(t, configWithCA.Certificates)
+
+		err = cmd.Flags().Set("repo-server-ca-cert", "")
+		require.NoError(t, err)
+
+		configWithoutCA, err := configSrc()
+		require.NoError(t, err)
+		assert.False(t, configWithoutCA.StrictValidation)
+		assert.Nil(t, configWithoutCA.Certificates)
 	})
 }
 

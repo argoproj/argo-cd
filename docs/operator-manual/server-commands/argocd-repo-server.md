@@ -17,10 +17,11 @@ argocd-repo-server [flags]
 ```
       --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
+      --client-ca-path string                          Path to the client CA certificate file for mTLS
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-oci-manifest-max-extracted-size        Disable maximum size of oci manifest archives when extracted
-      --disable-tls                                    Disable TLS on the gRPC endpoint
+      --disable-tls                                    Disable TLS for the repo-server gRPC endpoint
       --enable-builtin-git-config                      Enable builtin git configuration options that are required for correct argocd-repo-server operation. (default true)
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")

@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -33,6 +34,12 @@ type TLSConfiguration struct {
 	StrictValidation bool
 	// List of certificates to validate the peer against (if StrictCerts is true)
 	Certificates *x509.CertPool
+	// ClientCertFile is the path to the client certificate file
+	ClientCertFile string
+	// ClientCertKeyFile is the path to the client certificate key file
+	ClientCertKeyFile string
+	// ClientCertificates are the client certificates to be used for TLS
+	ClientCertificates []tls.Certificate
 }
 
 // Clientset represents repository server api clients
@@ -44,6 +51,51 @@ type clientSet struct {
 	address        string
 	timeoutSeconds int
 	tlsConfig      TLSConfiguration
+}
+
+type certCacheEntry struct {
+	cert tls.Certificate
+}
+
+var clientCertCache = struct {
+	mu      sync.Mutex
+	entries map[string]certCacheEntry
+}{
+	entries: map[string]certCacheEntry{},
+}
+
+// ResetClientCertCache clears the client certificate cache.
+// Intended for tests.
+func ResetClientCertCache() {
+	clientCertCache.mu.Lock()
+	defer clientCertCache.mu.Unlock()
+	clear(clientCertCache.entries)
+}
+
+func getClientCertFromCache(certFile, keyFile string) (tls.Certificate, error) {
+	cacheKey := certFile + "\x00" + keyFile
+
+	clientCertCache.mu.Lock()
+	if entry, ok := clientCertCache.entries[cacheKey]; ok {
+		clientCertCache.mu.Unlock()
+		return entry.cert, nil
+	}
+	clientCertCache.mu.Unlock()
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	clientCertCache.mu.Lock()
+	if entry, ok := clientCertCache.entries[cacheKey]; ok {
+		clientCertCache.mu.Unlock()
+		return entry.cert, nil
+	}
+	clientCertCache.entries[cacheKey] = certCacheEntry{cert: cert}
+	clientCertCache.mu.Unlock()
+
+	return cert, nil
 }
 
 func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error) {
@@ -70,16 +122,25 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
 
-	tlsC := &tls.Config{}
-	if !tlsConfig.DisableTLS {
+	if tlsConfig.DisableTLS {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	} else {
+		tlsC := &tls.Config{}
 		if !tlsConfig.StrictValidation {
 			tlsC.InsecureSkipVerify = true
 		} else {
 			tlsC.RootCAs = tlsConfig.Certificates
 		}
+		if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
+			cert, err := getClientCertFromCache(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load client certificate: %w", err)
+			}
+			tlsC.Certificates = []tls.Certificate{cert}
+		} else if len(tlsConfig.ClientCertificates) > 0 {
+			tlsC.Certificates = tlsConfig.ClientCertificates
+		}
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
-	} else {
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
 	conn, err := grpc.NewClient(address, opts...)

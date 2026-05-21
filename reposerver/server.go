@@ -35,26 +35,29 @@ import (
 type ArgoCDRepoServer struct {
 	repoService *repository.Service
 	opts        []grpc.ServerOption
+	tlsConfig   *tls.Config
 }
 
-// The hostnames to generate self-signed issues with
+// The hostnames to generate self-signed certificates with
 var tlsHostList = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
 
-	// Generate or load TLS server certificates to use with this instance of
-	// repository server.
-	if tlsConfCustomizer != nil {
+	if !disableTLS {
+		// Generate or load TLS server certificates to use with this instance of
+		//  the repository server.
 		var err error
 		certPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.crt"
 		keyPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.key"
-		tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList)
+		tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList, clientCAPath)
 		if err != nil {
 			return nil, fmt.Errorf("error creating server TLS config: %w", err)
 		}
-		tlsConfCustomizer(tlsConfig)
+		if tlsConfCustomizer != nil {
+			tlsConfCustomizer(tlsConfig)
+		}
 	}
 
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
@@ -103,6 +106,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	return &ArgoCDRepoServer{
 		opts:        serverOpts,
 		repoService: repoService,
+		tlsConfig:   tlsConfig,
 	}, nil
 }
 
@@ -121,4 +125,9 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	reflection.Register(server)
 
 	return server
+}
+
+// GetTLSConfig returns the TLS configuration of the server
+func (a *ArgoCDRepoServer) GetTLSConfig() *tls.Config {
+	return a.tlsConfig
 }
