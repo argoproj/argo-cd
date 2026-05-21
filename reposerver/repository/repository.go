@@ -1703,7 +1703,7 @@ type (
 		cmpTarDoneCh                chan<- bool
 		cmpTarExcludedGlobs         []string
 		cmpUseManifestGeneratePaths bool
-		trackingLabelsOnCRDs        bool
+		trackingLabelOnCRDs         bool
 	}
 )
 
@@ -1742,7 +1742,7 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 
 func WithTrackingLabelOnCRDs(enabled bool) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
-		o.trackingLabelsOnCRDs = enabled
+		o.trackingLabelOnCRDs = enabled
 	}
 }
 
@@ -1843,7 +1843,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 
 		for _, target := range targets {
-			if q.AppLabelKey != "" && q.AppName != "" && (opt.trackingLabelsOnCRDs || !kube.IsCRD(target)) {
+			if q.AppLabelKey != "" && q.AppName != "" && (opt.trackingLabelOnCRDs || !kube.IsCRD(target)) {
 				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod), q.InstallationID)
 				if err != nil {
 					return nil, fmt.Errorf("failed to set app instance tracking info on manifest: %w", err)
