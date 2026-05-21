@@ -132,6 +132,11 @@
         width: auto;
     }
 
+    &__item--icon {
+        justify-content: center;
+        align-items: center;
+    }
+
     &__item-value {
         display: flex;
         align-items: baseline;
