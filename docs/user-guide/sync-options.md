@@ -431,6 +431,17 @@ spec:
 
 The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
+This can also be configured at individual resource level using the `argocd.argoproj.io/sync-options` annotation. The per-resource annotation overrides the application-level setting in either direction:
+
+- `RespectIgnoreDifferences=true` enables normalization for a specific resource even when the app-level option is not set.
+- `RespectIgnoreDifferences=false` disables normalization for a specific resource even when the app-level option is enabled. It has no effect when the app-level option is not set.
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: RespectIgnoreDifferences=true
+```
+
 ## Create Namespace
 
 ```yaml
