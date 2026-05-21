@@ -180,20 +180,28 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	}
 	logCtx.WithField("appCount", len(apps))
 
-	// FIXME: we might end up in a race condition here where an HydrationQueueItem is processed
-	// before all applications had their CurrentOperation set by ProcessAppHydrateQueueItem.
-	// This would cause this method to update "old" CurrentOperation.
-	// It should only start hydration if all apps are in the HydrateOperationPhaseHydrating phase.
-	raceDetected := false
-	for _, app := range apps {
-		if app.Status.SourceHydrator.CurrentOperation == nil || app.Status.SourceHydrator.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrating {
-			raceDetected = true
-			break
-		}
-	}
-	if raceDetected {
-		logCtx.Warn("race condition detected: not all apps are in HydrateOperationPhaseHydrating phase")
-	}
+	// Concurrency handling (https://github.com/argoproj/argo-cd/issues/27926): with more than one
+	// hydration worker, a hydration queue item for this key can be picked up before
+	// ProcessAppHydrateQueueItem has marked every app in the group as Hydrating, so some apps below may
+	// still have a nil or stale CurrentOperation.
+	//
+	// We deliberately still hydrate the COMPLETE set of apps for the key, not just the ones already
+	// marked Hydrating. The commit server records a git note per dry SHA and short-circuits any later
+	// commit for the same dry SHA before writing manifests (see commitserver/commit/commit.go,
+	// IsHydrated). If we committed only a subset now, a later commit for the remaining apps would be
+	// skipped by that note and those apps would be marked hydrated without their manifests ever being
+	// written. Committing the full path set in a single pass keeps the note's "already hydrated"
+	// guarantee accurate and avoids partial hydration.
+	//
+	// What we guard is the per-app STATUS update further below: an app that is not in the Hydrating phase
+	// is skipped, because its CurrentOperation may be nil (dereferencing it would panic) or stale (we
+	// must not overwrite it). Its manifests are still committed above, so no data is lost; only its
+	// status lags. That status reconciles on a later hydration pass via the existing refresh/resync path
+	// rather than immediately: an app left in the Hydrating phase is not re-hydrated by
+	// ProcessAppHydrateQueueItem (appNeedsHydration reports "already in progress") until its operation is
+	// older than statusRefreshTimeout (or the app is otherwise re-queued, e.g. on spec change or resync).
+	// On that later pass the commit server hits the dry-SHA note and returns the existing hydrated SHA
+	// without re-committing, and the status is finalized.
 
 	// validate all the applications to make sure they are all correctly configured.
 	// All applications sharing the same hydration key must succeed for the hydration to be processed.
@@ -231,8 +239,12 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		genericError := genericHydrationError(appErrors)
 		for _, app := range apps {
 			if drySHA != "" {
-				// If we have a drySHA, we can set it on the app status
-				app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
+				// If we have a drySHA, we can set it on the app status. Guard the CurrentOperation
+				// deref: under concurrent hydration (#27926) an app in this group may not be in the
+				// Hydrating phase yet and can have a nil CurrentOperation.
+				if app.Status.SourceHydrator.CurrentOperation != nil {
+					app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
+				}
 				app.Status.SourceHydrator.LastComparedDryRevision = drySHA
 			}
 			if err, ok := appErrors[app.QualifiedName()]; ok {
@@ -249,6 +261,17 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	logCtx.Debug("Successfully hydrated apps")
 	finishedAt := metav1.Now()
 	for _, app := range apps {
+		// The manifests for every app in this group were just committed (the complete path set), but we
+		// only update the status of apps the controller has actually marked Hydrating. Under concurrent
+		// hydration (#27926) an app in this group may not be Hydrating yet: its CurrentOperation may be
+		// nil (dereferencing it below would panic) or stale (we must not overwrite it). Such an app keeps
+		// its current status; it is finalized on a later hydration pass via the existing refresh/resync
+		// path (see the note at the top of this method), which hits the dry-SHA note and returns the
+		// already-hydrated SHA without re-committing.
+		if app.Status.SourceHydrator.CurrentOperation == nil || app.Status.SourceHydrator.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrating {
+			logCtx.WithFields(applog.GetAppLogFields(app)).Debug("skipping hydration status update for app not in the Hydrating phase; it will be reconciled on a later pass")
+			continue
+		}
 		origApp := app.DeepCopy()
 		operation := &appv1.HydrateOperation{
 			StartedAt:      app.Status.SourceHydrator.CurrentOperation.StartedAt,
@@ -278,8 +301,10 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 
 // setAppHydratorError updates the CurrentOperation with the error information.
 func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
-	// if the operation is not in progress, we do not update the status
-	if app.Status.SourceHydrator.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrating {
+	// if there is no in-progress operation, we do not update the status. Under concurrent hydration
+	// (#27926) the app may not be in the Hydrating phase yet and CurrentOperation can be nil, so the
+	// nil check also guards against a panic.
+	if app.Status.SourceHydrator.CurrentOperation == nil || app.Status.SourceHydrator.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrating {
 		return
 	}
 
@@ -399,7 +424,10 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 
 	for _, app := range apps[1:] {
 		eg.Go(func() error {
-			_, pathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
+			// Use goroutine-local variables here. Assigning to the function-scoped pathDetails/err
+			// from multiple errgroup goroutines is a data race (and can append the wrong path under
+			// the mutex). See https://github.com/argoproj/argo-cd/issues/27926.
+			_, pathDetails, err := h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
