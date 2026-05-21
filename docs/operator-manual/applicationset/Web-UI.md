@@ -21,7 +21,7 @@ view-preferences, so it should feel familiar.
 You can reach it from the top-level navigation, or directly at
 `https://<your-argocd>/applicationsets`.
 
-![ApplicationSets list page](../../assets/applicationset/Web-UI/01-applicationsets-list.png)
+![ApplicationSets list page](../../assets/applicationset/Web-UI/applicationsets-list.png)
 
 What's on the page:
 
@@ -48,7 +48,7 @@ Selecting an ApplicationSet from the list opens its details page. The
 center of the page is a **resource tree** that visualizes the
 ApplicationSet and the child Applications it generates.
 
-![ApplicationSet resource tree](../../assets/applicationset/Web-UI/02-appset-resource-tree.png)
+![ApplicationSet resource tree](../../assets/applicationset/Web-UI/appset-resource-tree.png)
 
 Things to know:
 
@@ -59,20 +59,53 @@ Things to know:
 - Clicking a child Application navigates to that Application's own
   details page.
 
+## Status bar: health, conditions, age
+
+The top of the ApplicationSet details page shows a status bar summarizing
+the ApplicationSet at a glance: its **health**, the count of
+**conditions** by severity, and **last updated**.
+
+![ApplicationSet status bar](../../assets/applicationset/Web-UI/appset-status-bar.png)
+
+### How health is derived
+
+The ApplicationSet controller now writes a `status.health` field on the
+ApplicationSet CR (with `status` and `message`), computed from the
+ApplicationSet's `status.conditions`. The UI reads this field directly.
+
+The rules the controller applies, in order:
+
+1. If `status.conditions` is empty → **Unknown**
+   (`"No status conditions found for ApplicationSet"`).
+2. If an `ErrorOccurred` condition has `status: True`
+   → **Degraded**, with the condition's message.
+3. Otherwise, if a `RolloutProgressing` condition has `status: True`
+   → **Progressing**, with the condition's message.
+4. Otherwise, if a `ResourcesUpToDate` condition has `status: True`
+   → **Healthy**, with the condition's message.
+5. Otherwise → **Unknown** (`"Waiting for health status to be determined"`).
+
+### How conditions are shown
+
+![ApplicationSet conditions modal](../../assets/applicationset/Web-UI/appset-conditions.png)
+
+The conditions modal shows each condition's **type**, **status**, the
+**message** reported by the controller and **when** it was last reported.
+This is usually the first place to look when an ApplicationSet shows up
+as **Degraded** or **Unknown**.
+
 ## Slide-out panel: Summary, Manifest, Events, Preview
 
 Clicking the ApplicationSet node (or any node on the tree) opens a
 slide-out panel from the right edge of the screen — the same pattern used
 elsewhere in Argo CD for resource details.
 
-The panel has four tabs.
-
 ### Summary
 
 Shows metadata at a glance: name, namespace, creation timestamp,
 health, conditions, labels, annotations, and sync policy.
 
-![Summary tab](../../assets/applicationset/Web-UI/03-summary-tab.png)
+![Summary tab](../../assets/applicationset/Web-UI/summary-tab.png)
 
 If the ApplicationSet has conditions, the **CONDITIONS** row links to a
 detailed conditions view so you can see warnings or errors raised by the
@@ -82,15 +115,11 @@ controller (for example, a generator that failed to evaluate).
 
 A read-only YAML view of the ApplicationSet's `spec`.
 
-![Manifest tab](../../assets/applicationset/Web-UI/04-manifest-tab.png)
-
 ### Events
 
 Kubernetes events for the ApplicationSet — useful when investigating why
 a particular generator parameter set produced (or failed to produce) an
 Application.
-
-![Events tab](../../assets/applicationset/Web-UI/05-events-tab.png)
 
 ### Preview
 
@@ -104,12 +133,7 @@ the browser. It shows you the Applications an ApplicationSet would
 generate right now. When you edit the spec a diff between the
 proposed output and what is currently live.
 
-<video controls muted loop playsinline width="100%"
-       poster="../../assets/applicationset/Web-UI/06-preview-initial.png">
-  <source src="../../assets/applicationset/Web-UI/preview-demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-  <a href="../../assets/applicationset/Web-UI/preview-demo.mp4">Download the preview demo</a>.
-</video>
+![Preview tab demo](../../assets/applicationset/Web-UI/preview-demo.gif)
 
 ### How it works
 
@@ -159,7 +183,7 @@ A small badge labeled with the parent ApplicationSet's name
 appears on the Application node. Clicking it jumps directly to the
 ApplicationSet details page.
 
-![ApplicationSet owner badge on an Application](../../assets/applicationset/Web-UI/09-appset-owner-badge.png)
+![ApplicationSet owner badge on an Application](../../assets/applicationset/Web-UI/appset-owner-badge.png)
 
 ### Show / hide parent ApplicationSet
 
@@ -169,12 +193,7 @@ synthetic root node on the resource tree, with an edge to the
 Application. This is useful when you want a single view that includes
 both the ApplicationSet and the Application it produced.
 
-<video controls muted loop playsinline width="100%"
-       poster="../../assets/applicationset/Web-UI/10-show-parent-toggle.png">
-  <source src="../../assets/applicationset/Web-UI/show-parent-toggle.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-  <a href="../../assets/applicationset/Web-UI/show-parent-toggle.mp4">Download the toggle demo</a>.
-</video>
+![Show parent ApplicationSet toggle](../../assets/applicationset/Web-UI/show-parent-toggle.png)
 
 When the toggle is on, the badge is hidden (since the parent is already
 rendered explicitly).
@@ -189,7 +208,7 @@ panel. Selecting it opens a panel with a **Preview** experience similar
 to the one described above, scoped to the changes that would land when
 you sync the parent Application.
 
-![App-of-AppSet preview](../../assets/applicationset/Web-UI/11-app-of-appset-preview.png)
+![App-of-AppSet preview](../../assets/applicationset/Web-UI/app-of-appset-preview.png)
 
 There are two important differences from the standalone Preview tab:
 
