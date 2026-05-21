@@ -33,6 +33,76 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 	require.Equal(t, "abc", val)
 }
 
+func TestBuildLogFilename(t *testing.T) {
+	tests := []struct {
+		name      string
+		urlPath   string
+		podName   string
+		container string
+		expected  string
+	}{
+		{
+			name:      "all params present",
+			urlPath:   "/api/v1/applications/my-app/logs",
+			podName:   "my-pod",
+			container: "nginx",
+			expected:  "my-app_my-pod_nginx.log",
+		},
+		{
+			name:      "missing podName",
+			urlPath:   "/api/v1/applications/my-app/logs",
+			podName:   "",
+			container: "nginx",
+			expected:  "my-app_nginx.log",
+		},
+		{
+			name:      "missing container",
+			urlPath:   "/api/v1/applications/my-app/logs",
+			podName:   "my-pod",
+			container: "",
+			expected:  "my-app_my-pod.log",
+		},
+		{
+			name:      "only app name",
+			urlPath:   "/api/v1/applications/my-app/logs",
+			podName:   "",
+			container: "",
+			expected:  "my-app.log",
+		},
+		{
+			name:      "no valid params",
+			urlPath:   "/api/v1/other/endpoint",
+			podName:   "",
+			container: "",
+			expected:  "log.log",
+		},
+		{
+			name:      "pods URL pattern",
+			urlPath:   "/api/v1/applications/my-app/pods/my-pod/logs",
+			podName:   "my-pod",
+			container: "sidecar",
+			expected:  "my-app_my-pod_sidecar.log",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			queryGet := func(key string) string {
+				switch key {
+				case "podName":
+					return tt.podName
+				case "container":
+					return tt.container
+				default:
+					return ""
+				}
+			}
+			result := buildLogFilename(tt.urlPath, queryGet)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
 	list := v1alpha1.ApplicationList{
 		Items: []v1alpha1.Application{{Operation: nil}},
