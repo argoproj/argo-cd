@@ -1,7 +1,10 @@
 package sourceintegrity
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -550,4 +553,162 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 			assert.Empty(t, logger.GetEntries())
 		})
 	}
+}
+
+func TestVerifyHelmMultiplePolicies(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{
+				{Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.bitnami.com/*"}}, Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"A"}}},
+				{Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.bitnami.com/bitnami"}}, Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"B"}}},
+			},
+		},
+	}
+	result, err := VerifyHelm(context.Background(), si, "https://charts.bitnami.com/bitnami", []byte{}, []byte{}, "chart.tgz")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Error(t, result.AsError())
+	assert.Contains(t, result.AsError().Error(), "multiple (2) Helm source integrity policies found for repo URL")
+}
+
+func TestVerifyHelmProvenanceRequiredButMissing(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"0000000000000000"}},
+			}},
+		},
+	}
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte("chart"), nil, "chart.tgz")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Error(t, result.AsError())
+	assert.Contains(t, result.AsError().Error(), "provenance file (.prov) is required but missing")
+}
+
+func TestVerifyHelmReturnsNilWhenKeysEmpty(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{}},
+			}},
+		},
+	}
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte{}, nil, "chart.tgz")
+	require.NoError(t, err)
+	require.Nil(t, result, "empty keys list skips verification, returns nil")
+}
+
+func TestHelmProvenanceFetchFailed(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"A"}},
+			}},
+		},
+	}
+	cause := errors.New("network down")
+	result := HelmProvenanceFetchFailed(si, "https://charts.example.com/repo", false, cause)
+	require.NotNil(t, result)
+	require.Error(t, result.AsError())
+	assert.Contains(t, result.AsError().Error(), "could not access chart for provenance verification")
+	assert.Contains(t, result.AsError().Error(), "network down")
+
+	ociResult := HelmProvenanceFetchFailed(si, "https://charts.example.com/repo", true, cause)
+	require.NotNil(t, ociResult)
+	require.Error(t, ociResult.AsError())
+	assert.Contains(t, ociResult.AsError().Error(), "could not access OCI helm chart for provenance verification")
+
+	assert.Nil(t, HelmProvenanceFetchFailed(si, "https://charts.other.com/repo", false, cause), "no matching policy returns nil")
+}
+
+func TestVerifyHelmReturnsNilWhenNoPolicyMatch(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.other.com/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"A"}},
+			}},
+		},
+	}
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte{}, []byte{}, "chart.tgz")
+	require.NoError(t, err)
+	require.Nil(t, result, "no matching policy returns nil")
+}
+
+func TestVerifyHelmReturnsNilWhenNilSI(t *testing.T) {
+	result, err := VerifyHelm(context.Background(), nil, "https://charts.example.com/repo", []byte{}, []byte{}, "chart.tgz")
+	require.NoError(t, err)
+	require.Nil(t, result)
+}
+
+func TestVerifyHelmPassWhenGPGDisabled(t *testing.T) {
+	if IsGPGEnabled() {
+		t.Skip("Run with ARGOCD_GPG_ENABLED=false to test pass when GPG is disabled")
+	}
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"A"}},
+			}},
+		},
+	}
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte("chart"), nil, "chart.tgz")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.IsValid(), "when GPG disabled, verification is skipped and result passes")
+	require.NoError(t, result.AsError())
+}
+
+func TestVerifyHelmPassProvenanceValid(t *testing.T) {
+	t.Setenv("ARGOCD_GPG_ENABLED", "true")
+	provContent, err := os.ReadFile("testdata/demo-chart-1.0.0.tgz.prov")
+	require.NoError(t, err)
+	chartContent, err := os.ReadFile("testdata/demo-chart-1.0.0.tgz")
+	require.NoError(t, err)
+	old := helmProvenanceVerifier
+	helmProvenanceVerifier = func(context.Context, []byte) (string, error) { return "C569733D3D05285D", nil }
+	t.Cleanup(func() { helmProvenanceVerifier = old })
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "http://localhost:*/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"C569733D3D05285D"}},
+			}},
+		},
+	}
+	result, err := VerifyHelm(context.Background(), si, "http://localhost:8000/charts", chartContent, provContent, "demo-chart-1.0.0.tgz")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.IsValid(), "valid signed provenance with allowed key should pass")
+	require.NoError(t, result.AsError())
+}
+
+func TestVerifyHelmFailUnallowedKey(t *testing.T) {
+	t.Setenv("ARGOCD_GPG_ENABLED", "true")
+	provContent, err := os.ReadFile("testdata/demo-chart-1.0.0.tgz.prov")
+	require.NoError(t, err)
+	chartContent, err := os.ReadFile("testdata/demo-chart-1.0.0.tgz")
+	require.NoError(t, err)
+	old := helmProvenanceVerifier
+	helmProvenanceVerifier = func(context.Context, []byte) (string, error) { return "C569733D3D05285D", nil }
+	t.Cleanup(func() { helmProvenanceVerifier = old })
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "http://localhost:*/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"0000000000000000"}},
+			}},
+		},
+	}
+	result, err := VerifyHelm(context.Background(), si, "http://localhost:8000/charts", chartContent, provContent, "demo-chart-1.0.0.tgz")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.False(t, result.IsValid())
+	require.Error(t, result.AsError())
+	assert.Contains(t, result.AsError().Error(), "signed with unallowed key")
 }

@@ -318,9 +318,52 @@ spec:
                     required:
                     - policies
                     type: object
-                required:
-                - git
+                  helm:
+                    description: Helm - policies for Helm chart provenance verification
+                      (both traditional and OCI repositories)
+                    properties:
+                      policies:
+                        items:
+                          description: SourceIntegrityHelmPolicy applies to Helm repos
+                            matching Repos; provenance verifies .prov signature and
+                            allowed keys.
+                          properties:
+                            provenance:
+                              description: |-
+                                SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).
+                                When Keys is non-empty, requires a .prov file, valid signature from an allowed key, and chart checksum match.
+                                When Keys is empty, provenance verification is not performed for matching repos.
+                              properties:
+                                keys:
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - keys
+                              type: object
+                            repos:
+                              items:
+                                description: SourceIntegrityHelmPolicyRepo restricts
+                                  which Helm repo URLs the policy applies to (glob).
+                                properties:
+                                  url:
+                                    type: string
+                                required:
+                                - url
+                                type: object
+                              type: array
+                          required:
+                          - provenance
+                          - repos
+                          type: object
+                        type: array
+                    required:
+                    - policies
+                    type: object
                 type: object
+                x-kubernetes-validations:
+                - message: sourceIntegrity must specify at least one of git or helm
+                  rule: self.git != null || self.helm != null
               sourceNamespaces:
                 description: SourceNamespaces defines the namespaces application resources
                   are allowed to be created in
