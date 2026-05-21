@@ -3485,7 +3485,7 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
-	ociPath := request.GetPath()
+	ociPath := request.GetGlob()
 	noRevisionCache := request.GetNoRevisionCache()
 	if ociPath == "" {
 		ociPath = "."
@@ -3504,7 +3504,7 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 	if cachedFiles, err := s.cache.GetOciFiles(repo.Repo, digest, ociPath); err == nil {
 		log.Debugf("cache hit for OCI repo: %s revision: %s pattern: %s", repo.Repo, digest, ociPath)
 		return &apiclient.OciFilesResponse{
-			Map: cachedFiles,
+			Files: cachedFiles,
 		}, nil
 	}
 
@@ -3555,7 +3555,7 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 	}
 
 	return &apiclient.OciFilesResponse{
-		Map: res,
+		Files: res,
 	}, nil
 }
 

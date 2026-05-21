@@ -14,6 +14,9 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
+// Compile-time assertions that GitGenerator satisfies two interfaces:
+//   - Generator: the public interface used by the ApplicationSet controller.
+//   - repoSource: the internal interface used by the shared directory/file traversal.
 var (
 	_ Generator  = (*GitGenerator)(nil)
 	_ repoSource = (*GitGenerator)(nil)
@@ -81,7 +84,8 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 		Files:           files,
 	}
 
-	return generateRepoSourceParams(g, repoSourceKindGit, spec, appSet, client)
+	// TODO: propagate a real context once Generator.GenerateParams accepts ctx.
+	return generateRepoSourceParams(context.TODO(), g, repoSourceKindGit, spec, appSet, client)
 }
 
 // resolveSourceIntegrity returns the SourceIntegrity policy from the associated AppProject.

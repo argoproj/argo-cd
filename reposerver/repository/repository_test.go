@@ -5994,7 +5994,7 @@ func TestErrorGetOciFiles(t *testing.T) {
 				request: &apiclient.OciFilesRequest{
 					Repo:     nil,
 					Revision: "v1.0.0",
-					Path:     "*.json",
+					Glob:     "*.json",
 				},
 			},
 			want:    nil,
@@ -6015,7 +6015,7 @@ func TestErrorGetOciFiles(t *testing.T) {
 				request: &apiclient.OciFilesRequest{
 					Repo:     &v1alpha1.Repository{Repo: "ghcr.io/example/invalid"},
 					Revision: "invalid-tag",
-					Path:     "*.json",
+					Glob:     "*.json",
 				},
 			},
 			want:    nil,
@@ -6037,7 +6037,7 @@ func TestErrorGetOciFiles(t *testing.T) {
 				request: &apiclient.OciFilesRequest{
 					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
 					Revision: "v1.0.0",
-					Path:     "*.json",
+					Glob:     "*.json",
 				},
 			},
 			want:    nil,
@@ -6077,14 +6077,14 @@ func TestGetOciFiles(t *testing.T) {
 	filesRequest := &apiclient.OciFilesRequest{
 		Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
 		Revision: "v1.0.0",
-		Path:     "config/*.json",
+		Glob:     "config/*.json",
 	}
 
 	fileResponse, err := s.GetOciFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.NotNil(t, fileResponse)
 
-	files := fileResponse.GetMap()
+	files := fileResponse.GetFiles()
 	assert.Len(t, files, 2)
 	assert.Equal(t, prodConfig, files["config/prod.json"])
 	assert.Equal(t, stagingConfig, files["config/staging.json"])
@@ -6092,7 +6092,7 @@ func TestGetOciFiles(t *testing.T) {
 
 	fileResponse2, err := s.GetOciFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
-	assert.Equal(t, files, fileResponse2.GetMap())
+	assert.Equal(t, files, fileResponse2.GetFiles())
 
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,

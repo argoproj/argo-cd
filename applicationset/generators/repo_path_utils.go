@@ -52,6 +52,19 @@ type repoSource interface {
 	getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error)
 }
 
+// repoSourceCallParams bundles parameters for generateRepoSourceDirectoryParams and generateRepoSourceFileParams.
+type repoSourceCallParams struct {
+	ctx               context.Context
+	src               repoSource
+	kind              repoSourceKind
+	spec              repoSourceSpec
+	project           string
+	noRevisionCache   bool
+	sourceIntegrity   *argoprojiov1alpha1.SourceIntegrity
+	useGoTemplate     bool
+	goTemplateOptions []string
+}
+
 // filterPaths filters paths based on directory inclusion/exclusion rules.
 func filterPaths(dirs []pathPattern, allPaths []string) []string {
 	var res []string
@@ -238,22 +251,40 @@ func resolveProjectName(project string) string {
 }
 
 // generateRepoSourceParams resolves source integrity and dispatches to directory or file-based generation.
-func generateRepoSourceParams(src repoSource, kind repoSourceKind, spec repoSourceSpec, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
+func generateRepoSourceParams(ctx context.Context, src repoSource, kind repoSourceKind, spec repoSourceSpec, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	noRevisionCache := appSet.RefreshRequired()
 
-	sourceIntegrity, err := src.resolveSourceIntegrity(context.TODO(), appSet, client)
+	sourceIntegrity, err := src.resolveSourceIntegrity(ctx, appSet, client)
 	if err != nil {
 		return nil, err
 	}
 
 	project := resolveProjectName(appSet.Spec.Template.Spec.Project)
 
+	// When both directories and files are specified, directories takes precedence and
+	// files is silently ignored. This matches the existing GitGenerator behavior.
+	if len(spec.Directories) != 0 && len(spec.Files) != 0 {
+		log.Warn("both 'directories' and 'files' are set in the generator spec; 'directories' takes precedence and 'files' will be ignored")
+	}
+
+	params := repoSourceCallParams{
+		ctx:               ctx,
+		src:               src,
+		kind:              kind,
+		spec:              spec,
+		project:           project,
+		noRevisionCache:   noRevisionCache,
+		sourceIntegrity:   sourceIntegrity,
+		useGoTemplate:     appSet.Spec.GoTemplate,
+		goTemplateOptions: appSet.Spec.GoTemplateOptions,
+	}
+
 	var res []map[string]any
 	switch {
 	case len(spec.Directories) != 0:
-		res, err = generateRepoSourceDirectoryParams(context.TODO(), src, kind, spec, project, noRevisionCache, sourceIntegrity, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		res, err = generateRepoSourceDirectoryParams(params)
 	case len(spec.Files) != 0:
-		res, err = generateRepoSourceFileParams(context.TODO(), src, spec, project, noRevisionCache, sourceIntegrity, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		res, err = generateRepoSourceFileParams(params)
 	default:
 		return nil, ErrEmptyAppSetGenerator
 	}
@@ -265,23 +296,23 @@ func generateRepoSourceParams(src repoSource, kind repoSourceKind, spec repoSour
 }
 
 // generateRepoSourceDirectoryParams lists directories from src, applies path filters, and returns parameter maps.
-func generateRepoSourceDirectoryParams(ctx context.Context, src repoSource, kind repoSourceKind, spec repoSourceSpec, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
-	allPaths, err := src.listDirectories(ctx, spec.URL, spec.Revision, project, noRevisionCache, sourceIntegrity)
+func generateRepoSourceDirectoryParams(params repoSourceCallParams) ([]map[string]any, error) {
+	allPaths, err := params.src.listDirectories(params.ctx, params.spec.URL, params.spec.Revision, params.project, params.noRevisionCache, params.sourceIntegrity)
 	if err != nil {
-		return nil, fmt.Errorf("error getting directories from %s: %w", kind, err)
+		return nil, fmt.Errorf("error getting directories from %s: %w", params.kind, err)
 	}
 
 	log.WithFields(log.Fields{
 		"allPaths":        allPaths,
 		"total":           len(allPaths),
-		"repoURL":         spec.URL,
-		"revision":        spec.Revision,
-		"pathParamPrefix": spec.PathParamPrefix,
+		"repoURL":         params.spec.URL,
+		"revision":        params.spec.Revision,
+		"pathParamPrefix": params.spec.PathParamPrefix,
 	}).Info("applications result from the repo service")
 
-	requestedApps := filterPaths(spec.Directories, allPaths)
+	requestedApps := filterPaths(params.spec.Directories, allPaths)
 
-	res, err := generateParamsFromPaths(requestedApps, spec.PathParamPrefix, spec.Values, useGoTemplate, goTemplateOptions)
+	res, err := generateParamsFromPaths(requestedApps, params.spec.PathParamPrefix, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error generating params from apps: %w", err)
 	}
@@ -290,12 +321,12 @@ func generateRepoSourceDirectoryParams(ctx context.Context, src repoSource, kind
 }
 
 // generateRepoSourceFileParams fetches files from src and parses each as YAML/JSON to produce parameter maps.
-func generateRepoSourceFileParams(ctx context.Context, src repoSource, spec repoSourceSpec, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
+func generateRepoSourceFileParams(params repoSourceCallParams) ([]map[string]any, error) {
 	fileContentMap := make(map[string][]byte)
 	var includePatterns []string
 	var excludePatterns []string
 
-	for _, req := range spec.Files {
+	for _, req := range params.spec.Files {
 		if req.Exclude {
 			excludePatterns = append(excludePatterns, req.Path)
 		} else {
@@ -304,7 +335,7 @@ func generateRepoSourceFileParams(ctx context.Context, src repoSource, spec repo
 	}
 
 	for _, includePattern := range includePatterns {
-		retrievedFiles, err := src.getFiles(ctx, spec.URL, spec.Revision, project, includePattern, noRevisionCache, sourceIntegrity)
+		retrievedFiles, err := params.src.getFiles(params.ctx, params.spec.URL, params.spec.Revision, params.project, includePattern, params.noRevisionCache, params.sourceIntegrity)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +343,7 @@ func generateRepoSourceFileParams(ctx context.Context, src repoSource, spec repo
 	}
 
 	for _, excludePattern := range excludePatterns {
-		matchingFiles, err := src.getFiles(ctx, spec.URL, spec.Revision, project, excludePattern, noRevisionCache, sourceIntegrity)
+		matchingFiles, err := params.src.getFiles(params.ctx, params.spec.URL, params.spec.Revision, params.project, excludePattern, params.noRevisionCache, params.sourceIntegrity)
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +360,7 @@ func generateRepoSourceFileParams(ctx context.Context, src repoSource, spec repo
 
 	var allParams []map[string]any
 	for _, filePath := range filePaths {
-		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], spec.PathParamPrefix, spec.Values, useGoTemplate, goTemplateOptions)
+		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], params.spec.PathParamPrefix, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s': %w", filePath, err)
 		}

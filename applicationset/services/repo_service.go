@@ -129,14 +129,14 @@ func (a *argoCDService) GetOciFiles(ctx context.Context, repoURL, revision, proj
 	fileRequest := &apiclient.OciFilesRequest{
 		Repo:            repo,
 		Revision:        revision,
-		Path:            pattern,
+		Glob:            pattern,
 		NoRevisionCache: noRevisionCache,
 	}
 	fileResponse, err := a.getOciFilesFromRepoServer(ctx, fileRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving OCI files: %w", err)
 	}
-	return fileResponse.GetMap(), nil
+	return fileResponse.GetFiles(), nil
 }
 
 func (a *argoCDService) GetOciDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool) ([]string, error) {

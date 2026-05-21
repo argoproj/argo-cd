@@ -148,3 +148,7 @@ The file contents are parsed as YAML/JSON, and the top-level fields become avail
 ## Authentication
 
 OCI generator uses the same authentication mechanisms as regular OCI-based Argo CD Applications. Configure repository credentials in the Argo CD UI or using repository secrets with `enableOCI: true`.
+
+## Known Limitations
+
+- **Artifact signing verification**: OCI artifacts may carry [cosign](https://github.com/sigstore/cosign)/sigstore signatures, but the OCI generator does not yet verify them. Source integrity enforcement (configured via `AppProject.spec.sourceIntegrity`) is therefore not yet supported for OCI generators.

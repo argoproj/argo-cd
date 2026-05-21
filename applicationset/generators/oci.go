@@ -10,6 +10,9 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
+// Compile-time assertions that OciGenerator satisfies two interfaces:
+//   - Generator: the public interface used by the ApplicationSet controller.
+//   - repoSource: the internal interface used by the shared directory/file traversal.
 var (
 	_ Generator  = (*OciGenerator)(nil)
 	_ repoSource = (*OciGenerator)(nil)
@@ -27,9 +30,9 @@ func NewOciGenerator(repos services.Repos) Generator {
 	return g
 }
 
-// GetRequeueAfter is the generator can controller the next reconciled loop
-// In case there is more then one generator the time will be the minimum of the times.
-// In case NoRequeueAfter is empty, it will be ignored
+// GetRequeueAfter returns the duration after which the OCI generator should be
+// requeued for reconciliation. If RequeueAfterSeconds is set in the generator spec,
+// it uses that value. Otherwise, it falls back to a default requeue interval (3 minutes)
 func (o *OciGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
 	if appSetGenerator.Oci.RequeueAfterSeconds != nil {
 		return time.Duration(*appSetGenerator.Oci.RequeueAfterSeconds) * time.Second
@@ -79,10 +82,13 @@ func (o *OciGenerator) GenerateParams(
 		Files:           files,
 	}
 
-	return generateRepoSourceParams(o, repoSourceKindOCI, spec, applicationSetInfo, client)
+	// TODO: propagate a real context once Generator.GenerateParams accepts ctx.
+	return generateRepoSourceParams(context.TODO(), o, repoSourceKindOCI, spec, applicationSetInfo, client)
 }
 
-// resolveSourceIntegrity returns nil; OCI does not yet support commit signing verification.
+// resolveSourceIntegrity returns nil because OCI signature verification
+// is not yet supported.
+// TODO(oci-signing): Add cosign/sigstore verification support.
 func (o *OciGenerator) resolveSourceIntegrity(_ context.Context, _ *argoprojiov1alpha1.ApplicationSet, _ client.Client) (*argoprojiov1alpha1.SourceIntegrity, error) {
 	return nil, nil
 }

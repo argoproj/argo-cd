@@ -282,13 +282,14 @@ message GitDirectoriesResponse {
 message OciFilesRequest {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
-    string path = 3;
+    // glob is the file glob pattern used to match files within the OCI artifact.
+    string glob = 3;
     bool noRevisionCache = 4;
 }
 
 message OciFilesResponse {
-    // Map consisting of path to its contents in bytes
-    map<string, bytes> map = 1;
+    // files maps each matched file path to its contents in bytes.
+    map<string, bytes> files = 1;
 }
 
 message OciDirectoriesRequest {

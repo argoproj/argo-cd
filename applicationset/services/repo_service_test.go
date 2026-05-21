@@ -278,7 +278,7 @@ func TestGetOciFiles(t *testing.T) {
 			},
 			getOciFiles: func(_ context.Context, _ *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
 				return &apiclient.OciFilesResponse{
-					Map: map[string][]byte{
+					Files: map[string][]byte{
 						"config.json": []byte(`{"cluster": "production"}`),
 						"values.yaml": []byte("replicas: 3"),
 					},
