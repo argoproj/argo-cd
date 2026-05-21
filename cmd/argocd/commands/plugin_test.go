@@ -116,7 +116,7 @@ func TestNormalCommandError(t *testing.T) {
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
 	assert.EqualError(t, pluginErr, "unknown flag: --non-existent-flag")
-	assert.Equal(t, errMsg, "Error: unknown flag: --non-existent-flag\n")
+	assert.Equal(t, "Error: unknown flag: --non-existent-flag\n", errMsg)
 }
 
 // TestUnknownCommandNoPlugin tests the scenario when the command is neither a normal ArgoCD command
@@ -135,7 +135,7 @@ func TestUnknownCommandNoPlugin(t *testing.T) {
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
 	assert.EqualError(t, pluginErr, "unknown command \"non-existent\" for \"argocd\"")
-	assert.Equal(t, errMsg, "Error: unknown command \"non-existent\" for \"argocd\"\nRun 'argocd --help' for usage.\n")
+	assert.Equal(t, "Error: unknown command \"non-existent\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
 }
 
 // TestPluginNoExecutePermission verifies the behavior when a plugin doesn't have executable permissions
@@ -155,7 +155,7 @@ func TestPluginNoExecutePermission(t *testing.T) {
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
 	assert.EqualError(t, pluginErr, "unknown command \"no-permission\" for \"argocd\"")
-	assert.Equal(t, errMsg, "Error: unknown command \"no-permission\" for \"argocd\"\nRun 'argocd --help' for usage.\n")
+	assert.Equal(t, "Error: unknown command \"no-permission\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
 }
 
 // TestPluginExecutionError checks for errors that occur during plugin execution
@@ -175,7 +175,7 @@ func TestPluginExecutionError(t *testing.T) {
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
 	assert.EqualError(t, pluginErr, "exit status 1")
-	assert.Equal(t, errMsg, "Error: exit status 1\n")
+	assert.Equal(t, "Error: exit status 1\n", errMsg)
 }
 
 // TestPluginInRelativePathIgnored ensures that plugins in a relative path, even if the path is included in PATH,
@@ -207,7 +207,7 @@ func TestPluginInRelativePathIgnored(t *testing.T) {
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
 	assert.EqualError(t, pluginErr, "unknown command \"ignore-plugin\" for \"argocd\"")
-	assert.Equal(t, errMsg, "Error: unknown command \"ignore-plugin\" for \"argocd\"\nRun 'argocd --help' for usage.\n")
+	assert.Equal(t, "Error: unknown command \"ignore-plugin\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
 }
 
 // TestPluginFlagParsing checks that the flags are parsed correctly by the plugin handler
@@ -255,7 +255,7 @@ func TestPluginFlagParsing(t *testing.T) {
 				assert.Equal(t, errMsg, fmt.Sprintf("Error: %s\n", tt.expectedErrMsg))
 			} else {
 				assert.NoError(t, pluginErr, "Expected no error for valid flags")
-				assert.Equal(t, errMsg, "")
+				assert.Equal(t, "", errMsg)
 			}
 		})
 	}
@@ -307,7 +307,7 @@ func TestPluginStatusCode(t *testing.T) {
 			errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
 			if !tt.throwErr {
 				require.NoError(t, pluginErr)
-				assert.Equal(t, errMsg, "")
+				assert.Equal(t, "", errMsg)
 			} else {
 				require.Error(t, pluginErr)
 				var exitErr *exec.ExitError
