@@ -209,7 +209,7 @@ argocd_cluster_labels{label_environment="production",label_team_name="team3",nam
 
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
-For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM must be set to true. 
+The gRPC counter metrics are always available. For the gRPC time histogram (`grpc_server_handling_seconds`), set environment variable `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM=true`. 
 
 | Metric                                            |   Type    | Description                                                                        
 |---------------------------------------------------|:---------:|---------------------------------------------------------------------------------------------|
@@ -217,7 +217,9 @@ For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGR
 | `argocd_redis_request_duration`                   | histogram | Redis requests duration.                                                                    |
 | `argocd_redis_request_total`                      |  counter  | Number of Kubernetes requests executed during application reconciliation.                   |
 | `grpc_server_handled_total`                       |  counter  | Total number of RPCs completed on the server, regardless of success or failure.             |
+| `grpc_server_msg_received_total`                  |  counter  | Total number of gRPC stream messages received by the server.                                |
 | `grpc_server_msg_sent_total`                      |  counter  | Total number of gRPC stream messages sent by the server.                                    |
+| `grpc_server_started_total`                       |  counter  | Total number of RPCs started on the server.                                                 |
 | `argocd_proxy_extension_request_total`            |  counter  | Number of requests sent to the configured proxy extensions.                                 |
 | `argocd_proxy_extension_request_duration_seconds` | histogram | Request duration in seconds between the Argo CD API server and the proxy extension backend. |
 | `argocd_kubectl_client_cert_rotation_age_seconds` |   gauge   | Age of kubectl client certificate rotation.                                                 |
@@ -234,19 +236,23 @@ For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGR
 
 ### Labels
 
-| Label Name  | Example Value | Description                                                                                                                                                                                               |
-| ----------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| call_status | no_error      | Status of the kubectl exec plugin call. Possible values are: no_error, plugin_execution_error, plugin_not_found_error, client_internal_error.                                                             |
-| code        | 200           | HTTP status code returned by the request or exit code of a command. kubectl metrics produced by client-go use `code` for HTTP responses, while metrics produced by Argo CD proxy extensions use `status`. |
-| extension   | metrics       | Name of the proxy extension being called.                                                                                                                                                                 |
-| failed      | false         | Indicates if the Redis request failed. Possible values are: true, false.                                                                                                                                  |
-| host        | example.com   | Hostname of the Kubernetes API to which the request was made.                                                                                                                                             |
-| initiator   | argocd-server | Name of the Argo CD component that initiated the request to Redis. Possible values are: argocd-application-controller, argocd-repo-server, argocd-server.                                                 |
-| method      | GET           | HTTP method used for the request. Possible values are: GET, DELETE, PATCH, POST, PUT.                                                                                                                     |
-| result      | hit           | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.                                                                        |
-| status      | 200           | HTTP response code from the extension.                                                                                                                                                                    |
-| verb        | List          | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                                                                            |
-| version     | v2.13.3       | Argo CD version.                                                                                                                                                                                          |
+| Label Name   | Example Value      | Description                                                                                                                                                                                               |
+| ------------ | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| call_status  | no_error           | Status of the kubectl exec plugin call. Possible values are: no_error, plugin_execution_error, plugin_not_found_error, client_internal_error.                                                             |
+| code         | 200                | HTTP status code returned by the request or exit code of a command. kubectl metrics produced by client-go use `code` for HTTP responses, while metrics produced by Argo CD proxy extensions use `status`. |
+| extension    | metrics            | Name of the proxy extension being called.                                                                                                                                                                 |
+| failed       | false              | Indicates if the Redis request failed. Possible values are: true, false.                                                                                                                                  |
+| grpc_code    | OK                 | gRPC status code. Used by `grpc_server_handled_total`. Possible values include: OK, Canceled, Unknown, InvalidArgument, DeadlineExceeded, NotFound, PermissionDenied, Unauthenticated, etc.               |
+| grpc_method  | List               | gRPC method name. Used by all `grpc_server_*` metrics.                                                                                                                                                    |
+| grpc_service | application.ApplicationService | gRPC service name. Used by all `grpc_server_*` metrics.                                                                                                                                      |
+| grpc_type    | unary              | gRPC call type. Used by `grpc_server_started_total`. Possible values are: unary, client_stream, server_stream, bidi_stream.                                                                               |
+| host         | example.com        | Hostname of the Kubernetes API to which the request was made.                                                                                                                                             |
+| initiator    | argocd-server      | Name of the Argo CD component that initiated the request to Redis. Possible values are: argocd-application-controller, argocd-repo-server, argocd-server.                                                 |
+| method       | GET                | HTTP method used for the request. Possible values are: GET, DELETE, PATCH, POST, PUT.                                                                                                                     |
+| result       | hit                | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.                                                                        |
+| status       | 200                | HTTP response code from the extension.                                                                                                                                                                    |
+| verb         | List               | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                                                                            |
+| version      | v2.13.3            | Argo CD version.                                                                                                                                                                                          |
 
 ## Repo Server Metrics
 
