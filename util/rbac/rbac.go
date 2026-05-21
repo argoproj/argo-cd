@@ -194,7 +194,7 @@ func (e *Enforcer) tryGetCasbinEnforcer(project string, policy string) (CasbinEn
 		enforcer, err = newEnforcerSafe(matchFunc, e.model, e.adapter)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating casbin enforcer: %w", err)
 	}
 
 	enforcer.AddFunction("globOrRegexMatch", matchFunc)
@@ -254,20 +254,23 @@ func (e *Enforcer) EnableEnforce(s bool) {
 // LoadPolicy executes casbin.Enforcer functionality and will invalidate cache if required.
 func (e *Enforcer) LoadPolicy() error {
 	_, err := e.tryGetCasbinEnforcer("", "")
-	return err
+	if err != nil {
+		return fmt.Errorf("error loading RBAC policy: %w", err)
+	}
+	return nil
 }
 
 // CheckUserDefinedRoleReferentialIntegrity iterates over roles and policies to validate the existence of a matching policy subject for every defined role
 func CheckUserDefinedRoleReferentialIntegrity(e CasbinEnforcer) error {
 	allRoles, err := e.GetAllRoles()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting all RBAC roles: %w", err)
 	}
 	notFound := make([]string, 0)
 	for _, roleName := range allRoles {
 		permissions, err := e.GetImplicitPermissionsForUser(roleName)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting permissions for role %q: %w", roleName, err)
 		}
 		if len(permissions) == 0 {
 			notFound = append(notFound, roleName)
@@ -437,12 +440,12 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *corev
 	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(ctx, e.configmap, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			return err
+			return fmt.Errorf("error getting RBAC configmap %q: %w", e.configmap, err)
 		}
 	} else {
 		err = e.syncUpdate(cm, onUpdated)
 		if err != nil {
-			return err
+			return fmt.Errorf("error syncing RBAC policy update: %w", err)
 		}
 	}
 	e.runInformer(ctx, onUpdated)
@@ -523,7 +526,7 @@ func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.Co
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
-		return err
+		return fmt.Errorf("error running policy update callback: %w", err)
 	}
 	return e.SetUserPolicy(policyCSV)
 }
@@ -572,7 +575,7 @@ func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 	for _, policyStr := range []string{a.builtinPolicy, a.userDefinedPolicy, a.runtimePolicy} {
 		for line := range strings.SplitSeq(policyStr, "\n") {
 			if err := loadPolicyLine(strings.TrimSpace(line), model); err != nil {
-				return err
+				return fmt.Errorf("error loading policy line: %w", err)
 			}
 		}
 	}
@@ -590,7 +593,7 @@ func loadPolicyLine(line string, model model.Model) error {
 	reader.TrimLeadingSpace = true
 	tokens, err := reader.Read()
 	if err != nil {
-		return err
+		return fmt.Errorf("error parsing policy line %q: %w", line, err)
 	}
 
 	tokenLen := len(tokens)

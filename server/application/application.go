@@ -2995,12 +2995,12 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	}
 
 	// Create server-side diff dry run applier
-	openAPISchema, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
+	_, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, openAPISchema, func(_ string) (kube.CleanupFunc, error) {
+	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, func(_ string) (kube.CleanupFunc, error) {
 		return func() {}, nil
 	})
 	if err != nil {
