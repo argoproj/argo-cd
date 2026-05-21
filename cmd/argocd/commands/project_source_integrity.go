@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -17,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	"github.com/argoproj/argo-cd/v3/util/templates"
@@ -163,6 +165,7 @@ func listGitGpgPolicies(out io.Writer, proj *v1alpha1.AppProject) {
 
 // NewProjectSourceIntegrityGitPoliciesDeleteCommand returns a new instance of an `argocd proj source-integrity git policies delete` command
 func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var yes bool
 	command := &cobra.Command{
 		Use:   "delete PROJECT POLICY_ID...",
 		Short: "Delete a git source integrity policy",
@@ -192,7 +195,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 			}
 
 			originalPolicyCount := len(proj.Spec.SourceIntegrity.Git.Policies)
-			indicesToDelete := make(map[int]any)
+			idsToDelete := make(map[int]any)
 			for _, policyId := range args[1:] {
 				index, err := strconv.Atoi(policyId)
 				if err != nil {
@@ -203,13 +206,26 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 					return fmt.Errorf("POLICY_ID %d is out of range (0-%d)", index, originalPolicyCount-1)
 				}
 
-				indicesToDelete[index] = nil
+				idsToDelete[index] = nil
+			}
+
+			if !yes {
+				idsStr := make([]string, 0, len(idsToDelete))
+				for i := range maps.Keys(idsToDelete) {
+					idsStr = append(idsStr, fmt.Sprintf("%d", i))
+				}
+				sort.Strings(idsStr)
+				prompt := fmt.Sprintf("Are you sure you want to delete policie(s) %s from project %q? [y/N] ", strings.Join(idsStr, ", "), projName)
+				if cli.AskToProceedS(prompt) != "y" {
+					fmt.Fprintln(c.OutOrStdout(), "Aborted by user.")
+					return nil
+				}
 			}
 
 			// Build a new slice with only policies whose indices are not in the set
-			newPolicies := make([]*v1alpha1.SourceIntegrityGitPolicy, 0, originalPolicyCount-len(indicesToDelete))
+			newPolicies := make([]*v1alpha1.SourceIntegrityGitPolicy, 0, originalPolicyCount-len(idsToDelete))
 			for i, policy := range proj.Spec.SourceIntegrity.Git.Policies {
-				if _, shouldDelete := indicesToDelete[i]; !shouldDelete {
+				if _, shouldDelete := idsToDelete[i]; !shouldDelete {
 					newPolicies = append(newPolicies, policy)
 				}
 			}
@@ -225,6 +241,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 			return nil
 		},
 	}
+	command.Flags().BoolVarP(&yes, "yes", "y", false, "Skip explicit confirmation")
 	return command
 }
 
@@ -328,7 +345,7 @@ func validateGpgMode(gpgMode string) (v1alpha1.SourceIntegrityGitPolicyGPGMode, 
 	case "":
 		return out, fmt.Errorf("gpg-mode must be set")
 	default:
-		return out, fmt.Errorf("gpg-mode must be one of: strict, head, none")
+		return v1alpha1.SourceIntegrityGitPolicyGPGMode(""), fmt.Errorf("gpg-mode must be one of: strict, head, none")
 	}
 }
 
