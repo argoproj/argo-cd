@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -236,7 +235,6 @@ func NewSyncContext(
 	rawConfig *rest.Config,
 	kubectl kubeutil.Kubectl,
 	namespace string,
-	openAPISchema openapi.Resources,
 	opts ...SyncOpt,
 ) (SyncContext, func(), error) {
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
@@ -251,7 +249,7 @@ func NewSyncContext(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create extensions client: %w", err)
 	}
-	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig, openAPISchema)
+	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to manage resources: %w", err)
 	}
@@ -481,7 +479,24 @@ func (sc *syncContext) Sync() {
 	sc.log.WithValues("skipHooks", sc.skipHooks, "started", sc.started()).Info("Syncing")
 	tasks, ok := sc.getSyncTasks()
 	if !ok {
-		sc.setOperationPhase(common.OperationFailed, "one or more synchronization tasks are not valid")
+		// Collect distinct error messages from failed resource results so that the
+		// operation phase message surfaces the actual root cause (e.g. cluster API
+		// server unreachable) rather than only the generic "not valid" message.
+		seen := make(map[string]bool)
+
+		var errMessages []string
+		for _, res := range sc.syncRes {
+			if res.Status == common.ResultCodeSyncFailed && res.Message != "" && !seen[res.Message] {
+				seen[res.Message] = true
+				errMessages = append(errMessages, res.Message)
+			}
+		}
+		msg := "one or more synchronization tasks are not valid"
+		if len(errMessages) > 0 {
+			sort.Strings(errMessages)
+			msg = fmt.Sprintf("%s: %s", msg, strings.Join(errMessages, "; "))
+		}
+		sc.setOperationPhase(common.OperationFailed, msg)
 		return
 	}
 
@@ -1024,6 +1039,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	isRetryable := apierrors.IsUnauthorized
 
 	serverResCache := make(map[schema.GroupVersionKind]*metav1.APIResource)
+	serverResErrCache := make(map[schema.GroupVersionKind]error)
 
 	// check permissions
 	for _, task := range tasks {
@@ -1033,6 +1049,8 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		if val, ok := serverResCache[task.groupVersionKind()]; ok {
 			serverRes = val
 			err = nil
+		} else if cachedErr, ok := serverResErrCache[task.groupVersionKind()]; ok {
+			err = cachedErr
 		} else {
 			err = retry.OnError(retry.DefaultRetry, isRetryable, func() error {
 				serverRes, err = kubeutil.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind(), "get")
@@ -1041,6 +1059,8 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			})
 			if serverRes != nil {
 				serverResCache[task.groupVersionKind()] = serverRes
+			} else if err != nil {
+				serverResErrCache[task.groupVersionKind()] = err
 			}
 		}
 
