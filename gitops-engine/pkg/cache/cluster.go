@@ -129,6 +129,8 @@ type ClusterInfo struct {
 	SyncError error
 	// APIResources holds list of API resources supported by the cluster
 	APIResources []kube.APIResourceInfo
+	// SyncWarnings holds warnings from the most recent sync (e.g. inaccessible namespaces)
+	SyncWarnings []string
 }
 
 // OnEventHandler is a function that handles Kubernetes event
@@ -285,6 +287,9 @@ type clusterCache struct {
 	// Using a set eliminates O(k) duplicate checking on insertions
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
+
+	// inaccessibleNamespaces tracks namespaces that returned NotFound/Forbidden during the last sync
+	inaccessibleNamespaces map[string]string
 }
 
 type clusterCacheSync struct {
@@ -668,6 +673,10 @@ func (c *clusterCache) startMissingWatches() error {
 		return fmt.Errorf("failed to create clientset: %w", err)
 	}
 	namespacedResources := make(map[schema.GroupKind]bool)
+	inaccessibleNs := sync.Map{}
+	for ns, errMsg := range c.inaccessibleNamespaces {
+		inaccessibleNs.Store(ns, errMsg)
+	}
 	for i := range apis {
 		api := apis[i]
 		namespacedResources[api.GroupKind] = api.Meta.Namespaced
@@ -675,7 +684,7 @@ func (c *clusterCache) startMissingWatches() error {
 			ctx, cancel := context.WithCancel(context.Background())
 			c.apisMeta[api.GroupKind] = &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 
-			err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+			err := c.processApi(client, api, &inaccessibleNs, func(resClient dynamic.ResourceInterface, ns string) error {
 				resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
 				if err != nil && c.isRestrictedResource(err) {
 					keep := false
@@ -922,10 +931,43 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 	})
 }
 
+// isNamespaceInaccessible checks whether a namespace cannot be accessed.
+// When a namespace is deleted, its RBAC RoleBindings are garbage-collected,
+// so the API server returns 403 Forbidden rather than 404 NotFound.
+func isNamespaceInaccessible(err error) bool {
+	return apierrors.IsNotFound(err) || apierrors.IsForbidden(err)
+}
+
+// checkNamespaceAccessibility probes each managed namespace before the parallel processApi fan-out,
+// so inaccessible namespaces are skipped without redundant failing calls across all API goroutines.
+func (c *clusterCache) checkNamespaceAccessibility(client dynamic.Interface, apis []kube.APIResourceInfo) map[string]string {
+	if len(c.namespaces) == 0 {
+		return nil
+	}
+	var probeGVR schema.GroupVersionResource
+	for _, api := range apis {
+		if api.Meta.Namespaced {
+			probeGVR = api.GroupVersionResource
+			break
+		}
+	}
+	if probeGVR.Empty() {
+		return nil
+	}
+	inaccessible := make(map[string]string)
+	for _, ns := range c.namespaces {
+		_, err := client.Resource(probeGVR).Namespace(ns).List(context.Background(), metav1.ListOptions{Limit: 1})
+		if err != nil && isNamespaceInaccessible(err) {
+			inaccessible[ns] = err.Error()
+		}
+	}
+	return inaccessible
+}
+
 // processApi processes all the resources for a given API. First we construct an API client for the given API. Then we
 // call the callback. If we're managing the whole cluster, we call the callback with the client and an empty namespace.
 // If we're managing specific namespaces, we call the callback for each namespace.
-func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
+func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResourceInfo, inaccessibleNs *sync.Map, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
 	resClient := client.Resource(api.GroupVersionResource)
 	switch {
 	// if manage whole cluster or resource is cluster level and cluster resources enabled
@@ -934,8 +976,15 @@ func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResource
 	// if manage some namespaces and resource is namespaced
 	case len(c.namespaces) != 0 && api.Meta.Namespaced:
 		for _, ns := range c.namespaces {
+			if _, skip := inaccessibleNs.Load(ns); skip {
+				continue
+			}
 			err := callback(resClient.Namespace(ns), ns)
 			if err != nil {
+				if isNamespaceInaccessible(err) {
+					inaccessibleNs.Store(ns, err.Error())
+					continue
+				}
 				return err
 			}
 		}
@@ -1061,8 +1110,15 @@ func (c *clusterCache) sync() error {
 		go c.processEvents()
 	}
 
+	inaccessibleNs := c.checkNamespaceAccessibility(client, apis)
+	c.inaccessibleNamespaces = inaccessibleNs
+
 	// Each API is processed in parallel, so we need to take out a lock when we update clusterCache fields.
 	lock := sync.Mutex{}
+	inaccessibleNsMap := sync.Map{}
+	for ns, errMsg := range inaccessibleNs {
+		inaccessibleNsMap.Store(ns, errMsg)
+	}
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 
@@ -1073,7 +1129,7 @@ func (c *clusterCache) sync() error {
 		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		lock.Unlock()
 
-		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+		return c.processApi(client, api, &inaccessibleNsMap, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 				return listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
@@ -1114,6 +1170,17 @@ func (c *clusterCache) sync() error {
 			return nil
 		})
 	})
+	// Merge namespaces discovered mid-sync (TOCTOU: deleted between pre-check and processApi).
+	inaccessibleNsMap.Range(func(ns, errMsg any) bool {
+		if _, exists := c.inaccessibleNamespaces[ns.(string)]; !exists {
+			c.inaccessibleNamespaces[ns.(string)] = errMsg.(string)
+		}
+		return true
+	})
+	for ns, errMsg := range c.inaccessibleNamespaces {
+		c.log.Info(fmt.Sprintf("Namespace %q is not accessible: %s", ns, errMsg))
+	}
+
 	if err != nil {
 		c.log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
@@ -1667,6 +1734,10 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 	c.syncStatus.lock.Lock()
 	defer c.syncStatus.lock.Unlock()
 
+	var warnings []string
+	for ns, errMsg := range c.inaccessibleNamespaces {
+		warnings = append(warnings, fmt.Sprintf("Namespace %q is not accessible: %s", ns, errMsg))
+	}
 	return ClusterInfo{
 		APIsCount:         len(c.apisMeta),
 		K8SVersion:        c.serverVersion,
@@ -1675,6 +1746,7 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 		LastCacheSyncTime: c.syncStatus.syncTime,
 		SyncError:         c.syncStatus.syncError,
 		APIResources:      c.apiResources,
+		SyncWarnings:      warnings,
 	}
 }
 

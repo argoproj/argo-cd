@@ -8318,6 +8318,13 @@
         "serverVersion": {
           "type": "string",
           "title": "ServerVersion contains information about the Kubernetes version of the cluster"
+        },
+        "syncWarnings": {
+          "type": "array",
+          "title": "SyncWarnings contains warnings from the most recent cluster cache sync",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
