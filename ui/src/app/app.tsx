@@ -34,7 +34,7 @@ const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
     // TODO: Uncomment when ApplicationSet details page is fully implemented
-    // '/applicationsets': {component: applications.component},
+    '/applicationsets': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component}
@@ -53,6 +53,12 @@ const navItems: NavItem[] = [
         tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
+    },
+    {
+        title: 'ApplicationSets',
+        tooltip: 'Manage your ApplicationSets, and diagnose health problems.',
+        path: '/applicationsets',
+        iconClassName: 'argo-icon argo-icon-applicationset'
     },
     {
         title: 'Settings',
@@ -204,11 +210,10 @@ export class App extends React.Component<
 
         if (!onLoginPage && !loggedIn) {
             if (isSSO) {
-                const returnUrl = encodeURIComponent(pathname + history.location.search);
-                window.location.href = `${getBaseHref()}/auth/login?return_url=${returnUrl}`;
+                window.location.href = `${getBaseHref()}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 return;
             }
-            history.replace(`/login?return_url=${encodeURIComponent(pathname + history.location.search)}`);
+            history.replace(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
 
         this.setState(prev => ({

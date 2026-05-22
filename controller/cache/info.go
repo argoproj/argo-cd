@@ -14,12 +14,13 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	resourcehelper "k8s.io/kubectl/pkg/util/resource"
+	resourcehelper "k8s.io/component-helpers/resource"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/resource"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLabels []string) {
@@ -39,12 +40,23 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 	}
 
 	for k, v := range un.GetAnnotations() {
-		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
-			if res.NetworkingInfo == nil {
-				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
-			}
-			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
+		if !strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			continue
 		}
+		// Annotation values may be either a bare URL or "title|url"; validate
+		// the URL portion to prevent XSS via javascript:/data:/vbscript: URIs
+		// when the value is rendered as an href in the UI.
+		urlPart := v
+		if _, after, ok := strings.Cut(v, "|"); ok {
+			urlPart = after
+		}
+		if err := settings.ValidateExternalURL(urlPart); err != nil {
+			continue
+		}
+		if res.NetworkingInfo == nil {
+			res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
+		}
+		res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 	}
 
 	switch gvk.Group {
@@ -459,7 +471,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
 
-	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+	req := resourcehelper.PodRequests(&pod, resourcehelper.PodResourcesOptions{UseStatusResources: true})
 
 	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
