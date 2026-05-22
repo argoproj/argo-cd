@@ -693,6 +693,35 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 	assertMetricsPrinted(t, expectedMetrics, body)
 }
 
+func TestMetricsClusterEventsIgnored(t *testing.T) {
+	cancel, appLister := newFakeLister(t.Context())
+	defer cancel()
+	mockDB := mocks.NewArgoDB(t)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	require.NoError(t, err)
+
+	expectedMetrics := `
+# HELP argocd_cluster_events_ignored_total Number of k8s resource events ignored by ignoreResourceUpdates rules.
+# TYPE argocd_cluster_events_ignored_total counter
+argocd_cluster_events_ignored_total{group="apps",kind="Deployment",server="https://localhost:6443"} 3
+argocd_cluster_events_ignored_total{group="",kind="Pod",server="https://localhost:6443"} 1
+`
+
+	metricsServ.IncClusterEventsIgnoredCount("https://localhost:6443", "apps", "Deployment")
+	metricsServ.IncClusterEventsIgnoredCount("https://localhost:6443", "apps", "Deployment")
+	metricsServ.IncClusterEventsIgnoredCount("https://localhost:6443", "apps", "Deployment")
+	metricsServ.IncClusterEventsIgnoredCount("https://localhost:6443", "", "Pod")
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	t.Log(body)
+	assertMetricsPrinted(t, expectedMetrics, body)
+}
+
 func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
