@@ -1,0 +1,14 @@
+apiVersion: cassandra.datastax.com/v1beta1
+kind: CassandraDatacenter
+spec:
+  size: 3
+status:
+  nodeStatuses:
+    dti6001dbv-cluster-stage0-dti6001dbv-default-sts-0:
+      hostID: testID1
+      ip: 10.42.2.219
+      rack: default
+    dti6001dbv-cluster-stage0-dti6001dbv-default-sts-1:
+      hostID: testID2
+      ip: 10.42.5.37
+      rack: default

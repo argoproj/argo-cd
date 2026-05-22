@@ -1,0 +1,8 @@
+tests:
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/datacenter-ok.yaml
+- healthStatus:
+    status: Degraded
+    message: "Size in spec and number of nodes in status differ"
+  inputPath: testdata/datacenter-missing-nodestatus.yaml
