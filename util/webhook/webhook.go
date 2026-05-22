@@ -837,7 +837,7 @@ func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo
 		return nil, fmt.Errorf("error creating Azure DevOps diffs API request: %w", err)
 	}
 	if !setADOAuthHeader(req, repo) {
-		log.Warnf("no credentials configured for Azure DevOps repository %s; falling back to full refresh", repo.Repo)
+		log.Warnf("no supported Azure DevOps REST API credentials configured for repository %s; falling back to full refresh", repo.Repo)
 		return nil, nil
 	}
 	log.Debugf("fetching changed files from Azure DevOps diffs API: %s", apiURL)

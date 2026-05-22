@@ -1847,7 +1847,12 @@ func TestFetchChangedFilesFromADO_NoCredentials(t *testing.T) {
 	repo := &v1alpha1.Repository{
 		Repo: "https://dev.azure.com/myorg/myproject/_git/myrepo",
 	}
-	changedFiles, err := fetchChangedFilesFromADO(t.Context(), &http.Client{}, repo, "some-repo-id", "sha-before", "sha-after")
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		t.Fatal("HTTP client should not be called when no supported ADO REST API credentials are configured")
+		return nil, nil
+	})}
+
+	changedFiles, err := fetchChangedFilesFromADO(t.Context(), client, repo, "some-repo-id", "sha-before", "sha-after")
 	require.NoError(t, err)
 	require.Nil(t, changedFiles)
 }
