@@ -1,12 +1,13 @@
 # ApplicationSet Web UI
 
-> [!CAUTION]
-> The ApplicationSet Web UI is **Alpha** as of Argo CD v3.5.0. The look,
-> behavior, and APIs it consumes may change in future releases. See
-> [Feature Maturity](../feature-maturity.md) for details.
+> [!WARNING]
+> **Alpha Feature (Since v3.5.0)**
+>
+> This is an [alpha](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) feature.
+> The look, behavior, and APIs it consumes may change in future releases or be removed in backwards-incompatible ways.
 
-Argo CD v3.5.0 introduces a first-class Web UI for ApplicationSets. Until
-now, ApplicationSets were managed primarily through `kubectl`, the
+Argo CD introduces a first-class Web UI for ApplicationSets. Until now,
+ApplicationSets were managed primarily through `kubectl`, the
 `argocd appset` CLI, or by browsing the generated child Applications. The
 new UI surfaces ApplicationSets directly, with a list view, a resource
 tree, a slide-out details panel, and a preview tab that lets you see what
