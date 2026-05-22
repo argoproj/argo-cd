@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -32,19 +33,46 @@ func (c *clusterCache) dispatchEvent(event watch.EventType, un *unstructured.Uns
 // the shared dispatchEvent pipeline, unwrapping tombstones and tolerating
 // unexpected object types defensively.
 //
+// Test-only entrypoint: production callers go through buildInformer ->
+// informerEventHandlerForCtx so that events arriving after the informer's
+// watchCtx has been cancelled (Invalidate, stopWatching) are dropped
+// instead of mutating freshly-rebuilt state.
+//
 // Resource-level dispatch (OnResourceUpdated with the namespace siblings
 // map) and informer-store-backed hierarchy indexing land in a follow-up
 // commit when the base/tail split decides how to expose the informer's
 // indexer as the cache's source of truth.
 func (c *clusterCache) informerEventHandler() cache.ResourceEventHandler {
+	return c.informerEventHandlerForCtx(context.Background())
+}
+
+// informerEventHandlerForCtx is the production variant: it gates every
+// dispatch on the informer's owning watch context. Once that context is
+// cancelled (Invalidate, stopWatching), in-flight events from the
+// reflector's still-draining DeltaFIFO are dropped on the floor.
+//
+// Without this guard, a stale event handler can fire after Invalidate
+// has set apisMeta=nil — and the CRD dispatch path through handleCRDEvent
+// -> startMissingWatches -> startInformersForAPILocked would then panic
+// with "assignment to entry in nil map" (informer_lifecycle.go:76).
+func (c *clusterCache) informerEventHandlerForCtx(ctx context.Context) cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
+			if ctx.Err() != nil {
+				return
+			}
 			c.onInformerChange(watch.Added, nil, obj)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
+			if ctx.Err() != nil {
+				return
+			}
 			c.onInformerChange(watch.Modified, oldObj, newObj)
 		},
 		DeleteFunc: func(obj any) {
+			if ctx.Err() != nil {
+				return
+			}
 			if tomb, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 				obj = tomb.Obj
 			}

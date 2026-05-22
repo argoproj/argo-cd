@@ -64,7 +64,7 @@ func (c *clusterCache) startInformersForAPILocked(ctx context.Context, api kube.
 	// Build every informer up front so a partial failure doesn't leave
 	// apisMeta half-populated.
 	err = c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-		informer := c.buildInformer(resClient, api, ns)
+		informer := c.buildInformer(watchCtx, resClient, api, ns)
 		meta.informers[ns] = sharedInformer{informer: informer, cancel: cancel}
 		return nil
 	})
@@ -73,6 +73,13 @@ func (c *clusterCache) startInformersForAPILocked(ctx context.Context, api kube.
 		return fmt.Errorf("process api %s: %w", api.GroupKind, err)
 	}
 
+	// apisMeta is nil between Invalidate and the next syncInformers — and this
+	// path can run during that gap when handleCRDEvent fires from a still-draining
+	// pre-Invalidate informer goroutine and routes through startMissingWatches.
+	// Lazy-init matches the namespacedResources guard below.
+	if c.apisMeta == nil {
+		c.apisMeta = map[schema.GroupKind]*apiMeta{}
+	}
 	c.apisMeta[api.GroupKind] = meta
 	if c.namespacedResources == nil {
 		c.namespacedResources = map[schema.GroupKind]bool{}
@@ -195,7 +202,12 @@ func (c *clusterCache) syncInformers() error {
 // TransformFunc and event handler. Exposed as a method (rather than being
 // inlined) so tests can exercise a single informer without spinning up the
 // full startInformersForAPI lifecycle.
-func (c *clusterCache) buildInformer(resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) cache.SharedIndexInformer {
+//
+// ctx is the informer's owning watch context — when it is cancelled (via
+// Invalidate or stopWatching), the attached event handler bails so that
+// post-cancel events from a still-draining reflector goroutine cannot
+// mutate fresh state owned by a subsequent syncInformers run.
+func (c *clusterCache) buildInformer(ctx context.Context, resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) cache.SharedIndexInformer {
 	lw := &cache.ListWatch{
 		ListWithContextFunc: func(ctx context.Context, o metav1.ListOptions) (runtime.Object, error) {
 			return resClient.List(ctx, o)
@@ -227,7 +239,7 @@ func (c *clusterCache) buildInformer(resClient dynamic.ResourceInterface, api ku
 	if err := informer.SetWatchErrorHandlerWithContext(c.informerWatchErrorHandler(api, ns)); err != nil {
 		panic(fmt.Errorf("unreachable: SetWatchErrorHandler on fresh informer: %w", err))
 	}
-	_, _ = informer.AddEventHandler(c.informerEventHandler())
+	_, _ = informer.AddEventHandler(c.informerEventHandlerForCtx(ctx))
 	return informer
 }
 

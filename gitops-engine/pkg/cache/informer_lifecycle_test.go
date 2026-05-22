@@ -72,10 +72,10 @@ func newInformerTestCache(t *testing.T, seed ...runtime.Object) (*clusterCache, 
 func TestBuildInformer_TransformAndEventHandlerInstalled(t *testing.T) {
 	c, client := newInformerTestCache(t, unstructuredPod("nginx", "default"))
 
-	informer := c.buildInformer(client.Resource(podsGVR), podsAPI(), "")
-
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+	informer := c.buildInformer(ctx, client.Resource(podsGVR), podsAPI(), "")
+
 	go informer.RunWithContext(ctx)
 	require.True(t, cache.WaitForCacheSync(ctx.Done(), informer.HasSynced),
 		"informer should sync within timeout")
@@ -538,5 +538,130 @@ func TestInformer_CreateEventFlowsIntoShadowMaps(t *testing.T) {
 		return ok && nsOK && len(ns) == 1
 	}, 3*time.Second, 20*time.Millisecond,
 		"informer event should propagate into both c.resources and c.nsIndex")
+}
+
+// TestStartInformersForAPILocked_LazyInitsApisMetaAfterInvalidate is a
+// regression test for the "assignment to entry in nil map" panic at
+// informer_lifecycle.go:76. The original panic stack:
+//
+//	startInformersForAPILocked (informer_lifecycle.go:76)
+//	 startMissingWatches (cluster.go:721)
+//	  runSynced -> handleCRDEvent (cluster.go:944)
+//	   dispatchEvent -> onInformerChange (informer_events.go:122)
+//
+// A stale pre-Invalidate informer goroutine fired OnAdd for a CRD, routed
+// through handleCRDEvent -> startMissingWatches -> startInformersForAPILocked,
+// which then did `c.apisMeta[gk] = meta` against a nil map (set by
+// Invalidate). The controller crashed mid-test with [recovered, repanicked].
+func TestStartInformersForAPILocked_LazyInitsApisMetaAfterInvalidate(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.mode = ModeInformer
+
+	// Reproduce post-Invalidate state: apisMeta and namespacedResources
+	// are both nil while syncInformers has not yet rebuilt them.
+	c.apisMeta = nil
+	c.namespacedResources = nil
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// Pre-fix this panicked: "assignment to entry in nil map".
+	require.NotPanics(t, func() {
+		require.NoError(t, c.startInformersForAPI(ctx, podsAPI()))
+	})
+
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	require.NotNil(t, c.apisMeta, "startInformersForAPILocked should lazy-init apisMeta")
+	_, ok := c.apisMeta[podsGVK.GroupKind()]
+	assert.True(t, ok, "the GroupKind we started should now be present")
+	require.NotNil(t, c.namespacedResources, "namespacedResources should also be lazy-init'd")
+}
+
+// TestInformerEventHandlerForCtx_BailsAfterCancel verifies that once a
+// per-informer watch context is cancelled (by Invalidate or stopWatching),
+// in-flight events from the reflector's still-draining DeltaFIFO are
+// dropped on the floor instead of mutating freshly-rebuilt cache state.
+//
+// Without this guard, a stale handler can fire dispatchEvent for a CRD
+// and trigger the handleCRDEvent -> startMissingWatches ->
+// startInformersForAPILocked nil-map panic (see
+// TestStartInformersForAPILocked_LazyInitsApisMetaAfterInvalidate).
+func TestInformerEventHandlerForCtx_BailsAfterCancel(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.mode = ModeInformer
+
+	// Build a cachedResource the way transformForInformer would.
+	un := unstructuredPod("nginx", "default")
+	cached, err := c.transformForInformer(un)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	handler := c.informerEventHandlerForCtx(ctx)
+	key := kube.NewResourceKey("", "Pod", "default", "nginx")
+
+	// Sanity: before cancel the handler propagates events.
+	handler.OnAdd(cached, false)
+	c.lock.RLock()
+	_, present := c.resources[key]
+	c.lock.RUnlock()
+	require.True(t, present, "pre-cancel Add should populate c.resources")
+
+	cancel()
+
+	// Each post-cancel call must be an independent no-op. We delete the
+	// entry between calls so that OnDelete cannot mask a leaking OnAdd
+	// (or vice versa) — a missing bail in any of the three branches must
+	// fail the test on its own.
+	for _, step := range []struct {
+		name string
+		fire func()
+	}{
+		{"OnAdd", func() { handler.OnAdd(cached, false) }},
+		{"OnUpdate", func() { handler.OnUpdate(cached, cached) }},
+		{"OnDelete", func() { handler.OnDelete(cached) }},
+	} {
+		c.lock.Lock()
+		delete(c.resources, key)
+		c.lock.Unlock()
+
+		step.fire()
+
+		c.lock.RLock()
+		_, mutated := c.resources[key]
+		c.lock.RUnlock()
+		assert.Falsef(t, mutated, "post-cancel %s should not mutate c.resources", step.name)
+	}
+}
+
+// TestInvalidate_InformerModeClearsReadStateSnapshot verifies that
+// Invalidate wipes c.resources / c.nsIndex / c.parentUIDToChildren under
+// informer mode. These are the read-path source of truth for
+// IterateHierarchyV2, GetManagedLiveObjs, and FindResources; leaving them
+// populated between Invalidate and the next EnsureSynced lets readers see
+// a phantom snapshot of a cluster the cache no longer trusts.
+//
+// Legacy mode rebuilds the same maps inside sync(), so the assertion only
+// applies to informer mode.
+func TestInvalidate_InformerModeClearsReadStateSnapshot(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.mode = ModeInformer
+
+	// Seed the read-path maps directly — Invalidate's contract is to
+	// drop this state, regardless of how it got there.
+	un := unstructuredPod("nginx", "default")
+	key := kube.NewResourceKey("", "Pod", "default", "nginx")
+	res := &Resource{Ref: kube.GetObjectRef(un)}
+	c.resources[key] = res
+	c.nsIndex["default"] = map[kube.ResourceKey]*Resource{key: res}
+	c.parentUIDToChildren["parent-uid"] = map[kube.ResourceKey]struct{}{key: {}}
+
+	c.Invalidate()
+
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	assert.Empty(t, c.resources, "Invalidate should clear c.resources under informer mode")
+	assert.Empty(t, c.nsIndex, "Invalidate should clear c.nsIndex under informer mode")
+	assert.Empty(t, c.parentUIDToChildren, "Invalidate should clear c.parentUIDToChildren under informer mode")
 }
 

@@ -664,6 +664,18 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	}
 	c.apisMeta = nil
 	c.namespacedResources = nil
+	// Under informer mode c.resources / c.nsIndex / c.parentUIDToChildren are the
+	// read-path source of truth (IterateHierarchyV2, GetManagedLiveObjs,
+	// FindResources). Clear them so a reader racing Invalidate against the next
+	// EnsureSynced sees an empty snapshot rather than stale post-cancel data, and
+	// so a lingering pre-cancel event handler can't write into the same maps the
+	// freshly-rebuilt informers will populate. Legacy mode rebuilds these in
+	// sync() either way, so the extra reset is safe but redundant there.
+	if c.mode == ModeInformer {
+		c.resources = map[kube.ResourceKey]*Resource{}
+		c.nsIndex = map[string]map[kube.ResourceKey]*Resource{}
+		c.parentUIDToChildren = map[types.UID]map[kube.ResourceKey]struct{}{}
+	}
 	c.log.Info("Invalidated cluster")
 }
 
