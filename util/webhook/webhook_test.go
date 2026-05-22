@@ -1799,6 +1799,16 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 	}
 }
 
+
+func TestFetchChangedFilesFromADO_NoCredentials(t *testing.T) {
+	repo := &v1alpha1.Repository{
+		Repo: "https://dev.azure.com/myorg/myproject/_git/myrepo",
+	}
+	changedFiles, err := fetchChangedFilesFromADO(t.Context(), repo, "some-repo-id", "sha-before", "sha-after")
+	require.NoError(t, err)
+	require.Nil(t, changedFiles)
+}
+
 func TestIsHeadTouched(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()

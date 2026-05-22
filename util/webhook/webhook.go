@@ -793,6 +793,20 @@ func parseADOBaseURL(repoURL string) (string, error) {
 	return fmt.Sprintf("%s://%s/%s/%s", u.Scheme, u.Host, parts[0], parts[1]), nil
 }
 
+// setADOAuthHeader sets the Authorization header on the request based on the repository credentials.
+// Returns true if credentials were applied, false if none are configured.
+func setADOAuthHeader(req *http.Request, repo *v1alpha1.Repository) bool {
+	if repo.Username != "" && repo.Password != "" {
+		req.SetBasicAuth(repo.Username, repo.Password)
+		return true
+	}
+	if repo.BearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+repo.BearerToken)
+		return true
+	}
+	return false
+}
+
 // fetchChangedFilesFromADO retrieves the list of files changed between two commits by calling
 // the Azure DevOps Diffs REST API.
 // See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get
@@ -815,10 +829,9 @@ func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, re
 	if err != nil {
 		return nil, fmt.Errorf("error creating Azure DevOps diffs API request: %w", err)
 	}
-	if repo.Username != "" && repo.Password != "" {
-		req.SetBasicAuth(repo.Username, repo.Password)
-	} else if repo.BearerToken != "" {
-		req.Header.Set("Authorization", "Bearer "+repo.BearerToken)
+	if !setADOAuthHeader(req, repo) {
+		log.Warnf("no credentials configured for Azure DevOps repository %s; falling back to full refresh", repo.Repo)
+		return nil, nil
 	}
 	log.Debugf("fetching changed files from Azure DevOps diffs API: %s", apiURL)
 	resp, err := http.DefaultClient.Do(req)
