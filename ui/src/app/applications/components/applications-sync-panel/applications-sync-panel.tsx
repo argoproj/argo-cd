@@ -8,7 +8,7 @@ import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags} from '../application-sync-options/application-sync-options';
 import {ApplicationSelector} from '../../../shared/components';
-import {confirmSyncingAppOfApps, getAppDefaultSource} from '../utils';
+import {confirmSyncingAppOfApps, getAppDefaultSource, getAppDisplayName} from '../utils';
 
 interface Progress {
     percentage: number;
@@ -109,7 +109,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                     )
                                     .catch(e => {
                                         ctx.notifications.show({
-                                            content: <ErrorNotification title={`Unable to sync ${app.metadata.name}`} e={e} />,
+                                            content: <ErrorNotification title={`Unable to sync ${getAppDisplayName(app)}`} e={e} />,
                                             type: NotificationType.Error
                                         });
                                     })
