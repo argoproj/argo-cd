@@ -71,6 +71,11 @@ const (
 	// Pull Request Iteration Changes endpoint. Pushes exceeding this limit fall back to a full refresh.
 	// See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-iteration-changes/get?view=azure-devops-rest-7.1
 	adoDiffsMaxPageSize = 2000
+
+	// adoNullSHA is the all-zeros object ID used by Azure DevOps to signal a non-existent commit.
+	// It appears as newObjectId on branch deletion events and as oldObjectId on branch creation events.
+	// Diffing against this SHA is not meaningful and the Diffs API returns 404 for such requests.
+	adoNullSHA = "0000000000000000000000000000000000000000"
 )
 
 var (
@@ -594,12 +599,13 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 // lookupAndFetchADOChangedFiles fetches the list of changed files for an Azure DevOps push event.
 // The repo lookup acts as the SSRF guard: we only proceed if the repository is registered in ArgoCD.
 func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(repoURL, repoID, shaBefore, shaAfter string) []string {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if shaBefore == "" || shaAfter == "" {
-		log.Debugf("skipping Azure DevOps changed files lookup for URL %s because the commit range is empty", repoURL)
+	if shaBefore == "" || shaAfter == "" || shaBefore == adoNullSHA || shaAfter == adoNullSHA {
+		log.Debugf("skipping Azure DevOps changed files lookup for URL %s because the commit range is empty or includes the null SHA used for branch creation or deletion", repoURL)
 		return nil
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	argoRepo, err := a.lookupRepositoryWithCredsTemplate(ctx, repoURL)
 	if err != nil {
 		log.Warnf("error finding repository for Azure DevOps webhook URL %s: %v", repoURL, err)

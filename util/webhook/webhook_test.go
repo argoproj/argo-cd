@@ -1561,6 +1561,42 @@ func Test_affectedRevisionInfo_azuredevops_no_ref_updates_skips_changed_files_lo
 	require.Empty(t, changedFiles)
 }
 
+func TestLookupAndFetchADOChangedFiles_SkipsNonDiffableRange(t *testing.T) {
+	tests := []struct {
+		name      string
+		shaBefore string
+		shaAfter  string
+	}{
+		{
+			name:      "branch deletion (shaAfter is null SHA)",
+			shaBefore: testADOShaBefore,
+			shaAfter:  adoNullSHA,
+		},
+		{
+			name:      "branch creation (shaBefore is null SHA)",
+			shaBefore: adoNullSHA,
+			shaAfter:  testADOShaAfter,
+		},
+		{
+			name:      "empty commit range (no refUpdates)",
+			shaBefore: "",
+			shaAfter:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewMockHandlerForADOCallback(nil, []string{})
+			h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
+				t.Fatal("ADO HTTP client should not be created for non-diffable commit range")
+				return nil
+			}
+			changedFiles := h.lookupAndFetchADOChangedFiles(testADORepoURL, testADORepoID, tt.shaBefore, tt.shaAfter)
+			require.Empty(t, changedFiles)
+		})
+	}
+}
+
 func TestLookupAndFetchADOChangedFiles_RepositoryLookupError(t *testing.T) {
 	hook := test.NewGlobal()
 	defer hook.Reset()
@@ -1858,7 +1894,7 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 			name:      "returns error for unregistered SHA pair",
 			repoURL:   testRepoURL,
 			repoID:    testADORepoID,
-			shaBefore: "0000000000000000000000000000000000000000",
+			shaBefore: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 			shaAfter:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			expectErr: true,
 		},
