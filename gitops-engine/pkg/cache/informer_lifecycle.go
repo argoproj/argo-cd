@@ -148,15 +148,44 @@ func (c *clusterCache) syncInformers() error {
 		}
 	}
 
+	// Bound the wait by clusterSyncRetryTimeout so a single broken API
+	// (forbidden, misbehaving aggregated API server, transient list
+	// failure) does not block all reconciliation. Reflectors that haven't
+	// synced keep retrying with backoff in the background; if the
+	// underlying cause clears (e.g., RBAC granted), HasSynced flips true
+	// and c.resources populates via the event handler — no further sync
+	// work needed. The outer EnsureSynced loop runs again after
+	// clusterSyncRetryTimeout, which tears these informers down and
+	// starts a fresh attempt.
+	//
 	// Release c.lock while waiting — the event handler takes it when
 	// informers dispatch their initial list. Holding it across the wait
 	// would deadlock.
+	waitCtx, cancelWait := context.WithTimeout(watchParent, c.clusterSyncRetryTimeout)
+	defer cancelWait()
 	c.lock.Unlock()
-	synced := cache.WaitForCacheSync(watchParent.Done(), hasSyncedFns...)
+	synced := cache.WaitForCacheSync(waitCtx.Done(), hasSyncedFns...)
 	c.lock.Lock()
 
 	if !synced {
-		return fmt.Errorf("timed out waiting for initial informer sync")
+		// Return an error so callers don't operate against a partially
+		// populated cache. EnsureSynced caches the error for
+		// clusterSyncRetryTimeout, then retries sync() — which tears
+		// these informers down and starts fresh. Stricter than legacy
+		// (which silently drops forbidden GVRs from apisMeta and reports
+		// success), but it prevents app reconciliation from running
+		// against a half-loaded cluster view. Future work: lazy GVK
+		// loading so a single broken GVR only fails apps that reference
+		// it instead of the whole cluster.
+		var pending []string
+		for gk, meta := range c.apisMeta {
+			for ns, si := range meta.informers {
+				if !si.informer.HasSynced() {
+					pending = append(pending, fmt.Sprintf("%s[%s]", gk, namespaceDescription(ns)))
+				}
+			}
+		}
+		return fmt.Errorf("informers did not complete initial list within %s: %v", c.clusterSyncRetryTimeout, pending)
 	}
 	c.log.Info("Cluster successfully synced (informer mode)")
 	return nil

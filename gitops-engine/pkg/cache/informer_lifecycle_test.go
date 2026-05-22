@@ -352,6 +352,67 @@ func TestEnsureSynced_InformerMode_CRDInInitialListDoesNotDeadlock(t *testing.T)
 	assert.True(t, hasMeta, "apisMeta should be populated for the CRD GVR under ModeInformer")
 }
 
+// A permanently failing list on one GVR must not block EnsureSynced from
+// returning. The bounded WaitForCacheSync wait makes it return an error
+// (so callers don't operate against a partial cache) within the
+// configured timeout instead of hanging forever. Before bounding the
+// wait, this test would hang for the full test timeout because
+// watchParent was context.Background().
+func TestEnsureSynced_InformerMode_PartialSyncReturnsWithinTimeout(t *testing.T) {
+	configmapsGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
+	configmapsAPI := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "ConfigMap"},
+		GroupVersionResource: configmapsGVR,
+		Meta:                 metav1.APIResource{Group: "", Version: "v1", Kind: "ConfigMap", Name: "configmaps", Namespaced: true},
+	}
+
+	client := fake.NewSimpleDynamicClient(scheme.Scheme, unstructuredPod("nginx", "default"))
+	defaultReactor := client.ReactionChain[0]
+	// Pods list works (with a resourceVersion patch); ConfigMaps list always
+	// returns Forbidden — simulating an RBAC-restricted GVR.
+	client.PrependReactor("list", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		if action.GetResource().Resource == "configmaps" {
+			return true, nil, apierrors.NewForbidden(schema.GroupResource{Resource: "configmaps"}, "", nil)
+		}
+		handled, ret, err := defaultReactor.React(action)
+		if !handled || err != nil {
+			return handled, ret, err
+		}
+		ret.(metav1.ListInterface).SetResourceVersion("1")
+		return handled, ret, nil
+	})
+
+	// Short timeout so the test runs quickly; the production default
+	// (10s via ClusterRetryTimeout) is too slow for a unit test.
+	iface := NewClusterCache(
+		&rest.Config{Host: "https://test"},
+		SetMode(ModeInformer),
+		SetClusterSyncRetryTimeout(1*time.Second),
+		SetKubectl(&kubetest.MockKubectlCmd{
+			APIResources:  []kube.APIResourceInfo{podsAPI(), configmapsAPI},
+			DynamicClient: client,
+		}),
+	)
+	t.Cleanup(func() { iface.Invalidate() })
+
+	start := time.Now()
+	done := make(chan error, 1)
+	go func() { done <- iface.EnsureSynced() }()
+	var err error
+	select {
+	case err = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("EnsureSynced did not return within 5s — WaitForCacheSync timeout is not bounded")
+	}
+	require.Error(t, err, "EnsureSynced must error so callers don't operate against a partial cache")
+	assert.Contains(t, err.Error(), "ConfigMap", "error should name the pending GVR")
+	// Sanity: we should return roughly at the configured timeout, not
+	// immediately (which would mean the wait was skipped) and not at the
+	// full 5s test deadline.
+	assert.GreaterOrEqual(t, time.Since(start), 800*time.Millisecond, "expected to wait near the configured timeout")
+	assert.Less(t, time.Since(start), 4*time.Second, "expected to return shortly after the configured timeout")
+}
+
 func TestInvalidate_InformerModeCancelsWatches(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(scheme.Scheme, unstructuredPod("nginx", "default"))
 	reactor := client.ReactionChain[0]
