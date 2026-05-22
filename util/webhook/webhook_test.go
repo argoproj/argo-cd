@@ -1545,6 +1545,61 @@ func Test_affectedRevisionInfo_azuredevops_multiple_ref_updates(t *testing.T) {
 	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
 }
 
+func Test_affectedRevisionInfo_azuredevops_no_ref_updates_skips_changed_files_lookup(t *testing.T) {
+	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
+	require.NoError(t, err)
+	var payload azuredevops.GitPushEvent
+	require.NoError(t, json.Unmarshal(eventJSON, &payload))
+	payload.Resource.RefUpdates = nil
+
+	h := NewMockHandlerForADOCallback(nil, []string{})
+	h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
+		t.Fatal("ADO HTTP client should not be created when the webhook has no ref updates")
+		return nil
+	}
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(payload)
+	require.Empty(t, changedFiles)
+}
+
+func TestLookupAndFetchADOChangedFiles_RepositoryLookupError(t *testing.T) {
+	hook := test.NewGlobal()
+	defer hook.Reset()
+
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return(nil, errors.New("list failed"))
+	h := newMockHandler(nil, []string{}, int64(50)*1024*1024, mockDB, &settings.ArgoCDSettings{})
+	h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
+		t.Fatal("ADO HTTP client should not be created when repository lookup fails")
+		return nil
+	}
+
+	changedFiles := h.lookupAndFetchADOChangedFiles(testADORepoURL, testADORepoID, testADOShaBefore, testADOShaAfter)
+	require.Empty(t, changedFiles)
+	assertLogContainsSubstr(t, hook, "error finding repository for Azure DevOps webhook URL")
+}
+
+func TestLookupAndFetchADOChangedFiles_FetchError(t *testing.T) {
+	hook := test.NewGlobal()
+	defer hook.Reset()
+
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{{
+		Repo:     testADORepoURL,
+		Username: "test-user",
+		Password: "test-pat",
+	}}, nil)
+	h := newMockHandler(nil, []string{}, int64(50)*1024*1024, mockDB, &settings.ArgoCDSettings{})
+	h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
+		return &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("ado request failed")
+		})}
+	}
+
+	changedFiles := h.lookupAndFetchADOChangedFiles(testADORepoURL, testADORepoID, testADOShaBefore, testADOShaAfter)
+	require.Empty(t, changedFiles)
+	assertLogContainsSubstr(t, hook, "error fetching changed files from Azure DevOps diffs API")
+}
+
 func TestLookupRepository(t *testing.T) {
 	mockCtx, cancel := context.WithDeadline(t.Context(), time.Now().Add(10*time.Second))
 	defer cancel()
@@ -1855,6 +1910,86 @@ func TestFetchChangedFilesFromADO_NoCredentials(t *testing.T) {
 	changedFiles, err := fetchChangedFilesFromADO(t.Context(), client, repo, "some-repo-id", "sha-before", "sha-after")
 	require.NoError(t, err)
 	require.Nil(t, changedFiles)
+}
+
+func TestSetADOAuthHeader(t *testing.T) {
+	tests := []struct {
+		name        string
+		repo        *v1alpha1.Repository
+		wantApplied bool
+		wantBasic   bool
+		wantUser    string
+		wantPass    string
+		wantBearer  string
+	}{
+		{
+			name:        "basic auth with username and password",
+			repo:        &v1alpha1.Repository{Username: "test-user", Password: "test-pat"},
+			wantApplied: true,
+			wantBasic:   true,
+			wantUser:    "test-user",
+			wantPass:    "test-pat",
+		},
+		{
+			name:        "bearer token without password",
+			repo:        &v1alpha1.Repository{Username: "test-user", BearerToken: "test-token"},
+			wantApplied: true,
+			wantBearer:  "Bearer test-token",
+		},
+		{
+			name:        "bearer token only",
+			repo:        &v1alpha1.Repository{BearerToken: "test-token"},
+			wantApplied: true,
+			wantBearer:  "Bearer test-token",
+		},
+		{
+			name: "no supported credentials",
+			repo: &v1alpha1.Repository{},
+		},
+		{
+			name: "incomplete basic auth",
+			repo: &v1alpha1.Repository{Username: "test-user"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://dev.azure.com/my-org/my-project/_apis", http.NoBody)
+			require.NoError(t, err)
+
+			applied := setADOAuthHeader(req, tt.repo)
+			require.Equal(t, tt.wantApplied, applied)
+
+			user, pass, ok := req.BasicAuth()
+			require.Equal(t, tt.wantBasic, ok)
+			require.Equal(t, tt.wantUser, user)
+			require.Equal(t, tt.wantPass, pass)
+			if tt.wantBearer != "" {
+				require.Equal(t, tt.wantBearer, req.Header.Get("Authorization"))
+			} else if !tt.wantBasic {
+				require.Empty(t, req.Header.Get("Authorization"))
+			}
+		})
+	}
+}
+
+func TestFetchChangedFilesFromADO_BearerTokenAuth(t *testing.T) {
+	client := newADODiffsTestClient(t, func(req *http.Request) (int, adoDiffsResponse) {
+		require.Equal(t, "/myorg/myproject/_apis/git/repositories/"+testADORepoID+"/diffs/commits", req.URL.Path)
+		require.Equal(t, "Bearer test-token", req.Header.Get("Authorization"))
+		_, _, ok := req.BasicAuth()
+		require.False(t, ok)
+		return http.StatusOK, adoDiffsTestResponse()
+	})
+	repo := &v1alpha1.Repository{
+		Repo:        "https://dev.azure.com/myorg/myproject/_git/myrepo",
+		Username:    "test-user",
+		BearerToken: "test-token",
+	}
+
+	changedFiles, err := fetchChangedFilesFromADO(t.Context(), client, repo, testADORepoID, testADOShaBefore, testADOShaAfter)
+	require.NoError(t, err)
+	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
 }
 
 func TestNewADOHTTPClientUsesRepositoryTransportSettings(t *testing.T) {

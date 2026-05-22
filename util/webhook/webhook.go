@@ -596,6 +596,10 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(repoURL, repoID, shaBefore, shaAfter string) []string {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if shaBefore == "" || shaAfter == "" {
+		log.Debugf("skipping Azure DevOps changed files lookup for URL %s because the commit range is empty", repoURL)
+		return nil
+	}
 	argoRepo, err := a.lookupRepositoryWithCredsTemplate(ctx, repoURL)
 	if err != nil {
 		log.Warnf("error finding repository for Azure DevOps webhook URL %s: %v", repoURL, err)
@@ -605,11 +609,7 @@ func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(repoURL, repoID, sh
 		log.Debugf("no repository configured for Azure DevOps webhook URL %s, skipping changed files lookup", repoURL)
 		return nil
 	}
-	httpClientFactory := a.adoHTTPClientFactory
-	if httpClientFactory == nil {
-		httpClientFactory = newADOHTTPClient
-	}
-	changedFiles, err := fetchChangedFilesFromADO(ctx, httpClientFactory(argoRepo), argoRepo, repoID, shaBefore, shaAfter)
+	changedFiles, err := fetchChangedFilesFromADO(ctx, a.adoHTTPClientFactory(argoRepo), argoRepo, repoID, shaBefore, shaAfter)
 	if err != nil {
 		log.Warnf("error fetching changed files from Azure DevOps diffs API: %v", err)
 		return nil
@@ -636,7 +636,7 @@ func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL str
 
 // lookupRepositoryWithCredsTemplate returns credentials for a given URL by checking individual
 // repository secrets first, then falling back to credentials templates (matched by URL prefix).
-// Returns nil if no credentials are found.
+// Returns nil if no repository or credentials template is found.
 func (a *ArgoCDWebhookHandler) lookupRepositoryWithCredsTemplate(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
 	repo, err := a.lookupRepository(ctx, repoURL)
 	if err != nil || repo != nil {
@@ -854,7 +854,7 @@ func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo
 		return nil, fmt.Errorf("error decoding Azure DevOps diffs API response: %w", err)
 	}
 	if !diffsResp.AllChangesIncluded {
-		return nil, errors.New("azure DevOps diffs API response was truncated (more than 2000 files changed); falling back to full refresh")
+		return nil, fmt.Errorf("azure DevOps diffs API response was truncated (more than %d files changed); falling back to full refresh", adoDiffsMaxPageSize)
 	}
 	changedFiles := make([]string, 0, len(diffsResp.Changes))
 	for _, c := range diffsResp.Changes {
