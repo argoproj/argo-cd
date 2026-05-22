@@ -18,6 +18,104 @@ interface Props {
 const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group || ''}-${res.kind || ''}-${res.version || ''}-${res.namespace || ''}-${res.name}`;
 const FilterableMessageStatuses = ['Changed', 'Unchanged'];
 
+interface ResourceFilterAccessors<T> {
+    getStatus: (r: T) => string | undefined;
+    getHealth: (r: T) => string | undefined;
+    getMessage: (r: T) => string | undefined;
+}
+
+interface ResourceFilterState {
+    filters: string[];
+    healthFilters: string[];
+    messageFilters: string[];
+}
+
+const applyResourceFilters = <T,>(resources: T[], accessors: ResourceFilterAccessors<T>, state: ResourceFilterState): T[] => {
+    const {filters, healthFilters, messageFilters} = state;
+    if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
+        return resources;
+    }
+    return resources.filter(r => {
+        if (filters.length !== 0 && !filters.includes(accessors.getStatus(r))) {
+            return false;
+        }
+        if (healthFilters.length !== 0 && !healthFilters.includes(accessors.getHealth(r))) {
+            return false;
+        }
+        if (messageFilters.length !== 0) {
+            return messageFilters.some(filter => {
+                const msg = accessors.getMessage(r)?.toLowerCase();
+                if (filter === 'Changed') {
+                    return msg?.includes('configured');
+                }
+                return msg?.includes(filter.toLowerCase());
+            });
+        }
+        return true;
+    });
+};
+
+const ResourceTableHeader = () => (
+    <div className='argo-table-list__head'>
+        <div className='row'>
+            <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>SYNC WAVE</div>
+            <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
+            <div className='columns large-1 show-for-large'>NAMESPACE</div>
+            <div className='columns large-2 small-2'>NAME</div>
+            <div className='columns large-1 small-2'>STATUS</div>
+            <div className='columns large-1 small-2'>HEALTH</div>
+            <div className='columns large-1 show-for-large'>HOOK</div>
+            <div className='columns large-3 small-4'>MESSAGE</div>
+            <div className='columns large-1 small-2'>IMAGES</div>
+        </div>
+    </div>
+);
+
+interface ResourceTableRowProps {
+    syncWaveContent: React.ReactNode;
+    kindLabel: string;
+    namespace: string;
+    name: string;
+    statusContent: React.ReactNode;
+    statusTitle?: string;
+    healthContent: React.ReactNode;
+    hookContent: React.ReactNode;
+    hookTitle?: string;
+    messageContent: React.ReactNode;
+    messageTitle?: string;
+    imagesContent: React.ReactNode;
+}
+
+const ResourceTableRow = (props: ResourceTableRowProps) => (
+    <div className='argo-table-list__row'>
+        <div className='row'>
+            <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
+                {props.syncWaveContent}
+            </div>
+            <div className='columns large-1 show-for-large'>
+                <span title={props.kindLabel}>{props.kindLabel}</span>
+            </div>
+            <div className='columns large-1 show-for-large' title={props.namespace}>
+                {props.namespace || '-'}
+            </div>
+            <div className='columns large-2 small-2' title={props.name}>
+                {props.name}
+            </div>
+            <div className='columns large-1 small-2' title={props.statusTitle}>
+                {props.statusContent}
+            </div>
+            <div className='columns large-1 small-2'>{props.healthContent}</div>
+            <div className='columns large-1 show-for-large' title={props.hookTitle}>
+                {props.hookContent}
+            </div>
+            <div className='columns large-3 small-4' title={props.messageTitle}>
+                <div className='application-operation-state__message'>{props.messageContent}</div>
+            </div>
+            <div className='columns large-1 small-2'>{props.imagesContent}</div>
+        </div>
+    </div>
+);
+
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
     const {filters, setFilters, options, title, style} = props;
     return (
@@ -55,86 +153,105 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
     const [messageFilters, setMessageFilters] = React.useState([]);
 
-    const operationAttributes = [
-        {title: 'OPERATION', value: utils.getOperationType(application)},
-        {title: 'PHASE', value: operationState.phase},
-        ...(operationState.message
-            ? [
-                  {
-                      title: 'MESSAGE',
-                      value: (
-                          <pre
-                              style={{
-                                  whiteSpace: 'pre-wrap',
-                                  wordBreak: 'break-word',
-                                  margin: 0,
-                                  fontFamily: 'inherit'
-                              }}>
-                              {utils.formatOperationMessage(operationState.message)}
-                          </pre>
-                      )
-                  }
-              ]
-            : []),
-        {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt} />},
-        {
-            title: 'DURATION',
-            value: (
-                <Ticker>
-                    {time => (
-                        <Duration durationS={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000} />
-                    )}
-                </Ticker>
-            )
-        }
-    ];
+    // Argo CD does not record cascading deletion as an Operation in `status.operationState`,
+    // so during a stuck delete the panel would otherwise render the previous sync's data.
+    const isDeleting = utils.getOperationType(application) === 'Delete';
+    const deletionTimestamp = application.metadata.deletionTimestamp;
 
-    if (operationState.finishedAt && operationState.phase !== 'Running') {
-        operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={operationState.finishedAt} />});
-    } else if (operationState.phase !== 'Terminating') {
-        operationAttributes.push({
-            title: '',
-            value: (
-                <button
-                    className='argo-button argo-button--base'
-                    onClick={async () => {
-                        const confirmed = await ctx.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
-                        if (confirmed) {
-                            try {
-                                await services.applications.terminateOperation(application.metadata.name, application.metadata.namespace);
-                            } catch (e) {
-                                ctx.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to terminate operation' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
+    const operationAttributes: {title: string; value: React.ReactNode}[] = isDeleting
+        ? [
+              {title: 'OPERATION', value: utils.getOperationType(application)},
+              {title: 'PHASE', value: models.OperationPhases.Running},
+              {title: 'STARTED AT', value: <Timestamp date={deletionTimestamp} />},
+              {
+                  title: 'DURATION',
+                  value: <Ticker>{time => <Duration durationS={moment(time).diff(moment(deletionTimestamp)) / 1000} />}</Ticker>
+              }
+          ]
+        : [
+              {title: 'OPERATION', value: utils.getOperationType(application)},
+              {title: 'PHASE', value: operationState.phase},
+              ...(operationState.message
+                  ? [
+                        {
+                            title: 'MESSAGE',
+                            value: (
+                                <pre
+                                    style={{
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                        margin: 0,
+                                        fontFamily: 'inherit'
+                                    }}>
+                                    {utils.formatOperationMessage(operationState.message)}
+                                </pre>
+                            )
                         }
-                    }}>
-                    Terminate
-                </button>
-            )
-        });
-    }
-    if (operationState.syncResult) {
-        operationAttributes.push({
-            title: 'REVISION',
-            value: (
-                <div>
-                    <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
-                    {utils.getAppDefaultOperationSyncRevisionExtra(application)}
-                </div>
-            )
-        });
-    }
-    let initiator = '';
-    if (operationState.operation.initiatedBy) {
-        if (operationState.operation.initiatedBy.automated) {
-            initiator = 'automated sync policy';
-        } else {
-            initiator = operationState.operation.initiatedBy.username;
+                    ]
+                  : []),
+              {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt} />},
+              {
+                  title: 'DURATION',
+                  value: (
+                      <Ticker>
+                          {time => (
+                              <Duration
+                                  durationS={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000}
+                              />
+                          )}
+                      </Ticker>
+                  )
+              }
+          ];
+
+    if (!isDeleting) {
+        if (operationState.finishedAt && operationState.phase !== 'Running') {
+            operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={operationState.finishedAt} />});
+        } else if (operationState.phase !== 'Terminating') {
+            operationAttributes.push({
+                title: '',
+                value: (
+                    <button
+                        className='argo-button argo-button--base'
+                        onClick={async () => {
+                            const confirmed = await ctx.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
+                            if (confirmed) {
+                                try {
+                                    await services.applications.terminateOperation(application.metadata.name, application.metadata.namespace);
+                                } catch (e) {
+                                    ctx.apis.notifications.show({
+                                        content: <ErrorNotification title='Unable to terminate operation' e={e} />,
+                                        type: NotificationType.Error
+                                    });
+                                }
+                            }
+                        }}>
+                        Terminate
+                    </button>
+                )
+            });
         }
+        if (operationState.syncResult) {
+            operationAttributes.push({
+                title: 'REVISION',
+                value: (
+                    <div>
+                        <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
+                        {utils.getAppDefaultOperationSyncRevisionExtra(application)}
+                    </div>
+                )
+            });
+        }
+        let initiator = '';
+        if (operationState.operation.initiatedBy) {
+            if (operationState.operation.initiatedBy.automated) {
+                initiator = 'automated sync policy';
+            } else {
+                initiator = operationState.operation.initiatedBy.username;
+            }
+        }
+        operationAttributes.push({title: 'INITIATED BY', value: initiator || 'Unknown'});
     }
-    operationAttributes.push({title: 'INITIATED BY', value: initiator || 'Unknown'});
 
     const resultAttributes: {title: string; value: string}[] = [];
     const syncResult = operationState.syncResult;
@@ -191,35 +308,64 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
 
         return syncResultWithHealth;
     });
-    let filtered: models.SyncResourceResult[] = [];
+    const filterState: ResourceFilterState = {filters, healthFilters, messageFilters};
 
-    if (combinedHealthSyncResult && combinedHealthSyncResult.length > 0) {
-        filtered = combinedHealthSyncResult.filter(r => {
-            if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
-                return true;
-            }
+    const filtered: models.SyncResourceResult[] =
+        combinedHealthSyncResult && combinedHealthSyncResult.length > 0
+            ? applyResourceFilters<models.SyncResourceResult>(combinedHealthSyncResult, {getStatus, getHealth: r => r.health?.status, getMessage: r => r.message}, filterState)
+            : [];
 
-            let pass = true;
-            if (filters.length !== 0 && !filters.includes(getStatus(r))) {
-                pass = false;
-            }
+    const filteredDeletionResources: models.ResourceStatus[] = isDeleting
+        ? applyResourceFilters<models.ResourceStatus>(
+              application.status.resources || [],
+              {getStatus: r => r.status, getHealth: r => r.health?.status, getMessage: r => r.health?.message},
+              filterState
+          )
+        : [];
 
-            if (pass && healthFilters.length !== 0 && !healthFilters.includes(r.health?.status)) {
-                pass = false;
-            }
+    const filterBar = (
+        <div style={{marginLeft: 'auto'}}>
+            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
+            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
+            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' style={{marginRight: '5px'}} />
+            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
+                <div style={{display: 'inline-block'}}>
+                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
+                </div>
+            </Tooltip>
+        </div>
+    );
 
-            if (pass && messageFilters.length !== 0) {
-                pass = messageFilters.some(filter => {
-                    if (filter === 'Changed') {
-                        return r.message?.toLowerCase().includes('configured');
-                    }
-                    return r.message?.toLowerCase().includes(filter.toLowerCase());
-                });
-            }
+    const renderHealthCell = (health?: models.HealthStatus): React.ReactNode =>
+        health ? (
+            <span>
+                <utils.HealthStatusIcon state={health} /> {health.status}
+                {health.message && <HelpIcon title={health.message} />}
+            </span>
+        ) : (
+            <>{'-'}</>
+        );
 
-            return pass;
-        });
-    }
+    const renderImagesCell = (images?: string[]): React.ReactNode =>
+        images && images.length > 0 ? (
+            <Tooltip
+                placement='top'
+                content={
+                    <div>
+                        <ul className='application-operation-state__images-list' style={{margin: '10px'}}>
+                            {images.map((image, idx) => (
+                                <li key={idx}>{image}</li>
+                            ))}
+                        </ul>
+                    </div>
+                }>
+                <span className='application-operation-state__images-count'>
+                    {images.length} image{images.length !== 1 ? 's' : ''}
+                </span>
+            </Tooltip>
+        ) : (
+            '-'
+        );
 
     return (
         <div>
@@ -233,99 +379,83 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     ))}
                 </div>
             </div>
-            {syncResult && syncResult.resources && syncResult.resources.length > 0 && (
+            {!isDeleting && syncResult && syncResult.resources && syncResult.resources.length > 0 && (
                 <React.Fragment>
                     <div style={{display: 'flex'}}>
                         <label style={{display: 'block', marginBottom: '1em'}}>RESULT</label>
-                        <div style={{marginLeft: 'auto'}}>
-                            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
-                            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
-                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' style={{marginRight: '5px'}} />
-                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
-                                <div style={{display: 'inline-block'}}>
-                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
-                                </div>
-                            </Tooltip>
-                        </div>
+                        {filterBar}
                     </div>
                     <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>SYNC WAVE</div>
-                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
-                                <div className='columns large-1 show-for-large'>NAMESPACE</div>
-                                <div className='columns large-2 small-2'>NAME</div>
-                                <div className='columns large-1 small-2'>STATUS</div>
-                                <div className='columns large-1 small-2'>HEALTH</div>
-                                <div className='columns large-1 show-for-large'>HOOK</div>
-                                <div className='columns large-3 small-4'>MESSAGE</div>
-                                <div className='columns large-1 small-2'>IMAGES</div>
-                            </div>
-                        </div>
+                        <ResourceTableHeader />
                         {filtered.length > 0 ? (
                             filtered.map((resource, i) => (
-                                <div className='argo-table-list__row' key={i}>
-                                    <div className='row'>
-                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
+                                <ResourceTableRow
+                                    key={i}
+                                    syncWaveContent={
+                                        <>
                                             <div className='application-operation-state__icons_container'>
                                                 {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                             </div>
                                             {resource.syncWave || '0'}
-                                        </div>
-                                        <div className='columns large-1 show-for-large'>
-                                            <span title={getKind(resource)}>{getKind(resource)}</span>
-                                        </div>
-                                        <div className='columns large-1 show-for-large' title={resource.namespace}>
-                                            {resource.namespace}
-                                        </div>
-                                        <div className='columns large-2 small-2' title={resource.name}>
-                                            {resource.name}
-                                        </div>
-                                        <div className='columns large-1 small-2' title={getStatus(resource)}>
+                                        </>
+                                    }
+                                    kindLabel={getKind(resource)}
+                                    namespace={resource.namespace}
+                                    name={resource.name}
+                                    statusContent={
+                                        <>
                                             <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
-                                        </div>
-                                        <div className='columns large-1 small-2'>
-                                            {resource.health ? (
-                                                <span>
-                                                    <utils.HealthStatusIcon state={resource?.health} /> {resource.health?.status}
-                                                    {resource.health.message && <HelpIcon title={resource.health.message} />}
-                                                </span>
-                                            ) : (
-                                                <>{'-'}</>
-                                            )}
-                                        </div>
-                                        <div className='columns large-1 show-for-large' title={resource.hookType}>
-                                            {resource.hookType}
-                                        </div>
-                                        <div className='columns large-3 small-4' title={resource.message}>
-                                            <div className='application-operation-state__message'>{resource.message}</div>
-                                        </div>
-                                        <div className='columns large-1  small-2'>
-                                            {resource.images && resource.images.length > 0 ? (
-                                                <Tooltip
-                                                    placement='top'
-                                                    content={
-                                                        <div>
-                                                            <ul className='application-operation-state__images-list' style={{margin: '10px'}}>
-                                                                {resource.images.map((image, idx) => (
-                                                                    <li key={idx}>{image}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    }>
-                                                    <span className='application-operation-state__images-count'>
-                                                        {resource.images.length} image{resource.images.length !== 1 ? 's' : ''}
-                                                    </span>
-                                                </Tooltip>
-                                            ) : (
-                                                '-'
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                                        </>
+                                    }
+                                    statusTitle={getStatus(resource)}
+                                    healthContent={renderHealthCell(resource.health)}
+                                    hookContent={resource.hookType}
+                                    hookTitle={resource.hookType}
+                                    messageContent={resource.message}
+                                    messageTitle={resource.message}
+                                    imagesContent={renderImagesCell(resource.images)}
+                                />
                             ))
                         ) : (
                             <div style={{textAlign: 'center', marginTop: '2em', fontSize: '20px'}}>No Sync Results match filter</div>
+                        )}
+                    </div>
+                </React.Fragment>
+            )}
+            {isDeleting && application.status.resources && application.status.resources.length > 0 && (
+                <React.Fragment>
+                    <div style={{display: 'flex'}}>
+                        <label style={{display: 'block', marginBottom: '1em'}}>RESOURCES</label>
+                        {filterBar}
+                    </div>
+                    <div className='argo-table-list'>
+                        <ResourceTableHeader />
+                        {filteredDeletionResources.length > 0 ? (
+                            filteredDeletionResources.map((res, i) => {
+                                const kindLabel = (res.group ? `${res.group}/` : '') + (res.version || '') + `/${res.kind}`;
+                                return (
+                                    <ResourceTableRow
+                                        key={i}
+                                        syncWaveContent={res.syncWave || '0'}
+                                        kindLabel={kindLabel}
+                                        namespace={res.namespace}
+                                        name={res.name}
+                                        statusContent={
+                                            <>
+                                                <utils.ComparisonStatusIcon status={res.status} resource={res} /> {res.status}
+                                            </>
+                                        }
+                                        statusTitle={res.status}
+                                        healthContent={renderHealthCell(res.health)}
+                                        hookContent='-'
+                                        messageContent={res.health?.message || '-'}
+                                        messageTitle={res.health?.message}
+                                        imagesContent='-'
+                                    />
+                                );
+                            })
+                        ) : (
+                            <div style={{textAlign: 'center', marginTop: '2em', fontSize: '20px'}}>No Resources match filter</div>
                         )}
                     </div>
                 </React.Fragment>
