@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -58,6 +59,19 @@ const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
 const payloadQueueSize = 50000
 
 const panicMsgServer = "panic while processing api-server webhook event"
+
+const (
+	// adoDiffsAPIVersion is the Azure DevOps REST API version used for the Diffs endpoint.
+	// The api-version parameter is required for all ADO REST calls.
+	// See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get?view=azure-devops-rest-7.1
+	adoDiffsAPIVersion = "7.1"
+
+	// adoDiffsMaxPageSize is the maximum number of file changes requested per call to the ADO Diffs API.
+	// The endpoint defaults to 100; this value is aligned with the documented maximum of the related
+	// Pull Request Iteration Changes endpoint. Pushes exceeding this limit fall back to a full refresh.
+	// See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-iteration-changes/get?view=azure-devops-rest-7.1
+	adoDiffsMaxPageSize = 2000
+)
 
 var (
 	webhookManifestCacheWarmDisabled = os.Getenv("ARGOCD_WEBHOOK_MANIFEST_CACHE_WARM_DISABLED") == "true"
@@ -787,12 +801,16 @@ func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, re
 	if err != nil {
 		return nil, err
 	}
-	// $top=2000 fetches up to 2000 file changes; large push sets beyond this limit will fall
-	// back to refreshing all matching applications.
-	apiURL := fmt.Sprintf(
-		"%s/_apis/git/repositories/%s/diffs/commits?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
-		baseURL, url.PathEscape(repoID), url.QueryEscape(shaBefore), url.QueryEscape(shaAfter),
-	)
+	params := url.Values{
+		"baseVersion":       {shaBefore},
+		"baseVersionType":   {"commit"},
+		"targetVersion":     {shaAfter},
+		"targetVersionType": {"commit"},
+		"$top":              {strconv.Itoa(adoDiffsMaxPageSize)},
+		"api-version":       {adoDiffsAPIVersion},
+	}
+	apiURL := fmt.Sprintf("%s/_apis/git/repositories/%s/diffs/commits?%s",
+		baseURL, url.PathEscape(repoID), params.Encode())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error creating Azure DevOps diffs API request: %w", err)

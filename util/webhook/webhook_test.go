@@ -1414,11 +1414,11 @@ func Test_affectedRevisionInfo_azuredevops_changed_files_via_creds_template(t *t
 
 	const adoDiffsAPIURL = "https://dev.azure.com/my-org/my-project/_apis/git/repositories/" +
 		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
-		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
+		"?%24top=2000&api-version=7.1" +
+		"&baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
 		"&baseVersionType=commit" +
 		"&targetVersion=298a79aa1552799a70718a0ee914d153d5a1a76b" +
-		"&targetVersionType=commit" +
-		"&$top=2000&api-version=7.1"
+		"&targetVersionType=commit"
 	httpmock.RegisterResponder("GET", adoDiffsAPIURL, getADODiffsResponderFn())
 
 	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
@@ -1437,11 +1437,11 @@ func Test_affectedRevisionInfo_azuredevops_changed_files(t *testing.T) {
 
 	const adoDiffsAPIURL = "https://dev.azure.com/my-org/my-project/_apis/git/repositories/" +
 		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
-		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
+		"?%24top=2000&api-version=7.1" +
+		"&baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
 		"&baseVersionType=commit" +
 		"&targetVersion=298a79aa1552799a70718a0ee914d153d5a1a76b" +
-		"&targetVersionType=commit" +
-		"&$top=2000&api-version=7.1"
+		"&targetVersionType=commit"
 	httpmock.RegisterResponder("GET", adoDiffsAPIURL, getADODiffsResponderFn())
 
 	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
@@ -1463,11 +1463,11 @@ func Test_affectedRevisionInfo_azuredevops_multiple_ref_updates(t *testing.T) {
 	// the test would fail, confirming that only RefUpdates[0] is used.
 	const adoDiffsAPIURL = "https://dev.azure.com/my-org/my-project/_apis/git/repositories/" +
 		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
-		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
+		"?%24top=2000&api-version=7.1" +
+		"&baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
 		"&baseVersionType=commit" +
 		"&targetVersion=298a79aa1552799a70718a0ee914d153d5a1a76b" +
-		"&targetVersionType=commit" +
-		"&$top=2000&api-version=7.1"
+		"&targetVersionType=commit"
 	httpmock.RegisterResponder("GET", adoDiffsAPIURL, getADODiffsResponderFn())
 
 	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
@@ -1707,23 +1707,23 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 
 	validAPIURL := fmt.Sprintf(
 		"https://dev.azure.com/myorg/myproject/_apis/git/repositories/%s/diffs/commits"+
-			"?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
-		testRepoID, testShaBefore, testShaAfter,
+			"?%%24top=%d&api-version=%s&baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit",
+		testRepoID, adoDiffsMaxPageSize, adoDiffsAPIVersion, testShaBefore, testShaAfter,
 	)
 	httpmock.RegisterResponder("GET", validAPIURL, getADODiffsResponderFn())
 
 	// Legacy visualstudio.com format: base URL is scheme://host/{project} (no org in path).
 	legacyAPIURL := fmt.Sprintf(
 		"https://myorg.visualstudio.com/myproject/_apis/git/repositories/%s/diffs/commits"+
-			"?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
-		testRepoID, testShaBefore, testShaAfter,
+			"?%%24top=%d&api-version=%s&baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit",
+		testRepoID, adoDiffsMaxPageSize, adoDiffsAPIVersion, testShaBefore, testShaAfter,
 	)
 	httpmock.RegisterResponder("GET", legacyAPIURL, getADODiffsResponderFn())
 
 	truncatedAPIURL := fmt.Sprintf(
 		"https://dev.azure.com/myorg/myproject/_apis/git/repositories/%s/diffs/commits"+
-			"?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
-		testRepoID, testShaBeforeLarge, testShaAfterLarge,
+			"?%%24top=%d&api-version=%s&baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit",
+		testRepoID, adoDiffsMaxPageSize, adoDiffsAPIVersion, testShaBeforeLarge, testShaAfterLarge,
 	)
 	httpmock.RegisterResponder("GET", truncatedAPIURL, func(_ *http.Request) (*http.Response, error) {
 		resp, _ := httpmock.NewJsonResponse(http.StatusOK, adoDiffsResponse{AllChangesIncluded: false})
