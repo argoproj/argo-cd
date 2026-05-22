@@ -390,7 +390,7 @@ func reconcileApplications(
 		return true
 	}, func(_ *http.Request) error {
 		return nil
-	}, []string{}, []string{}, argoDB)
+	}, []string{}, []string{}, argoDB, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}

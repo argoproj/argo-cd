@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -302,6 +304,7 @@ type TestMetricServerConfig struct {
 	ClusterLabels    []string
 	ClustersInfo     []gitopsCache.ClusterInfo
 	ClusterLister    ClusterLister
+	GetAppProject    AppProjectGetter
 }
 
 func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
@@ -324,7 +327,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	mockDB := mocks.NewArgoDB(t)
 	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
 	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, mockDB, cfg.GetAppProject)
 	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -473,7 +476,7 @@ func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB, nil)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -527,7 +530,7 @@ func TestMetricsSyncDuration(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB, nil)
 	require.NoError(t, err)
 
 	t.Run("metric is not generated during Operation Running.", func(t *testing.T) {
@@ -568,7 +571,7 @@ func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB, nil)
 	require.NoError(t, err)
 
 	appReconcileMetrics := `
@@ -602,7 +605,7 @@ func TestOrphanedResourcesMetric(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -624,11 +627,107 @@ argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="
 	assertMetricsPrinted(t, expectedMetrics, body)
 }
 
+func TestSyncWindowMetric(t *testing.T) {
+	// Schedules used here are deterministic and do not depend on the wall clock:
+	//   - alwaysOn: "* * * * *" + 24h duration matches every minute, so the window
+	//     is active for any test execution time.
+	//   - "alwaysOff" is expressed via a non-matching Applications selector; the
+	//     SyncWindows.Matches(app) call filters it out before any time-based
+	//     evaluation runs, so the result is independent of the test clock.
+	denyAlwaysOn := func() *argoappv1.SyncWindow {
+		return &argoappv1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "24h", Applications: []string{"*"}}
+	}
+	allowAlwaysOn := func() *argoappv1.SyncWindow {
+		return &argoappv1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "24h", Applications: []string{"*"}}
+	}
+	denyNonMatching := func() *argoappv1.SyncWindow {
+		return &argoappv1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "24h", Applications: []string{"some-other-app"}}
+	}
+	newProject := func(windows ...*argoappv1.SyncWindow) *argoappv1.AppProject {
+		return &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "important-project", Namespace: "argocd"},
+			Spec:       argoappv1.AppProjectSpec{SyncWindows: argoappv1.SyncWindows(windows)},
+		}
+	}
+
+	const helpAndType = `
+# HELP argocd_app_sync_window Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per window_kind ("allow", "deny"); 1 means at least one matching window of that kind is currently active.
+# TYPE argocd_app_sync_window gauge
+`
+	gauge := func(kind string, value int) string {
+		return fmt.Sprintf(`argocd_app_sync_window{name="my-app",namespace="argocd",project="important-project",window_kind=%q} %d`+"\n", kind, value)
+	}
+
+	cases := []struct {
+		description      string
+		getAppProject    AppProjectGetter
+		expectedResponse string
+	}{
+		{
+			description: "active deny window emits deny=1, allow=0",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(denyAlwaysOn()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 1),
+		},
+		{
+			description: "active allow window emits allow=1, deny=0",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(allowAlwaysOn()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 0),
+		},
+		{
+			description: "active allow + deny windows emit both as 1",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(allowAlwaysOn(), denyAlwaysOn()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 1),
+		},
+		{
+			description: "window that does not match the application emits 0/0",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(denyNonMatching()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0),
+		},
+		{
+			description: "project with no windows emits 0/0",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0),
+		},
+		{
+			description: "getAppProject error still emits 0/0",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return nil, errors.New("project not found")
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			cfg := TestMetricServerConfig{
+				FakeAppYAMLs:     []string{fakeApp},
+				ExpectedResponse: c.expectedResponse,
+				AppLabels:        []string{},
+				AppConditions:    []string{},
+				ClusterLabels:    []string{},
+				ClustersInfo:     []gitopsCache.ClusterInfo{},
+				GetAppProject:    c.getAppProject,
+			}
+			runTest(t, cfg)
+		})
+	}
+}
+
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB, nil)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -666,7 +765,7 @@ func TestWorkqueueMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -697,7 +796,7 @@ func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
