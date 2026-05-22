@@ -244,6 +244,10 @@ func NewGitHubMetricsClient(metricsContext *MetricsContext) *http.Client {
 func NewGitHubMetricsClientFrom(httpClient *http.Client, metricsContext *MetricsContext) *http.Client {
 	log.Debug("Creating new GitHub metrics client")
 	httpClientCopy := *httpClient
-	httpClientCopy.Transport = NewDefaultGitHubMetricsTransport(httpClient.Transport, metricsContext)
+	transport := httpClient.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	httpClientCopy.Transport = NewDefaultGitHubMetricsTransport(transport, metricsContext)
 	return &httpClientCopy
 }

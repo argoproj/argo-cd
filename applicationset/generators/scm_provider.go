@@ -323,9 +323,7 @@ func (g *SCMConfig) newSCMHTTPClient() *http.Client {
 	if g.scmProxyURL == "" {
 		return &http.Client{}
 	}
-	return &http.Client{
-		Transport: &http.Transport{
-			Proxy: proxy.GetCallback(g.scmProxyURL, g.scmNoProxy),
-		},
-	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.Proxy = proxy.GetCallback(g.scmProxyURL, g.scmNoProxy)
+	return &http.Client{Transport: tr}
 }
