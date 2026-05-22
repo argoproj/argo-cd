@@ -86,14 +86,15 @@ func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj an
 		un = unstructuredFromCachedResource(primary)
 	}
 
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	var existing *Resource
 	if oldCr != nil {
 		existing = oldCr.Resource
 	}
 
+	// Storage mutations + OnResourceUpdated dispatch run under c.lock so the
+	// nsIndex snapshot handed to handlers is consistent with c.resources —
+	// matches the legacy setNode/onNodeRemoved -> dispatchResourceUpdated path.
+	c.lock.Lock()
 	switch event {
 	case watch.Added, watch.Modified:
 		// Maintain c.resources as a shadow of the informer's store so every
@@ -103,16 +104,22 @@ func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj an
 		// compared to the TransformFunc's savings on managedFields.
 		c.resources[newCr.Resource.ResourceKey()] = newCr.Resource
 		c.updateIndexes(existing, newCr.Resource)
-		c.dispatchEvent(event, un)
 		c.dispatchResourceUpdated(newCr.Resource, existing, c.nsIndex[newCr.Resource.Ref.Namespace])
 	case watch.Deleted:
 		// For deletes the informer passes the last-known object as oldObj;
 		// we treated it as `primary` above for dispatchEvent purposes.
 		delete(c.resources, primary.Resource.ResourceKey())
 		ns := c.removeIndexes(primary.Resource)
-		c.dispatchEvent(event, un)
 		c.dispatchResourceUpdated(nil, primary.Resource, ns)
 	}
+	c.lock.Unlock()
+
+	// OnEvent handlers and CRD routing run WITHOUT c.lock — handleCRDEvent
+	// re-acquires c.lock via runSynced (cluster.go startMissingWatches /
+	// reloadOpenAPISchema). Mirrors the legacy watchEvents path, which
+	// invokes recordEvent (event handlers) and handleCRDEvent outside the
+	// lock; only processEvent runs under it.
+	c.dispatchEvent(event, un)
 }
 
 // unstructuredFromCachedResource synthesizes a minimal *Unstructured from

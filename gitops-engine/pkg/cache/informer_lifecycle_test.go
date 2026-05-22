@@ -280,6 +280,78 @@ func TestEnsureSynced_InformerModeEndToEnd(t *testing.T) {
 	assert.True(t, hasShadow, "initial list should have populated c.resources")
 }
 
+// Regression: a CRD object in the initial list used to deadlock the cache
+// under ModeInformer. onInformerChange held c.lock while calling
+// dispatchEvent -> handleCRDEvent -> runSynced(c.lock, ...), and the
+// non-reentrant RWMutex hung the controller. Verify EnsureSynced now
+// returns when discovery includes the apiextensions.k8s.io CRD GVR and
+// at least one CRD exists.
+func TestEnsureSynced_InformerMode_CRDInInitialListDoesNotDeadlock(t *testing.T) {
+	crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
+	crdAPI := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"},
+		GroupVersionResource: crdGVR,
+		Meta: metav1.APIResource{
+			Group: "apiextensions.k8s.io", Version: "v1",
+			Kind: "CustomResourceDefinition", Name: "customresourcedefinitions",
+			Namespaced: false,
+		},
+	}
+
+	crd := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apiextensions.k8s.io/v1",
+		"kind":       "CustomResourceDefinition",
+		"metadata":   map[string]any{"name": "crontabs.stable.example.com", "uid": "uid-crd"},
+		"spec": map[string]any{
+			"group": "stable.example.com",
+			"names": map[string]any{"kind": "CronTab", "plural": "crontabs", "singular": "crontab"},
+			"scope": "Namespaced",
+			"versions": []any{
+				map[string]any{"name": "v1", "served": true, "storage": true},
+			},
+		},
+	}}
+
+	client := fake.NewSimpleDynamicClient(scheme.Scheme, crd)
+	reactor := client.ReactionChain[0]
+	client.PrependReactor("list", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		handled, ret, err := reactor.React(action)
+		if !handled || err != nil {
+			return handled, ret, err
+		}
+		ret.(metav1.ListInterface).SetResourceVersion("1")
+		return handled, ret, nil
+	})
+
+	iface := NewClusterCache(
+		&rest.Config{Host: "https://test"},
+		SetMode(ModeInformer),
+		SetKubectl(&kubetest.MockKubectlCmd{
+			APIResources:  []kube.APIResourceInfo{crdAPI},
+			DynamicClient: client,
+		}),
+	)
+
+	done := make(chan error, 1)
+	go func() { done <- iface.EnsureSynced() }()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("EnsureSynced deadlocked under ModeInformer when initial list contained a CRD")
+	}
+
+	// Skip Invalidate cleanup intentionally: if a future regression brings
+	// the deadlock back, Invalidate would also block on c.lock and hang
+	// the whole test process. The fake clients are short-lived; goroutines
+	// die with the test binary.
+	c := iface.(*clusterCache)
+	c.lock.RLock()
+	_, hasMeta := c.apisMeta[crdAPI.GroupKind]
+	c.lock.RUnlock()
+	assert.True(t, hasMeta, "apisMeta should be populated for the CRD GVR under ModeInformer")
+}
+
 func TestInvalidate_InformerModeCancelsWatches(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(scheme.Scheme, unstructuredPod("nginx", "default"))
 	reactor := client.ReactionChain[0]
