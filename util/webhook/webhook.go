@@ -107,6 +107,7 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc            settingsSource
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
+	adoHTTPClientFactory   func(repo *v1alpha1.Repository) *http.Client
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
@@ -174,6 +175,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 		appsLister:             appsLister,
+		adoHTTPClientFactory:   newADOHTTPClient,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -603,7 +605,11 @@ func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(repoURL, repoID, sh
 		log.Debugf("no repository configured for Azure DevOps webhook URL %s, skipping changed files lookup", repoURL)
 		return nil
 	}
-	changedFiles, err := fetchChangedFilesFromADO(ctx, argoRepo, repoID, shaBefore, shaAfter)
+	httpClientFactory := a.adoHTTPClientFactory
+	if httpClientFactory == nil {
+		httpClientFactory = newADOHTTPClient
+	}
+	changedFiles, err := fetchChangedFilesFromADO(ctx, httpClientFactory(argoRepo), argoRepo, repoID, shaBefore, shaAfter)
 	if err != nil {
 		log.Warnf("error fetching changed files from Azure DevOps diffs API: %v", err)
 		return nil
@@ -645,12 +651,9 @@ func (a *ArgoCDWebhookHandler) lookupRepositoryWithCredsTemplate(ctx context.Con
 		return nil, nil
 	}
 	log.Debugf("found matching credentials template for URL %s", repoURL)
-	return &v1alpha1.Repository{
-		Repo:        repoURL,
-		Username:    creds.Username,
-		Password:    creds.Password,
-		BearerToken: creds.BearerToken,
-	}, nil
+	repo = &v1alpha1.Repository{Repo: repoURL}
+	repo.CopyCredentialsFrom(creds)
+	return repo, nil
 }
 
 func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
@@ -807,10 +810,14 @@ func setADOAuthHeader(req *http.Request, repo *v1alpha1.Repository) bool {
 	return false
 }
 
+func newADOHTTPClient(repo *v1alpha1.Repository) *http.Client {
+	return git.GetRepoHTTPClient(repo.Repo, repo.IsInsecure(), repo.GetGitCreds(&git.NoopCredsStore{}), repo.Proxy, repo.NoProxy)
+}
+
 // fetchChangedFilesFromADO retrieves the list of files changed between two commits by calling
 // the Azure DevOps Diffs REST API.
 // See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get
-func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, repoID, shaBefore, shaAfter string) ([]string, error) {
+func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo *v1alpha1.Repository, repoID, shaBefore, shaAfter string) ([]string, error) {
 	baseURL, err := parseADOBaseURL(repo.Repo)
 	if err != nil {
 		return nil, err
@@ -834,7 +841,7 @@ func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, re
 		return nil, nil
 	}
 	log.Debugf("fetching changed files from Azure DevOps diffs API: %s", apiURL)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error calling Azure DevOps diffs API: %w", err)
 	}
