@@ -170,7 +170,8 @@ admissionregistration.k8s.io/MutatingWebhookConfiguration:
   jsonPointers:
   - /webhooks/0/clientConfig/caBundle`,
 			},
-			containsSummary: "2 resource overrides",
+			// The 8 default overrides + 1 configured above.
+			containsSummary: "9 resource overrides",
 		},
 	}
 	for name := range testCases {
