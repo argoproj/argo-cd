@@ -1214,6 +1214,8 @@ type ApplicationStatus struct {
 	// Deprecated: controller no longer updates ObservedAt field
 	ObservedAt *metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	// SourceType specifies the type of this application
+	//
+	// Deprecated: Use SourceTypes instead, which supports both single and multi-source applications
 	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	// Summary contains a list of URLs and container images used by this application
 	Summary ApplicationSummary `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
