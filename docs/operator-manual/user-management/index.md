@@ -307,6 +307,39 @@ data:
           getUserInfo: true
 ```
 
+### Force redirect to selected Dex connector (Alpha)
+
+Dex login page displays a list of available connectors if more than one is configured.
+For example, with an Okta connector for human users and a GitHub Actions connector for machines (OIDC token exchange), the login screen shows both as clickable options. However, clicking the GitHub Actions connector is not useful for human users and leads to a failed login page.
+To configure Argo CD to redirect users to specific Dex connector, add the `dex.auth.connectorId` key to the `argocd-cm` ConfigMap with the chosen connector ID.
+
+```yaml
+data:
+  url: "https://argocd.example.com"
+  dex.auth.connectorId: okta
+  dex.config: |
+    connectors:
+      - type: oidc
+        id: okta
+        name: Okta
+        config:
+          issuer: https://org-ID.okta.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.okta.clientSecret
+          insecureSkipEmailVerified: true
+          insecureEnableGroups: true
+          scopes: [openid, profile, email, groups]
+      - type: oidc
+        id: github-actions
+        name: Github Actions
+        config:
+          issuer: https://token.actions.githubusercontent.com
+          userNameKey: sub
+          insecureSkipEmailVerified: true
+          claimMapping:
+            email: sub
+```
+
 ## Existing OIDC Provider
 
 To configure Argo CD to delegate authentication to your existing OIDC provider, add the OAuth2
