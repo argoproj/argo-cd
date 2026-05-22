@@ -32,6 +32,17 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
     const managedByURL = getManagedByURL(app);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
+    const appPath = `/${AppUtils.getAppUrl(app)}`;
+    const appHref = `${ctx.baseHref}${AppUtils.getAppUrl(app)}`;
+
+    const handleRowClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) {
+            return;
+        }
+        e.preventDefault();
+        ctx.navigation.goto(appPath, {}, {event: e});
+    };
+
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (favList?.includes(app.metadata.name)) {
@@ -65,9 +76,10 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
 
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div
+            <a
                 className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
-                onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
+                href={appHref}
+                onClick={handleRowClick}>
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
                     <div className='row'>
@@ -180,7 +192,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                         ]}
                     />
                 </div>
-            </div>
+            </a>
         </div>
     );
 };

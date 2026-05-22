@@ -35,6 +35,20 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
     const managedByURL = getManagedByURL(app);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
+    const appPath = `/${AppUtils.getAppUrl(app)}`;
+    const view = pref.appDetails.view;
+    const appHref = `${ctx.baseHref}${AppUtils.getAppUrl(app)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
+
+    const handleTileClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        // Let the browser handle modifier-clicks and middle-clicks natively so users
+        // get "open in new tab", right-click menu, status-bar URL preview, etc.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) {
+            return;
+        }
+        e.preventDefault();
+        ctx.navigation.goto(appPath, {view}, {event: e});
+    };
+
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (favList?.includes(app.metadata.name)) {
@@ -70,7 +84,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
         <div
             ref={tileRef}
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div className='row applications-tiles__wrapper' onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {view: pref.appDetails.view}, {event: e})}>
+            <a className='row applications-tiles__wrapper' href={appHref} onClick={handleTileClick}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
@@ -251,45 +265,51 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                     {/* Action buttons */}
                     <div className='row applications-tiles__actions'>
                         <div className='columns applications-list__entry--actions'>
-                            <a
+                            <button
+                                type='button'
                                 className='argo-button argo-button--base'
                                 qe-id='applications-tiles-button-sync'
                                 onClick={e => {
                                     e.stopPropagation();
+                                    e.preventDefault();
                                     syncApplication(app.metadata.name, app.metadata.namespace);
                                 }}>
                                 <i className='fa fa-sync' /> Sync
-                            </a>
+                            </button>
                             &nbsp;
                             <Tooltip className='custom-tooltip' content={'Refresh'}>
-                                <a
+                                <button
+                                    type='button'
                                     className='argo-button argo-button--base'
                                     qe-id='applications-tiles-button-refresh'
                                     {...AppUtils.refreshLinkAttrs(app)}
                                     onClick={e => {
                                         e.stopPropagation();
+                                        e.preventDefault();
                                         refreshApplication(app.metadata.name, app.metadata.namespace);
                                     }}>
                                     <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
                                     <span className='show-for-xxlarge'>Refresh</span>
-                                </a>
+                                </button>
                             </Tooltip>
                             &nbsp;
                             <Tooltip className='custom-tooltip' content={'Delete'}>
-                                <a
+                                <button
+                                    type='button'
                                     className='argo-button argo-button--base'
                                     qe-id='applications-tiles-button-delete'
                                     onClick={e => {
                                         e.stopPropagation();
+                                        e.preventDefault();
                                         deleteApplication(app.metadata.name, app.metadata.namespace);
                                     }}>
                                     <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
-                                </a>
+                                </button>
                             </Tooltip>
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
     );
 };

@@ -23,6 +23,17 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
     const managedByURL = getManagedByURL(appSet);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
+    const appSetPath = `/${AppUtils.getAppUrl(appSet)}`;
+    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}`;
+
+    const handleRowClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) {
+            return;
+        }
+        e.preventDefault();
+        ctx.navigation.goto(appSetPath, {}, {event: e});
+    };
+
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (favList?.includes(appSet.metadata.name)) {
@@ -56,7 +67,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
 
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div className='row applications-list__table-row' onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`, {}, {event: e})}>
+            <a className='row applications-list__table-row' href={appSetHref} onClick={handleRowClick}>
                 {/* First column: Favorite, Kind, Name */}
                 <div className='columns small-4'>
                     <div className='row'>
@@ -111,7 +122,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                 <div className='columns small-8'>
                     <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> <span>{healthStatus}</span>
                 </div>
-            </div>
+            </a>
         </div>
     );
 };

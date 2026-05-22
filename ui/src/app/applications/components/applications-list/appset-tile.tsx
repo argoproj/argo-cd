@@ -26,6 +26,18 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
     const managedByURL = getManagedByURL(appSet);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
+    const appSetPath = `/${AppUtils.getAppUrl(appSet)}`;
+    const view = pref.appDetails.view;
+    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
+
+    const handleTileClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) {
+            return;
+        }
+        e.preventDefault();
+        ctx.navigation.goto(appSetPath, {view}, {event: e});
+    };
+
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (favList?.includes(appSet.metadata.name)) {
@@ -61,7 +73,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
         <div
             ref={tileRef}
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div className='row applications-tiles__wrapper' onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`, {view: pref.appDetails.view}, {event: e})}>
+            <a className='row applications-tiles__wrapper' href={appSetHref} onClick={handleTileClick}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(appSet)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
@@ -158,7 +170,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                         <div className='columns small-9'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
     );
 };

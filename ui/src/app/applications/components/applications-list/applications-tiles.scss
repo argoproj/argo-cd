@@ -8,6 +8,13 @@
 
     &__wrapper {
         height: 100%;
+        color: inherit;
+        text-decoration: none;
+
+        &:hover, &:focus, &:visited, &:active {
+            color: inherit;
+            text-decoration: none;
+        }
     }
 
     &__item {

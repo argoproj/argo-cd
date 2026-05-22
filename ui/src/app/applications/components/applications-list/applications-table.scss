@@ -22,6 +22,16 @@
         }
     }
 
+    .applications-list__table-row {
+        color: inherit;
+        text-decoration: none;
+
+        &:hover, &:focus, &:visited, &:active {
+            color: inherit;
+            text-decoration: none;
+        }
+    }
+
     .applications-list__table-row.applications-table-row--with-hydrator {
         .columns.small-4,
         .columns.small-6 {
