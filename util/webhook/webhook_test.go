@@ -132,7 +132,7 @@ func NewMockHandlerForADOCallback(reactor *reactorDef, applicationNamespaces []s
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
 		[]*v1alpha1.Repository{
 			{
-				Repo:     "https://dev.azure.com/alexander0053/alex-test/_git/alex-test",
+				Repo:     "https://dev.azure.com/my-org/my-project/_git/my-repo",
 				Username: "test-user",
 				Password: "test-pat",
 			},
@@ -145,9 +145,9 @@ func NewMockHandlerForADOCallback(reactor *reactorDef, applicationNamespaces []s
 func NewMockHandlerForADOCredsTemplateCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	mockDB := &mocks.ArgoDB{}
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil)
-	mockDB.EXPECT().GetRepositoryCredentials(mock.Anything, "https://dev.azure.com/alexander0053/alex-test/_git/alex-test").Return(
+	mockDB.EXPECT().GetRepositoryCredentials(mock.Anything, "https://dev.azure.com/my-org/my-project/_git/my-repo").Return(
 		&v1alpha1.RepoCreds{
-			URL:      "https://dev.azure.com/alexander0053",
+			URL:      "https://dev.azure.com/my-org",
 			Username: "test-user",
 			Password: "test-pat",
 		}, nil)
@@ -230,7 +230,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
+	expectedLogResult := "Received push event repo: https://dev.azure.com/my-org/my-project/_git/my-repo, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
@@ -1412,7 +1412,7 @@ func Test_affectedRevisionInfo_azuredevops_changed_files_via_creds_template(t *t
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	const adoDiffsAPIURL = "https://dev.azure.com/alexander0053/alex-test/_apis/git/repositories/" +
+	const adoDiffsAPIURL = "https://dev.azure.com/my-org/my-project/_apis/git/repositories/" +
 		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
 		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
 		"&baseVersionType=commit" +
@@ -1435,7 +1435,7 @@ func Test_affectedRevisionInfo_azuredevops_changed_files(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	const adoDiffsAPIURL = "https://dev.azure.com/alexander0053/alex-test/_apis/git/repositories/" +
+	const adoDiffsAPIURL = "https://dev.azure.com/my-org/my-project/_apis/git/repositories/" +
 		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
 		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
 		"&baseVersionType=commit" +
@@ -1461,7 +1461,7 @@ func Test_affectedRevisionInfo_azuredevops_multiple_ref_updates(t *testing.T) {
 	// Register mock only for the first refUpdate's SHAs. If the code were to call
 	// the API with any other SHA pair, httpmock would return "no responder found" and
 	// the test would fail, confirming that only RefUpdates[0] is used.
-	const adoDiffsAPIURL = "https://dev.azure.com/alexander0053/alex-test/_apis/git/repositories/" +
+	const adoDiffsAPIURL = "https://dev.azure.com/my-org/my-project/_apis/git/repositories/" +
 		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
 		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
 		"&baseVersionType=commit" +
@@ -1655,8 +1655,8 @@ func TestParseADOBaseURL(t *testing.T) {
 		},
 		{
 			name:        "real-world ADO URL",
-			repoURL:     "https://dev.azure.com/alexander0053/alex-test/_git/alex-test",
-			expectedURL: "https://dev.azure.com/alexander0053/alex-test",
+			repoURL:     "https://dev.azure.com/my-org/my-project/_git/my-repo",
+			expectedURL: "https://dev.azure.com/my-org/my-project",
 		},
 		{
 			name:        "legacy visualstudio.com URL",
