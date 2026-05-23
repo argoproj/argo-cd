@@ -80,6 +80,12 @@ func TestIntFlagAtEnd(t *testing.T) {
 	assert.Equal(t, 2, GetIntFlag("foo", 0))
 }
 
+func TestIntFlagFallbackWhenMissing(t *testing.T) {
+	loadOpts(t, "--bar baz")
+
+	assert.Equal(t, 7, GetIntFlag("foo", 7))
+}
+
 func TestStringSliceFlag(t *testing.T) {
 	loadOpts(t, "--header='Content-Type: application/json; charset=utf-8,Strict-Transport-Security: max-age=31536000'")
 	strings := GetStringSliceFlag("header", []string{})
@@ -111,6 +117,21 @@ func TestStringSliceFlagAtEnd(t *testing.T) {
 
 	assert.Len(t, strings, 1)
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
+}
+
+func TestStringSliceFlagFallbackWhenMissing(t *testing.T) {
+	loadOpts(t, "--foo bar")
+	strings := GetStringSliceFlag("header", []string{"fallback"})
+
+	assert.Equal(t, []string{"fallback"}, strings)
+}
+
+func TestStringSliceFlagEmptyWhenPresentWithoutValues(t *testing.T) {
+	loadOpts(t, "")
+	flags["header"] = nil
+	strings := GetStringSliceFlag("header", []string{"fallback"})
+
+	assert.Empty(t, strings)
 }
 
 func TestFlagAtStart(t *testing.T) {
