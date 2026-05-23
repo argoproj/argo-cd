@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -632,6 +633,113 @@ func TestInformerEventHandlerForCtx_BailsAfterCancel(t *testing.T) {
 		c.lock.RUnlock()
 		assert.Falsef(t, mutated, "post-cancel %s should not mutate c.resources", step.name)
 	}
+}
+
+// TestEnsureSynced_DoesNotDeadlockWithGetClusterInfo is a regression test
+// for a 4-minute hang observed in TestSyncWithInfos. The deadlock topology
+// (from the goroutine dump) was:
+//
+//	syncInformers goroutine: holds syncStatus.lock, wants c.lock (write)
+//	GetClusterInfo goroutine: holds c.lock (RLock), wants syncStatus.lock
+//
+// EnsureSynced used to hold both c.lock and syncStatus.lock across c.sync().
+// Under informer mode sync() -> syncInformers() releases c.lock for
+// WaitForCacheSync — opening a window where GetClusterInfo can grab
+// c.lock.RLock and then block on syncStatus.lock, which in turn blocks
+// syncInformers from re-acquiring c.lock. Classic lock-order inversion.
+//
+// The fix: drop syncStatus.lock before calling sync() and re-acquire it
+// only to write the result.
+func TestEnsureSynced_DoesNotDeadlockWithGetClusterInfo(t *testing.T) {
+	client := fake.NewSimpleDynamicClient(scheme.Scheme)
+	reactor := client.ReactionChain[0]
+	client.PrependReactor("list", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		handled, ret, err := reactor.React(action)
+		if !handled || err != nil {
+			return handled, ret, err
+		}
+		ret.(metav1.ListInterface).SetResourceVersion("1")
+		return handled, ret, nil
+	})
+
+	iface := NewClusterCache(
+		&rest.Config{Host: "https://test"},
+		SetMode(ModeInformer),
+		SetKubectl(&kubetest.MockKubectlCmd{
+			APIResources:  []kube.APIResourceInfo{podsAPI()},
+			DynamicClient: client,
+		}),
+	)
+	c := iface.(*clusterCache)
+	t.Cleanup(func() { c.Invalidate() })
+
+	// Hammer GetClusterInfo concurrently with EnsureSynced. The first
+	// EnsureSynced builds informers and (under informer mode) releases
+	// c.lock while waiting for HasSynced — the exact window where the
+	// pre-fix deadlock occurred.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = iface.EnsureSynced()
+	}()
+
+	// Drive GetClusterInfo continuously until EnsureSynced returns. If
+	// the deadlock regresses, this test hangs and the testing.T deadline
+	// fires.
+	deadline := time.After(15 * time.Second)
+	for {
+		select {
+		case <-done:
+			// One more call post-sync to confirm we can still read state.
+			_ = iface.GetClusterInfo()
+			return
+		case <-deadline:
+			t.Fatal("EnsureSynced + GetClusterInfo deadlocked")
+		default:
+			_ = iface.GetClusterInfo()
+		}
+	}
+}
+
+// TestInformerEventHandler_InitialListSkipsDispatchEvent verifies that
+// events flagged isInInitialList=true do not fire OnEvent handlers or
+// route through handleCRDEvent. This matches legacy semantics, where the
+// initial state load via replaceResourceCache fires only OnResourceUpdated.
+//
+// Regression for: every CRD in the initial-list flood triggered
+// handleCRDEvent -> reloadOpenAPISchema, flooding logs with
+// "Duplicate GVKs detected in OpenAPI schema" once per existing CRD on
+// every cluster cache sync.
+func TestInformerEventHandler_InitialListSkipsDispatchEvent(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.mode = ModeInformer
+
+	un := unstructuredPod("nginx", "default")
+	cached, err := c.transformForInformer(un)
+	require.NoError(t, err)
+
+	var (
+		eventCount        int
+		resourceUpdatedCt int
+	)
+	c.OnEvent(func(_ watch.EventType, _ *unstructured.Unstructured) {
+		eventCount++
+	})
+	c.OnResourceUpdated(func(_, _ *Resource, _ map[kube.ResourceKey]*Resource) {
+		resourceUpdatedCt++
+	})
+
+	handler := c.informerEventHandlerForCtx(context.Background())
+
+	// Initial-list Add: storage + OnResourceUpdated, no dispatchEvent.
+	handler.OnAdd(cached, true)
+	assert.Equal(t, 0, eventCount, "OnEvent must NOT fire for initial-list events")
+	assert.Equal(t, 1, resourceUpdatedCt, "OnResourceUpdated MUST fire so caller state stays consistent with legacy replaceResourceCache")
+
+	// Real watch event: full dispatch.
+	handler.OnAdd(cached, false)
+	assert.Equal(t, 1, eventCount, "OnEvent must fire for non-initial Add")
+	assert.Equal(t, 2, resourceUpdatedCt, "OnResourceUpdated must continue to fire for non-initial Add")
 }
 
 // TestInvalidate_InformerModeClearsReadStateSnapshot verifies that

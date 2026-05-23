@@ -56,18 +56,24 @@ func (c *clusterCache) informerEventHandler() cache.ResourceEventHandler {
 // -> startMissingWatches -> startInformersForAPILocked would then panic
 // with "assignment to entry in nil map" (informer_lifecycle.go:76).
 func (c *clusterCache) informerEventHandlerForCtx(ctx context.Context) cache.ResourceEventHandler {
-	return cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
+	// DetailedFuncs exposes isInInitialList on Add so we can match legacy
+	// semantics: initial-list resources populate c.resources / indexes (via
+	// dispatchResourceUpdated) but do NOT fire OnEvent handlers or
+	// handleCRDEvent. That avoids reloading the OpenAPI schema once per
+	// CRD on startup — which floods logs with "Duplicate GVKs detected"
+	// when the cluster has many CRDs.
+	return cache.ResourceEventHandlerDetailedFuncs{
+		AddFunc: func(obj any, isInInitialList bool) {
 			if ctx.Err() != nil {
 				return
 			}
-			c.onInformerChange(watch.Added, nil, obj)
+			c.onInformerChange(watch.Added, nil, obj, isInInitialList)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
 			if ctx.Err() != nil {
 				return
 			}
-			c.onInformerChange(watch.Modified, oldObj, newObj)
+			c.onInformerChange(watch.Modified, oldObj, newObj, false)
 		},
 		DeleteFunc: func(obj any) {
 			if ctx.Err() != nil {
@@ -76,21 +82,24 @@ func (c *clusterCache) informerEventHandlerForCtx(ctx context.Context) cache.Res
 			if tomb, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 				obj = tomb.Obj
 			}
-			c.onInformerChange(watch.Deleted, obj, nil)
+			c.onInformerChange(watch.Deleted, obj, nil, false)
 		},
 	}
 }
 
 // onInformerChange dispatches a single informer event. It:
 //  1. updates the shared cross-GK indexes (nsIndex + parentUIDToChildren),
-//  2. fires OnEvent handlers and routes CRD events via dispatchEvent,
+//  2. fires OnEvent handlers and routes CRD events via dispatchEvent
+//     (skipped when isInInitialList=true to match legacy semantics — the
+//     legacy initial-state load via replaceResourceCache fires OnNodeUpdated
+//     but never recordEvent/handleCRDEvent),
 //  3. fires OnResourceUpdated handlers with the post-update namespace map.
 //
 // Under informer mode the informer's own store is the source of truth
 // for single-key lookups, so we do not write to c.resources. The cross-GK
 // indexes are not derivable from per-GK informer indexers and must be
 // maintained here.
-func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj any) {
+func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj any, isInInitialList bool) {
 	newCr, _ := newObj.(*cachedResource)
 	oldCr, _ := oldObj.(*cachedResource)
 
@@ -141,6 +150,15 @@ func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj an
 		c.dispatchResourceUpdated(nil, primary.Resource, ns)
 	}
 	c.lock.Unlock()
+
+	// Skip OnEvent + CRD routing for initial-list events so we don't reload
+	// the OpenAPI schema once per existing CRD at startup. Legacy
+	// loadInitialState populates state without firing dispatchEvent —
+	// matched here. Genuine watch events (post-initial Add, Update, Delete)
+	// continue to flow through dispatchEvent normally.
+	if isInInitialList {
+		return
+	}
 
 	// OnEvent handlers and CRD routing run WITHOUT c.lock — handleCRDEvent
 	// re-acquires c.lock via runSynced (cluster.go startMissingWatches /

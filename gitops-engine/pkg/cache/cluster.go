@@ -1233,15 +1233,24 @@ func (c *clusterCache) EnsureSynced() error {
 
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	syncStatus.lock.Lock()
-	defer syncStatus.lock.Unlock()
 
 	// before doing any work, check once again now that we have the lock, to see if it got
 	// synced between the first check and now
-	if syncStatus.synced(c.clusterSyncRetryTimeout) {
-		return syncStatus.syncError
+	syncStatus.lock.Lock()
+	alreadySynced := syncStatus.synced(c.clusterSyncRetryTimeout)
+	syncErr := syncStatus.syncError
+	syncStatus.lock.Unlock()
+	if alreadySynced {
+		return syncErr
 	}
+
+	// IMPORTANT: do not hold syncStatus.lock across sync(). Under informer mode
+	// sync() -> syncInformers() releases c.lock while waiting for the initial
+	// informer sync; holding syncStatus.lock across that window deadlocks with
+	// GetClusterInfo (which takes c.lock.RLock first, then syncStatus.lock).
 	err := c.sync()
+	syncStatus.lock.Lock()
+	defer syncStatus.lock.Unlock()
 	syncTime := time.Now()
 	syncStatus.syncTime = &syncTime
 	syncStatus.syncError = err
