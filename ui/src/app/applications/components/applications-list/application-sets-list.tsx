@@ -1,4 +1,5 @@
-import {Autocomplete, MockupList} from 'argo-ui';
+import {Autocomplete, MockupList, Tooltip} from 'argo-ui';
+import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
@@ -13,6 +14,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useObservableQuery, useQuery} from '../../../shared/hooks/query';
 import * as AppUtils from '../utils';
 import {AppSetsFilter, ApplicationSetFilteredApp, getAppSetFilterResults} from './applications-filter';
+import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
@@ -84,7 +86,7 @@ function loadApplicationSets(projects: string[]): Observable<models.ApplicationS
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean}) => React.ReactNode}) => {
     const observableQuery$ = useObservableQuery();
 
     return (
@@ -113,7 +115,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                        return {
+                            ...viewPref,
+                            page: parseInt(params.get('page') || '0', 10),
+                            search: params.get('search') || '',
+                            searchRegex: params.get('searchRegex') === 'true'
+                        };
                     })
                 )
             }>
@@ -125,19 +132,33 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
 function filterApplicationSets(
     appSets: models.ApplicationSet[],
     pref: AppSetsListPreferences,
-    search: string
+    search: string,
+    searchRegex: boolean
 ): {filteredApps: models.ApplicationSet[]; filterResults: ApplicationSetFilteredApp[]} {
     const filterResults = getAppSetFilterResults(appSets, pref);
+    const matchesSearch = createMatcher(search, searchRegex);
 
     return {
         filterResults,
-        filteredApps: filterResults.filter(
-            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
-        )
+        filteredApps: filterResults.filter(app => matchesSearch(app.metadata.name, app.metadata.namespace) && Object.values(app.filterResult).every(val => val))
     };
 }
 
-const ApplicationSetsSearchBar = (props: {content: string; ctx: ContextApis; appSets: models.ApplicationSet[]}) => {
+const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; appSets: models.ApplicationSet[]}) => {
+    const {content, searchRegex, ctx, appSets} = props;
+
+    const regexValid = React.useMemo(() => {
+        if (!searchRegex || !content) {
+            return true;
+        }
+        try {
+            new RegExp(content);
+            return true;
+        } catch {
+            return false;
+        }
+    }, [searchRegex, content]);
+
     const searchBar = React.useRef<HTMLDivElement>(null);
     const {useKeybinding} = React.useContext(KeybindingContext);
     const [isFocused, setFocus] = React.useState(false);
@@ -171,7 +192,12 @@ const ApplicationSetsSearchBar = (props: {content: string; ctx: ContextApis; app
         <Autocomplete
             filterSuggestions={true}
             renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
+                <div
+                    className={classNames('applications-list__search', {
+                        'applications-list__search--regex': searchRegex && regexValid,
+                        'applications-list__search--regex-invalid': searchRegex && !regexValid
+                    })}
+                    ref={searchBar}>
                     <i
                         className='fa fa-search'
                         style={{marginRight: '9px', cursor: 'pointer'}}
@@ -191,11 +217,25 @@ const ApplicationSetsSearchBar = (props: {content: string; ctx: ContextApis; app
                         }}
                         style={{fontSize: '14px'}}
                         className='argo-field'
-                        placeholder='Search application sets...'
+                        placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search application sets...'}
                     />
+                    <Tooltip
+                        content={searchRegex ? (regexValid ? 'Regex search enabled, click to switch to plain text' : 'Invalid regex pattern') : 'Click to enable regex search'}>
+                        <button
+                            type='button'
+                            aria-label='Toggle regex search'
+                            aria-pressed={searchRegex}
+                            className={classNames('applications-list__regex-toggle', {
+                                'applications-list__regex-toggle--active': searchRegex,
+                                'applications-list__regex-toggle--invalid': searchRegex && !regexValid
+                            })}
+                            onClick={() => ctx.navigation.goto('.', {searchRegex: !searchRegex || null}, {replace: true})}>
+                            .*
+                        </button>
+                    </Tooltip>
                     <div className='keyboard-hint'>/</div>
-                    {props.content && (
-                        <i className='fa fa-times' onClick={() => props.ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
+                    {content && (
+                        <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
                     )}
                 </div>
             )}
@@ -206,32 +246,34 @@ const ApplicationSetsSearchBar = (props: {content: string; ctx: ContextApis; app
                 </React.Fragment>
             )}
             onSelect={val => {
-                const selectedAppSet = props.appSets?.find(appSet => {
+                const selectedAppSet = appSets?.find(appSet => {
                     const qualifiedName = AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
                     return qualifiedName === val;
                 });
                 if (selectedAppSet) {
-                    props.ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedAppSet)}`);
+                    ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedAppSet)}`);
                 }
             }}
-            onChange={e => props.ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
-            value={props.content || ''}
-            items={props.appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
+            onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+            value={content || ''}
+            items={appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
         />
     );
 };
 
 const ApplicationSetsToolbar = (props: {
     appSets: models.ApplicationSet[];
-    pref: AppsListPreferences & {page: number; search: string};
+    pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean};
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }) => {
+    // Read searchRegex from the URL rather than from pref: the surrounding DataLoader caches its
+    // children, so the toggle state has to come from a reactive source for the SearchBar to re-render.
     const query = useQuery();
 
     return (
         <React.Fragment key='appset-list-tools'>
-            <ApplicationSetsSearchBar content={query.get('search')} appSets={props.appSets} ctx={props.ctx} />
+            <ApplicationSetsSearchBar content={query.get('search')} searchRegex={query.get('searchRegex') === 'true'} appSets={props.appSets} ctx={props.ctx} />
             <ViewTypeSwitcher pref={props.pref} ctx={props.ctx} healthBarPrefs={props.healthBarPrefs} />
         </React.Fragment>
     );
@@ -438,7 +480,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                             statusBarView: pref.statusBarView,
                                             annotationsFilter: pref.annotationsFilter
                                         };
-                                        const {filteredApps, filterResults} = filterApplicationSets(appSets, appSetPref, pref.search);
+                                        const {filteredApps, filterResults} = filterApplicationSets(appSets, appSetPref, pref.search, pref.searchRegex);
 
                                         return (
                                             <React.Fragment>
