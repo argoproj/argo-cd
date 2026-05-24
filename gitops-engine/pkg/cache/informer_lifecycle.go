@@ -148,11 +148,24 @@ func (c *clusterCache) syncInformers() error {
 		}
 	}
 
-	var hasSyncedFns []cache.InformerSynced
-	for _, meta := range c.apisMeta {
-		for _, si := range meta.informers {
-			hasSyncedFns = append(hasSyncedFns, si.informer.HasSynced)
+	// Snapshot (gk, ns, HasSynced) before releasing c.lock. A concurrent
+	// Invalidate sets c.apisMeta = nil mid-wait; re-reading c.apisMeta after
+	// re-acquiring the lock would yield an empty pending list and a
+	// misleading "did not complete initial list within Xs: []" error.
+	type watchedInformer struct {
+		gk        schema.GroupKind
+		ns        string
+		hasSynced cache.InformerSynced
+	}
+	var watched []watchedInformer
+	for gk, meta := range c.apisMeta {
+		for ns, si := range meta.informers {
+			watched = append(watched, watchedInformer{gk: gk, ns: ns, hasSynced: si.informer.HasSynced})
 		}
+	}
+	hasSyncedFns := make([]cache.InformerSynced, 0, len(watched))
+	for _, w := range watched {
+		hasSyncedFns = append(hasSyncedFns, w.hasSynced)
 	}
 
 	// Bound the wait by clusterSyncRetryTimeout so a single broken API
@@ -174,28 +187,35 @@ func (c *clusterCache) syncInformers() error {
 	synced := cache.WaitForCacheSync(waitCtx.Done(), hasSyncedFns...)
 	c.lock.Lock()
 
-	if !synced {
-		// Return an error so callers don't operate against a partially
-		// populated cache. EnsureSynced caches the error for
-		// clusterSyncRetryTimeout, then retries sync() — which tears
-		// these informers down and starts fresh. Stricter than legacy
-		// (which silently drops forbidden GVRs from apisMeta and reports
-		// success), but it prevents app reconciliation from running
-		// against a half-loaded cluster view. Future work: lazy GVK
-		// loading so a single broken GVR only fails apps that reference
-		// it instead of the whole cluster.
-		var pending []string
-		for gk, meta := range c.apisMeta {
-			for ns, si := range meta.informers {
-				if !si.informer.HasSynced() {
-					pending = append(pending, fmt.Sprintf("%s[%s]", gk, namespaceDescription(ns)))
-				}
-			}
-		}
-		return fmt.Errorf("informers did not complete initial list within %s: %v", c.clusterSyncRetryTimeout, pending)
+	if synced {
+		c.log.Info("Cluster successfully synced (informer mode)")
+		return nil
 	}
-	c.log.Info("Cluster successfully synced (informer mode)")
-	return nil
+
+	// Invalidate is the only caller that nils c.apisMeta, and it can only
+	// run during the c.lock.Unlock() window above. Treat it as a distinct
+	// transient condition so the cached "did not complete initial list"
+	// error doesn't suppress the immediate re-sync that should follow.
+	if c.apisMeta == nil {
+		return fmt.Errorf("cluster cache invalidated during initial informer sync")
+	}
+
+	// Return an error so callers don't operate against a partially
+	// populated cache. EnsureSynced caches the error for
+	// clusterSyncRetryTimeout, then retries sync() — which tears
+	// these informers down and starts fresh. Stricter than legacy
+	// (which silently drops forbidden GVRs from apisMeta and reports
+	// success), but it prevents app reconciliation from running
+	// against a half-loaded cluster view. Future work: lazy GVK
+	// loading so a single broken GVR only fails apps that reference
+	// it instead of the whole cluster.
+	var pending []string
+	for _, w := range watched {
+		if !w.hasSynced() {
+			pending = append(pending, fmt.Sprintf("%s[%s]", w.gk, namespaceDescription(w.ns)))
+		}
+	}
+	return fmt.Errorf("informers did not complete initial list within %s: %v", c.clusterSyncRetryTimeout, pending)
 }
 
 // buildInformer creates a SharedIndexInformer wired with the cluster cache's

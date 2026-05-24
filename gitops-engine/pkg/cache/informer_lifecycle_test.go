@@ -742,6 +742,87 @@ func TestInformerEventHandler_InitialListSkipsDispatchEvent(t *testing.T) {
 	assert.Equal(t, 2, resourceUpdatedCt, "OnResourceUpdated must continue to fire for non-initial Add")
 }
 
+// TestSyncInformers_InvalidateDuringWaitReportsTransient verifies that an
+// Invalidate firing during syncInformers' WaitForCacheSync window surfaces
+// as a distinct "invalidated mid-sync" error rather than the misleading
+// "informers did not complete initial list within Xs: []" message that
+// resulted from re-reading c.apisMeta (which Invalidate had just nil'd)
+// after the wait.
+//
+// Repro: Invalidate is the only writer that sets c.apisMeta = nil, and it
+// can only run during the c.lock.Unlock() window inside syncInformers.
+// Before the fix, the pending list was rebuilt from c.apisMeta after the
+// re-Lock and was therefore empty; callers got an opaque "[]" error and
+// EnsureSynced cached it for clusterSyncRetryTimeout, blocking
+// re-sync.
+func TestSyncInformers_InvalidateDuringWaitReportsTransient(t *testing.T) {
+	client := fake.NewSimpleDynamicClient(scheme.Scheme, unstructuredPod("nginx", "default"))
+	defaultReactor := client.ReactionChain[0]
+
+	// Block the first list so syncInformers reaches WaitForCacheSync with an
+	// unsynced informer. Subsequent list calls (post-Invalidate retries from
+	// the reflector) fall through and behave normally.
+	listEntered := make(chan struct{})
+	listProceed := make(chan struct{})
+	var listOnce bool
+	client.PrependReactor("list", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+		if !listOnce {
+			listOnce = true
+			close(listEntered)
+			<-listProceed
+		}
+		handled, ret, err := defaultReactor.React(action)
+		if !handled || err != nil {
+			return handled, ret, err
+		}
+		ret.(metav1.ListInterface).SetResourceVersion("1")
+		return handled, ret, nil
+	})
+
+	iface := NewClusterCache(
+		&rest.Config{Host: "https://test"},
+		SetMode(ModeInformer),
+		// Short timeout so even if the wait isn't cut short by Invalidate
+		// detection, the test returns quickly.
+		SetClusterSyncRetryTimeout(500*time.Millisecond),
+		SetKubectl(&kubetest.MockKubectlCmd{
+			APIResources:  []kube.APIResourceInfo{podsAPI()},
+			DynamicClient: client,
+		}),
+	)
+
+	syncErr := make(chan error, 1)
+	go func() { syncErr <- iface.EnsureSynced() }()
+
+	// Wait until the reflector is blocked in our list reactor — at this
+	// point syncInformers has released c.lock and is sitting in
+	// WaitForCacheSync.
+	select {
+	case <-listEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("informer's initial List was never invoked")
+	}
+
+	// Invalidate while syncInformers is waiting. This nils c.apisMeta
+	// before we re-acquire the lock in syncInformers.
+	iface.Invalidate()
+
+	// Let the original list complete so the reflector goroutine can exit
+	// cleanly (its context is already canceled by Invalidate).
+	close(listProceed)
+
+	select {
+	case err := <-syncErr:
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalidated",
+			"Invalidate-during-sync should surface as a transient error, not %q", err.Error())
+		assert.NotContains(t, err.Error(), "[]",
+			"empty pending list indicates we re-read c.apisMeta after Invalidate cleared it")
+	case <-time.After(3 * time.Second):
+		t.Fatal("EnsureSynced did not return after Invalidate")
+	}
+}
+
 // TestInvalidate_InformerModeClearsReadStateSnapshot verifies that
 // Invalidate wipes c.resources / c.nsIndex / c.parentUIDToChildren under
 // informer mode. These are the read-path source of truth for
