@@ -6,6 +6,10 @@ Argo CD exposes different sets of Prometheus metrics per server.
 
 Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoint.
 
+Single-replica `application-controller` installs can continue scraping `argocd-metrics:8082/metrics`.
+
+For sharded or multi-replica `application-controller` deployments, scrape every controller pod or endpoint. Scraping the `argocd-metrics` ClusterIP or service DNS name from a static config may hit only one backend and miss metrics from other shards. See [High Availability](./high_availability.md#argocd-application-controller) for controller sharding configuration.
+
 | Metric                                            |   Type    | Description                                                                                                                                 |
 | ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `argocd_app_info`                                 |   gauge   | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in Argo CD. |
@@ -290,6 +294,7 @@ Scraped at the `argocd-commit-server:8087/metrics` endpoint.
 
 If using Prometheus Operator, the following ServiceMonitor example manifests can be used.
 Add a namespace where Argo CD is installed and change `metadata.labels.release` to the name of label selected by your Prometheus.
+`ServiceMonitor` endpoint discovery scrapes all matching Service endpoints, so the `argocd-metrics` example collects metrics from every `application-controller` pod when the Service selector targets all controller replicas. For non-Operator scrapers (e.g. Telegraf, Grafana Agent), use Kubernetes pod or endpoint discovery rather than a ClusterIP target.
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
