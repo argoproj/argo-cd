@@ -185,6 +185,12 @@ func TestMaxVersion_WithTagPrefix(t *testing.T) {
 		assert.Equal(t, "prod/v1.0.0", version)
 	})
 
+	t.Run("non-semver non-constraint with prefix returns error", func(t *testing.T) {
+		_, err := MaxVersion("main", prefixedTags, "prod/")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "requires targetRevision to be a semver constraint")
+	})
+
 	t.Run("non-matching prefix returns error", func(t *testing.T) {
 		_, err := MaxVersion("v1.0.*", prefixedTags, "dev/")
 		require.Error(t, err)
