@@ -23,6 +23,7 @@ argocd app actions run APPNAME ACTION [flags]
 
 ```
       --all                    Indicates whether to run the action on multiple matching resources
+  -N, --app-namespace string   Namespace of the application
       --group string           Group of the resource on which the action should be run
   -h, --help                   help for run
       --kind string            Kind of the resource on which the action should be run
@@ -33,7 +34,6 @@ argocd app actions run APPNAME ACTION [flags]
 ### Options inherited from parent commands
 
 ```
-  -N, --app-namespace string            Namespace of the application
       --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file

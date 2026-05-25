@@ -21,8 +21,7 @@ argocd app actions [flags]
 ### Options
 
 ```
-  -N, --app-namespace string   Namespace of the application
-  -h, --help                   help for actions
+  -h, --help   help for actions
 ```
 
 ### Options inherited from parent commands
