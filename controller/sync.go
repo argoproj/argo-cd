@@ -426,7 +426,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		gvk := normalizedTarget.GroupVersionKind()
 		hasIgnore, _ := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, normalizedTarget.GetName(), normalizedTarget.GetNamespace())
 		if !hasIgnore {
-			patchedTargets = append(patchedTargets, originalTarget)
+			patchedTargets = append(patchedTargets, normalizedTarget)
 			continue
 		}
 
