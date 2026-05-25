@@ -102,6 +102,34 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_extractLockFilePath(t *testing.T) {
+	assert.Equal(t, "/tmp/repo/.git/shallow.lock", extractLockFilePath(errors.New("fatal: Unable to create '/tmp/repo/.git/shallow.lock': File exists.")))
+	assert.Equal(t, ".git/index.lock", extractLockFilePath(errors.New("fatal: Unable to create '.git/index.lock': File exists.")))
+	assert.Empty(t, extractLockFilePath(errors.New("fatal: repository not found")))
+	assert.Empty(t, extractLockFilePath(errors.New("fatal: File exists.")))
+}
+
+func Test_nativeGitClient_Fetch_StaleLockFile(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	err = client.Init()
+	require.NoError(t, err)
+
+	lockFile := filepath.Join(localDir, ".git", "shallow.lock")
+	require.NoError(t, os.WriteFile(lockFile, []byte{}, 0o600))
+
+	err = client.Fetch("", 1)
+	require.NoError(t, err)
+
+	_, err = os.Stat(lockFile)
+	assert.True(t, os.IsNotExist(err))
+}
+
 func Test_IsAnnotatedTag(t *testing.T) {
 	tempDir := t.TempDir()
 	ctx := t.Context()
