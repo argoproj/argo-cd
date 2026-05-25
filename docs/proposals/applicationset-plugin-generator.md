@@ -95,15 +95,7 @@ data:
 
 Here is a diagram describing what the plugin generator should do to get the params to return:
 
-```mermaid
-sequenceDiagram
-    alt generator is plugin
-    Generator->>K8S: Get configmap {configMapRef}
-    K8S-->>Generator: (url,token)
-    Generator->>Plugin endpoint: POST {url}/v1/generator.getParams<br/>Authorization: Bearer {token}<br/>Content-Type: application/json<br/>{params}
-    Plugin endpoint-->>Generator: []map{string}interface{}
-    end 
-```
+![Reconciliation logic diagram](images/reconciliation-logic-diagram.png)
 
 
 ### Use cases
