@@ -218,9 +218,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
-    if (application.metadata.deletionTimestamp && !appOperationState) {
-        showOperation = null;
-    }
 
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
