@@ -4,5 +4,9 @@ tests:
   inputPath: testdata/datacenter-ok.yaml
 - healthStatus:
     status: Degraded
-    message: "Size in spec and number of nodes in status differ"
-  inputPath: testdata/datacenter-missing-nodestatus.yaml
+    message: "Last transition type was Updating"
+  inputPath: testdata/datacenter-updating.yaml
+- healthStatus:
+    status: Progessing
+    message: "Last transition type was Initialized"
+  inputPath: testdata/datacenter-initialized.yaml

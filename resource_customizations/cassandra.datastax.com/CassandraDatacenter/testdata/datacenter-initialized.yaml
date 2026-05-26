@@ -314,43 +314,25 @@ spec:
 status:
   cassandraOperatorProgress: Ready
   conditions:
-    - lastTransitionTime: '2026-04-28T09:53:02Z'
+    - lastTransitionTime: '2026-04-24T09:19:07Z'
       message: ''
       reason: ''
       status: 'True'
-      type: Healthy
+      type: Initialized
+    - lastTransitionTime: '2026-04-24T09:19:07Z'
+      message: ''
+      reason: ''
+      status: 'True'
+      type: Ready
     - lastTransitionTime: '2026-04-24T09:19:07Z'
       message: ''
       reason: ''
       status: 'False'
-      type: ResizingVolumes
-    - lastTransitionTime: '2026-04-24T09:19:07Z'
-      message: ''
-      reason: ''
-      status: 'False'
-      type: Stopped
-    - lastTransitionTime: '2026-04-24T09:19:07Z'
-      message: ''
-      reason: ''
-      status: 'False'
-      type: ReplacingNodes
+      type: RequiresUpdate
   datacenterName: stage0-test
   lastRollingRestart: '1970-01-01T00:00:01Z'
   lastServerNodeStarted: '2026-04-28T09:53:16Z'
   metadataVersion: 1
-  nodeStatuses:
-    test-cluster-stage0-test-default-sts-0:
-      hostID: 496768dd-512d-4b0f-b50e-2a7eb072a5ca
-      ip: 10.42.2.219
-      rack: default
-    test-cluster-stage0-test-default-sts-1:
-      hostID: 6cae0c2f-3fcc-4db8-9d74-23a51f8103d8
-      ip: 10.42.5.37
-      rack: default
-    test-cluster-stage0-test-default-sts-2:
-      hostID: 2f13119f-8afb-463a-b593-65f4fcd6aa6c
-      ip: 10.42.4.198
-      rack: default
   observedGeneration: 4
   quietPeriod: '2026-05-04T11:31:50Z'
   superUserUpserted: '2026-05-04T11:31:45Z'
