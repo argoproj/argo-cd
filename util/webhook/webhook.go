@@ -61,8 +61,9 @@ const payloadQueueSize = 50000
 const panicMsgServer = "panic while processing api-server webhook event"
 
 const (
-	// adoDiffsAPIVersion is the Azure DevOps REST API version used for the Diffs endpoint.
-	// The api-version parameter is required for all ADO REST calls.
+	// adoDiffsAPIVersion pins the Azure DevOps REST API version for the Diffs endpoint.
+	// The Diffs endpoint documents api-version as a required query parameter, so keep it
+	// explicit instead of relying on undocumented server-side defaults.
 	// See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get?view=azure-devops-rest-7.1
 	adoDiffsAPIVersion = "7.1"
 
