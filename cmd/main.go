@@ -92,7 +92,6 @@ func main() {
 		errMsg, pluginErr := cli.NewDefaultPluginHandler().HandleCommandExecutionError(err, isArgocdCLI, os.Args)
 		if pluginErr != nil {
 			os.Stdout.WriteString(errMsg)
-			// os.Stderr.WriteString(errMsg)
 			var exitErr *exec.ExitError
 			if errors.As(pluginErr, &exitErr) {
 				// Return the actual plugin exit code

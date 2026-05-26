@@ -200,7 +200,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 			for _, policyId := range args[1:] {
 				index, err := strconv.Atoi(policyId)
 				if err != nil {
-					return fmt.Errorf("invalid POLICY_ID '%s'", args[1])
+					return fmt.Errorf("invalid POLICY_ID '%s'", policyId)
 				}
 
 				if index < 0 || index >= originalPolicyCount {
@@ -216,7 +216,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 					idsStr = append(idsStr, strconv.Itoa(i))
 				}
 				sort.Strings(idsStr)
-				prompt := fmt.Sprintf("Are you sure you want to delete policie(s) %s from project %q? [y/N] ", strings.Join(idsStr, ", "), projName)
+				prompt := fmt.Sprintf("Are you sure you want to delete policies %s from project %q? [y/N] ", strings.Join(idsStr, ", "), projName)
 				if cli.AskToProceedS(prompt) != "y" {
 					fmt.Fprintln(c.OutOrStdout(), "Aborted by user.")
 					return nil
@@ -520,29 +520,31 @@ func warnOnProblems(c *cobra.Command, policy *v1alpha1.SourceIntegrityGitPolicy,
 	if len(policy.Repos) == 0 {
 		_, _ = fmt.Fprintln(stderr, "Warning: Policy has no repository URLs and will never be used")
 	}
-	if policy.GPG != nil && len(policy.GPG.Keys) == 0 {
-		_, _ = fmt.Fprintln(stderr, "Warning: Policy has no GPG keys and will never validate any revision")
-	} else {
-		absent := make(map[string]any)
-		for _, key := range policy.GPG.Keys {
-			absent[key] = nil
-		}
+	if policy.GPG != nil {
+		if len(policy.GPG.Keys) == 0 {
+			_, _ = fmt.Fprintln(stderr, "Warning: Policy has no GPG keys and will never validate any revision")
+		} else {
+			absent := make(map[string]any)
+			for _, key := range policy.GPG.Keys {
+				absent[key] = nil
+			}
 
-		keyring, err := gpgKeyClient.List(c.Context(), &gpgkey.GnuPGPublicKeyQuery{})
-		if err != nil {
-			return fmt.Errorf("failed listing GPG keys: %w", err)
-		}
-		for _, keyringKey := range keyring.Items {
-			delete(absent, keyringKey.KeyID)
-		}
+			keyring, err := gpgKeyClient.List(c.Context(), &gpgkey.GnuPGPublicKeyQuery{})
+			if err != nil {
+				return fmt.Errorf("failed listing GPG keys: %w", err)
+			}
+			for _, keyringKey := range keyring.Items {
+				delete(absent, keyringKey.KeyID)
+			}
 
-		if len(absent) != 0 {
-			absentKeys := slices.Collect(maps.Keys(absent))
-			slices.Sort(absentKeys)
-			_, _ = fmt.Fprintf(stderr,
-				"Warning: Following GPG keys are not in repo-server keyring: %s\n",
-				strings.Join(absentKeys, ", "),
-			)
+			if len(absent) != 0 {
+				absentKeys := slices.Collect(maps.Keys(absent))
+				slices.Sort(absentKeys)
+				_, _ = fmt.Fprintf(stderr,
+					"Warning: Following GPG keys are not in repo-server keyring: %s\n",
+					strings.Join(absentKeys, ", "),
+				)
+			}
 		}
 	}
 
