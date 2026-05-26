@@ -125,7 +125,10 @@ actionTests:
 
   - action: scale
     inputPath: testdata/deployment.yaml
-    expectedErrorMessage: "invalid number: not_a_number"
+    expectedErrorMessage: "replicas parameter is required"
+
+  - action: scale
+    inputPath: testdata/deployment.yaml
+    expectedErrorMessage: "invalid number: not_a_number (must be >= 0)"
     parameters:
       replicas: "not_a_number"
-

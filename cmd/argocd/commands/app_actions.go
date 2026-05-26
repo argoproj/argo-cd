@@ -150,6 +150,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var kind string
 	var group string
 	var all bool
+	var params []string
 	command := &cobra.Command{
 		Use:   "run APPNAME ACTION",
 		Short: "Runs an available action on resource(s) matching the specified filters.",
@@ -167,6 +168,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	command.Flags().StringVar(&group, "group", "", "Group of the resource on which the action should be run")
 	errors.CheckError(command.MarkFlagRequired("kind"))
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
+	command.Flags().StringArrayVar(&params, "param", []string{}, "Action parameter in key=value format (e.g. replicas=2). This flag may be repeated")
 
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
@@ -191,20 +193,23 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			}
 		}
 
+		parsedParams, err := util.ParseActionParameters(params)
+		errors.CheckError(err)
+
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
 			objResourceName := obj.GetName()
 			_, err := appIf.RunResourceActionV2(ctx, &applicationpkg.ResourceActionRunRequestV2{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Namespace:    new(obj.GetNamespace()),
-				ResourceName: new(objResourceName),
-				Group:        new(gvk.Group),
-				Kind:         new(gvk.Kind),
-				Version:      new(gvk.GroupVersion().Version),
-				Action:       new(actionName),
-				// TODO: add support for parameters
+				Name:                     &appName,
+				AppNamespace:             &appNs,
+				Namespace:                new(obj.GetNamespace()),
+				ResourceName:             new(objResourceName),
+				Group:                    new(gvk.Group),
+				Kind:                     new(gvk.Kind),
+				Version:                  new(gvk.GroupVersion().Version),
+				Action:                   new(actionName),
+				ResourceActionParameters: parsedParams,
 			})
 			if err == nil {
 				continue
@@ -213,6 +218,9 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 				errors.CheckError(err)
 			}
 			fmt.Println("RunResourceActionV2 is not supported by the server, falling back to RunResourceAction.")
+			if len(parsedParams) > 0 {
+				fmt.Fprintln(os.Stderr, "Warning: --param flags are not supported by this server version and will be ignored.")
+			}
 			//nolint:staticcheck // RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 			_, err = appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,

@@ -18,3 +18,12 @@ This enables users to scale resources directly from the Argo CD UI. Users will b
 > [!NOTE]
 > If you use HPA (Horizontal Pod Autoscaling) or enabled Argo CD auto-sync, changing the replica count in scale actions would be overwritten.
 > Ensure that invalid values (e.g., `non-numeric` characters, `negative` numbers, or values beyond the `max integer limit`) cannot be entered.
+
+## CLI Usage
+
+You can also scale resources from the CLI using the `--param` flag:
+
+```bash
+argocd app actions run APPNAME scale --kind Deployment --resource-name RESOURCE_NAME --param replicas=2
+argocd app actions run APPNAME scale --kind StatefulSet --resource-name RESOURCE_NAME --param replicas=3
+```
