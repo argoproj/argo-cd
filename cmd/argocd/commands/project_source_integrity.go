@@ -7,7 +7,6 @@ import (
 	"maps"
 	"os"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -215,7 +214,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 				for i := range maps.Keys(idsToDelete) {
 					idsStr = append(idsStr, strconv.Itoa(i))
 				}
-				sort.Strings(idsStr)
+				slices.Sort(idsStr)
 				prompt := fmt.Sprintf("Are you sure you want to delete policies %s from project %q? [y/N] ", strings.Join(idsStr, ", "), projName)
 				if cli.AskToProceedS(prompt) != "y" {
 					fmt.Fprintln(c.OutOrStdout(), "Aborted by user.")
