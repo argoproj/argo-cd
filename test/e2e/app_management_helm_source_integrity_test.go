@@ -127,6 +127,68 @@ func TestTraditionalHelmSourceIntegrityProvenanceMirrorAllFail(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "2 URL(s)"))
 }
 
+// TestHelmSourceIntegrityEmptyKeysFailsWhenChartSigned verifies that provenance is enforced when
+// keys is empty: a signed chart whose signer is in the keyring but not in the allowlist is rejected.
+func TestHelmSourceIntegrityEmptyKeysFailsWhenChartSigned(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		GPGPublicKeyAdded().
+		Sleep(2).
+		HelmProvenanceRepoAdded("helm-provenance-empty-keys-signed").
+		Name("helm-prov-empty-keys-signed-fail").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity()).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        helmProvenanceLocalRepoURL(),
+				Chart:          helmProvChart,
+				TargetRevision: helmProvChartV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-prov-empty-keys-signed-fail"},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key")).
+		Expect(Condition(ApplicationConditionComparisonError, "key_id="+fixture.GpgGoodKeyID))
+}
+
+// TestHelmSourceIntegrityEmptyKeysFailsWhenProvenanceMissing verifies that provenance is enforced
+// when keys is empty: a chart with no fetchable .prov fails before signer allowlist checks.
+func TestHelmSourceIntegrityEmptyKeysFailsWhenProvenanceMissing(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		GPGPublicKeyAdded().
+		Sleep(2).
+		HelmProvenanceRepoAdded("helm-provenance-empty-keys-unsigned").
+		Name("helm-prov-empty-keys-unsigned-fail").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity()).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        helmProvenanceLocalRepoURL(),
+				Chart:          helmProvChart,
+				TargetRevision: helmProvMirrorAllFailChartV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-prov-empty-keys-unsigned-fail"},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification")).
+		Expect(Condition(ApplicationConditionComparisonError, "failed to fetch provenance"))
+}
+
 func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
@@ -441,14 +503,8 @@ func appProjectWithHelmSourceIntegrityNoVerification() AppProjectSpec {
 		SourceRepos:      []string{"*"},
 		SourceNamespaces: []string{"*"},
 		Destinations:     []ApplicationDestination{{Namespace: "*", Server: "*"}},
-		SourceIntegrity: &SourceIntegrity{
-			Helm: &SourceIntegrityHelm{
-				Policies: []*SourceIntegrityHelmPolicy{{
-					Repos:      []SourceIntegrityHelmPolicyRepo{{URL: "*"}},
-					Provenance: &SourceIntegrityHelmPolicyProvenance{Keys: []string{}},
-				}},
-			},
-		},
+		// No sourceIntegrity.helm: the CRD requires provenance on each Helm policy, and empty
+		// keys still run HELM/PROVENANCE. Omitting helm policies is how apps skip provenance checks.
 	}
 }
 

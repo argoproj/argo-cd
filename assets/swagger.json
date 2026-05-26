@@ -10772,7 +10772,7 @@
       }
     },
     "v1alpha1SourceIntegrityHelmPolicyProvenance": {
-      "description": "SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).\nWhen Keys is non-empty, requires a .prov file, valid signature from an allowed key, and chart checksum match.\nWhen Keys is empty, provenance verification is not performed for matching repos.",
+      "description": "SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).\nWhen a matching policy defines provenance verification, the chart must be signed\nby one of the configured keys. An empty key list does not disable verification;\nTo disable provenance verification, omit the provenance configuration or use a non-matching repo glob.",
       "type": "object",
       "properties": {
         "keys": {

@@ -21,7 +21,7 @@ func hasHelmProvenanceCriteriaForSource(si *v1alpha1.SourceIntegrity, source v1a
 	}
 	policies := findMatchingHelmPolicies(si.Helm, source.RepoURL)
 	for _, p := range policies {
-		if p.Provenance != nil && len(p.Provenance.Keys) > 0 {
+		if p.Provenance != nil {
 			return true
 		}
 	}
@@ -33,7 +33,7 @@ const CheckNameHelmProvenance = "HELM/PROVENANCE"
 
 // VerifyHelm verifies Helm chart provenance when a matching policy requires it.
 // chartContent is the raw .tgz bytes; provContent is the .prov file (may be nil if missing); chartFilename is e.g. "mychart-1.0.0.tgz".
-// Returns nil when no policy matches or mode is none; otherwise returns a check result (HELM/PROVENANCE).
+// Returns nil when no policy matches or provenance is not configured; otherwise returns a check result (HELM/PROVENANCE).
 func VerifyHelm(ctx context.Context, si *v1alpha1.SourceIntegrity, repoURL string, chartContent []byte, provContent []byte, chartFilename string) (*v1alpha1.SourceIntegrityCheckResult, error) {
 	policy, earlyResult := resolveHelmProvenancePolicy(si, repoURL)
 	if earlyResult != nil {
@@ -53,7 +53,6 @@ func VerifyHelm(ctx context.Context, si *v1alpha1.SourceIntegrity, repoURL strin
 // or provenance data cannot be retrieved for verification.
 // Policy resolution follows resolveHelmProvenancePolicy, including handling:
 //   - multiple matching policies,
-//   - unsupported provenance modes,
 //   - or no matching provenance policy.
 //
 // If no provenance policy applies, the function returns nil.
@@ -96,7 +95,7 @@ func resolveHelmProvenancePolicy(si *v1alpha1.SourceIntegrity, repoURL string) (
 		return nil, helmProvenanceResult([]string{msg})
 	}
 	policy := policies[0]
-	if policy.Provenance == nil || len(policy.Provenance.Keys) == 0 {
+	if policy.Provenance == nil {
 		return nil, nil
 	}
 	return policy, nil

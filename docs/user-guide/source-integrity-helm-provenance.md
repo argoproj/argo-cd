@@ -228,9 +228,11 @@ spec:
 |-------|---------|
 | `keys` | Allowed signer key IDs (short or long form). Keys must be present in the repo-server GnuPG keyring. |
 
-When `keys` is non-empty for a matching policy, Argo CD requires provenance verification to succeed before sync.
+When a matching policy includes `provenance`, Argo CD requires verification to succeed before sync: `.prov` must be present, the signature must verify, the signer must be listed in `keys`, and the chart digest must match.
 
-When `keys` is empty, provenance verification is not performed for repositories matched by that policy (useful when you want the policy slot but no cryptographic check yet).
+When `keys` is empty, verification still runs but no signer is trusted. Sync fails if `.prov` is missing, or with `signed with unallowed key` if the chart is signed. Configure at least one trusted key ID to allow sync.
+
+To skip Helm provenance checks for a project, do not configure `sourceIntegrity.helm` (or use a project without `sourceIntegrity`). Each Helm policy requires a `provenance` block in the CRD.
 
 ## Sync failures and check results
 
@@ -288,7 +290,7 @@ OCI Helm charts:
 - Inspect the manifest (see [Verifying an OCI chart has a provenance layer](#verifying-an-oci-chart-has-a-provenance-layer)).
 - Confirm the chart was published with provenance (`helm package --sign` or equivalent).
 
-Fix: Use a signed chart release, or set `provenance.keys: []` on the policy if you intentionally want to skip verification for that repo pattern.
+Fix: Use a signed chart release, or use a project without `sourceIntegrity.helm` if you intentionally want to skip verification for that repo.
 
 #### `provenance signature verification failed`
 
@@ -334,37 +336,3 @@ Fix: Check repo-server logs, repository credentials, and that `helm pull` / OCI 
 Cause: More than one `sourceIntegrity.helm` policy matches the application's `repoURL`.
 
 Fix: Narrow `repos` globs so exactly one policy matches.
-
-## Upgrade and API changes
-
-If you already use [Source Integrity](./source-integrity.md) for Git, extending an `AppProject` is additive.
-
-### `sourceIntegrity` schema
-
-| Change | Description |
-|--------|-------------|
-| **Structure** | `sourceIntegrity` must include **at least one** of `git` or `helm`. An empty `sourceIntegrity: {}` is invalid. |
-| `git` field | Optional (`omitempty`). Omit for Helm-only projects. Git-only projects are unchanged. |
-| `helm` field | Optional. New in 3.5. Omit for Git-only projects. Helm provenance policies when set. |
-| **Valid combinations** | Git-only, Helm-only, or both in the same `AppProject`. |
-
-Example minimal Helm-only project:
-
-```yaml
-spec:
-  sourceIntegrity:
-    helm:
-      policies:
-        - repos:
-            - url: "*"
-          provenance:
-            keys:
-              - "4AEE18F83AFDEB23"
-```
-
-Invalid example (rejected by CRD validation):
-
-```yaml
-spec:
-  sourceIntegrity: {}
-```

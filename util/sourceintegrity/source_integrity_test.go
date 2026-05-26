@@ -587,7 +587,7 @@ func TestVerifyHelmProvenanceRequiredButMissing(t *testing.T) {
 	assert.Contains(t, result.AsError().Error(), "provenance file (.prov) is required but missing")
 }
 
-func TestVerifyHelmReturnsNilWhenKeysEmpty(t *testing.T) {
+func TestVerifyHelmFailsWhenKeysEmptyAndProvenanceMissing(t *testing.T) {
 	si := &v1alpha1.SourceIntegrity{
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
@@ -598,7 +598,52 @@ func TestVerifyHelmReturnsNilWhenKeysEmpty(t *testing.T) {
 	}
 	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte{}, nil, "chart.tgz")
 	require.NoError(t, err)
-	require.Nil(t, result, "empty keys list skips verification, returns nil")
+	require.NotNil(t, result)
+	require.Error(t, result.AsError())
+	assert.Contains(t, result.AsError().Error(), "provenance file (.prov) is required but missing")
+}
+
+func TestVerifyHelmFailsWhenKeysEmptyWithSignedProvenance(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
+				Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{}},
+			}},
+		},
+	}
+
+	orig := helmProvenanceVerifier
+	t.Cleanup(func() { helmProvenanceVerifier = orig })
+	helmProvenanceVerifier = func(_ context.Context, _ []byte) (string, error) {
+		return "C569733D3D05285D", nil
+	}
+	prov := []byte(`-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+files:
+  chart.tgz: sha256:0000000000000000000000000000000000000000000000000000000000000000
+-----BEGIN PGP SIGNATURE-----
+-----END PGP SIGNATURE-----
+`)
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte("chart"), prov, "chart.tgz")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Error(t, result.AsError())
+	assert.Contains(t, result.AsError().Error(), "signed with unallowed key")
+}
+
+func TestVerifyHelmSkipsWhenProvenanceNotConfigured(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{
+		Helm: &v1alpha1.SourceIntegrityHelm{
+			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+				Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://charts.example.com/*"}},
+			}},
+		},
+	}
+	result, err := VerifyHelm(context.Background(), si, "https://charts.example.com/repo", []byte{}, nil, "chart.tgz")
+	require.NoError(t, err)
+	require.Nil(t, result)
 }
 
 func TestHelmProvenanceFetchFailed(t *testing.T) {
