@@ -891,7 +891,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredential
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
 	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
 
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Return().Once()
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return().Once()
 	d.EXPECT().RequestAppRefresh(app.Name, app.Namespace).Return(nil).Once()
 	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
 		Revision: "abc123",
