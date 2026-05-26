@@ -78,6 +78,13 @@ const (
 	testADOShaAfter  = "298a79aa1552799a70718a0ee914d153d5a1a76b"
 )
 
+func newADOWebhookSettings() *settings.ArgoCDSettings {
+	return &settings.ArgoCDSettings{
+		WebhookAzureDevOpsUsername: "webhook-user",
+		WebhookAzureDevOpsPassword: "webhook-pass",
+	}
+}
+
 type roundTripFunc func(req *http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -142,6 +149,10 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 }
 
 func NewMockHandlerForADOCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	return newMockHandlerForADOCallbackWithSettings(reactor, applicationNamespaces, newADOWebhookSettings(), objects...)
+}
+
+func newMockHandlerForADOCallbackWithSettings(reactor *reactorDef, applicationNamespaces []string, argoSettings *settings.ArgoCDSettings, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	mockDB := &mocks.ArgoDB{}
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
 		[]*v1alpha1.Repository{
@@ -153,7 +164,7 @@ func NewMockHandlerForADOCallback(reactor *reactorDef, applicationNamespaces []s
 		}, nil)
 	mockDB.EXPECT().ListRepositoryCredentials(mock.Anything).Return([]string{}, nil).Maybe()
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
-	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, argoSettings, objects...)
 }
 
 func NewMockHandlerForADOCredsTemplateCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
@@ -168,7 +179,7 @@ func NewMockHandlerForADOCredsTemplateCallback(reactor *reactorDef, applicationN
 			NoProxy:  "localhost",
 		}, nil)
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
-	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, newADOWebhookSettings(), objects...)
 }
 
 type fakeAppsLister struct {
@@ -1515,6 +1526,57 @@ func Test_affectedRevisionInfo_azuredevops_changed_files(t *testing.T) {
 	}
 	_, _, _, _, changedFiles := h.affectedRevisionInfo(t.Context(), payload)
 	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
+}
+
+func Test_affectedRevisionInfo_azuredevops_without_webhook_auth_skips_changed_files_lookup(t *testing.T) {
+	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
+	require.NoError(t, err)
+	var payload azuredevops.GitPushEvent
+	require.NoError(t, json.Unmarshal(eventJSON, &payload))
+
+	h := newMockHandlerForADOCallbackWithSettings(nil, []string{}, &settings.ArgoCDSettings{})
+	h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
+		t.Fatal("ADO HTTP client should not be created when Azure DevOps webhook authentication is not configured")
+		return nil
+	}
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(t.Context(), payload)
+	require.Empty(t, changedFiles)
+}
+
+func TestAzureDevOpsWebhookAuthConfigured(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings *settings.ArgoCDSettings
+		expected bool
+	}{
+		{
+			name:     "no username or password",
+			settings: &settings.ArgoCDSettings{},
+			expected: false,
+		},
+		{
+			name:     "username only",
+			settings: &settings.ArgoCDSettings{WebhookAzureDevOpsUsername: "webhook-user"},
+			expected: true,
+		},
+		{
+			name:     "password only",
+			settings: &settings.ArgoCDSettings{WebhookAzureDevOpsPassword: "webhook-pass"},
+			expected: true,
+		},
+		{
+			name:     "username and password",
+			settings: newADOWebhookSettings(),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := &ArgoCDWebhookHandler{settings: tt.settings}
+			require.Equal(t, tt.expected, h.azureDevOpsWebhookAuthConfigured())
+		})
+	}
 }
 
 func Test_affectedRevisionInfo_azuredevops_multiple_ref_updates(t *testing.T) {

@@ -211,6 +211,11 @@ func ParseRevision(ref string) string {
 	return refParts[len(refParts)-1]
 }
 
+func (a *ArgoCDWebhookHandler) azureDevOpsWebhookAuthConfigured() bool {
+	// The Azure DevOps webhook parser requires BasicAuth when either value is configured.
+	return a.settings.GetWebhookAzureDevOpsUsername() != "" || a.settings.GetWebhookAzureDevOpsPassword() != ""
+}
+
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
 func (a *ArgoCDWebhookHandler) affectedRevisionInfo(ctx context.Context, payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
@@ -224,13 +229,17 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(ctx context.Context, payload
 			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
 			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		}
-		changedFiles = append(changedFiles, a.lookupAndFetchADOChangedFiles(
-			ctx,
-			payload.Resource.Repository.RemoteURL,
-			payload.Resource.Repository.ID,
-			change.shaBefore,
-			change.shaAfter,
-		)...)
+		if a.azureDevOpsWebhookAuthConfigured() {
+			changedFiles = append(changedFiles, a.lookupAndFetchADOChangedFiles(
+				ctx,
+				payload.Resource.Repository.RemoteURL,
+				payload.Resource.Repository.ID,
+				change.shaBefore,
+				change.shaAfter,
+			)...)
+		} else {
+			log.Debugf("skipping Azure DevOps changed files lookup for URL %s because Azure DevOps webhook authentication is not configured", payload.Resource.Repository.RemoteURL)
+		}
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
