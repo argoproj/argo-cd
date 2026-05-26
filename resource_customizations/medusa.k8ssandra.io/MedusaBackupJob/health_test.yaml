@@ -1,0 +1,14 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: ""
+  inputPath: testdata/backupjob_not_finished_not_failed.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/backupjob_ok.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed nodes exists"
+  inputPath: testdata/backupjob_failed.yaml
+
