@@ -14,7 +14,7 @@ import (
 
 	"github.com/felixge/httpsnoop"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 

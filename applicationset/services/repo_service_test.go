@@ -28,7 +28,7 @@ func TestGetDirectories(t *testing.T) {
 		repoURL         string
 		revision        string
 		noRevisionCache bool
-		verifyCommit    bool
+		sourceIntegrity *v1alpha1.SourceIntegrity
 	}
 	tests := []struct {
 		name    string
@@ -80,7 +80,7 @@ func TestGetDirectories(t *testing.T) {
 				submoduleEnabled:                tt.fields.submoduleEnabled,
 				getGitDirectoriesFromRepoServer: tt.fields.getGitDirectories,
 			}
-			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.noRevisionCache, tt.args.verifyCommit)
+			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.noRevisionCache, tt.args.sourceIntegrity)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)) {
 				return
 			}
@@ -101,7 +101,7 @@ func TestGetFiles(t *testing.T) {
 		revision        string
 		pattern         string
 		noRevisionCache bool
-		verifyCommit    bool
+		sourceIntegrity *v1alpha1.SourceIntegrity
 	}
 	tests := []struct {
 		name    string
@@ -159,7 +159,7 @@ func TestGetFiles(t *testing.T) {
 				submoduleEnabled:          tt.fields.submoduleEnabled,
 				getGitFilesFromRepoServer: tt.fields.getGitFiles,
 			}
-			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, "", tt.args.noRevisionCache, tt.args.verifyCommit)
+			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, "", tt.args.noRevisionCache, tt.args.sourceIntegrity)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)) {
 				return
 			}

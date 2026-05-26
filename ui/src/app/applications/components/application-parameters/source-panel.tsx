@@ -7,16 +7,8 @@ import {RevisionFormField} from '../../../applications/components/revision-form-
 import {RevisionHelpIcon} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
 import './source-panel.scss';
-
-// This is similar to what is in application-create-panel.tsx. If the create panel
-// is modified to support multi-source apps, then we should refactor and common these up
-const appTypes = new Array<{field: string; type: models.AppSourceType}>(
-    {type: 'Helm', field: 'helm'},
-    {type: 'Kustomize', field: 'kustomize'},
-    {type: 'Directory', field: 'directory'},
-    {type: 'Plugin', field: 'plugin'}
-);
 
 // This is similar to the same function in application-create-panel.tsx. If the create panel
 // is modified to support multi-source apps, then we should refactor and common these up
@@ -74,16 +66,6 @@ export const SourcePanel = (props: {
 }) => {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const appInEdit = deepMerge(DEFAULT_APP, {});
-
-    function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
-        const appToNormalize = formApi.getFormState().values;
-        for (const item of appTypes) {
-            if (item.type !== type) {
-                delete appToNormalize.spec.source[item.field];
-            }
-        }
-        formApi.setAllValues(appToNormalize);
-    }
 
     return (
         <DataLoader key='add-new-source' load={() => Promise.all([services.repos.list()]).then(([reposInfo]) => ({reposInfo}))}>
@@ -384,11 +366,11 @@ export const SourcePanel = (props: {
                                                                 {type} <i className='fa fa-caret-down' />
                                                             </p>
                                                         )}
-                                                        items={appTypes.map(item => ({
+                                                        items={APP_SOURCE_TYPES.map(item => ({
                                                             title: item.type,
                                                             action: () => {
                                                                 setExplicitPathType({type: item.type, path: appInEdit.spec?.source?.path});
-                                                                normalizeTypeFields(api, item.type);
+                                                                normalizeTypeFieldsForSource(api, item.type, undefined);
                                                             }
                                                         }))}
                                                     />

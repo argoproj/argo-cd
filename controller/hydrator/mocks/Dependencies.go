@@ -81,6 +81,102 @@ func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key typ
 	return _c
 }
 
+// EvaluateAppRevisionsChanges provides a mock function for the type Dependencies
+func (_mock *Dependencies) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject, noRevisionCache bool) (bool, string, error) {
+	ret := _mock.Called(ctx, app, source, revision, project, noRevisionCache)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EvaluateAppRevisionsChanges")
+	}
+
+	var r0 bool
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) (bool, string, error)); ok {
+		return returnFunc(ctx, app, source, revision, project, noRevisionCache)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) bool); ok {
+		r0 = returnFunc(ctx, app, source, revision, project, noRevisionCache)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) string); ok {
+		r1 = returnFunc(ctx, app, source, revision, project, noRevisionCache)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) error); ok {
+		r2 = returnFunc(ctx, app, source, revision, project, noRevisionCache)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// Dependencies_EvaluateAppRevisionsChanges_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EvaluateAppRevisionsChanges'
+type Dependencies_EvaluateAppRevisionsChanges_Call struct {
+	*mock.Call
+}
+
+// EvaluateAppRevisionsChanges is a helper method to define mock.On call
+//   - ctx context.Context
+//   - app *v1alpha1.Application
+//   - source v1alpha1.ApplicationSource
+//   - revision string
+//   - project *v1alpha1.AppProject
+//   - noRevisionCache bool
+func (_e *Dependencies_Expecter) EvaluateAppRevisionsChanges(ctx interface{}, app interface{}, source interface{}, revision interface{}, project interface{}, noRevisionCache interface{}) *Dependencies_EvaluateAppRevisionsChanges_Call {
+	return &Dependencies_EvaluateAppRevisionsChanges_Call{Call: _e.mock.On("EvaluateAppRevisionsChanges", ctx, app, source, revision, project, noRevisionCache)}
+}
+
+func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) Run(run func(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject, noRevisionCache bool)) *Dependencies_EvaluateAppRevisionsChanges_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *v1alpha1.Application
+		if args[1] != nil {
+			arg1 = args[1].(*v1alpha1.Application)
+		}
+		var arg2 v1alpha1.ApplicationSource
+		if args[2] != nil {
+			arg2 = args[2].(v1alpha1.ApplicationSource)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 *v1alpha1.AppProject
+		if args[4] != nil {
+			arg4 = args[4].(*v1alpha1.AppProject)
+		}
+		var arg5 bool
+		if args[5] != nil {
+			arg5 = args[5].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) Return(b bool, s string, err error) *Dependencies_EvaluateAppRevisionsChanges_Call {
+	_c.Call.Return(b, s, err)
+	return _c
+}
+
+func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject, noRevisionCache bool) (bool, string, error)) *Dependencies_EvaluateAppRevisionsChanges_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCommitAuthorEmail provides a mock function for the type Dependencies
 func (_mock *Dependencies) GetCommitAuthorEmail() (string, error) {
 	ret := _mock.Called()
@@ -525,25 +621,25 @@ func (_c *Dependencies_GetWriteCredentials_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
-// PersistAppHydratorStatus provides a mock function for the type Dependencies
-func (_mock *Dependencies) PersistAppHydratorStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+// PersistHydrationStatus provides a mock function for the type Dependencies
+func (_mock *Dependencies) PersistHydrationStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 	_mock.Called(orig, newStatus)
 	return
 }
 
-// Dependencies_PersistAppHydratorStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PersistAppHydratorStatus'
-type Dependencies_PersistAppHydratorStatus_Call struct {
+// Dependencies_PersistHydrationStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PersistHydrationStatus'
+type Dependencies_PersistHydrationStatus_Call struct {
 	*mock.Call
 }
 
-// PersistAppHydratorStatus is a helper method to define mock.On call
+// PersistHydrationStatus is a helper method to define mock.On call
 //   - orig *v1alpha1.Application
 //   - newStatus *v1alpha1.SourceHydratorStatus
-func (_e *Dependencies_Expecter) PersistAppHydratorStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistAppHydratorStatus_Call {
-	return &Dependencies_PersistAppHydratorStatus_Call{Call: _e.mock.On("PersistAppHydratorStatus", orig, newStatus)}
+func (_e *Dependencies_Expecter) PersistHydrationStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistHydrationStatus_Call {
+	return &Dependencies_PersistHydrationStatus_Call{Call: _e.mock.On("PersistHydrationStatus", orig, newStatus)}
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistHydrationStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *v1alpha1.Application
 		if args[0] != nil {
@@ -561,12 +657,12 @@ func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha
 	return _c
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) Return() *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) Return() *Dependencies_PersistHydrationStatus_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) RunAndReturn(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) RunAndReturn(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistHydrationStatus_Call {
 	_c.Run(run)
 	return _c
 }

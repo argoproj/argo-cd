@@ -139,7 +139,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 	}
 
 	if tlsCiphersStr == "list" {
-		fmt.Printf("Supported TLS ciphers:\n")
+		fmt.Print("Supported TLS ciphers:\n")
 		for _, s := range tls.CipherSuites() {
 			fmt.Printf("* %s (TLS versions: %s)\n", tls.CipherSuiteName(s.ID), strings.Join(tlsVersionsToStr(s.SupportedVersions), ", "))
 		}

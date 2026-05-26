@@ -43,14 +43,17 @@ func Test_appNeedsHydration(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		app                    *v1alpha1.Application
+		setupMocks             func(*mocks.Dependencies, *v1alpha1.Application)
 		expectedNeedsHydration bool
 		expectedMessage        string
+		expectedResolvedRev    string
 	}{
 		{
 			name:                   "source hydrator not configured",
 			app:                    &v1alpha1.Application{},
 			expectedNeedsHydration: false,
 			expectedMessage:        "source hydrator not configured",
+			expectedResolvedRev:    "",
 		},
 		{
 			name: "no previous hydrate operation",
@@ -59,6 +62,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			},
 			expectedNeedsHydration: true,
 			expectedMessage:        "no previous hydrate operation",
+			expectedResolvedRev:    "",
 		},
 		{
 			name: "operation already in progress",
@@ -68,16 +72,58 @@ func Test_appNeedsHydration(t *testing.T) {
 			},
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration operation already in progress",
+			expectedResolvedRev:    "",
 		},
 		{
-			name: "hydrate requested",
+			name: "hard hydrate requested",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"}},
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "hard"}},
 				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status:     v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated}}},
 			},
 			expectedNeedsHydration: true,
-			expectedMessage:        "hydrate requested",
+			expectedMessage:        "hard hydrate requested",
+			expectedResolvedRev:    "",
+		},
+		{
+			name: "normal hydrate requested with changes",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"}},
+				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation:        &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated, SourceHydrator: v1alpha1.SourceHydrator{}},
+					LastComparedDryRevision: "old-sha",
+				}},
+			},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, true).Return(true, "new-sha", nil)
+			},
+			expectedNeedsHydration: true,
+			expectedMessage:        "new revision may have changes",
+			expectedResolvedRev:    "new-sha",
+		},
+		{
+			name: "normal hydrate requested without changes",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"}},
+				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation:        &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated, SourceHydrator: v1alpha1.SourceHydrator{}},
+					LastComparedDryRevision: "same-sha",
+				}},
+			},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, true).Return(false, "same-sha", nil)
+			},
+			expectedNeedsHydration: false,
+			expectedMessage:        "hydration not needed",
+			expectedResolvedRev:    "same-sha",
 		},
 		{
 			name: "spec.sourceHydrator differs",
@@ -89,6 +135,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			},
 			expectedNeedsHydration: true,
 			expectedMessage:        "spec.sourceHydrator differs",
+			expectedResolvedRev:    "",
 		},
 		{
 			name: "hydration failed more than two minutes ago",
@@ -98,24 +145,114 @@ func Test_appNeedsHydration(t *testing.T) {
 			},
 			expectedNeedsHydration: true,
 			expectedMessage:        "previous hydrate operation failed more than 2 minutes ago",
+			expectedResolvedRev:    "",
 		},
 		{
 			name: "hydrate not needed",
 			app: &v1alpha1.Application{
-				Spec:   v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
-				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{DrySHA: "abc123", StartedAt: now, FinishedAt: &now, Phase: v1alpha1.HydrateOperationPhaseFailed}}},
+				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						DrySHA:         "abc123",
+						StartedAt:      now,
+						FinishedAt:     &now,
+						Phase:          v1alpha1.HydrateOperationPhaseFailed,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+					LastComparedDryRevision: "abc123",
+				}},
+			},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, false).Return(false, "abc123", nil)
 			},
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration not needed",
+			expectedResolvedRev:    "abc123",
+		},
+		{
+			name: "new revision detected",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+					LastComparedDryRevision: "old-sha",
+				}},
+			},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).Return(true, "new-sha", nil)
+			},
+			expectedNeedsHydration: true,
+			expectedMessage:        "new revision may have changes",
+			expectedResolvedRev:    "new-sha",
+		},
+		{
+			name: "no revision change",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+					LastComparedDryRevision: "same-sha",
+				}},
+			},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).Return(false, "same-sha", nil)
+			},
+			expectedNeedsHydration: false,
+			expectedMessage:        "hydration not needed",
+			expectedResolvedRev:    "same-sha",
+		},
+		{
+			name: "evaluate error",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+					LastComparedDryRevision: "old-sha",
+				}},
+			},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).Return(false, "", errors.New("evaluate error"))
+			},
+			expectedNeedsHydration: false,
+			expectedMessage:        "cannot determine if hydration is needed",
+			expectedResolvedRev:    "",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			needsHydration, message := appNeedsHydration(tc.app)
+			h := &Hydrator{}
+			if tc.setupMocks != nil {
+				d := mocks.NewDependencies(t)
+				tc.setupMocks(d, tc.app)
+				h.dependencies = d
+			}
+			needsHydration, message, resolvedRev := h.appNeedsHydration(tc.app)
 			assert.Equal(t, tc.expectedNeedsHydration, needsHydration)
 			assert.Equal(t, tc.expectedMessage, message)
+			assert.Equal(t, tc.expectedResolvedRev, resolvedRev)
 		})
 	}
 }
@@ -386,7 +523,7 @@ func setTestAppPhase(app *v1alpha1.Application, phase v1alpha1.HydrateOperationP
 	return app
 }
 
-func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
+func TestProcessAppHydrateQueueItem_HydrationNeeded_NoCurrentOperation(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	app := newTestApp("test-app")
@@ -395,7 +532,7 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
 	app.Status.SourceHydrator.CurrentOperation = nil
 
 	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		persistedStatus = newStatus
 	}).Return().Once()
 	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
@@ -407,7 +544,7 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
 
 	h.ProcessAppHydrateQueueItem(app)
 
-	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
 
 	require.NotNil(t, persistedStatus)
@@ -415,9 +552,11 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
 	assert.Nil(t, persistedStatus.CurrentOperation.FinishedAt)
 	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrating, persistedStatus.CurrentOperation.Phase)
 	assert.Equal(t, *app.Spec.SourceHydrator, persistedStatus.CurrentOperation.SourceHydrator)
+	// LastComparedDryRevision is not set because we returned early
+	assert.Empty(t, persistedStatus.LastComparedDryRevision)
 }
 
-func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
+func TestProcessAppHydrateQueueItem_HydrationNeeded_HydrationPassedTimeout(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	now := metav1.Now()
@@ -433,7 +572,9 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 			},
 		},
 	}
+
 	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
 
 	h := &Hydrator{
 		dependencies:         d,
@@ -443,10 +584,10 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 	h.ProcessAppHydrateQueueItem(app)
 
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
-	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 }
 
-func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
+func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoSourceHydrator(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	app := newTestApp("test-app")
@@ -459,11 +600,11 @@ func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
 	h.ProcessAppHydrateQueueItem(app)
 
 	// Should not call anything
-	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
 
-func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
+func TestProcessAppHydrateQueueItem_HydrationNotNeeded_AlreadyHydrating(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	now := metav1.Now()
@@ -477,15 +618,83 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
 		},
 	}
 
+	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
+
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
 	}
 	h.ProcessAppHydrateQueueItem(app)
 
-	// Should not call anything
-	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestProcessAppHydrateQueueItem_HydrationNeeded_RevisionChanges(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "old-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+
+	var persistedStatus *v1alpha1.SourceHydratorStatus
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.Anything, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj, mock.Anything).Return(true, "new-sha", nil).Once()
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+		persistedStatus = newStatus
+	}).Return().Once()
+	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
+
+	require.NotNil(t, persistedStatus)
+	assert.NotNil(t, persistedStatus.CurrentOperation.StartedAt)
+	assert.Nil(t, persistedStatus.CurrentOperation.FinishedAt)
+	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrating, persistedStatus.CurrentOperation.Phase)
+	assert.Equal(t, *app.Spec.SourceHydrator, persistedStatus.CurrentOperation.SourceHydrator)
+	assert.Equal(t, "new-sha", persistedStatus.LastComparedDryRevision)
+}
+
+func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoRevisionChanges(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "old-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.Anything, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj, mock.Anything).Return(false, "old-sha", nil).Once()
+	var persisted *v1alpha1.SourceHydratorStatus
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, st *v1alpha1.SourceHydratorStatus) {
+		persisted = st
+	}).Return()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+	require.NotNil(t, persisted)
+	assert.Equal(t, "old-sha", persisted.LastComparedDryRevision)
 }
 
 func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
@@ -505,7 +714,7 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		switch orig.Name {
 		case app1.Name:
 			persistedStatus1 = newStatus
@@ -525,7 +734,7 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 	assert.Contains(t, persistedStatus2.CurrentOperation.Message, "cannot hydrate because application default/test-app has an error")
 	assert.Equal(t, v1alpha1.HydrateOperationPhaseFailed, persistedStatus1.CurrentOperation.Phase)
 
-	d.AssertNumberOfCalls(t, "PersistAppHydratorStatus", 2)
+	d.AssertNumberOfCalls(t, "PersistHydrationStatus", 2)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
 }
 
@@ -549,7 +758,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		switch orig.Name {
 		case app1.Name:
 			persistedStatus1 = newStatus
@@ -569,7 +778,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	assert.Contains(t, persistedStatus2.CurrentOperation.Message, "cannot hydrate because application default/test-app has an error")
 	assert.Equal(t, v1alpha1.HydrateOperationPhaseFailed, persistedStatus1.CurrentOperation.Phase)
 
-	d.AssertNumberOfCalls(t, "PersistAppHydratorStatus", 2)
+	d.AssertNumberOfCalls(t, "PersistHydrationStatus", 2)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
 }
 
@@ -594,7 +803,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		switch orig.Name {
 		case app1.Name:
 			persistedStatus1 = newStatus
@@ -616,7 +825,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	assert.Equal(t, v1alpha1.HydrateOperationPhaseFailed, persistedStatus1.CurrentOperation.Phase)
 	assert.Equal(t, "abc123", persistedStatus1.CurrentOperation.DrySHA)
 
-	d.AssertNumberOfCalls(t, "PersistAppHydratorStatus", 2)
+	d.AssertNumberOfCalls(t, "PersistHydrationStatus", 2)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
 }
 
@@ -634,7 +843,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 
 	// Expect setAppHydratorError to be called
 	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		persistedStatus = newStatus
 	}).Return().Once()
 	d.EXPECT().RequestAppRefresh(app.Name, app.Namespace).Return(nil).Once()
@@ -651,7 +860,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 
 	h.ProcessHydrationQueueItem(hydrationKey)
 
-	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertCalled(t, "RequestAppRefresh", app.Name, app.Namespace)
 	assert.NotNil(t, persistedStatus)
 	assert.Equal(t, app.Status.SourceHydrator.CurrentOperation.StartedAt, persistedStatus.CurrentOperation.StartedAt)
@@ -1195,4 +1404,115 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	assert.Equal(t, "sha123", sha)
 	assert.Equal(t, "hydrated123", hydratedSha)
 	assert.Empty(t, errs)
+}
+
+func Test_newRevisionHasChanges(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                string
+		app                 *v1alpha1.Application
+		setupMocks          func(*mocks.Dependencies, *v1alpha1.Application)
+		expectedResult      bool
+		expectedResolvedRev string
+		expectedError       bool
+	}{
+		{
+			name: "empty last compared dry revision",
+			app: func() *v1alpha1.Application {
+				app := newTestApp("test-app")
+				app.Status.SourceHydrator.LastComparedDryRevision = ""
+				return app
+			}(),
+			expectedResult:      true,
+			expectedResolvedRev: "",
+			expectedError:       false,
+		},
+		{
+			name: "get project error",
+			app: func() *v1alpha1.Application {
+				app := newTestApp("test-app")
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+				return app
+			}(),
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				d.EXPECT().GetProcessableAppProj(app).Return(nil, errors.New("project error"))
+			},
+			expectedResult:      false,
+			expectedResolvedRev: "",
+			expectedError:       true,
+		},
+		{
+			name: "evaluate error",
+			app: func() *v1alpha1.Application {
+				app := newTestApp("test-app")
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+				return app
+			}(),
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).Return(false, "", errors.New("evaluate error"))
+			},
+			expectedResult:      false,
+			expectedResolvedRev: "",
+			expectedError:       true,
+		},
+		{
+			name: "has changes",
+			app: func() *v1alpha1.Application {
+				app := newTestApp("test-app")
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+				return app
+			}(),
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).Return(true, "new-sha", nil)
+			},
+			expectedResult:      true,
+			expectedResolvedRev: "new-sha",
+			expectedError:       false,
+		},
+		{
+			name: "no changes",
+			app: func() *v1alpha1.Application {
+				app := newTestApp("test-app")
+				app.Status.SourceHydrator.LastComparedDryRevision = "same-sha"
+				return app
+			}(),
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).Return(false, "same-sha", nil)
+			},
+			expectedResult:      false,
+			expectedResolvedRev: "same-sha",
+			expectedError:       false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			d := mocks.NewDependencies(t)
+			if tc.setupMocks != nil {
+				tc.setupMocks(d, tc.app)
+			}
+			h := &Hydrator{dependencies: d}
+
+			hasChanges, resolvedRev, err := h.newRevisionHasChanges(tc.app, false)
+
+			assert.Equal(t, tc.expectedResult, hasChanges)
+			assert.Equal(t, tc.expectedResolvedRev, resolvedRev)
+			if tc.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

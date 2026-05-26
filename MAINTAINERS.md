@@ -20,7 +20,7 @@ This document lists the maintainers of the Argo CD project.
 | Christian Hernandez       | [christianh814](https://github.com/christianh814)       | Reviewer(docs)       | [Akuity](https://akuity.io/)                    |
 | Peter Jiang               | [pjiang-dev](https://github.com/pjiang-dev)             | Approver(docs)       | [Intuit](https://www.intuit.com/)               |
 | Andrii Korotkov           | [andrii-korotkov](https://github.com/andrii-korotkov)   | Reviewer             | [Verkada](https://www.verkada.com/)             |
-| Pasha Kostohrys           | [pasha-codefresh](https://github.com/pasha-codefresh)   | Approver             | [Codefresh](https://www.github.com/codefresh/)  |
+| Pasha Kostohrys           | [pasha-codefresh](https://github.com/pasha-codefresh)   | Approver             | [Octopus Deploy](https://octopus.com/)          |
 | Nitish Kumar              | [nitishfy](https://github.com/nitishfy)                 | Approver(cli,docs)   | [Akuity](https://akuity.io/)                    |
 | Justin Marquis            | [34fathombelow](https://github.com/34fathombelow)       | Approver(docs/ci)    | [Akuity](https://akuity.io/)                    |
 | Alexander Matyushentsev   | [alexmt](https://github.com/alexmt)                     | Lead                 | [Akuity](https://akuity.io/)                    |

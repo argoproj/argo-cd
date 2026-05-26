@@ -78,6 +78,7 @@ export default {
                     if (!response.ok) {
                         return response.text().then(text => {
                             observer.error({status: response.status, statusText: response.statusText, body: text});
+                            onError.next({status: response.status, name: response.statusText, message: text} as agent.ResponseError);
                         });
                     }
                 })
@@ -86,11 +87,12 @@ export default {
                         return;
                     }
                     observer.error(err);
+                    onError.next(err);
                 });
 
             let eventSource = new EventSource(fullUrl);
             eventSource.onmessage = msg => observer.next(msg.data);
-            eventSource.onerror = e => () => {
+            eventSource.onerror = e => {
                 observer.error(e);
                 onError.next(e);
             };

@@ -6,7 +6,7 @@ Tools like Helm and Kustomize allow users to express their Kubernetes manifests 
 (keeping it DRY - Don't Repeat Yourself). However, these tools can obscure the actual Kubernetes manifests that are
 applied to the cluster.
 
-The "rendered manifest pattern" is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them to the cluster. This
+The *rendered manifest pattern* is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them to the cluster. This
 allows users to see the actual Kubernetes manifests that are applied to the cluster.
 
 ## Enabling the Source Hydrator
@@ -14,7 +14,7 @@ allows users to see the actual Kubernetes manifests that are applied to the clus
 The source hydrator is disabled by default.
 
 To enable the source hydrator, you need to enable the "commit server" component and set the `hydrator.enabled` field in
-argocd-cmd-params-cm ConfigMap to `"true"`.
+`argocd-cmd-params-cm` ConfigMap to `"true"`.
 
 ```yaml
 apiVersion: v1
@@ -40,7 +40,7 @@ With hydrator:    https://raw.githubusercontent.com/argoproj/argo-cd/stable/mani
 ```
 
 > [!IMPORTANT]
-> The `*-with-hydrator-install.yaml` manifests will eventually be removed when the source hydrator is either enabled
+> The `*-install-with-hydrator.yaml` manifests will eventually be removed when the source hydrator is either enabled
 > by default or removed. The upgrade guide will note if the `install-with-hydrator.yaml` manifests are no longer
 > available.
 

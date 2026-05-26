@@ -153,6 +153,8 @@ export const ApplicationParameters = (props: {
     handleCollapse?: (i: number, isCollapsed: boolean) => void;
     appContext?: AppContext;
     tempSource?: models.ApplicationSource;
+    /** When set with `details`, render parameters for `spec.sources[index]` (multi-source create / edit). */
+    multiSourceIndex?: number;
 }) => {
     const app = cloneDeep(props.application);
     const source = getAppDefaultSource(app); // For source field
@@ -252,20 +254,27 @@ export const ApplicationParameters = (props: {
         // Create App, Add source, Rollback and History
         let attributes: EditablePanelItem[] = [];
         if (props.details) {
+            const ind = props.multiSourceIndex;
+            const isMulti = ind !== undefined;
+            const attrSource = isMulti ? app.spec.sources[ind] : props.tempSource ? props.tempSource : source;
+            if (isMulti && !attrSource) {
+                return null;
+            }
             return getEditablePanel(
                 gatherDetails(
-                    0,
+                    isMulti ? ind : 0,
                     props.details,
                     attributes,
-                    props.tempSource ? props.tempSource : source,
+                    attrSource,
                     app,
                     setRemovedOverrides,
                     removedOverrides,
                     appParamsDeletedState,
                     setAppParamsDeletedState,
-                    false
+                    isMulti
                 ),
-                props.details
+                props.details,
+                isMulti ? ind : undefined
             );
         } else {
             // For single source field, details page where we have to do the load to retrieve repo details
@@ -338,14 +347,20 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanel(items: EditablePanelItem[], repoAppDetails: models.RepoAppDetails): any {
+    function getEditablePanel(items: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, multiSourceIndex?: number): any {
+        const ind = multiSourceIndex;
+        const isMulti = ind !== undefined;
+        const jsonnetTlas = isMulti ? `spec.sources[${ind}].directory.jsonnet.tlas` : 'spec.source.directory.jsonnet.tlas';
+        const jsonnetExtVars = isMulti ? `spec.sources[${ind}].directory.jsonnet.extVars` : 'spec.source.directory.jsonnet.extVars';
+        const helmValuesPath = isMulti ? `spec.sources[${ind}].helm.values` : 'spec.source.helm.values';
+
         return (
             <div className='application-parameters'>
                 <EditablePanel
                     save={
                         props.save &&
                         (async (input: models.Application) => {
-                            const updatedSrc = input.spec.source;
+                            const updatedSrc = isMulti ? input.spec.sources[ind] : input.spec.source;
 
                             function isDefined(item: any) {
                                 return item !== null && item !== undefined;
@@ -360,7 +375,7 @@ export const ApplicationParameters = (props: {
                                 updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isDefinedWithVersion);
                             }
 
-                            let params = input.spec?.source?.plugin?.parameters;
+                            let params = isMulti ? input.spec?.sources[ind]?.plugin?.parameters : input.spec?.source?.plugin?.parameters;
                             if (params) {
                                 for (const param of params) {
                                     if (param.map && param.array) {
@@ -376,28 +391,37 @@ export const ApplicationParameters = (props: {
                                     }
                                 }
                                 params = params.filter(param => !appParamsDeletedState.includes(param.name));
-                                input.spec.source.plugin.parameters = params;
+                                if (isMulti) {
+                                    const ms = input.spec.sources[ind];
+                                    if (!ms.plugin) {
+                                        ms.plugin = {name: '', env: [], parameters: []};
+                                    }
+                                    ms.plugin.parameters = params;
+                                } else {
+                                    input.spec.source.plugin.parameters = params;
+                                }
                             }
-                            if (input.spec.source && input.spec.source.helm?.valuesObject) {
-                                input.spec.source.helm.valuesObject = jsYaml.load(input.spec.source.helm.values); // Deserialize json
-                                input.spec.source.helm.values = '';
+                            if (updatedSrc && updatedSrc.helm?.valuesObject) {
+                                updatedSrc.helm.valuesObject = jsYaml.load(updatedSrc.helm.values); // Deserialize json
+                                updatedSrc.helm.values = '';
                             }
                             await props.save(input, {});
                             setRemovedOverrides(new Array<boolean>());
                         })
                     }
-                    values={((repoAppDetails?.plugin || app?.spec?.source?.plugin) && cloneDeep(app)) || app}
+                    values={((repoAppDetails?.plugin || (isMulti ? app?.spec?.sources[ind]?.plugin : app?.spec?.source?.plugin)) && cloneDeep(app)) || app}
                     validate={updatedApp => {
                         const errors = {} as any;
 
-                        for (const fieldPath of ['spec.source.directory.jsonnet.tlas', 'spec.source.directory.jsonnet.extVars']) {
+                        for (const fieldPath of [jsonnetTlas, jsonnetExtVars]) {
                             const invalid = ((getNestedField(updatedApp, fieldPath) || []) as Array<models.JsonnetVar>).filter(item => !item.name && !item.code);
                             errors[fieldPath] = invalid.length > 0 ? 'All fields must have name' : null;
                         }
 
-                        if (updatedApp.spec.source && updatedApp.spec.source.helm?.values) {
-                            const parsedValues = jsYaml.load(updatedApp.spec.source.helm.values);
-                            errors['spec.source.helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
+                        const helmSrc = isMulti ? updatedApp.spec.sources[ind] : updatedApp.spec.source;
+                        if (helmSrc?.helm?.values) {
+                            const parsedValues = jsYaml.load(helmSrc.helm.values);
+                            errors[helmValuesPath] = typeof parsedValues === 'object' ? null : 'Values must be a map';
                         }
 
                         return errors;

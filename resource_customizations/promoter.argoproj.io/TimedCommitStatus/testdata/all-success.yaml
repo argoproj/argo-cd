@@ -1,0 +1,34 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: TimedCommitStatus
+metadata:
+  name: soak-gate
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  promotionStrategyRef:
+    name: demo
+  environments:
+    - branch: env/dev
+      duration: 5m
+    - branch: env/staging
+      duration: 5m
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: ReconciliationSuccess
+      message: Reconciliation successful
+      observedGeneration: 1
+  environments:
+    - branch: env/dev
+      sha: "0123456789abcdef0123456789abcdef01234567"
+      commitTime: "2026-03-01T12:00:00Z"
+      requiredDuration: 5m
+      phase: success
+      atMostDurationRemaining: 0s
+    - branch: env/staging
+      sha: "abcdef0123456789abcdef0123456789abcdef01"
+      commitTime: "2026-03-01T12:00:00Z"
+      requiredDuration: 5m
+      phase: success
+      atMostDurationRemaining: 0s
