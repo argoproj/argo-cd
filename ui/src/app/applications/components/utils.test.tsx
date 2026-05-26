@@ -12,7 +12,9 @@ import {
 } from '../../shared/models';
 import * as jsYaml from 'js-yaml';
 import {
+    appRBACName,
     ComparisonStatusIcon,
+    getAppDrySource,
     getAppOperationState,
     getOperationType,
     getPodStateReason,
@@ -891,5 +893,113 @@ status:
         const {reason} = getPodStateReason(pod as State);
 
         expect(reason).toBe('SchedulingGated');
+    });
+});
+
+describe('appRBACName', () => {
+    it('returns project/namespace/name when namespace is defined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app',
+                namespace: 'my-namespace'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = appRBACName(app);
+
+        expect(result).toBe('my-project/my-namespace/my-app');
+    });
+
+    it('returns project/name when namespace is undefined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = appRBACName(app);
+
+        expect(result).toBe('my-project/my-app');
+    });
+
+    it('handles empty namespace string as undefined', () => {
+        const app = {
+            metadata: {
+                name: 'test-app',
+                namespace: ''
+            },
+            spec: {
+                project: 'test-project'
+            }
+        } as Application;
+
+        // Note: The function uses a falsy check on namespace, so empty string is treated the same as undefined
+        const result = appRBACName(app);
+
+        expect(result).toBe('test-project/test-app');
+    });
+});
+
+describe('getAppDrySource', () => {
+    it('returns null for undefined app', () => {
+        expect(getAppDrySource(undefined)).toBeNull();
+    });
+
+    it('returns full source for non-hydrator app', () => {
+        const app = {
+            spec: {
+                source: {
+                    repoURL: 'https://github.com/example/repo.git',
+                    path: 'helm-chart',
+                    targetRevision: 'HEAD',
+                    helm: {
+                        parameters: [{name: 'replicaCount', value: '2'}],
+                    },
+                },
+            },
+        } as Application;
+
+        const result = getAppDrySource(app);
+
+        expect(result).toEqual(app.spec.source);
+        expect(result.helm).toBeDefined();
+        expect(result.helm.parameters).toHaveLength(1);
+    });
+
+    it('returns stripped drySource for hydrator app', () => {
+        const app = {
+            spec: {
+                source: {
+                    repoURL: 'https://github.com/example/repo.git',
+                    path: 'helm-chart',
+                    targetRevision: 'HEAD',
+                    helm: {
+                        parameters: [{name: 'replicaCount', value: '2'}],
+                    },
+                },
+                sourceHydrator: {
+                    drySource: {
+                        repoURL: 'https://github.com/example/dry-repo.git',
+                        path: 'dry-path',
+                        targetRevision: 'main',
+                    },
+                },
+            },
+        } as Application;
+
+        const result = getAppDrySource(app);
+
+        expect(result).toEqual({
+            repoURL: 'https://github.com/example/dry-repo.git',
+            path: 'dry-path',
+            targetRevision: 'main',
+        });
+        expect(result).not.toHaveProperty('helm');
     });
 });

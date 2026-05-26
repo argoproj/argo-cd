@@ -277,7 +277,7 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx cont
 
 	tokenParams := make(map[string]string)
 
-	for _, token := range strings.Split(tokens[1], ",") {
+	for token := range strings.SplitSeq(tokens[1], ",") {
 		kvPair := strings.Split(token, "=")
 		tokenParams[kvPair[0]] = strings.Trim(kvPair[1], "\"")
 	}

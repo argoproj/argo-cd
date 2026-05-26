@@ -1,6 +1,6 @@
-module github.com/argoproj/gitops-engine
+module github.com/argoproj/argo-cd/gitops-engine
 
-go 1.24.0
+go 1.26.1
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
@@ -10,7 +10,6 @@ require (
 	github.com/google/uuid v1.6.1-0.20241114170450-2d3c2a9cc518
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
-	go.uber.org/mock v0.6.0
 	golang.org/x/sync v0.17.0
 	google.golang.org/protobuf v1.36.9
 	k8s.io/api v0.34.0
@@ -22,7 +21,7 @@ require (
 	k8s.io/kube-aggregator v0.34.0
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b
 	k8s.io/kubectl v0.34.0
-	k8s.io/kubernetes v1.34.0
+	k8s.io/kubernetes v1.34.2
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251003215857-446d8398e19c
 	sigs.k8s.io/yaml v1.6.0
 )

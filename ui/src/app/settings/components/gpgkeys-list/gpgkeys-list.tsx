@@ -139,7 +139,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                             )) || (
                                 <EmptyState icon='fa fa-key'>
                                     <h4>No GnuPG public keys currently configured</h4>
-                                    <h5>You can add GnuPG public keys below..</h5>
+                                    <h5>You can add GnuPG public keys below.</h5>
                                     <button className='argo-button argo-button--base' onClick={() => setAddGnuPGKey(true)}>
                                         Add GnuPG public key
                                     </button>

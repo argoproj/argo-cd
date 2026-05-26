@@ -187,7 +187,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                             )) || (
                                 <EmptyState icon='argo-icon-git'>
                                     <h4>No certificates configured</h4>
-                                    <h5>You can add further certificates below..</h5>
+                                    <h5>You can add further certificates below.</h5>
                                     <button className='argo-button argo-button--base' onClick={() => setAddTLSCertificate(true)}>
                                         Add TLS certificates
                                     </button>{' '}

@@ -174,7 +174,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 
 		updatedProj := existingProj.DeepCopy()
-		updatedProj.Spec.ClusterResourceWhitelist = []metav1.GroupKind{{}}
+		updatedProj.Spec.ClusterResourceWhitelist = []v1alpha1.ClusterResourceRestrictionItem{{}}
 
 		_, err := projectServer.Update(t.Context(), &project.ProjectUpdateRequest{Project: updatedProj})
 

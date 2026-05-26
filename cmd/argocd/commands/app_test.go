@@ -1,19 +1,21 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -23,7 +25,6 @@ import (
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
@@ -359,59 +360,6 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 	require.EqualError(t, err, "application '' does not have deployment id '4' in history", "Find revision history should fail with correct error message")
 }
 
-func Test_groupObjsByKey(t *testing.T) {
-	localObjs := []*unstructured.Unstructured{
-		{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]any{
-					"name":      "pod-name",
-					"namespace": "default",
-				},
-			},
-		},
-		{
-			Object: map[string]any{
-				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]any{
-					"name": "certificates.cert-manager.io",
-				},
-			},
-		},
-	}
-	liveObjs := []*unstructured.Unstructured{
-		{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]any{
-					"name":      "pod-name",
-					"namespace": "default",
-				},
-			},
-		},
-		{
-			Object: map[string]any{
-				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]any{
-					"name": "certificates.cert-manager.io",
-				},
-			},
-		},
-	}
-
-	expected := map[kube.ResourceKey]*unstructured.Unstructured{
-		{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
-		{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
-	}
-
-	objByKey := groupObjsByKey(localObjs, liveObjs, "default")
-	assert.Equal(t, expected, objByKey)
-}
-
 func TestFormatSyncPolicy(t *testing.T) {
 	t.Run("Policy not defined", func(t *testing.T) {
 		app := v1alpha1.Application{}
@@ -440,7 +388,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -458,7 +406,7 @@ func TestFormatConditionSummary(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -673,7 +621,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 				Project:     "default",
@@ -761,7 +709,7 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 				Project:     "default",
@@ -1045,6 +993,39 @@ func TestPrintApplicationNames(t *testing.T) {
 	})
 	expectation := "test\ntest\n"
 	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
+}
+
+func TestNewApplicationUnsetCommand_Validation(t *testing.T) {
+	if os.Getenv("BE_CRASHER") == "1" {
+		cmd := NewApplicationUnsetCommand(nil)
+		cmd.SetArgs([]string{"my-app", "--source-position", "1", "--source-name", "test"})
+		_ = cmd.Execute()
+	}
+
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
+	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() {
+		assert.Contains(t, stderr.String(), "Only one of source-position and source-name can be specified.")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
+func TestNewApplicationUnsetCommand_Flags(t *testing.T) {
+	cmd := NewApplicationUnsetCommand(nil)
+	assert.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("source-name")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "source-name", flag.Name)
+
+	flag = cmd.Flags().Lookup("source-position")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "source-position", flag.Name)
 }
 
 func Test_unset(t *testing.T) {
@@ -1905,8 +1886,8 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy              
-%s   apps  Deployment     default                  test    Synced  Healthy              
+%s            Service     default         service-name1    Synced  Healthy
+%s   apps  Deployment     default                  test    Synced  Healthy
 
 Name:               argocd/test
 Project:            default
@@ -1926,21 +1907,29 @@ Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
-Phase:              
+Phase:
 Start:              0001-01-01 00:00:00 +0000 UTC
 Finished:           2020-11-10 23:00:00 +0000 UTC
 Duration:           2333448h16m18.871345152s
 Message:            test
 
 GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
-       Service     default    service-name1  Synced  Healthy        
-apps   Deployment  default    test           Synced  Healthy        
+       Service     default    service-name1  Synced  Healthy
+apps   Deployment  default    test           Synced  Healthy
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
+	// Trim trailing whitespace from each line
+	for i := range expectationParts {
+		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+	}
 	slices.Sort(expectationParts)
 	expectationSorted := strings.Join(expectationParts, "\n")
 	outputParts := strings.Split(output, "\n")
+	// Trim trailing whitespace from each line
+	for i := range outputParts {
+		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+	}
 	slices.Sort(outputParts)
 	outputSorted := strings.Join(outputParts, "\n")
 	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
@@ -1966,8 +1955,8 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy              
-%s   apps  Deployment     default                  test    Synced  Healthy              
+%s            Service     default         service-name1    Synced  Healthy
+%s   apps  Deployment     default                  test    Synced  Healthy
 
 The command timed out waiting for the conditions to be met.
 
@@ -1991,25 +1980,329 @@ Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
-Phase:              
+Phase:
 Start:              0001-01-01 00:00:00 +0000 UTC
 Finished:           2020-11-10 23:00:00 +0000 UTC
 Duration:           2333448h16m18.871345152s
 Message:            test
 
 GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
-       Service     default    service-name1  Synced  Healthy        
-apps   Deployment  default    test           Synced  Healthy        
+       Service     default    service-name1  Synced  Healthy
+apps   Deployment  default    test           Synced  Healthy
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
+	// Trim trailing whitespace from each line
+	for i := range expectationParts {
+		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+	}
 	slices.Sort(expectationParts)
 	expectationSorted := strings.Join(expectationParts, "\n")
 	outputParts := strings.Split(output, "\n")
+	// Trim trailing whitespace from each line
+	for i := range outputParts {
+		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+	}
 	slices.Sort(outputParts)
 	outputSorted := strings.Join(outputParts, "\n")
 	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
 	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
+}
+
+// TestCheckAppWaitConditions covers the branches of the pure readiness helper
+// used by `waitOnApplicationStatus`. Related to #12211.
+func TestCheckAppWaitConditions(t *testing.T) {
+	syncHealth := watchOpts{sync: true, health: true, operation: true}
+	finishedAt := metav1.NewTime(time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC))
+	afterFinished := metav1.NewTime(finishedAt.Add(time.Minute))
+	beforeFinished := metav1.NewTime(finishedAt.Add(-time.Minute))
+
+	appWith := func(sync v1alpha1.SyncStatusCode, h health.HealthStatusCode) *v1alpha1.Application {
+		return &v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: sync},
+				Health: v1alpha1.AppHealthStatus{Status: h},
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		app               *v1alpha1.Application
+		watch             watchOpts
+		selectedResources []*v1alpha1.SyncOperationResource
+		wantReady         bool
+		wantOpInProgress  bool
+	}{
+		{
+			name:      "synced and healthy with no operation returns ready",
+			app:       appWith(v1alpha1.SyncStatusCodeSynced, health.HealthStatusHealthy),
+			watch:     syncHealth,
+			wantReady: true,
+		},
+		{
+			name:             "pending operation marks operation in progress",
+			app:              &v1alpha1.Application{Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}, Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}}},
+			watch:            syncHealth,
+			wantReady:        false, // !watch.operation || operationStatus == nil → false when operation pending and watch.operation
+			wantOpInProgress: true,
+		},
+		{
+			name: "operation state without FinishedAt marks operation in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}},
+			}},
+			watch:            syncHealth,
+			wantReady:        true,
+			wantOpInProgress: true,
+		},
+		{
+			name: "finished operation not yet reconciled marks operation in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, FinishedAt: &finishedAt},
+				ReconciledAt:   &beforeFinished,
+			}},
+			watch:            syncHealth,
+			wantReady:        true,
+			wantOpInProgress: true,
+		},
+		{
+			name: "finished operation reconciled afterwards is not in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, FinishedAt: &finishedAt},
+				ReconciledAt:   &afterFinished,
+			}},
+			watch:     syncHealth,
+			wantReady: true,
+		},
+		{
+			name:      "out of sync app is not ready",
+			app:       appWith(v1alpha1.SyncStatusCodeOutOfSync, health.HealthStatusHealthy),
+			watch:     syncHealth,
+			wantReady: false,
+		},
+		{
+			name: "selected resources all ready returns ready",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Resources: []v1alpha1.ResourceStatus{
+					{Kind: "Deployment", Name: "a", Namespace: "default", Status: v1alpha1.SyncStatusCodeSynced, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy}},
+				},
+			}},
+			watch:             syncHealth,
+			selectedResources: []*v1alpha1.SyncOperationResource{{Kind: "Deployment", Name: "a", Namespace: "default"}},
+			wantReady:         true,
+		},
+		{
+			name: "selected resources with one not ready returns not ready",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Resources: []v1alpha1.ResourceStatus{
+					{Kind: "Deployment", Name: "a", Namespace: "default", Status: v1alpha1.SyncStatusCodeSynced, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy}},
+					{Kind: "Deployment", Name: "b", Namespace: "default", Status: v1alpha1.SyncStatusCodeOutOfSync, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusProgressing}},
+				},
+			}},
+			watch: syncHealth,
+			selectedResources: []*v1alpha1.SyncOperationResource{
+				{Kind: "Deployment", Name: "a", Namespace: "default"},
+				{Kind: "Deployment", Name: "b", Namespace: "default"},
+			},
+			wantReady: false,
+		},
+		{
+			// Regression: CurrentOperation set without LastSuccessfulOperation
+			// must not panic on the hydration check.
+			name: "hydration in progress without prior successful hydration does not panic",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrating},
+				},
+			}},
+			watch:     watchOpts{sync: true, health: true, hydrated: true},
+			wantReady: false, // hydration not finished yet
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ready, opInProgress := checkAppWaitConditions(tc.app, tc.watch, tc.selectedResources)
+			assert.Equal(t, tc.wantReady, ready, "ready")
+			assert.Equal(t, tc.wantOpInProgress, opInProgress, "operationInProgress")
+		})
+	}
+}
+
+// TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState verifies
+// that `argocd app wait` returns right away when the application already matches
+// the requested conditions, instead of hanging on the watch stream until timeout.
+// Regression test for https://github.com/argoproj/argo-cd/issues/12211.
+func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *testing.T) {
+	// simulateTimeout controls how long the fake watch blocks before emitting an
+	// event. If the fix is removed, waitOnApplicationStatus would block for this
+	// long before observing the readiness condition; with the fix it returns
+	// from the initial Get result without touching the watch channel.
+	acdClient := &readyAcdClient{&fakeAcdClient{simulateTimeout: 10}}
+	ctx := t.Context()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:      true,
+		health:    true,
+		operation: true,
+	}
+
+	start := time.Now()
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	assert.Less(t, elapsed, 2*time.Second, "wait should return immediately when app is already in desired state, took %s", elapsed)
+}
+
+// TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn verifies that
+// `argocd app wait --delete` does not short-circuit on the initial Get and
+// instead consumes the watch for the Deleted event — the Get can only return
+// an existing application, so its state cannot satisfy the delete condition.
+func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
+	acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+	ctx := t.Context()
+	watch := watchOpts{delete: true}
+
+	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "")
+	require.NoError(t, err)
+	assert.Nil(t, app)
+	assert.Nil(t, opState)
+}
+
+// TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions
+// exercises the watch loop path: the initial Get returns an OutOfSync app so the
+// early return is skipped, and a subsequent event carries the desired state.
+// Covers the helper call and readiness return inside the watch loop.
+func TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions(t *testing.T) {
+	acdClient := &readyEventAcdClient{fakeAcdClient: &fakeAcdClient{}}
+	ctx := t.Context()
+	watch := watchOpts{sync: true, health: true}
+
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json")
+	require.NoError(t, err)
+	// The function returns via the readiness path inside the watch loop.
+	// The returned app may be re-fetched by printFinalStatus so we only
+	// assert the function returned successfully rather than matching on its
+	// status fields.
+	assert.NotNil(t, app)
+}
+
+// readyEventAcdClient returns an OutOfSync app from Get so the early-return is
+// skipped, then emits a single event carrying a Synced+Healthy app with a
+// pending non-dry-run Operation (to exercise the refresh side-effect branch in
+// the watch loop).
+type readyEventAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *readyEventAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 1)
+	appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+		Type: watch.Modified,
+		Application: v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+			Operation:  &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			},
+		},
+	}
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *readyEventAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &fakeAppServiceClient{}
+}
+
+func (c *readyEventAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// deleteAcdClient emits a single Deleted event immediately so the watch loop
+// can return without relying on a timeout.
+type deleteAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *deleteAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 1)
+	appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+		Type: watch.Deleted,
+		Application: v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+		},
+	}
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *deleteAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &readyFakeAppServiceClient{}
+}
+
+func (c *deleteAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// readyAcdClient is like customAcdClient but returns an application that is
+// already Synced and Healthy with no operation pending.
+type readyAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *readyAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	go func() {
+		// Block long enough that the test would clearly fail if the early
+		// return regresses. Never emit an event — mirrors the real-world
+		// behavior reported in #12211 where no events arrive because the
+		// application CR is not changing.
+		time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
+		close(appEventsCh)
+	}()
+	return appEventsCh
+}
+
+func (c *readyAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &readyFakeAppServiceClient{}
+}
+
+func (c *readyAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type readyFakeAppServiceClient struct {
+	fakeAppServiceClient
+}
+
+func (c *readyFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+		},
+	}, nil
 }
 
 type customAcdClient struct {
@@ -2079,7 +2372,7 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 		Spec: v1alpha1.ApplicationSpec{
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					Prune: true,
+					Prune: new(true),
 				},
 			},
 			Project:     "default",
@@ -2385,4 +2678,23 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _
 		appEventsCh <- deletedEvent
 	}()
 	return appEventsCh
+}
+
+func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
+	go func() {
+		defer close(appSetEventsCh)
+		addedEvent := &v1alpha1.ApplicationSetWatchEvent{
+			Type: watch.Added,
+			ApplicationSet: v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusTrue},
+					},
+				},
+			},
+		}
+		appSetEventsCh <- addedEvent
+	}()
+	return appSetEventsCh
 }

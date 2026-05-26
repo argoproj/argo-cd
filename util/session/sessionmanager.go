@@ -13,6 +13,11 @@ import (
 	"sync"
 	"time"
 
+	otel_codes "go.opentelemetry.io/otel/codes"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -99,6 +104,13 @@ const (
 )
 
 var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
+
+// OpenTelemetry tracer for this package
+var tracer trace.Tracer
+
+func init() {
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/session")
+}
 
 // Returns the maximum cache size as number of entries
 func getMaximumCacheSize() int {
@@ -275,7 +287,10 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", fmt.Errorf("account %s does not have '%s' capability", subject, capability)
 	}
 
-	if id == "" || mgr.storage.IsTokenRevoked(id) {
+	if id == "" {
+		return nil, "", errors.New("token does not have a unique identifier (jti claim) and cannot be validated")
+	}
+	if mgr.storage.IsTokenRevoked(id) {
 		return nil, "", errors.New("token is revoked, please re-login")
 	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
 		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
@@ -291,10 +306,12 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		remainingDuration := time.Until(exp)
 
 		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
-			if uniqueId, err := uuid.NewRandom(); err == nil {
-				if val, err := mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err == nil {
-					newToken = val
-				}
+			var uniqueId uuid.UUID
+			if uniqueId, err = uuid.NewRandom(); err != nil {
+				return nil, "", fmt.Errorf("could not create UUID for new JWT token: %w", err)
+			}
+			if newToken, err = mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err != nil {
+				return nil, "", fmt.Errorf("could not create new JWT token: %w", err)
 			}
 		}
 	}
@@ -489,7 +506,7 @@ func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured boo
 // TokenVerifier defines the contract to invoke token
 // verification logic
 type TokenVerifier interface {
-	VerifyToken(token string) (jwt.Claims, string, error)
+	VerifyToken(ctx context.Context, token string) (jwt.Claims, string, error)
 }
 
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
@@ -504,12 +521,13 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookies := r.Cookies()
+		ctx := r.Context()
 		tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
 		if err != nil {
 			http.Error(w, "Auth cookie not found", http.StatusBadRequest)
 			return
 		}
-		claims, _, err := authn.VerifyToken(tokenString)
+		claims, _, err := authn.VerifyToken(ctx, tokenString)
 		if err != nil {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
@@ -517,14 +535,12 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 
 		finalClaims := claims
 		if isSSOConfigured {
-			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(claims, SessionManagerClaimsIssuer)
+			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(ctx, claims, SessionManagerClaimsIssuer)
 			if err != nil {
 				http.Error(w, "Invalid session", http.StatusUnauthorized)
 				return
 			}
 		}
-
-		ctx := r.Context()
 		// Add claims to the context to inspect for RBAC
 		//nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", finalClaims)
@@ -536,7 +552,10 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
+func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) (jwt.Claims, string, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "session.SessionManager.VerifyToken")
+	defer span.End()
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -564,12 +583,14 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", errors.New("settings are not available while verifying the token")
 		}
 
-		idToken, err := prov.Verify(tokenString, argoSettings)
+		idToken, err := prov.Verify(ctx, tokenString, argoSettings)
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			log.Warnf("Failed to verify token: %s", err)
+			errorMsg := "Failed to verify session token: " + err.Error()
+			span.SetStatus(otel_codes.Error, errorMsg)
+			log.Warn(errorMsg)
 			tokenExpiredError := &oidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
 				claims = jwt.MapClaims{
@@ -578,6 +599,20 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 				return claims, "", common.ErrTokenVerification
 			}
 			return nil, "", common.ErrTokenVerification
+		}
+
+		id, ok := claims["jti"].(string)
+		if !ok {
+			log.Warnf("token does not have jti claim")
+			id = ""
+		}
+		// Workaround for Dex token, because does not have jti.
+		if id == "" {
+			id = idToken.AccessTokenHash
+		}
+
+		if mgr.storage.IsTokenRevoked(id) {
+			return nil, "", errors.New("token is revoked, please re-login")
 		}
 
 		var claims jwt.MapClaims

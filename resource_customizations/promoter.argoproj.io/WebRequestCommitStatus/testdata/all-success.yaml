@@ -1,0 +1,33 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: WebRequestCommitStatus
+metadata:
+  name: external-check
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  promotionStrategyRef:
+    name: demo
+  key: ext-approval
+  httpRequest:
+    urlTemplate: "https://example.com/health"
+    method: GET
+  success:
+    when:
+      expression: "Response.StatusCode == 200"
+  mode:
+    polling:
+      interval: 1m
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: ReconciliationSuccess
+      message: Reconciliation successful
+      observedGeneration: 1
+  environments:
+    - branch: env/dev
+      reportedSha: "0123456789abcdef0123456789abcdef01234567"
+      phase: success
+    - branch: env/staging
+      reportedSha: "abcdef0123456789abcdef0123456789abcdef01"
+      phase: success

@@ -37,15 +37,17 @@ export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = 
     if (hydrateOperationState.finishedAt && hydrateOperationState.phase !== 'Hydrating') {
         operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={hydrateOperationState.finishedAt} />});
     }
-    operationAttributes.push({
-        title: 'DRY REVISION',
-        value: (
-            <div>
-                <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.drySHA} />
-            </div>
-        )
-    });
-    if (hydrateOperationState.finishedAt) {
+    if (hydrateOperationState.drySHA) {
+        operationAttributes.push({
+            title: 'DRY REVISION',
+            value: (
+                <div>
+                    <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.drySHA} />
+                </div>
+            )
+        });
+    }
+    if (hydrateOperationState.finishedAt && hydrateOperationState.hydratedSHA) {
         operationAttributes.push({
             title: 'HYDRATED REVISION',
             value: (

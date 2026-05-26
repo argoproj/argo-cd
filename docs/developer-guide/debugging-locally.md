@@ -18,7 +18,7 @@ For the next steps, we will use Argo CD `api-server` as an example of running a 
 ## Configure your IDE
 
 ### Locate your component configuration in `Procfile`
-The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. The file is located in the top-level directory in your cloned Argo CD repo folder, you can view it's latest version [here](https://github.com/argoproj/argo-cd/blob/master/Procfile). It contains all the needed component run configuration, and you will need to copy parts of this configuration to your IDE. 
+The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. The [latest Procfile](https://github.com/argoproj/argo-cd/blob/master/Procfile) is located in the top-level directory in your cloned Argo CD repo folder. It contains all the needed component run configuration, and you will need to copy parts of this configuration to your IDE. 
 
 Example for `api-server` configuration in `Procfile`:
 ``` text
@@ -127,6 +127,8 @@ Below are the different options.
 So for the case of debugging the `api-server`, run:
 `make start-local ARGOCD_START="notification applicationset-controller repo-server redis dex controller ui"` 
 
+> [!NOTE]
+> By default, the api-server in this configuration runs with auth disabled. If you need to test argo cd auth-related functionality, run `export ARGOCD_E2E_DISABLE_AUTH='false' && make start-local`
 #### Run with "make run"
 `make run` runs all the components by default, but it is also possible to run it with a blacklist of components, enabling the separation we need.
 

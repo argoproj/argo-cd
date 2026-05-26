@@ -1,15 +1,12 @@
 package utils
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/db"
+	corev1 "k8s.io/api/core/v1"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // ClusterSpecifier contains only the name and server URL of a cluster. We use this struct to avoid partially-populating
@@ -19,42 +16,44 @@ type ClusterSpecifier struct {
 	Server string
 }
 
-func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace string) ([]ClusterSpecifier, error) {
-	clusterSecretsList, err := clientset.CoreV1().Secrets(namespace).List(ctx,
-		metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
-	if err != nil {
-		return nil, err
-	}
-
-	if clusterSecretsList == nil {
-		return nil, nil
-	}
-
-	clusterSecrets := clusterSecretsList.Items
-
-	clusterList := make([]ClusterSpecifier, len(clusterSecrets))
-
-	hasInClusterCredentials := false
-	for i, clusterSecret := range clusterSecrets {
-		cluster, err := db.SecretToCluster(&clusterSecret)
-		if err != nil || cluster == nil {
-			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %w", clusterSecret.Name, err)
+// SecretsContainInClusterCredentials checks if any of the provided secrets represent the in-cluster configuration.
+func SecretsContainInClusterCredentials(secrets []corev1.Secret) bool {
+	for _, secret := range secrets {
+		if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr {
+			return true
 		}
-		clusterList[i] = ClusterSpecifier{
+	}
+	return false
+}
+
+// ListClusters returns a list of cluster specifiers using the ClusterInformer.
+func ListClusters(clusterInformer *settings.ClusterInformer) ([]ClusterSpecifier, error) {
+	clusters, err := clusterInformer.ListClusters()
+	if err != nil {
+		return nil, fmt.Errorf("error listing clusters: %w", err)
+	}
+	// len of clusters +1 for the in cluster secret
+	clusterList := make([]ClusterSpecifier, 0, len(clusters)+1)
+	hasInCluster := false
+
+	for _, cluster := range clusters {
+		clusterList = append(clusterList, ClusterSpecifier{
 			Name:   cluster.Name,
 			Server: cluster.Server,
-		}
+		})
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-			hasInClusterCredentials = true
+			hasInCluster = true
 		}
 	}
-	if !hasInClusterCredentials {
+
+	if !hasInCluster {
 		// There was no secret for the in-cluster config, so we add it here. We don't fully-populate the Cluster struct,
 		// since only the name and server fields are used by the generator.
 		clusterList = append(clusterList, ClusterSpecifier{
-			Name:   "in-cluster",
+			Name:   appv1.KubernetesInClusterName,
 			Server: appv1.KubernetesInternalAPIServerAddr,
 		})
 	}
+
 	return clusterList, nil
 }

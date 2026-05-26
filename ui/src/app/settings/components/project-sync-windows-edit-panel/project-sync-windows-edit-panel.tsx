@@ -68,6 +68,9 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                                 <FormField formApi={api} label='Enable manual sync' field='window.manualSync' component={CheckboxField} />
                             </div>
                             <div className='argo-form-row'>
+                                <FormField formApi={api} label='Enable sync overrun' field='window.syncOverrun' component={CheckboxField} />
+                            </div>
+                            <div className='argo-form-row'>
                                 <FormField
                                     formApi={api}
                                     label='Use AND operator while selecting the apps that match the configured selectors(applications, namespaces and clusters)'

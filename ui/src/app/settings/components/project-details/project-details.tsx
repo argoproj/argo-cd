@@ -7,7 +7,7 @@ import {Link} from 'react-router-dom';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {Context, ContextApis, AuthSettingsCtx} from '../../../shared/context';
-import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {ClusterResourceRestrictionItem, GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
@@ -49,6 +49,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
             merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
             merged.sourceNamespaces = merged.sourceNamespaces.concat(proj.spec.sourceNamespaces || []);
+            merged.destinationServiceAccounts = merged.destinationServiceAccounts.concat(proj.spec.destinationServiceAccounts || []);
 
             merged.sourceRepos = merged.sourceRepos.filter((item, index) => {
                 return (
@@ -81,7 +82,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                 return (
                     index ===
                     merged.clusterResourceBlacklist.findIndex(obj => {
-                        return obj.kind === item.kind && obj.group === item.group;
+                        return obj.kind === item.kind && obj.group === item.group && obj.name === item.name;
                     })
                 );
             });
@@ -90,7 +91,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                 return (
                     index ===
                     merged.clusterResourceWhitelist.findIndex(obj => {
-                        return obj.kind === item.kind && obj.group === item.group;
+                        return obj.kind === item.kind && obj.group === item.group && obj.name === item.name;
                     })
                 );
             });
@@ -126,10 +127,10 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             return merged;
         },
         {
-            clusterResourceBlacklist: new Array<GroupKind>(),
+            clusterResourceBlacklist: new Array<ClusterResourceRestrictionItem>(),
             namespaceResourceBlacklist: new Array<GroupKind>(),
             namespaceResourceWhitelist: new Array<GroupKind>(),
-            clusterResourceWhitelist: new Array<GroupKind>(),
+            clusterResourceWhitelist: new Array<ClusterResourceRestrictionItem>(),
             sourceRepos: [],
             sourceNamespaces: [],
             signatureKeys: [],
@@ -142,12 +143,13 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
     );
 }
 
-export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = props => {
+export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {objectListKind?: string}> = props => {
     const [token, setToken] = React.useState('');
     const projectRoleFormApi = React.useRef<FormApi>(null);
     const projectSyncWindowsFormApi = React.useRef<FormApi>(null);
     const loader = React.useRef<DataLoader>(null);
     const ctx = React.useContext(Context) as ContextApis;
+    const objectListKind = props.objectListKind || 'application';
 
     const deleteJWTToken = async (params: DeleteJWTTokenParams, notifications: NotificationsApi) => {
         try {
@@ -258,6 +260,12 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = pro
                                             {helpTip('If the window allows manual syncs')}
                                         </div>
                                         <div className='columns small-8-elements'>
+                                            SYNC OVERRUN
+                                            {helpTip(
+                                                'Allows syncs to continue: for deny windows, syncs that started before the window; for allow windows, syncs that started during the window'
+                                            )}
+                                        </div>
+                                        <div className='columns small-8-elements'>
                                             USE AND OPERATOR
                                             {helpTip('Use AND operator while selecting the apps that match the configured selectors')}
                                         </div>
@@ -282,6 +290,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = pro
                                             <div className='columns small-8-elements'>{(window.namespaces || ['-']).join(',')}</div>
                                             <div className='columns small-8-elements'>{(window.clusters || ['-']).join(',')}</div>
                                             <div className='columns small-8-elements'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
+                                            <div className='columns small-8-elements'>{window.syncOverrun ? 'Enabled' : 'Disabled'}</div>
                                             <div className='columns small-8-elements'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
                                             <div className='columns small-8-elements'>{window.description || ''}</div>
                                         </div>
@@ -356,7 +365,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = pro
                             title: 'APPLICATIONS',
                             view: (
                                 <div>
-                                    <DataLoader load={() => services.applications.list([proj.metadata.name])}>
+                                    <DataLoader load={() => services.applications.list([proj.metadata.name], objectListKind)}>
                                         {apps => <Link to={'/applications?proj=' + proj.metadata.name}>{apps.items.length}</Link>}
                                     </DataLoader>
                                 </div>
@@ -585,7 +594,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = pro
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
                                         <div className='columns small-3'>Namespace</div>
-                                        <div className='columns small-5'>DefaultServiceAccount</div>
+                                        <div className='columns small-5'>ServiceAccount</div>
                                     </div>
                                     {proj.spec.destinationServiceAccounts.map((dest, i) => (
                                         <div className='row white-box__details-row' key={i}>
@@ -607,7 +616,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = pro
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
                                         <div className='columns small-3'>Namespace</div>
-                                        <div className='columns small-5'>DefaultServiceAccount</div>
+                                        <div className='columns small-5'>ServiceAccount</div>
                                     </div>
                                     {(formApi.values.spec.destinationServiceAccounts || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>

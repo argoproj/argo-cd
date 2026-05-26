@@ -141,7 +141,6 @@ func Test_kubeErrToGRPC(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			// when
 			err := kubeErrToGRPC(c.givenErrFn())

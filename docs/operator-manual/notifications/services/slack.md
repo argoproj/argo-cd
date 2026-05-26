@@ -16,6 +16,11 @@ The Slack notification service configuration includes following settings:
 | `token`              | **True**     | `string`       | The app's OAuth access token. | `xoxb-1234567890-1234567890123-5n38u5ed63fgzqlvuyxvxcx6` |
 | `username`           | False        | `string`       | The app username. | `argocd` |
 | `disableUnfurl`      | False        | `bool`         | Disable slack unfurling links in messages | `true` |
+| `maxIdleConns`        | False        | `int`          | Maximum number of idle (keep-alive) connections across all hosts.                               | —                      |
+| `maxIdleConnsPerHost` | False        | `int`          | Maximum number of idle (keep-alive) connections per host.                                       | —                      |
+| `maxConnsPerHost`     | False        | `int`          | Maximum total connections per host.                                                             | —                      |
+| `idleConnTimeout`     | False        | `string`       | Maximum amount of time an idle (keep-alive) connection will remain open before closing (e.g., `90s`). | —              |
+
 
 ## Configuration
 
@@ -32,7 +37,7 @@ The Slack notification service configuration includes following settings:
 
 1. Create a public or private channel, for this example `my_channel`
 1. Invite your slack bot to this channel **otherwise slack bot won't be able to deliver notifications to this channel**
-1. Store Oauth access token in `argocd-notifications-secret` secret
+1. Store OAuth access token in `argocd-notifications-secret` secret
 
     ```yaml
       apiVersion: v1
@@ -40,7 +45,7 @@ The Slack notification service configuration includes following settings:
       metadata:
           name: <secret-name>
       stringData:
-          slack-token: <Oauth-access-token>
+          slack-token: <OAuth-access-token>
     ```
 
 1. Define service type slack in data section of `argocd-notifications-cm` configmap:

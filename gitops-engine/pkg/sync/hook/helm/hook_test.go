@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 )
 
 func TestIsHook(t *testing.T) {

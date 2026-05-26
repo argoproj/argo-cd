@@ -35,7 +35,7 @@ spec:
             - http://localhost:9001/api/v1/sync
             - --dest
             - repo
-          image: k8s.gcr.io/git-sync:v3.1.6
+          image: registry.k8s.io/git-sync:v3.1.6
           volumeMounts:
             - name: git
               mountPath: /tmp/git

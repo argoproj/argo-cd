@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +27,26 @@ const (
 )
 
 type Expectation func(c *Consequences) (state state, message string)
+
+func Or(e1 Expectation, e2 Expectation) Expectation {
+	return func(c *Consequences) (state, string) {
+		s1, m1 := e1(c)
+		if s1 == succeeded {
+			return s1, m1
+		}
+		s2, m2 := e2(c)
+		if s2 == succeeded {
+			return s2, m2
+		}
+		if s1 == pending {
+			return s1, m1
+		}
+		if s2 == pending {
+			return s2, m2
+		}
+		return failed, fmt.Sprintf("expectations unsuccessful: %s and %s", m1, m2)
+	}
+}
 
 func OperationPhaseIs(expected common.OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
@@ -199,6 +219,9 @@ func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected he
 
 func ResourceResultNumbering(num int) Expectation {
 	return func(c *Consequences) (state, string) {
+		if c.app().Status.OperationState == nil || c.app().Status.OperationState.SyncResult == nil {
+			return pending, "no sync result yet"
+		}
 		actualNum := len(c.app().Status.OperationState.SyncResult.Resources)
 		if actualNum < num {
 			return pending, fmt.Sprintf("not enough results yet, want %d, got %d", num, actualNum)
@@ -211,6 +234,9 @@ func ResourceResultNumbering(num int) Expectation {
 
 func ResourceResultIs(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
+		if c.app().Status.OperationState == nil || c.app().Status.OperationState.SyncResult == nil {
+			return pending, "no sync result yet"
+		}
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
 			if reflect.DeepEqual(*res, result) {
@@ -233,6 +259,9 @@ func sameResourceResult(res1, res2 v1alpha1.ResourceResult) bool {
 
 func ResourceResultMatches(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
+		if c.app().Status.OperationState == nil || c.app().Status.OperationState.SyncResult == nil {
+			return pending, "no sync result yet"
+		}
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
 			if sameResourceResult(*res, result) {
@@ -272,9 +301,19 @@ func DoesNotExistNow() Expectation {
 	}
 }
 
+func App(predicate func(app *v1alpha1.Application) bool) Expectation {
+	return func(c *Consequences) (state, string) {
+		app := c.app().DeepCopy()
+		if predicate(app) {
+			return succeeded, "app predicate matches"
+		}
+		return pending, "app predicate does not match"
+	}
+}
+
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(_ *Consequences) (state, string) {
-		pods, err := pods()
+	return func(c *Consequences) (state, string) {
+		pods, err := pods(c.context.DeploymentNamespace())
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -288,8 +327,8 @@ func Pod(predicate func(p corev1.Pod) bool) Expectation {
 }
 
 func NotPod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(_ *Consequences) (state, string) {
-		pods, err := pods()
+	return func(c *Consequences) (state, string) {
+		pods, err := pods(c.context.DeploymentNamespace())
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -302,9 +341,8 @@ func NotPod(predicate func(p corev1.Pod) bool) Expectation {
 	}
 }
 
-func pods() (*corev1.PodList, error) {
-	fixture.KubeClientset.CoreV1()
-	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
+func pods(namespace string) (*corev1.PodList, error) {
+	pods, err := fixture.KubeClientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
 	return pods, err
 }
 
@@ -320,7 +358,6 @@ func NoNamespace(name string) Expectation {
 }
 
 func namespace(name string) (*corev1.Namespace, error) {
-	fixture.KubeClientset.CoreV1()
 	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
 }
 

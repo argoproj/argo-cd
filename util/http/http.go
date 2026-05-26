@@ -58,10 +58,7 @@ func splitCookie(key, value, attributes string) []string {
 
 	var end int
 	for i, j := 0, 0; i < valueLength; i, j = i+maxValueLength, j+1 {
-		end = i + maxValueLength
-		if end > valueLength {
-			end = valueLength
-		}
+		end = min(i+maxValueLength, valueLength)
 
 		var cookie string
 		switch {
@@ -240,4 +237,24 @@ func drainBody(body io.ReadCloser) {
 	if err != nil {
 		log.Warnf("error reading response body: %s", err.Error())
 	}
+}
+
+func SetTokenCookie(token string, baseHRef string, isSecure bool, w http.ResponseWriter) error {
+	var path string
+	if baseHRef != "" {
+		path = strings.TrimRight(strings.TrimLeft(baseHRef, "/"), "/")
+	}
+	cookiePath := "path=/" + path
+	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
+	if isSecure {
+		flags = append(flags, "Secure")
+	}
+	cookies, err := MakeCookieMetadata(common.AuthCookieName, token, flags...)
+	if err != nil {
+		return fmt.Errorf("error creating cookie metadata: %w", err)
+	}
+	for _, cookie := range cookies {
+		w.Header().Add("Set-Cookie", cookie)
+	}
+	return nil
 }

@@ -235,3 +235,43 @@ See the [Deployment actions discovery script](https://github.com/argoproj/argo-c
 ```
 
 The [resource scale actions](../user-guide/scale_application_resources.md) documentation shows how this function behaves in the UI.
+
+## Contributing a Custom Resource Action
+
+A resource action can be bundled into Argo CD. Custom resource action scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). Each contributed custom action needs to have a Lua script for discovery and a Lua script for the actual action logic. It also needs to have testdata and expected K8s resource manifests, which represent the outcome of performing the action.
+
+The following directory structure must be respected:
+
+```
+argo-cd
+|-- resource_customizations
+|    |-- your.crd.group.io                         # CRD group
+|    |    |-- MyKind                               # Resource kind
+|    |    |    |-- actions                         # Actions folder
+|    |    |    |    |-- action_test.yaml           # Test inputs and expected results
+|    |    |    |    |-- testdata                   # Folder with sample K8s manifest yaml files, for testing the outcome of performing the custom actions 
+|    |    |    |    |-- discovery.lua              # Conditions upon which the custom action would be visible in the UI
+|    |    |    |    |-- <action_name>              # Folder for each custom action, named as the custom action
+|    |    |    |    |    |-- action.lua            # Custom action logic Lua script 
+```
+It is required to provide both discovery tests and action tests for your custom action.
+
+Example of a [complete custom action](https://github.com/argoproj/argo-cd/tree/master/resource_customizations/argoproj.io/AnalysisRun/actions) called `terminate` for AnalysisRun.
+
+
+Example of `action_test.yaml` file content with `discoveryTests` and `actionTests`:
+``` yaml
+discoveryTests:
+- inputPath: testdata/runningAnalysisRun.yaml
+  result:
+  - name: terminate
+    disabled: false
+- inputPath: testdata/failedAnalysisRun.yaml
+  result:
+  - name: terminate
+    disabled: true
+actionTests:
+- action: terminate
+  inputPath: testdata/runningAnalysisRun.yaml
+  expectedOutputPath: testdata/runningAnalysisRun_terminated.yaml
+```

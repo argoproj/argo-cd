@@ -34,7 +34,7 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", nil, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", nil, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -53,7 +53,7 @@ func TestGitLabServiceToken(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("token-123", server.URL, "278964", nil, "", "", false, nil)
+	svc, err := NewGitLabService("token-123", server.URL, "278964", nil, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -72,13 +72,13 @@ func TestList(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, 15442, prs[0].Number)
+	assert.Equal(t, int64(15442), prs[0].Number)
 	assert.Equal(t, "Draft: Use structured logging for DB load balancer", prs[0].Title)
 	assert.Equal(t, "use-structured-logging-for-db-load-balancer", prs[0].Branch)
 	assert.Equal(t, "master", prs[0].TargetBranch)
@@ -98,7 +98,7 @@ func TestListWithLabels(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -117,7 +117,7 @@ func TestListWithState(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "opened", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "opened", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -158,7 +158,6 @@ func TestListWithStateTLS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				writeMRListResponse(t, w)
@@ -179,7 +178,7 @@ func TestListWithStateTLS(t *testing.T) {
 				}
 			}
 
-			svc, err := NewGitLabService("", ts.URL, "278964", []string{}, "opened", "", test.tlsInsecure, certs)
+			svc, err := NewGitLabService("", ts.URL, "278964", []string{}, "opened", "", test.tlsInsecure, certs, "", "")
 			require.NoError(t, err)
 
 			_, err = svc.List(t.Context())
@@ -205,7 +204,7 @@ func TestGitLabListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewGitLabService("", server.URL, "nonexistent", []string{}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "nonexistent", []string{}, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
