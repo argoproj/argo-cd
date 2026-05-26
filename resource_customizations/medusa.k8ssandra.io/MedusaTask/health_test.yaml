@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/task_ok.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed nodes exist"
+  inputPath: testdata/task_failed.yaml
+- healthStatus:
+    status: Progressing
+    message: ""
+  inputPath: testdata/task_no_finished_no_failed.yaml
+- healthStatus:
+    status: Unknown
+    message: ""
+  inputPath: testdata/task_ok_but_non_matching_generation.yaml
