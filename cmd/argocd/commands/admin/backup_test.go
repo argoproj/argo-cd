@@ -487,3 +487,53 @@ func TestIsSkipLabelMatches(t *testing.T) {
 		})
 	}
 }
+func Test_updateLive(t *testing.T) {
+    tests := []struct {
+        name          string
+        bak           *unstructured.Unstructured
+        live          *unstructured.Unstructured
+        stopOperation bool
+        expected      *unstructured.Unstructured
+    }{
+        {
+            name: "ConfigMap data should be updated from backup",
+            bak: kube.MustToUnstructured(&corev1.ConfigMap{
+                ObjectMeta: metav1.ObjectMeta{
+                    Name:      "my-cm",
+                    Namespace: "argocd",
+                },
+                Data: map[string]string{"key": "from-backup"},
+            }),
+            live: kube.MustToUnstructured(&corev1.ConfigMap{
+                ObjectMeta: metav1.ObjectMeta{
+                    Name:      "my-cm",
+                    Namespace: "argocd",
+                },
+                Data: map[string]string{"key": "from-live"},
+            }),
+            stopOperation: false,
+        },
+        {
+            name: "Application operation should be removed when stopOperation is true",
+            bak:  newApplication("argocd"),
+            live: newApplication("argocd"),
+            stopOperation: true,
+        },
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            result := updateLive(tt.bak, tt.live, tt.stopOperation)
+            assert.NotNil(t, result)
+
+            // ConfigMap: backup ka data aana chahiye
+            if tt.live.GetKind() == "ConfigMap" {
+                assert.Equal(t, tt.bak.Object["data"], result.Object["data"])
+            }
+
+            // stopOperation: operation nil hona chahiye
+            if tt.stopOperation {
+                assert.Nil(t, result.Object["operation"])
+            }
+        })
+    }
+}
