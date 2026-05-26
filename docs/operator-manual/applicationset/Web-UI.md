@@ -8,7 +8,7 @@
 
 Argo CD introduces a first-class Web UI for ApplicationSets. Until now,
 ApplicationSets were managed primarily through `kubectl`, the
-`argocd appset` CLI, or by browsing the generated child Applications. The
+`argocd appset` CLI command, or by browsing the generated child Applications. The
 new UI surfaces ApplicationSets directly, with a list view, a resource
 tree, a slide-out details panel, and a preview tab that lets you see what
 Applications an ApplicationSet will generate.
