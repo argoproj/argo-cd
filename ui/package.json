@@ -83,7 +83,6 @@
     "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/lodash-es": "^4.17.6",
-    "@types/minimatch": "^3.0.3",
     "@types/node": "20.14.12",
     "@types/popper.js": "^1.11.0",
     "@types/prop-types": "^15.7.5",
