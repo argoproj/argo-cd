@@ -38,6 +38,21 @@
         .argo-dropdown {
             z-index: 2;
         }
+
+        // The name itself is a real anchor (same href as the overlay) so clicks on
+        // the name navigate just like clicks elsewhere on the row, and Tippy's hover
+        // listener fires on it. The link-reset styles keep it looking like plain text.
+        // Lift is provided by the `a:not(.applications-list__table-row__overlay-link)`
+        // rule above; the rules here are just visual reset.
+        .applications-list__table-row-name {
+            color: inherit;
+            text-decoration: none;
+
+            &:hover, &:focus, &:visited, &:active {
+                color: inherit;
+                text-decoration: none;
+            }
+        }
     }
 
     .applications-list__table-row__overlay-link {

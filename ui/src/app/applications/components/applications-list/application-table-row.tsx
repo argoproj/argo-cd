@@ -119,7 +119,9 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                         </Moment>
                                     </>
                                 }>
-                                <span>{app.metadata.name}</span>
+                                <a className='applications-list__table-row-name' href={appHref} onClick={handleRowClick}>
+                                    {app.metadata.name}
+                                </a>
                             </Tooltip>
                             <button
                                 type='button'

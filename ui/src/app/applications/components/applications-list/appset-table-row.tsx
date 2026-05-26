@@ -105,7 +105,9 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                         </Moment>
                                     </>
                                 }>
-                                <span>{appSet.metadata.name}</span>
+                                <a className='applications-list__table-row-name' href={appSetHref} onClick={handleRowClick}>
+                                    {appSet.metadata.name}
+                                </a>
                             </Tooltip>
                             <button
                                 type='button'

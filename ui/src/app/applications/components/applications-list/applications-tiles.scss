@@ -7,29 +7,26 @@
     padding: 0 12px;
 
     &__wrapper {
-        position: relative;
         height: 100%;
-
-        // Lift interactive descendants above the overlay link so they receive clicks
-        // directly. The overlay anchor catches clicks on the non-interactive areas.
-        button,
-        a:not(.applications-tiles__overlay-link) {
-            position: relative;
-            z-index: 2;
-        }
-    }
-
-    &__overlay-link {
-        position: absolute;
-        inset: 0;
-        z-index: 1;
         color: inherit;
         text-decoration: none;
+        // Leave room at the bottom for the absolutely-positioned action-buttons sibling.
+        padding-bottom: 50px;
 
         &:hover, &:focus, &:visited, &:active {
             color: inherit;
             text-decoration: none;
         }
+    }
+
+    // Header buttons (URLs, external-link, favorite) live outside the wrapping anchor
+    // to keep the markup valid (no <a>/<button> nested inside <a>). They're absolutely
+    // positioned over the top-right of the tile where the original button column rendered.
+    &__header-buttons {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+        z-index: 1;
     }
 
     &__item {
@@ -41,8 +38,17 @@
         }
     }
 
+    // Action buttons (Sync, Refresh, Delete) likewise live outside the wrapping anchor,
+    // absolutely positioned at the bottom of the tile.
     &__actions {
-        margin-top: auto;
+        position: absolute;
+        bottom: 8px;
+        left: 0;
+        right: 0;
+        // Match the entry's horizontal padding (1em) plus the Foundation column gutter
+        // (0.9375rem) so the buttons align with the labels above.
+        padding: 0 calc(1em + 0.9375rem);
+        z-index: 1;
     }
 
     .argo-table-list__row {
