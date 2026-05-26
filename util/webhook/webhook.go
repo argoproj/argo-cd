@@ -97,6 +97,8 @@ var (
 	})
 )
 
+var errNoADOCredentials = errors.New("no supported Azure DevOps REST API credentials configured")
+
 var _ settingsSource = &settings.SettingsManager{}
 
 type ArgoCDWebhookHandler struct {
@@ -619,6 +621,10 @@ func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(ctx context.Context
 	}
 	changedFiles, err := fetchChangedFilesFromADO(ctx, a.adoHTTPClientFactory(argoRepo), argoRepo, repoID, shaBefore, shaAfter)
 	if err != nil {
+		if errors.Is(err, errNoADOCredentials) {
+			log.Warnf("no supported Azure DevOps REST API credentials configured for repository %s; falling back to full refresh", repoURL)
+			return nil
+		}
 		log.Warnf("error fetching changed files from Azure DevOps diffs API: %v", err)
 		return nil
 	}
@@ -845,8 +851,7 @@ func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo
 		return nil, fmt.Errorf("error creating Azure DevOps diffs API request: %w", err)
 	}
 	if !setADOAuthHeader(req, repo) {
-		log.Warnf("no supported Azure DevOps REST API credentials configured for repository %s; falling back to full refresh", repo.Repo)
-		return nil, nil
+		return nil, errNoADOCredentials
 	}
 	log.Debugf("fetching changed files from Azure DevOps diffs API: %s", apiURL)
 	resp, err := httpClient.Do(req)

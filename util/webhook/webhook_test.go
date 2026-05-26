@@ -1944,7 +1944,7 @@ func TestFetchChangedFilesFromADO_NoCredentials(t *testing.T) {
 	})}
 
 	changedFiles, err := fetchChangedFilesFromADO(t.Context(), client, repo, "some-repo-id", "sha-before", "sha-after")
-	require.NoError(t, err)
+	require.ErrorIs(t, err, errNoADOCredentials)
 	require.Nil(t, changedFiles)
 }
 
