@@ -198,7 +198,7 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				if !ok {
 					return
 				}
-				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
+				guard.RecoverAndLog(func() { a.HandleEvent(context.Background(), payload) }, compLog, panicMsgServer)
 			}
 		})
 	}
@@ -211,7 +211,7 @@ func ParseRevision(ref string) string {
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
-func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+func (a *ArgoCDWebhookHandler) affectedRevisionInfo(ctx context.Context, payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
@@ -223,6 +223,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		}
 		changedFiles = append(changedFiles, a.lookupAndFetchADOChangedFiles(
+			ctx,
 			payload.Resource.Repository.RemoteURL,
 			payload.Resource.Repository.ID,
 			change.shaBefore,
@@ -392,7 +393,7 @@ type adoDiffItem struct {
 }
 
 // HandleEvent handles webhook events for repo push events
-func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
+func (a *ArgoCDWebhookHandler) HandleEvent(ctx context.Context, payload any) {
 	webhookHandlersInFlight.Inc()
 	defer webhookHandlersInFlight.Dec()
 
@@ -406,7 +407,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		a.HandleRegistryEvent(e)
 		return
 	}
-	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
+	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(ctx, payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
 		log.Info("Ignoring webhook event")
@@ -599,13 +600,13 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 
 // lookupAndFetchADOChangedFiles fetches the list of changed files for an Azure DevOps push event.
 // The repo lookup acts as the SSRF guard: we only proceed if the repository is registered in ArgoCD.
-func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(repoURL, repoID, shaBefore, shaAfter string) []string {
+func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(ctx context.Context, repoURL, repoID, shaBefore, shaAfter string) []string {
 	if shaBefore == "" || shaAfter == "" || shaBefore == adoNullSHA || shaAfter == adoNullSHA {
 		log.Debugf("skipping Azure DevOps changed files lookup for URL %s because the commit range is empty or includes the null SHA used for branch creation or deletion", repoURL)
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	argoRepo, err := a.lookupRepositoryWithCredsTemplate(ctx, repoURL)
 	if err != nil {

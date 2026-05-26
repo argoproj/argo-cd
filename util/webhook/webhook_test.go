@@ -700,7 +700,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			h := NewMockHandler(nil, []string{})
-			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(testCopy.hookPayload)
+			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(t.Context(), testCopy.hookPayload)
 			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
 				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
 			}
@@ -1415,7 +1415,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			h := NewMockHandlerForBitbucketCallback(nil, []string{})
-			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
+			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(t.Context(), testCase.hookPayload)
 			require.Equal(t, testCase.revision, revisionFromHook)
 			require.Equal(t, testCase.expectedTouchHead, touchHead)
 			require.Equal(t, testCase.expectedChangedFiles, changedFiles)
@@ -1494,7 +1494,7 @@ func Test_affectedRevisionInfo_azuredevops_changed_files_via_creds_template(t *t
 		require.Equal(t, "localhost", repo.NoProxy)
 		return client
 	}
-	_, _, _, _, changedFiles := h.affectedRevisionInfo(payload)
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(t.Context(), payload)
 	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
 }
 
@@ -1513,7 +1513,7 @@ func Test_affectedRevisionInfo_azuredevops_changed_files(t *testing.T) {
 	h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
 		return client
 	}
-	_, _, _, _, changedFiles := h.affectedRevisionInfo(payload)
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(t.Context(), payload)
 	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
 }
 
@@ -1540,7 +1540,7 @@ func Test_affectedRevisionInfo_azuredevops_multiple_ref_updates(t *testing.T) {
 	h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
 		return client
 	}
-	_, _, _, _, changedFiles := h.affectedRevisionInfo(payload)
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(t.Context(), payload)
 	// Only the first refUpdate's SHAs were used; changed files are still resolved correctly.
 	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
 }
@@ -1557,7 +1557,7 @@ func Test_affectedRevisionInfo_azuredevops_no_ref_updates_skips_changed_files_lo
 		t.Fatal("ADO HTTP client should not be created when the webhook has no ref updates")
 		return nil
 	}
-	_, _, _, _, changedFiles := h.affectedRevisionInfo(payload)
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(t.Context(), payload)
 	require.Empty(t, changedFiles)
 }
 
@@ -1591,7 +1591,7 @@ func TestLookupAndFetchADOChangedFiles_SkipsNonDiffableRange(t *testing.T) {
 				t.Fatal("ADO HTTP client should not be created for non-diffable commit range")
 				return nil
 			}
-			changedFiles := h.lookupAndFetchADOChangedFiles(testADORepoURL, testADORepoID, tt.shaBefore, tt.shaAfter)
+			changedFiles := h.lookupAndFetchADOChangedFiles(t.Context(), testADORepoURL, testADORepoID, tt.shaBefore, tt.shaAfter)
 			require.Empty(t, changedFiles)
 		})
 	}
@@ -1609,7 +1609,7 @@ func TestLookupAndFetchADOChangedFiles_RepositoryLookupError(t *testing.T) {
 		return nil
 	}
 
-	changedFiles := h.lookupAndFetchADOChangedFiles(testADORepoURL, testADORepoID, testADOShaBefore, testADOShaAfter)
+	changedFiles := h.lookupAndFetchADOChangedFiles(t.Context(), testADORepoURL, testADORepoID, testADOShaBefore, testADOShaAfter)
 	require.Empty(t, changedFiles)
 	assertLogContainsSubstr(t, hook, "error finding repository for Azure DevOps webhook URL")
 }
@@ -1631,7 +1631,7 @@ func TestLookupAndFetchADOChangedFiles_FetchError(t *testing.T) {
 		})}
 	}
 
-	changedFiles := h.lookupAndFetchADOChangedFiles(testADORepoURL, testADORepoID, testADOShaBefore, testADOShaAfter)
+	changedFiles := h.lookupAndFetchADOChangedFiles(t.Context(), testADORepoURL, testADORepoID, testADOShaBefore, testADOShaAfter)
 	require.Empty(t, changedFiles)
 	assertLogContainsSubstr(t, hook, "error fetching changed files from Azure DevOps diffs API")
 }
