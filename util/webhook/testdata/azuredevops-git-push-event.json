@@ -20,15 +20,15 @@
         "commitId": "298a79aa1552799a70718a0ee914d153d5a1a76b",
         "author": {
           "name": "Test User",
-          "email": "AMatyushentsev@gmail.com",
+          "email": "test-user@example.com",
           "date": "2023-08-09T00:45:39Z"
         },
         "committer": {
           "name": "Test User",
-          "email": "AMatyushentsev@gmail.com",
+          "email": "test-user@example.com",
           "date": "2023-08-09T00:45:39Z"
         },
-        "comment": "draft\n\nSigned-off-by: Test User <AMatyushentsev@gmail.com>",
+        "comment": "draft\n\nSigned-off-by: Test User <test-user@example.com>",
         "url": "https://dev.azure.com/my-org/_apis/git/repositories/ba2967cc-02c2-414c-8d10-1b99197cbaa6/commits/298a79aa1552799a70718a0ee914d153d5a1a76b"
       }
     ],
