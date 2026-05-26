@@ -352,8 +352,8 @@ controller:
 .PHONY: build-ui
 build-ui:
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
-	find ./ui/dist -type f -not -name gitkeep -delete
-	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	find ./ui/dist -type f -not -name .gitkeep -delete
+	$(DOCKER) run $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
@@ -611,7 +611,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -e HOME=/tmp/home $(PODMAN_ARGS) ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs:Z -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install --user -r docs/requirements.txt; /tmp/home/.local/bin/mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
@@ -619,7 +619,7 @@ serve-docs-local:
 
 .PHONY: serve-docs
 serve-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -e HOME=/tmp/home $(PODMAN_ARGS) ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs:Z -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install --user -r docs/requirements.txt; /tmp/home/.local/bin/mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
