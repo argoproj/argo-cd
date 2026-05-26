@@ -69,7 +69,7 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	// The marshaller drops custom tags, so re-add them. Turns out this is much less invasive than trying to handle
 	// it at the YAML parser level.
 	newmkdocs = bytes.Replace(newmkdocs, []byte("site_url: READTHEDOCS_CANONICAL_URL"), []byte("site_url: !ENV READTHEDOCS_CANONICAL_URL"), 1)
-	newmkdocs = bytes.Replace(newmkdocs, []byte("format: pymdownx.superfences.fence_div_format"), []byte("format: !!python/name:pymdownx.superfences.fence_div_format"), 1)
+	newmkdocs = bytes.Replace(newmkdocs, []byte(`format: ""`), []byte("format: !!python/name:pymdownx.superfences.fence_div_format"), 1)
 
 	return os.WriteFile("mkdocs.yml", newmkdocs, 0o644)
 }
