@@ -73,7 +73,8 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
         <div
             ref={tileRef}
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <a className='row applications-tiles__wrapper' href={appSetHref} onClick={handleTileClick}>
+            <div className='row applications-tiles__wrapper'>
+                <a className='applications-tiles__overlay-link' href={appSetHref} onClick={handleTileClick} aria-label={appSet.metadata.name} />
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(appSet)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
@@ -170,7 +171,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                         <div className='columns small-9'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
                     </div>
                 </div>
-            </a>
+            </div>
         </div>
     );
 };

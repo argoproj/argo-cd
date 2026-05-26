@@ -76,10 +76,8 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
 
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <a
-                className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
-                href={appHref}
-                onClick={handleRowClick}>
+            <div className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}>
+                <a className='applications-list__table-row__overlay-link' href={appHref} onClick={handleRowClick} aria-label={app.metadata.name} />
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
                     <div className='row'>
@@ -192,7 +190,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                         ]}
                     />
                 </div>
-            </a>
+            </div>
         </div>
     );
 };

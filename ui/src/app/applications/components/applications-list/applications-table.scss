@@ -23,6 +23,27 @@
     }
 
     .applications-list__table-row {
+        position: relative;
+
+        // Lift interactive descendants above the overlay link so they receive clicks
+        // directly. The overlay anchor catches clicks on the non-interactive areas.
+        button,
+        a:not(.applications-list__table-row__overlay-link) {
+            position: relative;
+            z-index: 2;
+        }
+
+        // .argo-dropdown is already position: absolute via a more specific rule above;
+        // just add z-index so it sits above the overlay link.
+        .argo-dropdown {
+            z-index: 2;
+        }
+    }
+
+    .applications-list__table-row__overlay-link {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
         color: inherit;
         text-decoration: none;
 

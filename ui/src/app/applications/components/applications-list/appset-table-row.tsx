@@ -67,7 +67,8 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
 
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <a className='row applications-list__table-row' href={appSetHref} onClick={handleRowClick}>
+            <div className='row applications-list__table-row'>
+                <a className='applications-list__table-row__overlay-link' href={appSetHref} onClick={handleRowClick} aria-label={appSet.metadata.name} />
                 {/* First column: Favorite, Kind, Name */}
                 <div className='columns small-4'>
                     <div className='row'>
@@ -122,7 +123,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                 <div className='columns small-8'>
                     <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> <span>{healthStatus}</span>
                 </div>
-            </a>
+            </div>
         </div>
     );
 };

@@ -7,7 +7,22 @@
     padding: 0 12px;
 
     &__wrapper {
+        position: relative;
         height: 100%;
+
+        // Lift interactive descendants above the overlay link so they receive clicks
+        // directly. The overlay anchor catches clicks on the non-interactive areas.
+        button,
+        a:not(.applications-tiles__overlay-link) {
+            position: relative;
+            z-index: 2;
+        }
+    }
+
+    &__overlay-link {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
         color: inherit;
         text-decoration: none;
 
