@@ -68,7 +68,10 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <div className='row applications-list__table-row'>
-                <a className='applications-list__table-row__overlay-link' href={appSetHref} onClick={handleRowClick} aria-label={appSet.metadata.name} />
+                {/* The name anchor below is the row's sole accessible link; this overlay is
+                    only for pointer clicks on non-name areas, so hide it from the a11y tree
+                    and tab order to avoid a duplicate tab stop / announcement. */}
+                <a className='applications-list__table-row__overlay-link' href={appSetHref} onClick={handleRowClick} tabIndex={-1} aria-hidden='true' />
                 {/* First column: Favorite, Kind, Name */}
                 <div className='columns small-4'>
                     <div className='row'>
