@@ -91,6 +91,9 @@ As is the case with the development process, this document is under constant cha
 
 Need help? Start with the [Contributors FAQ](faq.md)
 
+## Contributing to Argo CD custom healthchecks
+- [Understanding and writing health checks](../operator-manual/health.md#custom-health-checks)
+
 ## Contributing to Argo CD dependencies
 - [Contributing to argo-ui](dependencies.md#argo-ui-components-githubcomargoprojargo-ui)
 - [Contributing to notifications-engine](dependencies.md#notifications-engine-githubcomargoprojnotifications-engine)

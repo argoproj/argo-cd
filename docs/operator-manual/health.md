@@ -60,10 +60,30 @@ data:
 
 ## Custom Health Checks
 
+### Preface
+
 Argo CD supports custom health checks written in [Lua](https://www.lua.org/). This is useful if you:
 
 * Are affected by known issues where your `Ingress` or `StatefulSet` resources are stuck in `Progressing` state because of bug in your resource controller.
 * Have a custom resource for which Argo CD does not have a built-in health check.
+
+Argo CD relies on the health and status fields provided by Kubernetes CRDs. These fields are defined and maintained by the creators of each CRD, not by Argo CD. Since CRDs do not follow a consistent or standardized status format, Argo CD can only determine their health reliably when custom health checks are explicitly contributed for each CRD.
+
+### Guidelines for Writing Good Health Checks
+
+#### Exploring the documentation/code of the relevant K8s controller
+CRDs do not follow a consistent or standardized status format, but in most of the cases, it is fairly easy to write custom health checks based on observing the `status` sub-resource for the different conditions you encounter in your K8s cluster.   
+
+However, for some controllers, the `status` sub-resource is complex and challenging to understand and interpret correctly. For those cases, you may want to consult the controller's docs or even code (especially where the status conditions are handled) to write the health check correctly.
+
+#### Using kstatus
+If the CRD status is in [kstatus](https://github.com/kubernetes-sigs/cli-utils/blob/master/pkg/kstatus/README.md) format, please state it as a comment in the health check (as Argo CD maintainers evaluate the usage of kstatus-based health calculation, having the knowledge about which CRDs follow this standard can help us with adoption).
+
+#### Using K8s observedGeneration field
+If the CRD uses the [observedGeneration](https://alenkacz.medium.com/kubernetes-operator-best-practices-implementing-observedgeneration-250728868792) field correctly and it is present in the `status` sub-resource, please use this field in the health check. Using this field in calculating the CRD health is important for preventing situations in which the health status in Argo CD may flap if Argo CD is evaluating the health status before the CRD controller finished reconciling the changed CR.   
+This is an [example](https://github.com/argoproj/argo-cd/blob/stable/resource_customizations/argoproj.io/Rollout/health.lua) of using this field in a health check.  
+
+### Configuring Custom Health Checks
 
 There are two ways to configure a custom health check. The next two sections describe those ways.
 
@@ -170,6 +190,10 @@ tests:
     message: Expected message
   inputPath: testdata/test-resource-definition.yaml
 ```
+For the files you add in `testdata` folder - please make sure those are full K8s manifests, extracted from the cluster where the controller is installed by running `kubectl get ... -oyaml`. If the resulting file is very long, you can omit some of the spec, but it is critical for the files in `testdata` to contain the full `status` sub-resource, extracted from your cluster.
+
+> [!IMPORTANT]
+> Argo CD maintainers do not have the full expertise on the different CRDs and their health conditions, so in cases of complex `status` conditions, the Argo CD maintainers may ask you to reach out to the CRD maintainers to help review the health check PR. 
 
 To test the implemented custom health checks, run `go test -v ./util/lua/`.
 
