@@ -7,6 +7,6 @@ tests:
     message: "Last transition type was Updating"
   inputPath: testdata/datacenter-updating.yaml
 - healthStatus:
-    status: Progessing
+    status: Progressing
     message: "Last transition type was Initialized"
   inputPath: testdata/datacenter-initialized.yaml
