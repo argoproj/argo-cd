@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sync"
@@ -20,7 +21,7 @@ type repositoryLock struct {
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
 // The init callback receives `clean` parameter which indicates if repo state must be cleaned after running non-concurrent operation.
 // The first init always runs with `clean` set to true because we cannot be sure about initial repo state.
-func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func(clean bool) (io.Closer, error)) (io.Closer, error) {
+func (r *repositoryLock) Lock(ctx context.Context, path string, revision string, allowConcurrent bool, init func(clean bool) (io.Closer, error)) (io.Closer, error) {
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
 	if !ok {
@@ -50,6 +51,18 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		return nil
 	})
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	stopf := context.AfterFunc(ctx, func() {
+		state.cond.L.Lock()
+		defer state.cond.L.Unlock()
+
+		state.cond.Broadcast()
+	})
+	defer stopf()
+
 	for {
 		state.cond.L.Lock()
 		if state.revision == "" {
@@ -71,7 +84,17 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 			state.cond.L.Unlock()
 			return closer, nil
 		}
+
+		if err := ctx.Err(); err != nil {
+			state.cond.L.Unlock()
+			return nil, err
+		}
+
 		state.cond.Wait()
+		if err := ctx.Err(); err != nil {
+			state.cond.L.Unlock()
+			return nil, err
+		}
 		// wait when all in-flight processes of this revision complete and try again
 		state.cond.L.Unlock()
 	}
