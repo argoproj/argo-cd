@@ -605,7 +605,13 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if idTokenRAW != "" {
-		err = httputil.SetTokenCookie(idTokenRAW, a.baseHRef, a.secureCookie, w)
+		compactToken, err := a.createCompactSessionToken(claims)
+		if err != nil {
+			claimsJSON, _ := json.Marshal(claims)
+			http.Error(w, fmt.Sprintf("failed to create session token: claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+			return
+		}
+		err = httputil.SetTokenCookie(compactToken, a.baseHRef, a.secureCookie, w)
 		if err != nil {
 			claimsJSON, _ := json.Marshal(claims)
 			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
@@ -708,6 +714,17 @@ func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.Ma
 				err = errors.New("empty id_token")
 				span.SetStatus(codes.Error, err.Error())
 				return "", err
+			}
+			// Compact OIDC sessions must stay compact after refresh so the cookie remains small.
+			if _, isCompact := groupClaims["federated_claims"]; isCompact && iss == "argocd" {
+				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+				var newClaims jwt.MapClaims
+				if _, _, parseErr := parser.ParseUnverified(idTokenRAW, &newClaims); parseErr != nil {
+					err = fmt.Errorf("failed to parse refreshed ID token: %w", parseErr)
+					span.SetStatus(codes.Error, err.Error())
+					return "", err
+				}
+				return a.createCompactSessionToken(newClaims)
 			}
 			return idTokenRAW, nil
 		}
@@ -898,7 +915,26 @@ func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims
 		}
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+
+	// Compact OIDC tokens carry federated_claims and iss=="argocd". Their groups were stripped
+	// from the cookie at login time; reconstruct them here from the Redis-cached OIDC token.
+	_, isCompactOIDCToken := groupClaims["federated_claims"]
+	isCompactOIDCToken = isCompactOIDCToken && iss == sessionManagerClaimsIssuer
+
+	if isCompactOIDCToken {
+		sub := jwtutil.StringField(groupClaims, "sub")
+		sid := jwtutil.StringField(groupClaims, "sid")
+		groups, err := a.getGroupsFromCachedOIDCToken(ctx, sub, sid)
+		if err != nil {
+			log.Warnf("Failed to retrieve groups from cached OIDC token (sub=%s): %v", sub, err)
+		} else if groups != nil {
+			groupClaims["groups"] = groups
+			return groupClaims, nil
+		}
+		// Cache miss — fall through to the UserInfo endpoint if configured.
+	}
+
+	if (iss != sessionManagerClaimsIssuer || isCompactOIDCToken) && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
 		userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoBaseURL(), a.settings.UserInfoPath())
 		if unauthorized {
 			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
@@ -1079,4 +1115,94 @@ func formatOidcTokenCacheKey(sub string, sid string) string {
 
 func (a *ClientApp) IssuerURL() string {
 	return a.issuerURL
+}
+
+// createCompactSessionToken creates a compact ArgoCD-signed JWT from OIDC claims. Group claims are
+// stripped to keep cookie size independent of group count. Groups are reconstructed at request time
+// from the Redis-cached OIDC token via SetGroupsFromUserInfo.
+//
+// The issuer is set to "argocd" (matching SessionManagerClaimsIssuer in util/session) so the token
+// is verified locally via HMAC rather than by calling the OIDC provider on every request.
+// The presence of federated_claims distinguishes these tokens from native ArgoCD account tokens.
+func (a *ClientApp) createCompactSessionToken(oidcClaims jwt.MapClaims) (string, error) {
+	now := time.Now().UTC()
+	compact := jwt.MapClaims{
+		// "argocd" matches session.SessionManagerClaimsIssuer — verified locally via HMAC.
+		"iss": "argocd",
+		"sub": jwtutil.StringField(oidcClaims, "sub"),
+		"exp": oidcClaims["exp"],
+		"iat": jwt.NewNumericDate(now),
+		"nbf": jwt.NewNumericDate(now),
+	}
+	if email := jwtutil.StringField(oidcClaims, "email"); email != "" {
+		compact["email"] = email
+	}
+	if name := jwtutil.StringField(oidcClaims, "name"); name != "" {
+		compact["name"] = name
+	}
+	if sid := jwtutil.StringField(oidcClaims, "sid"); sid != "" {
+		compact["sid"] = sid
+	}
+
+	// Carry federated_claims through to mark OIDC origin and preserve user identity for Dex
+	// connectors (federated_claims.user_id is what GetUserIdentifier returns for Dex tokens).
+	originalIss := jwtutil.StringField(oidcClaims, "iss")
+	if fc, ok := oidcClaims["federated_claims"].(map[string]any); ok {
+		merged := make(map[string]any, len(fc)+1)
+		for k, v := range fc {
+			merged[k] = v
+		}
+		if _, hasConnectorID := merged["connector_id"]; !hasConnectorID {
+			merged["connector_id"] = originalIss
+		}
+		compact["federated_claims"] = merged
+	} else {
+		compact["federated_claims"] = map[string]any{"connector_id": originalIss}
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, compact)
+	return token.SignedString(a.settings.ServerSignature)
+}
+
+// getGroupsFromCachedOIDCToken retrieves the groups claim from the OIDC token that was cached
+// in Redis at login time. Returns nil (no error) on a cache miss so callers can fall through to
+// an alternative source (e.g. the UserInfo endpoint).
+func (a *ClientApp) getGroupsFromCachedOIDCToken(ctx context.Context, sub, sid string) ([]any, error) {
+	cacheJSON, err := a.GetValueFromEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid))
+	if err != nil {
+		return nil, fmt.Errorf("read cached OIDC token: %w", err)
+	}
+	if cacheJSON == nil {
+		return nil, nil // cache miss — caller should fall through
+	}
+
+	oidcCache, err := GetOidcTokenCacheFromJSON(cacheJSON)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal cached OIDC token: %w", err)
+	}
+	if oidcCache.TokenExtraIdToken == "" {
+		return nil, nil
+	}
+
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var idTokenClaims jwt.MapClaims
+	if _, _, err = parser.ParseUnverified(oidcCache.TokenExtraIdToken, &idTokenClaims); err != nil {
+		return nil, fmt.Errorf("parse cached ID token: %w", err)
+	}
+
+	raw, ok := idTokenClaims["groups"]
+	if !ok {
+		return nil, nil
+	}
+	switch v := raw.(type) {
+	case []any:
+		return v, nil
+	case []string:
+		out := make([]any, len(v))
+		for i, s := range v {
+			out[i] = s
+		}
+		return out, nil
+	}
+	return nil, nil
 }

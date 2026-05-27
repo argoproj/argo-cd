@@ -250,6 +250,12 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", err
 	}
 
+	// Compact OIDC tokens carry federated_claims and are signed by ArgoCD but belong to an
+	// external user identity. Skip the ArgoCD account checks that apply only to local accounts.
+	if _, hasFC := claims["federated_claims"]; hasFC {
+		return token.Claims, "", nil
+	}
+
 	issuedAt, err := jwtutil.IssuedAtTime(claims)
 	if err != nil {
 		return nil, "", err
@@ -655,6 +661,13 @@ func Username(ctx context.Context) string {
 	}
 	switch jwtutil.StringField(mapClaims, "iss") {
 	case SessionManagerClaimsIssuer:
+		// Compact OIDC tokens have federated_claims; use email-first to match the existing
+		// OIDC token behaviour so RBAC rules based on email continue to work unchanged.
+		if _, hasFC := mapClaims["federated_claims"]; hasFC {
+			if e := jwtutil.StringField(mapClaims, "email"); e != "" {
+				return e
+			}
+		}
 		return jwtutil.GetUserIdentifier(mapClaims)
 	default:
 		e := jwtutil.StringField(mapClaims, "email")

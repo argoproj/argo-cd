@@ -1678,6 +1678,338 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL, tt.refreshTokenThreshold),
 	}
 }
 
+func makeTestClientApp(t *testing.T, signature []byte) *ClientApp {
+	t.Helper()
+	sig := signature
+	if sig == nil {
+		var err error
+		sig, err = util.MakeSignature(32)
+		require.NoError(t, err)
+	}
+	cdSettings := &settings.ArgoCDSettings{
+		ServerSignature: sig,
+		OIDCConfigRAW: `
+issuer: http://localhost:9999
+clientID: test-client
+clientSecret: test-secret`,
+	}
+	a, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+	return a
+}
+
+func TestCreateCompactSessionToken(t *testing.T) {
+	sig, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	a := makeTestClientApp(t, sig)
+
+	t.Run("compact token contains essential claims", func(t *testing.T) {
+		oidcClaims := jwt.MapClaims{
+			"iss":   "https://idp.example.com",
+			"sub":   "user123",
+			"email": "user@example.com",
+			"name":  "Test User",
+			"sid":   "session-abc",
+			"exp":   float64(time.Now().Add(time.Hour).Unix()),
+			"groups": []string{
+				"group1", "group2", "group3",
+			},
+		}
+
+		compactToken, err := a.createCompactSessionToken(oidcClaims)
+		require.NoError(t, err)
+		assert.NotEmpty(t, compactToken)
+
+		// Parse without verification to inspect claims
+		parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+		var got jwt.MapClaims
+		_, _, err = parser.ParseUnverified(compactToken, &got)
+		require.NoError(t, err)
+
+		assert.Equal(t, "argocd", got["iss"])
+		assert.Equal(t, "user123", got["sub"])
+		assert.Equal(t, "user@example.com", got["email"])
+		assert.Equal(t, "Test User", got["name"])
+		assert.Equal(t, "session-abc", got["sid"])
+		assert.Nil(t, got["groups"], "groups must be stripped from compact token")
+
+		fc, ok := got["federated_claims"].(map[string]any)
+		require.True(t, ok, "federated_claims must be present")
+		assert.Equal(t, "https://idp.example.com", fc["connector_id"])
+	})
+
+	t.Run("compact token is smaller than original when many groups", func(t *testing.T) {
+		groups := make([]string, 200)
+		for i := range groups {
+			groups[i] = fmt.Sprintf("group-with-a-somewhat-long-name-%d", i)
+		}
+		oidcClaims := jwt.MapClaims{
+			"iss":    "https://idp.example.com",
+			"sub":    "user123",
+			"email":  "user@example.com",
+			"exp":    float64(time.Now().Add(time.Hour).Unix()),
+			"groups": groups,
+		}
+
+		// Simulate what the raw OIDC token would look like (just approximate via claims JSON)
+		rawClaimsJSON, err := json.Marshal(oidcClaims)
+		require.NoError(t, err)
+
+		compactToken, err := a.createCompactSessionToken(oidcClaims)
+		require.NoError(t, err)
+
+		assert.Less(t, len(compactToken), len(rawClaimsJSON),
+			"compact token (%d bytes) should be smaller than raw claims (%d bytes)",
+			len(compactToken), len(rawClaimsJSON))
+	})
+
+	t.Run("existing federated_claims are preserved including user_id", func(t *testing.T) {
+		oidcClaims := jwt.MapClaims{
+			"iss": "https://dex.example.com",
+			"sub": "Cgd1c2VyMTIzEgZnaXRodWI",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
+			"federated_claims": map[string]any{
+				"connector_id": "github",
+				"user_id":      "user123",
+			},
+		}
+		compactToken, err := a.createCompactSessionToken(oidcClaims)
+		require.NoError(t, err)
+
+		parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+		var got jwt.MapClaims
+		_, _, err = parser.ParseUnverified(compactToken, &got)
+		require.NoError(t, err)
+
+		fc, ok := got["federated_claims"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "github", fc["connector_id"])
+		assert.Equal(t, "user123", fc["user_id"])
+	})
+
+	t.Run("compact token is verifiable with ArgoCD server signature", func(t *testing.T) {
+		oidcClaims := jwt.MapClaims{
+			"iss": "https://idp.example.com",
+			"sub": "user123",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
+		}
+		compactToken, err := a.createCompactSessionToken(oidcClaims)
+		require.NoError(t, err)
+
+		var got jwt.MapClaims
+		parsed, err := jwt.ParseWithClaims(compactToken, &got, func(*jwt.Token) (any, error) {
+			return sig, nil
+		})
+		require.NoError(t, err)
+		assert.True(t, parsed.Valid)
+	})
+}
+
+func TestGetGroupsFromCachedOIDCToken(t *testing.T) {
+	sig, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	a := makeTestClientApp(t, sig)
+
+	encKey, err := a.settings.GetServerEncryptionKey()
+	require.NoError(t, err)
+
+	cacheToken := func(sub, sid string, idTokenClaims jwt.MapClaims) {
+		t.Helper()
+		idTokenStr, err := jwt.NewWithClaims(jwt.SigningMethodHS256, idTokenClaims).SignedString(sig)
+		require.NoError(t, err)
+		oidcCache := NewOidcTokenCache("http://localhost/callback", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": idTokenStr}))
+		raw, err := json.Marshal(oidcCache)
+		require.NoError(t, err)
+		enc, err := crypto.Encrypt(raw, encKey)
+		require.NoError(t, err)
+		err = a.clientCache.Set(&cache.Item{Key: formatOidcTokenCacheKey(sub, sid), Object: enc})
+		require.NoError(t, err)
+	}
+
+	t.Run("returns groups from cached OIDC token", func(t *testing.T) {
+		cacheToken("user1", "sess1", jwt.MapClaims{
+			"sub":    "user1",
+			"groups": []any{"admins", "developers"},
+			"exp":    float64(time.Now().Add(time.Hour).Unix()),
+		})
+		groups, err := a.getGroupsFromCachedOIDCToken(t.Context(), "user1", "sess1")
+		require.NoError(t, err)
+		assert.Equal(t, []any{"admins", "developers"}, groups)
+	})
+
+	t.Run("returns nil on cache miss", func(t *testing.T) {
+		groups, err := a.getGroupsFromCachedOIDCToken(t.Context(), "unknown", "unknown")
+		require.NoError(t, err)
+		assert.Nil(t, groups)
+	})
+
+	t.Run("returns nil when no groups in cached token", func(t *testing.T) {
+		cacheToken("user2", "sess2", jwt.MapClaims{
+			"sub": "user2",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
+		})
+		groups, err := a.getGroupsFromCachedOIDCToken(t.Context(), "user2", "sess2")
+		require.NoError(t, err)
+		assert.Nil(t, groups)
+	})
+}
+
+func TestSetGroupsFromUserInfo_CompactOIDCToken(t *testing.T) {
+	sig, err := util.MakeSignature(32)
+	require.NoError(t, err)
+
+	cdSettings := &settings.ArgoCDSettings{
+		ServerSignature: sig,
+		OIDCConfigRAW: `
+issuer: http://localhost:63231
+enableUserInfoGroups: true
+userInfoPath: /`,
+	}
+	a, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	encKey, err := cdSettings.GetServerEncryptionKey()
+	require.NoError(t, err)
+
+	// Cache the full OIDC token (with groups) to simulate what HandleCallback stores
+	cacheOIDCToken := func(sub, sid string, groups []any) {
+		t.Helper()
+		idTokenClaims := jwt.MapClaims{
+			"sub":    sub,
+			"groups": groups,
+			"exp":    float64(time.Now().Add(time.Hour).Unix()),
+		}
+		idTokenStr, err := jwt.NewWithClaims(jwt.SigningMethodHS256, idTokenClaims).SignedString(sig)
+		require.NoError(t, err)
+		oidcCache := NewOidcTokenCache("http://localhost/cb", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": idTokenStr}))
+		raw, err := json.Marshal(oidcCache)
+		require.NoError(t, err)
+		enc, err := crypto.Encrypt(raw, encKey)
+		require.NoError(t, err)
+		err = a.clientCache.Set(&cache.Item{Key: formatOidcTokenCacheKey(sub, sid), Object: enc})
+		require.NoError(t, err)
+	}
+
+	t.Run("groups reconstructed from Redis cache for compact OIDC token", func(t *testing.T) {
+		cacheOIDCToken("user1", "sess1", []any{"eng", "admin"})
+
+		// Simulate what Parse() returns for a compact token
+		compactClaims := jwt.MapClaims{
+			"iss": "argocd",
+			"sub": "user1",
+			"sid": "sess1",
+			"federated_claims": map[string]any{
+				"connector_id": "https://idp.example.com",
+			},
+		}
+		got, err := a.SetGroupsFromUserInfo(t.Context(), compactClaims, "argocd")
+		require.NoError(t, err)
+		assert.Equal(t, []any{"eng", "admin"}, got["groups"])
+	})
+
+	t.Run("regular ArgoCD local-account token is not affected", func(t *testing.T) {
+		// Local account token has no federated_claims
+		localClaims := jwt.MapClaims{
+			"iss": "argocd",
+			"sub": "admin",
+		}
+		got, err := a.SetGroupsFromUserInfo(t.Context(), localClaims, "argocd")
+		require.NoError(t, err)
+		assert.Nil(t, got["groups"], "local account tokens must not have groups injected")
+	})
+
+	t.Run("cache miss falls through to UserInfo endpoint error", func(t *testing.T) {
+		compactClaims := jwt.MapClaims{
+			"iss": "argocd",
+			"sub": "missing-user",
+			"sid": "missing-sess",
+			"federated_claims": map[string]any{
+				"connector_id": "https://idp.example.com",
+			},
+		}
+		// No access token cached, so GetUserInfo will fail
+		_, err := a.SetGroupsFromUserInfo(t.Context(), compactClaims, "argocd")
+		// Expect an error from the UserInfo endpoint since we have no access token
+		require.Error(t, err)
+	})
+}
+
+func TestHandleCallback_CompactTokenInCookie(t *testing.T) {
+	// Build a large group list that would bust the 4 KB single-cookie limit if stored raw.
+	largeGroups := make([]string, 150)
+	for i := range largeGroups {
+		largeGroups[i] = fmt.Sprintf("team-%03d-engineering-department", i)
+	}
+
+	oidcTestServer := test.GetOIDCTestServerWithGroups(t, largeGroups)
+	t.Cleanup(oidcTestServer.Close)
+
+	sig, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	cdSettings := &settings.ArgoCDSettings{
+		URL:             "https://argocd.example.com",
+		ServerSignature: sig,
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	// Drive the login → callback flow
+	w := httptest.NewRecorder()
+	loginReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+	app.HandleLogin(w, loginReq)
+
+	redirectURL, err := w.Result().Location()
+	require.NoError(t, err)
+	state := redirectURL.Query().Get("state")
+
+	callbackReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet,
+		fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), http.NoBody)
+	for _, c := range w.Result().Cookies() {
+		callbackReq.AddCookie(c)
+	}
+
+	w = httptest.NewRecorder()
+	app.HandleCallback(w, callbackReq)
+	require.Equal(t, http.StatusSeeOther, w.Code, "callback must redirect: %s", w.Body.String())
+
+	// Find the argocd.token cookie
+	var tokenCookie string
+	for _, c := range w.Result().Cookies() {
+		if strings.HasPrefix(c.Name, common.AuthCookieName) {
+			tokenCookie = c.Value
+			break
+		}
+	}
+	require.NotEmpty(t, tokenCookie, "argocd.token cookie must be set")
+
+	// The cookie value should be a single cookie (no chunking prefix) or at most a few chunks —
+	// the key assertion is that it's an ArgoCD-signed token, not the raw OIDC ID token.
+	// We strip the chunk-count prefix if present.
+	rawToken := tokenCookie
+	if idx := strings.Index(tokenCookie, ":"); idx != -1 {
+		if _, convErr := fmt.Sscanf(tokenCookie[:idx], "%d", new(int)); convErr == nil {
+			rawToken = tokenCookie[idx+1:]
+		}
+	}
+
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.MapClaims
+	_, _, err = parser.ParseUnverified(rawToken, &claims)
+	require.NoError(t, err)
+
+	assert.Equal(t, "argocd", claims["iss"], "compact token must be ArgoCD-signed")
+	assert.Nil(t, claims["groups"], "groups must not appear in the cookie token")
+	_, hasFC := claims["federated_claims"]
+	assert.True(t, hasFC, "federated_claims must be present to mark OIDC origin")
+}
+
 func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 	tests := []struct {
 		name               string

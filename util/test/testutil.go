@@ -251,6 +251,78 @@ func GetAzureOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Re
 	return ts
 }
 
+// GetOIDCTestServerWithGroups returns an OIDC test server whose /token endpoint issues ID tokens
+// that include the provided groups claim. Use this to simulate a user belonging to many groups.
+func GetOIDCTestServerWithGroups(t *testing.T, groups []string) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.RequestURI {
+		case "/.well-known/openid-configuration":
+			_, err := fmt.Fprintf(w, `
+{
+  "issuer": "%[1]s",
+  "authorization_endpoint": "%[1]s/auth",
+  "token_endpoint": "%[1]s/token",
+  "jwks_uri": "%[1]s/keys",
+  "userinfo_endpoint": "%[1]s/userinfo",
+  "grant_types_supported": ["authorization_code"],
+  "response_types_supported": ["code"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS512"],
+  "scopes_supported": ["openid"],
+  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
+  "claims_supported": ["sub", "aud", "exp", "groups"]
+}`, ts.URL)
+			require.NoError(t, err)
+		case "/token":
+			token, err := generateJWTTokenWithGroups(ts.URL, groups)
+			require.NoError(t, err)
+			response := TokenResponse{
+				AccessToken:  token,
+				TokenType:    "Bearer",
+				ExpiresIn:    3600,
+				IDToken:      token,
+				RefreshToken: token,
+			}
+			out, err := json.Marshal(response)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
+		case "/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{Key: pubKey}}}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	return ts
+}
+
+func generateJWTTokenWithGroups(issuer string, groups []string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
+		"sub":    "1234567890",
+		"aud":    "test-client-id",
+		"name":   "John Doe",
+		"email":  "john.doe@example.com",
+		"iat":    time.Now().Unix(),
+		"iss":    issuer,
+		"exp":    time.Now().Add(time.Hour).Unix(),
+		"groups": groups,
+	})
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse RSA private key: %w", err)
+	}
+	return token.SignedString(key)
+}
+
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
