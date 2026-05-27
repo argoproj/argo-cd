@@ -1357,19 +1357,13 @@ func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
 	assert.NotNil(t, pathDetails)
 }
 
-// TestHydrator_getManifests_UnsignedCommit_IsRejected asserts the *desired*
-// behavior: when the project requires GPG verification via SourceIntegrity and
-// the dry commit is unsigned (no SourceIntegrityResult on the manifest
-// response), the hydrator must reject hydration.
-//
-// This test is currently RED — see the TODO at hydrator.go:498 and upstream
-// argoproj/argo-cd#19302. The hydrator ignores SourceIntegrity entirely and
-// returns success, so require.Error fails today. Once verification is
-// implemented, this test will turn GREEN.
+// When verifySourceIntegrity is enabled and the project requires GPG
+// verification, an unsigned dry commit (no SourceIntegrityResult on the
+// manifest response) must cause hydration to fail.
 func TestHydrator_getManifests_UnsignedCommit_IsRejected(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
-	h := &Hydrator{dependencies: d}
+	h := &Hydrator{dependencies: d, verifySourceIntegrity: true}
 
 	app := newTestApp("test-app")
 	proj := newTestProject()
@@ -1393,6 +1387,37 @@ func TestHydrator_getManifests_UnsignedCommit_IsRejected(t *testing.T) {
 
 	_, _, err := h.getManifests(t.Context(), app, "sha123", proj)
 	require.Error(t, err, "hydrator must reject unsigned commit when SourceIntegrity requires GPG verification")
+}
+
+// When verifySourceIntegrity is disabled, the project's SourceIntegrity policy
+// must be ignored even if the dry commit is unsigned.
+func TestHydrator_getManifests_UnsignedCommit_NotVerified_IsAllowed(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d, verifySourceIntegrity: false}
+
+	app := newTestApp("test-app")
+	proj := newTestProject()
+	proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://example.com/repo"}},
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+					Keys: []string{"4AEE18F83AFDEB23"},
+				},
+			}},
+		},
+	}
+
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).
+		Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{
+			Revision:              "sha123",
+			SourceIntegrityResult: nil,
+		}, nil)
+
+	_, _, err := h.getManifests(t.Context(), app, "sha123", proj)
+	require.NoError(t, err)
 }
 
 func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {

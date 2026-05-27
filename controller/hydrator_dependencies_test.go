@@ -79,6 +79,72 @@ func TestGetRepoObjs(t *testing.T) {
 	assert.Equal(t, "ConfigMap", objs[0].GetKind())
 }
 
+// TestGetRepoObjs_SourceIntegrity_Wiring asserts the controller-level wiring
+// of the --hydrator-verify-source-integrity feature flag: when enabled, the
+// project's effective SourceIntegrity is passed through to repo-server in the
+// ManifestRequest; when disabled, it is not, regardless of project config.
+func TestGetRepoObjs_SourceIntegrity_Wiring(t *testing.T) {
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SourceIntegrity: &v1alpha1.SourceIntegrity{
+				Git: &v1alpha1.SourceIntegrityGit{
+					Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+						Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
+						GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+							Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+							Keys: []string{"4AEE18F83AFDEB23"},
+						},
+					}},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name                    string
+		verify                  bool
+		wantSourceIntegrityPass bool
+	}{
+		{"flag enabled passes SourceIntegrity to repo-server", true, true},
+		{"flag disabled drops SourceIntegrity even when project sets it", false, false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cm := test.NewConfigMap()
+			cmBytes, _ := json.Marshal(cm)
+
+			var captured *apiclient.ManifestRequest
+			data := fakeData{
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{string(cmBytes)},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				onGenerateManifest: func(req *apiclient.ManifestRequest) { captured = req },
+			}
+			ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
+			ctrl.hydratorVerifySourceIntegrity = tc.verify
+
+			app := newFakeApp()
+			_, _, err := ctrl.GetRepoObjs(t.Context(), app, app.Spec.GetSource(), "abc123", proj)
+			require.NoError(t, err)
+			require.NotNil(t, captured, "repo-server was not called")
+
+			if tc.wantSourceIntegrityPass {
+				require.NotNil(t, captured.SourceIntegrity, "expected SourceIntegrity to be forwarded when verification is enabled")
+				assert.NotNil(t, captured.SourceIntegrity.Git)
+			} else {
+				assert.Nil(t, captured.SourceIntegrity, "expected SourceIntegrity to be omitted when verification is disabled")
+			}
+		})
+	}
+}
+
 func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined_FallbackToDefault(t *testing.T) {
 	cm := test.NewConfigMap()
 	cmBytes, _ := json.Marshal(cm)

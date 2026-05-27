@@ -59,8 +59,13 @@ func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.A
 		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
 
+	var sourceIntegrity *appv1.SourceIntegrity
+	if ctrl.hydratorVerifySourceIntegrity {
+		sourceIntegrity = project.EffectiveSourceIntegrity()
+	}
+
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, project.EffectiveSourceIntegrity(), project, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, sourceIntegrity, project, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}

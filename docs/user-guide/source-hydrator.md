@@ -503,9 +503,13 @@ This improves efficiency and reduces commit noise in your repository.
 
 ### Signature Verification
 
-The source hydrator **does not currently support signature verification of the DRY sources it hydrates/commits**. It
-also does not sign the commits it pushes to git, so if signature verification is enabled, the commits will fail
-verification when Argo CD attempts to sync the hydrated manifests.
+Signature verification of the DRY sources the hydrator reads is **opt-in** via the
+`--hydrator-verify-source-integrity` flag (or `ARGOCD_HYDRATOR_VERIFY_SOURCE_INTEGRITY=true`) on the application
+controller. When enabled, the hydrator enforces the project's `SourceIntegrity` policy (e.g. GPG signature
+verification) on the DRY revision before producing manifests. It defaults to off for backward compatibility.
+
+The hydrator **does not** sign the commits it pushes to git, so if signature verification is enabled for the
+hydrated branch, those commits will fail verification when Argo CD attempts to sync the hydrated manifests.
 
 ### Project-Scoped Push Secrets
 

@@ -85,23 +85,26 @@ type Dependencies interface {
 // Hydrator is the main struct that implements the hydration logic. It uses the Dependencies interface to access the
 // app controller's functionality without directly depending on it.
 type Hydrator struct {
-	dependencies         Dependencies
-	statusRefreshTimeout time.Duration
-	commitClientset      commitclient.Clientset
-	repoClientset        apiclient.Clientset
-	repoGetter           RepoGetter
+	dependencies          Dependencies
+	statusRefreshTimeout  time.Duration
+	commitClientset       commitclient.Clientset
+	repoClientset         apiclient.Clientset
+	repoGetter            RepoGetter
+	verifySourceIntegrity bool
 }
 
 // NewHydrator creates a new Hydrator instance with the given dependencies, status refresh timeout, commit clientset,
 // repo clientset, and repo getter. The refresh timeout determines how often the hydrator checks if an application
-// needs to be hydrated.
-func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset, repoClientset apiclient.Clientset, repoGetter RepoGetter) *Hydrator {
+// needs to be hydrated. When verifySourceIntegrity is true, the hydrator enforces the project's SourceIntegrity
+// policy on dry revisions before producing manifests.
+func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset, repoClientset apiclient.Clientset, repoGetter RepoGetter, verifySourceIntegrity bool) *Hydrator {
 	return &Hydrator{
-		dependencies:         dependencies,
-		statusRefreshTimeout: statusRefreshTimeout,
-		commitClientset:      commitClientset,
-		repoClientset:        repoClientset,
-		repoGetter:           repoGetter,
+		dependencies:          dependencies,
+		statusRefreshTimeout:  statusRefreshTimeout,
+		commitClientset:       commitClientset,
+		repoClientset:         repoClientset,
+		repoGetter:            repoGetter,
+		verifySourceIntegrity: verifySourceIntegrity,
 	}
 }
 
@@ -516,7 +519,7 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
 	}
 
-	if si := project.EffectiveSourceIntegrity(); sourceintegrity.HasCriteria(si, drySource) {
+	if h.verifySourceIntegrity && sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), drySource) {
 		if resp.SourceIntegrityResult == nil {
 			return "", nil, fmt.Errorf("source integrity verification required but not performed for app %q dry revision %q", app.QualifiedName(), resp.Revision)
 		}
