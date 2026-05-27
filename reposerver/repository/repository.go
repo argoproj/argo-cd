@@ -999,12 +999,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
 
-// getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
-// - If the cache result is empty for the requested key
-// - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (e.g. res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
-// - If the cache is not empty, but the cache value is an error AND that generation error has expired
-// and returns true otherwise.
-// If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
 	return cache.ManifestKey{
 		Revision:            revision,
@@ -1021,12 +1015,18 @@ func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource,
 	}
 }
 
-func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
-	cacheKeyData := getManifestCacheKey(cacheKey, q.ApplicationSource, q, refSourceCommitSHAs)
-	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKeyData)
+// getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
+// - If the cache result is empty for the requested key
+// - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (e.g. res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
+// - If the cache is not empty, but the cache value is an error AND that generation error has expired
+// and returns true otherwise.
+// If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
+func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
+	cacheKey := getManifestCacheKey(revision, q.ApplicationSource, q, refSourceCommitSHAs)
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey)
 
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKeyData, &res)
+	err := s.cache.GetManifests(cacheKey, &res)
 	if err == nil {
 		// The cache contains an existing value
 
@@ -1040,10 +1040,10 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 
 					// After X minutes, reset the cache and retry the operation (e.g. perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
-						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKeyData)
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey)
 
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKeyData)
+						err = s.cache.DeleteManifests(cacheKey)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -1055,10 +1055,10 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				// Check if enough cached responses have been returned to try generation again (e.g. to exit the 'manifest generation caching' state)
 				if s.initConstants.PauseGenerationOnFailureForRequests > 0 && res.NumberOfCachedResponsesReturned > 0 {
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
-						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKeyData)
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey)
 
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKeyData)
+						err = s.cache.DeleteManifests(cacheKey)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -1074,12 +1074,12 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
 
 				if firstInvocation {
-					cache.LogDebugManifestCacheKeyFields("setting manifests cache", "update error count", cacheKeyData)
+					cache.LogDebugManifestCacheKeyFields("setting manifests cache", "update error count", cacheKey)
 
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKeyData, &res)
+					err = s.cache.SetManifests(cacheKey, &res)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}

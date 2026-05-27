@@ -5320,19 +5320,7 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 
 	// Seed the manifest cache for the synced revision.
 	err := cacheMocks.cache.SetManifests(
-		cache.ManifestKey{
-			Revision:            syncedRevision,
-			AppSource:           request.ApplicationSource,
-			RefSources:          request.RefSources,
-			ClusterInfo:         request,
-			Namespace:           request.Namespace,
-			TrackingMethod:      request.TrackingMethod,
-			AppLabelKey:         request.AppLabelKey,
-			AppName:             request.AppName,
-			RefSourceCommitSHAs: nil,
-			InstallationID:      request.InstallationID,
-			SourceIntegrity:     nil,
-		},
+		getManifestCacheKeyFromUpdateRevisionRequest(request, syncedRevision, nil),
 		&cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
 	)
 	require.NoError(t, err)
