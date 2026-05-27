@@ -91,7 +91,7 @@ As is the case with the development process, this document is under constant cha
 
 Need help? Start with the [Contributors FAQ](faq.md)
 
-## Contributing to Argo CD custom healthchecks
+## Contributing to Argo CD custom health checks
 - [Understanding and writing health checks](../operator-manual/health.md#custom-health-checks)
 
 ## Contributing to Argo CD dependencies
