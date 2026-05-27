@@ -45,7 +45,7 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
                                 <a
                                     className='argo-button argo-button--base'
                                     onClick={() => {
-                                        if (api.values.groupName.length > 0) {
+                                        if (api.values.groupName?.length > 0) {
                                             props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));
                                             api.values.groupName = '';
                                         }
