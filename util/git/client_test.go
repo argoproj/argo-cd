@@ -448,6 +448,45 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	assert.Equal(t, bar+"baz\n", string(result))
 }
 
+func Test_nativeGitClient_Checkout_SubmoduleDisabledStillCleansState(t *testing.T) {
+	ctx := t.Context()
+	tempDir := t.TempDir()
+
+	foo := filepath.Join(tempDir, "foo")
+	require.NoError(t, os.Mkdir(foo, 0o755))
+	require.NoError(t, runCmd(ctx, foo, "git", "init"))
+	require.NoError(t, runCmd(ctx, foo, "git", "commit", "-m", "Initial commit", "--allow-empty"))
+
+	bar := filepath.Join(tempDir, "bar")
+	require.NoError(t, os.Mkdir(bar, 0o755))
+	require.NoError(t, runCmd(ctx, bar, "git", "init"))
+	require.NoError(t, runCmd(ctx, bar, "git", "commit", "-m", "Initial commit", "--allow-empty"))
+
+	t.Setenv("GIT_ALLOW_PROTOCOL", "file")
+	require.NoError(t, runCmd(ctx, foo, "git", "submodule", "add", bar))
+	require.NoError(t, runCmd(ctx, foo, "git", "commit", "-m", "Add submodule"))
+
+	client, err := NewClient("file://"+foo, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(commitSHA, false, true)
+	require.NoError(t, err)
+
+	untrackedFile := filepath.Join(client.Root(), "stale.txt")
+	require.NoError(t, os.WriteFile(untrackedFile, []byte("stale"), 0o644))
+
+	_, err = client.Checkout(commitSHA, false, false)
+	require.NoError(t, err)
+
+	_, err = os.Stat(untrackedFile)
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
 func TestNewClient_invalidSSHURL(t *testing.T) {
 	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "", "")
 	assert.Nil(t, client)

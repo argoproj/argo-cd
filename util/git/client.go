@@ -694,14 +694,16 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, clean
 			}
 		}
 	}
+	hasGitmodules := false
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
+		hasGitmodules = true
 		if submoduleEnabled {
 			if err := m.Submodule(); err != nil {
 				return "", fmt.Errorf("failed to update submodules: %w", err)
 			}
 		}
 	}
-	if cleanState || submoduleEnabled {
+	if cleanState || submoduleEnabled || hasGitmodules {
 		// NOTE
 		// The double “f” in the arguments is not a typo: the first “f” tells
 		// `git clean` to delete untracked files and directories, and the second “f”
