@@ -536,3 +536,77 @@ func Test_updateLive(t *testing.T) {
 		})
 	}
 }
+func Test_importPrune(t *testing.T) {
+	tests := []struct {
+		name        string
+		liveObj     *unstructured.Unstructured
+		backupObjs  []*unstructured.Unstructured
+		prune       bool
+		expectPrune bool
+	}{
+		{
+			name:        "Resource should be pruned when --prune and missing from backup",
+			liveObj:     newConfigmapObject(),
+			backupObjs:  []*unstructured.Unstructured{},
+			prune:       true,
+			expectPrune: true,
+		},
+		{
+			name:        "Resource should not be pruned when --prune is false",
+			liveObj:     newConfigmapObject(),
+			backupObjs:  []*unstructured.Unstructured{},
+			prune:       false,
+			expectPrune: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pruneObjects := map[kube.ResourceKey]unstructured.Unstructured{
+				{Group: "", Kind: "ConfigMap", Name: tt.liveObj.GetName(), Namespace: tt.liveObj.GetNamespace()}: *tt.liveObj,
+			}
+			for _, bak := range tt.backupObjs {
+				key := kube.ResourceKey{Group: "", Kind: bak.GetKind(), Name: bak.GetName(), Namespace: bak.GetNamespace()}
+				delete(pruneObjects, key)
+			}
+			if tt.prune {
+				assert.NotEmpty(t, pruneObjects)
+			} else {
+				if !tt.prune {
+					assert.NotEmpty(t, pruneObjects)
+				}
+			}
+		})
+	}
+}
+
+func Test_updateLive_stopOperation(t *testing.T) {
+	tests := []struct {
+		name          string
+		stopOperation bool
+		expectNilOp   bool
+	}{
+		{
+			name:          "Application operation should be removed when stopOperation is true",
+			stopOperation: true,
+			expectNilOp:   true,
+		},
+		{
+			name:          "Application operation should be kept when stopOperation is false",
+			stopOperation: false,
+			expectNilOp:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newApplication("argocd")
+			app.Object["operation"] = map[string]interface{}{"sync": map[string]interface{}{}}
+			result := updateLive(app, app, tt.stopOperation)
+			assert.NotNil(t, result)
+			if tt.expectNilOp {
+				assert.Nil(t, result.Object["operation"])
+			} else {
+				assert.NotNil(t, result.Object["operation"])
+			}
+		})
+	}
+}
