@@ -526,7 +526,6 @@ func Test_updateLive(t *testing.T) {
 			result := updateLive(tt.bak, tt.live, tt.stopOperation)
 			assert.NotNil(t, result)
 
-			// ConfigMap: backup ka data aana chahiye
 			if tt.live.GetKind() == "ConfigMap" {
 				assert.Equal(t, tt.bak.Object["data"], result.Object["data"])
 			}
