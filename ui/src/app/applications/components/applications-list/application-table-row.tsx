@@ -24,6 +24,26 @@ export interface ApplicationTableRowProps {
     deleteApplication: (appName: string, appNamespace: string) => void;
 }
 
+// Cell-wrapping anchor that lifts tooltip-bearing content above the row's overlay link
+// (so Tippy can receive hover) while staying out of the a11y tree to avoid duplicate tab
+// stops next to the row's name link. Defined at module scope so children like <Cluster>
+// don't remount on each parent re-render.
+const CellLink = ({
+    href,
+    onClick,
+    className,
+    children
+}: {
+    href: string;
+    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+    className?: string;
+    children: React.ReactNode;
+}) => (
+    <a className={`applications-list__table-row__cell-link${className ? ` ${className}` : ''}`} href={href} onClick={onClick} tabIndex={-1} aria-hidden='true'>
+        {children}
+    </a>
+);
+
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = app.status.health.status;
@@ -143,18 +163,20 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     <div className='row'>
                         <div className='show-for-xxlarge columns small-2'>Source:</div>
                         <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
-                            <div className='applications-table-source__link'>
+                            <CellLink href={appHref} onClick={handleRowClick} className='applications-table-source__link'>
                                 <ApplicationsSource source={source} />
-                            </div>
-                            <div className='applications-table-source__labels'>
+                            </CellLink>
+                            <CellLink href={appHref} onClick={handleRowClick} className='applications-table-source__labels'>
                                 <ApplicationsLabels app={app} />
-                            </div>
+                            </CellLink>
                         </div>
                     </div>
                     <div className='row'>
                         <div className='show-for-xxlarge columns small-2'>Destination:</div>
                         <div className='columns small-12 xxlarge-10'>
-                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                            <CellLink href={appHref} onClick={handleRowClick}>
+                                <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                            </CellLink>
                         </div>
                     </div>
                 </div>

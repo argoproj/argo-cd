@@ -44,7 +44,8 @@
         // listener fires on it. The link-reset styles keep it looking like plain text.
         // Lift is provided by the `a:not(.applications-list__table-row__overlay-link)`
         // rule above; the rules here are just visual reset.
-        .applications-list__table-row-name {
+        .applications-list__table-row-name,
+        .applications-list__table-row__cell-link {
             color: inherit;
             text-decoration: none;
 
@@ -52,6 +53,14 @@
                 color: inherit;
                 text-decoration: none;
             }
+        }
+
+        // Cell-wrapping anchors stand in for the divs they replaced (Source, labels,
+        // Destination). Block display + min-width:0 preserves the prior flex/truncation
+        // behaviour of those cells.
+        .applications-list__table-row__cell-link {
+            display: block;
+            min-width: 0;
         }
     }
 
