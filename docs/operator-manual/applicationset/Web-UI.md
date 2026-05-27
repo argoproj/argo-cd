@@ -6,16 +6,16 @@
 > This is an [alpha](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) feature.
 > The look, behavior, and APIs it consumes may change in future releases or be removed in backwards-incompatible ways.
 
-Argo CD introduces a first-class Web UI for ApplicationSets. Until now,
-ApplicationSets were managed primarily through one of:
+Argo CD provides a first-class Web UI for ApplicationSets. The UI surfaces
+ApplicationSets directly, with a list view, a resource tree, a slide-out
+details panel, and a preview tab that lets you see what Applications an
+ApplicationSet will generate.
+
+ApplicationSets can also be managed outside the UI through:
 
 - The CLI - `kubectl` or the `argocd appset` command
 - The generated child Applications, viewed individually in the UI
 - A parent App-of-Apps, if the ApplicationSet was one of its managed resources
-
-The new UI surfaces ApplicationSets directly, with a list view, a resource
-tree, a slide-out details panel, and a preview tab that lets you see what
-Applications an ApplicationSet will generate.
 
 ## ApplicationSets list page
 
