@@ -210,3 +210,60 @@ For example, these `repoURL` values all match a webhook event for `ghcr.io/myorg
 - `oci://ghcr.io/myorg/myimage`
 - `oci://GHCR.IO/MyOrg/MyImage`
 - `oci://ghcr.io/myorg/myimage/`
+
+### Docker Hub
+
+Docker Hub webhooks are configured per repository and notify Argo CD when a new image tag is pushed.
+
+> [!NOTE]
+> Unlike GitHub, Docker Hub neither signs webhook payloads nor sends a provider-specific header. Argo CD therefore identifies Docker Hub requests by a `type=dockerhub` query parameter on the webhook URL, and authenticates them with an optional shared secret passed as a `secret` query parameter.
+
+#### Configure the Webhook
+
+1. Go to your Docker Hub repository → **Webhooks**
+2. Set **Webhook name** to any value (e.g. `argocd`)
+3. Set **Webhook URL** to `https://<argocd-server>/api/webhook?type=dockerhub&secret=<your-webhook-secret>`
+
+> [!WARNING]
+> Because Docker Hub cannot sign payloads, the shared secret is carried in the webhook URL rather than in a signature header. Always serve the `/api/webhook` endpoint over TLS, and be aware that the secret may be recorded by intermediate proxies or access logs. Configuring a secret is optional but recommended when Argo CD is publicly accessible.
+
+#### Configure the Webhook Secret
+
+Configure the secret in the `argocd-secret` Kubernetes secret under `webhook.dockerhub.secret`. It must match the value used in the `secret` query parameter above:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.dockerhub.secret: <your-webhook-secret>
+```
+
+If no secret is configured, Argo CD accepts Docker Hub events without validation. As with all webhooks, payloads are treated as untrusted and only ever result in a refresh of the matching application.
+
+#### Example Application
+
+When an image is pushed to Docker Hub, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: oci://docker.io/myorg/myimage
+    targetRevision: v1.0.0
+    chart: mychart
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+As with GHCR, `targetRevision` supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints).
+
+> [!NOTE]
+> The `repoURL` host must be `docker.io`. Official images (pushed without a namespace) are matched under the implicit `library/` namespace, e.g. a push to `nginx` matches `oci://docker.io/library/nginx`.
