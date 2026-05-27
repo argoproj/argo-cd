@@ -192,6 +192,8 @@ tests:
 ```
 For the files you add in `testdata` folder - please make sure those are full K8s manifests, extracted from the cluster where the controller is installed by running `kubectl get ... -oyaml`. If the resulting file is very long, you can omit some of the spec, but it is critical for the files in `testdata` to contain the full `status` sub-resource, extracted from your cluster.
 
+For the cases when the `status` sub-resource is complex and you had to consult the controller docs/code in order to write the health check, please provide a comment with a link - to the controller docs/code that you based the health check on - in the `health.lua` file.
+
 > [!IMPORTANT]
 > Argo CD maintainers do not have the full expertise on the different CRDs and their health conditions, so in cases of complex `status` conditions, the Argo CD maintainers may ask you to reach out to the CRD maintainers to help review the health check PR. 
 
