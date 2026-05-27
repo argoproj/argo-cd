@@ -633,8 +633,13 @@ Since Go 1.19 (argocd version >= 2.5.20), the `GOMEMLIMIT` environment variable 
     - name: container-name
       env:
         - name: GOMEMLIMIT
-          value: "1800MiB"  # ~90% of a 2Gi memory limit
+          value: "1800MiB"  # ~90% of a 2Gi memory limit, GOMEMLIMIT uses MiB/GiB as units
 ```
+
+### Known Use Cases
+
+* argocd application controller cold start memory spike
+* argocd server memory spike caused by individual expensive requests
 
 ### GOMEMLIMIT Trade-Offs
 
