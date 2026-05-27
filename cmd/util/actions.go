@@ -18,7 +18,7 @@ func ParseActionParameters(params []string) ([]*applicationpkg.ResourceActionPar
 		name := parts[0]
 		value := parts[1]
 		if name == "" {
-				return nil, fmt.Errorf("invalid parameter format %q: parameter name cannot be empty", param)
+			return nil, fmt.Errorf("invalid parameter format %q: parameter name cannot be empty", param)
 		}
 		parsedParams = append(parsedParams, &applicationpkg.ResourceActionParameters{
 			Name:  &name,

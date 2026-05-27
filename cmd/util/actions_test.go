@@ -46,6 +46,11 @@ func TestParseActionParameters(t *testing.T) {
 			},
 		},
 		{
+			name:        "empty key",
+			params:      []string{"=value"},
+			expectError: true,
+		},
+		{
 			name:   "empty value",
 			params: []string{"key="},
 			expectedParams: []*applicationpkg.ResourceActionParameters{
