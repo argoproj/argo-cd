@@ -107,6 +107,8 @@ type ArgoCDSettings struct {
 	CertificateIsExternal bool `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
 	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
+	// WebhookDockerHubSecret holds the shared secret for authenticating DockerHub webhook events
+	WebhookDockerHubSecret string `json:"webhookDockerHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
 	WebhookGitLabSecret string `json:"webhookGitLabSecret,omitempty"`
 	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
@@ -445,6 +447,8 @@ const (
 	statusBadgeRootURLKey = "statusbadge.url"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
+	// settingsWebhookDockerHubSecret is the key for the DockerHub shared webhook secret
+	settingsWebhookDockerHubSecretKey = "webhook.dockerhub.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
 	settingsWebhookGitLabSecretKey = "webhook.gitlab.secret"
 	// settingsWebhookBitbucketUUID is the key for Bitbucket webhook UUID
@@ -1721,6 +1725,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.Secrets = secretValues
 
 	settings.WebhookGitHubSecret = string(argoCDSecret.Data[settingsWebhookGitHubSecretKey])
+	settings.WebhookDockerHubSecret = string(argoCDSecret.Data[settingsWebhookDockerHubSecretKey])
 	settings.WebhookGitLabSecret = string(argoCDSecret.Data[settingsWebhookGitLabSecretKey])
 	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
 	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
@@ -1951,6 +1956,11 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 // GetWebhookGitHubSecret returns the resolved GitHub webhook secret
 func (a *ArgoCDSettings) GetWebhookGitHubSecret() string {
 	return ReplaceStringSecret(a.WebhookGitHubSecret, a.Secrets)
+}
+
+// GetWebhookDockerHubSecret returns the resolved DockerHub webhook secret
+func (a *ArgoCDSettings) GetWebhookDockerHubSecret() string {
+	return ReplaceStringSecret(a.WebhookDockerHubSecret, a.Secrets)
 }
 
 // GetWebhookGitLabSecret returns the resolved GitLab webhook secret
