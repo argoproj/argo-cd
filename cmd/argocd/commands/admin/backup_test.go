@@ -487,6 +487,7 @@ func TestIsSkipLabelMatches(t *testing.T) {
 		})
 	}
 }
+
 func Test_updateLive(t *testing.T) {
 	tests := []struct {
 		name          string
