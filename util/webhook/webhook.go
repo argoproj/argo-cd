@@ -158,6 +158,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	}
 	parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
 	parsers = append(parsers, NewGHCRParser(set.GetWebhookGitHubSecret()))
+	parsers = append(parsers, newDockerHubParser(set.GetWebhookDockerHubSecret()))
 
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
