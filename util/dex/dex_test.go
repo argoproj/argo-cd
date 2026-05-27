@@ -52,6 +52,25 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigLDAPWithDollarSign = `
+connectors:
+- type: ldap
+  id: ldap
+  name: OpenLDAP
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: $dex.ldap.bindPW
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=inetOrgPerson)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+`
+
 var customStaticClientDexConfig = `
 connectors:
 # GitHub example
@@ -459,6 +478,57 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.True(t, ok)
 		assert.False(t, skipApprScr)
 	})
+}
+
+func Test_GenerateDexConfigYAML(t *testing.T) {
+	type testData struct {
+		name        string
+		secretValue string
+		expected    string
+	}
+
+	tt := []testData{
+		{
+			name:        "LDAP bindPW with dollar sign is escaped for Dex env expansion",
+			secretValue: "test$test",
+			expected:    "test$$test",
+		},
+		{
+			name:        "LDAP bindPW without dollar sign is unaffected",
+			secretValue: "plainpassword",
+			expected:    "plainpassword",
+		},
+		{
+			name:        "LDAP bindPW with multiple dollar signs all escaped",
+			secretValue: "a$b$c$d",
+			expected:    "a$$b$$c$$d",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := GenerateDexConfigYAML(argoCDSettings(tc.secretValue), false)
+			require.NoError(t, err)
+			require.NotNil(t, config)
+
+			var dexCfg map[string]any
+			require.NoError(t, yaml.Unmarshal(config, &dexCfg))
+
+			connectors := dexCfg["connectors"].([]any)
+			connCfg := connectors[0].(map[string]any)["config"].(map[string]any)
+			assert.Equal(t, tc.expected, connCfg["bindPW"])
+		})
+	}
+}
+
+func argoCDSettings(secretValue string) *settings.ArgoCDSettings {
+	return &settings.ArgoCDSettings{
+		URL:       "http://localhost",
+		DexConfig: goodDexConfigLDAPWithDollarSign,
+		Secrets: map[string]string{
+			"dex.ldap.bindPW": secretValue,
+		},
+	}
 }
 
 func Test_DexReverseProxy(t *testing.T) {

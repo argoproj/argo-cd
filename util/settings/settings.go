@@ -2343,41 +2343,52 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 // ReplaceMapSecrets takes a json object and recursively looks for any secret key references in the
 // object and replaces the value with the secret value
 func ReplaceMapSecrets(obj map[string]any, secretValues map[string]string) map[string]any {
-	newObj := make(map[string]any)
+	return replaceMapSecrets(obj, secretValues, ReplaceStringSecret)
+}
+
+// ReplaceMapSecretsDex is identical to ReplaceMapSecrets but uses
+// replaceStringSecretDex so that '$' in resolved values is escaped for Dex.
+func ReplaceMapSecretsDex(obj map[string]any, secretValues map[string]string) map[string]any {
+	return replaceMapSecrets(obj, secretValues, replaceStringSecretDex)
+}
+
+// replaceMapSecrets recursively walks the given object and replaces string values
+// using the provided string replacer function.
+func replaceMapSecrets(obj map[string]any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) map[string]any {
+	newObj := make(map[string]any, len(obj))
 	for k, v := range obj {
-		switch val := v.(type) {
-		case map[string]any:
-			newObj[k] = ReplaceMapSecrets(val, secretValues)
-		case []any:
-			newObj[k] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[k] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[k] = val
-		}
+		newObj[k] = replaceSecretsValue(v, secretValues, stringReplacer)
 	}
 	return newObj
 }
 
-func replaceListSecrets(obj []any, secretValues map[string]string) []any {
+func replaceListSecrets(obj []any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) []any {
 	newObj := make([]any, len(obj))
 	for i, v := range obj {
-		switch val := v.(type) {
-		case map[string]any:
-			newObj[i] = ReplaceMapSecrets(val, secretValues)
-		case []any:
-			newObj[i] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[i] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[i] = val
-		}
+		newObj[i] = replaceSecretsValue(v, secretValues, stringReplacer)
 	}
 	return newObj
+}
+
+func replaceSecretsValue(v any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return replaceMapSecrets(val, secretValues, stringReplacer)
+	case []any:
+		return replaceListSecrets(val, secretValues, stringReplacer)
+	case string:
+		return stringReplacer(val, secretValues)
+	default:
+		return val
+	}
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
 func ReplaceStringSecret(val string, secretValues map[string]string) string {
+	return replaceStringSecret(val, secretValues, strings.TrimSpace)
+}
+
+func replaceStringSecret(val string, secretValues map[string]string, trimmer func(value string) string) string {
 	if val == "" || !strings.HasPrefix(val, "$") {
 		return val
 	}
@@ -2387,7 +2398,24 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 		log.Warnf("config referenced '%s', but key does not exist in secret", val)
 		return val
 	}
-	return strings.TrimSpace(secretVal)
+	return trimmer(secretVal)
+}
+
+// replaceStringSecretDex is identical to ReplaceStringSecret but additionally
+// escapes any '$' characters in the resolved value as '$$'.
+//
+// This is required specifically for the Dex config file path: Dex calls
+// os.ExpandEnv on every string value it reads from its config file, so a
+// literal '$' in a password would be silently expanded as an env var reference
+// (typically to an empty string), corrupting the credential.
+//
+// '$$' is the standard os.ExpandEnv escape sequence for a literal '$'.
+// See: https://github.com/argoproj/argo-cd/issues/27803
+func replaceStringSecretDex(val string, secretValues map[string]string) string {
+	// Escape '$' so Dex does not treat them as env var references.
+	return replaceStringSecret(val, secretValues, func(value string) string {
+		return strings.ReplaceAll(strings.TrimSpace(value), "$", "$$")
+	})
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
