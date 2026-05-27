@@ -38,7 +38,6 @@ argocd admin cluster shards [flags]
       --redis-use-tls                         Use TLS when connecting to Redis. 
       --redisdb int                           Redis database.
       --replicas int                          Application controller replicas count. Inferred from number of running controller pods if not specified
-      --request-timeout string                The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --sentinel stringArray                  Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                 Redis sentinel master group name. (default "master")
       --server string                         The address and port of the Kubernetes API server

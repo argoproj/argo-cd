@@ -79,28 +79,28 @@ nav:
     - operator-manual/notifications/troubleshooting-errors.md
     - operator-manual/notifications/examples.md
     - Notification Services:
-      - operator-manual/notifications/services/alertmanager.md
-      - operator-manual/notifications/services/awssqs.md
-      - operator-manual/notifications/services/email.md
-      - operator-manual/notifications/services/gcppubsub.md
-      - operator-manual/notifications/services/github.md
-      - operator-manual/notifications/services/googlechat.md
-      - operator-manual/notifications/services/grafana.md
-      - operator-manual/notifications/services/mattermost.md
-      - operator-manual/notifications/services/nats.md
-      - operator-manual/notifications/services/newrelic.md
-      - operator-manual/notifications/services/opsgenie.md
-      - operator-manual/notifications/services/overview.md
-      - operator-manual/notifications/services/pagerduty.md
-      - operator-manual/notifications/services/pagerduty_v2.md
-      - operator-manual/notifications/services/pushover.md
-      - operator-manual/notifications/services/rocketchat.md
-      - operator-manual/notifications/services/slack.md
-      - operator-manual/notifications/services/teams-workflows.md
-      - operator-manual/notifications/services/teams.md
-      - operator-manual/notifications/services/telegram.md
-      - operator-manual/notifications/services/webex.md
-      - operator-manual/notifications/services/webhook.md
+      - docs\operator-manual\notifications\services\alertmanager.md
+      - docs\operator-manual\notifications\services\awssqs.md
+      - docs\operator-manual\notifications\services\email.md
+      - docs\operator-manual\notifications\services\gcppubsub.md
+      - docs\operator-manual\notifications\services\github.md
+      - docs\operator-manual\notifications\services\googlechat.md
+      - docs\operator-manual\notifications\services\grafana.md
+      - docs\operator-manual\notifications\services\mattermost.md
+      - docs\operator-manual\notifications\services\nats.md
+      - docs\operator-manual\notifications\services\newrelic.md
+      - docs\operator-manual\notifications\services\opsgenie.md
+      - docs\operator-manual\notifications\services\overview.md
+      - docs\operator-manual\notifications\services\pagerduty.md
+      - docs\operator-manual\notifications\services\pagerduty_v2.md
+      - docs\operator-manual\notifications\services\pushover.md
+      - docs\operator-manual\notifications\services\rocketchat.md
+      - docs\operator-manual\notifications\services\slack.md
+      - docs\operator-manual\notifications\services\teams-workflows.md
+      - docs\operator-manual\notifications\services\teams.md
+      - docs\operator-manual\notifications\services\telegram.md
+      - docs\operator-manual\notifications\services\webex.md
+      - docs\operator-manual\notifications\services\webhook.md
   - operator-manual/troubleshooting.md
   - ApplicationSet:
     - Introduction: operator-manual/applicationset/index.md

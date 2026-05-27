@@ -78,6 +78,7 @@ func AddKubectlFlagsToSet(flags *pflag.FlagSet) clientcmd.ClientConfig {
 	kflags := clientcmd.RecommendedConfigOverrideFlags("")
 	flags.StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
 	clientcmd.BindOverrideFlags(&overrides, flags, kflags)
+	_ = flags.MarkHidden("request-timeout")
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }
 

@@ -33,7 +33,6 @@ argocd admin import SOURCE [flags]
       --prompts-enabled                     Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --proxy-url string                    If provided, this URL will be used to connect via proxy
       --prune                               Prune secrets, applications and projects which do not appear in the backup
-      --request-timeout string              The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --server string                       The address and port of the Kubernetes API server
       --skip-resources-with-label string    Skip importing resources based on the label e.g. '--skip-resources-with-label my-label/example.io=true'
       --stop-operation                      Stop any existing operations
