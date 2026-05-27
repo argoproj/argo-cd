@@ -530,7 +530,6 @@ func Test_updateLive(t *testing.T) {
 				assert.Equal(t, tt.bak.Object["data"], result.Object["data"])
 			}
 
-			// stopOperation: operation nil hona chahiye
 			if tt.stopOperation {
 				assert.Nil(t, result.Object["operation"])
 			}
