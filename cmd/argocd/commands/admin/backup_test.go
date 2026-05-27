@@ -536,6 +536,7 @@ func Test_updateLive(t *testing.T) {
 		})
 	}
 }
+
 func Test_importPrune(t *testing.T) {
 	tests := []struct {
 		name        string
