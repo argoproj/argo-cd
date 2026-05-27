@@ -571,10 +571,8 @@ func Test_importPrune(t *testing.T) {
 			}
 			if tt.prune {
 				assert.NotEmpty(t, pruneObjects)
-			} else {
-				if !tt.prune {
-					assert.NotEmpty(t, pruneObjects)
-				}
+			} else if !tt.prune {
+				assert.NotEmpty(t, pruneObjects)
 			}
 		})
 	}
@@ -600,7 +598,7 @@ func Test_updateLive_stopOperation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := newApplication("argocd")
-			app.Object["operation"] = map[string]interface{}{"sync": map[string]interface{}{}}
+			app.Object["operation"] = map[string]any{"sync": map[string]any{}}
 			result := updateLive(app, app, tt.stopOperation)
 			assert.NotNil(t, result)
 			if tt.expectNilOp {
