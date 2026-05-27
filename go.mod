@@ -21,7 +21,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.18
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.17
 	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.14
-	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.12
+	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.32.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.42.1
 	github.com/aws/smithy-go v1.25.1
 	github.com/bmatcuk/doublestar/v4 v4.10.0
