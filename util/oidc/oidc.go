@@ -9,6 +9,7 @@ import (
 	"html"
 	"html/template"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -1149,9 +1150,7 @@ func (a *ClientApp) createCompactSessionToken(oidcClaims jwt.MapClaims) (string,
 	originalIss := jwtutil.StringField(oidcClaims, "iss")
 	if fc, ok := oidcClaims["federated_claims"].(map[string]any); ok {
 		merged := make(map[string]any, len(fc)+1)
-		for k, v := range fc {
-			merged[k] = v
-		}
+		maps.Copy(merged, fc)
 		if _, hasConnectorID := merged["connector_id"]; !hasConnectorID {
 			merged["connector_id"] = originalIss
 		}

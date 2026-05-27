@@ -1993,9 +1993,9 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	// the key assertion is that it's an ArgoCD-signed token, not the raw OIDC ID token.
 	// We strip the chunk-count prefix if present.
 	rawToken := tokenCookie
-	if idx := strings.Index(tokenCookie, ":"); idx != -1 {
-		if _, convErr := fmt.Sscanf(tokenCookie[:idx], "%d", new(int)); convErr == nil {
-			rawToken = tokenCookie[idx+1:]
+	if before, after, ok := strings.Cut(tokenCookie, ":"); ok {
+		if _, convErr := fmt.Sscanf(before, "%d", new(int)); convErr == nil {
+			rawToken = after
 		}
 	}
 
