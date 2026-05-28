@@ -10,6 +10,7 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GitLabService struct {
@@ -21,7 +22,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewGitLabService(token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -35,6 +36,7 @@ func NewGitLabService(token, url, project string, labels []string, pullRequestSt
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	tr.Proxy = proxy.GetCallback(proxyURL, noProxy)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr
