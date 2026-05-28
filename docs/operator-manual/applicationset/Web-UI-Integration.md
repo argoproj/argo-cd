@@ -5,7 +5,7 @@ For end-user documentation of the UI itself, see [Managing ApplicationSets in th
 The Web UI integrates with ApplicationSets through three layers:
 
 1. **The `ApplicationSetService` API** exposed by the Argo CD API server (defined in [`server/applicationset/applicationset.proto`](https://github.com/argoproj/argo-cd/blob/master/server/applicationset/applicationset.proto)).
-2. **A `status.health` field** on the ApplicationSet CR, populated by the ApplicationSet controller, which the UI reads through the API.
+2. **The ApplicationSet CR**, read through those endpoints. The UI renders fields across both spec and status — `spec.template`, `status.conditions`, `status.resources`, and `status.health`.
 3. **RBAC enforcement**, performed by the API server on every request using the same `applicationsets` resource and actions that the CLI already uses.
 
 ## API endpoints
