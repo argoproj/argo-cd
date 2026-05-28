@@ -62,6 +62,7 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -128,6 +129,7 @@ import (
 	settings_notif "github.com/argoproj/argo-cd/v3/util/notification/settings"
 	"github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	util_session "github.com/argoproj/argo-cd/v3/util/session"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/swagger"
@@ -330,6 +332,17 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 
 	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
+
+	// When watching cluster-wide (i.e. application.namespaces is configured),
+	// drop objects from namespaces that are not in the allowed list before
+	// they enter the informer cache. This avoids caching Applications and
+	// ApplicationSets that the server is not configured to manage, which
+	// reduces memory usage in multi-tenant clusters.
+	if len(opts.ApplicationNamespaces) > 0 {
+		filter := newNamespaceFilterTransform(opts.Namespace, opts.ApplicationNamespaces)
+		errorsutil.CheckError(appInformer.SetTransform(filter))
+		errorsutil.CheckError(appsetInformer.SetTransform(filter))
+	}
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
@@ -1737,4 +1750,33 @@ func (server *ArgoCDServer) allowedApplicationNamespacesAsString() string {
 		ns += strings.Join(server.ApplicationNamespaces, ", ")
 	}
 	return ns
+}
+
+// newNamespaceFilterTransform returns a cache.TransformFunc that drops objects
+// whose namespace is neither the control-plane namespace nor matches one of
+// the configured application namespace patterns. Dropped objects are returned
+// as a nil object so they are not stored in the informer cache, which reduces
+// memory usage when watching cluster-wide. The serverNamespace is always
+// allowed regardless of the contents of applicationNamespaces.
+//
+// Returning (nil, nil) is a deliberate use of client-go's TransformFunc: the
+// delta processor still computes the cache key from the pre-transform object,
+// then attempts to store the transformed (nil) value. The indexer rejects the
+// nil object via its key function, so it never enters the cache, and the
+// resulting per-item error is swallowed by the shared informer's process
+// loop without re-queueing. The behavior is exercised end-to-end by
+// TestInformerFilterDoesNotCacheDisallowedNamespaces.
+func newNamespaceFilterTransform(serverNamespace string, applicationNamespaces []string) cache.TransformFunc {
+	return func(obj any) (any, error) {
+		accessor, err := meta.Accessor(obj)
+		if err != nil {
+			// Not a Kubernetes object (e.g. a tombstone with no metadata).
+			// Pass through so we don't accidentally drop deletion events.
+			return obj, nil
+		}
+		if !security.IsNamespaceEnabled(accessor.GetNamespace(), serverNamespace, applicationNamespaces) {
+			return nil, nil
+		}
+		return obj, nil
+	}
 }
