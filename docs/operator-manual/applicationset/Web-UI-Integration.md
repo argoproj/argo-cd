@@ -1,7 +1,6 @@
 # Web UI Integration
 
-> [!NOTE]
-> The Web UI for ApplicationSets is an [alpha](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) feature (since v3.5.0). End-user documentation for the UI lives in [Managing ApplicationSets in the Web UI](../../user-guide/application-set-ui.md).
+For end-user documentation of the UI itself, see [Managing ApplicationSets in the Web UI](../../user-guide/application-set-ui.md).
 
 The Web UI integrates with ApplicationSets through three layers:
 
