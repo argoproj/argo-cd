@@ -28,21 +28,20 @@ ApplicationSet RBAC objects are scoped by the project of the **template's** targ
 
 ### Read paths
 
-Every read endpoint listed above (`Get`, `List`, `ResourceTree`, `ListResourceEvents`, `Watch`) checks `applicationsets, get` against each ApplicationSet before returning it. `List` and `Watch` filter the result set per item, so a user sees only the ApplicationSets they have `get` on, even when no project filter is applied.
+Every read endpoint listed above (`Get`, `List`, `ResourceTree`, `ListResourceEvents`, `Watch`) checks `applicationsets, get` against each ApplicationSet before returning it. `List` and `Watch` filter the result set per item, so a user sees only the ApplicationSets they have `get` on.
 
-If a user has `get` permission on an ApplicationSet, they can see it in every read view in the UI: the list page, the details page, the resource tree, the events tab, and the live watch stream. There is no UI surface that exposes data the CLI would not also expose for the same RBAC subject.
+If a user has `get` permission on an ApplicationSet, they can see it in every read view in the UI: the list page, the details page, the resource tree, the events tab, and the live watch stream.
 
 ### Preview
 
-The Preview tab is the one operation that requires more than `get`. It calls `Generate`, which renders candidate Applications from a (possibly user-edited) ApplicationSet spec server-side. Because rendering a preview is the same operation the controller would perform when creating Applications, the API server enforces **`applicationsets, create`** on the project of the template — the same permission required to actually create the rendered Applications.
+The Preview tab is the one operation that requires more than `get`. It calls `Generate`, which renders candidate Applications from a (possibly user-edited) ApplicationSet spec server-side. Because rendering a preview is the same operation the controller would perform when creating Applications, the API server enforces **`applicationsets, create`** on the project of the template — the same permission required to actually create the rendered Applications. 
 
-A user who can view an ApplicationSet but does not have `create` on its project's template will see a permission-denied response from the Preview tab. The UI surfaces this as a clear message rather than a stack trace; the underlying enforcement is identical to what `argocd appset create` (or a direct call to `POST /api/v1/applicationsets/generate`) would return.
-
+A user who can view an ApplicationSet but does not have `create` on its project's template will see a permission-denied response from the Preview tab.
 See [Security](Security.md) for the full ApplicationSet RBAC model.
 
 ## `status.health` on the ApplicationSet CR
 
-The ApplicationSet controller writes a `status.health` field on each ApplicationSet (with `status` and `message`), computed from the ApplicationSet's `status.conditions`. The UI reads this field through the regular `Get`, `List`, and `Watch` endpoints; no separate health-evaluation API call is made. Other consumers of the CR (custom dashboards, alerting rules, policy controllers) can read the same field directly from the Kubernetes API.
+The ApplicationSet controller writes a `status.health` field on each ApplicationSet (with `status` and `message`), computed from the ApplicationSet's `status.conditions`. The UI reads this field through the regular `Get`, `List`, and `Watch` endpoints; no separate health-evaluation API call is made.
 
 The rules the controller applies, in order:
 
