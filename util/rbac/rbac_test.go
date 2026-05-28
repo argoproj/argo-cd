@@ -193,9 +193,9 @@ func TestDefaultRole(t *testing.T) {
 
 // TestConcurrentEnforceAndSyncUpdate exercises the same access pattern that produced
 // a -race failure on the 3.2 branch: gRPC handler goroutines calling Enforce while the
-// RBAC configmap informer goroutine drives SetDefaultRole / SetClaimsEnforcerFunc via
-// syncUpdate. Without locking around defaultRole and claimsEnforcerFunc this trips the
-// race detector.
+// RBAC configmap informer goroutine drives SetDefaultRole via syncUpdate, alongside
+// SetClaimsEnforcerFunc as a second concurrent writer. Without locking around
+// defaultRole and claimsEnforcerFunc this trips the race detector.
 func TestConcurrentEnforceAndSyncUpdate(t *testing.T) {
 	kubeclientset := fake.NewClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
@@ -207,10 +207,19 @@ func TestConcurrentEnforceAndSyncUpdate(t *testing.T) {
 
 	done := make(chan struct{})
 	var wg sync.WaitGroup
-	for i := 0; i < 4; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	// Ensure worker goroutines are stopped and reaped even if a require.* below
+	// short-circuits the test via t.FailNow.
+	t.Cleanup(func() {
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+		wg.Wait()
+	})
+
+	for range 4 {
+		wg.Go(func() {
 			for {
 				select {
 				case <-done:
@@ -219,15 +228,14 @@ func TestConcurrentEnforceAndSyncUpdate(t *testing.T) {
 					_ = enf.Enforce("bob", "applications", "get", "foo/bar")
 				}
 			}
-		}()
+		})
 	}
 
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
 		enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool { return false })
 	}
 	close(done)
-	wg.Wait()
 }
 
 // TestURLAsObjectName tests the ability to have a URL as an object name

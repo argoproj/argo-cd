@@ -329,7 +329,8 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 }
 
 // snapshotEnforceState returns the defaultRole and claimsEnforcerFunc fields under the
-// Enforcer's lock so enforcement is not racy with informer-driven updates from syncUpdate.
+// Enforcer's lock so enforcement is not racy with concurrent updates — defaultRole from
+// the informer's syncUpdate path, and claimsEnforcerFunc from SetClaimsEnforcerFunc.
 func (e *Enforcer) snapshotEnforceState() (string, ClaimsEnforcerFunc) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
