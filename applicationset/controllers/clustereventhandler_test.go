@@ -880,3 +880,24 @@ func TestNestedGeneratorHasClusterGenerator_NestedMatrixGeneratorPartialLabels(t
 	require.NoError(t, err)
 	assert.False(t, hasClusterGenerator)
 }
+
+func TestClusterGenerator_InvalidSelector(t *testing.T) {
+	clusterGenerator := argov1alpha1.ClusterGenerator{
+		Selector: metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "env",
+					Operator: metav1.LabelSelectorOperator("InvalidOperator"),
+					Values:   []string{"prod", "dev"},
+				},
+			},
+		},
+	}
+
+	emptyLabels := labels.Set{}
+	hasClusterGenerator, err := clusterGeneratorMatches(&clusterGenerator, []labels.Labels{emptyLabels})
+
+	require.Error(t, err)
+	assert.False(t, hasClusterGenerator)
+	assert.ErrorContains(t, err, "invalid label selector in cluster generator")
+}
