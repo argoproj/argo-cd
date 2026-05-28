@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/task_ok.yaml
 - healthStatus:
     status: Degraded
-    message: "Failed nodes exists"
+    message: "Failed nodes exist"
   inputPath: testdata/task_failed.yaml
 - healthStatus:
     status: Progressing

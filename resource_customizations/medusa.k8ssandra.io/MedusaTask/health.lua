@@ -1,3 +1,5 @@
+-- A bit of documentation about the fields of MedusaTask can be found here:
+-- https://docs.k8ssandra.io/reference/crd/k8ssandra-operator-crds-latest/#medusataskstatus
 local hs = {}
 
 hs.status = "Unknown"
