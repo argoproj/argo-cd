@@ -67,7 +67,7 @@ type Client interface {
 	// GetChartTgzPath returns the path to the cached chart .tgz (valid after ExtractChart). Traditional Helm only.
 	GetChartTgzPath(chart string, version string) (string, error)
 	// FetchProvenance fetches the .prov file for the chart version and returns its content and the chart filename. Traditional Helm only.
-	FetchProvenance(chart string, version string) (provContent []byte, chartFilename string, err error)
+	FetchProvenance(ctx context.Context, chart string, version string) (provContent []byte, chartFilename string, err error)
 }
 
 type ClientOpts func(c *nativeHelmChart)
@@ -473,7 +473,7 @@ func (c *nativeHelmChart) GetChartTgzPath(chart string, version string) (string,
 	return c.getCachedChartPath(chart, version)
 }
 
-func (c *nativeHelmChart) FetchProvenance(chart string, version string) ([]byte, string, error) {
+func (c *nativeHelmChart) FetchProvenance(ctx context.Context, chart string, version string) ([]byte, string, error) {
 	if c.enableOci {
 		return nil, "", ErrOCINotEnabled
 	}
@@ -488,7 +488,7 @@ func (c *nativeHelmChart) FetchProvenance(chart string, version string) ([]byte,
 	}
 	var lastErr error
 	for _, chartURL := range chartURLs {
-		provContent, err := c.fetchProvenanceFromChartURL(chartURL)
+		provContent, err := c.fetchProvenanceFromChartURL(ctx, chartURL)
 		if err == nil {
 			return provContent, path.Base(chartURL), nil
 		}
@@ -508,9 +508,9 @@ func (c *nativeHelmChart) resolveProvenanceURL(chartURL string) string {
 	return provURL
 }
 
-func (c *nativeHelmChart) fetchProvenanceFromChartURL(chartURL string) ([]byte, error) {
+func (c *nativeHelmChart) fetchProvenanceFromChartURL(ctx context.Context, chartURL string) ([]byte, error) {
 	provURL := c.resolveProvenanceURL(chartURL)
-	provContent, err := c.doRepoHTTPGet(context.Background(), provURL, 0)
+	provContent, err := c.doRepoHTTPGet(ctx, provURL, 0)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching provenance %s: %w", provURL, err)
 	}

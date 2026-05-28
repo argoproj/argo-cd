@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/ProtonMail/go-crypto/openpgp/clearsign"
 	log "github.com/sirupsen/logrus"
@@ -179,7 +180,7 @@ func parseProvFilesDigest(signedBody []byte, chartFilename string) (expectedSHA2
 func verifyChartChecksum(chartContent []byte, expectedSHA256Hex string) error {
 	sum := sha256.Sum256(chartContent)
 	got := hex.EncodeToString(sum[:])
-	if got != expectedSHA256Hex {
+	if !strings.EqualFold(got, expectedSHA256Hex) {
 		return fmt.Errorf("chart digest mismatch: got %s, provenance expects %s", got, expectedSHA256Hex)
 	}
 	return nil

@@ -5,6 +5,8 @@
 package mocks
 
 import (
+	"context"
+
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	mock "github.com/stretchr/testify/mock"
@@ -187,8 +189,8 @@ func (_c *Client_ExtractChart_Call) RunAndReturn(run func(chart string, version 
 }
 
 // FetchProvenance provides a mock function for the type Client
-func (_mock *Client) FetchProvenance(chart string, version string) ([]byte, string, error) {
-	ret := _mock.Called(chart, version)
+func (_mock *Client) FetchProvenance(ctx context.Context, chart string, version string) ([]byte, string, error) {
+	ret := _mock.Called(ctx, chart, version)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FetchProvenance")
@@ -197,23 +199,23 @@ func (_mock *Client) FetchProvenance(chart string, version string) ([]byte, stri
 	var r0 []byte
 	var r1 string
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) ([]byte, string, error)); ok {
-		return returnFunc(chart, version)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) ([]byte, string, error)); ok {
+		return returnFunc(ctx, chart, version)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string) []byte); ok {
-		r0 = returnFunc(chart, version)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) []byte); ok {
+		r0 = returnFunc(ctx, chart, version)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string) string); ok {
-		r1 = returnFunc(chart, version)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) string); ok {
+		r1 = returnFunc(ctx, chart, version)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
-	if returnFunc, ok := ret.Get(2).(func(string, string) error); ok {
-		r2 = returnFunc(chart, version)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, string) error); ok {
+		r2 = returnFunc(ctx, chart, version)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -226,25 +228,31 @@ type Client_FetchProvenance_Call struct {
 }
 
 // FetchProvenance is a helper method to define mock.On call
+//   - ctx context.Context
 //   - chart string
 //   - version string
-func (_e *Client_Expecter) FetchProvenance(chart interface{}, version interface{}) *Client_FetchProvenance_Call {
-	return &Client_FetchProvenance_Call{Call: _e.mock.On("FetchProvenance", chart, version)}
+func (_e *Client_Expecter) FetchProvenance(ctx interface{}, chart interface{}, version interface{}) *Client_FetchProvenance_Call {
+	return &Client_FetchProvenance_Call{Call: _e.mock.On("FetchProvenance", ctx, chart, version)}
 }
 
-func (_c *Client_FetchProvenance_Call) Run(run func(chart string, version string)) *Client_FetchProvenance_Call {
+func (_c *Client_FetchProvenance_Call) Run(run func(ctx context.Context, chart string, version string)) *Client_FetchProvenance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
 		}
 		var arg1 string
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -255,7 +263,7 @@ func (_c *Client_FetchProvenance_Call) Return(provContent []byte, chartFilename 
 	return _c
 }
 
-func (_c *Client_FetchProvenance_Call) RunAndReturn(run func(chart string, version string) ([]byte, string, error)) *Client_FetchProvenance_Call {
+func (_c *Client_FetchProvenance_Call) RunAndReturn(run func(ctx context.Context, chart string, version string) ([]byte, string, error)) *Client_FetchProvenance_Call {
 	_c.Call.Return(run)
 	return _c
 }

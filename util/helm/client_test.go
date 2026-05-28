@@ -2,6 +2,7 @@ package helm
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -732,7 +733,7 @@ func TestGetChartTgzPath_OCIReturnsError(t *testing.T) {
 
 func TestFetchProvenance_OCIReturnsError(t *testing.T) {
 	client := NewClient("example.com", HelmCreds{}, true, "", "")
-	prov, name, err := client.FetchProvenance("my-chart", "1.0.0")
+	prov, name, err := client.FetchProvenance(context.Background(), "my-chart", "1.0.0")
 	assert.Nil(t, prov)
 	assert.Empty(t, name)
 	assert.ErrorIs(t, err, ErrOCINotEnabled)
@@ -761,7 +762,7 @@ entries:
 	defer ts.Close()
 
 	client := NewClient(ts.URL, HelmCreds{}, false, "", "")
-	prov, chartFilename, err := client.FetchProvenance("mychart", "1.0.0")
+	prov, chartFilename, err := client.FetchProvenance(context.Background(), "mychart", "1.0.0")
 	require.NoError(t, err)
 	assert.Equal(t, provContent, prov)
 	assert.Equal(t, "mychart-1.0.0.tgz", chartFilename)
@@ -786,7 +787,7 @@ entries:
 	defer ts.Close()
 
 	client := NewClient(ts.URL, HelmCreds{}, false, "", "")
-	prov, chartFilename, err := client.FetchProvenance("mychart", "1.0.0")
+	prov, chartFilename, err := client.FetchProvenance(context.Background(), "mychart", "1.0.0")
 	require.Error(t, err)
 	assert.Nil(t, prov)
 	assert.Empty(t, chartFilename)
@@ -816,7 +817,7 @@ entries:
 	defer ts.Close()
 
 	client := NewClient(ts.URL, HelmCreds{}, false, "", "")
-	prov, chartFilename, err := client.FetchProvenance("mychart", "1.0.0")
+	prov, chartFilename, err := client.FetchProvenance(context.Background(), "mychart", "1.0.0")
 	require.NoError(t, err)
 	assert.Equal(t, provContent, prov)
 	assert.Equal(t, "mychart-1.0.0.tgz", chartFilename)

@@ -6033,7 +6033,7 @@ func TestHelmSourceIntegrity_FetchProvenanceFails(t *testing.T) {
 		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
 		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
 		helmClient.EXPECT().GetChartTgzPath("my-chart", "1.1.0").Return(chartTgzPath, nil)
-		helmClient.EXPECT().FetchProvenance("my-chart", "1.1.0").Return(nil, "", errors.New("provenance fetch returned 404 Not Found"))
+		helmClient.EXPECT().FetchProvenance(mock.Anything, "my-chart", "1.1.0").Return(nil, "", errors.New("provenance fetch returned 404 Not Found"))
 		ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
 		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()

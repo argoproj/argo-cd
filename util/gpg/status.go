@@ -37,9 +37,16 @@ func VerificationFailureMessage(code, keyID string) string {
 	return fmt.Sprintf("%s (key_id=%s)", phrase, keyID)
 }
 
-// ParseStatusOutputStrict parses GPG output line-by-line. Returns the first line's
-// (code, keyID). Errors if any line has multiple status matches (preserves Git
-// verify-tag --raw behavior).
+// ParseStatusOutputStrict parses GPG status-fd output line-by-line.
+//
+// The status output parsed here comes from:
+//
+//	gpg --no-permission-warning --verify --status-fd 3 <cleartext-signed-file>
+//
+// as executed by VerifyCleartextSignedMessage in verify.go.
+//
+// Returns the first line's (code, keyID). Errors if any line has multiple status
+// matches (preserves Git verify-tag --raw behavior).
 func ParseStatusOutputStrict(status string) (code, keyID string, err error) {
 	for line := range strings.SplitSeq(status, "\n") {
 		matches := StatusSigRegex.FindAllStringSubmatch(line, -1)
