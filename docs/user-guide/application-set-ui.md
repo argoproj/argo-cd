@@ -1,4 +1,4 @@
-# ApplicationSet Web UI
+# Managing ApplicationSets in the Web UI
 
 > [!WARNING]
 > **Alpha Feature (Since v3.5.0)**
@@ -6,10 +6,9 @@
 > This is an [alpha](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) feature.
 > The look, behavior, and APIs it consumes may change in future releases or be removed in backwards-incompatible ways.
 
-Argo CD provides a first-class Web UI for ApplicationSets. The UI surfaces
-ApplicationSets directly, with a list view, a resource tree, a slide-out
-details panel, and a preview tab that lets you see what Applications an
-ApplicationSet will generate.
+The Argo CD Web UI includes views for ApplicationSets, with a list page, a
+resource tree, a slide-out details panel, and a preview tab that lets you see
+what Applications an ApplicationSet will generate.
 
 ApplicationSets can also be managed outside the UI through:
 
@@ -19,18 +18,18 @@ ApplicationSets can also be managed outside the UI through:
 
 ## ApplicationSets list page
 
-The new `/applicationsets` page is the entry point. It lives next to the
+The `/applicationsets` page is the entry point. It lives next to the
 existing Applications list and shares the same filtering, search, and
 view-preferences, so it should feel familiar.
 
 You can reach it from the top-level navigation, or directly at
 `https://<your-argocd>/applicationsets`.
 
-![ApplicationSets list page](../../assets/applicationset/Web-UI/applicationsets-list.png)
+![ApplicationSets list page](../assets/applicationset/Web-UI/applicationsets-list.png)
 
 What's on the page:
 
-- **Search bar** — fuzzy-matches against name and namespace. Use the
+- **Search bar** — substring matches against name and namespace. Use the
   keyboard shortcut `/` to focus it.
 - **Filters sidebar** — filter by project, namespace, labels, and
   ApplicationSet health status (`Healthy`, `Progressing`, `Degraded`,
@@ -53,7 +52,7 @@ Selecting an ApplicationSet from the list opens its details page. The
 center of the page is a **resource tree** that visualizes the
 ApplicationSet and the child Applications it generates.
 
-![ApplicationSet resource tree](../../assets/applicationset/Web-UI/appset-resource-tree.png)
+![ApplicationSet resource tree](../assets/applicationset/Web-UI/appset-resource-tree.png)
 
 Things to know:
 
@@ -70,29 +69,17 @@ The top of the ApplicationSet details page shows a status bar summarizing
 the ApplicationSet at a glance: its **health**, the count of
 **conditions** by severity, and **last updated**.
 
-![ApplicationSet status bar](../../assets/applicationset/Web-UI/appset-status-bar.png)
+![ApplicationSet status bar](../assets/applicationset/Web-UI/appset-status-bar.png)
 
-### How health is derived
+Health is derived by the ApplicationSet controller from the
+ApplicationSet's `status.conditions` and surfaced through the
+`status.health` field on the resource. For the controller-side derivation
+rules and how the field is populated, see
+[Web UI Integration](../operator-manual/applicationset/Web-UI-Integration.md#statushealth-on-the-applicationset-cr).
 
-The ApplicationSet controller now writes a `status.health` field on the
-ApplicationSet CR (with `status` and `message`), computed from the
-ApplicationSet's `status.conditions`. The UI reads this field directly.
+### Conditions
 
-The rules the controller applies, in order:
-
-1. If `status.conditions` is empty → **Unknown**
-   (`"No status conditions found for ApplicationSet"`).
-2. If an `ErrorOccurred` condition has `status: True`
-   → **Degraded**, with the condition's message.
-3. Otherwise, if a `RolloutProgressing` condition has `status: True`
-   → **Progressing**, with the condition's message.
-4. Otherwise, if a `ResourcesUpToDate` condition has `status: True`
-   → **Healthy**, with the condition's message.
-5. Otherwise → **Unknown** (`"Waiting for health status to be determined"`).
-
-### How conditions are shown
-
-![ApplicationSet conditions modal](../../assets/applicationset/Web-UI/appset-conditions.png)
+![ApplicationSet conditions modal](../assets/applicationset/Web-UI/appset-conditions.png)
 
 The conditions modal shows each condition's **type**, **status**, the
 **message** reported by the controller and **when** it was last reported.
@@ -110,7 +97,7 @@ elsewhere in Argo CD for resource details.
 Shows metadata at a glance: name, namespace, creation timestamp,
 health, conditions, labels, annotations, and sync policy.
 
-![Summary tab](../../assets/applicationset/Web-UI/summary-tab.png)
+![Summary tab](../assets/applicationset/Web-UI/summary-tab.png)
 
 If the ApplicationSet has conditions, the **CONDITIONS** row links to a
 detailed conditions view so you can see warnings or errors raised by the
@@ -128,31 +115,24 @@ Application.
 
 ### Preview
 
-The Preview tab is the most significant new capability. It is covered in
-detail in the next section.
+The Preview tab renders the Applications an ApplicationSet would generate,
+with a diff against the live state. It is covered in detail in the next
+section.
 
 ## Preview: see what your ApplicationSet will generate
 
-The **PREVIEW** tab mirrors the `argocd appset generate` CLI command in
-the browser. It shows you the Applications an ApplicationSet would
-generate right now. When you edit the spec a diff between the
-proposed output and what is currently live.
+The **PREVIEW** tab shows the Applications an ApplicationSet would generate
+from its current spec. When you edit the spec, a diff between the proposed
+output and the live state is rendered.
 
-![Preview tab demo](../../assets/applicationset/Web-UI/preview-demo.gif)
-
-### How it works
-
-The Preview tab calls the existing
-`POST /api/v1/applicationsets/generate` endpoint, which the controller
-uses to render template output without persisting anything to the
-cluster.
+![Preview tab demo](../assets/applicationset/Web-UI/preview-demo.gif)
 
 The result is rendered in three sub-tabs:
 
 | Tab            | Shows                                                                          |
 |----------------|--------------------------------------------------------------------------------|
 | `DIFF`         | The default tab. A unified diff of each Application that would change.         |
-| `LIVE APPS`    | The Applications currently generated by the ApplicationSet on the cluster.     |
+| `LIVE APPS`    | The Applications generated by the ApplicationSet on the cluster.               |
 | `DESIRED APPS` | The Applications that *would* be generated if the proposed spec were applied.  |
 
 Each entry in `DIFF` represents one child Application and is categorized
@@ -170,17 +150,19 @@ edits. Click **Cancel** to discard local edits.
 > persist a change you must update the ApplicationSet through your normal
 > GitOps flow (or via `kubectl apply` / `argocd appset create`).
 
-### Permissions
+### Permission-denied behavior
 
-Generating a preview requires `applicationsets, create` permission on
-the project of the ApplicationSet's template. If you don't have it, the
-Preview tab returns a clear permission-denied message instead of a diff.
+Generating a preview requires permission to create ApplicationSets in the
+target project. If you don't have it, the Preview tab returns a clear
+permission-denied message instead of a diff. For the exact RBAC
+requirement, see
+[Web UI Integration: RBAC for Preview](../operator-manual/applicationset/Web-UI-Integration.md#preview).
 
 ## Changes to Applications generated by an ApplicationSet
 
 For Applications that are generated by an ApplicationSet (i.e. that have
-an `ApplicationSet` `ownerReference`), the Application UI now shows two
-new things on the resource tree.
+an `ApplicationSet` `ownerReference`), the Application UI surfaces the
+parent ApplicationSet on the resource tree in two ways.
 
 ### Owner badge
 
@@ -188,17 +170,17 @@ A small badge labeled with the parent ApplicationSet's name
 appears on the Application node. Clicking it jumps directly to the
 ApplicationSet details page.
 
-![ApplicationSet owner badge on an Application](../../assets/applicationset/Web-UI/appset-owner-badge.png)
+![ApplicationSet owner badge on an Application](../assets/applicationset/Web-UI/appset-owner-badge.png)
 
 ### Show / hide parent ApplicationSet
 
-In the Application's view preferences, a new toggle —
+In the Application's view preferences, a toggle —
 **Show parent ApplicationSet** — adds the parent ApplicationSet as a
 synthetic root node on the resource tree, with an edge to the
 Application. This is useful when you want a single view that includes
 both the ApplicationSet and the Application it produced.
 
-![Show parent ApplicationSet toggle](../../assets/applicationset/Web-UI/show-parent-toggle.png)
+![Show parent ApplicationSet toggle](../assets/applicationset/Web-UI/show-parent-toggle.png)
 
 When the toggle is on, the badge is hidden (since the parent is already
 rendered explicitly).
@@ -206,14 +188,14 @@ rendered explicitly).
 ### Per-Application preview from the app-of-appset pattern
 
 When you use the
-[app-of-ApplicationSets pattern](Use-Cases.md) — an Application whose
+[app-of-ApplicationSets pattern](../operator-manual/applicationset/Use-Cases.md) — an Application whose
 resources include an ApplicationSet — the ApplicationSet node on the
-parent Application's tree now includes a preview feature in its slide-out
+parent Application's tree includes a preview feature in its slide-out
 panel. Selecting it opens a panel with a **Preview** experience similar
 to the one described above, scoped to the changes that would land when
 you sync the parent Application.
 
-![App-of-AppSet preview](../../assets/applicationset/Web-UI/app-of-appset-preview.png)
+![App-of-AppSet preview](../assets/applicationset/Web-UI/app-of-appset-preview.png)
 
 There are two important differences from the standalone Preview tab:
 

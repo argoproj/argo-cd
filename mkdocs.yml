@@ -108,6 +108,7 @@ nav:
     - Use Cases: operator-manual/applicationset/Use-Cases.md
     - Security: operator-manual/applicationset/Security.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
+    - Web UI Integration: operator-manual/applicationset/Web-UI-Integration.md
     - Generators:
       - operator-manual/applicationset/Generators.md
       - operator-manual/applicationset/Generators-List.md
@@ -129,7 +130,6 @@ nav:
     - Git File Generator Globbing: operator-manual/applicationset/Generators-Git-File-Globbing.md
     - ApplicationSet Specification Reference: operator-manual/applicationset/applicationset-specification.md
     - ApplicationSet in any namespace: operator-manual/applicationset/Appset-Any-Namespace.md
-    - ApplicationSet Web UI: operator-manual/applicationset/Web-UI.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -204,6 +204,7 @@ nav:
   - user-guide/sync-kubectl.md
   - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
+  - Managing ApplicationSets in the Web UI: user-guide/application-set-ui.md
   - user-guide/ci_automation.md
   - user-guide/app_deletion.md
   - user-guide/best_practices.md
