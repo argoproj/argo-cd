@@ -933,6 +933,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			refSourceCommitSHAs[normalizedURL] = repoRef.commitSHA
 		}
 	}
+	manifestKey := getManifestCacheKey(cacheKey, appSourceCopy, q, refSourceCommitSHAs)
 	if err != nil {
 		logCtx := log.WithFields(log.Fields{
 			"application":  q.AppName,
@@ -941,7 +942,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 		// If manifest generation error caching is enabled
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
-			manifestKey := getManifestCacheKey(cacheKey, appSourceCopy, q, refSourceCommitSHAs)
 			cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifests error", manifestKey)
 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
@@ -977,7 +977,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		return
 	}
 
-	manifestKey := getManifestCacheKey(cacheKey, appSourceCopy, q, refSourceCommitSHAs)
 	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "fresh GenerateManifests response", manifestKey)
 
 	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
