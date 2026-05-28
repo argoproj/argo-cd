@@ -165,12 +165,6 @@ jobs:
           swap-storage: false
           tool-cache: false
 
-      # We install goreleaser instead of using the goreleaser/goreleaser-action because it does not verify the goreleaser binary.
-      # So we install the binary ourselves, verify it with shasum and then run the binary.
-      # The goreleaser version is set in the tool-versions.sh file.  
-      - name: Install GoReleaser
-        run: ./hack/ci/install-goreleaser.sh
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         id: run-goreleaser
