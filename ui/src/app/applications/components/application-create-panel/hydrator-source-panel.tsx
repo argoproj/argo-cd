@@ -47,6 +47,7 @@ const subsectionBodyStyle: React.CSSProperties = {
 export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
     const app = props.formApi.getFormState().values as models.Application;
     const drySourceRepoURL = app.spec.sourceHydrator?.drySource?.repoURL || '';
+    const syncSourceRepoURL = app.spec.sourceHydrator?.syncSource?.repoURL || drySourceRepoURL;
 
     return (
         <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
@@ -84,9 +85,23 @@ export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
             <div style={{display: 'flex', flexDirection: 'column'}}>
                 <p style={{marginBottom: 0, fontWeight: 600}}>SYNC SOURCE</p>
                 <div style={subsectionBodyStyle}>
+                    <div style={{display: 'flex', width: '100%'}}>
+                        <div style={{flex: 1, minWidth: 0}}>
+                            <FormField
+                                formApi={props.formApi}
+                                label='Repository URL (optional)'
+                                field='spec.sourceHydrator.syncSource.repoURL'
+                                component={AutocompleteField}
+                                componentProps={{
+                                    items: props.repos,
+                                    filterSuggestions: true
+                                }}
+                            />
+                        </div>
+                    </div>
                     <LabeledRevisionField
                         formApi={props.formApi}
-                        repoURL={drySourceRepoURL}
+                        repoURL={syncSourceRepoURL}
                         repoType='git'
                         fieldValue='spec.sourceHydrator.syncSource.targetBranch'
                         revisionType='Branches'
@@ -103,7 +118,7 @@ export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
                 <div style={subsectionBodyStyle}>
                     <LabeledRevisionField
                         formApi={props.formApi}
-                        repoURL={drySourceRepoURL}
+                        repoURL={syncSourceRepoURL}
                         repoType='git'
                         fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
                         revisionType='Branches'
