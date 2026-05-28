@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2026-04-14
-last-updated: 2026-04-14
+last-updated: 2026-05-28
 ---
 
 # Attach Debug Containers via ArgoCD UI
@@ -18,11 +18,6 @@ last-updated: 2026-04-14
 This Proposal describes a feature to allow attaching debug containers to workloads via ArgoCD UI, to allow easier debugging of workloads with distroless images
 or workloads whose images don't contain debugging tools
 
-
-
-## Open Questions [optional]
-
-* Should we provide a list of allowed debug images by default, or should we leave it empty and force users to pick their own images
 
 ## Summary
 
@@ -44,7 +39,10 @@ Allowing users to attach debug containers to pods is highly useful for debugging
 
 ## Proposal
 
-ArgoCD will have new action `debug`, this action will be gated behind permission, and a flag in `argocd-cm` ConfigMap `debug.enabled`, another flag will be exposed `debug.images` this will be an array of images that will be allowed to be used in the debug container. when the `debug.enabled` flag is enabled and a user with the `debug` permission will click on a pod, it will have another tab called `debug` which will present him with a dropdown list of debug images, and a dropdown list for which (if any) container to target (for process sharing)
+ArgoCD will have new action `debug`, this action will be gated behind RBAC permission, and a flag in `argocd-cm` ConfigMap `debug.enabled`, another flag will be exposed `debug.images` this will be an array of images that will be allowed to be used in the debug container (empty by default). when the `debug.enabled` flag is enabled and a user with the `debug` permission will click on a pod, it will have another tab called `debug` which will present him with a dropdown list of debug images, and a dropdown list for which (if any) container to target (for process sharing).
+Another field named `debugImages` will be exposed in the appProject CRD, if specified it will override the images in `debug.images` from `argocd-cm` for the specific appProject
+
+When an workload has debug container attached to it, its Application should have a note near the Sync OK text noting that a debug container has been attached `Sync OK (Debug Container Attached)`
 
 ### Use cases
 
