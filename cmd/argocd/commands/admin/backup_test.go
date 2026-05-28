@@ -41,10 +41,6 @@ func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotatio
 
 func newConfigmapObject() *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "argocd",
@@ -70,7 +66,6 @@ func newSecretsObject() *unstructured.Unstructured {
 			"server.secretkey": nil,
 		},
 	}
-
 	return kube.MustToUnstructured(&secret)
 }
 
@@ -96,7 +91,6 @@ func newAppProject() *unstructured.Unstructured {
 			SourceRepos: []string{"*"},
 		},
 	}
-
 	return kube.MustToUnstructured(&appProject)
 }
 
@@ -118,7 +112,6 @@ func newApplication(namespace string) *unstructured.Unstructured {
 			},
 		},
 	}
-
 	return kube.MustToUnstructured(&app)
 }
 
@@ -141,7 +134,6 @@ func newApplicationSet(namespace string) *unstructured.Unstructured {
 			},
 		},
 	}
-
 	return kube.MustToUnstructured(&appSet)
 }
 
@@ -491,14 +483,28 @@ func TestIsSkipLabelMatches(t *testing.T) {
 	}
 }
 
+// Test_updateLive tests the updateLive function used during import
 func Test_updateLive(t *testing.T) {
 	tests := []struct {
 		name          string
 		bak           *unstructured.Unstructured
 		live          *unstructured.Unstructured
 		stopOperation bool
-		expected      *unstructured.Unstructured
 	}{
+		{
+			name: "ConfigMap data should be updated from backup",
+			bak: kube.MustToUnstructured(&corev1.ConfigMap{
+				TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap"},
+				ObjectMeta: metav1.ObjectMeta{Name: "my-cm", Namespace: "argocd"},
+				Data:       map[string]string{"key": "from-backup"},
+			}),
+			live: kube.MustToUnstructured(&corev1.ConfigMap{
+				TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap"},
+				ObjectMeta: metav1.ObjectMeta{Name: "my-cm", Namespace: "argocd"},
+				Data:       map[string]string{"key": "from-live"},
+			}),
+			stopOperation: false,
+		},
 		{
 			name: "Application operation should be removed when stopOperation is true",
 			bak:  newApplication("argocd"),
@@ -510,51 +516,23 @@ func Test_updateLive(t *testing.T) {
 			stopOperation: true,
 		},
 		{
-			name:          "Application operation should be removed when stopOperation is true",
-			bak:           newApplication("argocd"),
-			live:          newApplication("argocd"),
-			stopOperation: true,
+			name: "Application operation should be kept when stopOperation is false",
+			bak:  newApplication("argocd"),
+			live: func() *unstructured.Unstructured {
+				app := newApplication("argocd")
+				app.Object["operation"] = map[string]any{"sync": map[string]any{}}
+				return app
+			}(),
+			stopOperation: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := updateLive(tt.bak, tt.live, tt.stopOperation)
 			assert.NotNil(t, result)
-
 			if tt.live.GetKind() == "ConfigMap" {
 				assert.Equal(t, tt.bak.Object["data"], result.Object["data"])
-			}
-
-			if tt.stopOperation {
-				assert.Nil(t, result.Object["operation"])
-			}
-		})
-	}
-}
-func Test_updateLive_stopOperation(t *testing.T) {
-	tests := []struct {
-		name          string
-		stopOperation bool
-		expectNilOp   bool
-	}{
-		{
-			name:          "Application operation should be removed when stopOperation is true",
-			stopOperation: true,
-			expectNilOp:   true,
-		},
-		{
-			name:          "Application operation should be kept when stopOperation is false",
-			stopOperation: false,
-			expectNilOp:   false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			app := newApplication("argocd")
-			app.Object["operation"] = map[string]any{"sync": map[string]any{}}
-			result := updateLive(app, app, tt.stopOperation)
-			assert.NotNil(t, result)
-			if tt.expectNilOp {
+			} else if tt.stopOperation {
 				assert.Nil(t, result.Object["operation"])
 			} else {
 				assert.NotNil(t, result.Object["operation"])
