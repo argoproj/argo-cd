@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -57,9 +58,14 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 			}
 		}
 	})
+
 	cluster := localCluster.DeepCopy()
+
+	cluster.ConfigHash = new(cluster.HashIdentity(rand.Uint64()))
+
 	now := metav1.Now()
 	cluster.Info.ConnectionState.ModifiedAt = &now
+
 	return cluster
 }
 
@@ -414,7 +420,9 @@ func clusterToSecret(c *appv1.Cluster, secret *corev1.Secret) error {
 	} else {
 		delete(secret.Annotations, appv1.AnnotationKeyRefresh)
 	}
+
 	addSecretMetadata(secret, common.LabelValueSecretTypeCluster)
+
 	return nil
 }
 
@@ -479,5 +487,11 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		Labels:             labels,
 		Annotations:        annotations,
 	}
+
+	// Always recompute the config hash as the secret may have been directly updated.
+	// In case of hashing failure, fall back to a random value as it is safer to trigger
+	// observers' change detection anyway.
+	cluster.ConfigHash = new(cluster.HashIdentity(rand.Uint64()))
+
 	return &cluster, nil
 }

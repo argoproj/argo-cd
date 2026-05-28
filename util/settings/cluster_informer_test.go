@@ -878,6 +878,101 @@ func BenchmarkClusterInformer_GetClusterByURL(b *testing.B) {
 	})
 }
 
+func TestClusterInformer_ConfigHash(t *testing.T) {
+	t.Run("configHash is computed from cluster identity", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster-no-hash",
+				Namespace: "argocd",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			},
+			Data: map[string][]byte{
+				"server": []byte("https://no-hash.example.com"),
+				"name":   []byte("cluster-no-hash"),
+				"config": []byte(`{"bearerToken":"token"}`),
+			},
+		}
+
+		clientset := fake.NewClientset(secret)
+		informer, err := NewClusterInformer(clientset, "argocd")
+		require.NoError(t, err)
+
+		go informer.Run(ctx.Done())
+		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+		cluster, err := informer.GetClusterByURL("https://no-hash.example.com")
+		require.NoError(t, err)
+		assert.NotNil(t, cluster.ConfigHash)
+		assert.NotZero(t, *cluster.ConfigHash, "ConfigHash should be computed when not present in secret")
+	})
+
+	t.Run("configHash is deterministic for same cluster config", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		secret1 := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster-deterministic-1",
+				Namespace: "argocd",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			},
+			Data: map[string][]byte{
+				"server": []byte("https://deterministic.example.com"),
+				"name":   []byte("deterministic-cluster"),
+				"config": []byte(`{"username":"admin","password":"secret"}`),
+			},
+		}
+
+		clientset := fake.NewClientset(secret1)
+		informer, err := NewClusterInformer(clientset, "argocd")
+		require.NoError(t, err)
+
+		go informer.Run(ctx.Done())
+		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+		cluster1, err := informer.GetClusterByURL("https://deterministic.example.com")
+		require.NoError(t, err)
+		hash1 := *cluster1.ConfigHash
+
+		// Create another secret with same config but different name (different cluster)
+		secret2 := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster-deterministic-2",
+				Namespace: "argocd",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			},
+			Data: map[string][]byte{
+				"server": []byte("https://deterministic.example.com"),
+				"name":   []byte("deterministic-cluster"),
+				"config": []byte(`{"username":"admin","password":"secret"}`),
+			},
+		}
+
+		_, err = clientset.CoreV1().Secrets("argocd").Create(t.Context(), secret2, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			clusters, err := informer.ListClusters()
+			if err != nil {
+				return false
+			}
+			return len(clusters) == 2
+		}, 5*time.Second, 10*time.Millisecond)
+
+		// Get both clusters and verify they have the same hash (same config)
+		clusters, err := informer.ListClusters()
+		require.NoError(t, err)
+		require.Len(t, clusters, 2)
+
+		// Both clusters should have the same hash since they have identical config
+		assert.Equal(t, hash1, *clusters[0].ConfigHash, "Identical cluster configs should produce identical hashes")
+		assert.Equal(t, hash1, *clusters[1].ConfigHash, "Identical cluster configs should produce identical hashes")
+	})
+}
+
 func TestClusterInformer_GetProjectClusters(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
