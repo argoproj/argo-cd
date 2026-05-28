@@ -41,7 +41,7 @@ func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotatio
 
 func newConfigmapObject() *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{ // YEH ADD KARO
+		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",
 		},
@@ -531,7 +531,6 @@ func Test_updateLive(t *testing.T) {
 		})
 	}
 }
-
 func Test_updateLive_stopOperation(t *testing.T) {
 	tests := []struct {
 		name          string
