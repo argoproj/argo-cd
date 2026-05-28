@@ -580,7 +580,11 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration boo
 		return true, "hard hydrate requested", ""
 	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
 		return true, "spec.sourceHydrator differs", ""
-	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
+	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed:
+		if app.Status.SourceHydrator.CurrentOperation.FinishedAt == nil ||
+			metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) <= 2*time.Minute {
+			return false, "previous hydrate operation failed", ""
+		}
 		return true, "previous hydrate operation failed more than 2 minutes ago", ""
 	}
 

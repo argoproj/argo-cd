@@ -148,7 +148,26 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedResolvedRev:    "",
 		},
 		{
-			name: "hydrate not needed",
+			name: "hydration failed within cooldown without last compared revision",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						DrySHA:         "abc123",
+						StartedAt:      now,
+						FinishedAt:     &now,
+						Phase:          v1alpha1.HydrateOperationPhaseFailed,
+						Message:        "Failed to hydrate: commit server unavailable",
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+				}},
+			},
+			expectedNeedsHydration: false,
+			expectedMessage:        "previous hydrate operation failed",
+			expectedResolvedRev:    "",
+		},
+		{
+			name: "hydration failed within cooldown",
 			app: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
@@ -162,15 +181,9 @@ func Test_appNeedsHydration(t *testing.T) {
 					LastComparedDryRevision: "abc123",
 				}},
 			},
-			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
-				proj := newTestProject()
-				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
-				drySource := app.Spec.SourceHydrator.GetDrySource()
-				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, false).Return(false, "abc123", nil)
-			},
 			expectedNeedsHydration: false,
-			expectedMessage:        "hydration not needed",
-			expectedResolvedRev:    "abc123",
+			expectedMessage:        "previous hydrate operation failed",
+			expectedResolvedRev:    "",
 		},
 		{
 			name: "new revision detected",
