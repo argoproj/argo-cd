@@ -169,6 +169,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     const [method, setMethod] = useState<string>(ConnectionMethod.SSH);
     const [currentRepo, setCurrentRepo] = useState<models.Repository | null>(null);
     const [displayEditPanel, setDisplayEditPanel] = useState(false);
+    const [displayEditCredsPanel, setDisplayEditCredsPanel] = useState(false);
+    const [currentCreds, setCurrentCreds] = useState<models.RepoCreds | null>(null);
     const [authSettings, setAuthSettings] = useState<models.AuthSettings | null>(null);
     // States related to repository sorting
     const [statusProperty, setStatusProperty] = useState<'all' | 'Successful' | 'Failed' | 'Unknown'>('all');
@@ -181,6 +183,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     const formApi = useRef<FormApi | null>(null);
     const credsTemplate = useRef<boolean>(false);
     const repoLoader = useRef<DataLoader | null>(null);
+    const repoMainLoader = useRef<DataLoader | null>(null);
     const credsLoader = useRef<DataLoader | null>(null);
 
     useEffect(() => {
@@ -361,9 +364,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         return url.replace('https://', '').replace('oci://', '');
     };
 
-    // only connections of git type which are not via GitHub App or Azure Service Principal are updatable
+    // only connections of git/helm (HTTP/HTTPS) or OCI helm type which are not via GitHub App or Azure Service Principal are updatable
     const isRepoUpdatable = (repo: models.Repository) => {
-        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppID && !repo.azureServicePrincipalClientId;
+        if (repo.enableOCI) {
+            return !repo.githubAppID && !repo.azureServicePrincipalClientId;
+        }
+        return isHTTPOrHTTPSUrl(repo.repo) && (repo.type === 'git' || repo.type === 'helm') && !repo.githubAppID && !repo.azureServicePrincipalClientId;
     };
 
     // Forces a reload of configured repositories, circumventing the cache
@@ -372,8 +378,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         credsLoader.current.reload();
 
         try {
-            await services.repos.listNoCache();
-            repoLoader.current.reload();
+            const repos = await services.repos.listNoCache();
+            if (repoMainLoader.current) {
+                repoMainLoader.current.setData(repos);
+            }
             ctx.notifications.show({
                 content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
                 type: NotificationType.Success
@@ -476,6 +484,37 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         } finally {
             setConnecting(false);
         }
+    };
+
+    // Update an existing credentials template
+    const updateHTTPSCreds = async (params: NewHTTPSRepoParams) => {
+        try {
+            await services.repocreds.updateHTTPS({
+                url: params.url,
+                username: params.username,
+                password: params.password,
+                bearerToken: params.bearerToken,
+                tlsClientCertData: params.tlsClientCertData,
+                tlsClientCertKey: params.tlsClientCertKey,
+                type: params.type,
+                proxy: params.proxy,
+                noProxy: params.noProxy,
+                enableOCI: params.enableOCI,
+                insecureOCIForceHttp: params.insecureOCIForceHttp
+            });
+            credsLoader.current.reload();
+            setDisplayEditCredsPanel(false);
+        } catch (e) {
+            ctx.notifications.show({
+                content: <ErrorNotification title='Unable to update credentials template' e={e} />,
+                type: NotificationType.Error
+            });
+        }
+    };
+
+    const displayEditCredsSliding = (creds: models.RepoCreds) => {
+        setCurrentCreds(creds);
+        setDisplayEditCredsPanel(true);
     };
 
     // Connect a new repository or create a repository credentials for GitHub App repositories
@@ -885,7 +924,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         <div className='search-bar' style={{display: 'flex', alignItems: 'flex-end', width: '100%'}}></div>
                         <input type='text' className='argo-field' placeholder='Search Name' value={name} onChange={e => setName(e.target.value)} />
                     </div>
-                    <DataLoader load={services.repos.list} ref={loader => (repoLoader.current = loader)}>
+                    <DataLoader load={services.repos.list} ref={loader => (repoMainLoader.current = loader)}>
                         {(repos: models.Repository[]) => {
                             const filteredRepos = filterRepos(repos, typeProperty, projectProperty, statusProperty, name);
 
@@ -990,7 +1029,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                         </div>
                                     </div>
                                     {creds.map(repo => (
-                                        <div className='argo-table-list__row' key={repo.url}>
+                                        <div className='argo-table-list__row item-clickable' key={repo.url} onClick={() => displayEditCredsSliding(repo)}>
                                             <div className='row'>
                                                 <div className='columns small-9'>
                                                     <i className='icon argo-icon-git' /> <Repo url={repo.url} />
@@ -1004,6 +1043,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                             </button>
                                                         )}
                                                         items={[
+                                                            {
+                                                                title: 'Edit',
+                                                                action: () => displayEditCredsSliding(repo)
+                                                            },
                                                             {
                                                                 title: 'Remove',
                                                                 action: () => removeRepoCreds(repo.url, false)
@@ -1137,19 +1180,35 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 )}
             </div>
             <SlidingPanel
-                isShown={showConnectRepo() || displayEditPanel}
+                isShown={showConnectRepo() || displayEditPanel || displayEditCredsPanel}
                 onClose={() => {
-                    if (!displayEditPanel && showConnectRepo()) {
+                    if (!displayEditPanel && !displayEditCredsPanel && showConnectRepo()) {
                         setConnectRepo(false);
                     }
                     if (displayEditPanel) {
                         setDisplayEditPanel(false);
                     }
+                    if (displayEditCredsPanel) {
+                        setDisplayEditCredsPanel(false);
+                    }
                 }}
                 header={<SlidingPanelHeader />}>
                 {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} />}
                 {displayEditPanel && <RepoDetails repo={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} />}
-                {!displayEditPanel && (
+                {displayEditCredsPanel && currentCreds && (
+                    <RepoDetails
+                        repo={{
+                            repo: currentCreds.url,
+                            connectionState: {status: '' as models.ConnectionStatus, message: '', attemptedAt: null},
+                            enableOCI: false,
+                            useAzureWorkloadIdentity: false,
+                            username: currentCreds.username,
+                            bearerToken: currentCreds.bearerToken
+                        }}
+                        save={(params: NewHTTPSRepoParams) => updateHTTPSCreds(params)}
+                    />
+                )}
+                {!displayEditPanel && !displayEditCredsPanel && (
                     <DataLoader load={() => services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort())}>
                         {projects => (
                             <Form
