@@ -4,8 +4,12 @@ import {isValidURL} from '../../shared/utils';
 
 const GitUrlParse = require('git-url-parse');
 
+function isGitlab(parsed: GitUrl): boolean {
+    return parsed.source === 'gitlab.com' || parsed.resource.startsWith('gitlab');
+}
+
 function supportedSource(parsed: GitUrl): boolean {
-    return parsed.resource.startsWith('github') || ['gitlab.com', 'bitbucket.org'].indexOf(parsed.source) >= 0;
+    return parsed.resource.startsWith('github') || isGitlab(parsed) || parsed.source === 'bitbucket.org';
 }
 
 function protocol(proto: string): string {
@@ -46,7 +50,7 @@ export function revisionUrl(url: string, revision: string, forPath: boolean): st
 
     // Gitlab changed the way urls to commit look like
     // Ref: https://docs.gitlab.com/ee/update/deprecations.html#legacy-urls-replaced-or-removed
-    if (parsed.source === 'gitlab.com') {
+    if (isGitlab(parsed)) {
         urlSubPath = '-/' + urlSubPath;
     }
 
