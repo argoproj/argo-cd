@@ -95,6 +95,9 @@ type typedResults struct {
 // and compare them. Returns a typedResults with the converted types and the comparison.
 // If pt is nil, will use the DeducedParseableType.
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
+	if pt == nil {
+		pt = &typed.DeducedParseableType
+	}
 	typedLive, err := pt.FromUnstructured(live.Object)
 	if err != nil {
 		return nil, fmt.Errorf("error creating typedLive: %w", err)
