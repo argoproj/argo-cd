@@ -886,7 +886,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             return (
                                 <div className={`application-details ${props.match.params.name}`}>
                                     <Page
-                                        title={props.match.params.name + ' - ' + getPageTitle(pref.view)}
+                                        title={AppUtils.getAppDisplayName(application) + ' - ' + getPageTitle(pref.view)}
                                         useTitleOnly={true}
                                         topBarTitle={getPageTitle(pref.view)}
                                         toolbar={{
@@ -895,7 +895,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     title: isApplication ? 'Applications' : 'ApplicationSets',
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
-                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
+                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} appDisplayName={AppUtils.getAppDisplayName(application)} objectListKind={objectListKind} />}
                                             ],
                                             actionMenu: {
                                                 items: isApplication
