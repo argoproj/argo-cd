@@ -92,15 +92,9 @@ jobs:
             ALLOW_FORK_RELEASE=true
           fi
           echo "allow_fork_release=$ALLOW_FORK_RELEASE" >> $GITHUB_OUTPUT
-  verify-slsa-generator-tag:
-    permissions:
-      contents: read
-    uses: ./.github/workflows/verify-slsa-generator-tag.yaml
-    with:
-      slsa_generator_tag: v2.1.0
 
   argocd-image-provenance:
-    needs: [setup-variables, argocd-image, verify-slsa-generator-tag]
+    needs: [setup-variables, argocd-image]
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
@@ -193,7 +187,7 @@ jobs:
           echo "hashes=$hashes" >> $GITHUB_OUTPUT
 
   goreleaser-provenance:
-    needs: [goreleaser, setup-variables, verify-slsa-generator-tag]
+    needs: [goreleaser, setup-variables]
     permissions:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
@@ -279,7 +273,7 @@ jobs:
             /tmp/sbom.tar.gz
 
   sbom-provenance:
-    needs: [generate-sbom, setup-variables, verify-slsa-generator-tag]
+    needs: [generate-sbom, setup-variables]
     permissions:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
