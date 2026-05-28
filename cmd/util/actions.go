@@ -9,6 +9,7 @@ import (
 
 // ParseActionParameters parses a slice of "name=value" strings into ResourceActionParameters.
 func ParseActionParameters(params []string) ([]*applicationpkg.ResourceActionParameters, error) {
+	seen := make(map[string]bool, len(params))
 	parsedParams := make([]*applicationpkg.ResourceActionParameters, 0, len(params))
 	for _, param := range params {
 		parts := strings.SplitN(param, "=", 2)
@@ -20,6 +21,10 @@ func ParseActionParameters(params []string) ([]*applicationpkg.ResourceActionPar
 		if name == "" {
 			return nil, fmt.Errorf("invalid parameter format %q: parameter name cannot be empty", param)
 		}
+		if seen[name] {
+			return nil, fmt.Errorf("parameter %q is specified more than once", name)
+		}
+		seen[name] = true
 		parsedParams = append(parsedParams, &applicationpkg.ResourceActionParameters{
 			Name:  &name,
 			Value: &value,

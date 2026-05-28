@@ -62,6 +62,11 @@ func TestParseActionParameters(t *testing.T) {
 			params:      []string{"replicas"},
 			expectError: true,
 		},
+		{
+			name:        "duplicate keys",
+			params:      []string{"replicas=2", "replicas=3"},
+			expectError: true,
+		},
 	}
 
 	for _, tc := range testCases {
