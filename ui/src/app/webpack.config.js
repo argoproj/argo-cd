@@ -12,7 +12,9 @@ console.log(`Bundling in ${isProd ? 'production' : 'development'}...`);
 
 const proxyConf = {
     target: process.env.ARGOCD_API_URL || 'http://localhost:8080',
-    secure: false
+    secure: false,
+    // Rewrite Host header when proxying to a remote API server (e.g. a hosted Argo CD instance).
+    changeOrigin: !!process.env.ARGOCD_API_URL
 };
 
 const config = {
