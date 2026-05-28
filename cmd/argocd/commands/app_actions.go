@@ -218,9 +218,6 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 				errors.CheckError(err)
 			}
 			fmt.Println("RunResourceActionV2 is not supported by the server, falling back to RunResourceAction.")
-			if len(parsedParams) > 0 {
-				fmt.Fprintln(os.Stderr, "Warning: --param flags are not supported by this server version and will be ignored.")
-			}
 			//nolint:staticcheck // RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 			_, err = appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
