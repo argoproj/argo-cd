@@ -242,6 +242,18 @@ func WithClientSideApplyMigration(enabled bool, manager string) SyncOpt {
 	}
 }
 
+func WithAppAnnotationKey(method string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.appAnnotationKey = method
+	}
+}
+
+func WithAppLabelKey(label string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.appLabelKey = label
+	}
+}
+
 // NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -435,6 +447,9 @@ type syncContext struct {
 	applyOutOfSyncOnly bool
 	// stores whether the resource is modified or not
 	modificationResult map[kubeutil.ResourceKey]bool
+
+	appAnnotationKey string
+	appLabelKey      string
 }
 
 func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) {
@@ -1502,9 +1517,21 @@ func (sc *syncContext) pruneObject(ctx context.Context, t *syncTask, prune, dryR
 	if dryRun {
 		return common.ResultCodePruned, "pruned (dry run)"
 	}
+
+	// If object is a CRD and has tracking label, remove it and do not delete the resource
+	isCRD := kubeutil.IsCRD(liveObj)
+	if isCRD {
+		jsonPatch, err := sc.buildRemoveTrackingJSONPatch(liveObj)
+		if err != nil {
+			return common.ResultCodeSyncFailed, err.Error()
+		}
+		_, err = sc.kubectl.PatchResource(ctx, sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), types.JSONPatchType, jsonPatch)
+		return common.ResultCodePruned, "pruned (orphaned CRD)"
+	}
+
 	// Skip deletion if object is already marked for deletion, so we don't cause a resource update hotloop
 	deletionTimestamp := liveObj.GetDeletionTimestamp()
-	if deletionTimestamp == nil || deletionTimestamp.IsZero() {
+	if (deletionTimestamp == nil || deletionTimestamp.IsZero()) && !isCRD {
 		err := sc.kubectl.DeleteResource(ctx, sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), sc.getDeleteOptions())
 		if err != nil {
 			return common.ResultCodeSyncFailed, err.Error()
@@ -1520,6 +1547,33 @@ func (sc *syncContext) getDeleteOptions() metav1.DeleteOptions {
 	}
 	deleteOption := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	return deleteOption
+}
+
+func (sc *syncContext) buildRemoveTrackingJSONPatch(obj *unstructured.Unstructured) ([]byte, error) {
+	patchOperations := []kubeutil.JSONPatchOperation{}
+
+	if labels := obj.GetLabels(); labels != nil {
+		if _, exists := labels[sc.appLabelKey]; exists {
+			escapedKey := strings.ReplaceAll(sc.appLabelKey, "/", "~1")
+			patchOperations = append(patchOperations, kubeutil.JSONPatchOperation{
+				Op:   "remove",
+				Path: fmt.Sprintf("/metadata/labels/%s", escapedKey),
+			})
+		}
+	}
+
+	if annotations := obj.GetAnnotations(); annotations != nil {
+		if _, exists := annotations[sc.appAnnotationKey]; exists {
+			escapedKey := strings.ReplaceAll(sc.appAnnotationKey, "/", "~1")
+			patchOperations = append(patchOperations, kubeutil.JSONPatchOperation{
+				Op:   "remove",
+				Path: fmt.Sprintf("/metadata/annotations/%s", escapedKey),
+			})
+		}
+	}
+
+	bytes, err := json.Marshal(patchOperations)
+	return bytes, err
 }
 
 func (sc *syncContext) targetObjs() []*unstructured.Unstructured {
