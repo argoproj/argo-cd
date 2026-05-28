@@ -9,6 +9,7 @@ import (
 )
 
 func TestByteReadSeeker_Read(t *testing.T) {
+	t.Parallel()
 	inString := "hello world"
 	reader := NewByteReadSeeker([]byte(inString))
 	bytes := make([]byte, 11)
@@ -21,6 +22,7 @@ func TestByteReadSeeker_Read(t *testing.T) {
 }
 
 func TestByteReadSeeker_Seek_Start(t *testing.T) {
+	t.Parallel()
 	inString := "hello world"
 	reader := NewByteReadSeeker([]byte(inString))
 	offset, err := reader.Seek(6, io.SeekStart)
@@ -34,6 +36,7 @@ func TestByteReadSeeker_Seek_Start(t *testing.T) {
 }
 
 func TestByteReadSeeker_Seek_Current(t *testing.T) {
+	t.Parallel()
 	inString := "hello world"
 	reader := NewByteReadSeeker([]byte(inString))
 	offset, err := reader.Seek(3, io.SeekCurrent)
@@ -50,6 +53,7 @@ func TestByteReadSeeker_Seek_Current(t *testing.T) {
 }
 
 func TestByteReadSeeker_Seek_End(t *testing.T) {
+	t.Parallel()
 	inString := "hello world"
 	reader := NewByteReadSeeker([]byte(inString))
 	offset, err := reader.Seek(-5, io.SeekEnd)
@@ -63,6 +67,7 @@ func TestByteReadSeeker_Seek_End(t *testing.T) {
 }
 
 func TestByteReadSeeker_Seek_OutOfBounds(t *testing.T) {
+	t.Parallel()
 	inString := "hello world"
 	reader := NewByteReadSeeker([]byte(inString))
 	_, err := reader.Seek(12, io.SeekStart)

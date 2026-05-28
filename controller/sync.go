@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
@@ -44,14 +43,6 @@ const (
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
 
-func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
-	cluster, err := m.liveStateCache.GetClusterCache(server)
-	if err != nil {
-		return nil, err
-	}
-	return cluster.GetOpenAPISchema(), nil
-}
-
 func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
@@ -65,16 +56,11 @@ func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields
 // cleanup function that must be called to remove the generated kube config for this
 // server.
 func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
-	}
-
 	rawConfig, err := cluster.RawRestConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, clusterCache.GetOpenAPISchema(), m.onKubectlRun)
+	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, m.onKubectlRun)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
@@ -244,13 +230,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		clientSideApplyManager = managerValue
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(destCluster)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
-		return
-	}
-
 	reconciliationResult := compareResult.reconciliationResult
 
 	// if RespectIgnoreDifferences is enabled, it should normalize the target
@@ -344,7 +323,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		rawConfig,
 		m.kubectl,
 		app.Spec.Destination.Namespace,
-		openAPISchema,
 		opts...,
 	)
 	if err != nil {

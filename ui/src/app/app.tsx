@@ -210,11 +210,10 @@ export class App extends React.Component<
 
         if (!onLoginPage && !loggedIn) {
             if (isSSO) {
-                const returnUrl = encodeURIComponent(pathname + history.location.search);
-                window.location.href = `${getBaseHref()}/auth/login?return_url=${returnUrl}`;
+                window.location.href = `${getBaseHref()}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 return;
             }
-            history.replace(`/login?return_url=${encodeURIComponent(pathname + history.location.search)}`);
+            history.replace(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
 
         this.setState(prev => ({

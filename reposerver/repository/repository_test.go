@@ -3058,6 +3058,17 @@ func TestTestRepoHelmOCI(t *testing.T) {
 	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
 }
 
+func TestTestRepositoryUnsupportedType(t *testing.T) {
+	service := newService(t, ".")
+	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
+		Repo: &v1alpha1.Repository{
+			Repo: "https://example.com/repo",
+			Type: "bogus",
+		},
+	})
+	assert.ErrorContains(t, err, `unsupported repository type "bogus"`)
+}
+
 func Test_getHelmDependencyRepos(t *testing.T) {
 	repo1 := "https://charts.bitnami.com/bitnami"
 	repo2 := "https://eventstore.github.io/EventStore.Charts"

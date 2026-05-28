@@ -382,7 +382,9 @@ func (s *Service) runRepoOperation(
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	if settings.sem != nil {
+		acquireStart := time.Now()
 		err = settings.sem.Acquire(ctx, 1)
+		s.metricsServer.ObserveParallelismWaitDuration(time.Since(acquireStart))
 		if err != nil {
 			return err
 		}
@@ -1044,7 +1046,7 @@ func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRe
 						// We can now try again, so reset the cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey)
 						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+							log.Warnf("manifest cache delete error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
 						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), cacheKey)
 						return false, nil, nil
@@ -1059,7 +1061,7 @@ func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRe
 						// We can now try again, so reset the error cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey)
 						if err != nil {
-							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+							log.Warnf("manifest cache delete error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
 						log.Infof("manifest error cache hit and reset: %s/%s", q.ApplicationSource.String(), cacheKey)
 						return false, nil, nil
@@ -3079,8 +3081,11 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			return err
 		},
 	}
-	check := checks[repo.Type]
 	apiResp := &apiclient.TestRepositoryResponse{VerifiedRepository: false}
+	check, ok := checks[repo.Type]
+	if !ok {
+		return apiResp, fmt.Errorf("unsupported repository type %q", repo.Type)
+	}
 	err := check()
 	if err != nil {
 		return apiResp, fmt.Errorf("error testing repository connectivity: %w", err)

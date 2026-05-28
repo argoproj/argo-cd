@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1330,6 +1331,76 @@ func TestServerSideDiff(t *testing.T) {
 
 		predictedData := mustGetSecretData(t, result.PredictedLive)
 		assert.Equal(t, "raw-value", predictedData["password"], "non-core Secret data must be left untouched")
+	})
+	t.Run("will strip kubectl.kubernetes.io/last-applied-configuration from both sides", func(t *testing.T) {
+		t.Parallel()
+
+		const lastAppliedRaw = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"secret","namespace":"default","annotations":{"app":"test"}},"data":{"password":"U0VDUkVUVkFM"},"stringData":{"username":"SECRETVAL"}}`
+
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test",
+					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`)
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test"
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`)
+		predictedLiveJSON := `{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test",
+					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), "kubectl.kubernetes.io/last-applied-configuration",
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), "kubectl.kubernetes.io/last-applied-configuration",
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.PredictedLive), "U0VDUkVUVkFM",
+			"PredictedLive must not contain raw secret values from last-applied-configuration")
+		assert.NotContains(t, string(result.PredictedLive), "SECRETVAL",
+			"PredictedLive must not contain raw secret values from last-applied-configuration")
 	})
 }
 
