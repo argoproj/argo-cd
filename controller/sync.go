@@ -278,6 +278,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		}
 	}
 
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("failed to get appLabelKey from settings manager: %v", err)
+		return
+	}
+
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
@@ -310,6 +317,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
 		sync.WithDefaultPruneOption(syncOp.SyncOptions.GetOptionValue(common.SyncOptionPrune)),
 		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
+		sync.WithAppLabelKey(appLabelKey),
+		sync.WithAppAnnotationKey(cdcommon.AnnotationKeyAppInstance),
 	}
 
 	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
