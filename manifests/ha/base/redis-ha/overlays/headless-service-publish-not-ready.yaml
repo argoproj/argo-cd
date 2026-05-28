@@ -1,0 +1,3 @@
+- op: add
+  path: /spec/publishNotReadyAddresses
+  value: true
