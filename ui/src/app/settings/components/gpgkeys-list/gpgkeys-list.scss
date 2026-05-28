@@ -35,10 +35,14 @@
 
     textarea.argo-field {
         height: 25em;
-        width: 1024em;
+        width: 100%;
         white-space: pre;
         overflow-wrap: normal;
-        overflow-x: scroll;
+        overflow-x: auto;
+    }
+
+    .argo-field-container > textarea.argo-field + label.argo-label-placeholder {
+        align-self: start;
     }
 }
 
