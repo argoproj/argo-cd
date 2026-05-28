@@ -530,11 +530,12 @@ func Test_updateLive(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := updateLive(tt.bak, tt.live, tt.stopOperation)
 			assert.NotNil(t, result)
-			if tt.live.GetKind() == "ConfigMap" {
+			switch {
+			case tt.live.GetKind() == "ConfigMap":
 				assert.Equal(t, tt.bak.Object["data"], result.Object["data"])
-			} else if tt.stopOperation {
+			case tt.stopOperation:
 				assert.Nil(t, result.Object["operation"])
-			} else {
+			default:
 				assert.NotNil(t, result.Object["operation"])
 			}
 		})
