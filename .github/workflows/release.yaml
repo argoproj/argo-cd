@@ -172,17 +172,11 @@ jobs:
         run: ./hack/ci/install-goreleaser.sh
 
       - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         id: run-goreleaser
-        run: |
-          set -euo pipefail
-          goreleaser release --clean --timeout 55m
-          if ! test -f dist/artifacts.json; then
-            echo 'dist/artifacts.json missing after goreleaser release' >&2
-            exit 1
-          fi
-          # Emit as compact single-line JSON to avoid multiline delimiter/newline edge-cases in GITHUB_OUTPUT.
-          artifacts_json=$(jq -c . dist/artifacts.json)
-          printf 'artifacts=%s\n' "$artifacts_json" >> "$GITHUB_OUTPUT"
+        with:
+          version: v2.14.3
+          args: release --clean --timeout 55m
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }}

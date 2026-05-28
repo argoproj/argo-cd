@@ -19,5 +19,3 @@ kustomize5_version=5.8.1
 protoc_version=29.3
 oras_version=1.2.0
 git_lfs_version=3.7.1
-# goreleaser CLI for GitHub release workflow (see hack/ci/install-goreleaser.sh)
-goreleaser_version=v2.14.3

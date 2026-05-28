@@ -6,14 +6,10 @@ if test "${TARGET_FILE}" = ""; then
 	exit 1
 fi
 
-# Default: checksums next to this script (install-helm, kustomize, etc.). Override
-# CHKSUM_FILE when the .sha256 lives elsewhere (e.g. hack/ci/install-goreleaser.sh).
-if test "${CHKSUM_FILE}" = ""; then
-	CHKSUM_FILE="$(cd "$(dirname "$0")" && pwd)/checksums/${TARGET_FILE}.sha256"
-fi
+CHKSUM_FILE="$(cd "$(dirname "$0")" && pwd)/checksums/${TARGET_FILE}.sha256"
 
 cd "${DOWNLOADS}" || (
-	echo "Can't change directory to ${DOWNLOADS}" >&2
+	echo "Can't change directory to ${DOWNLOAD}" >&2
 	exit 1
 )
 
