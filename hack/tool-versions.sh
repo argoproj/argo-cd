@@ -10,9 +10,6 @@
 #
 # Use ./hack/installers/checksums/add-helm-checksums.sh and
 # add-kustomize-checksums.sh to help download checksums.
-
-# GoReleaser (release workflow only — hack/ci; not installed in the image):
-# ./hack/ci/checksums/add-goreleaser-checksum.sh
 ###############################################################################
 helm3_version=3.20.1
 kustomize5_version=5.8.1
