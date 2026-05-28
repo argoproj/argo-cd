@@ -5,7 +5,7 @@
         "noImplicitAny": true,
         "module": "esnext",
         "moduleResolution": "node",
-        "target": "es5",
+        "target": "es2015",
         "jsx": "react",
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,
