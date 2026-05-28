@@ -111,7 +111,7 @@ jobs:
       quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
       ghcr_username: ${{ github.actor }}
       ghcr_password: ${{ secrets.GITHUB_TOKEN }}
-  
+
   build-and-publish-provenance: # Push attestations to GHCR, latest image is polluting quay.io
     needs:
       - set-vars
