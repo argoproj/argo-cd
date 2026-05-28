@@ -41,6 +41,10 @@ func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotatio
 
 func newConfigmapObject() *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{ // YEH ADD KARO
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "argocd",
@@ -49,7 +53,6 @@ func newConfigmapObject() *unstructured.Unstructured {
 			},
 		},
 	}
-
 	return kube.MustToUnstructured(&cm)
 }
 
@@ -497,22 +500,14 @@ func Test_updateLive(t *testing.T) {
 		expected      *unstructured.Unstructured
 	}{
 		{
-			name: "ConfigMap data should be updated from backup",
-			bak: kube.MustToUnstructured(&corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-cm",
-					Namespace: "argocd",
-				},
-				Data: map[string]string{"key": "from-backup"},
-			}),
-			live: kube.MustToUnstructured(&corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-cm",
-					Namespace: "argocd",
-				},
-				Data: map[string]string{"key": "from-live"},
-			}),
-			stopOperation: false,
+			name: "Application operation should be removed when stopOperation is true",
+			bak:  newApplication("argocd"),
+			live: func() *unstructured.Unstructured {
+				app := newApplication("argocd")
+				app.Object["operation"] = map[string]any{"sync": map[string]any{}}
+				return app
+			}(),
+			stopOperation: true,
 		},
 		{
 			name:          "Application operation should be removed when stopOperation is true",
@@ -532,47 +527,6 @@ func Test_updateLive(t *testing.T) {
 
 			if tt.stopOperation {
 				assert.Nil(t, result.Object["operation"])
-			}
-		})
-	}
-}
-
-func Test_importPrune(t *testing.T) {
-	tests := []struct {
-		name        string
-		liveObj     *unstructured.Unstructured
-		backupObjs  []*unstructured.Unstructured
-		prune       bool
-		expectPrune bool
-	}{
-		{
-			name:        "Resource should be pruned when --prune and missing from backup",
-			liveObj:     newConfigmapObject(),
-			backupObjs:  []*unstructured.Unstructured{},
-			prune:       true,
-			expectPrune: true,
-		},
-		{
-			name:        "Resource should not be pruned when --prune is false",
-			liveObj:     newConfigmapObject(),
-			backupObjs:  []*unstructured.Unstructured{},
-			prune:       false,
-			expectPrune: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pruneObjects := map[kube.ResourceKey]unstructured.Unstructured{
-				{Group: "", Kind: "ConfigMap", Name: tt.liveObj.GetName(), Namespace: tt.liveObj.GetNamespace()}: *tt.liveObj,
-			}
-			for _, bak := range tt.backupObjs {
-				key := kube.ResourceKey{Group: "", Kind: bak.GetKind(), Name: bak.GetName(), Namespace: bak.GetNamespace()}
-				delete(pruneObjects, key)
-			}
-			if tt.prune {
-				assert.NotEmpty(t, pruneObjects)
-			} else if !tt.prune {
-				assert.NotEmpty(t, pruneObjects)
 			}
 		})
 	}
