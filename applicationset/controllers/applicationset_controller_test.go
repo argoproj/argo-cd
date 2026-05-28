@@ -42,6 +42,7 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	testutil "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 // getDefaultTestClientSet creates a Clientset with the default argo objects
@@ -1223,8 +1224,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				require.NoError(t, err)
 				initObjs = append(initObjs, &a)
 			}
+			client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
@@ -1245,6 +1246,9 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				}, got)
 
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
+				// controller-runtime's fake client (v0.22+) intentionally clears TypeMeta
+				// for typed objects returned from Get(), matching real Kubernetes API behaviour
+				obj.TypeMeta = metav1.TypeMeta{}
 				assert.Equal(t, obj, *got)
 			}
 		})
@@ -2182,10 +2186,12 @@ func TestCreateApplications(t *testing.T) {
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
 				}, got)
-
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
 				require.NoError(t, err)
 
+				// controller-runtime's fake client (v0.22+) intentionally clears TypeMeta
+				// for typed objects returned from Get(), matching real Kubernetes API behaviour
+				obj.TypeMeta = metav1.TypeMeta{}
 				assert.Equal(t, obj, *got)
 			}
 		})
@@ -2339,6 +2345,9 @@ func TestDeleteInCluster(t *testing.T) {
 			err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
 			require.NoError(t, err)
 
+			// controller-runtime's fake client (v0.22+) intentionally clears TypeMeta
+			// for typed objects returned from Get(), matching real Kubernetes API behaviour
+			obj.TypeMeta = metav1.TypeMeta{}
 			assert.Equal(t, obj, *got)
 		}
 

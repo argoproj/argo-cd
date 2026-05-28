@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Cert is a certificate for tests. It was generated like this:
@@ -338,4 +340,21 @@ func (h *LogHook) GetEntries() []string {
 		matches = append(matches, entry.Message)
 	}
 	return matches
+}
+
+type SaneFakeClient struct {
+	client.WithWatch
+}
+
+func (sc SaneFakeClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	ok := obj.GetObjectKind().GroupVersionKind()
+	err := sc.WithWatch.Get(ctx, key, obj, opts...)
+	obj.GetObjectKind().SetGroupVersionKind(ok)
+	return err
+
+}
+
+func MakeSaneFakeClient(fakeClient client.WithWatch) client.WithWatch {
+	client := SaneFakeClient{WithWatch: fakeClient}
+	return client
 }
