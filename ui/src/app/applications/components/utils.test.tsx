@@ -15,7 +15,10 @@ import {
     appRBACName,
     ComparisonStatusIcon,
     getAppDrySource,
+    getAppHydratorSyncSource,
     getAppOperationState,
+    getAppSpecDefaultSource,
+    getHydratorSyncSourceRepoURL,
     getOperationType,
     getPodStateReason,
     HealthStatusIcon,
@@ -999,5 +1002,57 @@ describe('getAppDrySource', () => {
             targetRevision: 'main',
         });
         expect(result).not.toHaveProperty('helm');
+    });
+});
+
+describe('getHydratorSyncSourceRepoURL', () => {
+    it('uses syncSource repoURL when set', () => {
+        expect(
+            getHydratorSyncSourceRepoURL({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main'},
+                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'}
+            })
+        ).toBe('https://github.com/example/hydrated.git');
+    });
+
+    it('falls back to drySource repoURL when syncSource repoURL is unset', () => {
+        expect(
+            getHydratorSyncSourceRepoURL({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main'},
+                syncSource: {targetBranch: 'env/test', path: 'out'}
+            })
+        ).toBe('https://github.com/example/dry.git');
+    });
+});
+
+describe('getAppHydratorSyncSource', () => {
+    it('returns the sync source with resolved repo URL', () => {
+        expect(
+            getAppHydratorSyncSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/hydrated.git',
+            targetRevision: 'env/test',
+            path: 'out'
+        });
+    });
+});
+
+describe('getAppSpecDefaultSource', () => {
+    it('returns sync source for hydrator apps', () => {
+        expect(
+            getAppSpecDefaultSource({
+                sourceHydrator: {
+                    drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                    syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'}
+                }
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/hydrated.git',
+            targetRevision: 'env/test',
+            path: 'out'
+        });
     });
 });

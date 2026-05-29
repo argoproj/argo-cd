@@ -5,6 +5,8 @@ import * as React from 'react';
 import {Revision, Timestamp} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
+import {getHydratorSyncSourceRepoURL} from '../utils';
+
 import './application-hydrate-operation-state.scss';
 
 interface Props {
@@ -51,7 +53,7 @@ export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = 
             title: 'HYDRATED REVISION',
             value: (
                 <div>
-                    <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.hydratedSHA} />
+                    <Revision repoUrl={getHydratorSyncSourceRepoURL(hydrateOperationState.sourceHydrator)} revision={hydrateOperationState.hydratedSHA} />
                 </div>
             )
         });
