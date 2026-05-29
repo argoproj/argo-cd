@@ -6,6 +6,11 @@ if obj.status == nil then
 	return hs
 end
 
+-- We check if we are checking the correct version of obj.status
+if obj.status.observedGeneration ~= nil and obj.status.observedGeneration ~= obj.metadata.generation then
+	return hs
+end
+
 if obj.status.finished == nil and obj.status.failed == nil then
 	hs.status = "Progressing"
 end

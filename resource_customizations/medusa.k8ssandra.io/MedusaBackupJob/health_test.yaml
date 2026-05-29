@@ -11,4 +11,8 @@ tests:
     status: Degraded
     message: "Failed nodes exists"
   inputPath: testdata/backupjob_failed.yaml
+- healthStatus:
+    status: Unknown
+    message: ""
+  inputPath: testdata/backupjob_ok_but_non_matching_generation.yaml
 
