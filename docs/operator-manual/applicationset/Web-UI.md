@@ -1,4 +1,4 @@
-# Web UI Integration
+# ApplicationSet Web UI
 
 For end-user documentation of the UI itself, see [Managing ApplicationSets in the Web UI](../../user-guide/application-set-ui.md).
 
