@@ -9,7 +9,7 @@ tests:
   inputPath: testdata/backupjob_ok.yaml
 - healthStatus:
     status: Degraded
-    message: "Failed nodes exists"
+    message: "Failed nodes exist"
   inputPath: testdata/backupjob_failed.yaml
 - healthStatus:
     status: Unknown
