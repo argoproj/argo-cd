@@ -44,6 +44,6 @@ export default [
         files: ['./src/**/*.{ts,tsx}']
     },
     {
-        ignores: ['dist', 'assets', '**/*.config.js', 'jest.setup.js', '__mocks__', 'coverage', '**/*.test.{ts,tsx}']
+        ignores: ['dist', 'assets', '.yalc', 'node_modules', '**/*.config.js', 'jest.setup.js', '__mocks__', 'coverage', '**/*.test.{ts,tsx}']
     }
 ];
