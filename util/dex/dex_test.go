@@ -565,7 +565,7 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 			expected:  "a$$b$$c$$d",
 		},
 		{
-			name:      "literal dollar sign in bindPW (no secret reference) is escaped",
+			name:      "literal with multiple dollar signs in bindPW (no secret reference) is escaped",
 			secrets:   map[string]string{},
 			dexConfig: goodDexConfigPlainPasswordMultipleDollarSigns,
 			expected:  "a$$b$$c$$d",

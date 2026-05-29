@@ -2682,7 +2682,7 @@ func TestEscapeDollarSignsInMap(t *testing.T) {
 		assert.Equal(t, "$$", result["bindPW"])
 	})
 
-	t.Run("already-escaped dollar sign is not double-escaped", func(t *testing.T) {
+	t.Run("calling with already-escaped content escapes again", func(t *testing.T) {
 		input := map[string]any{"bindPW": "test$$test"}
 		result := EscapeDollarSignsInMap(input)
 		assert.Equal(t, "test$$$$test", result["bindPW"])
