@@ -27,3 +27,19 @@ func ParseActionParameters(params []string) ([]*applicationpkg.ResourceActionPar
 	}
 	return parsedParams, nil
 }
+
+// DuplicateActionParameterNames returns the names of any parameters specified more than once.
+func DuplicateActionParameterNames(params []*applicationpkg.ResourceActionParameters) []string {
+	seen := make(map[string]int, len(params))
+	var duplicates []string
+	for _, p := range params {
+		if p == nil || p.Name == nil {
+			continue
+		}
+		seen[*p.Name]++
+		if seen[*p.Name] == 2 {
+			duplicates = append(duplicates, *p.Name)
+		}
+	}
+	return duplicates
+}

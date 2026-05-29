@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	log "github.com/sirupsen/logrus"
@@ -195,6 +196,9 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 		parsedParams, err := util.ParseActionParameters(params)
 		errors.CheckError(err)
+		if dupes := util.DuplicateActionParameterNames(parsedParams); len(dupes) > 0 {
+			log.Warnf("Duplicate parameter names provided (%s): the last value for each parameter will be used", strings.Join(dupes, ", "))
+		}
 
 		for i := range filteredObjects {
 			obj := filteredObjects[i]

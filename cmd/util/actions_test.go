@@ -9,9 +9,9 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 )
 
-func TestParseActionParameters(t *testing.T) {
-	strPtr := func(s string) *string { return &s }
+func strPtr(s string) *string { return &s }
 
+func TestParseActionParameters(t *testing.T) {
 	testCases := []struct {
 		name           string
 		params         []string
@@ -62,6 +62,14 @@ func TestParseActionParameters(t *testing.T) {
 			params:      []string{"replicas"},
 			expectError: true,
 		},
+		{
+			name:   "duplicate keys",
+			params: []string{"replicas=2", "replicas=3"},
+			expectedParams: []*applicationpkg.ResourceActionParameters{
+				{Name: strPtr("replicas"), Value: strPtr("2")},
+				{Name: strPtr("replicas"), Value: strPtr("3")},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -77,6 +85,77 @@ func TestParseActionParameters(t *testing.T) {
 				assert.Equal(t, *tc.expectedParams[i].Name, *p.Name)
 				assert.Equal(t, *tc.expectedParams[i].Value, *p.Value)
 			}
+		})
+	}
+}
+
+func TestDuplicateActionParameterNames(t *testing.T) {
+	testCases := []struct {
+		name          string
+		params        []*applicationpkg.ResourceActionParameters
+		expectedDupes []string
+	}{
+		{
+			name:          "empty",
+			params:        []*applicationpkg.ResourceActionParameters{},
+			expectedDupes: nil,
+		},
+		{
+			name: "no duplicates",
+			params: []*applicationpkg.ResourceActionParameters{
+				{Name: strPtr("replicas"), Value: strPtr("2")},
+			},
+			expectedDupes: nil,
+		},
+		{
+			name: "single duplicate",
+			params: []*applicationpkg.ResourceActionParameters{
+				{Name: strPtr("replicas"), Value: strPtr("2")},
+				{Name: strPtr("replicas"), Value: strPtr("3")},
+			},
+			expectedDupes: []string{"replicas"},
+		},
+		{
+			name: "multiple duplicates",
+			params: []*applicationpkg.ResourceActionParameters{
+				{Name: strPtr("replicas"), Value: strPtr("2")},
+				{Name: strPtr("replicas"), Value: strPtr("3")},
+				{Name: strPtr("replicas"), Value: strPtr("4")},
+			},
+			expectedDupes: []string{"replicas"},
+		},
+		{
+			name: "multiple distinct duplicates",
+			params: []*applicationpkg.ResourceActionParameters{
+				{Name: strPtr("replicas"), Value: strPtr("2")},
+				{Name: strPtr("replicas"), Value: strPtr("3")},
+				{Name: strPtr("replicas"), Value: strPtr("4")},
+				{Name: strPtr("image"), Value: strPtr("foo")},
+				{Name: strPtr("image"), Value: strPtr("bar")},
+				{Name: strPtr("image"), Value: strPtr("baz")},
+			},
+			expectedDupes: []string{"replicas", "image"},
+		},
+		{
+			name: "nil element in slice",
+			params: []*applicationpkg.ResourceActionParameters{
+				nil,
+			},
+			expectedDupes: nil,
+		},
+		{
+			name: "nil name field",
+			params: []*applicationpkg.ResourceActionParameters{
+				{Name: nil, Value: nil},
+			},
+			expectedDupes: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := DuplicateActionParameterNames(tc.params)
+			assert.ElementsMatch(t, tc.expectedDupes, result)
 		})
 	}
 }

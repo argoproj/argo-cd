@@ -584,6 +584,9 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 			// Parse resource action parameters
 			parsedParams, err := cmdutil.ParseActionParameters(resourceActionParameters)
 			errors.CheckError(err)
+			if dupes := cmdutil.DuplicateActionParameterNames(parsedParams); len(dupes) > 0 {
+				log.Warnf("Duplicate parameter names provided (%s): the last value for each parameter will be used", strings.Join(dupes, ", "))
+			}
 
 			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
