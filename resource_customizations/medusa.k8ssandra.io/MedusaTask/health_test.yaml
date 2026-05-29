@@ -11,3 +11,7 @@ tests:
     status: Progressing
     message: ""
   inputPath: testdata/task_no_finished_no_failed.yaml
+- healthStatus:
+    status: Unknown
+    message: ""
+  inputPath: testdata/task_ok_but_non_matching_generation.yaml
