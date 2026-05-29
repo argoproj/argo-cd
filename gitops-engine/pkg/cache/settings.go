@@ -190,9 +190,10 @@ type Mode int
 const (
 	// ModeLegacy uses the hand-rolled list/watch loop (current behavior).
 	ModeLegacy Mode = iota
-	// ModeInformer uses client-go's TransformingInformer. Not yet implemented —
-	// setting this will panic at construction until the informer impl lands.
-	// Tracked by https://github.com/argoproj/argo-cd/issues/19199.
+	// ModeInformer uses client-go's SharedIndexInformer per (GroupKind,
+	// namespace) with a TransformFunc that converts incoming objects to
+	// cachedResource at intake. Experimental — see
+	// https://github.com/argoproj/argo-cd/issues/19199.
 	ModeInformer
 )
 

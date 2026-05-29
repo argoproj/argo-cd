@@ -5,6 +5,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 // cachedResource is the type stored in the informer's store by the planned
@@ -27,11 +29,16 @@ type cachedResource struct {
 	Resource *Resource
 }
 
-// DeepCopyObject satisfies runtime.Object. Returns a shell copy that shares
-// the underlying Resource pointer — Resource is rebuilt on every informer
-// event via transformForInformer and is not mutated in place, so readers
-// can safely share it. The TypeMeta and ObjectMeta copies keep the shell
-// self-contained for anything that accesses metadata via meta.Accessor.
+// DeepCopyObject satisfies runtime.Object. The returned shell holds copies
+// of TypeMeta and ObjectMeta but SHARES the Resource pointer with the
+// receiver — by design. The same *Resource lives in the informer's store
+// and in c.resources (the shadow map), and onInformerChange mutates
+// Resource.OwnerRefs under c.lock during inferred parent-ref propagation
+// (updateIndexes). Deep-copying Resource here would not stop that mutation
+// pattern, only hide it from readers. Callers that need an isolated
+// snapshot — including the client-go cache mutation detector — must copy
+// OwnerRefs themselves; the detector is therefore incompatible with this
+// mode and should not be enabled together with ModeInformer.
 func (cr *cachedResource) DeepCopyObject() runtime.Object {
 	if cr == nil {
 		return nil
@@ -68,6 +75,14 @@ func (c *clusterCache) transformForInformer(obj any) (any, error) {
 		return obj, nil
 	}
 	res := c.newResource(un)
+	// handleCRDEvent -> crdVersionsToAPIResources needs spec.versions to
+	// drive startMissingWatches / deleteAPIResource. Always retain the
+	// full CRD manifest regardless of the populate handler's cacheManifest
+	// return so direct gitops-engine users (and a future argo-cd handler
+	// change) keep correct dynamic API updates.
+	if res.Resource == nil && kube.IsCRD(un) {
+		res.Resource = un
+	}
 	return &cachedResource{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: un.GetAPIVersion(),

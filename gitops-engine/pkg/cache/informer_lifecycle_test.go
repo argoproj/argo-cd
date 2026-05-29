@@ -487,6 +487,49 @@ func TestInformerWatchErrorHandler_ForbiddenStopsWatchingWhenRBACEnabled(t *test
 	assert.False(t, stillWatching, "Forbidden should trigger stopWatching when respectRBAC != Disabled")
 }
 
+// TestInformerWatchErrorHandler_ForbiddenStrictTransientErrorKeepsWatch
+// verifies that under RespectRbacStrict, when the SSAR call itself fails
+// (apiserver blip), the handler treats the original Forbidden as transient
+// and keeps the watch instead of permanently stopWatching. Pre-fix, a
+// nil clientset OR a non-nil perr fell through to stopWatching — a momentary
+// 503 during SSAR would permanently un-watch a GroupKind the controller
+// actually had access to.
+func TestInformerWatchErrorHandler_ForbiddenStrictTransientErrorKeepsWatch(t *testing.T) {
+	c, _ := newInformerTestCache(t, unstructuredPod("nginx", "default"))
+	c.respectRBAC = RespectRbacStrict
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, c.startInformersForAPI(ctx, podsAPI()))
+
+	c.lock.RLock()
+	_, present := c.apisMeta[podsGVK.GroupKind()]
+	c.lock.RUnlock()
+	require.True(t, present, "sanity: GroupKind is being watched before the error fires")
+
+	// Construct a real Reflector so the handler can delegate to
+	// cache.DefaultWatchErrorHandler without dereferencing a nil receiver.
+	// The reflector is never Run — we only need it as the *Reflector argument.
+	reflector := cache.NewReflectorWithOptions(
+		&cache.ListWatch{},
+		&unstructured.Unstructured{},
+		cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{}),
+		cache.ReflectorOptions{Name: "test"},
+	)
+
+	// rest.Config{Host: "https://test"} → SSAR HTTP Create will fail with a
+	// connection error (no DNS, nothing listening) — exercises the perr != nil
+	// branch in informerWatchErrorHandler.
+	handler := c.informerWatchErrorHandler(podsAPI(), "")
+	handler(ctx, reflector, apierrors.NewForbidden(schema.GroupResource{Resource: "pods"}, "", nil))
+
+	c.lock.RLock()
+	_, stillWatching := c.apisMeta[podsGVK.GroupKind()]
+	c.lock.RUnlock()
+	assert.True(t, stillWatching,
+		"transient SSAR failure must NOT permanently stopWatching; the watch should remain so the reflector retries with backoff")
+}
+
 func TestInformerWatchErrorHandler_ForbiddenIgnoredWhenRBACDisabled(t *testing.T) {
 	c, _ := newInformerTestCache(t, unstructuredPod("nginx", "default"))
 	c.respectRBAC = RespectRbacDisabled
@@ -814,13 +857,21 @@ func TestSyncInformers_InvalidateDuringWaitReportsTransient(t *testing.T) {
 	select {
 	case err := <-syncErr:
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalidated",
-			"Invalidate-during-sync should surface as a transient error, not %q", err.Error())
+		assert.ErrorIs(t, err, errCacheInvalidatedMidSync,
+			"Invalidate-during-sync should surface the transient sentinel, not %q", err.Error())
 		assert.NotContains(t, err.Error(), "[]",
 			"empty pending list indicates we re-read c.apisMeta after Invalidate cleared it")
 	case <-time.After(3 * time.Second):
 		t.Fatal("EnsureSynced did not return after Invalidate")
 	}
+
+	// The whole point of the sentinel is that the next EnsureSynced must
+	// re-sync immediately rather than serve the cached error for
+	// clusterSyncRetryTimeout. Verify by calling EnsureSynced again and
+	// asserting it does NOT return the same transient sentinel — the
+	// reflector's retry list (without the blocking reactor) will succeed.
+	require.NoError(t, iface.EnsureSynced(),
+		"EnsureSynced must re-sync immediately after the invalidated-mid-sync sentinel, not serve it from cache")
 }
 
 // TestInvalidate_InformerModeClearsReadStateSnapshot verifies that
@@ -853,4 +904,3 @@ func TestInvalidate_InformerModeClearsReadStateSnapshot(t *testing.T) {
 	assert.Empty(t, c.nsIndex, "Invalidate should clear c.nsIndex under informer mode")
 	assert.Empty(t, c.parentUIDToChildren, "Invalidate should clear c.parentUIDToChildren under informer mode")
 }
-

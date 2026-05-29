@@ -196,8 +196,10 @@ func (c *clusterCache) syncInformers() error {
 	// run during the c.lock.Unlock() window above. Treat it as a distinct
 	// transient condition so the cached "did not complete initial list"
 	// error doesn't suppress the immediate re-sync that should follow.
+	// EnsureSynced checks errors.Is(err, errCacheInvalidatedMidSync) and
+	// refuses to cache this specific sentinel — see cluster.go.
 	if c.apisMeta == nil {
-		return fmt.Errorf("cluster cache invalidated during initial informer sync")
+		return errCacheInvalidatedMidSync
 	}
 
 	// Return an error so callers don't operate against a partially
@@ -293,14 +295,34 @@ func (c *clusterCache) informerWatchErrorHandler(api kube.APIResourceInfo, ns st
 				return
 			}
 			if c.respectRBAC == RespectRbacStrict {
-				if clientset, cerr := kubernetes.NewForConfig(c.config); cerr == nil {
-					if keep, perr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api); perr == nil && keep {
-						// SSAR says we still have permission — this is a
-						// transient blip. Surface the error and let the
-						// reflector's backoff handle it.
-						cache.DefaultWatchErrorHandler(ctx, r, err)
-						return
-					}
+				clientset, cerr := kubernetes.NewForConfig(c.config)
+				if cerr != nil {
+					// Can't verify with SSAR — treat as transient and let
+					// the reflector retry rather than permanently un-watch.
+					// Matches legacy startMissingWatches/sync which returned
+					// the SSAR client construction error to the caller.
+					c.log.Error(cerr, "SSAR client construction failed; keeping watch and retrying",
+						"groupKind", api.GroupKind.String(),
+						"namespace", namespaceDescription(ns))
+					cache.DefaultWatchErrorHandler(ctx, r, err)
+					return
+				}
+				keep, perr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
+				if perr != nil {
+					// SSAR call itself failed (apiserver blip). Same rationale
+					// as the NewForConfig branch above.
+					c.log.Error(perr, "SSAR permission check failed; keeping watch and retrying",
+						"groupKind", api.GroupKind.String(),
+						"namespace", namespaceDescription(ns))
+					cache.DefaultWatchErrorHandler(ctx, r, err)
+					return
+				}
+				if keep {
+					// SSAR says we still have permission — this is a
+					// transient blip. Surface the error and let the
+					// reflector's backoff handle it.
+					cache.DefaultWatchErrorHandler(ctx, r, err)
+					return
 				}
 			}
 			c.log.Info("Stop watching (forbidden/unauthorized)",

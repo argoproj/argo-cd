@@ -26,6 +26,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -82,6 +83,12 @@ const (
 	// defaultEventProcessingInterval is the default interval for processing events
 	defaultEventProcessingInterval = 100 * time.Millisecond
 )
+
+// errCacheInvalidatedMidSync signals that an Invalidate fired during the
+// WaitForCacheSync window inside syncInformers. EnsureSynced treats it as
+// transient and refuses to cache it, so the next call re-syncs immediately
+// rather than serving the stale error for clusterSyncRetryTimeout.
+var errCacheInvalidatedMidSync = errors.New("cluster cache invalidated during initial informer sync")
 
 const (
 	// RespectRbacDisabled default value for respectRbac
@@ -208,9 +215,8 @@ type ListRetryFunc func(err error) bool
 // NewClusterCache creates new instance of cluster cache.
 //
 // The concrete implementation is selected by SetMode; ModeLegacy (the
-// default) uses the hand-rolled list/watch loop. ModeInformer is reserved
-// for the planned client-go informer implementation (see issue #19199) and
-// panics until that lands.
+// default) uses the hand-rolled list/watch loop, and ModeInformer uses
+// client-go's SharedIndexInformer (experimental — see issue #19199).
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) ClusterCache {
 	log := textlogger.NewLogger(textlogger.NewConfig())
 	cache := &clusterCache{
@@ -508,8 +514,9 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 
 // setNode is the legacy storage write path: it writes to c.resources and
 // then updates the shared cross-GK indexes via updateIndexes. The informer
-// impl skips the c.resources write (its source of truth is the informer's
-// own store) and calls updateIndexes directly from its event handler.
+// impl performs the equivalent c.resources write + updateIndexes call
+// inline in onInformerChange (cluster.resources is kept as a shadow of
+// the informer's store so existing read paths work unchanged).
 func (c *clusterCache) setNode(n *Resource) {
 	key := n.ResourceKey()
 
@@ -941,13 +948,21 @@ func (c *clusterCache) handleCRDEvent(event watch.EventType, obj *unstructured.U
 		// failure left resources empty but didn't short-circuit.
 	}
 
+	// Identify the CRD by the GroupKind of the resource it defines, not the
+	// apiextensions.k8s.io/CustomResourceDefinition wrapper. Falls back to
+	// the CRD's name when extraction failed and resources is empty.
+	innerGK := obj.GetName()
+	if len(resources) > 0 {
+		innerGK = resources[0].GroupKind.String()
+	}
+
 	if event == watch.Deleted {
 		for i := range resources {
 			c.deleteAPIResource(resources[i])
 		}
 	} else {
 		c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event",
-			"eventType", event, "groupKind", obj.GroupVersionKind().GroupKind().String())
+			"eventType", event, "groupKind", innerGK)
 		if event == watch.Added {
 			for i := range resources {
 				c.appendAPIResource(resources[i])
@@ -1249,6 +1264,14 @@ func (c *clusterCache) EnsureSynced() error {
 	// informer sync; holding syncStatus.lock across that window deadlocks with
 	// GetClusterInfo (which takes c.lock.RLock first, then syncStatus.lock).
 	err := c.sync()
+	// errCacheInvalidatedMidSync is transient by design — Invalidate already
+	// reset syncStatus.syncTime to nil, and caching this error here would
+	// reintroduce the clusterSyncRetryTimeout suppression that the sentinel
+	// is meant to bypass. Return the error to this caller but leave
+	// syncStatus untouched so the next EnsureSynced re-syncs.
+	if errors.Is(err, errCacheInvalidatedMidSync) {
+		return err
+	}
 	syncStatus.lock.Lock()
 	defer syncStatus.lock.Unlock()
 	syncTime := time.Now()

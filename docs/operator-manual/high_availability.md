@@ -206,6 +206,12 @@ stringData:
   `100ms`.
   The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
 
+* `ARGOCD_CLUSTER_CACHE_USE_INFORMERS` - **experimental** environment variable that opts the cluster cache into the
+  informer-based implementation backed by `client-go`'s `SharedIndexInformer` per (GroupKind, namespace). The default
+  value is `false`, which keeps the controller on the hand-rolled list/watch loop. Setting it to `true` is opt-in and
+  intended for evaluation; see [issue #19199](https://github.com/argoproj/argo-cd/issues/19199) for status and
+  trade-offs.
+
 * `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one
   Redis
   key. Splitting application tree into multiple keys helps to reduce the amount of traffic between the controller and

@@ -1,8 +1,11 @@
 package cache
 
 import (
+	"strings"
+	"sync"
 	"testing"
 
+	"github.com/go-logr/logr/funcr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -269,4 +272,133 @@ func TestInformerEventHandler_ParentUIDToChildrenMaintained(t *testing.T) {
 	c.informerEventHandler().OnDelete(childCr)
 	children = c.parentUIDToChildren["parent-uid"]
 	assert.NotContains(t, children, childKey)
+}
+
+// TestOnInformerChange_ModifiedWithNilNewCrIsNoop guards against a
+// nil-pointer deref in the watch.Added/Modified branch when newObj fails
+// the *cachedResource type assertion. The primary-only nil check above
+// the switch passes because oldCr is valid; without the in-branch guard
+// the dereference of newCr.Resource.ResourceKey() crashes the controller.
+func TestOnInformerChange_ModifiedWithNilNewCrIsNoop(t *testing.T) {
+	c := newTransformTestCache(t)
+	captured := recordingResourceHandlers(c)
+
+	// Seed an old entry via a normal Add so oldCr passes the type assertion.
+	oldCr, err := c.transformForInformer(samplePod())
+	require.NoError(t, err)
+	c.informerEventHandler().OnAdd(oldCr, false)
+	require.Len(t, *captured, 1)
+
+	key := kube.NewResourceKey("", "Pod", "default", "nginx")
+	c.lock.RLock()
+	pre := c.resources[key]
+	c.lock.RUnlock()
+	require.NotNil(t, pre, "sanity: pod was Added")
+
+	// Fire OnUpdate with a newObj that isn't a *cachedResource — newCr will
+	// be nil after the type assertion, but oldCr is valid so primary=oldCr
+	// and the entry-level guard passes. Pre-fix: nil-deref panic.
+	require.NotPanics(t, func() {
+		c.informerEventHandler().OnUpdate(oldCr, "not a cachedResource")
+	})
+
+	// And nothing should have changed in storage either.
+	c.lock.RLock()
+	post := c.resources[key]
+	c.lock.RUnlock()
+	assert.Same(t, pre, post, "non-cachedResource newObj must not mutate c.resources")
+	assert.Len(t, *captured, 1, "non-cachedResource newObj must not fire OnResourceUpdated")
+}
+
+// TestHandleCRDEvent_LogsInnerCRDGroupKind verifies that the log line
+// emitted on a CRD watch event identifies the CRD by the GroupKind of
+// the resource it defines (e.g. "stable.example.com/CronTab"), not by
+// the apiextensions.k8s.io/CustomResourceDefinition wrapper kind. Pre-fix
+// the log read `obj.GroupVersionKind().GroupKind()` which is always the
+// wrapper — useless for operators triaging schema-reload churn.
+func TestHandleCRDEvent_LogsInnerCRDGroupKind(t *testing.T) {
+	var (
+		mu      sync.Mutex
+		logBuf  strings.Builder
+		capture = func(prefix, args string) {
+			mu.Lock()
+			defer mu.Unlock()
+			logBuf.WriteString(prefix)
+			logBuf.WriteString(" ")
+			logBuf.WriteString(args)
+			logBuf.WriteString("\n")
+		}
+	)
+	c := newTransformTestCache(t)
+	c.log = funcr.New(capture, funcr.Options{Verbosity: 1})
+
+	crd := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apiextensions.k8s.io/v1",
+		"kind":       "CustomResourceDefinition",
+		"metadata":   map[string]any{"name": "crontabs.stable.example.com"},
+		"spec": map[string]any{
+			"group": "stable.example.com",
+			"names": map[string]any{"kind": "CronTab", "plural": "crontabs", "singular": "crontab"},
+			"scope": "Namespaced",
+			"versions": []any{
+				map[string]any{"name": "v1", "served": true, "storage": true},
+			},
+		},
+	}}
+
+	// Modified is the path that hits the log line (Added/Modified branch).
+	// startMissingWatches and reloadOpenAPISchema will error because the
+	// MockKubectlCmd here has no APIResources, but handleCRDEvent logs
+	// before that — we don't care about the downstream errors.
+	c.handleCRDEvent(watch.Modified, crd)
+
+	mu.Lock()
+	logged := logBuf.String()
+	mu.Unlock()
+	// schema.GroupKind.String() formats as "Kind.Group", e.g. "CronTab.stable.example.com".
+	assert.Contains(t, logged, "CronTab.stable.example.com",
+		"log line should carry the inner CRD GroupKind, not the apiextensions wrapper. got: %s", logged)
+	assert.NotContains(t, logged, "CustomResourceDefinition.apiextensions.k8s.io",
+		"log line should NOT identify the wrapper kind. got: %s", logged)
+}
+
+// TestHandleCRDEvent_LogsInnerCRDGroupKindOnDecodeFailure falls back to
+// the CRD's metadata.name when spec.versions decode fails — better than
+// the wrapper kind, since the name identifies which CRD object failed
+// (e.g. "crontabs.stable.example.com") even when its inner group/kind
+// can't be extracted.
+func TestHandleCRDEvent_LogsInnerCRDGroupKindOnDecodeFailure(t *testing.T) {
+	var (
+		mu      sync.Mutex
+		logBuf  strings.Builder
+		capture = func(prefix, args string) {
+			mu.Lock()
+			defer mu.Unlock()
+			logBuf.WriteString(prefix)
+			logBuf.WriteString(" ")
+			logBuf.WriteString(args)
+			logBuf.WriteString("\n")
+		}
+	)
+	c := newTransformTestCache(t)
+	c.log = funcr.New(capture, funcr.Options{Verbosity: 1})
+
+	// spec.versions is the wrong type — DefaultUnstructuredConverter.FromUnstructured
+	// returns an error and crdVersionsToAPIResources yields an empty slice.
+	badCRD := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apiextensions.k8s.io/v1",
+		"kind":       "CustomResourceDefinition",
+		"metadata":   map[string]any{"name": "broken.example.com"},
+		"spec": map[string]any{
+			"group":    "example.com",
+			"versions": "not-a-list",
+		},
+	}}
+	c.handleCRDEvent(watch.Modified, badCRD)
+
+	mu.Lock()
+	logged := logBuf.String()
+	mu.Unlock()
+	assert.Contains(t, logged, "broken.example.com",
+		"on decode failure the log should still identify the CRD by metadata.name. got: %s", logged)
 }

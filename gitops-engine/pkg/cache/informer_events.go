@@ -88,17 +88,16 @@ func (c *clusterCache) informerEventHandlerForCtx(ctx context.Context) cache.Res
 }
 
 // onInformerChange dispatches a single informer event. It:
-//  1. updates the shared cross-GK indexes (nsIndex + parentUIDToChildren),
-//  2. fires OnEvent handlers and routes CRD events via dispatchEvent
+//  1. writes c.resources as a shadow of the informer's store so existing
+//     read paths (GetManagedLiveObjs, IterateHierarchyV2's key lookups,
+//     FindResources for the all-namespaces case) keep working unchanged,
+//  2. updates the shared cross-GK indexes (nsIndex + parentUIDToChildren),
+//     which are not derivable from per-GK informer indexers,
+//  3. fires OnEvent handlers and routes CRD events via dispatchEvent
 //     (skipped when isInInitialList=true to match legacy semantics — the
 //     legacy initial-state load via replaceResourceCache fires OnNodeUpdated
 //     but never recordEvent/handleCRDEvent),
-//  3. fires OnResourceUpdated handlers with the post-update namespace map.
-//
-// Under informer mode the informer's own store is the source of truth
-// for single-key lookups, so we do not write to c.resources. The cross-GK
-// indexes are not derivable from per-GK informer indexers and must be
-// maintained here.
+//  4. fires OnResourceUpdated handlers with the post-update namespace map.
 func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj any, isInInitialList bool) {
 	newCr, _ := newObj.(*cachedResource)
 	oldCr, _ := oldObj.(*cachedResource)
@@ -139,6 +138,14 @@ func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj an
 		// lookups, FindResources for the all-namespaces case) works unchanged
 		// under informer mode. The ~70 bytes/entry map overhead is trivial
 		// compared to the TransformFunc's savings on managedFields.
+		if newCr == nil || newCr.Resource == nil {
+			c.lock.Unlock()
+			c.log.V(1).Info("Informer Add/Modify with missing new object — skipping",
+				"event", event,
+				"newType", fmt.Sprintf("%T", newObj),
+				"oldType", fmt.Sprintf("%T", oldObj))
+			return
+		}
 		c.resources[newCr.Resource.ResourceKey()] = newCr.Resource
 		c.updateIndexes(existing, newCr.Resource)
 		c.dispatchResourceUpdated(newCr.Resource, existing, c.nsIndex[newCr.Resource.Ref.Namespace])
