@@ -152,11 +152,6 @@ func (c *clusterCache) syncInformers() error {
 	// Invalidate sets c.apisMeta = nil mid-wait; re-reading c.apisMeta after
 	// re-acquiring the lock would yield an empty pending list and a
 	// misleading "did not complete initial list within Xs: []" error.
-	type watchedInformer struct {
-		gk        schema.GroupKind
-		ns        string
-		hasSynced cache.InformerSynced
-	}
 	var watched []watchedInformer
 	for gk, meta := range c.apisMeta {
 		for ns, si := range meta.informers {
@@ -187,19 +182,38 @@ func (c *clusterCache) syncInformers() error {
 	synced := cache.WaitForCacheSync(waitCtx.Done(), hasSyncedFns...)
 	c.lock.Lock()
 
+	return c.resolveSyncResult(synced, watched)
+}
+
+// watchedInformer captures the (gk, ns, HasSynced) tuple snapshotted by
+// syncInformers before releasing c.lock. Kept as a package-level type so
+// resolveSyncResult can take a slice of it.
+type watchedInformer struct {
+	gk        schema.GroupKind
+	ns        string
+	hasSynced cache.InformerSynced
+}
+
+// resolveSyncResult interprets the outcome of WaitForCacheSync. Caller
+// must hold c.lock.
+//
+// The Invalidate-check runs BEFORE the synced-branch by design. DeltaFIFO's
+// HasSynced is sticky (vendor/k8s.io/client-go/tools/cache/delta_fifo.go) —
+// once true it never resets, not even on watch-context cancellation. So if
+// the informers completed their initial list before a concurrent Invalidate
+// cancelled them, WaitForCacheSync returns synced=true even though
+// c.apisMeta has just been cleared and c.resources reset. Returning nil in
+// that case would cache "success" for clusterSyncRetryTimeout against an
+// empty cache; instead, surface errCacheInvalidatedMidSync so EnsureSynced
+// (which detects this sentinel via errors.Is) skips caching the result and
+// the next call re-syncs immediately.
+func (c *clusterCache) resolveSyncResult(synced bool, watched []watchedInformer) error {
+	if c.apisMeta == nil {
+		return errCacheInvalidatedMidSync
+	}
 	if synced {
 		c.log.Info("Cluster successfully synced (informer mode)")
 		return nil
-	}
-
-	// Invalidate is the only caller that nils c.apisMeta, and it can only
-	// run during the c.lock.Unlock() window above. Treat it as a distinct
-	// transient condition so the cached "did not complete initial list"
-	// error doesn't suppress the immediate re-sync that should follow.
-	// EnsureSynced checks errors.Is(err, errCacheInvalidatedMidSync) and
-	// refuses to cache this specific sentinel — see cluster.go.
-	if c.apisMeta == nil {
-		return errCacheInvalidatedMidSync
 	}
 
 	// Return an error so callers don't operate against a partially

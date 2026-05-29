@@ -259,6 +259,15 @@ type clusterCache struct {
 	// mode selects the implementation. See Mode constants and SetMode.
 	mode Mode
 
+	// syncMu serializes EnsureSynced calls to enforce single-flight sync.
+	// Under informer mode, sync() releases c.lock around WaitForCacheSync;
+	// without this gate a second EnsureSynced caller could acquire c.lock
+	// in that window, enter syncInformers, and cancel the first caller's
+	// informers mid-flight. Acquired before c.lock; never held by any
+	// other code path (notably NOT by Invalidate, which must be able to
+	// interrupt an in-progress sync).
+	syncMu sync.Mutex
+
 	syncStatus clusterCacheSync
 
 	apisMeta              map[schema.GroupKind]*apiMeta
@@ -1245,6 +1254,16 @@ func (c *clusterCache) EnsureSynced() error {
 		return syncError
 	}
 	syncStatus.lock.Unlock() // release the lock, so that we can acquire the parent lock (see struct comment re: lock acquisition ordering)
+
+	// Single-flight: under informer mode sync() releases c.lock during
+	// WaitForCacheSync, opening a window where a second EnsureSynced caller
+	// would otherwise acquire c.lock and re-enter sync(), cancelling the
+	// first caller's informers. syncMu serialises EnsureSynced callers so
+	// the second one finds alreadySynced=true after the first finishes and
+	// short-circuits to the cached result. Acquired BEFORE c.lock to keep
+	// a consistent lock order; never held by any path other than this one.
+	c.syncMu.Lock()
+	defer c.syncMu.Unlock()
 
 	c.lock.Lock()
 	defer c.lock.Unlock()

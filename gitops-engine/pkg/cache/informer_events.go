@@ -67,13 +67,13 @@ func (c *clusterCache) informerEventHandlerForCtx(ctx context.Context) cache.Res
 			if ctx.Err() != nil {
 				return
 			}
-			c.onInformerChange(watch.Added, nil, obj, isInInitialList)
+			c.onInformerChange(ctx, watch.Added, nil, obj, isInInitialList)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
 			if ctx.Err() != nil {
 				return
 			}
-			c.onInformerChange(watch.Modified, oldObj, newObj, false)
+			c.onInformerChange(ctx, watch.Modified, oldObj, newObj, false)
 		},
 		DeleteFunc: func(obj any) {
 			if ctx.Err() != nil {
@@ -82,7 +82,7 @@ func (c *clusterCache) informerEventHandlerForCtx(ctx context.Context) cache.Res
 			if tomb, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 				obj = tomb.Obj
 			}
-			c.onInformerChange(watch.Deleted, obj, nil, false)
+			c.onInformerChange(ctx, watch.Deleted, obj, nil, false)
 		},
 	}
 }
@@ -98,7 +98,14 @@ func (c *clusterCache) informerEventHandlerForCtx(ctx context.Context) cache.Res
 //     legacy initial-state load via replaceResourceCache fires OnNodeUpdated
 //     but never recordEvent/handleCRDEvent),
 //  4. fires OnResourceUpdated handlers with the post-update namespace map.
-func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj any, isInInitialList bool) {
+//
+// ctx is the per-informer watch context. The handler closure pre-checks
+// ctx.Err() before calling us, but that check is not atomic with the
+// c.lock acquisition below — a goroutine that passed the outer check can
+// stall here while Invalidate cancels ctx and resets c.resources. We
+// re-check ctx.Err() AFTER c.lock.Lock() so a stale event can't mutate
+// freshly-rebuilt state owned by a subsequent syncInformers run.
+func (c *clusterCache) onInformerChange(ctx context.Context, event watch.EventType, oldObj, newObj any, isInInitialList bool) {
 	newCr, _ := newObj.(*cachedResource)
 	oldCr, _ := oldObj.(*cachedResource)
 
@@ -131,6 +138,15 @@ func (c *clusterCache) onInformerChange(event watch.EventType, oldObj, newObj an
 	// nsIndex snapshot handed to handlers is consistent with c.resources —
 	// matches the legacy setNode/onNodeRemoved -> dispatchResourceUpdated path.
 	c.lock.Lock()
+	// Re-check ctx under the lock — if Invalidate cancelled the informer
+	// (and reset c.resources/c.nsIndex/c.parentUIDToChildren via the
+	// informer-mode branch of Invalidate) between the outer ctx.Err() check
+	// and now, this is a stale event from a draining DeltaFIFO that must
+	// not mutate freshly-rebuilt state.
+	if ctx.Err() != nil {
+		c.lock.Unlock()
+		return
+	}
 	switch event {
 	case watch.Added, watch.Modified:
 		// Maintain c.resources as a shadow of the informer's store so every

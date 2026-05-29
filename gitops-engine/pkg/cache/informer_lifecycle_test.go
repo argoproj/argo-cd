@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -903,4 +904,179 @@ func TestInvalidate_InformerModeClearsReadStateSnapshot(t *testing.T) {
 	assert.Empty(t, c.resources, "Invalidate should clear c.resources under informer mode")
 	assert.Empty(t, c.nsIndex, "Invalidate should clear c.nsIndex under informer mode")
 	assert.Empty(t, c.parentUIDToChildren, "Invalidate should clear c.parentUIDToChildren under informer mode")
+}
+
+// TestResolveSyncResult_InvalidatedTakesPrecedenceOverSynced is the
+// deterministic unit test for the Invalidate/HasSynced ordering fix.
+//
+// DeltaFIFO.HasSynced is sticky — once the initial list is processed it
+// stays true even after the informer's watch context is cancelled. So a
+// concurrent Invalidate that fires AFTER HasSynced flipped true gives
+// WaitForCacheSync(synced=true) AND c.apisMeta=nil simultaneously.
+//
+// resolveSyncResult must surface errCacheInvalidatedMidSync in that case
+// rather than reporting success against an empty cache. (Returning nil
+// would let EnsureSynced cache "synced" for clusterSyncRetryTimeout and
+// serve an empty cluster view to every caller in the window.)
+func TestResolveSyncResult_InvalidatedTakesPrecedenceOverSynced(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.apisMeta = nil // simulate post-Invalidate state
+
+	err := c.resolveSyncResult(true, nil)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errCacheInvalidatedMidSync,
+		"apisMeta=nil must override synced=true so the next EnsureSynced re-syncs immediately")
+}
+
+func TestResolveSyncResult_SyncedReturnsNil(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	// apisMeta is non-nil from construction.
+	require.NotNil(t, c.apisMeta)
+
+	err := c.resolveSyncResult(true, nil)
+	require.NoError(t, err)
+}
+
+func TestResolveSyncResult_NotSyncedReportsPending(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	pending := []watchedInformer{
+		{gk: podsGVK.GroupKind(), ns: "", hasSynced: func() bool { return false }},
+		{gk: schema.GroupKind{Group: "", Kind: "ConfigMap"}, ns: "default", hasSynced: func() bool { return true }},
+	}
+
+	err := c.resolveSyncResult(false, pending)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Pod[cluster-scope]")
+	assert.NotContains(t, err.Error(), "ConfigMap[ns=default]",
+		"already-synced informers should not appear in the pending list")
+}
+
+// TestEnsureSynced_SingleFlightPreventsConcurrentSync verifies that two
+// concurrent EnsureSynced callers do NOT both enter sync()/syncInformers.
+// Pre-fix, the first caller released c.lock during WaitForCacheSync,
+// letting the second acquire c.lock and enter syncInformers — which
+// cancels every existing informer at line 104-108. That cancellation
+// would orphan the first caller's WaitForCacheSync against dead informers
+// and corrupt syncStatus. With c.syncMu held across EnsureSynced, the
+// second caller blocks until the first finishes, then short-circuits via
+// alreadySynced.
+//
+// We verify by counting reflector List invocations: a single sync should
+// produce exactly one initial List per (GK, ns). Two concurrent syncs
+// produce two.
+func TestEnsureSynced_SingleFlightPreventsConcurrentSync(t *testing.T) {
+	client := fake.NewSimpleDynamicClient(scheme.Scheme, unstructuredPod("nginx", "default"))
+	defaultReactor := client.ReactionChain[0]
+
+	var (
+		listMu    sync.Mutex
+		listCount int
+	)
+	listEntered := make(chan struct{})
+	listProceed := make(chan struct{})
+	var listOnce bool
+	client.PrependReactor("list", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+		listMu.Lock()
+		listCount++
+		listMu.Unlock()
+		if !listOnce {
+			listOnce = true
+			close(listEntered)
+			<-listProceed
+		}
+		handled, ret, err := defaultReactor.React(action)
+		if !handled || err != nil {
+			return handled, ret, err
+		}
+		ret.(metav1.ListInterface).SetResourceVersion("1")
+		return handled, ret, nil
+	})
+
+	iface := NewClusterCache(
+		&rest.Config{Host: "https://test"},
+		SetMode(ModeInformer),
+		SetClusterSyncRetryTimeout(5*time.Second),
+		SetKubectl(&kubetest.MockKubectlCmd{
+			APIResources:  []kube.APIResourceInfo{podsAPI()},
+			DynamicClient: client,
+		}),
+	)
+	t.Cleanup(func() { iface.Invalidate() })
+
+	// Fire two EnsureSynced concurrently.
+	errA := make(chan error, 1)
+	errB := make(chan error, 1)
+	go func() { errA <- iface.EnsureSynced() }()
+
+	// Wait for A's reflector to start its first List.
+	select {
+	case <-listEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("A's initial List was never invoked")
+	}
+
+	// At this point A is inside syncInformers, has released c.lock for
+	// WaitForCacheSync. Fire B — pre-fix it would acquire c.lock and enter
+	// syncInformers, cancelling A's informers and starting its own (which
+	// would invoke List a second time). Post-fix B blocks on c.syncMu until
+	// A completes.
+	go func() { errB <- iface.EnsureSynced() }()
+
+	// Give B a chance to attempt entering sync — if syncMu isn't held it
+	// will enter immediately and bump listCount.
+	time.Sleep(50 * time.Millisecond)
+
+	// Release A's list so it can finish.
+	close(listProceed)
+
+	for _, ch := range []chan error{errA, errB} {
+		select {
+		case err := <-ch:
+			require.NoError(t, err)
+		case <-time.After(5 * time.Second):
+			t.Fatal("EnsureSynced did not return")
+		}
+	}
+
+	listMu.Lock()
+	defer listMu.Unlock()
+	assert.Equal(t, 1, listCount,
+		"a single sync round must produce exactly one initial List; got %d, indicating B re-entered syncInformers and started its own informers", listCount)
+}
+
+// TestOnInformerChange_BailsAfterCancelUnderLock verifies the lock-atomic
+// ctx.Err() guard inside onInformerChange. The pre-lock guard in
+// informerEventHandlerForCtx is not atomic with c.lock acquisition: a
+// goroutine that passed the outer check can stall, an Invalidate can run
+// (cancelling ctx and resetting c.resources), and then the stale handler
+// finally acquires c.lock and writes into the freshly-rebuilt maps. The
+// in-lock re-check closes that window.
+func TestOnInformerChange_BailsAfterCancelUnderLock(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.mode = ModeInformer
+
+	cached, err := c.transformForInformer(unstructuredPod("nginx", "default"))
+	require.NoError(t, err)
+
+	// Cancel the ctx BEFORE the handler runs so the in-lock re-check
+	// must fire. (The pre-lock check would catch this too — but only
+	// because we cancelled before the outer check. The whole point of
+	// the in-lock guard is to also catch cancellations that happen AFTER
+	// the outer check, which we can't reproduce deterministically without
+	// internal synchronization. So we instead drive the handler with a
+	// pre-cancelled ctx and assert no mutation, which exercises the same
+	// code path.)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Direct call to onInformerChange with the cancelled ctx; bypass the
+	// outer handler entirely so the test exercises only the in-lock check.
+	c.onInformerChange(ctx, watch.Added, nil, cached, false)
+
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	assert.Empty(t, c.resources,
+		"cancelled-ctx onInformerChange must not mutate c.resources even when the outer pre-check is bypassed")
+	assert.Empty(t, c.nsIndex,
+		"cancelled-ctx onInformerChange must not mutate c.nsIndex")
 }
