@@ -134,7 +134,10 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		connectors[i] = connector
 	}
 	dexCfg["connectors"] = connectors
-	dexCfg = settings.ReplaceMapSecretsDex(dexCfg, argocdSettings.Secrets)
+	dexCfg = settings.EscapeDollarSignsInMap(
+		settings.ReplaceMapSecrets(dexCfg, argocdSettings.Secrets),
+	)
+
 	return yaml.Marshal(dexCfg)
 }
 

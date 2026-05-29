@@ -2645,88 +2645,47 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 	}
 }
 
-func TestReplaceMapSecretsDex(t *testing.T) {
-	secrets := map[string]string{
-		"dex.ldap.bindPW":         "test$test",
-		"dex.ldap.plainPW":        "plainpassword",
-		"dex.ldap.multiDollar":    "a$b$c",
-		"dex.ldap.leadingDollar":  "$startswith",
-		"dex.ldap.trailingDollar": "endswith$",
-		"dex.ldap.onlyDollar":     "$",
-		"dex.ldap.withSpaces":     "  spaced$pass  ",
-		"dex.oidc.clientSecret":   "oidc$secret",
-	}
-
-	t.Run("single dollar sign in value is escaped", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.bindPW",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
+func TestEscapeDollarSignsInMap(t *testing.T) {
+	t.Run("dollar sign in string value is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "test$test"}
+		result := EscapeDollarSignsInMap(input)
 		assert.Equal(t, "test$$test", result["bindPW"])
 	})
 
-	t.Run("password with no dollar sign is unchanged", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.plainPW",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
+	t.Run("string with no dollar sign is unchanged", func(t *testing.T) {
+		input := map[string]any{"bindPW": "plainpassword"}
+		result := EscapeDollarSignsInMap(input)
 		assert.Equal(t, "plainpassword", result["bindPW"])
 	})
 
-	t.Run("multiple dollar signs in value are all escaped", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.multiDollar",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		assert.Equal(t, "a$$b$$c", result["bindPW"])
+	t.Run("multiple dollar signs are all escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "a$b$c$d"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "a$$b$$c$$d", result["bindPW"])
 	})
 
-	t.Run("leading dollar sign in resolved value is escaped", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.leadingDollar",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
+	t.Run("leading dollar sign is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "$startswith"}
+		result := EscapeDollarSignsInMap(input)
 		assert.Equal(t, "$$startswith", result["bindPW"])
 	})
 
-	t.Run("trailing dollar sign in resolved value is escaped", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.trailingDollar",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
+	t.Run("trailing dollar sign is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "endswith$"}
+		result := EscapeDollarSignsInMap(input)
 		assert.Equal(t, "endswith$$", result["bindPW"])
 	})
 
 	t.Run("value that is only a dollar sign is escaped", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.onlyDollar",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
+		input := map[string]any{"bindPW": "$"}
+		result := EscapeDollarSignsInMap(input)
 		assert.Equal(t, "$$", result["bindPW"])
 	})
 
-	t.Run("whitespace in resolved value is trimmed before escaping", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.withSpaces",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		assert.Equal(t, "spaced$$pass", result["bindPW"])
-	})
-
-	t.Run("non-reference string value is returned as-is", func(t *testing.T) {
-		input := map[string]any{
-			"host": "ldap.example.org:389",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		assert.Equal(t, "ldap.example.org:389", result["host"])
-	})
-
-	t.Run("unknown secret key is returned as-is", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.doesnotexist",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		assert.Equal(t, "$dex.ldap.doesnotexist", result["bindPW"])
+	t.Run("already-escaped dollar sign is not double-escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "test$$test"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "test$$$$test", result["bindPW"])
 	})
 
 	t.Run("non-string values are passed through unchanged", func(t *testing.T) {
@@ -2734,164 +2693,72 @@ func TestReplaceMapSecretsDex(t *testing.T) {
 			"port":          389,
 			"insecureNoSSL": true,
 		}
-		result := ReplaceMapSecretsDex(input, secrets)
+		result := EscapeDollarSignsInMap(input)
 		assert.Equal(t, 389, result["port"])
 		assert.Equal(t, true, result["insecureNoSSL"])
 	})
 
-	t.Run("nested map has dollar signs escaped", func(t *testing.T) {
+	t.Run("nested map values are escaped", func(t *testing.T) {
 		input := map[string]any{
 			"config": map[string]any{
-				"bindPW": "$dex.ldap.bindPW",
+				"bindPW": "test$test",
 				"host":   "ldap.example.org:389",
 			},
 		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		nested, ok := result["config"].(map[string]any)
-		require.True(t, ok)
+		result := EscapeDollarSignsInMap(input)
+		nested := result["config"].(map[string]any)
 		assert.Equal(t, "test$$test", nested["bindPW"])
 		assert.Equal(t, "ldap.example.org:389", nested["host"])
 	})
 
-	t.Run("deeply nested map has dollar signs escaped", func(t *testing.T) {
+	t.Run("deeply nested map values are escaped", func(t *testing.T) {
 		input := map[string]any{
 			"connectors": map[string]any{
 				"ldap": map[string]any{
 					"config": map[string]any{
-						"bindPW": "$dex.ldap.bindPW",
+						"bindPW": "test$test",
 					},
 				},
 			},
 		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		connectors := result["connectors"].(map[string]any)
-		ldap := connectors["ldap"].(map[string]any)
-		config := ldap["config"].(map[string]any)
+		result := EscapeDollarSignsInMap(input)
+		config := result["connectors"].(map[string]any)["ldap"].(map[string]any)["config"].(map[string]any)
 		assert.Equal(t, "test$$test", config["bindPW"])
 	})
 
 	t.Run("list of maps has dollar signs escaped in each element", func(t *testing.T) {
 		input := map[string]any{
 			"connectors": []any{
-				map[string]any{
-					"type":   "ldap",
-					"bindPW": "$dex.ldap.bindPW",
-				},
-				map[string]any{
-					"type":         "oidc",
-					"clientSecret": "$dex.oidc.clientSecret",
-				},
+				map[string]any{"type": "ldap", "bindPW": "test$test"},
+				map[string]any{"type": "oidc", "clientSecret": "oidc$secret"},
 			},
 		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		connectors, ok := result["connectors"].([]any)
-		require.True(t, ok)
-		require.Len(t, connectors, 2)
-
-		ldap := connectors[0].(map[string]any)
-		assert.Equal(t, "test$$test", ldap["bindPW"])
-		assert.Equal(t, "ldap", ldap["type"])
-
-		oidc := connectors[1].(map[string]any)
-		assert.Equal(t, "oidc$$secret", oidc["clientSecret"])
-		assert.Equal(t, "oidc", oidc["type"])
+		result := EscapeDollarSignsInMap(input)
+		connectors := result["connectors"].([]any)
+		assert.Equal(t, "test$$test", connectors[0].(map[string]any)["bindPW"])
+		assert.Equal(t, "oidc$$secret", connectors[1].(map[string]any)["clientSecret"])
 	})
 
-	t.Run("list of strings has dollar signs escaped in each element", func(t *testing.T) {
+	t.Run("list of strings has dollar signs escaped", func(t *testing.T) {
 		input := map[string]any{
-			"passwords": []any{
-				"$dex.ldap.bindPW",
-				"$dex.ldap.plainPW",
-				"$dex.ldap.multiDollar",
-			},
+			"passwords": []any{"a$b", "plain", "c$d$e"},
 		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		passwords, ok := result["passwords"].([]any)
-		require.True(t, ok)
-		require.Len(t, passwords, 3)
-		assert.Equal(t, "test$$test", passwords[0])
-		assert.Equal(t, "plainpassword", passwords[1])
-		assert.Equal(t, "a$$b$$c", passwords[2])
-	})
-
-	t.Run("multiple top-level keys are all processed independently", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW":       "$dex.ldap.bindPW",
-			"clientSecret": "$dex.oidc.clientSecret",
-			"host":         "ldap.example.org:389",
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
-		assert.Equal(t, "test$$test", result["bindPW"])
-		assert.Equal(t, "oidc$$secret", result["clientSecret"])
-		assert.Equal(t, "ldap.example.org:389", result["host"])
+		result := EscapeDollarSignsInMap(input)
+		passwords := result["passwords"].([]any)
+		assert.Equal(t, "a$$b", passwords[0])
+		assert.Equal(t, "plain", passwords[1])
+		assert.Equal(t, "c$$d$$e", passwords[2])
 	})
 
 	t.Run("empty map returns empty map", func(t *testing.T) {
-		result := ReplaceMapSecretsDex(map[string]any{}, secrets)
+		result := EscapeDollarSignsInMap(map[string]any{})
 		assert.Empty(t, result)
 	})
 
-	t.Run("empty secrets map leaves references unresolved", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.bindPW",
-		}
-		result := ReplaceMapSecretsDex(input, map[string]string{})
-		assert.Equal(t, "$dex.ldap.bindPW", result["bindPW"])
-	})
-
 	t.Run("input map is not mutated", func(t *testing.T) {
-		input := map[string]any{
-			"bindPW": "$dex.ldap.bindPW",
-		}
+		input := map[string]any{"bindPW": "test$test"}
 		original := input["bindPW"]
-		_ = ReplaceMapSecretsDex(input, secrets)
-		assert.Equal(t, original, input["bindPW"],
-			"ReplaceMapSecretsDex must not modify the input map")
-	})
-
-	t.Run("realistic ldap connector config", func(t *testing.T) {
-		input := map[string]any{
-			"connectors": []any{
-				map[string]any{
-					"type": "ldap",
-					"id":   "ldap",
-					"name": "OpenLDAP",
-					"config": map[string]any{
-						"host":          "ldap.example.org:389",
-						"insecureNoSSL": true,
-						"bindDN":        "cn=admin,dc=example,dc=org",
-						"bindPW":        "$dex.ldap.bindPW",
-						"userSearch": map[string]any{
-							"baseDN":    "ou=People,dc=example,dc=org",
-							"filter":    "(objectClass=inetOrgPerson)",
-							"username":  "mail",
-							"idAttr":    "DN",
-							"emailAttr": "mail",
-							"nameAttr":  "cn",
-						},
-					},
-				},
-			},
-		}
-		result := ReplaceMapSecretsDex(input, secrets)
-
-		connectors := result["connectors"].([]any)
-		require.Len(t, connectors, 1)
-
-		connector := connectors[0].(map[string]any)
-		assert.Equal(t, "ldap", connector["type"])
-
-		config := connector["config"].(map[string]any)
-		// Core assertion: dollar sign in password must be escaped for Dex
-		assert.Equal(t, "test$$test", config["bindPW"],
-			"bindPW must have '$' escaped as '$$' so Dex os.ExpandEnv yields the correct password")
-
-		// Non-secret fields must be unchanged
-		assert.Equal(t, "ldap.example.org:389", config["host"])
-		assert.Equal(t, true, config["insecureNoSSL"])
-		assert.Equal(t, "cn=admin,dc=example,dc=org", config["bindDN"])
-
-		userSearch := config["userSearch"].(map[string]any)
-		assert.Equal(t, "ou=People,dc=example,dc=org", userSearch["baseDN"])
+		_ = EscapeDollarSignsInMap(input)
+		assert.Equal(t, original, input["bindPW"])
 	})
 }

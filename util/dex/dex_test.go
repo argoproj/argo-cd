@@ -71,6 +71,63 @@ connectors:
       nameAttr: cn
 `
 
+var goodDexConfigPasswordWithDollarSign = `
+connectors:
+- type: ldap
+  id: ldap
+  name: OpenLDAP
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: "test$test"
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=inetOrgPerson)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+`
+
+var goodDexConfigPlainPasswordMultipleDollarSigns = `
+connectors:
+- type: ldap
+  id: ldap
+  name: OpenLDAP
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: "a$b$c$d"
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=inetOrgPerson)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+`
+
+var goodDexConfigPlainPassword = `
+connectors:
+- type: ldap
+  id: ldap
+  name: OpenLDAP
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: "plainpassword"
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=inetOrgPerson)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+`
+
 var customStaticClientDexConfig = `
 connectors:
 # GitHub example
@@ -482,32 +539,54 @@ func Test_GenerateDexConfig(t *testing.T) {
 
 func Test_GenerateDexConfigYAML(t *testing.T) {
 	type testData struct {
-		name        string
-		secretValue string
-		expected    string
+		name      string
+		secrets   map[string]string
+		dexConfig string
+		expected  string
 	}
 
 	tt := []testData{
 		{
-			name:        "LDAP bindPW with dollar sign is escaped for Dex env expansion",
-			secretValue: "test$test",
-			expected:    "test$$test",
+			name:      "LDAP bindPW with dollar sign is escaped for Dex env expansion",
+			secrets:   map[string]string{"dex.ldap.bindPW": "test$test"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			expected:  "test$$test",
 		},
 		{
-			name:        "LDAP bindPW without dollar sign is unaffected",
-			secretValue: "plainpassword",
-			expected:    "plainpassword",
+			name:      "LDAP bindPW without dollar sign is unaffected",
+			secrets:   map[string]string{"dex.ldap.bindPW": "plainpassword"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			expected:  "plainpassword",
 		},
 		{
-			name:        "LDAP bindPW with multiple dollar signs all escaped",
-			secretValue: "a$b$c$d",
-			expected:    "a$$b$$c$$d",
+			name:      "LDAP bindPW with multiple dollar signs all escaped",
+			secrets:   map[string]string{"dex.ldap.bindPW": "a$b$c$d"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			expected:  "a$$b$$c$$d",
+		},
+		{
+			name:      "literal dollar sign in bindPW (no secret reference) is escaped",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigPlainPasswordMultipleDollarSigns,
+			expected:  "a$$b$$c$$d",
+		},
+		{
+			name:      "literal dollar sign in bindPW (no secret reference) is escaped",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigPasswordWithDollarSign,
+			expected:  "test$$test",
+		},
+		{
+			name:      "literal plain password in bindPW (no secret reference) is unaffected",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigPlainPassword,
+			expected:  "plainpassword",
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			config, err := GenerateDexConfigYAML(argoCDSettings(tc.secretValue), false)
+			config, err := GenerateDexConfigYAML(argoCDSettings(tc.dexConfig, tc.secrets), false)
 			require.NoError(t, err)
 			require.NotNil(t, config)
 
@@ -521,13 +600,11 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 	}
 }
 
-func argoCDSettings(secretValue string) *settings.ArgoCDSettings {
+func argoCDSettings(dexConfig string, secrets map[string]string) *settings.ArgoCDSettings {
 	return &settings.ArgoCDSettings{
 		URL:       "http://localhost",
-		DexConfig: goodDexConfigLDAPWithDollarSign,
-		Secrets: map[string]string{
-			"dex.ldap.bindPW": secretValue,
-		},
+		DexConfig: dexConfig,
+		Secrets:   secrets,
 	}
 }
 

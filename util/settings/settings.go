@@ -2346,12 +2346,6 @@ func ReplaceMapSecrets(obj map[string]any, secretValues map[string]string) map[s
 	return replaceMapSecrets(obj, secretValues, ReplaceStringSecret)
 }
 
-// ReplaceMapSecretsDex is identical to ReplaceMapSecrets but uses
-// replaceStringSecretDex so that '$' in resolved values is escaped for Dex.
-func ReplaceMapSecretsDex(obj map[string]any, secretValues map[string]string) map[string]any {
-	return replaceMapSecrets(obj, secretValues, replaceStringSecretDex)
-}
-
 // replaceMapSecrets recursively walks the given object and replaces string values
 // using the provided string replacer function.
 func replaceMapSecrets(obj map[string]any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) map[string]any {
@@ -2401,21 +2395,43 @@ func replaceStringSecret(val string, secretValues map[string]string, trimmer fun
 	return trimmer(secretVal)
 }
 
-// replaceStringSecretDex is identical to ReplaceStringSecret but additionally
-// escapes any '$' characters in the resolved value as '$$'.
+// EscapeDollarSignsInMap recursively walks the given config map and escapes any
+// literal '$' characters in string values as '$$'. This is a post-processing
+// step for the Dex config, applied after the secret references have already been
+// resolved by ReplaceMapSecretsDex.
 //
-// This is required specifically for the Dex config file path: Dex calls
-// os.ExpandEnv on every string value it reads from its config file, so a
-// literal '$' in a password would be silently expanded as an env var reference
-// (typically to an empty string), corrupting the credential.
+// It ensures that values written directly into dex.config (i.e., not via a
+// $secret-key reference) are also protected from Dex's os.ExpandEnv expansion,
+// which silently corrupts any '$' it encounters.
 //
-// '$$' is the standard os.ExpandEnv escape sequence for a literal '$'.
 // See: https://github.com/argoproj/argo-cd/issues/27803
-func replaceStringSecretDex(val string, secretValues map[string]string) string {
-	// Escape '$' so Dex does not treat them as env var references.
-	return replaceStringSecret(val, secretValues, func(value string) string {
-		return strings.ReplaceAll(strings.TrimSpace(value), "$", "$$")
-	})
+func EscapeDollarSignsInMap(obj map[string]any) map[string]any {
+	newObj := make(map[string]any, len(obj))
+	for k, v := range obj {
+		newObj[k] = escapeDollarSignsValue(v)
+	}
+	return newObj
+}
+
+func escapeDollarSignsValue(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return EscapeDollarSignsInMap(val)
+	case []any:
+		return escapeDollarSignsInList(val)
+	case string:
+		return strings.ReplaceAll(val, "$", "$$")
+	default:
+		return val
+	}
+}
+
+func escapeDollarSignsInList(obj []any) []any {
+	newObj := make([]any, len(obj))
+	for i, v := range obj {
+		newObj[i] = escapeDollarSignsValue(v)
+	}
+	return newObj
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
