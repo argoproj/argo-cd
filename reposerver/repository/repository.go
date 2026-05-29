@@ -126,6 +126,7 @@ type RepoServerInitConstants struct {
 	CMPUseManifestGeneratePaths                  bool
 	EnableBuiltinGitConfig                       bool
 	HelmUserAgent                                string
+	ChartCacheExpiration                         time.Duration
 }
 
 var manifestGenerateLock = sync.NewKeyLock()
@@ -152,6 +153,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 			if initConstants.HelmUserAgent != "" {
 				opts = append(opts, helm.WithUserAgent(initConstants.HelmUserAgent))
 			}
+			opts = append(opts, helm.WithChartCacheExpiration(initConstants.ChartCacheExpiration))
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
 		},
 		initConstants:      initConstants,

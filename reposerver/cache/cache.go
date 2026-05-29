@@ -36,6 +36,10 @@ type Cache struct {
 	revisionCacheLockTimeout time.Duration
 }
 
+func (c *Cache) GetRepoCacheExpiration() time.Duration {
+	return c.repoCacheExpiration
+}
+
 // ClusterRuntimeInfo holds cluster runtime information
 type ClusterRuntimeInfo interface {
 	// GetApiVersions returns supported api versions
