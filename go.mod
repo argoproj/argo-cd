@@ -321,11 +321,10 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
-require github.com/go-openapi/runtime/server-middleware v0.30.0
+require github.com/go-openapi/runtime/server-middleware v0.32.2
 
 require (
 	github.com/go-openapi/testify/enable/yaml/v2 v2.5.1 // indirect
-	github.com/go-openapi/testify/v2 v2.5.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 )
 
