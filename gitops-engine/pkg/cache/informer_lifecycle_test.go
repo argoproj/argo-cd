@@ -745,16 +745,25 @@ func TestEnsureSynced_DoesNotDeadlockWithGetClusterInfo(t *testing.T) {
 	}
 }
 
-// TestInformerEventHandler_InitialListSkipsDispatchEvent verifies that
-// events flagged isInInitialList=true do not fire OnEvent handlers or
-// route through handleCRDEvent. This matches legacy semantics, where the
-// initial state load via replaceResourceCache fires only OnResourceUpdated.
+// TestInformerEventHandler_InitialListDispatchSemantics verifies the
+// three-way dispatch behaviour for initial-list events under informer mode,
+// matching legacy semantics:
 //
-// Regression for: every CRD in the initial-list flood triggered
-// handleCRDEvent -> reloadOpenAPISchema, flooding logs with
-// "Duplicate GVKs detected in OpenAPI schema" once per existing CRD on
-// every cluster cache sync.
-func TestInformerEventHandler_InitialListSkipsDispatchEvent(t *testing.T) {
+//   - Before firstSyncCompleted: isInInitialList events populate storage
+//     but do NOT fire OnEvent (no CRD reload spam) and do NOT fire
+//     OnResourceUpdated (legacy first-sync used setNode directly with no
+//     dispatch — cluster.go:1171).
+//   - After firstSyncCompleted: isInInitialList events still skip OnEvent
+//     but DO fire OnResourceUpdated, matching legacy startMissingWatches
+//     -> loadInitialState -> replaceResourceCache -> onNodeUpdated for
+//     CRD-driven new-watch discovery.
+//   - Watch events (isInInitialList=false) always dispatch both.
+//
+// Regression context: every CRD in the initial-list flood used to trigger
+// handleCRDEvent -> reloadOpenAPISchema, flooding logs with "Duplicate
+// GVKs detected"; and every initial-list Add fired OnResourceUpdated,
+// hammering the argo-cd app reconcile queue on startup.
+func TestInformerEventHandler_InitialListDispatchSemantics(t *testing.T) {
 	c, _ := newInformerTestCache(t)
 	c.mode = ModeInformer
 
@@ -775,12 +784,23 @@ func TestInformerEventHandler_InitialListSkipsDispatchEvent(t *testing.T) {
 
 	handler := c.informerEventHandlerForCtx(context.Background())
 
-	// Initial-list Add: storage + OnResourceUpdated, no dispatchEvent.
+	// First-sync initial-list Add: storage only, no OnEvent, no OnResourceUpdated.
 	handler.OnAdd(cached, true)
 	assert.Equal(t, 0, eventCount, "OnEvent must NOT fire for initial-list events")
-	assert.Equal(t, 1, resourceUpdatedCt, "OnResourceUpdated MUST fire so caller state stays consistent with legacy replaceResourceCache")
+	assert.Equal(t, 0, resourceUpdatedCt,
+		"OnResourceUpdated must NOT fire for first-sync initial-list (legacy setNode path is silent)")
 
-	// Real watch event: full dispatch.
+	// Simulate first-sync completion (set by resolveSyncResult in prod).
+	c.firstSyncCompleted = true
+
+	// Post-startup initial-list Add (CRD-driven new-watch): OnResourceUpdated
+	// fires, OnEvent does not.
+	handler.OnAdd(cached, true)
+	assert.Equal(t, 0, eventCount, "OnEvent must still NOT fire for initial-list events even post-startup")
+	assert.Equal(t, 1, resourceUpdatedCt,
+		"OnResourceUpdated MUST fire for post-startup initial-list (legacy replaceResourceCache -> onNodeUpdated)")
+
+	// Real watch event: full dispatch always.
 	handler.OnAdd(cached, false)
 	assert.Equal(t, 1, eventCount, "OnEvent must fire for non-initial Add")
 	assert.Equal(t, 2, resourceUpdatedCt, "OnResourceUpdated must continue to fire for non-initial Add")
@@ -904,6 +924,146 @@ func TestInvalidate_InformerModeClearsReadStateSnapshot(t *testing.T) {
 	assert.Empty(t, c.resources, "Invalidate should clear c.resources under informer mode")
 	assert.Empty(t, c.nsIndex, "Invalidate should clear c.nsIndex under informer mode")
 	assert.Empty(t, c.parentUIDToChildren, "Invalidate should clear c.parentUIDToChildren under informer mode")
+}
+
+// TestStopWatching_InformerModePurgesAllNamespaces verifies that under
+// informer mode, stopWatching purges shadow entries for EVERY namespace
+// the apiMeta was watching, not just the one passed in. The per-informer
+// cancel funcs share apiMeta.watchCancel, so cancelling one ns terminates
+// all of them — and the un-purged namespaces would otherwise keep stale
+// Resource pointers forever with no informer feeding updates.
+func TestStopWatching_InformerModePurgesAllNamespaces(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.mode = ModeInformer
+	c.namespaces = []string{"ns1", "ns2"}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, c.startInformersForAPI(ctx, podsAPI()))
+
+	// Seed c.resources with pods from BOTH namespaces (as if the informers
+	// had already delivered initial-list events for each).
+	keyA := kube.NewResourceKey("", "Pod", "ns1", "a")
+	keyB := kube.NewResourceKey("", "Pod", "ns2", "b")
+	c.lock.Lock()
+	c.resources[keyA] = &Resource{Ref: kube.GetObjectRef(unstructuredPod("a", "ns1"))}
+	c.resources[keyB] = &Resource{Ref: kube.GetObjectRef(unstructuredPod("b", "ns2"))}
+	c.nsIndex["ns1"] = map[kube.ResourceKey]*Resource{keyA: c.resources[keyA]}
+	c.nsIndex["ns2"] = map[kube.ResourceKey]*Resource{keyB: c.resources[keyB]}
+	c.lock.Unlock()
+
+	// Trigger stopWatching as if a Forbidden on ns1 fired.
+	c.stopWatching(podsGVK.GroupKind(), "ns1")
+
+	c.lock.RLock()
+	_, hasA := c.resources[keyA]
+	_, hasB := c.resources[keyB]
+	_, hasNs1 := c.nsIndex["ns1"]
+	_, hasNs2 := c.nsIndex["ns2"]
+	c.lock.RUnlock()
+	assert.False(t, hasA, "ns1 entry should be purged")
+	assert.False(t, hasB,
+		"ns2 entry must ALSO be purged — shared watchCancel killed its informer too, leaving it stale forever")
+	assert.False(t, hasNs1, "nsIndex[ns1] should be empty")
+	assert.False(t, hasNs2, "nsIndex[ns2] should be empty (same reason as resources)")
+}
+
+// TestStopWatching_LegacyModeKeepsSingleNsScope ensures the multi-ns purge
+// is informer-mode-only. Legacy mode runs one watchEvents goroutine per ns
+// with its own retry semantics — purging only the failing ns is correct
+// there because the other ns goroutines keep running.
+func TestStopWatching_LegacyModeKeepsSingleNsScope(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.mode = ModeLegacy
+
+	// Manually populate apisMeta with a legacy-shaped entry.
+	c.lock.Lock()
+	c.apisMeta[podsGVK.GroupKind()] = &apiMeta{
+		namespaced:  true,
+		watchCancel: func() {},
+	}
+	keyA := kube.NewResourceKey("", "Pod", "ns1", "a")
+	keyB := kube.NewResourceKey("", "Pod", "ns2", "b")
+	c.resources[keyA] = &Resource{Ref: kube.GetObjectRef(unstructuredPod("a", "ns1"))}
+	c.resources[keyB] = &Resource{Ref: kube.GetObjectRef(unstructuredPod("b", "ns2"))}
+	c.nsIndex["ns1"] = map[kube.ResourceKey]*Resource{keyA: c.resources[keyA]}
+	c.nsIndex["ns2"] = map[kube.ResourceKey]*Resource{keyB: c.resources[keyB]}
+	c.lock.Unlock()
+
+	c.stopWatching(podsGVK.GroupKind(), "ns1")
+
+	c.lock.RLock()
+	_, hasA := c.resources[keyA]
+	_, hasB := c.resources[keyB]
+	c.lock.RUnlock()
+	assert.False(t, hasA, "ns1 entry should be purged (failing namespace)")
+	assert.True(t, hasB, "legacy mode keeps ns2 entries — its watchEvents goroutine is still live")
+}
+
+// TestBuildInformer_ListAcquiresSemaphore verifies that the informer's
+// ListWithContextFunc acquires c.listSemaphore before calling resClient.List,
+// matching legacy listResources (cluster.go:795). Without this gate, every
+// (GroupKind, ns) reflector's initial List runs concurrently — a discovery-
+// heavy cluster spikes memory and a user who tuned listSemaphore down sees
+// OOMs after enabling ModeInformer.
+func TestBuildInformer_ListAcquiresSemaphore(t *testing.T) {
+	c, client := newInformerTestCache(t, unstructuredPod("nginx", "default"))
+
+	// Replace the listSemaphore with a tracking version.
+	tracker := &trackingSemaphore{}
+	c.listSemaphore = tracker
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	informer := c.buildInformer(ctx, client.Resource(podsGVR), podsAPI(), "")
+	go informer.RunWithContext(ctx)
+	require.True(t, cache.WaitForCacheSync(ctx.Done(), informer.HasSynced))
+
+	acquired := tracker.acquireCount()
+	released := tracker.releaseCount()
+	assert.Positive(t, acquired, "ListWithContextFunc must acquire the listSemaphore for each List call")
+	assert.Equal(t, acquired, released, "every Acquire must be paired with a Release (defer in the wrapper)")
+}
+
+// trackingSemaphore is a WeightedSemaphore that counts Acquire/Release
+// calls for test assertions. Behavior is unbounded — tests use it only to
+// verify that the wiring touches it, not to exercise contention.
+type trackingSemaphore struct {
+	mu       sync.Mutex
+	acquires int
+	releases int
+}
+
+func (s *trackingSemaphore) Acquire(_ context.Context, _ int64) error {
+	s.mu.Lock()
+	s.acquires++
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *trackingSemaphore) TryAcquire(_ int64) bool {
+	s.mu.Lock()
+	s.acquires++
+	s.mu.Unlock()
+	return true
+}
+
+func (s *trackingSemaphore) Release(_ int64) {
+	s.mu.Lock()
+	s.releases++
+	s.mu.Unlock()
+}
+
+func (s *trackingSemaphore) acquireCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.acquires
+}
+
+func (s *trackingSemaphore) releaseCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.releases
 }
 
 // TestResolveSyncResult_InvalidatedTakesPrecedenceOverSynced is the

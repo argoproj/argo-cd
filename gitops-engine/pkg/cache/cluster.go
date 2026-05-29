@@ -268,6 +268,21 @@ type clusterCache struct {
 	// interrupt an in-progress sync).
 	syncMu sync.Mutex
 
+	// firstSyncCompleted is set to true after the very first syncInformers
+	// finishes successfully. Used by onInformerChange to mirror legacy
+	// semantics for OnResourceUpdated dispatch:
+	//   - first global sync (legacy: cluster.go:1171 `c.setNode(newRes)`
+	//     direct path, no dispatch): suppress OnResourceUpdated for
+	//     isInInitialList Add events, since the cache is just being
+	//     populated and subscribers expect a quiet bulk load.
+	//   - post-startup new-watch initial list (legacy: startMissingWatches
+	//     -> loadInitialState -> replaceResourceCache -> onNodeUpdated
+	//     fires OnResourceUpdated): fire normally so CRD-driven new
+	//     resource discovery triggers reconcile.
+	// Reset to false in Invalidate so the rebuild after Invalidate also
+	// gets the quiet-bulk-load semantics. Guarded by c.lock.
+	firstSyncCompleted bool
+
 	syncStatus clusterCacheSync
 
 	apisMeta              map[schema.GroupKind]*apiMeta
@@ -692,6 +707,11 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 		c.nsIndex = map[string]map[kube.ResourceKey]*Resource{}
 		c.parentUIDToChildren = map[types.UID]map[kube.ResourceKey]struct{}{}
 	}
+	// Reset first-sync tracking — the next syncInformers should treat its
+	// initial list as a bulk load (suppress OnResourceUpdated), matching
+	// legacy semantics where Invalidate followed by sync() loaded state
+	// via the silent setNode path.
+	c.firstSyncCompleted = false
 	c.log.Info("Invalidated cluster")
 }
 
@@ -717,8 +737,24 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	defer c.lock.Unlock()
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
+		// Under informer mode every per-(GK, namespace) informer shares
+		// the parent watchCancel — cancelling for one ns terminates them
+		// all. Purge shadow entries for every namespace this apiMeta was
+		// watching, not just the failing ns, or those other namespaces
+		// would keep stale resources forever with no informer feeding
+		// updates. Legacy mode keeps the per-ns scoping because each ns
+		// had its own retry goroutine.
+		nsToPurge := []string{ns}
+		if c.mode == ModeInformer {
+			nsToPurge = nsToPurge[:0]
+			for watchedNs := range info.informers {
+				nsToPurge = append(nsToPurge, watchedNs)
+			}
+		}
 		delete(c.apisMeta, gk)
-		c.replaceResourceCache(gk, nil, ns)
+		for _, n := range nsToPurge {
+			c.replaceResourceCache(gk, nil, n)
+		}
 		c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk))
 	}
 }

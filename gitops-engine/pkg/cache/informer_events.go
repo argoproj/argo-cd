@@ -147,8 +147,20 @@ func (c *clusterCache) onInformerChange(ctx context.Context, event watch.EventTy
 		c.lock.Unlock()
 		return
 	}
-	switch event {
-	case watch.Added, watch.Modified:
+	// Skip storage write + OnResourceUpdated dispatch for Modified events
+	// on resources in ignoredRefreshResources (Endpoints today). Legacy
+	// recordEvent does the same gate at cluster.go:1678 — it suppresses
+	// processEvent (the only path that calls OnResourceUpdated under
+	// legacy) for high-churn kinds whose updates are app-irrelevant.
+	// Without this, every leader-election Endpoint rewrite acquires
+	// c.lock (write), walks parentUIDToChildren, and fires every
+	// OnResourceUpdated subscriber — pure overhead even though the
+	// downstream filter in argo-cd then drops the requeue.
+	skipStorageUpdate := event == watch.Modified && skipAppRequeuing(primary.Resource.ResourceKey())
+	switch {
+	case skipStorageUpdate:
+		// no-op for storage; dispatchEvent below still fires OnEvent.
+	case event == watch.Added || event == watch.Modified:
 		// Maintain c.resources as a shadow of the informer's store so every
 		// existing read path (GetManagedLiveObjs, IterateHierarchyV2's key
 		// lookups, FindResources for the all-namespaces case) works unchanged
@@ -164,8 +176,17 @@ func (c *clusterCache) onInformerChange(ctx context.Context, event watch.EventTy
 		}
 		c.resources[newCr.Resource.ResourceKey()] = newCr.Resource
 		c.updateIndexes(existing, newCr.Resource)
-		c.dispatchResourceUpdated(newCr.Resource, existing, c.nsIndex[newCr.Resource.Ref.Namespace])
-	case watch.Deleted:
+		// Suppress OnResourceUpdated for isInInitialList events during the
+		// very first sync — legacy first-sync writes to c.resources via
+		// setNode without firing OnResourceUpdated (cluster.go:1171). After
+		// firstSyncCompleted flips true, isInInitialList events come from
+		// CRD-driven new-watch initial lists, which legacy DOES dispatch
+		// via replaceResourceCache -> onNodeUpdated. Watch events
+		// (isInInitialList=false) always dispatch.
+		if !isInInitialList || c.firstSyncCompleted {
+			c.dispatchResourceUpdated(newCr.Resource, existing, c.nsIndex[newCr.Resource.Ref.Namespace])
+		}
+	case event == watch.Deleted:
 		// For deletes the informer passes the last-known object as oldObj;
 		// we treated it as `primary` above for dispatchEvent purposes.
 		delete(c.resources, primary.Resource.ResourceKey())

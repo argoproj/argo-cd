@@ -148,21 +148,6 @@ func (c *clusterCache) syncInformers() error {
 		}
 	}
 
-	// Snapshot (gk, ns, HasSynced) before releasing c.lock. A concurrent
-	// Invalidate sets c.apisMeta = nil mid-wait; re-reading c.apisMeta after
-	// re-acquiring the lock would yield an empty pending list and a
-	// misleading "did not complete initial list within Xs: []" error.
-	var watched []watchedInformer
-	for gk, meta := range c.apisMeta {
-		for ns, si := range meta.informers {
-			watched = append(watched, watchedInformer{gk: gk, ns: ns, hasSynced: si.informer.HasSynced})
-		}
-	}
-	hasSyncedFns := make([]cache.InformerSynced, 0, len(watched))
-	for _, w := range watched {
-		hasSyncedFns = append(hasSyncedFns, w.hasSynced)
-	}
-
 	// Bound the wait by clusterSyncRetryTimeout so a single broken API
 	// (forbidden, misbehaving aggregated API server, transient list
 	// failure) does not block all reconciliation. Reflectors that haven't
@@ -172,17 +157,67 @@ func (c *clusterCache) syncInformers() error {
 	// work needed. The outer EnsureSynced loop runs again after
 	// clusterSyncRetryTimeout, which tears these informers down and
 	// starts a fresh attempt.
-	//
-	// Release c.lock while waiting — the event handler takes it when
-	// informers dispatch their initial list. Holding it across the wait
-	// would deadlock.
 	waitCtx, cancelWait := context.WithTimeout(watchParent, c.clusterSyncRetryTimeout)
 	defer cancelWait()
-	c.lock.Unlock()
-	synced := cache.WaitForCacheSync(waitCtx.Done(), hasSyncedFns...)
-	c.lock.Lock()
 
-	return c.resolveSyncResult(synced, watched)
+	// Loop: re-snapshot watched informers after each WaitForCacheSync. New
+	// informers can appear mid-wait when handleCRDEvent fires (CRD-driven
+	// startMissingWatches -> startInformersForAPILocked). Without this
+	// loop, WaitForCacheSync returns synced=true based on the original
+	// snapshot while the new informers' reflectors are still doing their
+	// initial list — EnsureSynced would report success against an
+	// incomplete cache.
+	//
+	// Release c.lock during each wait — the event handler takes it when
+	// informers dispatch their initial list. Holding it across the wait
+	// would deadlock.
+	var watched []watchedInformer
+	for {
+		watched = c.snapshotWatched()
+		pending := unsyncedInformers(watched)
+		if len(pending) == 0 {
+			break
+		}
+		c.lock.Unlock()
+		synced := cache.WaitForCacheSync(waitCtx.Done(), pending...)
+		c.lock.Lock()
+		if !synced {
+			return c.resolveSyncResult(false, watched)
+		}
+		// A successful WaitForCacheSync may have raced a CRD-driven
+		// startInformersForAPILocked that registered new informers. Loop
+		// to pick those up; if none appeared, the next snapshot's
+		// `pending` list will be empty and we exit cleanly.
+	}
+
+	return c.resolveSyncResult(true, watched)
+}
+
+// snapshotWatched returns the current set of (gk, ns, HasSynced) tuples
+// across c.apisMeta. Caller must hold c.lock.
+func (c *clusterCache) snapshotWatched() []watchedInformer {
+	var watched []watchedInformer
+	for gk, meta := range c.apisMeta {
+		for ns, si := range meta.informers {
+			watched = append(watched, watchedInformer{gk: gk, ns: ns, hasSynced: si.informer.HasSynced})
+		}
+	}
+	return watched
+}
+
+// unsyncedInformers extracts the HasSynced callbacks for informers that
+// have NOT yet completed their initial list. Used by syncInformers' loop
+// to wait only on informers that still need to sync — and to detect when
+// all informers (including any added mid-wait by CRD-driven discovery)
+// are done.
+func unsyncedInformers(watched []watchedInformer) []cache.InformerSynced {
+	pending := make([]cache.InformerSynced, 0, len(watched))
+	for _, w := range watched {
+		if !w.hasSynced() {
+			pending = append(pending, w.hasSynced)
+		}
+	}
+	return pending
 }
 
 // watchedInformer captures the (gk, ns, HasSynced) tuple snapshotted by
@@ -212,6 +247,12 @@ func (c *clusterCache) resolveSyncResult(synced bool, watched []watchedInformer)
 		return errCacheInvalidatedMidSync
 	}
 	if synced {
+		// Mark first-sync done so subsequent CRD-driven new-watch initial
+		// lists fire OnResourceUpdated (matching legacy startMissingWatches
+		// -> loadInitialState -> replaceResourceCache -> onNodeUpdated path).
+		// Before this point, onInformerChange suppresses OnResourceUpdated
+		// for isInInitialList events so the bulk load stays quiet.
+		c.firstSyncCompleted = true
 		c.log.Info("Cluster successfully synced (informer mode)")
 		return nil
 	}
@@ -245,7 +286,18 @@ func (c *clusterCache) resolveSyncResult(synced bool, watched []watchedInformer)
 // mutate fresh state owned by a subsequent syncInformers run.
 func (c *clusterCache) buildInformer(ctx context.Context, resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) cache.SharedIndexInformer {
 	lw := &cache.ListWatch{
+		// Wrap List with c.listSemaphore so initial-list memory pressure
+		// stays bounded across many (GK, ns) informers. Legacy listResources
+		// (cluster.go:795) does the same — without it, every informer's
+		// reflector calls List concurrently and a discovery-heavy cluster
+		// (hundreds of GVRs) spikes memory during startup. Reflector pager
+		// calls List once per page; the semaphore holds for one page at a
+		// time, matching legacy behavior.
 		ListWithContextFunc: func(ctx context.Context, o metav1.ListOptions) (runtime.Object, error) {
+			if err := c.listSemaphore.Acquire(ctx, 1); err != nil {
+				return nil, fmt.Errorf("acquire list semaphore for %s[%s]: %w", api.GroupKind, namespaceDescription(ns), err)
+			}
+			defer c.listSemaphore.Release(1)
 			return resClient.List(ctx, o)
 		},
 		WatchFuncWithContext: func(ctx context.Context, o metav1.ListOptions) (watch.Interface, error) {

@@ -402,3 +402,51 @@ func TestHandleCRDEvent_LogsInnerCRDGroupKindOnDecodeFailure(t *testing.T) {
 	assert.Contains(t, logged, "broken.example.com",
 		"on decode failure the log should still identify the CRD by metadata.name. got: %s", logged)
 }
+
+// TestOnInformerChange_ModifiedEndpointsSkipsStorageAndDispatch verifies
+// the skipAppRequeuing parity gate under informer mode: Modified events
+// on Endpoints (and other ignoredRefreshResources kinds) must skip the
+// c.resources/nsIndex write AND OnResourceUpdated dispatch — exactly like
+// legacy recordEvent's `if event == watch.Modified && skipAppRequeuing(key)
+// { return }` at cluster.go:1678. OnEvent still fires (legacy fires it
+// before the skip-gate as well).
+func TestOnInformerChange_ModifiedEndpointsSkipsStorageAndDispatch(t *testing.T) {
+	c := newTransformTestCache(t)
+	c.firstSyncCompleted = true // make OnResourceUpdated paths active
+
+	eventCaptured := recordingHandlers(c)
+	resCaptured := recordingResourceHandlers(c)
+
+	endpoints := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Endpoints",
+		"metadata":   map[string]any{"name": "kubernetes", "namespace": "default", "uid": "ep-uid"},
+	}}
+	oldCr, err := c.transformForInformer(endpoints)
+	require.NoError(t, err)
+	newCr, err := c.transformForInformer(endpoints)
+	require.NoError(t, err)
+
+	// Modified — should NOT update storage, should NOT fire OnResourceUpdated.
+	c.informerEventHandler().OnUpdate(oldCr, newCr)
+
+	key := kube.NewResourceKey("", "Endpoints", "default", "kubernetes")
+	c.lock.RLock()
+	_, present := c.resources[key]
+	c.lock.RUnlock()
+	assert.False(t, present, "Modified Endpoints must not write to c.resources (skipAppRequeuing parity)")
+	assert.Empty(t, *resCaptured, "Modified Endpoints must not fire OnResourceUpdated")
+
+	// OnEvent must still fire — legacy recordEvent fires it before the skip-gate.
+	require.Len(t, *eventCaptured, 1)
+	assert.Equal(t, watch.Modified, (*eventCaptured)[0].Event)
+	assert.Equal(t, "Endpoints", (*eventCaptured)[0].Un.GetKind())
+
+	// Added Endpoints DO update storage (skipAppRequeuing only suppresses Modified).
+	c.informerEventHandler().OnAdd(newCr, false)
+	c.lock.RLock()
+	_, present = c.resources[key]
+	c.lock.RUnlock()
+	assert.True(t, present, "Added Endpoints should update c.resources — only Modified is suppressed")
+	assert.Len(t, *resCaptured, 1, "Added Endpoints fires OnResourceUpdated")
+}
