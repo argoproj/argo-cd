@@ -695,18 +695,18 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	}
 	c.apisMeta = nil
 	c.namespacedResources = nil
-	// Under informer mode c.resources / c.nsIndex / c.parentUIDToChildren are the
-	// read-path source of truth (IterateHierarchyV2, GetManagedLiveObjs,
-	// FindResources). Clear them so a reader racing Invalidate against the next
-	// EnsureSynced sees an empty snapshot rather than stale post-cancel data, and
-	// so a lingering pre-cancel event handler can't write into the same maps the
-	// freshly-rebuilt informers will populate. Legacy mode rebuilds these in
-	// sync() either way, so the extra reset is safe but redundant there.
-	if c.mode == ModeInformer {
-		c.resources = map[kube.ResourceKey]*Resource{}
-		c.nsIndex = map[string]map[kube.ResourceKey]*Resource{}
-		c.parentUIDToChildren = map[types.UID]map[kube.ResourceKey]struct{}{}
-	}
+	// Intentionally do NOT clear c.resources / c.nsIndex / c.parentUIDToChildren
+	// here under informer mode — matching legacy semantics where those maps
+	// survive Invalidate and serve stale-but-present data until the next
+	// sync() rebuilds them. Clearing here caused a GetManagedLiveObjs
+	// regression: with c.resources empty, the fallback at L1591 issued
+	// N synchronous API GETs per app reconcile in the Invalidate ->
+	// EnsureSynced window, instead of serving from the in-memory snapshot.
+	// Safe to leave populated because:
+	//   1. syncInformers itself wipes and rebuilds these at sync start,
+	//   2. the in-lock ctx.Err() guard in onInformerChange prevents stale
+	//      pre-cancel event handlers from writing into them after their
+	//      apiMeta.watchCtx is cancelled (see informer_events.go).
 	// Reset first-sync tracking — the next syncInformers should treat its
 	// initial list as a bulk load (suppress OnResourceUpdated), matching
 	// legacy semantics where Invalidate followed by sync() loaded state

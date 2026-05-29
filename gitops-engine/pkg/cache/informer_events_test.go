@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr/funcr"
 	"github.com/stretchr/testify/assert"
@@ -401,6 +402,65 @@ func TestHandleCRDEvent_LogsInnerCRDGroupKindOnDecodeFailure(t *testing.T) {
 	mu.Unlock()
 	assert.Contains(t, logged, "broken.example.com",
 		"on decode failure the log should still identify the CRD by metadata.name. got: %s", logged)
+}
+
+// TestOnInformerChange_FiresOnProcessEventsHandler verifies that under
+// informer mode, OnProcessEventsHandler is invoked per event with a
+// real duration and count=1. Without this, argocd_resource_events_processing
+// flatlines the moment ModeInformer is enabled — argo-cd's controller
+// registers the handler at controller/cache/cache.go:663 to feed the
+// histogram, and dashboards built on it would silently break on rollout.
+//
+// Legacy fires this from processEventsBatch with a batch duration; informer
+// mode has no batching, so we report per-event durations with count=1.
+func TestOnInformerChange_FiresOnProcessEventsHandler(t *testing.T) {
+	c := newTransformTestCache(t)
+
+	type capture struct {
+		duration time.Duration
+		count    int
+	}
+	var captured []capture
+	c.processEventsHandlers = map[uint64]OnProcessEventsHandler{
+		1: func(duration time.Duration, processedEventsNumber int) {
+			captured = append(captured, capture{duration: duration, count: processedEventsNumber})
+		},
+	}
+
+	cr, err := c.transformForInformer(samplePod())
+	require.NoError(t, err)
+
+	c.informerEventHandler().OnAdd(cr, false)
+	c.informerEventHandler().OnDelete(cr)
+
+	require.Len(t, captured, 2,
+		"OnProcessEventsHandler must fire once per informer event under ModeInformer")
+	for i, c := range captured {
+		assert.Equal(t, 1, c.count, "event %d: informer mode reports per-event count=1", i)
+		assert.GreaterOrEqual(t, c.duration, time.Duration(0),
+			"event %d: duration must be non-negative", i)
+	}
+}
+
+// TestOnInformerChange_FiresOnProcessEventsHandlerEvenForInitialList
+// guards against future regressions that gate the handler invocation on
+// !isInInitialList. The histogram should track every event the cache
+// processes, including initial-list ones — that's where the bulk of the
+// startup latency lives and operators need visibility into it.
+func TestOnInformerChange_FiresOnProcessEventsHandlerEvenForInitialList(t *testing.T) {
+	c := newTransformTestCache(t)
+
+	var count int
+	c.processEventsHandlers = map[uint64]OnProcessEventsHandler{
+		1: func(_ time.Duration, _ int) { count++ },
+	}
+
+	cr, err := c.transformForInformer(samplePod())
+	require.NoError(t, err)
+	c.informerEventHandler().OnAdd(cr, true)
+
+	assert.Equal(t, 1, count,
+		"OnProcessEventsHandler must fire for isInInitialList events too — that's the bulk of startup work")
 }
 
 // TestOnInformerChange_ModifiedEndpointsSkipsStorageAndDispatch verifies

@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -895,21 +896,22 @@ func TestSyncInformers_InvalidateDuringWaitReportsTransient(t *testing.T) {
 		"EnsureSynced must re-sync immediately after the invalidated-mid-sync sentinel, not serve it from cache")
 }
 
-// TestInvalidate_InformerModeClearsReadStateSnapshot verifies that
-// Invalidate wipes c.resources / c.nsIndex / c.parentUIDToChildren under
-// informer mode. These are the read-path source of truth for
-// IterateHierarchyV2, GetManagedLiveObjs, and FindResources; leaving them
-// populated between Invalidate and the next EnsureSynced lets readers see
-// a phantom snapshot of a cluster the cache no longer trusts.
-//
-// Legacy mode rebuilds the same maps inside sync(), so the assertion only
-// applies to informer mode.
-func TestInvalidate_InformerModeClearsReadStateSnapshot(t *testing.T) {
+// TestInvalidate_InformerModePreservesReadStateSnapshot verifies that
+// Invalidate preserves c.resources / c.nsIndex / c.parentUIDToChildren
+// under informer mode, matching legacy semantics. The maps are the
+// read-path source of truth (IterateHierarchyV2, GetManagedLiveObjs,
+// FindResources). Wiping them on Invalidate caused a measurable
+// regression: GetManagedLiveObjs fell back to N synchronous API GETs
+// per app reconcile in the Invalidate -> EnsureSynced window because
+// c.resources was empty. Legacy preserved the stale snapshot and so do
+// we now. syncInformers wipes + rebuilds at sync start; the in-lock
+// ctx.Err() guard in onInformerChange prevents stale handlers from
+// writing pre-cancel state into the maps after Invalidate.
+func TestInvalidate_InformerModePreservesReadStateSnapshot(t *testing.T) {
 	c, _ := newInformerTestCache(t)
 	c.mode = ModeInformer
 
-	// Seed the read-path maps directly — Invalidate's contract is to
-	// drop this state, regardless of how it got there.
+	// Seed the read-path maps directly.
 	un := unstructuredPod("nginx", "default")
 	key := kube.NewResourceKey("", "Pod", "default", "nginx")
 	res := &Resource{Ref: kube.GetObjectRef(un)}
@@ -921,9 +923,42 @@ func TestInvalidate_InformerModeClearsReadStateSnapshot(t *testing.T) {
 
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	assert.Empty(t, c.resources, "Invalidate should clear c.resources under informer mode")
-	assert.Empty(t, c.nsIndex, "Invalidate should clear c.nsIndex under informer mode")
-	assert.Empty(t, c.parentUIDToChildren, "Invalidate should clear c.parentUIDToChildren under informer mode")
+	assert.Contains(t, c.resources, key,
+		"Invalidate must preserve c.resources so GetManagedLiveObjs serves stale-but-present data instead of bursting API GETs")
+	assert.Contains(t, c.nsIndex, "default",
+		"Invalidate must preserve c.nsIndex (same reason — read-path source of truth)")
+	assert.Contains(t, c.parentUIDToChildren, types.UID("parent-uid"),
+		"Invalidate must preserve c.parentUIDToChildren (hierarchy reads serve stale data, not empty)")
+}
+
+// TestGetManagedLiveObjs_PostInvalidateServesStaleCache verifies that
+// under informer mode, GetManagedLiveObjs (and other read paths that
+// consult c.resources) serves the pre-Invalidate snapshot instead of
+// falling back to N synchronous API GETs in the window between Invalidate
+// and the next EnsureSynced. Pre-fix, Invalidate cleared c.resources +
+// nilled apisMeta, forcing every targetObj through the kubectl.GetResource
+// fallback at cluster.go:1591 — a burst that stalled the controller on
+// large apps and slow API servers.
+func TestGetManagedLiveObjs_PostInvalidateServesStaleCache(t *testing.T) {
+	c, _ := newInformerTestCache(t)
+	c.mode = ModeInformer
+
+	un := unstructuredPod("nginx", "default")
+	key := kube.NewResourceKey("", "Pod", "default", "nginx")
+	res := &Resource{Ref: kube.GetObjectRef(un)}
+	c.lock.Lock()
+	c.resources[key] = res
+	c.nsIndex["default"] = map[kube.ResourceKey]*Resource{key: res}
+	c.lock.Unlock()
+
+	c.Invalidate()
+
+	// FindResources is the simplest probe — same c.resources read that
+	// GetManagedLiveObjs uses for its cache-hit path. If c.resources were
+	// wiped, this returns empty and the caller falls through to API GETs.
+	got := c.FindResources("default")
+	assert.Contains(t, got, key,
+		"FindResources after Invalidate must serve the stale snapshot, not return empty")
 }
 
 // TestStopWatching_InformerModePurgesAllNamespaces verifies that under

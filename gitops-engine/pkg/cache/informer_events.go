@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -134,6 +135,15 @@ func (c *clusterCache) onInformerChange(ctx context.Context, event watch.EventTy
 		existing = oldCr.Resource
 	}
 
+	// Time the under-lock storage + dispatch work so we can feed the
+	// OnProcessEventsHandler observer below. Legacy fires this handler from
+	// processEventsBatch (cluster.go:1687) with a batch duration + count;
+	// informer mode has no batching (events flow inline through the
+	// reflector), so we report per-event duration with count=1. This keeps
+	// the argocd_resource_events_processing histogram alive — without it
+	// the metric flatlines the moment ModeInformer is enabled.
+	processingStart := time.Now()
+
 	// Storage mutations + OnResourceUpdated dispatch run under c.lock so the
 	// nsIndex snapshot handed to handlers is consistent with c.resources —
 	// matches the legacy setNode/onNodeRemoved -> dispatchResourceUpdated path.
@@ -194,6 +204,14 @@ func (c *clusterCache) onInformerChange(ctx context.Context, event watch.EventTy
 		c.dispatchResourceUpdated(nil, primary.Resource, ns)
 	}
 	c.lock.Unlock()
+
+	// Feed argocd_resource_events_processing (and any other consumer of
+	// OnProcessEventsHandler) with the per-event duration. Done outside
+	// the lock so handler latency doesn't block other events.
+	processingDuration := time.Since(processingStart)
+	for _, h := range c.getProcessEventsHandlers() {
+		h(processingDuration, 1)
+	}
 
 	// Skip OnEvent + CRD routing for initial-list events so we don't reload
 	// the OpenAPI schema once per existing CRD at startup. Legacy
