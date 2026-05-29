@@ -135,6 +135,7 @@ func (c *nativeHelmChart) getUserAgent() string {
 	return fmt.Sprintf("argocd-repo-server/%s (%s)", version.Version, version.Platform)
 }
 
+// WithChartCacheExpiration sets the cache expiration duration for chart cache.
 func WithChartCacheExpiration(expiration time.Duration) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCacheExpiration = expiration
@@ -213,26 +214,23 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	if exists && c.chartCacheExpiration > 0 {
 		info, statErr := os.Stat(cachedChartPath)
 		if statErr != nil {
-			if os.IsNotExist(statErr) {
-				exists = false
-			} else {
+			if !os.IsNotExist(statErr) {
 				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("failed to get file info for cached chart path: %w", statErr)
 			}
-		}
-		if exists && time.Since(info.ModTime()) > c.chartCacheExpiration {
-			log.WithFields(log.Fields{
-				"repo":    c.repoURL,
-				"chart":   chart,
-				"version": version,
-			}).Debug("helm chart cache expired; removing cached chart")
-
-			if removeErr := os.RemoveAll(cachedChartPath); removeErr != nil {
-				_ = os.RemoveAll(tempDir)
-				return "", nil, fmt.Errorf("error removing expired cached chart: %w", removeErr)
-			}
-
 			exists = false
+		}
+
+		if exists {
+			now := time.Now()
+			modTime := info.ModTime()
+			if modTime.After(now) || now.Sub(modTime) > c.chartCacheExpiration {
+				if removeErr := os.RemoveAll(cachedChartPath); removeErr != nil {
+					_ = os.RemoveAll(tempDir)
+					return "", nil, fmt.Errorf("error removing expired cached chart: %w", removeErr)
+				}
+				exists = false
+			}
 		}
 	}
 

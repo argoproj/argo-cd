@@ -36,6 +36,7 @@ type Cache struct {
 	revisionCacheLockTimeout time.Duration
 }
 
+// GetRepoCacheExpiration returns the configured repo cache expiration duration.
 func (c *Cache) GetRepoCacheExpiration() time.Duration {
 	return c.repoCacheExpiration
 }
