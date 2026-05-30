@@ -1,7 +1,7 @@
 import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
-import {ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../utils';
 import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
@@ -17,6 +17,8 @@ export interface AppSetTableRowProps {
 }
 
 export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
+    const appSetDisplayName = AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = getAppSetHealthStatus(appSet);
     const linkInfo = getApplicationLinkURL(appSet, ctx.baseHref);
@@ -86,14 +88,14 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                             <Tooltip
                                 content={
                                     <>
-                                        {appSet.metadata.name}
+                                        {appSetDisplayName}
                                         <br />
                                         <Moment fromNow={true} ago={true}>
                                             {appSet.metadata.creationTimestamp}
                                         </Moment>
                                     </>
                                 }>
-                                <span>{appSet.metadata.name}</span>
+                                <span>{appSetDisplayName}</span>
                             </Tooltip>
                             <button
                                 type='button'
