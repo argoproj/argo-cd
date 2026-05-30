@@ -288,18 +288,22 @@ type myFeatureGates struct {
 }
 
 func (m myFeatureGates) Enabled(f clientgofeatures.Feature) bool {
-	if f == clientgofeatures.WatchListClient {
+	if f == clientgofeatures.WatchListClient ||
+		f == clientgofeatures.InOrderInformers {
 		return false
 	}
 	return m.parent.Enabled(f)
 }
 
-// remove when we have proper WatchListClient support
+// remove when we have proper WatchListClient and InOrderInformers support
 func ConfigureGoClientFeatures() {
 	gates := clientgofeatures.FeatureGates()
 	isWatchListEnabled := gates.Enabled(clientgofeatures.WatchListClient)
-	if isWatchListEnabled {
+	isInOrderInformersEnabled := gates.Enabled(clientgofeatures.InOrderInformers)
+
+	if isWatchListEnabled || isInOrderInformersEnabled {
 		wrapper := myFeatureGates{parent: gates}
 		clientgofeatures.ReplaceFeatureGates(wrapper)
 	}
+
 }
