@@ -73,7 +73,7 @@ func NewTestStateFromContext(ctx TestContext) *TestState {
 	}
 }
 
-// Name sets the DNS-friendly name for this context
+// SetName sets the DNS-friendly name for this context, appending the short ID suffix.
 func (s *TestState) SetName(name string) {
 	if name == "" {
 		s.name = ""
@@ -81,6 +81,12 @@ func (s *TestState) SetName(name string) {
 	}
 	suffix := "-" + s.shortId
 	s.name = DnsFriendly(strings.TrimSuffix(name, suffix), suffix)
+}
+
+// SetNameRaw sets the name without appending a suffix.
+// Use this for well-known names (e.g. "in-cluster") that must not be modified.
+func (s *TestState) SetNameRaw(name string) {
+	s.name = name
 }
 
 // GetName returns the DNS-friendly name for this context

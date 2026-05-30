@@ -148,6 +148,216 @@ func TestHandleModEvent_NoChanges(_ *testing.T) {
 	})
 }
 
+func TestNamespaceDiff(t *testing.T) {
+	tests := []struct {
+		name          string
+		oldNamespaces []string
+		newNamespaces []string
+		wantAdded     []string
+		wantRemoved   []string
+	}{
+		{
+			name:          "no changes - identical lists",
+			oldNamespaces: []string{"ns1", "ns2"},
+			newNamespaces: []string{"ns1", "ns2"},
+			wantAdded:     nil,
+			wantRemoved:   nil,
+		},
+		{
+			name:          "no changes - different order",
+			oldNamespaces: []string{"ns1", "ns2"},
+			newNamespaces: []string{"ns2", "ns1"},
+			wantAdded:     nil,
+			wantRemoved:   nil,
+		},
+		{
+			name:          "namespace added",
+			oldNamespaces: []string{"ns1"},
+			newNamespaces: []string{"ns1", "ns2"},
+			wantAdded:     []string{"ns2"},
+			wantRemoved:   nil,
+		},
+		{
+			name:          "namespace removed",
+			oldNamespaces: []string{"ns1", "ns2"},
+			newNamespaces: []string{"ns1"},
+			wantAdded:     nil,
+			wantRemoved:   []string{"ns2"},
+		},
+		{
+			name:          "namespace added and removed",
+			oldNamespaces: []string{"ns1", "ns2"},
+			newNamespaces: []string{"ns1", "ns3"},
+			wantAdded:     []string{"ns3"},
+			wantRemoved:   []string{"ns2"},
+		},
+		{
+			name:          "multiple namespaces added",
+			oldNamespaces: []string{"ns1"},
+			newNamespaces: []string{"ns1", "ns2", "ns3"},
+			wantAdded:     []string{"ns2", "ns3"},
+			wantRemoved:   nil,
+		},
+		{
+			name:          "multiple namespaces removed",
+			oldNamespaces: []string{"ns1", "ns2", "ns3"},
+			newNamespaces: []string{"ns1"},
+			wantAdded:     nil,
+			wantRemoved:   []string{"ns2", "ns3"},
+		},
+		{
+			name:          "empty to non-empty",
+			oldNamespaces: []string{},
+			newNamespaces: []string{"ns1", "ns2"},
+			wantAdded:     []string{"ns1", "ns2"},
+			wantRemoved:   nil,
+		},
+		{
+			name:          "non-empty to empty",
+			oldNamespaces: []string{"ns1", "ns2"},
+			newNamespaces: []string{},
+			wantAdded:     nil,
+			wantRemoved:   []string{"ns1", "ns2"},
+		},
+		{
+			name:          "both empty",
+			oldNamespaces: []string{},
+			newNamespaces: []string{},
+			wantAdded:     nil,
+			wantRemoved:   nil,
+		},
+		{
+			name:          "nil old namespaces",
+			oldNamespaces: nil,
+			newNamespaces: []string{"ns1"},
+			wantAdded:     []string{"ns1"},
+			wantRemoved:   nil,
+		},
+		{
+			name:          "nil new namespaces",
+			oldNamespaces: []string{"ns1"},
+			newNamespaces: nil,
+			wantAdded:     nil,
+			wantRemoved:   []string{"ns1"},
+		},
+		{
+			name:          "both nil",
+			oldNamespaces: nil,
+			newNamespaces: nil,
+			wantAdded:     nil,
+			wantRemoved:   nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			added, removed := namespaceDiff(tt.oldNamespaces, tt.newNamespaces)
+			assert.ElementsMatch(t, tt.wantAdded, added, "added namespaces don't match")
+			assert.ElementsMatch(t, tt.wantRemoved, removed, "removed namespaces don't match")
+		})
+	}
+}
+
+func TestHandleModEvent_IncrementalNamespaceSync(t *testing.T) {
+	tests := []struct {
+		name                           string
+		enableIncrementalNamespaceSync bool
+		oldNamespaces                  []string
+		newNamespaces                  []string
+		setupMocks                     func(*mocks.ClusterCache)
+	}{
+		{
+			name:                           "namespace added with incremental sync enabled",
+			enableIncrementalNamespaceSync: true,
+			oldNamespaces:                  []string{"existing-namespace"},
+			newNamespaces:                  []string{"existing-namespace", "new-namespace"},
+			setupMocks: func(clusterCache *mocks.ClusterCache) {
+				clusterCache.EXPECT().AddNamespace("new-namespace").Return(nil).Once()
+			},
+		},
+		{
+			name:                           "namespace removed with incremental sync enabled",
+			enableIncrementalNamespaceSync: true,
+			oldNamespaces:                  []string{"existing-namespace", "removed-namespace"},
+			newNamespaces:                  []string{"existing-namespace"},
+			setupMocks: func(clusterCache *mocks.ClusterCache) {
+				clusterCache.EXPECT().RemoveNamespace("removed-namespace").Return(nil).Once()
+			},
+		},
+		{
+			name:                           "namespace added and removed with incremental sync enabled",
+			enableIncrementalNamespaceSync: true,
+			oldNamespaces:                  []string{"existing-namespace", "removed-namespace"},
+			newNamespaces:                  []string{"existing-namespace", "added-namespace"},
+			setupMocks: func(clusterCache *mocks.ClusterCache) {
+				clusterCache.EXPECT().AddNamespace("added-namespace").Return(nil).Once()
+				clusterCache.EXPECT().RemoveNamespace("removed-namespace").Return(nil).Once()
+			},
+		},
+		{
+			name:                           "add namespace fails and falls back to full invalidate",
+			enableIncrementalNamespaceSync: true,
+			oldNamespaces:                  []string{"existing-namespace"},
+			newNamespaces:                  []string{"existing-namespace", "new-namespace"},
+			setupMocks: func(clusterCache *mocks.ClusterCache) {
+				clusterCache.EXPECT().AddNamespace("new-namespace").Return(errors.New("simulated error")).Once()
+				clusterCache.EXPECT().Invalidate(mock.Anything).Return().Once()
+				clusterCache.EXPECT().EnsureSynced().Return(nil).Maybe()
+				clusterCache.EXPECT().GetClusterInfo().Return(cache.ClusterInfo{}).Maybe()
+			},
+		},
+		{
+			name:                           "remove namespace fails and falls back to full invalidate",
+			enableIncrementalNamespaceSync: true,
+			oldNamespaces:                  []string{"existing-namespace", "removed-namespace"},
+			newNamespaces:                  []string{"existing-namespace"},
+			setupMocks: func(clusterCache *mocks.ClusterCache) {
+				clusterCache.EXPECT().RemoveNamespace("removed-namespace").Return(errors.New("simulated error")).Once()
+				clusterCache.EXPECT().Invalidate(mock.Anything).Return().Once()
+				clusterCache.EXPECT().EnsureSynced().Return(nil).Maybe()
+				clusterCache.EXPECT().GetClusterInfo().Return(cache.ClusterInfo{}).Maybe()
+			},
+		},
+		{
+			name:                           "namespace changed with incremental sync disabled still works",
+			enableIncrementalNamespaceSync: false,
+			oldNamespaces:                  []string{"old-namespace"},
+			newNamespaces:                  []string{"new-namespace"},
+			setupMocks: func(clusterCache *mocks.ClusterCache) {
+				clusterCache.EXPECT().Invalidate(mock.Anything).Return().Once()
+				clusterCache.EXPECT().EnsureSynced().Return(nil).Maybe()
+				clusterCache.EXPECT().GetClusterInfo().Return(cache.ClusterInfo{}).Maybe()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clusterCache := &mocks.ClusterCache{}
+			tt.setupMocks(clusterCache)
+			db := &dbmocks.ArgoDB{}
+			db.EXPECT().GetApplicationControllerReplicas().Return(1)
+			clustersCache := liveStateCache{
+				clusters: map[string]cache.ClusterCache{
+					"https://mycluster": clusterCache,
+				},
+				clusterSharding:                sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
+				enableIncrementalNamespaceSync: tt.enableIncrementalNamespaceSync,
+			}
+
+			clustersCache.handleModEvent(&appv1.Cluster{
+				Server:     "https://mycluster",
+				Namespaces: tt.oldNamespaces,
+			}, &appv1.Cluster{
+				Server:     "https://mycluster",
+				Namespaces: tt.newNamespaces,
+			})
+
+			clusterCache.AssertExpectations(t)
+		})
+	}
+}
+
 func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
