@@ -3218,8 +3218,45 @@ func TestFetch(t *testing.T) {
 	gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
 	gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(true)
 
-	err := fetch(gitClient, []string{revision1, revision2})
+	err := fetch(gitClient, []string{revision1, revision2}, 0)
 	require.NoError(t, err)
+}
+
+func TestFetchWithDepth(t *testing.T) {
+	revision1 := "0123456789012345678901234567890123456789"
+	revision2 := "abcdefabcdefabcdefabcdefabcdefabcdefabcd"
+
+	t.Run("skips fetch when all revisions present", func(t *testing.T) {
+		gitClient := &gitmocks.Client{}
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
+		gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(true)
+
+		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("fetches only missing revisions with depth", func(t *testing.T) {
+		gitClient := &gitmocks.Client{}
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
+		gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(false)
+		// After the initial check finds a missing revision, the per-revision loop runs
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
+		gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(false)
+		gitClient.EXPECT().Fetch(revision2, int64(1)).Return(nil)
+
+		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("returns error on fetch failure", func(t *testing.T) {
+		gitClient := &gitmocks.Client{}
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(false)
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(false)
+		gitClient.EXPECT().Fetch(revision1, int64(1)).Return(errors.New("fetch failed"))
+
+		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		require.Error(t, err)
+	})
 }
 
 // TestFetchRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
@@ -3254,10 +3291,10 @@ func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = fetch(gitClient, []string{"does-not-exist"})
+	err = fetch(gitClient, []string{"does-not-exist"}, 0)
 	require.Error(t, err)
 
-	err = fetch(gitClient, []string{pullSha})
+	err = fetch(gitClient, []string{pullSha}, 0)
 	require.NoError(t, err)
 }
 
