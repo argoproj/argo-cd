@@ -12,7 +12,6 @@ import (
 	"os"
 	"reflect"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 	"text/template"
@@ -327,9 +326,13 @@ func getFilteredGeneratorTypes() map[string]bool {
 }
 
 func isMissingKeyError(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "map has no entry for key")
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "map has no entry for key") ||
+		strings.Contains(msg, "can't evaluate field")
 }
-
 func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.ApplicationSetGenerator, error) {
 	if gen == nil {
 		return nil, errors.New("generator is empty")
@@ -342,29 +345,25 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 	original := reflect.ValueOf(gen)
 	destination := reflect.New(original.Type()).Elem()
 
+	resolveOptions := goTemplateOptions
+	if useGoTemplate {
+		stripped := make([]string, 0, len(goTemplateOptions))
+		for _, opt := range goTemplateOptions {
+			if !strings.HasPrefix(opt, "missingkey=") {
+				stripped = append(stripped, opt)
+			}
+		}
+		resolveOptions = append(stripped, "missingkey=error")
+	}
+
 	filter := func(destination, original, parent reflect.Value, field reflect.StructField) (bool, error) {
 		if field.Name == "Values" && field.Type.String() == "map[string]string" && filteredGeneratorTypes[parent.Type().Name()] {
 			if !destination.CanSet() {
-				return false, fmt.Errorf("cannot copy %s.Values, this cannot happen", parent.Type().Name())
+				return true, fmt.Errorf("cannot copy %s.Values, this cannot happen", parent.Type().Name())
 			}
 
 			originalMap := original.Interface().(map[string]string)
 			resolvedMap := make(map[string]string, len(originalMap))
-
-			// To detect templates that reference the generator's own not-yet-produced output params (self-referential),
-			// the following code always resolve with missingkey=error, regardless of what the user specified.
-			// If resolution fails (key absent from params), the original template string is kept to be resolved after
-			// the generator's output params are available.
-			resolveOptions := slices.Clone(goTemplateOptions)
-			if useGoTemplate {
-				stripped := make([]string, 0, len(goTemplateOptions))
-				for _, opt := range goTemplateOptions {
-					if !strings.HasPrefix(opt, "missingkey=") {
-						stripped = append(stripped, opt)
-					}
-				}
-				resolveOptions = append(stripped, "missingkey=error")
-			}
 
 			for k, v := range originalMap {
 				resolved, err := r.Replace(v, params, useGoTemplate, resolveOptions)
@@ -373,16 +372,16 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 						resolvedMap[k] = v
 						continue
 					}
-					return false, fmt.Errorf("failed to pre-resolve Values key %q: %w", k, err)
+					return true, fmt.Errorf("failed to pre-resolve Values key %q: %w", k, err)
 				}
 				resolvedMap[k] = resolved
 			}
-
 			destination.Set(reflect.ValueOf(resolvedMap))
 			return true, nil
 		}
 		return false, nil
 	}
+
 	if err := r.deeplyReplaceWithFilter(destination, original, params, useGoTemplate, goTemplateOptions, filter); err != nil {
 		return nil, fmt.Errorf("failed to replace parameters in generator: %w", err)
 	}

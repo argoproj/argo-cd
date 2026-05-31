@@ -1531,7 +1531,7 @@ func TestRenderGeneratorParams_ValuesInterpolation(t *testing.T) {
 			},
 			goTemplateOptions: []string{"missingkey=error"},
 			useGoTemplate:     true,
-			expectErr:         "failed to replace parameters in generator: failed to parse template",
+			expectErr:         `failed to pre-resolve Values key "bad": failed to parse template`,
 		},
 		{
 			name:   "GoTemplate: sprig must* function error in Values surfaces an error",
@@ -1545,7 +1545,7 @@ func TestRenderGeneratorParams_ValuesInterpolation(t *testing.T) {
 			},
 			goTemplateOptions: []string{"missingkey=error"},
 			useGoTemplate:     true,
-			expectErr:         "failed to replace parameters in generator: failed to execute go template",
+			expectErr:         `failed to pre-resolve Values key "bad": failed to execute go template`,
 		},
 	}
 
