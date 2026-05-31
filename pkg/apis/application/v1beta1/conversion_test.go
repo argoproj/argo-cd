@@ -277,6 +277,47 @@ func TestConvertSyncOptions_AllFields(t *testing.T) {
 	assert.Contains(t, stringOpts, "ClientSideApplyMigration=true")
 }
 
+func TestConvertSyncOptions_ValidateTrueRoundTrip(t *testing.T) {
+	// Validate=true is explicitly emitted on round-trip — otherwise a
+	// v1alpha1 app with ["Validate=true"] would silently lose the option.
+	src := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			SyncPolicy: &v1alpha1.SyncPolicy{
+				SyncOptions: v1alpha1.SyncOptions{"Validate=true"},
+			},
+		},
+	}
+
+	dst := ConvertFromV1alpha1(src)
+	require.NotNil(t, dst.Spec.SyncPolicy)
+	require.NotNil(t, dst.Spec.SyncPolicy.SyncOptions)
+	require.NotNil(t, dst.Spec.SyncPolicy.SyncOptions.Validate)
+	assert.True(t, *dst.Spec.SyncPolicy.SyncOptions.Validate)
+
+	roundTripped := ConvertToV1alpha1(dst)
+	require.NotNil(t, roundTripped.Spec.SyncPolicy)
+	assert.Contains(t, roundTripped.Spec.SyncPolicy.SyncOptions, "Validate=true")
+}
+
+func TestConvertDoesNotAliasInput(t *testing.T) {
+	// Mutating the converted v1alpha1 result must not mutate the v1beta1 input
+	// (previously dst.Source aliased src.Sources[0]).
+	src := &Application{
+		Spec: ApplicationSpec{
+			Sources: ApplicationSources{
+				{RepoURL: "https://original.example.com/repo", Path: "manifests"},
+			},
+		},
+	}
+
+	dst := ConvertToV1alpha1(src)
+	require.NotNil(t, dst.Spec.Source)
+	dst.Spec.Source.RepoURL = "https://mutated.example.com/repo"
+
+	assert.Equal(t, "https://original.example.com/repo", src.Spec.Sources[0].RepoURL,
+		"input v1beta1 source must not be mutated through the converted v1alpha1 result")
+}
+
 func TestConvertToV1alpha1_BasicApplication(t *testing.T) {
 	src := &Application{
 		TypeMeta: metav1.TypeMeta{
@@ -392,7 +433,7 @@ func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 					"ServerSideApply=true",
 				},
 			},
-			RevisionHistoryLimit: ptr(int64(10)),
+			RevisionHistoryLimit: new(int64(10)),
 			IgnoreDifferences: v1alpha1.IgnoreDifferences{
 				{
 					Group: "apps",
@@ -470,7 +511,7 @@ func TestConvertRoundTrip_V1beta1ToV1alpha1ToV1beta1(t *testing.T) {
 					SelfHeal: new(true),
 				},
 				SyncOptions: &SyncOptions{
-					CreateNamespace: ptr(true),
+					CreateNamespace: new(true),
 				},
 			},
 		},

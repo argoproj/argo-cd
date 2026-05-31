@@ -10,6 +10,9 @@ import (
 // ConvertFromV1alpha1 converts a v1alpha1.Application to a v1beta1.Application.
 // This is used by the conversion webhook when serving v1beta1 API requests.
 func ConvertFromV1alpha1(src *v1alpha1.Application) *Application {
+	// Deep-copy up front so the returned v1beta1 object never shares
+	// slices, maps, or pointers with the caller-owned src.
+	src = src.DeepCopy()
 	dst := &Application{
 		TypeMeta:   src.TypeMeta,
 		ObjectMeta: src.ObjectMeta,
@@ -87,84 +90,83 @@ func convertSyncOptionsFromStrings(opts v1alpha1.SyncOptions) *SyncOptions {
 		switch opt {
 		// Validate
 		case "Validate=true":
-			dst.Validate = ptr(true)
+			dst.Validate = new(true)
 		case "Validate=false":
-			dst.Validate = ptr(false)
+			dst.Validate = new(false)
 
 		// CreateNamespace
 		case "CreateNamespace=true":
-			dst.CreateNamespace = ptr(true)
+			dst.CreateNamespace = new(true)
 
 		// PruneLast
 		case "PruneLast=true":
-			dst.PruneLast = ptr(true)
+			dst.PruneLast = new(true)
 
 		// Replace
 		case "Replace=true":
-			dst.Replace = ptr(true)
+			dst.Replace = new(true)
 		case "Replace=false":
-			dst.Replace = ptr(false)
+			dst.Replace = new(false)
 
 		// Force
 		case "Force=true":
-			dst.Force = ptr(true)
+			dst.Force = new(true)
 
 		// ServerSideApply
 		case "ServerSideApply=true":
-			dst.ServerSideApply = ptr(true)
+			dst.ServerSideApply = new(true)
 		case "ServerSideApply=false":
-			dst.ServerSideApply = ptr(false)
+			dst.ServerSideApply = new(false)
 
 		// ApplyOutOfSyncOnly
 		case "ApplyOutOfSyncOnly=true":
-			dst.ApplyOutOfSyncOnly = ptr(true)
+			dst.ApplyOutOfSyncOnly = new(true)
 		case "ApplyOutOfSyncOnly=false":
-			dst.ApplyOutOfSyncOnly = ptr(false)
+			dst.ApplyOutOfSyncOnly = new(false)
 
 		// SkipDryRunOnMissingResource
 		case "SkipDryRunOnMissingResource=true":
-			dst.SkipDryRunOnMissingResource = ptr(true)
+			dst.SkipDryRunOnMissingResource = new(true)
 
 		// RespectIgnoreDifferences
 		case "RespectIgnoreDifferences=true":
-			dst.RespectIgnoreDifferences = ptr(true)
+			dst.RespectIgnoreDifferences = new(true)
 
 		// FailOnSharedResource
 		case "FailOnSharedResource=true":
-			dst.FailOnSharedResource = ptr(true)
+			dst.FailOnSharedResource = new(true)
 
 		// ClientSideApplyMigration
 		case "ClientSideApplyMigration=true":
-			dst.ClientSideApplyMigration = ptr(true)
+			dst.ClientSideApplyMigration = new(true)
 		case "ClientSideApplyMigration=false":
-			dst.ClientSideApplyMigration = ptr(false)
+			dst.ClientSideApplyMigration = new(false)
 
 		// Prune options
 		case "Prune=false":
-			dst.Prune = ptr(SyncOptionDisabled)
+			dst.Prune = new(SyncOptionDisabled)
 		case "Prune=confirm":
-			dst.Prune = ptr(SyncOptionConfirm)
+			dst.Prune = new(SyncOptionConfirm)
 
 		// Delete options
 		case "Delete=false":
-			dst.Delete = ptr(SyncOptionDisabled)
+			dst.Delete = new(SyncOptionDisabled)
 		case "Delete=confirm":
-			dst.Delete = ptr(SyncOptionConfirm)
+			dst.Delete = new(SyncOptionConfirm)
 
 		// PrunePropagationPolicy
 		case "PrunePropagationPolicy=background":
-			dst.PrunePropagationPolicy = ptr(PrunePropagationPolicyBackground)
+			dst.PrunePropagationPolicy = new(PrunePropagationPolicyBackground)
 		case "PrunePropagationPolicy=foreground":
-			dst.PrunePropagationPolicy = ptr(PrunePropagationPolicyForeground)
+			dst.PrunePropagationPolicy = new(PrunePropagationPolicyForeground)
 		case "PrunePropagationPolicy=orphan":
-			dst.PrunePropagationPolicy = ptr(PrunePropagationPolicyOrphan)
+			dst.PrunePropagationPolicy = new(PrunePropagationPolicyOrphan)
 
 		default:
 			// Handle any unrecognized options by checking if they match known patterns
 			if after, ok := strings.CutPrefix(opt, "PrunePropagationPolicy="); ok {
 				val := after
-				policy := PrunePropagationPolicy(val)
-				dst.PrunePropagationPolicy = &policy
+				dst.PrunePropagationPolicy = new(PrunePropagationPolicy(val))
 			}
 		}
 	}
@@ -175,6 +177,10 @@ func convertSyncOptionsFromStrings(opts v1alpha1.SyncOptions) *SyncOptions {
 // ConvertToV1alpha1 converts a v1beta1.Application to a v1alpha1.Application.
 // This is used by the conversion webhook when storing objects (v1alpha1 is the storage version).
 func ConvertToV1alpha1(src *Application) *v1alpha1.Application {
+	// Deep-copy up front so the returned v1alpha1 object never shares
+	// slices, maps, or pointers (e.g. dst.Source backing dst.Sources[0])
+	// with the caller-owned src.
+	src = src.DeepCopy()
 	dst := &v1alpha1.Application{
 		TypeMeta:   src.TypeMeta,
 		ObjectMeta: src.ObjectMeta,
@@ -248,8 +254,7 @@ func convertSyncOptionsToStrings(opts *SyncOptions) v1alpha1.SyncOptions {
 	// Validate
 	if opts.Validate != nil {
 		if *opts.Validate {
-			// Validate=true is usually not explicitly set (it's the default)
-			// but we include it for completeness if explicitly set
+			result = append(result, "Validate=true")
 		} else {
 			result = append(result, "Validate=false")
 		}
@@ -333,9 +338,4 @@ func convertSyncOptionsToStrings(opts *SyncOptions) v1alpha1.SyncOptions {
 	}
 
 	return result
-}
-
-// TODO: In Go 1.26 replace with new
-func ptr[T any](d T) *T {
-	return &d
 }

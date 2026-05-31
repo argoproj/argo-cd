@@ -1,6 +1,7 @@
 package conversion
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -55,10 +56,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	response := h.convert(review.Request)
 	review.Response = response
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(review); err != nil {
+	// Encode into a buffer first so that an encode failure can return a clean
+	// 500 instead of corrupting an already-started 200 response body.
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(review); err != nil {
 		log.WithError(err).Error("Failed to encode ConversionReview response")
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		log.WithError(err).Error("Failed to write ConversionReview response")
 	}
 }
 
