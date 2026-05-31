@@ -277,10 +277,29 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 
 		// Check if the desired Application spec differs from the current Application spec
 		specChanged := false
+		statusSyncIsActual := false
 		if desiredApp, ok := desiredAppsMap[app.Name]; ok {
 			// Compare the desired spec with the current spec to detect non-Git changes
 			// This will catch changes to generator parameters like image tags, helm values, etc.
 			specChanged = !cmp.Equal(desiredApp.Spec, app.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{}))
+
+			// Compare desired sources with status.sync.comparedTo.sources to ensure
+			// the Application controller has updated the sync status for the latest sources.
+			if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaitingSyncStatus {
+				statusSyncIsActual = cmp.Equal(desiredApp.Spec.GetSources(), app.Status.GetSourcesSyncStatus(), cmpopts.EquateEmpty())
+			}
+		}
+
+		// Wait for the application controller to report the desired sources in sync status
+		// before allowing the Progressive Sync to continue.
+		if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaitingSyncStatus {
+			if statusSyncIsActual {
+				newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
+				newAppStatus.LastTransitionTime = &now
+			} else {
+				logCtx.Printf("skip change status to waiting because sources in status and in desired manifest not equal")
+				newAppStatus.LastTransitionTime = &now
+			}
 		}
 
 		if revisionsChanged || specChanged {
@@ -294,7 +313,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			default:
 				newAppStatus.Message = specChangedMsg
 			}
-			newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
+			newAppStatus.Status = argov1alpha1.ProgressiveSyncWaitingSyncStatus
 			newAppStatus.LastTransitionTime = &now
 		}
 
