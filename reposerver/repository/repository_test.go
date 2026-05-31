@@ -5396,6 +5396,39 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	assert.Equal(t, resolvedRevision, resp3.Revision)
 }
 
+func TestGenManifestCacheKeysForUpdateRevision_SourceIntegrity(t *testing.T) {
+	revision := "HEAD"
+
+	request := &apiclient.UpdateRevisionForPathsRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          revision,
+		SyncedRevision:    "1e67a504d03def3a6a1125d934cb511680f72555",
+		Paths:             []string{"."},
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "test-persist-revision",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
+		SourceIntegrity:   sourceIntegrityReqStrict,
+	}
+
+	manifestRequest := &apiclient.ManifestRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          revision,
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "test-persist-revision",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
+		SourceIntegrity:   sourceIntegrityReqStrict,
+	}
+
+	assert.Equal(t,
+		getManifestCacheKey(revision, request.ApplicationSource, manifestRequest, nil).String(),
+		getManifestCacheKeyFromUpdateRevisionRequest(request, revision, nil).String(),
+	)
+}
+
 func Test_getRepoSanitizerRegex(t *testing.T) {
 	r := getRepoSanitizerRegex("/tmp/_argocd-repo")
 	msg := r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE and other stuff", "<path to cached source>")

@@ -3553,6 +3553,7 @@ func getManifestCacheKeyFromUpdateRevisionRequest(request *apiclient.UpdateRevis
 		AppName:             request.AppName,
 		RefSourceCommitSHAs: refSourceCommitSHAs,
 		InstallationID:      request.InstallationID,
+		SourceIntegrity:     request.SourceIntegrity,
 	}
 }
 
