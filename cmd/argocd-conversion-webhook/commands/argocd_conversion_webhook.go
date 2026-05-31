@@ -87,15 +87,20 @@ func NewCommand() *cobra.Command {
 				}
 			}
 
-			// Inject CA bundle into CRD
+			// Inject CA bundle into the CRD BEFORE the server starts listening.
+			// Until this completes, the CRD's caBundle does not match the cert
+			// we'll serve with, so any conversion request kube-apiserver routes
+			// to us would fail x509 verification. Bounding pod-ready on a
+			// successful inject (the server is what /readyz responds on, and
+			// it does not bind its port until after this returns) eliminates
+			// that startup window. On failure we still proceed in case the
+			// caBundle was provisioned externally (cert-manager, manual setup).
 			if restConfig != nil && cert != nil {
-				go func() {
-					// Give the server a moment to start
-					time.Sleep(2 * time.Second)
-					if err := conversion.InjectCABundle(ctx, restConfig, cert); err != nil {
-						log.Errorf("Failed to inject CA bundle into Application CRD: %v", err)
-					}
-				}()
+				injectCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				if err := conversion.InjectCABundle(injectCtx, restConfig, cert); err != nil {
+					log.Warnf("Failed to inject CA bundle into Application CRD (continuing — assume external injection): %v", err)
+				}
+				cancel()
 			}
 
 			// Set up HTTP server with conversion handler
