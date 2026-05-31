@@ -361,7 +361,10 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 			if !destination.CanSet() {
 				return true, fmt.Errorf("cannot copy %s.Values, this cannot happen", parent.Type().Name())
 			}
-
+			if original.IsNil() {
+				destination.Set(original)
+				return true, nil
+			}
 			originalMap := original.Interface().(map[string]string)
 			resolvedMap := make(map[string]string, len(originalMap))
 
