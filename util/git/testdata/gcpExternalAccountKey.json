@@ -1,0 +1,10 @@
+{
+  "type": "external_account",
+  "audience": "identitynamespace:my-project.svc.id.goog:/apis/iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/my-pool/providers/my-provider",
+  "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+  "token_url": "https://sts.googleapis.com/v1/token",
+  "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/sa@my-project.iam.gserviceaccount.com:generateAccessToken",
+  "credential_source": {
+    "file": "/var/run/secrets/tokens/gcp-ksa/token"
+  }
+}

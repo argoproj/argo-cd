@@ -1017,10 +1017,11 @@ func TestGetUserInfo(t *testing.T) {
 			expectEncrypted bool
 			expectError     bool
 		}
-		idpHandler func(w http.ResponseWriter, r *http.Request)
-		idpClaims  jwt.MapClaims // as per specification sub and exp are REQUIRED fields
-		cache      cache.CacheClient
-		cacheItems []struct { // items to put in cache before execution
+		idpHandler         func(w http.ResponseWriter, r *http.Request)
+		idpHandlerUserInfo func(w http.ResponseWriter, r *http.Request) // same as idpHandler but listening on userInfoBaseURL instead of issuerURL
+		idpClaims          jwt.MapClaims                                // as per specification sub and exp are REQUIRED fields
+		cache              cache.CacheClient
+		cacheItems         []struct { // items to put in cache before execution
 			key     string
 			value   string
 			encrypt bool
@@ -1215,10 +1216,76 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:                  "call UserInfo on separate endpoint",
+			userInfoPath:          "/user-info",
+			expectedOutput:        jwt.MapClaims{"groups": []any{"githubOrg:developers"}}, // response from separate idpHandlerUserInfo expected
+			expectError:           false,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:             FormatUserInfoResponseCacheKey("randomUser"),
+					value:           "{\"groups\":[\"githubOrg:developers\"]}",
+					expectEncrypted: true,
+					expectError:     false,
+				},
+			},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
+				userInfoBytes := `
+				{
+					"groups":["githubOrg:engineers"]
+				}`
+				w.Header().Set("content-type", "application/json")
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			},
+			idpHandlerUserInfo: func(w http.ResponseWriter, _ *http.Request) {
+				userInfoBytes := `
+				{
+					"groups":["githubOrg:developers"]
+				}`
+				w.Header().Set("content-type", "application/json")
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     FormatAccessTokenCacheKey("randomUser"),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var tsUserInfo *httptest.Server
+			if tt.idpHandlerUserInfo != nil {
+				tsUserInfo = httptest.NewServer(http.HandlerFunc(tt.idpHandlerUserInfo))
+			} else {
+				tsUserInfo = httptest.NewServer(http.HandlerFunc(tt.idpHandler))
+			}
+
 			ts := httptest.NewServer(http.HandlerFunc(tt.idpHandler))
 			defer ts.Close()
 
@@ -1243,7 +1310,7 @@ func TestGetUserInfo(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			got, unauthenticated, err := a.GetUserInfo(t.Context(), tt.idpClaims, ts.URL, tt.userInfoPath)
+			got, unauthenticated, err := a.GetUserInfo(t.Context(), tt.idpClaims, ts.URL, tsUserInfo.URL, tt.userInfoPath)
 			assert.Equal(t, tt.expectedOutput, got)
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {

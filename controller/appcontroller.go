@@ -1979,6 +1979,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
 		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
+		"destinationRepoURL":   hydrationKey.DestinationRepoURL,
 		"destinationBranch":    hydrationKey.DestinationBranch,
 	})
 
@@ -2171,6 +2172,45 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	}()
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
+		if apierrors.IsRequestEntityTooLargeError(err) {
+			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
+			fallbackStatus := orig.Status.DeepCopy()
+			fallbackStatus.SetConditions([]appv1.ApplicationCondition{
+				{
+					Type:    appv1.ApplicationConditionUnknownError,
+					Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
+				},
+			},
+				map[appv1.ApplicationConditionType]bool{
+					appv1.ApplicationConditionUnknownError: true,
+				})
+
+			fallbackPatch, modified, mpErr := createMergePatch(
+				&appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: orig.GetAnnotations(),
+					},
+					Status: orig.Status,
+				},
+				&appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: newAnnotations,
+					},
+					Status: *fallbackStatus,
+				},
+			)
+			if mpErr != nil {
+				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
+				return patchDuration
+			}
+			if !modified {
+				return patchDuration
+			}
+			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
+				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			}
+			return patchDuration
+		}
 		logCtx.WithError(err).Warn("Error updating application")
 	} else {
 		logCtx.Infof("Update successful")
@@ -2479,7 +2519,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		cache.Indexers{
 			cache.NamespaceIndex: func(obj any) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
-				if ok {
+				if ok && ctrl.projInformer.HasSynced() {
 					// We only generally work with applications that are in one
 					// the allowed namespaces.
 					if ctrl.isAppNamespaceAllowed(app) {
@@ -2502,6 +2542,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 
 				if !ctrl.isAppNamespaceAllowed(app) {
+					return nil, nil
+				}
+
+				if !ctrl.projInformer.HasSynced() {
 					return nil, nil
 				}
 

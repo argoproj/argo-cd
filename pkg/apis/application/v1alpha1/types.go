@@ -253,14 +253,19 @@ func (spec *ApplicationSpec) GetSource() ApplicationSource {
 }
 
 // GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+// HydrateTo only specifies a different branch; it inherits repo and path from syncSource.
 func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 	if spec.SourceHydrator != nil {
 		targetRevision := spec.SourceHydrator.SyncSource.TargetBranch
+		repoURL := spec.SourceHydrator.SyncSource.RepoURL
+		if repoURL == "" {
+			repoURL = spec.SourceHydrator.DrySource.RepoURL
+		}
 		if spec.SourceHydrator.HydrateTo != nil {
 			targetRevision = spec.SourceHydrator.HydrateTo.TargetBranch
 		}
 		return ApplicationSource{
-			RepoURL:        spec.SourceHydrator.DrySource.RepoURL,
+			RepoURL:        repoURL,
 			Path:           spec.SourceHydrator.SyncSource.Path,
 			TargetRevision: targetRevision,
 		}
@@ -427,9 +432,12 @@ type SourceHydrator struct {
 
 // GetSyncSource gets the source from which we should sync when a source hydrator is configured.
 func (s SourceHydrator) GetSyncSource() ApplicationSource {
+	repoURL := s.SyncSource.RepoURL
+	if repoURL == "" {
+		repoURL = s.DrySource.RepoURL
+	}
 	return ApplicationSource{
-		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
-		RepoURL:        s.DrySource.RepoURL,
+		RepoURL:        repoURL,
 		Path:           s.SyncSource.Path,
 		TargetRevision: s.SyncSource.TargetBranch,
 	}
@@ -485,8 +493,8 @@ func (in DrySource) Equals(other DrySource) bool {
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
-// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
-// associated DrySource config in the SourceHydrator.
+// SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
+// to be the same as the associated DrySource config in the SourceHydrator.
 type SyncSource struct {
 	// TargetBranch is the branch from which hydrated manifests will be synced.
 	// If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
@@ -499,10 +507,13 @@ type SyncSource struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
 	Path string `json:"path" protobuf:"bytes,2,name=path"`
+	// RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+	// the DrySource.RepoURL.
+	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,3,opt,name=repoURL"`
 }
 
-// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
-// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+// HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The repository and path are inherited from SyncSource.
 type HydrateTo struct {
 	// TargetBranch is the branch to which hydrated manifests should be committed
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
@@ -547,6 +558,7 @@ type RefTarget struct {
 type RefTargetRevisionMapping map[string]*RefTarget
 
 // ApplicationSourceHelm holds helm specific options
+// +protobuf.options.(gogoproto.goproto_stringer)=false
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
@@ -2469,6 +2481,21 @@ type ExecProviderConfig struct {
 
 	// This text is shown to the user when the executable doesn't seem to be present
 	InstallHint string `json:"installHint,omitempty" protobuf:"bytes,5,opt,name=installHint"`
+
+	// ProvideClusterInfo determines whether or not to provide cluster information,
+	// which could potentially contain very large CA data, to this exec plugin as a
+	// part of the KUBERNETES_EXEC_INFO environment variable.
+	// Comment mirrored from k8s.io/client-go/tools/clientcmd/api.ExecConfig.ProvideClusterInfo
+	ProvideClusterInfo bool `json:"provideClusterInfo,omitempty" protobuf:"bytes,6,opt,name=provideClusterInfo"`
+
+	// Config holds cluster-specific configuration data that will be passed to the exec plugin
+	// via ExecCredential.Spec.Cluster.Config. This is typically used to pass information like
+	// the cluster name to credential plugins that need it for multi-cluster authentication.
+	//
+	// This data is sourced from the kubeconfig cluster's extensions field with the reserved key
+	// "client.authentication.k8s.io/exec", as defined by the Kubernetes client authentication API.
+	// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+	Config *runtime.RawExtension `json:"config,omitempty" protobuf:"bytes,7,opt,name=config"`
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -3982,17 +4009,28 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					})
 				}
 			}
+			execConfig := &api.ExecConfig{
+				APIVersion:         c.Config.ExecProviderConfig.APIVersion,
+				Command:            c.Config.ExecProviderConfig.Command,
+				Args:               c.Config.ExecProviderConfig.Args,
+				Env:                env,
+				InstallHint:        c.Config.ExecProviderConfig.InstallHint,
+				ProvideClusterInfo: c.Config.ExecProviderConfig.ProvideClusterInfo,
+				InteractiveMode:    api.NeverExecInteractiveMode,
+			}
+			// If Config is set, pass cluster-specific data (like clusterName) to the exec plugin.
+			// This data flows through to ExecCredential.Spec.Cluster.Config when ProvideClusterInfo is true.
+			// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+			if c.Config.ExecProviderConfig.Config != nil && len(c.Config.ExecProviderConfig.Config.Raw) > 0 {
+				execConfig.Config = &runtime.Unknown{
+					Raw:         c.Config.ExecProviderConfig.Config.Raw,
+					ContentType: runtime.ContentTypeJSON,
+				}
+			}
 			config = &rest.Config{
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
-				ExecProvider: &api.ExecConfig{
-					APIVersion:      c.Config.ExecProviderConfig.APIVersion,
-					Command:         c.Config.ExecProviderConfig.Command,
-					Args:            c.Config.ExecProviderConfig.Args,
-					Env:             env,
-					InstallHint:     c.Config.ExecProviderConfig.InstallHint,
-					InteractiveMode: api.NeverExecInteractiveMode,
-				},
+				ExecProvider:    execConfig,
 			}
 		default:
 			config = &rest.Config{
