@@ -333,6 +333,7 @@ func isMissingKeyError(err error) bool {
 	return strings.Contains(msg, "map has no entry for key") ||
 		strings.Contains(msg, "can't evaluate field")
 }
+
 func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.ApplicationSetGenerator, error) {
 	if gen == nil {
 		return nil, errors.New("generator is empty")
