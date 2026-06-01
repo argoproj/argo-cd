@@ -132,7 +132,6 @@ func AddOCIRepo(t *testing.T, name, imagePath string) {
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
-
 func AddAuthenticatedOCIRepo(t *testing.T, name, imagePath string) {
 	t.Helper()
 	args := []string{
