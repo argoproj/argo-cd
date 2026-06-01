@@ -12,6 +12,7 @@ import * as AppUtils from '../../../applications/components/utils';
 import {getManagingApplicationUrl, openResourceDetails} from '../utils';
 import '../../../applications/components/application-details/application-resource-list.scss';
 import './resources-table.scss';
+import {TruncatedTextTooltip, useTruncatedElement} from './truncated-text-tooltip';
 
 type SortKey = 'name' | 'group-kind' | 'namespace' | 'cluster' | 'application' | 'status';
 
@@ -166,8 +167,12 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                             className='columns resources-table__col-application resources-table__head-col'
                                             onClick={() => handleSort('application')}
                                             style={{cursor: 'pointer'}}
-                                            title='APPLICATION'>
-                                            <span className='resources-table__head-text'>APPLICATION {getSortArrow('application')}</span>
+                                            title='Application (opens application page)'>
+                                            <span className='resources-table__head-text resources-table__head-text--application'>
+                                                <span className='resources-table__head-label'>APPLICATION</span>
+                                                <i className='fa fa-external-link-alt resources-table__head-external-icon' aria-hidden={true} />
+                                                {getSortArrow('application')}
+                                            </span>
                                         </div>
                                         <div
                                             className='columns resources-table__status-col resources-table__head-col'
@@ -181,9 +186,40 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                 {sortedResources.map((resource, i) => {
                                     const groupKind = [resource.group, resource.kind].filter(Boolean).join('/');
                                     return (
-                                        <div
+                                        <ResourceTableRow
                                             key={`${resource.appProject}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.kind}/${resource.group}/${resource.version}`}
-                                            className={classNames('argo-table-list__row', {
+                                            resource={resource}
+                                            groupKind={groupKind}
+                                            index={i}
+                                            selectedResource={selectedResource}
+                                            ctx={ctx}
+                                            openDetails={openDetails}
+                                            navigateToApplication={navigateToApplication}
+                                        />
+                                    );
+                                })}
+                            </div>
+                </div>
+            )}
+        </Consumer>
+    );
+};
+
+const ResourceTableRow = (props: {
+    resource: models.Resource;
+    groupKind: string;
+    index: number;
+    selectedResource: number;
+    ctx: ContextApis;
+    openDetails: (ctx: ContextApis, resource: models.Resource) => void;
+    navigateToApplication: (ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) => void;
+}) => {
+    const {resource, groupKind, index: i, selectedResource, ctx, openDetails, navigateToApplication} = props;
+    const appLinkTruncation = useTruncatedElement<HTMLButtonElement>(resource.appName ?? '');
+
+    return (
+        <div
+            className={classNames('argo-table-list__row', {
                                                 'application-resource-tree__node--orphaned': resource.orphaned,
                                                 'resources-table__row--selected': selectedResource === i
                                             })}
@@ -196,30 +232,25 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                                     </div>
                                                 </div>
                                                 <div className='columns resources-table__col-group-kind'>
-                                                    <Tooltip content={groupKind}>
-                                                        <span className='application-details__item_text'>{groupKind}</span>
-                                                    </Tooltip>
+                                                    <TruncatedTextTooltip content={groupKind} className='application-details__item_text resources-table__tooltip-anchor' />
                                                 </div>
                                                 <div className='columns resources-table__col-namespace'>
-                                                    <Tooltip content={resource.namespace} enabled={!!resource.namespace}>
-                                                        <span className='resources-table__tooltip-anchor'>{resource.namespace}</span>
-                                                    </Tooltip>
+                                                    <TruncatedTextTooltip content={resource.namespace} className='resources-table__tooltip-anchor' />
                                                 </div>
                                                 <div className='columns resources-table__col-name application-details__item'>
-                                                    <Tooltip content={resource.name} enabled={!!resource.name}>
-                                                        <span className='application-details__item_text'>{resource.name}</span>
-                                                    </Tooltip>
+                                                    <TruncatedTextTooltip content={resource.name} className='application-details__item_text resources-table__tooltip-anchor' />
                                                 </div>
                                                 <div className='columns resources-table__col-cluster'>
-                                                    <Tooltip content={resource.clusterServer} enabled={!!resource.clusterServer}>
-                                                        <span className='resources-table__cell-text'>
-                                                            <Cluster server={resource.clusterServer} name={resource.clusterName} />
-                                                        </span>
-                                                    </Tooltip>
+                                                    <TruncatedTextTooltip
+                                                        content={resource.clusterName || resource.clusterServer || ''}
+                                                        className='resources-table__cell-text resources-table__tooltip-anchor'>
+                                                        <Cluster server={resource.clusterServer} name={resource.clusterName} />
+                                                    </TruncatedTextTooltip>
                                                 </div>
                                                 <div className='columns resources-table__col-application' onClick={e => e.stopPropagation()}>
-                                                    <Tooltip content={resource.appName} enabled={!!resource.appName}>
+                                                    <Tooltip content={resource.appName} enabled={!!resource.appName && appLinkTruncation.isTruncated}>
                                                         <button
+                                                            ref={appLinkTruncation.ref}
                                                             type='button'
                                                             className='resources-table__application-link'
                                                             onClick={e => navigateToApplication(ctx, resource, e)}>
@@ -283,13 +314,7 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                                         </ul>
                                                     )}
                                                 </DropDown>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                </div>
-            )}
-        </Consumer>
+            </div>
+        </div>
     );
 };

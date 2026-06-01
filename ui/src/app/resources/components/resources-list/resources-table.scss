@@ -89,9 +89,35 @@ $resources-table-grid-columns: $resources-table-icon-col-width minmax(4.5rem, 1f
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
+        .resources-table__head-text--application {
+            display: inline-flex;
+            align-items: center;
+            max-width: 100%;
+            gap: 0.4em;
+
+            .resources-table__head-label {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                min-width: 0;
+            }
+
+            .resources-table__head-external-icon,
+            > span {
+                flex-shrink: 0;
+            }
+        }
     }
 
-    .resources-table__tooltip-anchor {
+    .resources-table__head-external-icon {
+        font-size: 0.85em;
+        opacity: 0.75;
+    }
+
+    .resources-table__tooltip-anchor,
+    .application-details__item_text.resources-table__tooltip-anchor,
+    .resources-table__cell-text.resources-table__tooltip-anchor {
         display: inline-block;
         width: fit-content;
         max-width: 100%;
