@@ -57,6 +57,7 @@ func TestRegistryLogin(t *testing.T) {
 		name        string
 		repo        string
 		creds       *HelmCreds
+		plainHTTP   bool
 		execErr     error
 		expectedErr error
 		expectedOut string
@@ -114,6 +115,20 @@ func TestRegistryLogin(t *testing.T) {
 			},
 			expectedOut: "helm registry login my.registry.com:5000 --username u --password p --ca-file /ca --insecure",
 		},
+		{
+			name:        "plain-http",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{Username: "user", Password: "pass"},
+			plainHTTP:   true,
+			expectedOut: "helm registry login my.registry.com --plain-http --username user --password pass",
+		},
+		{
+			name:        "insecure and plain-http both set",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{InsecureSkipVerify: true},
+			plainHTTP:   true,
+			expectedOut: "helm registry login my.registry.com --plain-http --insecure",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -124,7 +139,7 @@ func TestRegistryLogin(t *testing.T) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
-			out, err := c.RegistryLogin(tc.repo, tc.creds)
+			out, err := c.RegistryLogin(tc.repo, tc.creds, tc.plainHTTP)
 			assert.Equal(t, tc.expectedOut, out)
 			if tc.expectedErr != nil {
 				require.EqualError(t, err, tc.expectedErr.Error())
@@ -135,21 +150,36 @@ func TestRegistryLogin(t *testing.T) {
 	}
 }
 
-func TestDependencyBuild(t *testing.T) {
+func TestPullOCI(t *testing.T) {
 	tests := []struct {
 		name        string
-		insecure    bool
+		creds       HelmCreds
+		plainHTTP   bool
 		expectedOut string
 	}{
 		{
-			name:        "without insecure",
-			insecure:    false,
-			expectedOut: "helm dependency build",
+			name:        "without flags",
+			creds:       HelmCreds{},
+			plainHTTP:   false,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest",
 		},
 		{
-			name:        "with insecure",
-			insecure:    true,
-			expectedOut: "helm dependency build --insecure-skip-tls-verify",
+			name:        "insecure skip verify",
+			creds:       HelmCreds{InsecureSkipVerify: true},
+			plainHTTP:   false,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --insecure-skip-tls-verify",
+		},
+		{
+			name:        "plain-http",
+			creds:       HelmCreds{},
+			plainHTTP:   true,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --plain-http",
+		},
+		{
+			name:        "insecure and plain-http both set",
+			creds:       HelmCreds{InsecureSkipVerify: true},
+			plainHTTP:   true,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --insecure-skip-tls-verify --plain-http",
 		},
 	}
 	for _, tc := range tests {
@@ -158,7 +188,52 @@ func TestDependencyBuild(t *testing.T) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
-			out, err := c.dependencyBuild(tc.insecure)
+			out, err := c.PullOCI("my.registry.com/myrepo", "mychart", "1.0.0", "/tmp/dest", &tc.creds, tc.plainHTTP)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedOut, out)
+		})
+	}
+}
+
+func TestDependencyBuild(t *testing.T) {
+	tests := []struct {
+		name        string
+		insecure    bool
+		plainHTTP   bool
+		expectedOut string
+	}{
+		{
+			name:        "without flags",
+			insecure:    false,
+			plainHTTP:   false,
+			expectedOut: "helm dependency build",
+		},
+		{
+			name:        "with insecure",
+			insecure:    true,
+			plainHTTP:   false,
+			expectedOut: "helm dependency build --insecure-skip-tls-verify",
+		},
+		{
+			name:        "with plain-http",
+			insecure:    false,
+			plainHTTP:   true,
+			expectedOut: "helm dependency build --plain-http",
+		},
+		{
+			name:        "with insecure and plain-http both set",
+			insecure:    true,
+			plainHTTP:   true,
+			expectedOut: "helm dependency build --insecure-skip-tls-verify --plain-http",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				return strings.Join(cmd.Args, " "), nil
+			})
+			require.NoError(t, err)
+			out, err := c.dependencyBuild(tc.insecure, tc.plainHTTP)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedOut, out)
 		})

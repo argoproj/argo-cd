@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -25,7 +26,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false, false)
+	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
@@ -58,7 +59,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false, false)
+	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -84,7 +85,7 @@ func TestHelmGetParams(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
@@ -97,7 +98,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -112,7 +113,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
 	require.NoError(t, err)
@@ -126,7 +127,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
@@ -144,7 +145,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	require.NoError(t, err)
@@ -206,7 +207,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
-	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false, false)
+	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{})
@@ -221,7 +222,7 @@ func TestAPIVersions(t *testing.T) {
 }
 
 func TestKubeVersionWithSymbol(t *testing.T) {
-	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{KubeVersion: "1.30.11+IKS"})
@@ -244,7 +245,7 @@ func TestKubeVersionWithSymbol(t *testing.T) {
 }
 
 func TestSkipCrds(t *testing.T) {
-	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false, false)
+	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipCrds: false})
@@ -261,7 +262,7 @@ func TestSkipCrds(t *testing.T) {
 }
 
 func TestSkipTests(t *testing.T) {
-	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipTests: false})
@@ -275,4 +276,71 @@ func TestSkipTests(t *testing.T) {
 	objs, err = template(h, &TemplateOpts{SkipTests: true})
 	require.NoError(t, err)
 	require.Empty(t, objs)
+}
+
+func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
+	tests := []struct {
+		name             string
+		mainPlainHTTP    bool
+		depInsecureHTTP  bool
+		expectPlainHTTP  bool
+	}{
+		{
+			name:            "neither main nor dep plain-http",
+			mainPlainHTTP:   false,
+			depInsecureHTTP: false,
+			expectPlainHTTP: false,
+		},
+		{
+			name:            "main repo is plain-http, dep is https",
+			mainPlainHTTP:   true,
+			depInsecureHTTP: false,
+			expectPlainHTTP: false,
+		},
+		{
+			name:            "dep repo plain-http set, main is https",
+			mainPlainHTTP:   false,
+			depInsecureHTTP: true,
+			expectPlainHTTP: true,
+		},
+		{
+			name:            "both set",
+			mainPlainHTTP:   true,
+			depInsecureHTTP: true,
+			expectPlainHTTP: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedArgs []string
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+				capturedArgs = cmd.Args
+				return "", nil
+			})
+			require.NoError(t, err)
+
+			h := &helm{
+				cmd: *c,
+				repos: []HelmRepository{{
+					Repo:                 "oci://localhost:5000/myrepo",
+					EnableOci:            true,
+					InsecureOCIForceHttp: tc.depInsecureHTTP,
+					Creds:                HelmCreds{},
+				}},
+				plainHTTP: tc.mainPlainHTTP,
+			}
+
+			err = h.DependencyBuild()
+			require.NoError(t, err)
+
+			hasPlainHTTP := false
+			for _, arg := range capturedArgs {
+				if arg == "--plain-http" {
+					hasPlainHTTP = true
+					break
+				}
+			}
+			require.Equal(t, tc.expectPlainHTTP, hasPlainHTTP)
+		})
+	}
 }

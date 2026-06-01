@@ -79,13 +79,16 @@ func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
 	return out, fullCommand, nil
 }
 
-func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogin(repo string, creds Creds, plainHTTP bool) (string, error) {
 	args := []string{"registry", "login"}
 	registry, err := c.getHelmRegistry(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse registry URL: %w", err)
 	}
 	args = append(args, registry)
+	if plainHTTP {
+		args = append(args, "--plain-http")
+	}
 
 	if creds.GetUsername() != "" {
 		args = append(args, "--username", creds.GetUsername())
@@ -288,7 +291,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	return out, nil
 }
 
-func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds, plainHTTP bool) (string, error) {
 	args := []string{
 		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
 		version,
@@ -320,6 +323,9 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
+	if plainHTTP {
+		args = append(args, "--plain-http")
+	}
 	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to pull OCI chart: %w", err)
@@ -327,10 +333,13 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	return out, nil
 }
 
-func (c *Cmd) dependencyBuild(insecure bool) (string, error) {
+func (c *Cmd) dependencyBuild(insecure bool, plainHTTP bool) (string, error) {
 	args := []string{"dependency", "build"}
 	if insecure {
 		args = append(args, "--insecure-skip-tls-verify")
+	}
+	if plainHTTP {
+		args = append(args, "--plain-http")
 	}
 	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
