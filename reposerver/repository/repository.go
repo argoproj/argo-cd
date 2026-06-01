@@ -427,25 +427,8 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 
-		var sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
-		if sourceintegrity.HasCriteria(sourceIntegrity, *source) && source.IsHelmOci() {
-			chartContent, provContent, chartFilename, errFetch := ociClient.FetchHelmChartAndProvenance(ctx, revision)
-			if errFetch != nil {
-				sourceIntegrityResult = sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, true, errFetch)
-			} else {
-				if chartFilename == "" {
-					chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
-				}
-				var errVerify error
-				sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(ctx, sourceIntegrity, source.RepoURL, chartContent, provContent, chartFilename)
-				if errVerify != nil {
-					return errVerify
-				}
-			}
-		}
-
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{appPath, "", sourceIntegrityResult}, nil
+			return &operationContext{appPath, "", nil}, nil
 		})
 	} else if source.IsHelm() {
 		if settings.noCache {
@@ -480,7 +463,7 @@ func (s *Service) runRepoOperation(
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
-			sourceIntegrityResult, err := s.verifyHelmSourceIntegrity(ctx, sourceIntegrity, source, repo, helmClient, revision, settings)
+			sourceIntegrityResult, err := s.verifyHelmSourceIntegrity(ctx, sourceIntegrity, source, helmClient, revision)
 			if err != nil {
 				return nil, err
 			}
@@ -567,88 +550,21 @@ func (s *Service) runRepoOperation(
 	})
 }
 
-// buildHelmOCIChartRepoURL constructs the OCI repository URL for a Helm OCI chart.
-func buildHelmOCIChartRepoURL(repo *v1alpha1.Repository, source *v1alpha1.ApplicationSource) string {
-	raw := repo.Repo
-	if raw == "" {
-		raw = source.RepoURL
-	}
-	if !strings.HasPrefix(raw, ociPrefix) {
-		raw = ociPrefix + raw
-	}
-
-	chartName := strings.Trim(source.Chart, "/")
-	parsed, err := url.Parse(raw)
-	if err != nil {
-		return buildHelmOCIChartRepoURLFallback(raw, chartName)
-	}
-	if chartName == "" {
-		parsed.Path = strings.TrimSuffix(parsed.Path, "/")
-		return parsed.String()
-	}
-
-	trimmedPath := strings.Trim(parsed.Path, "/")
-	if trimmedPath != "" && path.Base(trimmedPath) == chartName {
-		return parsed.String()
-	}
-	joined, err := url.JoinPath(parsed.Path, chartName)
-	if err != nil {
-		return buildHelmOCIChartRepoURLFallback(raw, chartName)
-	}
-	parsed.Path = joined
-	return parsed.String()
-}
-
-func buildHelmOCIChartRepoURLFallback(raw, chartName string) string {
-	raw = strings.TrimSuffix(raw, "/")
-	if chartName != "" && !strings.HasSuffix(raw, "/"+chartName) {
-		raw += "/" + chartName
-	}
-	return raw
-}
-
 func (s *Service) verifyHelmSourceIntegrity(
 	ctx context.Context,
 	sourceIntegrity *v1alpha1.SourceIntegrity,
 	source *v1alpha1.ApplicationSource,
-	repo *v1alpha1.Repository,
 	helmClient helm.Client,
 	revision string,
-	settings operationSettings,
 ) (*v1alpha1.SourceIntegrityCheckResult, error) {
 	if !sourceintegrity.HasCriteria(sourceIntegrity, *source) {
 		return nil, nil
 	}
 	if source.IsHelmOci() {
-		return s.verifyHelmOCIProvenance(ctx, sourceIntegrity, source, repo, revision, settings)
+		// OCI Helm charts are out of scope for Helm .prov policies; future OCI/sigstore support is planned separately.
+		return nil, nil
 	}
 	return s.verifyTraditionalHelmProvenance(ctx, sourceIntegrity, source, helmClient, revision)
-}
-
-func (s *Service) verifyHelmOCIProvenance(
-	ctx context.Context,
-	sourceIntegrity *v1alpha1.SourceIntegrity,
-	source *v1alpha1.ApplicationSource,
-	repo *v1alpha1.Repository,
-	revision string,
-	settings operationSettings,
-) (*v1alpha1.SourceIntegrityCheckResult, error) {
-	ociRepo := repo.DeepCopy()
-	ociRepo.Repo = buildHelmOCIChartRepoURL(repo, source)
-
-	ociClient, digest, err := s.newOCIClientResolveRevision(ctx, ociRepo, revision, settings.noCache || settings.noRevisionCache)
-	if err != nil {
-		return sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, true, err), nil
-	}
-
-	chartContent, provContent, chartFilename, err := ociClient.FetchHelmChartAndProvenance(ctx, digest)
-	if err != nil {
-		return sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, true, err), nil
-	}
-	if chartFilename == "" {
-		chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
-	}
-	return sourceintegrity.VerifyHelm(ctx, sourceIntegrity, source.RepoURL, chartContent, provContent, chartFilename)
 }
 
 func readHelmChartAndProvenance(ctx context.Context, helmClient helm.Client, chart, revision string) (chartTgz, provContent []byte, chartFilename string, err error) {
@@ -676,7 +592,7 @@ func (s *Service) verifyTraditionalHelmProvenance(
 ) (*v1alpha1.SourceIntegrityCheckResult, error) {
 	chartTgz, provContent, chartFilename, err := readHelmChartAndProvenance(ctx, helmClient, source.Chart, revision)
 	if err != nil {
-		return sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, false, err), nil
+		return sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, err), nil
 	}
 	return sourceintegrity.VerifyHelm(ctx, sourceIntegrity, source.RepoURL, chartTgz, provContent, chartFilename)
 }

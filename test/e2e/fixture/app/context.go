@@ -229,11 +229,6 @@ func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion 
 	return c
 }
 
-func (c *Context) PushChartWithProvenanceToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
-	repos.PushChartWithProvenanceToOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
-	return c
-}
-
 func (c *Context) PushChartToAuthenticatedOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
 	repos.PushChartToAuthenticatedOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
 	return c

@@ -2,8 +2,6 @@ package repos
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -247,52 +245,6 @@ func AddSSHCredentials(t *testing.T) {
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeSSH
 	args := []string{"repocreds", "add", fixture.RepoBaseURL(repoURLType), "--ssh-private-key-path", keyPath}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
-}
-
-// PushChartWithProvenanceToOCIRegistry packages a chart with provenance (signed) and pushes to OCI.
-// Pushes to HelmOCIRegistryURL (localhost:5000/myrepo). Helm push includes .prov when
-// it is co-located with the .tgz. Requires test/fixture/gpg/signingkey.asc for signing.
-func PushChartWithProvenanceToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion string) {
-	t.Helper()
-	tempDest, err := os.MkdirTemp("", "helm-prov")
-	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDest) }()
-
-	chartAbsPath, err := filepath.Abs("./" + chartPathName)
-	require.NoError(t, err)
-	signingKey, err := filepath.Abs("../fixture/gpg/signingkey.asc")
-	require.NoError(t, err)
-
-	// 1. Package (unsigned)
-	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
-	tgzPath := filepath.Join(tempDest, fmt.Sprintf("%s-%s.tgz", chartName, chartVersion))
-	tgzData, err := os.ReadFile(tgzPath)
-	require.NoError(t, err)
-
-	// 2. Compute SHA256
-	digest := sha256.Sum256(tgzData)
-	digestStr := hex.EncodeToString(digest[:])
-
-	// 3. Build provenance body
-	chartYaml, err := os.ReadFile(filepath.Join(chartAbsPath, "Chart.yaml"))
-	require.NoError(t, err)
-	provBody := string(chartYaml) + fmt.Sprintf("\nfiles:\n  %s-%s.tgz: sha256:%s\n", chartName, chartVersion, digestStr)
-
-	// 4. Sign with gpg (use temp GNUPGHOME)
-	gnupgHome := filepath.Join(tempDest, "gnupg")
-	require.NoError(t, os.MkdirAll(gnupgHome, 0o700))
-	provBodyPath := filepath.Join(tempDest, "prov-body.txt")
-	require.NoError(t, os.WriteFile(provBodyPath, []byte(provBody), 0o600))
-	provPath := tgzPath + ".prov"
-	errors.NewHandler(t).FailOnErr(fixture.Run(tempDest, "env", "GNUPGHOME="+gnupgHome, "gpg", "--batch", "--import", signingKey))
-	errors.NewHandler(t).FailOnErr(fixture.Run(tempDest, "env", "GNUPGHOME="+gnupgHome,
-		"gpg", "--batch", "--yes", "--local-user", fixture.GpgGoodKeyID,
-		"--clearsign", "--output", provPath, provBodyPath))
-
-	// 5. Helm push (includes .prov when present)
-	errors.NewHandler(t).FailOnErr(fixture.Run(tempDest, "helm", "push",
-		fmt.Sprintf("%s-%s.tgz", chartName, chartVersion),
-		"oci://"+fixture.HelmOCIRegistryURL))
 }
 
 // PushChartToOCIRegistry adds a helm chart to helm OCI registry

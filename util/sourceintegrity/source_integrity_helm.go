@@ -17,7 +17,7 @@ import (
 )
 
 func hasHelmProvenanceCriteriaForSource(si *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) bool {
-	if !source.IsHelm() || si == nil || si.Helm == nil {
+	if !source.IsHelm() || source.IsHelmOci() || si == nil || si.Helm == nil {
 		return false
 	}
 	policies := findMatchingHelmPolicies(si.Helm, source.RepoURL)
@@ -57,8 +57,7 @@ func VerifyHelm(ctx context.Context, si *v1alpha1.SourceIntegrity, repoURL strin
 //   - or no matching provenance policy.
 //
 // If no provenance policy applies, the function returns nil.
-// ociChart controls whether the returned message is for an OCI chart or a traditional Helm repository.
-func HelmProvenanceFetchFailed(si *v1alpha1.SourceIntegrity, repoURL string, ociChart bool, cause error) *v1alpha1.SourceIntegrityCheckResult {
+func HelmProvenanceFetchFailed(si *v1alpha1.SourceIntegrity, repoURL string, cause error) *v1alpha1.SourceIntegrityCheckResult {
 	policy, earlyResult := resolveHelmProvenancePolicy(si, repoURL)
 	if earlyResult != nil {
 		return earlyResult
@@ -66,12 +65,7 @@ func HelmProvenanceFetchFailed(si *v1alpha1.SourceIntegrity, repoURL string, oci
 	if policy == nil {
 		return nil
 	}
-	var msg string
-	if ociChart {
-		msg = fmt.Sprintf("could not access OCI helm chart for provenance verification: %v", cause)
-	} else {
-		msg = fmt.Sprintf("could not access chart for provenance verification: %v", cause)
-	}
+	msg := fmt.Sprintf("could not access chart for provenance verification: %v", cause)
 	return helmProvenanceResult([]string{msg})
 }
 

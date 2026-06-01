@@ -656,18 +656,13 @@ func TestHelmProvenanceFetchFailed(t *testing.T) {
 		},
 	}
 	cause := errors.New("network down")
-	result := HelmProvenanceFetchFailed(si, "https://charts.example.com/repo", false, cause)
+	result := HelmProvenanceFetchFailed(si, "https://charts.example.com/repo", cause)
 	require.NotNil(t, result)
 	require.Error(t, result.AsError())
 	assert.Contains(t, result.AsError().Error(), "could not access chart for provenance verification")
 	assert.Contains(t, result.AsError().Error(), "network down")
 
-	ociResult := HelmProvenanceFetchFailed(si, "https://charts.example.com/repo", true, cause)
-	require.NotNil(t, ociResult)
-	require.Error(t, ociResult.AsError())
-	assert.Contains(t, ociResult.AsError().Error(), "could not access OCI helm chart for provenance verification")
-
-	assert.Nil(t, HelmProvenanceFetchFailed(si, "https://charts.other.com/repo", false, cause), "no matching policy returns nil")
+	assert.Nil(t, HelmProvenanceFetchFailed(si, "https://charts.other.com/repo", cause), "no matching policy returns nil")
 }
 
 func TestVerifyHelmReturnsNilWhenNoPolicyMatch(t *testing.T) {

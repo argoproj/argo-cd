@@ -10752,7 +10752,7 @@
       }
     },
     "v1alpha1SourceIntegrityHelm": {
-      "description": "SourceIntegrityHelm holds policies for Helm chart provenance verification for both traditional and OCI repositories.",
+      "description": "SourceIntegrityHelm holds policies for Helm chart provenance verification on traditional Helm repositories.",
       "type": "object",
       "properties": {
         "policies": {

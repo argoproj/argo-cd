@@ -2,26 +2,20 @@
 
 ## Overview
 
-Source integrity Helm policies verify Helm provenance for:
+Source integrity Helm policies verify Helm provenance for **traditional Helm repositories** — HTTP/HTTPS chart repos (`repoURL` + `chart`).
 
-- Traditional Helm repositories — HTTP/HTTPS chart repos (`repoURL` + `chart`, repository without `enableOCI`)
-- OCI Helm charts — charts in an OCI registry (repository with `enableOCI: true`)
+Argo CD:
 
-Both traditional and OCI Helm charts use the same verification process:
+1. Fetches chart bytes and `.prov` bytes from the Helm repo index and mirrors
+2. Verifies the PGP signature with keys from `provenance.keys`
+3. Checks the chart SHA256 digest matches the signed provenance
 
-1. Fetch chart bytes and `.prov` bytes (loading mechanism differs — see below)
-2. Verify PGP signature with keys from `provenance.keys`
-3. Check chart SHA256 digest matches the signed provenance
+> [!NOTE]
+> **OCI Helm charts**
+>
+> OCI Helm registries (`enableOCI: true` or host-style `repoURL` without `https://`) are **not** covered by `sourceIntegrity.helm` in this release. Chart integrity for OCI Helm is planned as part of broader OCI support (for example Sigstore/cosign), not Helm `.prov` layers on OCI artifacts.
 
-Your `sourceIntegrity.helm` policy configuration is identical for both source types.
-The `repos` patterns match against the application's `repoURL`, regardless of whether
-it's an HTTP Helm repository or an OCI registry.
-
-The only difference is how Argo CD obtains the `.prov` file (see
-[How provenance is loaded](#how-provenance-is-loaded)).
-
-Verification of Helm chart provenance (GnuPG-signed `.prov` files) applies to traditional Helm repositories and OCI Helm registries.
-For GnuPG verification of Git commit signatures on Git repositories, see [Git GnuPG verification](./source-integrity-git-gpg.md).
+For GnuPG verification of Git commit signatures, see [Git GnuPG verification](./source-integrity-git-gpg.md).
 
 > [!NOTE]
 > **Compatibility**
@@ -110,7 +104,7 @@ The chart archive itself (`.tgz` bytes) is verified separately against the diges
 
 ## What Argo CD verifies
 
-Once `.prov` bytes and chart `.tgz` bytes are loaded, traditional and OCI follow the same verification steps (check name `HELM/PROVENANCE`):
+Once `.prov` bytes and chart `.tgz` bytes are loaded, Argo CD runs these steps (check name `HELM/PROVENANCE`):
 
 | Step | What is checked |
 |------|-----------------|
@@ -122,10 +116,6 @@ Once `.prov` bytes and chart `.tgz` bytes are loaded, traditional and OCI follow
 If any step fails, sync is blocked with a `ResourceComparison` error.
 
 ## How provenance is loaded
-
-Verification (previous section) is the same for both repo types. Only loading chart and `.prov` bytes differs.
-
-### Traditional Helm repositories (HTTP/HTTPS)
 
 ```text
 Helm repo index.yaml
@@ -145,35 +135,6 @@ Argo CD:
    - First URL fails (404, timeout, etc.) → tries the next URL in the list.
    - All URLs fail → sync is blocked with a provenance fetch error (before signature checks).
 4. Reads the cached chart `.tgz` and runs [What Argo CD verifies](#what-argo-cd-verifies).
-
-### OCI Helm charts
-
-```text
-OCI image manifest (Helm chart artifact)
-    ├── layer: application/vnd.cncf.helm.chart.v1.tar+gzip   ──►  chart .tgz bytes
-    └── layer: application/vnd.cncf.helm.chart.provenance.v1.prov  ──►  .prov bytes (same format as HTTP)
-```
-
-Argo CD:
-
-1. Pulls/caches the OCI artifact for the chart version.
-2. Selects the Helm chart content layer and the provenance layer (`application/vnd.cncf.helm.chart.provenance.v1.prov`) from the manifest.
-3. Runs [What Argo CD verifies](#what-argo-cd-verifies) on those bytes.
-
-If the provenance layer is missing, verification fails with `provenance file (.prov) is required but missing`.
-
-Policy configuration (`sourceIntegrity.helm` / `provenance.keys`) is identical to traditional Helm.
-
-#### Verifying an OCI chart has a provenance layer
-
-Before enabling a policy, confirm the published artifact includes provenance:
-
-```bash
-crane manifest oci://registry.example.com/charts/mychart:1.0.0
-```
-
-Look for a layer with media type `application/vnd.cncf.helm.chart.provenance.v1.prov`.
-If it is absent, the chart was likely published without `helm package --sign` / provenance.
 
 ## Policies for Helm provenance verification
 
@@ -200,7 +161,7 @@ The `repos` field lists glob patterns matched against the application's Helm `re
 
 Only one Helm policy applies per source repository. Sources not matched by any policy are not verified for provenance.
 
-Multi-source applications can use different Helm policies per Helm source, and may combine Git and Helm policies in the same `sourceIntegrity` block:
+Multi-source applications can combine Git and traditional Helm policies in the same `sourceIntegrity` block:
 
 ```yaml
 spec:
@@ -280,15 +241,8 @@ As with Git source integrity, `argocd app sync --local` cannot enforce project s
 
 Cause: No `.prov` content was loaded for the chart version.
 
-Traditional Helm repos:
-
 - Confirm `<chart-url>.prov` exists (for example `curl -I https://charts.example.com/mychart-1.0.0.tgz.prov`).
 - If `index.yaml` lists multiple URLs, check whether a later mirror hosts the `.prov` file.
-
-OCI Helm charts:
-
-- Inspect the manifest (see [Verifying an OCI chart has a provenance layer](#verifying-an-oci-chart-has-a-provenance-layer)).
-- Confirm the chart was published with provenance (`helm package --sign` or equivalent).
 
 Fix: Use a signed chart release, or use a project without `sourceIntegrity.helm` if you intentionally want to skip verification for that repo.
 
@@ -327,9 +281,9 @@ Fix: `argocd app sync <app> --force` to refresh the cached chart; if the error p
 
 #### `could not access chart for provenance verification`
 
-Cause: Argo CD could not read the chart `.tgz` or fetch `.prov` (cache, network, or index/OCI layout).
+Cause: Argo CD could not read the chart `.tgz` or fetch `.prov` (cache, network, or index layout).
 
-Fix: Check repo-server logs, repository credentials, and that `helm pull` / OCI pull works outside Argo CD for the same chart version.
+Fix: Check repo-server logs, repository credentials, and that `helm pull` works outside Argo CD for the same chart version.
 
 #### `multiple (N) Helm source integrity policies found for repo URL`
 

@@ -9,7 +9,7 @@ import (
 )
 
 // HasCriteria returns true when any source matches project policy for Git integrity (GPG, etc.),
-// or when any Helm source (including oci:// chart repos) matches a Helm provenance policy
+// or when a traditional Helm source matches a Helm provenance policy (not OCI Helm registries)
 func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSource) bool {
 	if si == nil {
 		return false
