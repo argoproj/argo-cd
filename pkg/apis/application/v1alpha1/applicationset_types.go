@@ -888,8 +888,6 @@ const (
 type ProgressiveSyncStatusCode string
 
 const (
-	// Indicates that a sync has been queued but has not yet been triggered
-	ProgressiveSyncWaitingSyncStatus ProgressiveSyncStatusCode = "WaitingSyncStatus"
 	// Indicates that an Application sync is waiting to be trigerred
 	ProgressiveSyncWaiting ProgressiveSyncStatusCode = "Waiting"
 	// Indicates that a sync has been trigerred, but the application did not report any status
