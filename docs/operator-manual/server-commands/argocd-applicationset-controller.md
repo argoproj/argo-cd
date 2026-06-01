@@ -53,6 +53,8 @@ argocd-applicationset-controller [flags]
       --repo-server-strict-tls                  Whether to use strict validation of the TLS cert presented by the repo server
       --repo-server-timeout-seconds int         Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                  The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --scm-no-proxy string                     Comma-separated list of hosts that should bypass the --scm-proxy-url proxy.
+      --scm-proxy-url string                    HTTP/HTTPS proxy URL for outbound SCM provider API requests (GitHub, GitLab, etc.). Does NOT affect Kubernetes API server connectivity — use --proxy-url (kubectl flag) for that.
       --scm-root-ca-path string                 Provide Root CA Path for self-signed TLS Certificates
       --server string                           The address and port of the Kubernetes API server
       --tls-server-name string                  If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.

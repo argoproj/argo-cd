@@ -112,6 +112,36 @@ repository. The `drySource` field tells Argo CD where your original, unrendered 
 This can be a Helm chart, a Kustomize directory, or plain manifests. Argo CD reads this source, renders the final Kubernetes
 manifests from it, and then writes those hydrated manifests into the location specified by `syncSource.path`.
 
+### Separate destination repository
+
+By default, hydrated manifests are written to the same Git repository as the dry source. Set `syncSource.repoURL` to
+hydrate into a different repository. When `syncSource.repoURL` is omitted, it defaults to `drySource.repoURL`.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/my-org/config
+      path: helm-guestbook
+      targetRevision: HEAD
+    syncSource:
+      repoURL: https://github.com/my-org/deployments
+      targetBranch: environments/dev
+      path: helm-guestbook
+```
+
+Both repositories must be permitted in the application's AppProject (`spec.sourceRepos`). The hydrator needs read
+access to the dry source repository and write access to the destination repository (a `repository-write` secret; see
+the push secret example above).
+
+> [!NOTE]
+> `hydrateTo` inherits its repository and path from `syncSource`. When `syncSource.repoURL` points to a separate
+> repository, staged manifests are pushed to that repository as well.
+
 When using source hydration, the `syncSource.path` field is required and must always point to a non-root
 directory in the repository. Setting the path to the repository root (for example `"."` or `""`) is not
 supported. This ensures that hydration is always scoped to a dedicated subdirectory, which avoids unintentionally overwriting or removing files that may exist in the repository root.
