@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	ioutil "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func NewRepositoryLock() *repositoryLock {
@@ -18,7 +18,9 @@ type repositoryLock struct {
 }
 
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
-func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func() (io.Closer, error)) (io.Closer, error) {
+// The init callback receives `clean` parameter which indicates if repo state must be cleaned after running non-concurrent operation.
+// The first init always runs with `clean` set to true because we cannot be sure about initial repo state.
+func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func(clean bool) (io.Closer, error)) (io.Closer, error) {
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
 	if !ok {
@@ -27,7 +29,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 	}
 	r.lock.Unlock()
 
-	closer := ioutil.NewCloser(func() error {
+	closer := utilio.NewCloser(func() error {
 		state.cond.L.Lock()
 		notify := false
 		state.processCount--
@@ -52,7 +54,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		state.cond.L.Lock()
 		if state.revision == "" {
 			// no in progress operation for that repo. Go ahead.
-			initCloser, err := init()
+			initCloser, err := init(!state.allowConcurrent)
 			if err != nil {
 				state.cond.L.Unlock()
 				return nil, fmt.Errorf("failed to initialize repository resources: %w", err)

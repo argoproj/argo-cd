@@ -1,8 +1,8 @@
 import * as deepMerge from 'deepmerge';
-import {BehaviorSubject, Observable} from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 
-import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
-import {UserMessages} from '../models';
+import { PodGroupType } from '../../applications/components/application-pod-view/pod-view';
+import { UserMessages } from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -13,29 +13,47 @@ export enum AppsDetailsViewKey {
     Pods = 'pods'
 }
 
-export interface AppDetailsPreferences {
+export type AppSetsDetailsViewType = 'tree' | 'list';
+
+export enum AppSetsDetailsViewKey {
+    Tree = 'tree',
+    List = 'list'
+}
+
+export interface AbstractAppDetailsPreferences {
     resourceFilter: string[];
-    view: AppsDetailsViewType | string;
+    darkMode: boolean;
+    hideFilters: boolean;
+    groupNodes?: boolean;
+    zoom: number;
+    view: AppsDetailsViewType | AppSetsDetailsViewType | string;
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
     hideManagedFields?: boolean;
-    enableWordWrap?: boolean;
     orphanedResources: boolean;
+    showAppSetParent?: boolean;
+}
+
+export interface AppDetailsPreferences extends AbstractAppDetailsPreferences {
+    view: AppsDetailsViewType | string;
     podView: PodViewPreferences;
-    darkMode: boolean;
     followLogs: boolean;
-    hideFilters: boolean;
+    matchCase: boolean;
     wrapLines: boolean;
-    groupNodes?: boolean;
-    zoom: number;
     podGroupCount: number;
     userHelpTipMsgs: UserMessages[];
+    enableWordWrap?: boolean;
+}
+
+export interface AppSetDetailsPreferences extends AbstractAppDetailsPreferences {
+    view: AppSetsDetailsViewType | string;
 }
 
 export interface PodViewPreferences {
     sortMode: PodGroupType;
     hideUnschedulable: boolean;
+    sortOrder?: 'asc' | 'desc';
 }
 
 export interface HealthStatusBarPreferences {
@@ -97,6 +115,24 @@ export class AppsListPreferences {
     public favoritesAppList: string[];
 }
 
+export class AbstractAppsListPreferences {
+    public static clearFilters(pref: AbstractAppsListPreferences) {
+        pref.healthFilter = [];
+        pref.labelsFilter = [];
+        pref.annotationsFilter = [];
+        pref.showFavorites = false;
+    }
+
+    public labelsFilter: string[];
+    public annotationsFilter: string[];
+    public healthFilter: string[];
+    public view: AppsListViewType;
+    public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
+    public showFavorites: boolean;
+    public favoritesAppList: string[];
+}
+
 export class ResourcesListPreferences {
     public static countEnabledFilters(pref: ResourcesListPreferences) {
         return [pref.clustersFilter, pref.healthFilter, pref.namespacesFilter, pref.projectsFilter, pref.syncFilter, pref.apiGroupFilter, pref.kindFilter].reduce(
@@ -133,13 +169,19 @@ export class ResourcesListPreferences {
     public statusBarView: HealthStatusBarPreferences;
 }
 
+export class AppSetsListPreferences extends AbstractAppsListPreferences {
+    public static clearFilters(pref: AppSetsListPreferences) {
+        super.clearFilters(pref);
+    }
+}
+
 export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     resourcesList: ResourcesListPreferences;
-    pageSizes: {[key: string]: number};
-    sortOptions?: {[key: string]: string};
+    pageSizes: { [key: string]: number };
+    sortOptions?: { [key: string]: string };
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
@@ -161,12 +203,14 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
+        showAppSetParent: false,
         podView: {
             sortMode: 'node',
             hideUnschedulable: true
         },
         darkMode: false,
         followLogs: false,
+        matchCase: false,
         wrapLines: false,
         zoom: 1.0,
         podGroupCount: 15.0,
@@ -175,13 +219,16 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     appList: {
         view: 'tiles' as AppsListViewType,
         labelsFilter: new Array<string>(),
+        annotationsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
-        clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
+        targetRevisionFilter: new Array<string>(),
+        clustersFilter: new Array<string>(),
         syncFilter: new Array<string>(),
         autoSyncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
+        operationFilter: new Array<string>(),
         hideFilters: false,
         showFavorites: false,
         favoritesAppList: new Array<string>(),
@@ -207,7 +254,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     hideBannerContent: '',
     hideSidebar: false,
     position: '',
-    theme: 'light'
+    theme: 'auto',
+    dismissedNotices: {}
 };
 
 export class ViewPreferencesService {
@@ -227,7 +275,12 @@ export class ViewPreferencesService {
     }
 
     public updatePreferences(change: Partial<ViewPreferences>) {
-        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, {version: minVer});
+        const current = this.preferencesSubj.getValue();
+        const nextPref = Object.assign({}, current, change, { version: minVer });
+        // Normalize appList to ensure all filter arrays are initialized
+        if (nextPref.appList) {
+            this.normalizeAppListPreferences(nextPref.appList);
+        }
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }
@@ -247,6 +300,24 @@ export class ViewPreferencesService {
         } else {
             preferences = DEFAULT_PREFERENCES;
         }
-        return deepMerge(DEFAULT_PREFERENCES, preferences);
+        const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
+        // Ensure all filter arrays are initialized to prevent undefined errors
+        this.normalizeAppListPreferences(merged.appList);
+        return merged;
+    }
+
+    private normalizeAppListPreferences(appList: AppsListPreferences): void {
+        appList.labelsFilter = appList.labelsFilter || [];
+        appList.annotationsFilter = appList.annotationsFilter || [];
+        appList.projectsFilter = appList.projectsFilter || [];
+        appList.namespacesFilter = appList.namespacesFilter || [];
+        appList.reposFilter = appList.reposFilter || [];
+        appList.targetRevisionFilter = appList.targetRevisionFilter || [];
+        appList.clustersFilter = appList.clustersFilter || [];
+        appList.syncFilter = appList.syncFilter || [];
+        appList.autoSyncFilter = appList.autoSyncFilter || [];
+        appList.healthFilter = appList.healthFilter || [];
+        appList.operationFilter = appList.operationFilter || [];
+        appList.favoritesAppList = appList.favoritesAppList || [];
     }
 }

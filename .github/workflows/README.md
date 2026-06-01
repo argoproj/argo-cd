@@ -11,12 +11,13 @@
 | release.yaml       | Build images, cli-binaries, provenances, and post actions      |
 | scorecard.yaml     | Generate scorecard for supply-chain security                   |
 | update-snyk.yaml   | Scheduled snyk reports                                         |
+| stale.yaml         | Labels stale issues and PRs                                    |
 
 # Reusable workflows
 
 ## image-reuse.yaml
 
-- The resuable workflow can be used to publish or build images with multiple container registries(Quay,GHCR, dockerhub), and then sign them with cosign when an image is published.
+- The reusable workflow can be used to publish or build images with multiple container registries(Quay,GHCR, dockerhub), and then sign them with cosign when an image is published.
 - A GO version `must` be specified e.g. 1.21
 - The image name for each registry *must* contain the tag. Note: multiple tags are allowed for each registry using a CSV type.
 - Multiple platforms can be specified e.g. linux/amd64,linux/arm64

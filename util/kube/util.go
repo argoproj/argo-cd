@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"maps"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,17 +33,17 @@ func NewKubeUtil(ctx context.Context, client kubernetes.Interface) *kubeUtil {
 func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn) error {
 	var s *corev1.Secret
 	var err error
-	var new bool
+	var create bool
 
 	s, err = ku.client.CoreV1().Secrets(ns).Get(ku.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
-		new = true
+		create = true
 	}
 
-	if new {
+	if create {
 		s = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,
@@ -54,12 +55,12 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 		s.Data = make(map[string][]byte)
 	}
 
-	err = update(s, new)
+	err = update(s, create)
 	if err != nil {
 		return err
 	}
 
-	if new {
+	if create {
 		_, err = ku.client.CoreV1().Secrets(ns).Create(ku.ctx, s, metav1.CreateOptions{})
 	} else {
 		_, err = ku.client.CoreV1().Secrets(ns).Update(ku.ctx, s, metav1.UpdateOptions{})
@@ -84,9 +85,7 @@ func (ku *kubeUtil) CreateOrUpdateSecretData(ns string, name string, data map[st
 		if !merge || new {
 			s.Data = data
 		} else {
-			for key, val := range data {
-				s.Data[key] = val
-			}
+			maps.Copy(s.Data, data)
 		}
 		return nil
 	})

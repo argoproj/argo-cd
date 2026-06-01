@@ -24,7 +24,7 @@ func TestListMatrixGenerator(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
 				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -56,9 +56,6 @@ func TestListMatrixGenerator(t *testing.T) {
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "matrix-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{values.name}}-{{path.basename}}"},
@@ -134,7 +131,7 @@ func TestListMatrixGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestClusterMatrixGenerator(t *testing.T) {
@@ -147,7 +144,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
 				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -181,9 +178,6 @@ func TestClusterMatrixGenerator(t *testing.T) {
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "matrix-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-{{path.basename}}"},
@@ -260,7 +254,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
@@ -273,7 +267,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
 				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -290,11 +284,11 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 		}
 	}
 
-	expectedApps1 := []v1alpha1.Application{
+	excludedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
 	}
-	expectedApps2 := []v1alpha1.Application{
+	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster2", "kustomize-guestbook"),
 		generateExpectedApp("cluster2", "helm-guestbook"),
 	}
@@ -303,11 +297,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 		// Create ApplicationSet with LabelSelector on an ApplicationSetTerminalGenerator
 		When().
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "matrix-generator-nested-matrix",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
-				ApplyNestedSelectors: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{values.name}}-{{path.basename}}"},
 					Spec: v1alpha1.ApplicationSpec{
@@ -368,7 +358,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsExist(expectedApps1)).Expect(ApplicationsDoNotExist(expectedApps2)).
+		}).Then().Expect(ApplicationsExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps)).
 
 		// Update the ApplicationSetTerminalGenerator LabelSelector, and verify the Applications are deleted and created
 		When().
@@ -400,17 +390,9 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 					},
 				},
 			})
-		}).Then().Expect(ApplicationsExist(expectedApps2)).Expect(ApplicationsDoNotExist(expectedApps1)).
-
-		// Set ApplyNestedSelector to false and verify all Applications are created
+		}).Then().Expect(ApplicationsExist(expectedApps)).Expect(ApplicationsDoNotExist(excludedApps)).
 		When().
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.ApplyNestedSelectors = false
-		}).Then().Expect(ApplicationsExist(expectedApps1)).Expect(ApplicationsExist(expectedApps2)).
-
-		// Delete the ApplicationSet, and verify it deletes the Applications
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps1)).Expect(ApplicationsDoNotExist(expectedApps2))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
@@ -423,7 +405,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
 				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -440,10 +422,10 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 		}
 	}
 
-	expectedApps1 := []v1alpha1.Application{
+	excludedApps := []v1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook", "1"),
 	}
-	expectedApps2 := []v1alpha1.Application{
+	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("helm-guestbook", "2"),
 	}
 
@@ -451,11 +433,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 		// Create ApplicationSet with LabelSelector on an ApplicationSetTerminalGenerator
 		When().
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "matrix-generator-nested-merge",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
-				ApplyNestedSelectors: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}-{{name-suffix}}"},
 					Spec: v1alpha1.ApplicationSpec{
@@ -517,7 +495,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsExist(expectedApps1)).Expect(ApplicationsDoNotExist(expectedApps2)).
+		}).Then().Expect(ApplicationsExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps)).
 
 		// Update the ApplicationSetTerminalGenerator LabelSelector, and verify the Applications are deleted and created
 		When().
@@ -550,15 +528,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 					},
 				},
 			})
-		}).Then().Expect(ApplicationsExist(expectedApps2)).Expect(ApplicationsDoNotExist(expectedApps1)).
-
-		// Set ApplyNestedSelector to false and verify all Applications are created
+		}).Then().Expect(ApplicationsExist(expectedApps)).Expect(ApplicationsDoNotExist(excludedApps)).
 		When().
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.ApplyNestedSelectors = false
-		}).Then().Expect(ApplicationsExist(expectedApps1)).Expect(ApplicationsExist(expectedApps2)).
-
-		// Delete the ApplicationSet, and verify it deletes the Applications
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps1)).Expect(ApplicationsDoNotExist(expectedApps2))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
 }

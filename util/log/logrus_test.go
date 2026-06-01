@@ -48,6 +48,6 @@ func TestCreateFormatter(t *testing.T) {
 	})
 	t.Run("log format is not json or text", func(t *testing.T) {
 		result := CreateFormatter("xml")
-		assert.Equal(t, &logrus.TextFormatter{}, result)
+		assert.Equal(t, &logrus.JSONFormatter{}, result)
 	})
 }

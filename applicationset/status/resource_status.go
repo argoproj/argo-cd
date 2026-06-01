@@ -7,31 +7,17 @@ import (
 func BuildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps []argov1alpha1.Application) map[string]argov1alpha1.ResourceStatus {
 	appMap := map[string]argov1alpha1.Application{}
 	for _, app := range apps {
-		appCopy := app
 		appMap[app.Name] = app
 
 		gvk := app.GroupVersionKind()
-		// Create status if it does not exist
-		status, ok := statusMap[app.Name]
-		if !ok {
-			status = argov1alpha1.ResourceStatus{
-				Group:     gvk.Group,
-				Version:   gvk.Version,
-				Kind:      gvk.Kind,
-				Name:      app.Name,
-				Namespace: app.Namespace,
-				Status:    app.Status.Sync.Status,
-				Health:    &appCopy.Status.Health,
-			}
-		}
-
+		var status argov1alpha1.ResourceStatus
 		status.Group = gvk.Group
 		status.Version = gvk.Version
 		status.Kind = gvk.Kind
 		status.Name = app.Name
 		status.Namespace = app.Namespace
 		status.Status = app.Status.Sync.Status
-		status.Health = &appCopy.Status.Health
+		status.Health = &argov1alpha1.HealthStatus{Status: app.Status.Health.Status}
 
 		statusMap[app.Name] = status
 	}

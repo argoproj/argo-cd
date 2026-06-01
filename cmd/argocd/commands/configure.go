@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -12,7 +13,7 @@ import (
 )
 
 // NewConfigureCommand returns a new instance of an `argocd configure` command
-func NewConfigureCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewConfigureCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var promptsEnabled bool
 
 	command := &cobra.Command{
@@ -25,12 +26,16 @@ argocd configure --prompts-enabled=true
 # Disable optional interactive prompts
 argocd configure --prompts-enabled=false`,
 		Run: func(_ *cobra.Command, _ []string) {
-			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
+			if localCfg == nil {
+				fmt.Println("No local configuration found")
+				os.Exit(1)
+			}
 
 			localCfg.PromptsEnabled = promptsEnabled
 
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
 
 			fmt.Println("Successfully updated the following configuration settings:")

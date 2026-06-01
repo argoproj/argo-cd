@@ -10,8 +10,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-
-	log "github.com/sirupsen/logrus"
 )
 
 var _ Generator = (*MatrixGenerator)(nil)
@@ -36,7 +34,7 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
 
 func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Matrix == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if len(appSetGenerator.Matrix.Generators) < 2 {
@@ -73,7 +71,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 				if err != nil {
 					return nil, fmt.Errorf("failed to combine string maps with merging params for the matrix generator: %w", err)
 				}
-				res = append(res, utils.ConvertToMapStringInterface(val))
+				res = append(res, val)
 			}
 		}
 	}
@@ -86,21 +84,9 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	if err != nil {
 		return nil, err
 	}
-	if matrixGen != nil && !appSet.Spec.ApplyNestedSelectors {
-		foundSelector := dropDisabledNestedSelectors(matrixGen.Generators)
-		if foundSelector {
-			log.Warnf("AppSet '%v' defines selector on nested matrix generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
-		}
-	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving merge generator: %w", err)
-	}
-	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
-		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
-		if foundSelector {
-			log.Warnf("AppSet '%v' defines selector on nested merge generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
-		}
 	}
 
 	t, err := Transform(

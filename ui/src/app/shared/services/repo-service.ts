@@ -7,6 +7,7 @@ export interface HTTPSQuery {
     url: string;
     username: string;
     password: string;
+    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
     insecure: boolean;
@@ -17,6 +18,8 @@ export interface HTTPSQuery {
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    insecureOCIForceHttp: boolean;
+    depth?: number;
 }
 
 export interface SSHQuery {
@@ -29,6 +32,7 @@ export interface SSHQuery {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
 }
 
 export interface GitHubAppQuery {
@@ -46,6 +50,7 @@ export interface GitHubAppQuery {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
 }
 
 export interface GoogleCloudSourceQuery {
@@ -53,6 +58,20 @@ export interface GoogleCloudSourceQuery {
     name: string;
     url: string;
     gcpServiceAccountKey: string;
+    proxy: string;
+    noProxy: string;
+    project?: string;
+    depth?: number;
+}
+
+export interface AzureServicePrincipalQuery {
+    type: string;
+    name: string;
+    url: string;
+    azureActiveDirectoryEndpoint: string;
+    azureServicePrincipalClientId: string;
+    azureServicePrincipalClientSecret: string;
+    azureServicePrincipalTenantId: string;
     proxy: string;
     noProxy: string;
     project?: string;
@@ -96,6 +115,7 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
+                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -105,7 +125,9 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -119,6 +141,7 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
+                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -128,7 +151,9 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -142,6 +167,7 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
+                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -151,7 +177,9 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -165,6 +193,7 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
+                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -174,7 +203,9 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -191,7 +222,8 @@ export class RepositoriesService {
                 enableLfs: q.enableLfs,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -208,7 +240,8 @@ export class RepositoriesService {
                 enableLfs: q.enableLfs,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -230,7 +263,8 @@ export class RepositoriesService {
                 enableLfs: q.enableLfs,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -252,7 +286,8 @@ export class RepositoriesService {
                 enableLfs: q.enableLfs,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -267,7 +302,8 @@ export class RepositoriesService {
                 gcpServiceAccountKey: q.gcpServiceAccountKey,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -280,6 +316,43 @@ export class RepositoriesService {
                 name: q.name,
                 repo: q.url,
                 gcpServiceAccountKey: q.gcpServiceAccountKey,
+                proxy: q.proxy,
+                noProxy: q.noProxy,
+                project: q.project,
+                depth: q.depth
+            })
+            .then(res => res.body as models.Repository);
+    }
+
+    public createAzureServicePrincipal(q: AzureServicePrincipalQuery): Promise<models.Repository> {
+        return requests
+            .post('/repositories')
+            .send({
+                type: q.type,
+                name: q.name,
+                repo: q.url,
+                azureServicePrincipalClientId: q.azureServicePrincipalClientId,
+                azureServicePrincipalClientSecret: q.azureServicePrincipalClientSecret,
+                azureServicePrincipalTenantId: q.azureServicePrincipalTenantId,
+                azureActiveDirectoryEndpoint: q.azureActiveDirectoryEndpoint,
+                proxy: q.proxy,
+                noProxy: q.noProxy,
+                project: q.project
+            })
+            .then(res => res.body as models.Repository);
+    }
+
+    public createAzureServicePrincipalWrite(q: AzureServicePrincipalQuery): Promise<models.Repository> {
+        return requests
+            .post('/write-repositories')
+            .send({
+                type: q.type,
+                name: q.name,
+                repo: q.url,
+                azureServicePrincipalClientId: q.azureServicePrincipalClientId,
+                azureServicePrincipalClientSecret: q.azureServicePrincipalClientSecret,
+                azureServicePrincipalTenantId: q.azureServicePrincipalTenantId,
+                azureActiveDirectoryEndpoint: q.azureActiveDirectoryEndpoint,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project
@@ -303,6 +376,10 @@ export class RepositoriesService {
 
     public async revisions(repo: string): Promise<models.RefsInfo> {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/refs`).then(res => res.body as models.RefsInfo);
+    }
+
+    public async ociTags(repo: string): Promise<models.RefsInfo> {
+        return requests.get(`/repositories/${encodeURIComponent(repo)}/oci-tags`).then(res => res.body as models.RefsInfo);
     }
 
     public apps(repo: string, revision: string, appName: string, appProject: string): Promise<models.AppInfo[]> {

@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -20,11 +19,12 @@ import (
 	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestRequeueAfter(t *testing.T) {
 	mockServer := &mocks.Repos{}
-	ctx := context.Background()
+	ctx := t.Context()
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -57,13 +57,18 @@ func TestRequeueAfter(t *testing.T) {
 		},
 	}
 	fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, duckType)
-	scmConfig := generators.NewSCMConfig("", []string{""}, true, nil, true)
+	scmConfig := generators.NewSCMConfig("", []string{""}, true, true, nil, true)
+	clusterInformer, err := settings.NewClusterInformer(appClientset, "argocd")
+	require.NoError(t, err)
+
+	defer startAndSyncInformer(t, clusterInformer)()
+
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
-		"Clusters":                generators.NewClusterGenerator(ctx, k8sClient, appClientset, "argocd"),
+		"Clusters":                generators.NewClusterGenerator(k8sClient, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer, "namespace"),
 		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), scmConfig),
-		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
+		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd", clusterInformer),
 		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, scmConfig),
 	}
 
@@ -130,7 +135,7 @@ func TestRequeueAfter(t *testing.T) {
 					}},
 				},
 			},
-		}, ""}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		}, ""}, want: generators.DefaultRequeueAfter, wantErr: assert.NoError},
 		{name: "ClusterMatrixNested", args: args{&argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{
@@ -145,7 +150,7 @@ func TestRequeueAfter(t *testing.T) {
 					}},
 				},
 			},
-		}, ""}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		}, ""}, want: generators.DefaultRequeueAfter, wantErr: assert.NoError},
 		{name: "ListGenerator", args: args{appset: &argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{{List: &argov1alpha1.ListGenerator{}}},
@@ -155,7 +160,7 @@ func TestRequeueAfter(t *testing.T) {
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{{ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{}}},
 			},
-		}}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		}}, want: generators.DefaultRequeueAfter, wantErr: assert.NoError},
 		{name: "OverrideRequeueDuck", args: args{
 			appset: &argov1alpha1.ApplicationSet{
 				Spec: argov1alpha1.ApplicationSetSpec{

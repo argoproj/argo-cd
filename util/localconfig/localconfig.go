@@ -66,14 +66,14 @@ type User struct {
 }
 
 // Claims returns the standard claims from the JWT claims
-func (u *User) Claims() (*jwt.RegisteredClaims, error) {
+func (u *User) Claims() (jwt.MapClaims, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	claims := jwt.RegisteredClaims{}
+	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
 	if err != nil {
 		return nil, err
 	}
-	return &claims, nil
+	return claims, nil
 }
 
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
@@ -93,6 +93,9 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
 	err = ValidateLocalConfig(localconfig)
 	if err != nil {
 		return nil, err
@@ -105,7 +108,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 		return nil
 	}
 	if _, err := config.ResolveContext(config.CurrentContext); err != nil {
-		return fmt.Errorf("Local config invalid: %w", err)
+		return fmt.Errorf("local config invalid: %w", err)
 	}
 	return nil
 }
@@ -131,26 +134,27 @@ func DeleteLocalConfig(configPath string) error {
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
 		if l.CurrentContext == "" {
-			return nil, errors.New("Local config: current-context unset")
+			return nil, errors.New("local config: current-context unset")
 		}
 		name = l.CurrentContext
 	}
 	for _, ctx := range l.Contexts {
-		if ctx.Name == name {
-			server, err := l.GetServer(ctx.Server)
-			if err != nil {
-				return nil, err
-			}
-			user, err := l.GetUser(ctx.User)
-			if err != nil {
-				return nil, err
-			}
-			return &Context{
-				Name:   ctx.Name,
-				Server: *server,
-				User:   *user,
-			}, nil
+		if ctx.Name != name {
+			continue
 		}
+		server, err := l.GetServer(ctx.Server)
+		if err != nil {
+			return nil, err
+		}
+		user, err := l.GetUser(ctx.User)
+		if err != nil {
+			return nil, err
+		}
+		return &Context{
+			Name:   ctx.Name,
+			Server: *server,
+			User:   *user,
+		}, nil
 	}
 	return nil, fmt.Errorf("Context '%s' undefined", name)
 }
@@ -213,6 +217,16 @@ func (l *LocalConfig) RemoveUser(serverName string) bool {
 		}
 	}
 	return false
+}
+
+// GetToken returns the token stored in the local file for the given server name
+func (l *LocalConfig) GetToken(serverName string) string {
+	for _, u := range l.Users {
+		if u.Name == serverName {
+			return u.AuthToken
+		}
+	}
+	return ""
 }
 
 // Returns true if user was removed successfully

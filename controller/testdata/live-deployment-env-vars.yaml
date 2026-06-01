@@ -6,7 +6,7 @@ metadata:
     deployment.kubernetes.io/revision: '9'
     iksm-version: '2.0'
     kubectl.kubernetes.io/last-applied-configuration: >
-      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"guestbook:apps/Deployment:default/kustomize-guestbook-ui","iksm-version":"2.0"},"name":"kustomize-guestbook-ui","namespace":"default"},"spec":{"replicas":4,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"guestbook-ui"}},"template":{"metadata":{"labels":{"app":"guestbook-ui"}},"spec":{"containers":[{"env":[{"name":"SOME_ENV_VAR","value":"some_value"}],"image":"gcr.io/heptio-images/ks-guestbook-demo:0.1","name":"guestbook-ui","ports":[{"containerPort":80}],"resources":{"requests":{"cpu":"50m","memory":"100Mi"}}}]}}}}
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"guestbook:apps/Deployment:default/kustomize-guestbook-ui","iksm-version":"2.0"},"name":"kustomize-guestbook-ui","namespace":"default"},"spec":{"replicas":4,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"guestbook-ui"}},"template":{"metadata":{"labels":{"app":"guestbook-ui"}},"spec":{"containers":[{"env":[{"name":"SOME_ENV_VAR","value":"some_value"}],"image":"quay.io/argoprojlabs/argocd-e2e-container:0.1","name":"guestbook-ui","ports":[{"containerPort":80}],"resources":{"requests":{"cpu":"50m","memory":"100Mi"}}}]}}}}
   creationTimestamp: '2022-01-05T15:45:21Z'
   generation: 119
   managedFields:
@@ -137,7 +137,7 @@ spec:
         - env:
             - name: SOME_ENV_VAR
               value: some_value
-          image: 'gcr.io/heptio-images/ks-guestbook-demo:0.1'
+          image: 'quay.io/argoprojlabs/argocd-e2e-container:0.1'
           imagePullPolicy: IfNotPresent
           name: guestbook-ui
           ports:

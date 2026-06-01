@@ -10,5 +10,5 @@ type Chart struct {
 type Maintainer struct {
 	Name  string `yaml:"name,omitempty"`
 	Email string `yaml:"email,omitempty"`
-	Url   string `yaml:"url,omitempty"`
+	Url   string `yaml:"url,omitempty"` //nolint:revive //FIXME(var-naming)
 }

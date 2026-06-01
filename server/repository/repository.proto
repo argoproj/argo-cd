@@ -91,6 +91,18 @@ message RepoAccessQuery {
 	bool forceHttpBasicAuth = 19;
 	// Whether to use azure workload identity for authentication
 	bool useAzureWorkloadIdentity = 20;
+	// BearerToken contains the bearer token used for Git auth at the repo server
+	string bearerToken = 21;
+	// Whether https should be disabled for an OCI repo
+	bool insecureOciForceHttp = 22;
+	// Azure Service Principal Client ID
+	string azureServicePrincipalClientId = 23;
+	// Azure Service Principal Client Secret
+	string azureServicePrincipalClientSecret = 24;
+	// Azure Service Principal Tenant ID
+	string azureServicePrincipalTenantId = 25;
+	// Azure Active Directory Endpoint
+	string azureActiveDirectoryEndpoint = 26;
 }
 
 message RepoResponse {}
@@ -140,6 +152,10 @@ service RepositoryService {
 
 	rpc ListRefs(RepoQuery) returns (Refs) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/refs";
+	}
+
+	rpc ListOCITags(RepoQuery) returns (Refs) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}/oci-tags";
 	}
 
 	// ListApps returns list of apps in the repo

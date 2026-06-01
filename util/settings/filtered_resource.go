@@ -9,8 +9,8 @@ type FilteredResource struct {
 }
 
 func (r FilteredResource) matchGroup(apiGroup string) bool {
-	for _, excludedApiGroup := range r.APIGroups {
-		if glob.Match(excludedApiGroup, apiGroup) {
+	for _, excludedAPIGroup := range r.APIGroups {
+		if glob.Match(excludedAPIGroup, apiGroup) {
 			return true
 		}
 	}

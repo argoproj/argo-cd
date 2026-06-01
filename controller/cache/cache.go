@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"net/url"
@@ -15,9 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
@@ -126,7 +127,7 @@ func init() {
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
-	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, false)
+	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true)
 	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
 }
 
@@ -137,8 +138,6 @@ type LiveStateCache interface {
 	IsNamespaced(server *appv1.Cluster, gk schema.GroupKind) (bool, error)
 	// Returns synced cluster cache
 	GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error)
-	// Executes give callback against resource specified by the key and all its children
-	IterateHierarchy(server *appv1.Cluster, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Executes give callback against resources specified by the keys and all its children
 	IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
@@ -153,6 +152,8 @@ type LiveStateCache interface {
 	GetClustersInfo() []clustercache.ClusterInfo
 	// Init must be executed before cache can be used
 	Init() error
+	// UpdateShard will update the shard of ClusterSharding when the shard has changed.
+	UpdateShard(shard int) bool
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
@@ -167,6 +168,7 @@ type NodeInfo struct {
 	Name       string
 	Capacity   corev1.ResourceList
 	SystemInfo corev1.NodeSystemInfo
+	Labels     map[string]string
 }
 
 type ResourceInfo struct {
@@ -188,7 +190,6 @@ func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
 	settingsMgr *settings.SettingsManager,
-	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
@@ -199,7 +200,6 @@ func NewLiveStateCache(
 		db:               db,
 		clusters:         make(map[string]clustercache.ClusterCache),
 		onObjectUpdated:  onObjectUpdated,
-		kubectl:          kubectl,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
@@ -223,7 +223,6 @@ type liveStateCache struct {
 	db                   db.ArgoDB
 	appInformer          cache.SharedIndexInformer
 	onObjectUpdated      ObjectUpdatedHandler
-	kubectl              kube.Kubectl
 	settingsMgr          *settings.SettingsManager
 	metricsServer        *metrics.MetricsServer
 	clusterSharding      sharding.ClusterShardingCache
@@ -237,6 +236,10 @@ type liveStateCache struct {
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return nil, err
+	}
+	trackingMethod, err := c.settingsMgr.GetTrackingMethod()
 	if err != nil {
 		return nil, err
 	}
@@ -265,10 +268,10 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
-func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
+func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
 	gv, err := schema.ParseGroupVersion(r.Ref.APIVersion)
 	if err != nil {
 		gv = schema.GroupVersion{}
@@ -276,8 +279,30 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
 	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
-		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		parentRef := appv1.ResourceRef{
+			Group:   ownerGvk.Group,
+			Kind:    ownerGvk.Kind,
+			Version: ownerGvk.Version,
+			Name:    ownerRef.Name,
+			UID:     string(ownerRef.UID),
+		}
+
+		// Look up the parent in namespace resources
+		// If found, it's namespaced and we use its namespace
+		// If not found, it must be cluster-scoped (namespace = "")
+		parentKey := kube.NewResourceKey(ownerGvk.Group, ownerGvk.Kind, r.Ref.Namespace, ownerRef.Name)
+		if parent, ok := namespaceResources[parentKey]; ok {
+			parentRef.Namespace = parent.Ref.Namespace
+		} else {
+			// Not in namespace => must be cluster-scoped
+			parentRef.Namespace = ""
+			// Debug logging for cross-namespace relationships
+			if r.Ref.Namespace != "" {
+				log.Debugf("Cross-namespace ref: %s/%s in namespace %s has parent %s/%s (cluster-scoped)",
+					r.Ref.Kind, r.Ref.Name, r.Ref.Namespace, ownerGvk.Kind, ownerRef.Name)
+			}
+		}
+		parentRefs[i] = parentRef
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -341,11 +366,9 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 	for _, ownerRef := range r.OwnerRefs {
 		gv := ownerRefGV(ownerRef)
 		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)]; ok {
-			visited_branch := make(map[kube.ResourceKey]bool, len(visited))
-			for k, v := range visited {
-				visited_branch[k] = v
-			}
-			app, ok := getAppRecursive(parent, ns, visited_branch)
+			visitedBranch := make(map[kube.ResourceKey]bool, len(visited))
+			maps.Copy(visitedBranch, visited)
+			app, ok := getAppRecursive(parent, ns, visitedBranch)
 			if app != "" || !ok {
 				return app, ok
 			}
@@ -659,24 +682,13 @@ func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind
 	return clusterInfo.IsNamespaced(gk)
 }
 
-func (c *liveStateCache) IterateHierarchy(server *appv1.Cluster, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
-	clusterInfo, err := c.getSyncedCluster(server)
-	if err != nil {
-		return err
-	}
-	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
-	})
-	return nil
-}
-
 func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
 	}
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
+		return action(asResourceNode(resource, namespaceResources), getApp(resource, namespaceResources))
 	})
 	return nil
 }
@@ -701,9 +713,15 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 		return nil, err
 	}
 	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
+
+	// Get all namespace resources for parent lookups
+	namespaceResources := clusterInfo.FindResources(namespace, func(_ *clustercache.Resource) bool {
+		return true
+	})
+
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for k, r := range resources {
-		res[k] = asResourceNode(r)
+		res[k] = asResourceNode(r, namespaceResources)
 	}
 	return res, nil
 }
@@ -721,7 +739,7 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 func (c *liveStateCache) GetVersionsInfo(server *appv1.Cluster) (string, []kube.APIResourceInfo, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", server, err)
+		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", server.Server, err)
 	}
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
@@ -905,4 +923,9 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 
 func (c *liveStateCache) GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error) {
 	return c.getSyncedCluster(server)
+}
+
+// UpdateShard will update the shard of ClusterSharding when the shard has changed.
+func (c *liveStateCache) UpdateShard(shard int) bool {
+	return c.clusterSharding.UpdateShard(shard)
 }

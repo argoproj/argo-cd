@@ -11,10 +11,10 @@ So you can just use them instead of reinventing new ones.
 * Install Triggers and Templates from the catalog
 
     ```bash
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
+    kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
     ```
 
-* Add Email username and password token to `argocd-notifications-secret` secret
+* Add email username and password token to the `argocd-notifications-secret` secret
 
     ```bash
     EMAIL_USER=<your-username>
@@ -32,7 +32,7 @@ So you can just use them instead of reinventing new ones.
     EOF
     ```
 
-* Register Email notification service
+* Register email notification service
 
     ```bash
     kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
@@ -68,6 +68,19 @@ metadata:
 data:
   application.namespaces: app-team-one, app-team-two
   notificationscontroller.selfservice.enabled: "true"
+```
+
+Other notifications controller startup settings can be managed the same way. For notifications-heavy
+installations, `notificationscontroller.processors.count` configures the worker concurrency and maps
+to the `--processors-count` startup flag. For example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  notificationscontroller.processors.count: "4"
 ```
 
 To use this feature, you can deploy configmap named `argocd-notifications-cm` and possibly a secret `argocd-notifications-secret` in the namespace where the Argo CD application lives.
@@ -108,8 +121,8 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-failed.pagerdutyv2: "<serviceID for Pagerduty>"
 ```
 
-!!! note
-    When the same notification service and trigger are defined in controller level configuration and application level configuration,
-    both notifications will be sent according to its own configuration.
+> [!NOTE]
+> When the same notification service and trigger are defined in controller level configuration and application level configuration,
+> both notifications will be sent according to its own configuration.
 
-[Defining and using secrets within notification templates](templates.md/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
+[Defining and using secrets within notification templates](templates.md#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.

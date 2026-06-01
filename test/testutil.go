@@ -30,7 +30,8 @@ func StartInformer(informer cache.SharedIndexInformer) context.CancelFunc {
 
 // GetFreePort finds an available free port on the OS
 func GetFreePort() (int, error) {
-	ln, err := net.Listen("tcp", "[::]:0")
+	lc := &net.ListenConfig{}
+	ln, err := lc.Listen(context.Background(), "tcp", "[::]:0")
 	if err != nil {
 		return 0, err
 	}
@@ -60,7 +61,8 @@ func WaitForPortListen(addr string, timeout time.Duration) error {
 }
 
 func portIsOpen(addr string) bool {
-	conn, err := net.Dial("tcp", addr)
+	d := &net.Dialer{}
+	conn, err := d.DialContext(context.Background(), "tcp", addr)
 	if err != nil {
 		return false
 	}

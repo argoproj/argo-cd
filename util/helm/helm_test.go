@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/io/path"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +25,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false, false)
 	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
@@ -42,14 +42,15 @@ func TestHelmTemplateParams(t *testing.T) {
 	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
-		if obj.GetKind() == "Service" && obj.GetName() == "test-minio" {
-			var svc corev1.Service
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
-			require.NoError(t, err)
-			assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
-			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
-			assert.Equal(t, "true", svc.ObjectMeta.Annotations["prometheus.io/scrape"])
+		if obj.GetKind() != "Service" || obj.GetName() != "test-minio" {
+			continue
 		}
+		var svc corev1.Service
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
+		require.NoError(t, err)
+		assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
+		assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
+		assert.Equal(t, "true", svc.Annotations["prometheus.io/scrape"])
 	}
 }
 
@@ -57,7 +58,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -83,7 +84,7 @@ func TestHelmGetParams(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
@@ -96,7 +97,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -111,7 +112,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
 	require.NoError(t, err)
@@ -125,7 +126,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
@@ -137,13 +138,13 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
 			require.NoError(t, err)
-			assert.Equal(t, "my-release-redis-master", stateful.ObjectMeta.Name)
+			assert.Equal(t, "my-release-redis-master", stateful.Name)
 		}
 	}
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	require.NoError(t, err)
@@ -154,7 +155,7 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
 			require.NoError(t, err)
-			assert.Equal(t, "test-redis-master", stateful.ObjectMeta.Name)
+			assert.Equal(t, "test-redis-master", stateful.Name)
 		}
 	}
 }
@@ -175,7 +176,7 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false)
+	ver, err := Version()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -205,7 +206,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
-	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{})
@@ -219,8 +220,31 @@ func TestAPIVersions(t *testing.T) {
 	assert.Equal(t, "sample/v2", objs[0].GetAPIVersion())
 }
 
+func TestKubeVersionWithSymbol(t *testing.T) {
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
+	require.NoError(t, err)
+
+	objs, err := template(h, &TemplateOpts{KubeVersion: "1.30.11+IKS"})
+	require.NoError(t, err)
+	require.Len(t, objs, 2)
+
+	for _, obj := range objs {
+		if obj.GetKind() != "ConfigMap" {
+			continue
+		}
+		var configMap corev1.ConfigMap
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &configMap)
+		require.NoError(t, err)
+		if data, ok := configMap.Data["kubeVersion"]; ok {
+			assert.Equal(t, "v1.30.11", data)
+			return
+		}
+		t.Fatal("expected kubeVersion key not found in configMap")
+	}
+}
+
 func TestSkipCrds(t *testing.T) {
-	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipCrds: false})
@@ -237,16 +261,16 @@ func TestSkipCrds(t *testing.T) {
 }
 
 func TestSkipTests(t *testing.T) {
-	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipTests: false})
 	require.NoError(t, err)
-	require.Len(t, objs, 1)
+	require.Len(t, objs, 2)
 
 	objs, err = template(h, &TemplateOpts{})
 	require.NoError(t, err)
-	require.Len(t, objs, 1)
+	require.Len(t, objs, 2)
 
 	objs, err = template(h, &TemplateOpts{SkipTests: true})
 	require.NoError(t, err)

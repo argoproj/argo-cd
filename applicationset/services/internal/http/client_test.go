@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -118,7 +117,7 @@ func TestClientDo(t *testing.T) {
 			client, err := NewClient(cc.fakeServer.URL, cc.clientOptionFns...)
 			require.NoError(t, err, "NewClient returned unexpected error")
 
-			req, err := client.NewRequestWithContext(context.Background(), http.MethodPost, "", cc.params)
+			req, err := client.NewRequestWithContext(t.Context(), http.MethodPost, "", cc.params)
 			require.NoError(t, err, "NewRequest returned unexpected error")
 
 			var data []map[string]any

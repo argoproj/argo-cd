@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: test-cronjob:batch/CronJob:test-cronjob/hello
+  labels:
+    app.kubernetes.io/instance: test-cronjob
+  name: hello
+  namespace: test-cronjob
+spec:
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - command:
+                - /bin/sh
+                - '-c'
+                - date; echo Hello from the Kubernetes cluster
+              image: busybox:1.28
+              imagePullPolicy: IfNotPresent
+              name: hello
+          restartPolicy: OnFailure
+  schedule: '* * * * *'
+status:
+  active:
+    - apiVersion: batch/v1
+      kind: Job
+      name: hello-29231490
+      namespace: test-cronjob
+      resourceVersion: '21226'
+      uid: 996e6ed6-8494-4c9a-9862-93de4af310cb
+  lastScheduleTime: '2025-07-30T13:46:00Z'
+  lastSuccessfulTime: '2025-07-30T13:44:19Z'

@@ -70,7 +70,7 @@ func HashPassword(password string) (string, error) {
 // VerifyPassword verifies an entered password against a hashed password and returns whether the hash is "stale" (i.e., was verified using the FIRST preferred hasher above).
 func VerifyPassword(password, hashedPassword string) (valid, stale bool) {
 	valid, stale = verifyPasswordWithHashers(password, hashedPassword, preferredHashers)
-	return
+	return valid, stale
 }
 
 // HashPassword creates a one-way digest ("hash") of a password.  In the case of Bcrypt, a pseudorandom salt is included automatically by the underlying library.
@@ -80,15 +80,12 @@ func (h DummyPasswordHasher) HashPassword(password string) (string, error) {
 
 // VerifyPassword validates whether a one-way digest ("hash") of a password was created from a given plaintext password.
 func (h DummyPasswordHasher) VerifyPassword(password, hashedPassword string) bool {
-	return 1 == subtle.ConstantTimeCompare([]byte(password), []byte(hashedPassword))
+	return subtle.ConstantTimeCompare([]byte(password), []byte(hashedPassword)) == 1
 }
 
 // HashPassword creates a one-way digest ("hash") of a password.  In the case of Bcrypt, a pseudorandom salt is included automatically by the underlying library.  For security reasons, the work factor is always at _least_ bcrypt.DefaultCost.
 func (h BcryptPasswordHasher) HashPassword(password string) (string, error) {
-	cost := h.Cost
-	if cost < bcrypt.DefaultCost {
-		cost = bcrypt.DefaultCost
-	}
+	cost := max(h.Cost, bcrypt.DefaultCost)
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), cost)
 	if err != nil {
 		hashedPassword = []byte("")

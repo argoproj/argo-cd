@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -26,8 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/rand"
@@ -35,12 +36,13 @@ import (
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
-func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		ctxName          string
 		username         string
 		password         string
 		sso              bool
+		callback         string
 		ssoPort          int
 		skipTestTLS      bool
 		ssoLaunchBrowser bool
@@ -62,16 +64,17 @@ argocd login cd.argoproj.io --core`,
 
 			var server string
 
-			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Core {
+			if len(args) != 1 && !clientOpts.PortForward && !clientOpts.Core {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
-			if globalClientOpts.PortForward {
+			switch {
+			case clientOpts.PortForward:
 				server = "port-forward"
-			} else if globalClientOpts.Core {
+			case clientOpts.Core:
 				server = "kubernetes"
-			} else {
+			default:
 				server = args[0]
 
 				if !skipTestTLS {
@@ -79,42 +82,42 @@ argocd login cd.argoproj.io --core`,
 					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
 					errors.CheckError(err)
 					if !tlsTestResult.TLS {
-						if !globalClientOpts.PlainText {
+						if !clientOpts.PlainText {
 							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
 								os.Exit(1)
 							}
-							globalClientOpts.PlainText = true
+							clientOpts.PlainText = true
 						}
 					} else if tlsTestResult.InsecureErr != nil {
-						if !globalClientOpts.Insecure {
+						if !clientOpts.Insecure {
 							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
 								os.Exit(1)
 							}
-							globalClientOpts.Insecure = true
+							clientOpts.Insecure = true
 						}
 					}
 				}
 			}
-			clientOpts := argocdclient.ClientOptions{
+			loginOpts := argocdclient.ClientOptions{
 				ConfigPath:           "",
 				ServerAddr:           server,
-				Insecure:             globalClientOpts.Insecure,
-				PlainText:            globalClientOpts.PlainText,
-				ClientCertFile:       globalClientOpts.ClientCertFile,
-				ClientCertKeyFile:    globalClientOpts.ClientCertKeyFile,
-				GRPCWeb:              globalClientOpts.GRPCWeb,
-				GRPCWebRootPath:      globalClientOpts.GRPCWebRootPath,
-				PortForward:          globalClientOpts.PortForward,
-				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
-				Headers:              globalClientOpts.Headers,
-				KubeOverrides:        globalClientOpts.KubeOverrides,
-				ServerName:           globalClientOpts.ServerName,
+				Insecure:             clientOpts.Insecure,
+				PlainText:            clientOpts.PlainText,
+				ClientCertFile:       clientOpts.ClientCertFile,
+				ClientCertKeyFile:    clientOpts.ClientCertKeyFile,
+				GRPCWeb:              clientOpts.GRPCWeb,
+				GRPCWebRootPath:      clientOpts.GRPCWebRootPath,
+				PortForward:          clientOpts.PortForward,
+				PortForwardNamespace: clientOpts.PortForwardNamespace,
+				Headers:              clientOpts.Headers,
+				KubeOverrides:        clientOpts.KubeOverrides,
+				ServerName:           clientOpts.ServerName,
 			}
 
 			if ctxName == "" {
 				ctxName = server
-				if globalClientOpts.GRPCWebRootPath != "" {
-					rootPath := strings.TrimRight(strings.TrimLeft(globalClientOpts.GRPCWebRootPath, "/"), "/")
+				if loginOpts.GRPCWebRootPath != "" {
+					rootPath := strings.TrimRight(strings.TrimLeft(loginOpts.GRPCWebRootPath, "/"), "/")
 					ctxName = fmt.Sprintf("%s/%s", server, rootPath)
 				}
 			}
@@ -122,10 +125,10 @@ argocd login cd.argoproj.io --core`,
 			// Perform the login
 			var tokenString string
 			var refreshToken string
-			if !globalClientOpts.Core {
-				acdClient := headless.NewClientOrDie(&clientOpts, c)
+			if !clientOpts.Core {
+				acdClient := headless.NewClientOrDie(&loginOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
-				defer io.Close(setConn)
+				defer utilio.Close(setConn)
 				if !sso {
 					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {
@@ -136,7 +139,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -146,18 +149,18 @@ argocd login cd.argoproj.io --core`,
 			}
 
 			// login successful. Persist the config
-			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
 				localCfg = &localconfig.LocalConfig{}
 			}
 			localCfg.UpsertServer(localconfig.Server{
 				Server:          server,
-				PlainText:       globalClientOpts.PlainText,
-				Insecure:        globalClientOpts.Insecure,
-				GRPCWeb:         globalClientOpts.GRPCWeb,
-				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
-				Core:            globalClientOpts.Core,
+				PlainText:       clientOpts.PlainText,
+				Insecure:        clientOpts.Insecure,
+				GRPCWeb:         clientOpts.GRPCWeb,
+				GRPCWebRootPath: clientOpts.GRPCWebRootPath,
+				Core:            clientOpts.Core,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
@@ -173,7 +176,7 @@ argocd login cd.argoproj.io --core`,
 				User:   ctxName,
 				Server: server,
 			})
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", ctxName)
 		},
@@ -183,8 +186,8 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
-	command.Flags().
-		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
+	command.Flags().StringVar(&callback, "callback", "", "Scheme, Host and Port for the callback URL")
+	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
 	return command
 }
@@ -196,20 +199,26 @@ func userDisplayName(claims jwt.MapClaims) string {
 	if name := jwtutil.StringField(claims, "name"); name != "" {
 		return name
 	}
-	return jwtutil.StringField(claims, "sub")
+	return jwtutil.GetUserIdentifier(claims)
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
 func oauth2Login(
 	ctx context.Context,
+	callback string,
 	port int,
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,
 	provider *oidc.Provider,
 	ssoLaunchBrowser bool,
 ) (string, string) {
-	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
+	redirectBase := callback
+	if redirectBase == "" {
+		redirectBase = "http://localhost:" + strconv.Itoa(port)
+	}
+
+	oauth2conf.RedirectURL = redirectBase + "/auth/callback"
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
 	log.Debug("OIDC Configuration:")
@@ -265,7 +274,7 @@ func oauth2Login(
 			// flow where the id_token is contained in a URL fragment, making it inaccessible to be
 			// read from the request. This javascript will redirect the browser to send the
 			// fragments as query parameters so our callback handler can read and return token.
-			fmt.Fprintf(w, `<script>window.location.search = window.location.hash.substring(1)</script>`)
+			fmt.Fprint(w, `<script>window.location.search = window.location.hash.substring(1)</script>`)
 			return
 		}
 
@@ -342,7 +351,7 @@ func oauth2Login(
 	if errMsg != "" {
 		log.Fatal(errMsg)
 	}
-	fmt.Printf("Authentication successful\n")
+	fmt.Print("Authentication successful\n")
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
@@ -354,7 +363,7 @@ func oauth2Login(
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
-	defer io.Close(sessConn)
+	defer utilio.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,
 		Password: password,
@@ -366,7 +375,7 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 
 func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	if ssoLaunchBrowser {
-		fmt.Printf("Opening system default browser for authentication\n")
+		fmt.Print("Opening system default browser for authentication\n")
 		err := open.Start(url)
 		errors.CheckError(err)
 	} else {

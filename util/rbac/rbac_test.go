@@ -3,8 +3,11 @@ package rbac
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v3/util/test"
 
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -50,7 +53,7 @@ func TestPolicyCSV(t *testing.T) {
 		policy := PolicyCSV(data)
 
 		// then
-		assert.Equal(t, "", policy)
+		assert.Empty(t, policy)
 	})
 	t.Run("will return just policy defined with default key", func(t *testing.T) {
 		// given
@@ -188,6 +191,53 @@ func TestDefaultRole(t *testing.T) {
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
 }
 
+// TestConcurrentEnforceAndSyncUpdate exercises the same access pattern that produced
+// a -race failure on the 3.2 branch: gRPC handler goroutines calling Enforce while the
+// RBAC configmap informer goroutine drives SetDefaultRole via syncUpdate, alongside
+// SetClaimsEnforcerFunc as a second concurrent writer. Without locking around
+// defaultRole and claimsEnforcerFunc this trips the race detector.
+func TestConcurrentEnforceAndSyncUpdate(t *testing.T) {
+	kubeclientset := fake.NewClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	require.NoError(t, enf.syncUpdate(fakeConfigMap(), noOpUpdate))
+	require.NoError(t, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
+
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapPolicyDefaultKey] = "role:readonly"
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	// Ensure worker goroutines are stopped and reaped even if a require.* below
+	// short-circuits the test via t.FailNow.
+	t.Cleanup(func() {
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+		wg.Wait()
+	})
+
+	for range 4 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = enf.Enforce("bob", "applications", "get", "foo/bar")
+				}
+			}
+		})
+	}
+
+	for range 200 {
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool { return false })
+	}
+	close(done)
+}
+
 // TestURLAsObjectName tests the ability to have a URL as an object name
 func TestURLAsObjectName(t *testing.T) {
 	kubeclientset := fake.NewClientset()
@@ -269,6 +319,43 @@ func TestNoPolicy(t *testing.T) {
 	kubeclientset := fake.NewClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
+}
+
+// TestValidatePolicyCheckUserDefinedPolicyReferentialIntegrity adds a hook into logrus.StandardLogger and validates
+// policies with and without referential integrity issues.  Log entries are searched to verify expected outcomes.
+func TestValidatePolicyCheckUserDefinedPolicyReferentialIntegrity(t *testing.T) {
+	// Policy with referential integrity
+	policy := `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depA, role:depA
+g, depB, role:depB
+`
+	hook := test.LogHook{}
+	log.AddHook(&hook)
+	t.Cleanup(hook.CleanupHook)
+
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
+
+	// Policy with a role reference which transitively associates to policies
+	policy = `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depC, role:depC
+g, role:depC, role:depA
+`
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
+
+	// Policy with a role reference which has no associated policies
+	policy = `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depC, role:depC
+`
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Len(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies: role:depC"), 1)
 }
 
 // TestClaimsEnforcerFunc tests
@@ -355,39 +442,27 @@ func TestEnforceErrorMessage(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	require.NoError(t, err)
 
-	err = enf.EnforceErr("admin", "applications", "get", "foo/bar")
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: applications, get, foo/bar", err.Error())
+	require.EqualError(t, enf.EnforceErr("admin", "applications", "get", "foo/bar"), "rpc error: code = PermissionDenied desc = permission denied: applications, get, foo/bar")
 
-	err = enf.EnforceErr()
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
+	require.EqualError(t, enf.EnforceErr(), "rpc error: code = PermissionDenied desc = permission denied")
 
 	//nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
-	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
+	ctx := context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
+	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin")
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: " + iat
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
-	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	require.Error(t, err)
-	assert.Equal(t, exp, err.Error())
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
+	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), exp)
 
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
-	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
+	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project")
 
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
-	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
+	assert.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin")
 }
 
 func TestDefaultGlobMatchMode(t *testing.T) {

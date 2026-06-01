@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"errors"
+	"time"
 
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -20,13 +21,13 @@ func (c *Consequences) Expect() *Consequences {
 }
 
 func (c *Consequences) And(block func(cluster *v1alpha1.Cluster, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.cluster())
 	return c
 }
 
 func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.actions.lastOutput, c.actions.lastError)
 	return c
 }
@@ -54,5 +55,6 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }

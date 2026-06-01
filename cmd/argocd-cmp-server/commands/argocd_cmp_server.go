@@ -4,7 +4,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/argoproj/pkg/stats"
+	"github.com/argoproj/pkg/v2/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -18,11 +18,6 @@ import (
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
-const (
-	// CLIName is the name of the CLI
-	cliName = "argocd-cmp-server"
-)
-
 func NewCommand() *cobra.Command {
 	var (
 		configFilePath string
@@ -32,7 +27,7 @@ func NewCommand() *cobra.Command {
 		otlpAttrs      []string
 	)
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandCMPServer,
 		Short:             "Run ArgoCD ConfigManagementPlugin Server",
 		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. The following configuration options are available:",
 		DisableAutoGenTag: true,
@@ -89,7 +84,7 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_CMP_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_CMP_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_CMP_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: trace|debug|info|warn|error")
 	command.Flags().StringVar(&configFilePath, "config-dir-path", common.DefaultPluginConfigFilePath, "Config management plugin configuration file location, Default is '/home/argocd/cmp-server/config/'")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_CMP_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")

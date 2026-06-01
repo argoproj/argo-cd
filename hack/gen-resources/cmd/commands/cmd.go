@@ -66,7 +66,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
 
 			pg := generator.NewProjectGenerator(argoClientSet)
-			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
+			ag := generator.NewApplicationGenerator(argoClientSet, clientSet)
 			rg := generator.NewRepoGenerator(util.ConnectToK8sClientSet())
 			cg := generator.NewClusterGenerator(argoDB, util.ConnectToK8sClientSet(), util.ConnectToK8sConfig())
 
@@ -104,7 +104,7 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
 
 			pg := generator.NewProjectGenerator(argoClientSet)
-			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
+			ag := generator.NewApplicationGenerator(argoClientSet, clientSet)
 			cg := generator.NewClusterGenerator(argoDB, clientSet, util.ConnectToK8sConfig())
 			rg := generator.NewRepoGenerator(clientSet)
 

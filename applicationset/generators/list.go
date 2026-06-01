@@ -31,11 +31,11 @@ func (g *ListGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 
 func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if appSetGenerator.List == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	res := make([]map[string]any, len(appSetGenerator.List.Elements))
@@ -77,7 +77,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 	}
 
 	// Append elements from ElementsYaml to the response
-	if len(appSetGenerator.List.ElementsYaml) > 0 {
+	if appSetGenerator.List.ElementsYaml != "" {
 		var yamlElements []map[string]any
 		err := yaml.Unmarshal([]byte(appSetGenerator.List.ElementsYaml), &yamlElements)
 		if err != nil {

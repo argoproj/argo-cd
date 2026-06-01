@@ -13,6 +13,11 @@ import (
 	"sync"
 	"time"
 
+	otel_codes "go.opentelemetry.io/otel/codes"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -20,10 +25,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -43,6 +48,7 @@ type SessionManager struct {
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
+	metricsRegistry               MetricsRegistry
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -51,6 +57,10 @@ type LoginAttempts struct {
 	LastFailed time.Time `json:"lastFailed"`
 	// Number of consecutive login failures
 	FailCount int `json:"failCount"`
+}
+
+type MetricsRegistry interface {
+	IncLoginRequestCounter(status string)
 }
 
 const (
@@ -95,6 +105,13 @@ const (
 
 var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
 
+// OpenTelemetry tracer for this package
+var tracer trace.Tracer
+
+func init() {
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/session")
+}
+
 // Returns the maximum cache size as number of entries
 func getMaximumCacheSize() int {
 	return env.ParseNumFromEnv(envLoginMaxCacheSize, defaultMaxCacheSize, 1, math.MaxInt32)
@@ -111,7 +128,7 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
@@ -139,8 +156,8 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	}
 
 	if settings.DexConfig != "" {
-		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
-		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
 		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
 	} else {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
@@ -156,8 +173,6 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
 // The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
-	// Create a new token object, specifying signing method and the claims
-	// you would like it to contain.
 	now := time.Now().UTC()
 	claims := jwt.RegisteredClaims{
 		IssuedAt:  jwt.NewNumericDate(now),
@@ -172,6 +187,20 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	}
 
 	return mgr.signClaims(claims)
+}
+
+func (mgr *SessionManager) CollectMetrics(registry MetricsRegistry) {
+	mgr.metricsRegistry = registry
+	if mgr.metricsRegistry == nil {
+		log.Warn("Metrics registry is not set, metrics will not be collected")
+		return
+	}
+}
+
+func (mgr *SessionManager) IncLoginRequestCounter(status string) {
+	if mgr.metricsRegistry != nil {
+		mgr.metricsRegistry.IncLoginRequestCounter(status)
+	}
 }
 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
@@ -226,7 +255,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", err
 	}
 
-	subject := jwtutil.StringField(claims, "sub")
+	subject := jwtutil.GetUserIdentifier(claims)
 	id := jwtutil.StringField(claims, "jti")
 
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
@@ -258,7 +287,10 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", fmt.Errorf("account %s does not have '%s' capability", subject, capability)
 	}
 
-	if id == "" || mgr.storage.IsTokenRevoked(id) {
+	if id == "" {
+		return nil, "", errors.New("token does not have a unique identifier (jti claim) and cannot be validated")
+	}
+	if mgr.storage.IsTokenRevoked(id) {
 		return nil, "", errors.New("token is revoked, please re-login")
 	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
 		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
@@ -274,10 +306,12 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		remainingDuration := time.Until(exp)
 
 		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
-			if uniqueId, err := uuid.NewRandom(); err == nil {
-				if val, err := mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err == nil {
-					newToken = val
-				}
+			var uniqueId uuid.UUID
+			if uniqueId, err = uuid.NewRandom(); err != nil {
+				return nil, "", fmt.Errorf("could not create UUID for new JWT token: %w", err)
+			}
+			if newToken, err = mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err != nil {
+				return nil, "", fmt.Errorf("could not create new JWT token: %w", err)
 			}
 		}
 	}
@@ -287,16 +321,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 // GetLoginFailures retrieves the login failure information from the cache. Any modifications to the LoginAttemps map must be done in a thread-safe manner.
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
-	var failures map[string]LoginAttempts
-	err := mgr.storage.GetLoginAttempts(&failures)
-	if err != nil {
-		if !errors.Is(err, appstate.ErrCacheMiss) {
-			log.Errorf("Could not retrieve login attempts: %v", err)
-		}
-		failures = make(map[string]LoginAttempts)
-	}
-
-	return failures
+	return mgr.storage.GetLoginAttempts()
 }
 
 func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {
@@ -472,55 +497,74 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // AuthMiddlewareFunc returns a function that can be used as an
 // authentication middleware for HTTP requests.
-func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return WithAuthMiddleware(disabled, mgr, h)
+		return WithAuthMiddleware(disabled, isSSOConfigured, ssoClientApp, mgr, h)
 	}
 }
 
 // TokenVerifier defines the contract to invoke token
 // verification logic
 type TokenVerifier interface {
-	VerifyToken(token string) (jwt.Claims, string, error)
+	VerifyToken(ctx context.Context, token string) (jwt.Claims, string, error)
 }
 
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
 // requests are authenticated before invoking the target handler. If
 // disabled is true, it will just invoke the next handler in the chain.
-func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
+func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
+	if disabled {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !disabled {
-			cookies := r.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err != nil {
-				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
-				return
-			}
-			claims, _, err := authn.VerifyToken(tokenString)
-			if err != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
-				return
-			}
-			ctx := r.Context()
-			// Add claims to the context to inspect for RBAC
-			//nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", claims)
-			r = r.WithContext(ctx)
+		cookies := r.Cookies()
+		ctx := r.Context()
+		tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+		if err != nil {
+			http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+			return
 		}
+		claims, _, err := authn.VerifyToken(ctx, tokenString)
+		if err != nil {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		finalClaims := claims
+		if isSSOConfigured {
+			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(ctx, claims, SessionManagerClaimsIssuer)
+			if err != nil {
+				http.Error(w, "Invalid session", http.StatusUnauthorized)
+				return
+			}
+		}
+		// Add claims to the context to inspect for RBAC
+		//nolint:staticcheck
+		ctx = context.WithValue(ctx, "claims", finalClaims)
+		r = r.WithContext(ctx)
+
 		next.ServeHTTP(w, r)
 	})
 }
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
+func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) (jwt.Claims, string, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "session.SessionManager.VerifyToken")
+	defer span.End()
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	var claims jwt.RegisteredClaims
+	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
 		return nil, "", err
 	}
-	switch claims.Issuer {
+	// Get issuer from MapClaims
+	issuer, _ := claims["iss"].(string)
+	switch issuer {
 	case SessionManagerClaimsIssuer:
 		// Argo CD signed token
 		return mgr.Parse(tokenString)
@@ -539,20 +583,36 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", errors.New("settings are not available while verifying the token")
 		}
 
-		idToken, err := prov.Verify(tokenString, argoSettings)
+		idToken, err := prov.Verify(ctx, tokenString, argoSettings)
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			log.Warnf("Failed to verify token: %s", err)
+			errorMsg := "Failed to verify session token: " + err.Error()
+			span.SetStatus(otel_codes.Error, errorMsg)
+			log.Warn(errorMsg)
 			tokenExpiredError := &oidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
-				claims = jwt.RegisteredClaims{
-					Issuer: "sso",
+				claims = jwt.MapClaims{
+					"iss": "sso",
 				}
-				return claims, "", common.TokenVerificationErr
+				return claims, "", common.ErrTokenVerification
 			}
-			return nil, "", common.TokenVerificationErr
+			return nil, "", common.ErrTokenVerification
+		}
+
+		id, ok := claims["jti"].(string)
+		if !ok {
+			log.Warnf("token does not have jti claim")
+			id = ""
+		}
+		// Workaround for Dex token, because does not have jti.
+		if id == "" {
+			id = idToken.AccessTokenHash
+		}
+
+		if mgr.storage.IsTokenRevoked(id) {
+			return nil, "", errors.New("token is revoked, please re-login")
 		}
 
 		var claims jwt.MapClaims
@@ -584,7 +644,7 @@ func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringA
 }
 
 func LoggedIn(ctx context.Context) bool {
-	return Sub(ctx) != "" && ctx.Value(AuthErrorCtxKey) == nil
+	return GetUserIdentifier(ctx) != "" && ctx.Value(AuthErrorCtxKey) == nil
 }
 
 // Username is a helper to extract a human readable username from a context
@@ -595,9 +655,13 @@ func Username(ctx context.Context) string {
 	}
 	switch jwtutil.StringField(mapClaims, "iss") {
 	case SessionManagerClaimsIssuer:
-		return jwtutil.StringField(mapClaims, "sub")
+		return jwtutil.GetUserIdentifier(mapClaims)
 	default:
-		return jwtutil.StringField(mapClaims, "email")
+		e := jwtutil.StringField(mapClaims, "email")
+		if e != "" {
+			return e
+		}
+		return jwtutil.GetUserIdentifier(mapClaims)
 	}
 }
 
@@ -617,12 +681,13 @@ func Iat(ctx context.Context) (time.Time, error) {
 	return jwtutil.IssuedAtTime(mapClaims)
 }
 
-func Sub(ctx context.Context) string {
+// GetUserIdentifier returns the user identifier from context, prioritizing federated claims over subject
+func GetUserIdentifier(ctx context.Context) string {
 	mapClaims, ok := mapClaims(ctx)
 	if !ok {
 		return ""
 	}
-	return jwtutil.StringField(mapClaims, "sub")
+	return jwtutil.GetUserIdentifier(mapClaims)
 }
 
 func Groups(ctx context.Context, scopes []string) []string {

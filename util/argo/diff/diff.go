@@ -15,9 +15,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -353,7 +353,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 		Diffs: make([]diff.DiffResult, numItems),
 	}
 
-	for i := 0; i < numItems; i++ {
+	for i := range numItems {
 		config := configArray[i]
 		live := liveArray[i]
 		resourceVersion := ""
@@ -397,15 +397,16 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 		return false, nil
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
-	if c.stateCache != nil {
-		err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
-		if err != nil {
-			log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", appName, err)
-			return false, nil
+	err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
+	if err != nil {
+		if errors.Is(err, appstatecache.ErrCacheMiss) {
+			log.Warnf("DiffFromCache: cannot get managed resources for app %s: %s", appName, err)
+		} else {
+			log.Errorf("DiffFromCache: cannot get managed resources for app %s: %s", appName, err)
 		}
-		return true, cachedDiff
+		return false, nil
 	}
-	return false, nil
+	return true, cachedDiff
 }
 
 // preDiffNormalize applies the normalization of live and target resources before invoking

@@ -4,18 +4,20 @@ import (
 	"bytes"
 	"regexp"
 	"strings"
+	"testing"
 	"text/template"
 
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/stretchr/testify/require"
 )
 
 // utility method to template a string using a map
-func Tmpl(text string, values any) string {
+func Tmpl(t *testing.T, text string, values any) string {
+	t.Helper()
 	parse, err := template.New(text).Parse(text)
-	CheckError(err)
+	require.NoError(t, err)
 	buf := new(bytes.Buffer)
 	err = parse.Execute(buf, values)
-	CheckError(err)
+	require.NoError(t, err)
 	return buf.String()
 }
 

@@ -3,10 +3,10 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ApplicationSetLister helps list ApplicationSets.
@@ -14,7 +14,7 @@ import (
 type ApplicationSetLister interface {
 	// List lists all ApplicationSets in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ApplicationSet, err error)
+	List(selector labels.Selector) (ret []*applicationv1alpha1.ApplicationSet, err error)
 	// ApplicationSets returns an object that can list and get ApplicationSets.
 	ApplicationSets(namespace string) ApplicationSetNamespaceLister
 	ApplicationSetListerExpansion
@@ -22,17 +22,17 @@ type ApplicationSetLister interface {
 
 // applicationSetLister implements the ApplicationSetLister interface.
 type applicationSetLister struct {
-	listers.ResourceIndexer[*v1alpha1.ApplicationSet]
+	listers.ResourceIndexer[*applicationv1alpha1.ApplicationSet]
 }
 
 // NewApplicationSetLister returns a new ApplicationSetLister.
 func NewApplicationSetLister(indexer cache.Indexer) ApplicationSetLister {
-	return &applicationSetLister{listers.New[*v1alpha1.ApplicationSet](indexer, v1alpha1.Resource("applicationset"))}
+	return &applicationSetLister{listers.New[*applicationv1alpha1.ApplicationSet](indexer, applicationv1alpha1.Resource("applicationset"))}
 }
 
 // ApplicationSets returns an object that can list and get ApplicationSets.
 func (s *applicationSetLister) ApplicationSets(namespace string) ApplicationSetNamespaceLister {
-	return applicationSetNamespaceLister{listers.NewNamespaced[*v1alpha1.ApplicationSet](s.ResourceIndexer, namespace)}
+	return applicationSetNamespaceLister{listers.NewNamespaced[*applicationv1alpha1.ApplicationSet](s.ResourceIndexer, namespace)}
 }
 
 // ApplicationSetNamespaceLister helps list and get ApplicationSets.
@@ -40,15 +40,15 @@ func (s *applicationSetLister) ApplicationSets(namespace string) ApplicationSetN
 type ApplicationSetNamespaceLister interface {
 	// List lists all ApplicationSets in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ApplicationSet, err error)
+	List(selector labels.Selector) (ret []*applicationv1alpha1.ApplicationSet, err error)
 	// Get retrieves the ApplicationSet from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ApplicationSet, error)
+	Get(name string) (*applicationv1alpha1.ApplicationSet, error)
 	ApplicationSetNamespaceListerExpansion
 }
 
 // applicationSetNamespaceLister implements the ApplicationSetNamespaceLister
 // interface.
 type applicationSetNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.ApplicationSet]
+	listers.ResourceIndexer[*applicationv1alpha1.ApplicationSet]
 }

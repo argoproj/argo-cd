@@ -11,13 +11,19 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
+)
+
+const (
+	NoteNamespace = "hydrator.metadata" // NoteNamespace is the custom git notes namespace used by the hydrator to store and retrieve commit-related metadata.
+	ManifestYaml  = "manifest.yaml"     // ManifestYaml constant for the manifest yaml
 )
 
 // Service is the service that handles commit requests.
 type Service struct {
-	gitCredsStore     git.CredsStore
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
 }
@@ -25,11 +31,54 @@ type Service struct {
 // NewService returns a new instance of the commit service.
 func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
 	return &Service{
-		gitCredsStore:     gitCredsStore,
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 	}
 }
+
+type hydratorMetadataFile struct {
+	RepoURL  string   `json:"repoURL,omitempty"`
+	DrySHA   string   `json:"drySha,omitempty"`
+	Commands []string `json:"commands,omitempty"`
+	Author   string   `json:"author,omitempty"`
+	Date     string   `json:"date,omitempty"`
+	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
+	Subject string `json:"subject,omitempty"`
+	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
+	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
+	Body       string                       `json:"body,omitempty"`
+	References []v1alpha1.RevisionReference `json:"references,omitempty"`
+}
+
+// CommitNote represents the structure of the git note associated with a hydrated commit.
+// This struct is used to serialize/deserialize commit metadata (such as the dry run SHA)
+// stored in the custom note namespace by the hydrator.
+type CommitNote struct {
+	DrySHA string `json:"drySha"` // SHA of original commit that triggerd the hydrator
+}
+
+// TODO: make this configurable via ConfigMap.
+var manifestHydrationReadmeTemplate = `# Manifest Hydration
+
+To hydrate the manifests in this repository, run the following commands:
+
+` + "```shell" + `
+git clone {{ .RepoURL }}
+# cd into the cloned directory
+git checkout {{ .DrySHA }}
+{{ range $command := .Commands -}}
+{{ $command }}
+{{ end -}}` + "```" + `
+{{ if .References -}}
+
+## References
+
+{{ range $ref := .References -}}
+{{ if $ref.Commit -}}
+* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+{{ end -}}
+{{ end -}}
+{{ end -}}`
 
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
 // the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
@@ -99,6 +148,12 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 	defer cleanup()
 
+	root, err := os.OpenRoot(dirPath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to open root dir: %w", err)
+	}
+	defer io.Close(root)
+
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	var out string
 	out, err = gitClient.CheckoutOrOrphan(r.SyncBranch, false)
@@ -112,18 +167,45 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	logCtx.Debug("Clearing repo contents")
-	out, err = gitClient.RemoveContents()
+	hydratedSha, err := gitClient.CommitSHA()
 	if err != nil {
-		return out, "", fmt.Errorf("failed to clear repo: %w", err)
+		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
+	}
+
+	/* git note changes
+	1. Get the git note
+	2. If found, short-circuit, log a warn and return
+	3. If not, get the last manifest from git  for every path, compare it with the hydrated manifest
+	3a. If manifest has no changes, continue.. no need to commit it
+	3b. Else, hydrate the manifest.
+	3c. Push the updated note
+	*/
+	isHydrated, err := IsHydrated(gitClient, r.DrySha, hydratedSha)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get notes from git %w", err)
+	}
+	// short-circuit if already hydrated
+	if isHydrated {
+		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
+		return "", hydratedSha, nil
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(dirPath, r.Repo.Repo, r.DrySha, r.Paths)
+	shouldCommit, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient)
+	// When there are no new manifests to commit, err will be nil and success will be false as nothing to commit. Else or every other error err will not be nil
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
-
+	if !shouldCommit {
+		// Manifests did not change, so we don't need to create a new commit.
+		// Add a git note to track that this dry SHA has been processed, and return the existing hydrated SHA.
+		logCtx.Debug("Adding commit note")
+		err = AddNote(gitClient, r.DrySha, hydratedSha)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to add commit note: %w", err)
+		}
+		return "", hydratedSha, nil
+	}
 	logCtx.Debug("Committing and pushing changes")
 	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
 	if err != nil {
@@ -135,7 +217,12 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
 	}
-
+	// add the commit note
+	logCtx.Debug("Adding commit note")
+	err = AddNote(gitClient, r.DrySha, sha)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to add commit note: %w", err)
+	}
 	return "", sha, nil
 }
 
@@ -169,31 +256,34 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	}
 
 	logCtx.Debugf("Fetching repo %s", r.Repo.Repo)
-	err = gitClient.Fetch("")
+	err = gitClient.Fetch("", 0)
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to clone repo: %w", err)
 	}
 
 	// FIXME: make it work for GHE
-	//logCtx.Debugf("Getting user info for repo credentials")
-	//gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
-	//startTime := time.Now()
-	//authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
-	//s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, getCredentialType(r.Repo), time.Since(startTime))
-	//if err != nil {
-	//	cleanupOrLog()
-	//	return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
-	//}
-	var authorName, authorEmail string
-
+	// logCtx.Debugf("Getting user info for repo credentials")
+	// gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
+	// startTime := time.Now()
+	// authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
+	// s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, getCredentialType(r.Repo), time.Since(startTime))
+	// if err != nil {
+	//	 cleanupOrLog()
+	//	 return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
+	// }
+	// Use author name and email from request, defaulting to "Argo CD" if not provided
+	authorName := r.AuthorName
 	if authorName == "" {
 		authorName = "Argo CD"
 	}
+	authorEmail := r.AuthorEmail
 	if authorEmail == "" {
-		logCtx.Warnf("Author email not available, using 'argo-cd@example.com'.")
 		authorEmail = "argo-cd@example.com"
 	}
+
+	logCtx.Debugf("Author config: request name='%s', request email='%s', final name='%s', final email='%s'",
+		r.AuthorName, r.AuthorEmail, authorName, authorEmail)
 
 	logCtx.Debugf("Setting author %s <%s>", authorName, authorEmail)
 	_, err = gitClient.SetAuthor(authorName, authorEmail)
@@ -204,23 +294,3 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 
 	return gitClient, dirPath, cleanupOrLog, nil
 }
-
-type hydratorMetadataFile struct {
-	RepoURL  string   `json:"repoURL"`
-	DrySHA   string   `json:"drySha"`
-	Commands []string `json:"commands"`
-}
-
-// TODO: make this configurable via ConfigMap.
-var manifestHydrationReadmeTemplate = `
-# Manifest Hydration
-
-To hydrate the manifests in this repository, run the following commands:
-
-` + "```shell\n" + `
-git clone {{ .RepoURL }}
-# cd into the cloned directory
-git checkout {{ .DrySHA }}
-{{ range $command := .Commands -}}
-{{ $command }}
-{{ end -}}` + "```"

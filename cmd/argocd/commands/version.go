@@ -13,7 +13,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -48,7 +48,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 				v := make(map[string]any)
 
 				if short {
-					v["client"] = map[string]string{cliName: cv.Version}
+					v["client"] = map[string]string{common.CommandCLI: cv.Version}
 				} else {
 					v["client"] = cv
 				}
@@ -94,7 +94,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 
 func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
 	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
-	defer argoio.Close(conn)
+	defer utilio.Close(conn)
 
 	v, err := versionIf.Version(ctx, &empty.Empty{})
 	errors.CheckError(err)
@@ -103,7 +103,7 @@ func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, 
 }
 
 func printClientVersion(version *common.Version, short bool) string {
-	output := fmt.Sprintf("%s: %s\n", cliName, version)
+	output := fmt.Sprintf("%s: %s\n", common.CommandCLI, version)
 	if short {
 		return output
 	}

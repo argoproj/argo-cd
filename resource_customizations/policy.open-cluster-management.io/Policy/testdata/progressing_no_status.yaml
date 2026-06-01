@@ -49,3 +49,4 @@ spec:
         remediationAction: enforce
         severity: medium
   remediationAction: enforce
+status: {}

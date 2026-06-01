@@ -11,6 +11,7 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GitlabProvider struct {
@@ -19,12 +20,13 @@ type GitlabProvider struct {
 	allBranches           bool
 	includeSubgroups      bool
 	includeSharedProjects bool
+	includeArchivedRepos  bool
 	topic                 string
 }
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
+func NewGitlabProvider(organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, includeArchivedRepos, insecure bool, scmRootCAPath, topic string, caCerts []byte, proxyURL, noProxy string) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -33,6 +35,7 @@ func NewGitlabProvider(organization string, token string, url string, allBranche
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	tr.Proxy = proxy.GetCallback(proxyURL, noProxy)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr
@@ -51,7 +54,15 @@ func NewGitlabProvider(organization string, token string, url string, allBranche
 		}
 	}
 
-	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups, includeSharedProjects: includeSharedProjects, topic: topic}, nil
+	return &GitlabProvider{
+		client:                client,
+		organization:          organization,
+		allBranches:           allBranches,
+		includeSubgroups:      includeSubgroups,
+		includeSharedProjects: includeSharedProjects,
+		includeArchivedRepos:  includeArchivedRepos,
+		topic:                 topic,
+	}, nil
 }
 
 func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
@@ -76,11 +87,21 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 }
 
 func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+	}
 	opt := &gitlab.ListGroupProjectsOptions{
-		ListOptions:      gitlab.ListOptions{PerPage: 100},
+		ListOptions:      snippetsListOptions.ListOptions,
 		IncludeSubGroups: &g.includeSubgroups,
 		WithShared:       &g.includeSharedProjects,
 		Topic:            &g.topic,
+	}
+
+	// gitlab does not include Archived repos by default
+	if g.includeArchivedRepos {
+		opt.Archived = gitlab.Ptr(true)
 	}
 
 	repos := []*Repository{}
@@ -104,6 +125,7 @@ func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*
 			var repoLabels []string
 			if len(gitlabRepo.Topics) == 0 {
 				// fallback to for gitlab prior to 14.5
+				//nolint:staticcheck
 				repoLabels = gitlabRepo.TagList
 			} else {
 				repoLabels = gitlabRepo.Topics
@@ -172,8 +194,13 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 		return branches, nil
 	}
 	// Otherwise, scrape the ListBranches API.
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+	}
 	opt := &gitlab.ListBranchesOptions{
-		ListOptions: gitlab.ListOptions{PerPage: 100},
+		ListOptions: snippetsListOptions.ListOptions,
 	}
 	for {
 		gitlabBranches, resp, err := g.client.Branches.ListBranches(repo.RepositoryId, opt)

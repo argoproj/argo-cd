@@ -6,8 +6,8 @@ Award amount: $100
 
 ## Solution
 
-!!! note
-     This is the proposed solution. The accepted PR may differ from this proposal.
+> [!NOTE]
+> This is the proposed solution. The accepted PR may differ from this proposal.
 
 Add a new config item in argocd-cm:
 

@@ -1,0 +1,426 @@
+apiVersion: core.strimzi.io/v1
+kind: StrimziPodSet
+metadata:
+  annotations:
+    strimzi.io/kafka-version: 4.0.0
+    strimzi.io/storage: '{"type":"jbod","volumes":[{"id":1,"type":"persistent-claim","size":"100Gi","class":"standard"}]}'
+  creationTimestamp: "2024-01-01T00:00:00Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: my-kafka
+    app.kubernetes.io/managed-by: strimzi-cluster-operator
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/part-of: strimzi-my-kafka
+    strimzi.io/cluster: my-kafka
+    strimzi.io/component-type: kafka
+    strimzi.io/kind: Kafka
+    strimzi.io/name: my-kafka-kafka
+    strimzi.io/pool-name: kafka
+  name: my-kafka-kafka
+  namespace: kafka
+  ownerReferences:
+  - apiVersion: kafka.strimzi.io/v1beta2
+    blockOwnerDeletion: true
+    controller: false
+    kind: KafkaNodePool
+    name: kafka
+    uid: 00000000-0000-0000-0000-000000000000
+  resourceVersion: "1000000"
+  uid: 00000000-0000-0000-0000-000000000001
+spec:
+  pods:
+  - apiVersion: v1
+    kind: Pod
+    metadata:
+      annotations:
+        strimzi.io/clients-ca-cert-generation: "0"
+        strimzi.io/cluster-ca-cert-generation: "0"
+        strimzi.io/cluster-ca-key-generation: "0"
+        strimzi.io/configuration-hash: aabbccdd
+        strimzi.io/kafka-version: 4.0.0
+        strimzi.io/revision: aabbccdd
+        strimzi.io/server-cert-hash: aabbccddaabbccddaabbccddaabbccddaabbccdd
+      labels:
+        app.kubernetes.io/instance: my-kafka
+        app.kubernetes.io/managed-by: strimzi-cluster-operator
+        app.kubernetes.io/name: kafka
+        app.kubernetes.io/part-of: strimzi-my-kafka
+        strimzi.io/broker-role: "true"
+        strimzi.io/cluster: my-kafka
+        strimzi.io/component-type: kafka
+        strimzi.io/controller: strimzipodset
+        strimzi.io/controller-name: my-kafka-kafka
+        strimzi.io/controller-role: "false"
+        strimzi.io/kind: Kafka
+        strimzi.io/name: my-kafka-kafka
+        strimzi.io/pod-name: my-kafka-kafka-0
+        strimzi.io/pool-name: kafka
+      name: my-kafka-kafka-0
+      namespace: kafka
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  strimzi.io/cluster: my-kafka
+                  strimzi.io/name: my-kafka-kafka
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - args:
+        - /opt/kafka/kafka_run.sh
+        env:
+        - name: KAFKA_JMX_EXPORTER_ENABLED
+          value: "true"
+        - name: STRIMZI_KAFKA_GC_LOG_ENABLED
+          value: "false"
+        - name: KAFKA_CLUSTER_NAME
+          value: my-kafka
+        - name: STRIMZI_DYNAMIC_HEAP_PERCENTAGE
+          value: "50"
+        - name: STRIMZI_DYNAMIC_HEAP_MAX
+          value: "5368709120"
+        - name: STRIMZI_JMX_ENABLED
+          value: "true"
+        image: quay.io/strimzi/kafka:0.45.0-kafka-4.0.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - /opt/kafka/kafka_liveness.sh
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        name: kafka
+        ports:
+        - containerPort: 9091
+          name: tcp-replication
+          protocol: TCP
+        - containerPort: 9093
+          name: tcp-plain
+          protocol: TCP
+        - containerPort: 9094
+          name: tcp-external
+          protocol: TCP
+        - containerPort: 9404
+          name: tcp-prometheus
+          protocol: TCP
+        - containerPort: 9999
+          name: jmx
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - /opt/kafka/kafka_readiness.sh
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /var/lib/kafka/data-1
+          name: data-1
+        - mountPath: /tmp
+          name: strimzi-tmp
+        - mountPath: /opt/kafka/custom-config/
+          name: kafka-metrics-and-logging
+        - mountPath: /var/opt/kafka
+          name: ready-files
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "3"
+      hostname: my-kafka-kafka-0
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 0
+      serviceAccountName: my-kafka-kafka
+      subdomain: my-kafka-kafka-brokers
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: data-1
+        persistentVolumeClaim:
+          claimName: data-1-my-kafka-kafka-0
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 5Mi
+        name: strimzi-tmp
+      - configMap:
+          name: my-kafka-kafka-0
+        name: kafka-metrics-and-logging
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 1Ki
+        name: ready-files
+  - apiVersion: v1
+    kind: Pod
+    metadata:
+      annotations:
+        strimzi.io/clients-ca-cert-generation: "0"
+        strimzi.io/cluster-ca-cert-generation: "0"
+        strimzi.io/cluster-ca-key-generation: "0"
+        strimzi.io/configuration-hash: aabbccdd
+        strimzi.io/kafka-version: 4.0.0
+        strimzi.io/revision: aabbccdd
+        strimzi.io/server-cert-hash: aabbccddaabbccddaabbccddaabbccddaabbccdd
+      labels:
+        app.kubernetes.io/instance: my-kafka
+        app.kubernetes.io/managed-by: strimzi-cluster-operator
+        app.kubernetes.io/name: kafka
+        app.kubernetes.io/part-of: strimzi-my-kafka
+        strimzi.io/broker-role: "true"
+        strimzi.io/cluster: my-kafka
+        strimzi.io/component-type: kafka
+        strimzi.io/controller: strimzipodset
+        strimzi.io/controller-name: my-kafka-kafka
+        strimzi.io/controller-role: "false"
+        strimzi.io/kind: Kafka
+        strimzi.io/name: my-kafka-kafka
+        strimzi.io/pod-name: my-kafka-kafka-1
+        strimzi.io/pool-name: kafka
+      name: my-kafka-kafka-1
+      namespace: kafka
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  strimzi.io/cluster: my-kafka
+                  strimzi.io/name: my-kafka-kafka
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - args:
+        - /opt/kafka/kafka_run.sh
+        env:
+        - name: KAFKA_JMX_EXPORTER_ENABLED
+          value: "true"
+        - name: STRIMZI_KAFKA_GC_LOG_ENABLED
+          value: "false"
+        - name: KAFKA_CLUSTER_NAME
+          value: my-kafka
+        - name: STRIMZI_DYNAMIC_HEAP_PERCENTAGE
+          value: "50"
+        - name: STRIMZI_DYNAMIC_HEAP_MAX
+          value: "5368709120"
+        - name: STRIMZI_JMX_ENABLED
+          value: "true"
+        image: quay.io/strimzi/kafka:0.45.0-kafka-4.0.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - /opt/kafka/kafka_liveness.sh
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        name: kafka
+        ports:
+        - containerPort: 9091
+          name: tcp-replication
+          protocol: TCP
+        - containerPort: 9093
+          name: tcp-plain
+          protocol: TCP
+        - containerPort: 9094
+          name: tcp-external
+          protocol: TCP
+        - containerPort: 9404
+          name: tcp-prometheus
+          protocol: TCP
+        - containerPort: 9999
+          name: jmx
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - /opt/kafka/kafka_readiness.sh
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /var/lib/kafka/data-1
+          name: data-1
+        - mountPath: /tmp
+          name: strimzi-tmp
+        - mountPath: /opt/kafka/custom-config/
+          name: kafka-metrics-and-logging
+        - mountPath: /var/opt/kafka
+          name: ready-files
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "3"
+      hostname: my-kafka-kafka-1
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 0
+      serviceAccountName: my-kafka-kafka
+      subdomain: my-kafka-kafka-brokers
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: data-1
+        persistentVolumeClaim:
+          claimName: data-1-my-kafka-kafka-1
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 5Mi
+        name: strimzi-tmp
+      - configMap:
+          name: my-kafka-kafka-1
+        name: kafka-metrics-and-logging
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 1Ki
+        name: ready-files
+  - apiVersion: v1
+    kind: Pod
+    metadata:
+      annotations:
+        strimzi.io/clients-ca-cert-generation: "0"
+        strimzi.io/cluster-ca-cert-generation: "0"
+        strimzi.io/cluster-ca-key-generation: "0"
+        strimzi.io/configuration-hash: aabbccdd
+        strimzi.io/kafka-version: 4.0.0
+        strimzi.io/revision: aabbccdd
+        strimzi.io/server-cert-hash: aabbccddaabbccddaabbccddaabbccddaabbccdd
+      labels:
+        app.kubernetes.io/instance: my-kafka
+        app.kubernetes.io/managed-by: strimzi-cluster-operator
+        app.kubernetes.io/name: kafka
+        app.kubernetes.io/part-of: strimzi-my-kafka
+        strimzi.io/broker-role: "true"
+        strimzi.io/cluster: my-kafka
+        strimzi.io/component-type: kafka
+        strimzi.io/controller: strimzipodset
+        strimzi.io/controller-name: my-kafka-kafka
+        strimzi.io/controller-role: "false"
+        strimzi.io/kind: Kafka
+        strimzi.io/name: my-kafka-kafka
+        strimzi.io/pod-name: my-kafka-kafka-2
+        strimzi.io/pool-name: kafka
+      name: my-kafka-kafka-2
+      namespace: kafka
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  strimzi.io/cluster: my-kafka
+                  strimzi.io/name: my-kafka-kafka
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - args:
+        - /opt/kafka/kafka_run.sh
+        env:
+        - name: KAFKA_JMX_EXPORTER_ENABLED
+          value: "true"
+        - name: STRIMZI_KAFKA_GC_LOG_ENABLED
+          value: "false"
+        - name: KAFKA_CLUSTER_NAME
+          value: my-kafka
+        - name: STRIMZI_DYNAMIC_HEAP_PERCENTAGE
+          value: "50"
+        - name: STRIMZI_DYNAMIC_HEAP_MAX
+          value: "5368709120"
+        - name: STRIMZI_JMX_ENABLED
+          value: "true"
+        image: quay.io/strimzi/kafka:0.45.0-kafka-4.0.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - /opt/kafka/kafka_liveness.sh
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        name: kafka
+        ports:
+        - containerPort: 9091
+          name: tcp-replication
+          protocol: TCP
+        - containerPort: 9093
+          name: tcp-plain
+          protocol: TCP
+        - containerPort: 9094
+          name: tcp-external
+          protocol: TCP
+        - containerPort: 9404
+          name: tcp-prometheus
+          protocol: TCP
+        - containerPort: 9999
+          name: jmx
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - /opt/kafka/kafka_readiness.sh
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /var/lib/kafka/data-1
+          name: data-1
+        - mountPath: /tmp
+          name: strimzi-tmp
+        - mountPath: /opt/kafka/custom-config/
+          name: kafka-metrics-and-logging
+        - mountPath: /var/opt/kafka
+          name: ready-files
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "3"
+      hostname: my-kafka-kafka-2
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 0
+      serviceAccountName: my-kafka-kafka
+      subdomain: my-kafka-kafka-brokers
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: data-1
+        persistentVolumeClaim:
+          claimName: data-1-my-kafka-kafka-2
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 5Mi
+        name: strimzi-tmp
+      - configMap:
+          name: my-kafka-kafka-2
+        name: kafka-metrics-and-logging
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 1Ki
+        name: ready-files
+  selector:
+    matchLabels:
+      strimzi.io/cluster: my-kafka
+      strimzi.io/kind: Kafka
+      strimzi.io/name: my-kafka-kafka
+      strimzi.io/pool-name: kafka
+status:
+  currentPods: 3
+  observedGeneration: 1
+  pods: 3
+  readyPods: 3

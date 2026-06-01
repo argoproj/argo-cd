@@ -2,11 +2,9 @@ package cache
 
 import (
 	"sort"
-	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/pkg/errors"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -14,8 +12,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -53,6 +53,30 @@ var (
     uid: "4"
     annotations:
       link.argocd.argoproj.io/external-link: http://my-grafana.example.com/pre-generated-link
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`)
+
+	testMaliciousLinkAnnotatedService = strToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+    uid: "4"
+    annotations:
+      link.argocd.argoproj.io/javascript: 'javascript:alert(1)'
+      link.argocd.argoproj.io/data: 'data:text/html,<script>alert(1)</script>'
+      link.argocd.argoproj.io/vbscript: 'vbscript:msgbox(1)'
+      link.argocd.argoproj.io/titled-javascript: 'click me|javascript:alert(1)'
+      link.argocd.argoproj.io/no-scheme: 'example.com/foo'
+      link.argocd.argoproj.io/safe: 'http://my-grafana.example.com/pre-generated-link'
   spec:
     selector:
       app: guestbook
@@ -126,6 +150,40 @@ var (
       ingress:
       - ip: 107.178.210.11`)
 
+	testIgnoreDefaultLinksIngress = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+    annotations:
+      link.argocd.argoproj.io/external-link: http://my-grafana.example.com/ingress-link
+      argocd.argoproj.io/ignore-default-links: "true"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.example.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /
+    tls:
+    - host: helm-guestbook.example.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
 	testIngressWildCardPath = strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
@@ -157,7 +215,7 @@ var (
       ingress:
       - ip: 107.178.210.11`)
 
-	testIngressWithoutTls = strToUnstructured(`
+	testIngressWithoutTLS = strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
@@ -261,12 +319,239 @@ spec:
   - name: http
     number: 80
     protocol: HTTP
-    targetPort: 5678 
+    targetPort: 5678
   resolution: DNS
 
   workloadSelector:
     labels:
       app.kubernetes.io/name: echo-2
+`)
+
+	testHTTPRoute = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: example-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: example-gateway
+    namespace: default
+  hostnames:
+  - example.com
+  rules:
+  - backendRefs:
+    - name: service-a
+      port: 8080
+    - name: service-b
+      port: 8080
+`)
+
+	testHTTPRouteCrossNamespace = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: cross-ns-route
+  namespace: default
+spec:
+  rules:
+  - backendRefs:
+    - name: service-other
+      namespace: other-ns
+      port: 8080
+`)
+
+	testHTTPRouteWithExternalLink = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: annotated-route
+  namespace: default
+  annotations:
+    link.argocd.argoproj.io/external-link: https://example.com
+spec:
+  rules:
+  - backendRefs:
+    - name: service-a
+      port: 8080
+`)
+
+	testHTTPRouteMultipleRules = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: multi-rule-route
+  namespace: default
+spec:
+  rules:
+  - matches:
+    - path:
+        value: /api
+    backendRefs:
+    - name: api-service
+      port: 8080
+  - matches:
+    - path:
+        value: /web
+    backendRefs:
+    - name: web-service
+      port: 80
+`)
+
+	testHTTPRouteCrossNamespaceParent = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: cross-ns-parent-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: shared-gateway
+    namespace: gateway-ns
+  rules:
+  - backendRefs:
+    - name: my-service
+      port: 8080
+`)
+
+	testGRPCRoute = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: grpc-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: grpc-gateway
+  rules:
+  - backendRefs:
+    - name: grpc-service
+      port: 50051
+`)
+
+	testGatewayWithIP = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: example-gateway
+  namespace: default
+spec:
+  gatewayClassName: example-class
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+status:
+  addresses:
+  - type: IPAddress
+    value: 192.168.1.100
+`)
+
+	testGatewayWithHostname = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: hostname-gateway
+  namespace: default
+spec:
+  listeners:
+  - name: https
+    protocol: HTTPS
+    port: 443
+    hostname: api.example.com
+status:
+  addresses:
+  - type: Hostname
+    value: lb.example.com
+`)
+
+	testGatewayMultipleListeners = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: multi-gateway
+  namespace: default
+spec:
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+  - name: https
+    protocol: HTTPS
+    port: 443
+status:
+  addresses:
+  - type: IPAddress
+    value: 10.0.0.1
+`)
+
+	testGatewayNonStandardPort = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: custom-port-gateway
+  namespace: default
+spec:
+  listeners:
+  - name: http-alt
+    protocol: HTTP
+    port: 8080
+status:
+  addresses:
+  - type: IPAddress
+    value: 10.0.0.1
+`)
+
+	testGatewayNoAddresses = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: pending-gateway
+  namespace: default
+spec:
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+`)
+
+	testGatewayWithExternalLink = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: annotated-gateway
+  namespace: default
+  annotations:
+    link.argocd.argoproj.io/external-link: https://custom-link.example.com
+spec:
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+status:
+  addresses:
+  - type: IPAddress
+    value: 10.0.0.1
+`)
+
+	testGatewayIgnoreDefaultLinks = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: no-default-links-gateway
+  namespace: default
+  annotations:
+    link.argocd.argoproj.io/external-link: https://custom-link.example.com
+    argocd.argoproj.io/ignore-default-links: "true"
+spec:
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+status:
+  addresses:
+  - type: IPAddress
+    value: 10.0.0.1
 `)
 )
 
@@ -305,6 +590,8 @@ func TestGetPodInfo(t *testing.T) {
 		assert.Equal(t, []v1alpha1.InfoItem{
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
+			{Name: common.PodRequestsCPU, Value: "0"}, // strings imported from common
+			{Name: common.PodRequestsMEM, Value: "134217728000"},
 		}, info.Info)
 		assert.Equal(t, []string{"bar"}, info.Images)
 		assert.Equal(t, &PodInfo{
@@ -366,9 +653,81 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Running"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "1/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
+	t.Run("TestGetPodWithInitialContainerInfoWithResources", func(t *testing.T) {
+		pod := strToUnstructured(`
+        apiVersion: "v1"
+        kind: "Pod"
+        metadata:
+            labels:
+                app: "app-with-initial-container"
+            name: "app-with-initial-container-5f46976fdb-vd6rv"
+            namespace: "default"
+            ownerReferences:
+            - apiVersion: "apps/v1"
+              kind: "ReplicaSet"
+              name: "app-with-initial-container-5f46976fdb"
+        spec:
+            containers:
+            - image: "alpine:latest"
+              imagePullPolicy: "Always"
+              name: "app-with-initial-container"
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+            initContainers:
+            - image: "alpine:latest"
+              imagePullPolicy: "Always"
+              name: "app-with-initial-container-logshipper"
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "250m"
+                  memory: "256Mi"
+            nodeName: "minikube"
+        status:
+            containerStatuses:
+            - image: "alpine:latest"
+              name: "app-with-initial-container"
+              ready: true
+              restartCount: 0
+              started: true
+              state:
+                running:
+                  startedAt: "2024-10-08T08:44:25Z"
+            initContainerStatuses:
+            - image: "alpine:latest"
+              name: "app-with-initial-container-logshipper"
+              ready: true
+              restartCount: 0
+              started: false
+              state:
+                terminated:
+                  exitCode: 0
+                  reason: "Completed"
+            phase: "Running"
+    `)
+
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Equal(t, []v1alpha1.InfoItem{
+			{Name: "Status Reason", Value: "Running"},
+			{Name: "Node", Value: "minikube"},
+			{Name: "Containers", Value: "1/1"},
+			{Name: common.PodRequestsCPU, Value: "100"},
+			{Name: common.PodRequestsMEM, Value: "134217728000"},
+		}, info.Info)
+	})
 	t.Run("TestGetPodInfoWithSidecar", func(t *testing.T) {
 		t.Parallel()
 
@@ -423,6 +782,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Running"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "2/2"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -481,6 +842,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Init:0/1"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -538,6 +901,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/3"},
 			{Name: "Restart Count", Value: "3"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -595,6 +960,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/3"},
 			{Name: "Restart Count", Value: "3"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -655,6 +1022,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "1/3"},
 			{Name: "Restart Count", Value: "7"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -697,6 +1066,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
 			{Name: "Restart Count", Value: "3"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -732,6 +1103,45 @@ func TestGetPodInfo(t *testing.T) {
 		}, info.Info)
 	})
 
+	// Test pod condition succeed which had some allocated resources
+	t.Run("TestPodConditionSucceededWithResources", func(t *testing.T) {
+		t.Parallel()
+
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test8
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+  status:
+    phase: Succeeded
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          terminated:
+            reason: Completed
+            exitCode: 0
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Equal(t, []v1alpha1.InfoItem{
+			{Name: "Status Reason", Value: "Completed"},
+			{Name: "Node", Value: "minikube"},
+			{Name: "Containers", Value: "0/1"},
+		}, info.Info)
+	})
+
 	// Test pod condition failed
 	t.Run("TestPodConditionFailed", func(t *testing.T) {
 		t.Parallel()
@@ -745,6 +1155,46 @@ func TestGetPodInfo(t *testing.T) {
     nodeName: minikube
     containers:
       - name: container
+  status:
+    phase: Failed
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          terminated:
+            reason: Error
+            exitCode: 1
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Equal(t, []v1alpha1.InfoItem{
+			{Name: "Status Reason", Value: "Error"},
+			{Name: "Node", Value: "minikube"},
+			{Name: "Containers", Value: "0/1"},
+		}, info.Info)
+	})
+
+	// Test pod condition failed with allocated resources
+
+	t.Run("TestPodConditionFailedWithResources", func(t *testing.T) {
+		t.Parallel()
+
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test9
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
   status:
     phase: Failed
     containerStatuses:
@@ -825,6 +1275,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Terminating"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -851,6 +1303,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Terminating"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -881,6 +1335,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "SchedulingGated"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/2"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 }
@@ -891,6 +1347,8 @@ apiVersion: v1
 kind: Node
 metadata:
   name: minikube
+  labels:
+    foo: bar
 spec: {}
 status:
   capacity:
@@ -908,6 +1366,7 @@ status:
 		Name:       "minikube",
 		Capacity:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("6091320Ki"), corev1.ResourceCPU: resource.MustParse("6")},
 		SystemInfo: corev1.NodeSystemInfo{Architecture: "amd64", OperatingSystem: "linux", OSImage: "Ubuntu 20.04 LTS"},
+		Labels:     map[string]string{"foo": "bar"},
 	}, info.NodeInfo)
 }
 
@@ -930,6 +1389,15 @@ func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 		Ingress:      []corev1.LoadBalancerIngress{{Hostname: "localhost"}},
 		ExternalURLs: []string{"http://my-grafana.example.com/pre-generated-link"},
 	}, info.NetworkingInfo)
+}
+
+func TestMaliciousLinkAnnotatedServiceInfoFiltered(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testMaliciousLinkAnnotatedService, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Only the http URL should make it through; javascript:, data:, vbscript:,
+	// "title|javascript:..." and scheme-less values must be dropped.
+	assert.Equal(t, []string{"http://my-grafana.example.com/pre-generated-link"}, info.NetworkingInfo.ExternalURLs)
 }
 
 func TestGetIstioVirtualServiceInfo(t *testing.T) {
@@ -970,6 +1438,180 @@ func TestGetIstioServiceEntryInfo(t *testing.T) {
 	}, info.NetworkingInfo.TargetLabels)
 }
 
+func TestGetHTTPRouteInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRoute, info, []string{})
+	assert.Empty(t, info.Info)
+	require.NotNil(t, info.NetworkingInfo)
+	// Should have Gateway (parentRef) + 2 Services (backendRefs)
+	assert.Len(t, info.NetworkingInfo.TargetRefs, 3)
+	// Check Gateway ref from parentRefs
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "gateway.networking.k8s.io",
+		Kind:      "Gateway",
+		Namespace: "default",
+		Name:      "example-gateway",
+	})
+	// Check Service refs from backendRefs
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "",
+		Kind:      kube.ServiceKind,
+		Namespace: "default",
+		Name:      "service-a",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "",
+		Kind:      kube.ServiceKind,
+		Namespace: "default",
+		Name:      "service-b",
+	})
+	assert.Empty(t, info.NetworkingInfo.Ingress)
+}
+
+func TestGetHTTPRouteCrossNamespaceInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteCrossNamespace, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Len(t, info.NetworkingInfo.TargetRefs, 1)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "",
+		Kind:      kube.ServiceKind,
+		Namespace: "other-ns",
+		Name:      "service-other",
+	})
+}
+
+func TestGetHTTPRouteWithExternalLinkAnnotation(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteWithExternalLink, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "https://example.com")
+}
+
+func TestGetHTTPRouteMultipleRules(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteMultipleRules, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Len(t, info.NetworkingInfo.TargetRefs, 2)
+	serviceNames := make([]string, 0)
+	for _, ref := range info.NetworkingInfo.TargetRefs {
+		serviceNames = append(serviceNames, ref.Name)
+	}
+	assert.Contains(t, serviceNames, "api-service")
+	assert.Contains(t, serviceNames, "web-service")
+}
+
+func TestGetHTTPRouteCrossNamespaceParent(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteCrossNamespaceParent, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Should have Gateway (cross-namespace parentRef) + Service (backendRef)
+	assert.Len(t, info.NetworkingInfo.TargetRefs, 2)
+	// Gateway should use explicit namespace from parentRef
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "gateway.networking.k8s.io",
+		Kind:      "Gateway",
+		Namespace: "gateway-ns",
+		Name:      "shared-gateway",
+	})
+	// Service should use HTTPRoute's namespace (default)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "",
+		Kind:      kube.ServiceKind,
+		Namespace: "default",
+		Name:      "my-service",
+	})
+}
+
+func TestGetGRPCRoute(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGRPCRoute, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Should have Gateway (parentRef) + Service (backendRef)
+	assert.Len(t, info.NetworkingInfo.TargetRefs, 2)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "gateway.networking.k8s.io",
+		Kind:      "Gateway",
+		Namespace: "default",
+		Name:      "grpc-gateway",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "",
+		Kind:      kube.ServiceKind,
+		Namespace: "default",
+		Name:      "grpc-service",
+	})
+}
+
+func TestGetGatewayInfoWithIP(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGatewayWithIP, info, []string{})
+	assert.Empty(t, info.Info)
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Len(t, info.NetworkingInfo.Ingress, 1)
+	assert.Equal(t, "192.168.1.100", info.NetworkingInfo.Ingress[0].IP)
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "http://192.168.1.100")
+}
+
+func TestGetGatewayInfoWithHostname(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGatewayWithHostname, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Len(t, info.NetworkingInfo.Ingress, 1)
+	assert.Equal(t, "lb.example.com", info.NetworkingInfo.Ingress[0].Hostname)
+	// Listener has explicit hostname, so URL should use that
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "https://api.example.com")
+}
+
+func TestGetGatewayInfoMultipleListeners(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGatewayMultipleListeners, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Len(t, info.NetworkingInfo.Ingress, 1)
+	assert.Equal(t, "10.0.0.1", info.NetworkingInfo.Ingress[0].IP)
+	// Should have both HTTP and HTTPS URLs
+	assert.Len(t, info.NetworkingInfo.ExternalURLs, 2)
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "http://10.0.0.1")
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "https://10.0.0.1")
+}
+
+func TestGetGatewayInfoNonStandardPort(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGatewayNonStandardPort, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Len(t, info.NetworkingInfo.Ingress, 1)
+	// Non-standard port should be included in URL
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "http://10.0.0.1:8080")
+}
+
+func TestGetGatewayInfoNoAddresses(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGatewayNoAddresses, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Gateway with no addresses (e.g., pending) should have empty ingress
+	assert.Empty(t, info.NetworkingInfo.Ingress)
+	// No URLs since no addresses to use
+	assert.Empty(t, info.NetworkingInfo.ExternalURLs)
+}
+
+func TestGetGatewayInfoWithExternalLink(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGatewayWithExternalLink, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Should have both custom link and generated URL
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "https://custom-link.example.com")
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "http://10.0.0.1")
+}
+
+func TestGetGatewayInfoIgnoreDefaultLinks(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGatewayIgnoreDefaultLinks, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Should only have custom link, not generated URL
+	assert.Len(t, info.NetworkingInfo.ExternalURLs, 1)
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "https://custom-link.example.com")
+}
+
 func TestGetIngressInfo(t *testing.T) {
 	tests := []struct {
 		Ingress *unstructured.Unstructured
@@ -982,7 +1624,7 @@ func TestGetIngressInfo(t *testing.T) {
 		populateNodeInfo(tc.Ingress, info, []string{})
 		assert.Empty(t, info.Info)
 		sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-			return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+			return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
 		})
 		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 			Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -990,12 +1632,12 @@ func TestGetIngressInfo(t *testing.T) {
 				Namespace: "default",
 				Group:     "",
 				Kind:      kube.ServiceKind,
-				Name:      "not-found-service",
+				Name:      "helm-guestbook",
 			}, {
 				Namespace: "default",
 				Group:     "",
 				Kind:      kube.ServiceKind,
-				Name:      "helm-guestbook",
+				Name:      "not-found-service",
 			}},
 			ExternalURLs: []string{"https://helm-guestbook.example.com/"},
 		}, info.NetworkingInfo)
@@ -1007,7 +1649,7 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 	populateNodeInfo(testLinkAnnotatedIngress, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+		return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -1015,14 +1657,38 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "not-found-service",
+			Name:      "helm-guestbook",
 		}, {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "helm-guestbook",
+			Name:      "not-found-service",
 		}},
 		ExternalURLs: []string{"http://my-grafana.example.com/ingress-link", "https://helm-guestbook.example.com/"},
+	}, info.NetworkingInfo)
+}
+
+func TestGetIgnoreDefaultLinksIngressInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIgnoreDefaultLinksIngress, info, []string{})
+	assert.Empty(t, info.Info)
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
+	})
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}, {
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "not-found-service",
+		}},
+		ExternalURLs: []string{"http://my-grafana.example.com/ingress-link"},
 	}, info.NetworkingInfo)
 }
 
@@ -1031,7 +1697,7 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 	populateNodeInfo(testIngressWildCardPath, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+		return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -1039,12 +1705,12 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "not-found-service",
+			Name:      "helm-guestbook",
 		}, {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "helm-guestbook",
+			Name:      "not-found-service",
 		}},
 		ExternalURLs: []string{"https://helm-guestbook.example.com/"},
 	}, info.NetworkingInfo)
@@ -1052,10 +1718,10 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 
 func TestGetIngressInfoWithoutTls(t *testing.T) {
 	info := &ResourceInfo{}
-	populateNodeInfo(testIngressWithoutTls, info, []string{})
+	populateNodeInfo(testIngressWithoutTLS, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+		return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -1063,12 +1729,12 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "not-found-service",
+			Name:      "helm-guestbook",
 		}, {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "helm-guestbook",
+			Name:      "not-found-service",
 		}},
 		ExternalURLs: []string{"http://helm-guestbook.example.com/"},
 	}, info.NetworkingInfo)

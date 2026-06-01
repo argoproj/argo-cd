@@ -13,9 +13,10 @@ import (
 )
 
 func TestSwaggerUI(t *testing.T) {
+	lc := &net.ListenConfig{}
 	serve := func(c chan<- string) {
 		// listen on first available dynamic (unprivileged) port
-		listener, err := net.Listen("tcp", ":0")
+		listener, err := lc.Listen(t.Context(), "tcp", ":0")
 		if err != nil {
 			panic(err)
 		}
@@ -44,7 +45,26 @@ func TestSwaggerUI(t *testing.T) {
 	_, err = json.MarshalIndent(specDoc.Spec(), "", "  ")
 	require.NoError(t, err)
 
-	resp, err := http.Get(server + "/swagger-ui")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server+"/swagger.json", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+
+	// Verify clickjacking protection headers on swagger.json
+	require.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	require.Equal(t, "frame-ancestors 'none'", resp.Header.Get("Content-Security-Policy"))
+
+	// Verify clickjacking protection headers on swagger-ui
+	uiReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server+"/swagger-ui", http.NoBody)
+	require.NoError(t, err)
+
+	uiResp, err := http.DefaultClient.Do(uiReq)
+	require.NoError(t, err)
+	require.Equalf(t, http.StatusOK, uiResp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", uiResp.StatusCode)
+	require.Equal(t, "DENY", uiResp.Header.Get("X-Frame-Options"))
+	require.Equal(t, "frame-ancestors 'none'", uiResp.Header.Get("Content-Security-Policy"))
+	require.NoError(t, uiResp.Body.Close())
 }

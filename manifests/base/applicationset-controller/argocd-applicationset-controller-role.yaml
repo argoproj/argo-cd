@@ -38,7 +38,7 @@ rules:
       - patch
       - update
   - apiGroups:
-      - ''
+      - ""
     resources:
       - events
     verbs:
@@ -48,7 +48,7 @@ rules:
       - patch
       - watch
   - apiGroups:
-      - ''
+      - ""
     resources:
       - secrets
       - configmaps
@@ -56,12 +56,22 @@ rules:
       - get
       - list
       - watch
+  # argocd-applicationset-controller leader election rules
+  # Create with resourceNames fails, so use a separate rule for the lease creation
   - apiGroups:
-      - apps
-      - extensions
+      - coordination.k8s.io
     resources:
-      - deployments
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    resourceNames:
+      # Defined in `cmd/argocd-applicationset-controller/commands/applicationset_controller.go`
+      - 58ac56fa.applicationsets.argoproj.io
     verbs:
       - get
-      - list
-      - watch
+      - update
+      - create

@@ -16,8 +16,13 @@ with at least one value for `hostname` or `IP`.
 ### Ingress
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
+### CronJob
+* If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
+* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
+
 ### Job
 * If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
+
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
@@ -55,10 +60,30 @@ data:
 
 ## Custom Health Checks
 
+### Preface
+
 Argo CD supports custom health checks written in [Lua](https://www.lua.org/). This is useful if you:
 
 * Are affected by known issues where your `Ingress` or `StatefulSet` resources are stuck in `Progressing` state because of bug in your resource controller.
 * Have a custom resource for which Argo CD does not have a built-in health check.
+
+Argo CD relies on the health and status fields provided by Kubernetes CRDs. These fields are defined and maintained by the creators of each CRD, not by Argo CD. Since CRDs do not follow a consistent or standardized status format, Argo CD can only determine their health reliably when custom health checks are explicitly contributed for each CRD.
+
+### Guidelines for Writing Good Health Checks
+
+#### Exploring the documentation/code of the relevant K8s controller
+CRDs do not follow a consistent or standardized status format, but in most of the cases, it is fairly easy to write custom health checks based on observing the `status` sub-resource for the different conditions you encounter in your K8s cluster.   
+
+However, for some controllers, the `status` sub-resource is complex and challenging to understand and interpret correctly. For those cases, you may want to consult the controller's docs or even code (especially where the status conditions are handled) to write the health check correctly.
+
+#### Using kstatus
+If the CRD status is in [kstatus](https://github.com/kubernetes-sigs/cli-utils/blob/master/pkg/kstatus/README.md) format, please state it as a comment in the health check (as Argo CD maintainers evaluate the usage of kstatus-based health calculation, having the knowledge about which CRDs follow this standard can help us with adoption).
+
+#### Using K8s observedGeneration field
+If the CRD uses the [observedGeneration](https://alenkacz.medium.com/kubernetes-operator-best-practices-implementing-observedgeneration-250728868792) field correctly and it is present in the `status` sub-resource, please use this field in the health check. Using this field in calculating the CRD health is important for preventing situations in which the health status in Argo CD may flap if Argo CD is evaluating the health status before the CRD controller finished reconciling the changed CR.   
+This is an [example](https://github.com/argoproj/argo-cd/blob/stable/resource_customizations/argoproj.io/Rollout/health.lua) of using this field in a health check.  
+
+### Configuring Custom Health Checks
 
 There are two ways to configure a custom health check. The next two sections describe those ways.
 
@@ -116,9 +141,9 @@ specify a wildcard in the resource kind, and anywhere in the resource group, lik
         ...
 ```
 
-!!!important
-    Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
-style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
+> [!IMPORTANT]
+> Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
+> style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -130,15 +155,17 @@ The custom health check might return one of the following health statuses:
 
 By default, health typically returns a `Progressing` status.
 
-NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by
-setting `resource.customizations.useOpenLibs.<group>_<kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
-
-```yaml
-data:
-  resource.customizations.useOpenLibs.cert-manager.io_Certificate: true
-  resource.customizations.health.cert-manager.io_Certificate: |
-    # Lua standard libraries are enabled for this script
-```
+> [!NOTE]
+> As a security measure, access to the standard Lua libraries will be disabled by default.
+> Admins can control access by setting `resource.customizations.useOpenLibs.<group>_<kind>`.
+> In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
+>
+> ```yaml
+> data:
+>   resource.customizations.useOpenLibs.cert-manager.io_Certificate: true
+>   resource.customizations.health.cert-manager.io_Certificate: |
+>     # Lua standard libraries are enabled for this script
+> ```
 
 ### Way 2. Contribute a Custom Health Check
 
@@ -163,16 +190,49 @@ tests:
     message: Expected message
   inputPath: testdata/test-resource-definition.yaml
 ```
+For the files you add in `testdata` folder - please make sure those are full K8s manifests, extracted from the cluster where the controller is installed by running `kubectl get ... -oyaml`. If the resulting file is very long, you can omit some of the spec, but it is critical for the files in `testdata` to contain the full `status` sub-resource, extracted from your cluster.
+
+For the cases when the `status` sub-resource is complex and you had to consult the controller docs/code in order to write the health check, please provide a comment with a link - to the controller docs/code that you based the health check on - in the `health.lua` file.
+
+> [!IMPORTANT]
+> Argo CD maintainers do not have the full expertise on the different CRDs and their health conditions, so in cases of complex `status` conditions, the Argo CD maintainers may ask you to reach out to the CRD maintainers to help review the health check PR. 
 
 To test the implemented custom health checks, run `go test -v ./util/lua/`.
 
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
 
-Please note that bundled health checks with wildcards are not supported.
+#### Wildcard Support for Built-in Health Checks
+
+You can use a single health check for multiple resources by using a wildcard in the group or kind directory names.
+
+The `_` character behaves like a `*` wildcard. For example, consider the following directory structure:
+
+```
+argo-cd
+|-- resource_customizations
+|    |-- _.group.io               # CRD group
+|    |    |-- _                   # Resource kind
+|    |    |    |-- health.lua     # Health check
+```
+
+Any resource with a group that ends with `.group.io` will use the health check in `health.lua`.
+
+Wildcard checks are only evaluated if there is no specific check for the resource.
+
+If multiple wildcard checks match, the first one in the directory structure is used.
+
+We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
+only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
+
+> [!IMPORTANT]
+> **Avoid Massive Scripts**
+>
+> Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
+> duplicate the relevant parts in resource-specific scripts.
 
 ## Overriding Go-Based Health Checks
 
-Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/gitops-engine/tree/master/pkg/health) 
+Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/argo-cd/tree/master/gitops-engine/pkg/health) 
 because Lua support was introduced later. Also, the logic of health checks for some resources were too complex, so it 
 was easier to implement it in Go.
 
@@ -197,10 +257,10 @@ The following resources have Go-based health checks:
 
 ## Health Checks
 
-An Argo CD App's health is inferred from the health of its immediate child resources (the resources represented in 
-source control). The App health will be the worst health of its immediate child sources. The priority of most to least 
-healthy statuses is: `Healthy`, `Suspended`, `Progressing`, `Missing`, `Degraded`, `Unknown`. So, for example, if an App
-has a `Missing` resource and a `Degraded` resource, the App's health will be `Missing`.
+Argo CD App health is inferred from the health of its immediate child resources as represented in the application source.  
+The App health will be the **worst health of its immediate child resources**, based on the following priority (from most to least healthy):  
+**Healthy, Suspended, Progressing, Missing, Degraded, Unknown.**  
+For example, if an App has a Missing resource and a Degraded resource, the App's health will be **Degraded**.
 
 But the health of a resource is not inherited from child resources - it is calculated using only information about the 
 resource itself. A resource's status field may or may not contain information about the health of a child resource, and 
