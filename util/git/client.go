@@ -567,6 +567,16 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 		return errors.New("sparse checkout requires at least one path")
 	}
 
+	// Reject paths that would be interpreted as flags by `git sparse-checkout set`.
+	// Cone-mode paths are directory names; a leading "-" is never valid and bypassing
+	// this check lets a SparsePaths entry like "--stdin" or "--no-cone" silently
+	// reconfigure the command (e.g. set zero patterns, producing an empty working tree).
+	for _, p := range paths {
+		if strings.HasPrefix(p, "-") {
+			return fmt.Errorf("invalid sparse checkout path %q: must not start with '-'", p)
+		}
+	}
+
 	ctx := context.Background()
 
 	// Initialize sparse-checkout with cone mode and sparse index.
@@ -576,8 +586,10 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 		return fmt.Errorf("failed to initialize sparse-checkout: %w", err)
 	}
 
-	// Set the sparse-checkout paths
-	args := append([]string{"sparse-checkout", "set"}, paths...)
+	// Set the sparse-checkout paths. The "--" sentinel forces git to treat every
+	// subsequent argument as a positional path even on git versions where
+	// `sparse-checkout set` honors flag parsing.
+	args := append([]string{"sparse-checkout", "set", "--"}, paths...)
 	if _, err := m.runCmd(ctx, args...); err != nil {
 		return fmt.Errorf("failed to set sparse-checkout paths: %w", err)
 	}

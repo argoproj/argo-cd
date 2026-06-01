@@ -1666,6 +1666,38 @@ func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
 	assert.Equal(t, "content1", string(content))
 }
 
+func Test_nativeGitClient_ConfigureSparseCheckout_RejectsFlagInjection(t *testing.T) {
+	// A SparsePaths entry that begins with "-" would be interpreted by
+	// `git sparse-checkout set` as a flag (e.g. --stdin reads patterns from
+	// stdin and silently configures zero paths, producing an empty working
+	// tree). The client must reject such entries before invoking git.
+	tempDir := t.TempDir()
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+
+	badPaths := []string{
+		"--stdin",
+		"--no-cone",
+		"--skip-checks",
+		"--help",
+		"-x",
+	}
+	for _, bp := range badPaths {
+		t.Run(bp, func(t *testing.T) {
+			err := client.ConfigureSparseCheckout([]string{bp})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "must not start with '-'")
+		})
+	}
+
+	t.Run("rejects when only one entry in a list is flag-like", func(t *testing.T) {
+		err := client.ConfigureSparseCheckout([]string{"charts", "--no-cone", "manifests"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must not start with '-'")
+	})
+}
+
 // simulatePartialClone transforms a fully-fetched repo into a state that looks like
 // a --filter=blob:none partial clone. It packs all non-blob objects into a promisor
 // pack, removes any existing packs, and deletes loose blob objects. This is needed

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -925,6 +926,122 @@ func TestComputePathHashDeterministic(t *testing.T) {
 
 	assert.Equal(t, hash1, hash2, "Hashes should be equal regardless of order")
 	assert.Equal(t, hash2, hash3, "Hashes should be equal regardless of order")
+}
+
+// TestComputePathHashNormalization guards the canonical-form contract that
+// makes startup recovery work: a user's "app-a/" must hash identically to git's
+// stored "app-a", and incidental duplicates / empty entries must not affect the
+// key. If this contract regresses, repo-server container restarts would orphan
+// existing workdirs (see Init() in reposerver/repository/repository.go).
+func TestComputePathHashNormalization(t *testing.T) {
+	canonical := ComputePathHash([]string{"app-a"})
+
+	tests := []struct {
+		name  string
+		input []string
+	}{
+		{"trailing slash", []string{"app-a/"}},
+		{"leading slash", []string{"/app-a"}},
+		{"both slashes", []string{"/app-a/"}},
+		{"duplicate entries", []string{"app-a", "app-a"}},
+		{"empty entry alongside", []string{"app-a", ""}},
+		{"slash-only entry alongside", []string{"app-a", "/"}},
+		{"duplicate after stripping", []string{"app-a", "app-a/"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, canonical, ComputePathHash(tt.input))
+		})
+	}
+
+	t.Run("git's normalized form matches user-supplied form", func(t *testing.T) {
+		// User supplies trailing-slash, dedupe-needing input; git stores it
+		// normalized to ["app-a", "manifests"]. Both must produce the same key.
+		userSupplied := []string{"app-a/", "manifests/", "app-a"}
+		gitNormalized := []string{"app-a", "manifests"}
+		assert.Equal(t, ComputePathHash(userSupplied), ComputePathHash(gitNormalized))
+	})
+
+	t.Run("all-empty inputs produce empty hash", func(t *testing.T) {
+		assert.Empty(t, ComputePathHash([]string{""}))
+		assert.Empty(t, ComputePathHash([]string{"/"}))
+		assert.Empty(t, ComputePathHash([]string{"", "/", ""}))
+	})
+
+	t.Run("distinct paths still produce distinct hashes", func(t *testing.T) {
+		assert.NotEqual(t, ComputePathHash([]string{"app-a"}), ComputePathHash([]string{"app-b"}))
+	})
+}
+
+// TestComputePathHashRoundTripsThroughGit exercises the canonical-form contract
+// against the real git binary. After ConfigureSparseCheckout stores cone-mode
+// paths, `git sparse-checkout list` returns them in git's own normalized form
+// (trailing slashes stripped, sorted, deduped). For Init() recovery on container
+// restart to find an existing workdir, ComputePathHash(userInput) MUST equal
+// ComputePathHash(gitStoredForm). This guards against future git versions or
+// option changes that introduce additional normalization steps we haven't
+// accounted for.
+func TestComputePathHashRoundTripsThroughGit(t *testing.T) {
+	// readSparseCheckoutList mirrors getSparseCheckoutPathsFromRepo in the
+	// reposerver: run `git sparse-checkout list` and split nonempty lines.
+	readSparseCheckoutList := func(t *testing.T, ctx context.Context, repoDir string) []string {
+		t.Helper()
+		out, err := runCmdOutput(ctx, repoDir, "git", "sparse-checkout", "list")
+		require.NoError(t, err)
+		var paths []string
+		for line := range strings.SplitSeq(string(out), "\n") {
+			if line = strings.TrimSpace(line); line != "" {
+				paths = append(paths, line)
+			}
+		}
+		return paths
+	}
+
+	cases := []struct {
+		name      string
+		userInput []string
+	}{
+		{"trailing slashes stripped by git", []string{"app-a/", "manifests/"}},
+		{"unsorted user input vs sorted git output", []string{"manifests", "app-a"}},
+		{"duplicate entries collapsed", []string{"app-a", "app-a", "manifests"}},
+		{"trailing-slash duplicates of same path", []string{"app-a", "app-a/"}},
+		{"single trailing-slash path", []string{"app-a/"}},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			ctx := t.Context()
+
+			// Stand up a real git repo with the directories we'll cone on.
+			require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+			require.NoError(t, runCmd(ctx, tmpDir, "git", "config", "user.email", "test@test.com"))
+			require.NoError(t, runCmd(ctx, tmpDir, "git", "config", "user.name", "Test"))
+			for _, d := range []string{"app-a", "manifests"} {
+				require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, d), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, d, "f.yaml"), []byte("x"), 0o644))
+			}
+			require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+			require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "init"))
+
+			client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+			require.NoError(t, err)
+
+			// Apply user-style input through the real git binary.
+			require.NoError(t, client.ConfigureSparseCheckout(tt.userInput))
+
+			// What git actually stored, normalized to its own canonical form.
+			gitStored := readSparseCheckoutList(t, ctx, tmpDir)
+			require.NotEmpty(t, gitStored, "expected git sparse-checkout list to return at least one path")
+
+			// The contract: both forms must hash to the same key.
+			userHash := ComputePathHash(tt.userInput)
+			gitHash := ComputePathHash(gitStored)
+			assert.NotEmpty(t, userHash)
+			assert.Equal(t, userHash, gitHash,
+				"hash of user input %v must equal hash of git-stored form %v", tt.userInput, gitStored)
+		})
+	}
 }
 
 func TestSparseCheckoutConfiguration(t *testing.T) {

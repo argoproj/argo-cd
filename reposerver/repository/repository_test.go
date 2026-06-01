@@ -3267,6 +3267,105 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestCheckoutRevisionReconfiguresSparseOnEveryCall guarantees that the sparse
+// cone is re-applied even when IsRevisionPresent returns true (the fast-path
+// that skips fetch). If we only configured sparse-checkout inside the
+// !revisionPresent branch, a prior ConfigureSparseCheckout-failure fallback
+// that ran DisableSparseCheckout would silently produce a full working tree
+// on every subsequent checkout at the same revision.
+func TestCheckoutRevisionReconfiguresSparseOnEveryCall(t *testing.T) {
+	revision := "0123456789012345678901234567890123456789"
+	sparsePaths := []string{"charts"}
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(revision).Return(true)
+	gitClient.EXPECT().ConfigureSparseCheckout(sparsePaths).Return(nil).Once()
+	gitClient.EXPECT().FetchSparseBlobs(revision, sparsePaths).Return(nil).Maybe()
+	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
+
+	err := checkoutRevision(gitClient, revision, false, 0, sparsePaths, true)
+	require.NoError(t, err)
+}
+
+// TestCheckoutRevisionConfigureSparseFailureFallsBackToFullFetch verifies the
+// fallback path when ConfigureSparseCheckout fails: DisableSparseCheckout is
+// called, FetchSparseBlobs is NOT called (sparse is off), and Fetch runs in
+// non-partial mode. testify-mock fails on unexpected calls, so the absence of
+// an expectation on FetchSparseBlobs is what enforces "not called".
+func TestCheckoutRevisionConfigureSparseFailureFallsBackToFullFetch(t *testing.T) {
+	revision := "0123456789012345678901234567890123456789"
+	sparsePaths := []string{"charts"}
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(revision).Return(false)
+	gitClient.EXPECT().ConfigureSparseCheckout(sparsePaths).Return(errors.New("boom")).Once()
+	gitClient.EXPECT().DisableSparseCheckout().Return(nil).Once()
+	// Non-partial fetch (third arg false) after the sparse-config fallback.
+	gitClient.EXPECT().Fetch("", int64(0), false).Return(nil).Once()
+	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
+
+	err := checkoutRevision(gitClient, revision, false, 0, sparsePaths, true)
+	require.NoError(t, err)
+}
+
+// TestCheckoutRevisionSparseFallbackPreservesDepth is a regression test for the
+// previous fallback behavior where, after a Checkout failure on a sparse repo,
+// `Fetch(revision, 0, true)` was issued — silently defeating the caller's Depth
+// configuration on every fallback. The fallback must thread `depth` through so
+// a sparse + shallow repo stays shallow.
+func TestCheckoutRevisionSparseFallbackPreservesDepth(t *testing.T) {
+	revision := "0123456789012345678901234567890123456789"
+	sparsePaths := []string{"charts"}
+	const depth int64 = 1
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(revision).Return(false)
+	gitClient.EXPECT().ConfigureSparseCheckout(sparsePaths).Return(nil).Once()
+	// Both the initial sparse fetch AND the post-Checkout-failure fallback must
+	// preserve depth. .Times(2) forces the mock to fail if either call drops
+	// depth (e.g., reverts to Fetch(revision, 0, true)).
+	gitClient.EXPECT().Fetch(revision, depth, true).Return(nil).Times(2)
+	gitClient.EXPECT().FetchSparseBlobs(revision, sparsePaths).Return(nil).Maybe()
+	// First Checkout fails to drive the fallback path.
+	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", errors.New("simulated checkout failure")).Once()
+	gitClient.EXPECT().Checkout("FETCH_HEAD", mock.Anything, mock.Anything).Return("", nil).Once()
+
+	err := checkoutRevision(gitClient, revision, false, depth, sparsePaths, true)
+	require.NoError(t, err)
+}
+
+func TestManifestCacheRevisionKey(t *testing.T) {
+	t.Run("nil repo returns revision unchanged", func(t *testing.T) {
+		assert.Equal(t, "abc", manifestCacheRevisionKey("abc", nil))
+	})
+
+	t.Run("empty SparsePaths returns revision unchanged", func(t *testing.T) {
+		repo := &v1alpha1.Repository{Repo: "https://x"}
+		assert.Equal(t, "abc", manifestCacheRevisionKey("abc", repo))
+	})
+
+	t.Run("non-empty SparsePaths suffixes the revision deterministically", func(t *testing.T) {
+		repo := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"charts"}}
+		got := manifestCacheRevisionKey("abc", repo)
+		assert.Equal(t, "abc|sparse:"+git.ComputePathHash([]string{"charts"}), got)
+	})
+
+	t.Run("different SparsePaths produce different keys at the same revision", func(t *testing.T) {
+		repoA := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"charts"}}
+		repoB := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"manifests"}}
+		assert.NotEqual(t, manifestCacheRevisionKey("abc", repoA), manifestCacheRevisionKey("abc", repoB))
+	})
+
+	t.Run("path order does not affect the key (ComputePathHash sorts)", func(t *testing.T) {
+		repoA := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"a", "b"}}
+		repoB := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"b", "a"}}
+		assert.Equal(t, manifestCacheRevisionKey("abc", repoA), manifestCacheRevisionKey("abc", repoB))
+	})
+}
+
 func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 

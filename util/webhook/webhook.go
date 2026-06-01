@@ -545,9 +545,20 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
 
-	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
+	// The reposerver suffixes the manifest cache revision with a hash of
+	// Repository.SparsePaths so that cached manifests don't bleed across sparse
+	// cones. The webhook rename must target the same suffixed key, so look the
+	// repo up here and apply the matching suffix to oldRev/newRev.
+	shaBefore, shaAfter := change.shaBefore, change.shaAfter
+	if repo, repoErr := a.db.GetRepository(context.Background(), source.RepoURL, app.Spec.Project); repoErr == nil && repo != nil && len(repo.SparsePaths) > 0 {
+		suffix := "|sparse:" + git.ComputePathHash(repo.SparsePaths)
+		shaBefore += suffix
+		shaAfter += suffix
+	}
 
-	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, nil, installationID); err != nil {
+	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
+
+	if err := a.repoCache.SetNewRevisionManifests(shaAfter, shaBefore, &source, refSources, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, nil, installationID); err != nil {
 		return fmt.Errorf("error setting new revision manifests: %w", err)
 	}
 

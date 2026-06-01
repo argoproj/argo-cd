@@ -859,6 +859,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		close(ch.responseCh)
 	}()
 
+	// Include the SparsePaths fingerprint in the manifest cache key so that changing
+	// Repository.SparsePaths at the same revision does not serve manifests rendered
+	// against a different working-tree subset. Non-sparse repos get an empty suffix
+	// to preserve the pre-existing cache shape.
+	cacheKey = manifestCacheRevisionKey(cacheKey, q.Repo)
+
 	// GenerateManifests mutates the source (applies overrides). Those overrides shouldn't be reflected in the cache
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
@@ -1039,6 +1045,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
+	// Mirror runManifestGenAsync: suffix the manifest cache key with SparsePaths so
+	// a cache entry stored under a different sparse cone isn't returned here.
+	cacheKey = manifestCacheRevisionKey(cacheKey, q.Repo)
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 	res := cache.CachedManifestResponse{}
@@ -2860,6 +2869,18 @@ func repoPathKey(repo v1alpha1.Repository) string {
 	return git.NormalizeGitURL(repo.Repo) + "|" + pathsSHA
 }
 
+// manifestCacheRevisionKey returns the revision string used as the manifest cache
+// key, suffixed with a hash of repo.SparsePaths so that changing sparse paths
+// invalidates manifests cached at the same revision. For non-sparse repos (or a
+// nil repo) the revision is returned unchanged to preserve the pre-existing cache
+// shape so post-upgrade caches remain readable.
+func manifestCacheRevisionKey(revision string, repo *v1alpha1.Repository) string {
+	if repo == nil || len(repo.SparsePaths) == 0 {
+		return revision
+	}
+	return revision + "|sparse:" + git.ComputePathHash(repo.SparsePaths)
+}
+
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
 	repoPath, err := s.gitRepoPaths.GetPath(repoPathKey(*repo))
 	if err != nil {
@@ -3025,34 +3046,46 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		"sparsePathsCount": len(sparsePaths),
 	}).Debugf("Checking out revision %v", revision)
 
+	// Reconcile sparse-checkout state on every invocation, not just when
+	// revisionPresent==false. Two scenarios depend on this:
+	//   1. A previous run hit the ConfigureSparseCheckout-failure fallback below,
+	//      which calls DisableSparseCheckout(). If we only re-applied the sparse
+	//      config inside the !revisionPresent branch, subsequent checkouts of the
+	//      same revision would silently produce a full working tree.
+	//   2. A workdir may be re-used (e.g. after an Init() recovery hash mismatch
+	//      between user-supplied and git-normalized paths) with stale on-disk
+	//      sparse state.
+	useSparse := len(sparsePaths) > 0
+	if useSparse {
+		if cfgErr := gitClient.ConfigureSparseCheckout(sparsePaths); cfgErr != nil {
+			log.Warnf("Failed to configure sparse checkout, falling back to full checkout: %v", cfgErr)
+			// Disable sparse-checkout so the fallback full fetch isn't constrained by
+			// a partially-configured sparse-checkout that would produce an incomplete tree.
+			_ = gitClient.DisableSparseCheckout()
+			useSparse = false
+		}
+	}
+
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
 		switch {
-		case len(sparsePaths) > 0:
+		case useSparse:
 			// Use partial clone (--filter=blob:none) for minimal network transfer.
 			// When depth > 0, both flags are combined for maximum bandwidth savings
 			// (no blobs + limited history).
 			log.Infof("Using partial clone with %d sparse paths for revision %s", len(sparsePaths), revision)
-
-			// Configure sparse checkout before fetching
-			if err = gitClient.ConfigureSparseCheckout(sparsePaths); err != nil {
-				log.Warnf("Failed to configure sparse checkout, falling back to full checkout: %v", err)
-				// Disable sparse-checkout so the fallback full fetch isn't constrained by
-				// a partially-configured sparse-checkout that would produce an incomplete tree.
-				_ = gitClient.DisableSparseCheckout()
-				// Fall back to regular fetch
-				if depth > 0 {
-					err = gitClient.Fetch(revision, depth, false)
-				} else {
-					err = gitClient.Fetch("", depth, false)
-				}
+			if revision != "" {
+				err = gitClient.Fetch(revision, depth, true)
 			} else {
-				// Perform partial fetch, passing depth through to combine with --filter
-				if revision != "" {
-					err = gitClient.Fetch(revision, depth, true)
-				} else {
-					err = gitClient.Fetch("", depth, true)
-				}
+				err = gitClient.Fetch("", depth, true)
+			}
+		case len(sparsePaths) > 0:
+			// Sparse paths were requested but ConfigureSparseCheckout failed above.
+			// Fall back to a regular fetch so the working tree is still populated.
+			if depth > 0 {
+				err = gitClient.Fetch(revision, depth, false)
+			} else {
+				err = gitClient.Fetch("", depth, false)
 			}
 		case depth > 0:
 			err = gitClient.Fetch(revision, depth, false)
@@ -3069,7 +3102,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 	// For partial clone repos, pre-fetch blobs for sparse paths in a single batch request
 	// before checkout. Without this, git checkout lazy-fetches blobs individually which is
 	// extremely slow (100+ seconds for directories with many files).
-	if len(sparsePaths) > 0 {
+	if useSparse {
 		if prefetchErr := gitClient.FetchSparseBlobs(revision, sparsePaths); prefetchErr != nil {
 			log.Warnf("Sparse blob pre-fetch failed (checkout will still work via lazy fetch): %v", prefetchErr)
 		}
@@ -3082,8 +3115,8 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-		if len(sparsePaths) > 0 {
-			err = gitClient.Fetch(revision, 0, true)
+		if useSparse {
+			err = gitClient.Fetch(revision, depth, true)
 		} else {
 			err = gitClient.Fetch(revision, depth, false)
 		}
@@ -3587,6 +3620,10 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
+	// Match the suffix applied by runManifestGenAsync/getManifestCacheEntry so the
+	// rename targets the same key under which manifests were originally stored.
+	oldRev = manifestCacheRevisionKey(oldRev, request.GetRepo())
+	newRev = manifestCacheRevisionKey(newRev, request.GetRepo())
 	err := s.cache.SetNewRevisionManifests(newRev, oldRev, request.ApplicationSource, request.RefSources, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
