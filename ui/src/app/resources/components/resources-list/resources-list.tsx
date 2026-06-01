@@ -13,7 +13,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 import * as AppUtils from '../../../applications/components/utils';
 import './resources-list.scss';
 import './flex-top-bar.scss';
-import {ResourceTiles} from './resources-tiles';
+import {ResourcesSummary} from './resources-summary';
 import {FilteredResource, getFilterResults, ResourcesFilter} from './resources-filter';
 import classNames from 'classnames';
 import {ResourcesTable} from './resources-table';
@@ -138,6 +138,10 @@ const ViewPref = ({children}: {children: (pref: ResourcesListPreferences & {page
                                     .get('kind')
                                     .split(',')
                                     .filter(item => !!item);
+                            }
+                            const viewParam = params.get('view');
+                            if (viewParam === ResourcesListViewKey.List || viewParam === ResourcesListViewKey.Summary) {
+                                viewPref.view = viewParam;
                             }
                             return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
                         })
@@ -270,8 +274,8 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
         switch (view) {
             case ResourcesListViewKey.List:
                 return 'Resources List';
-            case ResourcesListViewKey.Tiles:
-                return 'Resources Tiles';
+            case ResourcesListViewKey.Summary:
+                return 'Resources Summary';
         }
         return '';
     }
@@ -343,16 +347,6 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                     </Tooltip>
                                                                     <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
                                                                         <i
-                                                                            className={classNames('fa fa-th', {selected: pref.view === ResourcesListViewKey.Tiles}, 'menu_icon')}
-                                                                            title='Tiles'
-                                                                            onClick={() => {
-                                                                                ctx.navigation.goto('.', {view: ResourcesListViewKey.Tiles});
-                                                                                services.viewPreferences.updatePreferences({
-                                                                                    resourcesList: {...pref, view: ResourcesListViewKey.Tiles}
-                                                                                });
-                                                                            }}
-                                                                        />
-                                                                        <i
                                                                             className={classNames(
                                                                                 'fa fa-th-list',
                                                                                 {selected: pref.view === ResourcesListViewKey.List},
@@ -363,6 +357,16 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                                 ctx.navigation.goto('.', {view: ResourcesListViewKey.List});
                                                                                 services.viewPreferences.updatePreferences({
                                                                                     resourcesList: {...pref, view: ResourcesListViewKey.List}
+                                                                                });
+                                                                            }}
+                                                                        />
+                                                                        <i
+                                                                            className={classNames('fa fa-chart-pie', {selected: pref.view === ResourcesListViewKey.Summary}, 'menu_icon')}
+                                                                            title='Summary'
+                                                                            onClick={() => {
+                                                                                ctx.navigation.goto('.', {view: ResourcesListViewKey.Summary});
+                                                                                services.viewPreferences.updatePreferences({
+                                                                                    resourcesList: {...pref, view: ResourcesListViewKey.Summary}
                                                                                 });
                                                                             }}
                                                                         />
@@ -398,41 +402,40 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                     </DataLoader>,
                                                                     sidebarTarget?.current
                                                                 )}
-                                                                <Paginate
-                                                                    header={filteredResources.length > 1 && <ResourcesStatusBar resources={filteredResources} />}
-                                                                    showHeader={healthBarPrefs.showHealthStatusBar}
-                                                                    preferencesKey='resources-list'
-                                                                    page={pref.page}
-                                                                    emptyState={() => (
-                                                                        <EmptyState icon='fa fa-search'>
-                                                                            <h4>No matching applications found</h4>
-                                                                            <h5>
-                                                                                Change filter criteria or&nbsp;
-                                                                                <a
-                                                                                    onClick={() => {
-                                                                                        ResourcesListPreferences.clearFilters(pref);
-                                                                                        onFilterPrefChanged(ctx, pref);
-                                                                                    }}>
-                                                                                    clear filters
-                                                                                </a>
-                                                                            </h5>
-                                                                        </EmptyState>
-                                                                    )}
-                                                                    sortOptions={[{title: 'Name', compare: (a, b) => a.name.localeCompare(b.name)}]}
-                                                                    data={filteredResources}
-                                                                    onPageChange={page => ctx.navigation.goto('.', {page})}>
-                                                                    {data => {
-                                                                        if (pref.view === ResourcesListViewKey.Tiles) {
-                                                                            return <ResourceTiles resources={data} />;
-                                                                        }
-                                                                        return (
+                                                                {(pref.view === ResourcesListViewKey.Summary && (
+                                                                    <ResourcesSummary resources={filteredResources} />
+                                                                )) || (
+                                                                    <Paginate
+                                                                        header={filteredResources.length > 1 && <ResourcesStatusBar resources={filteredResources} />}
+                                                                        showHeader={healthBarPrefs.showHealthStatusBar}
+                                                                        preferencesKey='resources-list'
+                                                                        page={pref.page}
+                                                                        emptyState={() => (
+                                                                            <EmptyState icon='fa fa-search'>
+                                                                                <h4>No matching resources found</h4>
+                                                                                <h5>
+                                                                                    Change filter criteria or&nbsp;
+                                                                                    <a
+                                                                                        onClick={() => {
+                                                                                            ResourcesListPreferences.clearFilters(pref);
+                                                                                            onFilterPrefChanged(ctx, pref);
+                                                                                        }}>
+                                                                                        clear filters
+                                                                                    </a>
+                                                                                </h5>
+                                                                            </EmptyState>
+                                                                        )}
+                                                                        sortOptions={[{title: 'Name', compare: (a, b) => a.name.localeCompare(b.name)}]}
+                                                                        data={filteredResources}
+                                                                        onPageChange={page => ctx.navigation.goto('.', {page})}>
+                                                                        {data => (
                                                                             <ResourcesTable
                                                                                 resources={data}
                                                                                 onOpenDetails={resource => openResourceDetails(ctx, resource)}
                                                                             />
-                                                                        );
-                                                                    }}
-                                                                </Paginate>
+                                                                        )}
+                                                                    </Paginate>
+                                                                )}
                                                             </>
                                                         )}
                                                     </div>
