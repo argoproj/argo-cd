@@ -2994,7 +2994,7 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 // fetch is a convenience function to fetch revisions
 // We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
 func (s *Service) fetch(gitClient git.Client, targetRevisions []string, depth int64, usePartialClone bool) error {
-	err := fetch(gitClient, targetRevisions, depth)
+	err := fetch(gitClient, targetRevisions, depth, usePartialClone)
 	if err != nil {
 		for _, revision := range targetRevisions {
 			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
@@ -3018,7 +3018,7 @@ func fetch(gitClient git.Client, targetRevisions []string, depth int64, useParti
 	if depth > 0 {
 		for _, revision := range targetRevisions {
 			if !gitClient.IsRevisionPresent(revision) {
-				if err := gitClient.Fetch(revision, depth); err != nil {
+				if err := gitClient.Fetch(revision, depth, usePartialClone); err != nil {
 					return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 				}
 			}
