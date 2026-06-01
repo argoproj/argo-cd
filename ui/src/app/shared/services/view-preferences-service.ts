@@ -75,46 +75,6 @@ export enum ResourcesListViewKey {
     Tiles = 'tiles'
 }
 
-export class AppsListPreferences {
-    public static countEnabledFilters(pref: AppsListPreferences) {
-        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
-            (count, filter) => {
-                if (filter && filter.length > 0) {
-                    return count + 1;
-                }
-                return count;
-            },
-            0
-        );
-    }
-
-    public static clearFilters(pref: AppsListPreferences) {
-        pref.clustersFilter = [];
-        pref.healthFilter = [];
-        pref.labelsFilter = [];
-        pref.namespacesFilter = [];
-        pref.projectsFilter = [];
-        pref.reposFilter = [];
-        pref.syncFilter = [];
-        pref.autoSyncFilter = [];
-        pref.showFavorites = false;
-    }
-
-    public labelsFilter: string[];
-    public projectsFilter: string[];
-    public reposFilter: string[];
-    public syncFilter: string[];
-    public autoSyncFilter: string[];
-    public healthFilter: string[];
-    public namespacesFilter: string[];
-    public clustersFilter: string[];
-    public view: AppsListViewType;
-    public hideFilters: boolean;
-    public statusBarView: HealthStatusBarPreferences;
-    public showFavorites: boolean;
-    public favoritesAppList: string[];
-}
-
 export class AbstractAppsListPreferences {
     public static clearFilters(pref: AbstractAppsListPreferences) {
         pref.healthFilter = [];
@@ -131,6 +91,30 @@ export class AbstractAppsListPreferences {
     public statusBarView: HealthStatusBarPreferences;
     public showFavorites: boolean;
     public favoritesAppList: string[];
+}
+
+export class AppsListPreferences extends AbstractAppsListPreferences {
+    public static clearFilters(pref: AppsListPreferences) {
+        super.clearFilters(pref);
+
+        pref.clustersFilter = [];
+        pref.namespacesFilter = [];
+        pref.reposFilter = [];
+        pref.targetRevisionFilter = [];
+        pref.projectsFilter = [];
+        pref.syncFilter = [];
+        pref.autoSyncFilter = [];
+        pref.operationFilter = [];
+    }
+
+    public projectsFilter: string[];
+    public syncFilter: string[];
+    public autoSyncFilter: string[];
+    public namespacesFilter: string[];
+    public reposFilter: string[];
+    public clustersFilter: string[];
+    public targetRevisionFilter: string[];
+    public operationFilter: string[];
 }
 
 export class ResourcesListPreferences {
@@ -186,6 +170,9 @@ export interface ViewPreferences {
     hideSidebar: boolean;
     position: string;
     theme: string;
+    // Per-application notice dismissals, keyed by namespaced app + content hash.
+    // See application-notice/notice.ts (dismissalKey).
+    dismissedNotices?: {[key: string]: boolean};
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -281,6 +268,9 @@ export class ViewPreferencesService {
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
         }
+        if (nextPref.resourcesList) {
+            this.normalizeResourcesListPreferences(nextPref.resourcesList);
+        }
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }
@@ -303,7 +293,19 @@ export class ViewPreferencesService {
         const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
         // Ensure all filter arrays are initialized to prevent undefined errors
         this.normalizeAppListPreferences(merged.appList);
+        this.normalizeResourcesListPreferences(merged.resourcesList);
         return merged;
+    }
+
+    private normalizeResourcesListPreferences(resourcesList: ResourcesListPreferences): void {
+        resourcesList.projectsFilter = resourcesList.projectsFilter || [];
+        resourcesList.namespacesFilter = resourcesList.namespacesFilter || [];
+        resourcesList.clustersFilter = resourcesList.clustersFilter || [];
+        resourcesList.syncFilter = resourcesList.syncFilter || [];
+        resourcesList.healthFilter = resourcesList.healthFilter || [];
+        resourcesList.apiGroupFilter = resourcesList.apiGroupFilter || [];
+        resourcesList.kindFilter = resourcesList.kindFilter || [];
+        resourcesList.statusBarView = resourcesList.statusBarView || {showHealthStatusBar: true};
     }
 
     private normalizeAppListPreferences(appList: AppsListPreferences): void {
