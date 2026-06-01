@@ -61,6 +61,10 @@
 
     &__size-menu {
         margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 1em;
+
         li {
             display: block;
         }

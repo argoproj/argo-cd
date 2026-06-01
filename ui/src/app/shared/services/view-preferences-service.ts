@@ -166,6 +166,7 @@ export interface ViewPreferences {
     resourcesList: ResourcesListPreferences;
     pageSizes: { [key: string]: number };
     sortOptions?: { [key: string]: string };
+    sortDirections?: { [key: string]: 'asc' | 'desc' };
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;

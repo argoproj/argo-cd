@@ -164,22 +164,23 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                         <DropDownMenu
                                             qeId={`paginate-sort-${preferencesKey}`}
                                             anchor={() => (
-                                                <>
-                                                    <a>
-                                                        Sort: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
-                                                    </a>
-                                                    &nbsp;
-                                                </>
+                                                <a onMouseDown={() => document.body.click()}>
+                                                    Sort: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
+                                                </a>
                                             )}
                                             items={sortOptions.map(so => ({
                                                 title: so.title,
                                                 action: () => {
-                                                    // sortOptions might not be set in the browser storage
                                                     if (!pref.sortOptions) {
                                                         pref.sortOptions = {};
                                                     }
                                                     pref.sortOptions[preferencesKey] = so.title;
+                                                    if (!pref.sortDirections) {
+                                                        pref.sortDirections = {};
+                                                    }
+                                                    pref.sortDirections[preferencesKey] = 'asc';
                                                     services.viewPreferences.updatePreferences(pref);
+                                                    onPageChange(0);
                                                 }
                                             }))}
                                         />
@@ -187,7 +188,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                     <DropDownMenu
                                         qeId={`paginate-items-per-page-${preferencesKey}`}
                                         anchor={() => (
-                                            <a>
+                                            <a onMouseDown={() => document.body.click()}>
                                                 Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
                                             </a>
                                         )}
@@ -205,17 +206,21 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                         </div>
                     );
                 }
-                if (sortOption) {
-                    sortOptions
-                        .filter(o => o.title === sortOption)
-                        .forEach(so => {
-                            data.sort(so.compare);
+                const sortedData = [...data];
+                if (sortOption && sortOptions) {
+                    const selectedSort = sortOptions.find(o => o.title === sortOption);
+                    if (selectedSort) {
+                        const direction = pref.sortDirections?.[preferencesKey] ?? 'asc';
+                        sortedData.sort((a, b) => {
+                            const result = selectedSort.compare(a, b);
+                            return direction === 'asc' ? result : -result;
                         });
+                    }
                 }
                 return (
                     <React.Fragment>
                         <div className='paginate'>{paginator()}</div>
-                        {data.length === 0 && emptyState ? emptyState() : children(pageSize === -1 ? data : data.slice(pageSize * page, pageSize * (page + 1)))}
+                        {sortedData.length === 0 && emptyState ? emptyState() : children(pageSize === -1 ? sortedData : sortedData.slice(pageSize * page, pageSize * (page + 1)))}
                         <div className='paginate'>{pageCount > 1 && paginator()}</div>
                     </React.Fragment>
                 );

@@ -18,6 +18,7 @@ import {ResourcesSummary} from './resources-summary';
 import {FilteredResource, getFilterResults, ResourcesFilter} from './resources-filter';
 import classNames from 'classnames';
 import {ResourcesTable} from './resources-table';
+import {RESOURCE_SORT_OPTIONS} from './resources-sort';
 import {ResourcesStatusBar} from './resources-status-bar';
 import {ResourcesDetailsPanel} from './resources-details-panel';
 import {openResourceDetails} from '../utils';
@@ -412,7 +413,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                                 </h5>
                                                                             </EmptyState>
                                                                         )}
-                                                                        sortOptions={[{title: 'Name', compare: (a, b) => a.name.localeCompare(b.name)}]}
+                                                                        sortOptions={RESOURCE_SORT_OPTIONS}
                                                                         data={filteredResources}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {data => <ResourcesTable resources={data} onOpenDetails={resource => openResourceDetails(ctx, resource)} />}

@@ -2,10 +2,11 @@ import {DropDown, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import classNames from 'classnames';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
-import {Cluster} from '../../../shared/components';
+import {take} from 'rxjs/operators';
+import {Cluster, DataLoader} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {HealthPriority, SyncPriority, SyncStatusCode} from '../../../shared/models';
+import {services} from '../../../shared/services';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 import {ResourceLabel} from '../../../applications/components/resource-label';
 import * as AppUtils from '../../../applications/components/utils';
@@ -13,25 +14,40 @@ import {getManagingApplicationUrl, openResourceDetails, resourceHealthState, res
 import '../../../applications/components/application-details/application-resource-list.scss';
 import './resources-table.scss';
 import {TruncatedTextTooltip, useTruncatedElement} from './truncated-text-tooltip';
+import {RESOURCE_SORT_KEY_TO_TITLE, RESOURCE_SORT_TITLE_TO_KEY, RESOURCES_LIST_SORT_KEY, ResourceSortKey} from './resources-sort';
 
-type SortKey = 'name' | 'group-kind' | 'namespace' | 'cluster' | 'application' | 'status';
+function handleSort(ctx: ContextApis, key: ResourceSortKey) {
+    services.viewPreferences
+        .getPreferences()
+        .pipe(take(1))
+        .subscribe(pref => {
+            if (!pref.sortOptions) {
+                pref.sortOptions = {};
+            }
+            if (!pref.sortDirections) {
+                pref.sortDirections = {};
+            }
+            const title = RESOURCE_SORT_KEY_TO_TITLE[key];
+            const currentTitle = pref.sortOptions[RESOURCES_LIST_SORT_KEY] || 'Name';
+            const currentDir = pref.sortDirections[RESOURCES_LIST_SORT_KEY] || 'asc';
+            pref.sortOptions[RESOURCES_LIST_SORT_KEY] = title;
+            pref.sortDirections[RESOURCES_LIST_SORT_KEY] = currentTitle === title && currentDir === 'asc' ? 'desc' : 'asc';
+            services.viewPreferences.updatePreferences(pref);
+            ctx.navigation.goto('.', {page: 0}, {replace: true});
+        });
+}
 
 export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetails?: (resource: models.Resource) => void}) => {
     const [selectedResource, navResource, reset] = useNav(props.resources.length);
     const ctxh = React.useContext(Context);
-    const [sortConfig, setSortConfig] = React.useState<{key: SortKey; direction: 'asc' | 'desc'}>({key: 'name', direction: 'asc'});
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
-    const handleSort = (key: SortKey) => {
-        setSortConfig(prev => (prev.key !== key ? {key, direction: 'asc'} : {key, direction: prev.direction === 'asc' ? 'desc' : 'asc'}));
-    };
-
-    const getSortArrow = (key: SortKey) => {
-        if (sortConfig.key !== key) {
+    const getSortArrow = (activeKey: ResourceSortKey, direction: 'asc' | 'desc', key: ResourceSortKey) => {
+        if (activeKey !== key) {
             return null;
         }
-        const isAsc = sortConfig.direction === 'asc';
+        const isAsc = direction === 'asc';
         const style: React.CSSProperties = {
             position: 'relative',
             top: isAsc ? '2px' : '-2px'
@@ -42,49 +58,6 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
             </span>
         );
     };
-
-    const sortedResources = React.useMemo(() => {
-        const items = [...props.resources];
-        items.sort((a, b) => {
-            let compare = 0;
-            switch (sortConfig.key) {
-                case 'name':
-                    compare = a.name.localeCompare(b.name);
-                    break;
-                case 'group-kind': {
-                    const ga = [a.group, a.kind].filter(Boolean).join('/');
-                    const gb = [b.group, b.kind].filter(Boolean).join('/');
-                    compare = ga.localeCompare(gb);
-                    break;
-                }
-                case 'namespace':
-                    compare = (a.namespace || '').localeCompare(b.namespace || '');
-                    break;
-                case 'cluster': {
-                    const ca = a.clusterName || a.clusterServer || '';
-                    const cb = b.clusterName || b.clusterServer || '';
-                    compare = ca.localeCompare(cb);
-                    break;
-                }
-                case 'application':
-                    compare = (a.appName || '').localeCompare(b.appName || '');
-                    break;
-                case 'status': {
-                    const healthA = resourceHealthStatus(a);
-                    const healthB = resourceHealthStatus(b);
-                    const syncA = (a.status as SyncStatusCode) ?? 'Unknown';
-                    const syncB = (b.status as SyncStatusCode) ?? 'Unknown';
-                    compare = HealthPriority[healthA] - HealthPriority[healthB];
-                    if (compare === 0) {
-                        compare = SyncPriority[syncA] - SyncPriority[syncB];
-                    }
-                    break;
-                }
-            }
-            return sortConfig.direction === 'asc' ? compare : -compare;
-        });
-        return items;
-    }, [props.resources, sortConfig]);
 
     useKeybinding({keys: Key.DOWN, action: () => navResource(1)});
     useKeybinding({keys: Key.UP, action: () => navResource(-1)});
@@ -98,8 +71,8 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
     useKeybinding({
         keys: Key.ENTER,
         action: () => {
-            if (selectedResource > -1 && selectedResource < sortedResources.length) {
-                const resource = sortedResources[selectedResource];
+            if (selectedResource > -1 && selectedResource < props.resources.length) {
+                const resource = props.resources[selectedResource];
                 if (props.onOpenDetails) {
                     props.onOpenDetails(resource);
                 } else {
@@ -126,80 +99,92 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
     return (
         <Consumer>
             {ctx => (
-                <div className='application-details resources-table'>
-                            <div className='argo-table-list argo-table-list--clickable'>
-                                <div className='argo-table-list__head'>
-                                    <div className='row'>
-                                        <div className='columns resources-table__col-icon' />
-                                        <div
-                                            className='columns resources-table__col-group-kind resources-table__head-col'
-                                            onClick={() => handleSort('group-kind')}
-                                            style={{cursor: 'pointer'}}
-                                            title='GROUP/KIND'>
-                                            <span className='resources-table__head-text'>
-                                                GROUP/KIND {getSortArrow('group-kind')}
-                                            </span>
-                                        </div>
-                                        <div
-                                            className='columns resources-table__col-namespace resources-table__head-col'
-                                            onClick={() => handleSort('namespace')}
-                                            style={{cursor: 'pointer'}}
-                                            title='NAMESPACE'>
-                                            <span className='resources-table__head-text'>
-                                                NAMESPACE {getSortArrow('namespace')}
-                                            </span>
-                                        </div>
-                                        <div
-                                            className='columns resources-table__col-name resources-table__head-col'
-                                            onClick={() => handleSort('name')}
-                                            style={{cursor: 'pointer'}}
-                                            title='NAME'>
-                                            <span className='resources-table__head-text'>NAME {getSortArrow('name')}</span>
-                                        </div>
-                                        <div
-                                            className='columns resources-table__col-cluster resources-table__head-col'
-                                            onClick={() => handleSort('cluster')}
-                                            style={{cursor: 'pointer'}}
-                                            title='CLUSTER'>
-                                            <span className='resources-table__head-text'>CLUSTER {getSortArrow('cluster')}</span>
-                                        </div>
-                                        <div
-                                            className='columns resources-table__col-application resources-table__head-col'
-                                            onClick={() => handleSort('application')}
-                                            style={{cursor: 'pointer'}}
-                                            title='Application (opens application page)'>
-                                            <span className='resources-table__head-text resources-table__head-text--application'>
-                                                <span className='resources-table__head-label'>APPLICATION</span>
-                                                <i className='fa fa-external-link-alt resources-table__head-external-icon' aria-hidden={true} />
-                                                {getSortArrow('application')}
-                                            </span>
-                                        </div>
-                                        <div
-                                            className='columns resources-table__status-col resources-table__head-col'
-                                            onClick={() => handleSort('status')}
-                                            style={{cursor: 'pointer'}}
-                                            title='STATUS'>
-                                            <span className='resources-table__head-text'>STATUS {getSortArrow('status')}</span>
+                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                    {pref => {
+                        const sortTitle = pref.sortOptions?.[RESOURCES_LIST_SORT_KEY] || 'Name';
+                        const sortDirection = pref.sortDirections?.[RESOURCES_LIST_SORT_KEY] || 'asc';
+                        const activeSortKey = RESOURCE_SORT_TITLE_TO_KEY[sortTitle] || 'name';
+
+                        return (
+                            <div className='application-details resources-table'>
+                                <div className='argo-table-list argo-table-list--clickable'>
+                                    <div className='argo-table-list__head'>
+                                        <div className='row'>
+                                            <div className='columns resources-table__col-icon' />
+                                            <div
+                                                className='columns resources-table__col-group-kind resources-table__head-col'
+                                                onClick={() => handleSort(ctx, 'group-kind')}
+                                                style={{cursor: 'pointer'}}
+                                                title='GROUP/KIND'>
+                                                <span className='resources-table__head-text'>
+                                                    GROUP/KIND {getSortArrow(activeSortKey, sortDirection, 'group-kind')}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className='columns resources-table__col-namespace resources-table__head-col'
+                                                onClick={() => handleSort(ctx, 'namespace')}
+                                                style={{cursor: 'pointer'}}
+                                                title='NAMESPACE'>
+                                                <span className='resources-table__head-text'>
+                                                    NAMESPACE {getSortArrow(activeSortKey, sortDirection, 'namespace')}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className='columns resources-table__col-name resources-table__head-col'
+                                                onClick={() => handleSort(ctx, 'name')}
+                                                style={{cursor: 'pointer'}}
+                                                title='NAME'>
+                                                <span className='resources-table__head-text'>NAME {getSortArrow(activeSortKey, sortDirection, 'name')}</span>
+                                            </div>
+                                            <div
+                                                className='columns resources-table__col-cluster resources-table__head-col'
+                                                onClick={() => handleSort(ctx, 'cluster')}
+                                                style={{cursor: 'pointer'}}
+                                                title='CLUSTER'>
+                                                <span className='resources-table__head-text'>
+                                                    CLUSTER {getSortArrow(activeSortKey, sortDirection, 'cluster')}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className='columns resources-table__col-application resources-table__head-col'
+                                                onClick={() => handleSort(ctx, 'application')}
+                                                style={{cursor: 'pointer'}}
+                                                title='Application (opens application page)'>
+                                                <span className='resources-table__head-text resources-table__head-text--application'>
+                                                    <span className='resources-table__head-label'>APPLICATION</span>
+                                                    <i className='fa fa-external-link-alt resources-table__head-external-icon' aria-hidden={true} />
+                                                    {getSortArrow(activeSortKey, sortDirection, 'application')}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className='columns resources-table__status-col resources-table__head-col'
+                                                onClick={() => handleSort(ctx, 'status')}
+                                                style={{cursor: 'pointer'}}
+                                                title='STATUS'>
+                                                <span className='resources-table__head-text'>STATUS {getSortArrow(activeSortKey, sortDirection, 'status')}</span>
+                                            </div>
                                         </div>
                                     </div>
+                                    {props.resources.map((resource, i) => {
+                                        const groupKind = [resource.group, resource.kind].filter(Boolean).join('/');
+                                        return (
+                                            <ResourceTableRow
+                                                key={`${resource.appProject}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.kind}/${resource.group}/${resource.version}`}
+                                                resource={resource}
+                                                groupKind={groupKind}
+                                                index={i}
+                                                selectedResource={selectedResource}
+                                                ctx={ctx}
+                                                openDetails={openDetails}
+                                                navigateToApplication={navigateToApplication}
+                                            />
+                                        );
+                                    })}
                                 </div>
-                                {sortedResources.map((resource, i) => {
-                                    const groupKind = [resource.group, resource.kind].filter(Boolean).join('/');
-                                    return (
-                                        <ResourceTableRow
-                                            key={`${resource.appProject}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.kind}/${resource.group}/${resource.version}`}
-                                            resource={resource}
-                                            groupKind={groupKind}
-                                            index={i}
-                                            selectedResource={selectedResource}
-                                            ctx={ctx}
-                                            openDetails={openDetails}
-                                            navigateToApplication={navigateToApplication}
-                                        />
-                                    );
-                                })}
                             </div>
-                </div>
+                        );
+                    }}
+                </DataLoader>
             )}
         </Consumer>
     );
