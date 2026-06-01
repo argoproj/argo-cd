@@ -32,7 +32,9 @@ func getV1beta1TestClientset(t *testing.T) appclientset.Interface {
 	t.Helper()
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{}, os.Stdin)
+	// Use a non-interactive loader so the test fails fast in CI instead of
+	// blocking on stdin when kubeconfig is missing or misconfigured.
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{})
 
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {

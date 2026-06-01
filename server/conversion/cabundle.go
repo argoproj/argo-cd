@@ -1,11 +1,10 @@
 package conversion
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 
@@ -64,19 +63,32 @@ func InjectCABundle(ctx context.Context, restConfig *rest.Config, tlsCert *tls.C
 		Bytes: caCert.Raw,
 	})
 
-	// Check if already set to the same value
-	// Note: CABundle in the CRD is already decoded by the client
+	// Only inject when caBundle is empty. If something else has already
+	// populated it (cert-manager's CA injector, a manual install, etc),
+	// leave it alone — overwriting would break those trust chains.
 	if crd.Spec.Conversion.Webhook != nil &&
 		crd.Spec.Conversion.Webhook.ClientConfig != nil &&
-		len(crd.Spec.Conversion.Webhook.ClientConfig.CABundle) > 0 &&
-		bytes.Equal(crd.Spec.Conversion.Webhook.ClientConfig.CABundle, caPEM) {
-		log.Debug("CA bundle already up to date")
+		len(crd.Spec.Conversion.Webhook.ClientConfig.CABundle) > 0 {
+		log.Info("CA bundle is already set on Application CRD; leaving it unchanged")
 		return nil
 	}
 
-	// Patch the CRD with the CA bundle
-	patch := []byte(`{"spec":{"conversion":{"webhook":{"clientConfig":{"caBundle":"` +
-		encodePEM(caPEM) + `"}}}}}`)
+	// Build the patch via json.Marshal — a []byte field is base64-encoded
+	// by encoding/json, which matches Kubernetes' wire format for caBundle.
+	patch, err := json.Marshal(map[string]any{
+		"spec": map[string]any{
+			"conversion": map[string]any{
+				"webhook": map[string]any{
+					"clientConfig": map[string]any{
+						"caBundle": caPEM,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to build CA bundle patch: %w", err)
+	}
 
 	_, err = apiextClient.ApiextensionsV1().CustomResourceDefinitions().Patch(
 		ctx,
@@ -91,10 +103,4 @@ func InjectCABundle(ctx context.Context, restConfig *rest.Config, tlsCert *tls.C
 
 	log.Info("Successfully injected CA bundle into Application CRD conversion webhook")
 	return nil
-}
-
-// encodePEM encodes PEM bytes to base64 for JSON embedding
-func encodePEM(pemBytes []byte) string {
-	// The Kubernetes API expects caBundle to be base64 encoded
-	return base64.StdEncoding.EncodeToString(pemBytes)
 }

@@ -11,6 +11,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -93,14 +94,30 @@ func NewCommand() *cobra.Command {
 			// to us would fail x509 verification. Bounding pod-ready on a
 			// successful inject (the server is what /readyz responds on, and
 			// it does not bind its port until after this returns) eliminates
-			// that startup window. On failure we still proceed in case the
-			// caBundle was provisioned externally (cert-manager, manual setup).
+			// that startup window. Retry with exponential backoff so a
+			// transient apiserver hiccup doesn't leave the pod broken until
+			// restart. On final failure we still proceed in case the caBundle
+			// was provisioned externally (cert-manager, manual setup).
 			if restConfig != nil && cert != nil {
-				injectCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-				if err := conversion.InjectCABundle(injectCtx, restConfig, cert); err != nil {
-					log.Warnf("Failed to inject CA bundle into Application CRD (continuing — assume external injection): %v", err)
+				injectCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+				backoff := wait.Backoff{
+					Duration: 500 * time.Millisecond,
+					Factor:   2.0,
+					Jitter:   0.1,
+					Steps:    7,
+					Cap:      10 * time.Second,
 				}
+				err := wait.ExponentialBackoffWithContext(injectCtx, backoff, func(ctx context.Context) (bool, error) {
+					if err := conversion.InjectCABundle(ctx, restConfig, cert); err != nil {
+						log.WithError(err).Warn("CA bundle injection attempt failed, retrying")
+						return false, nil
+					}
+					return true, nil
+				})
 				cancel()
+				if err != nil {
+					log.Warnf("Failed to inject CA bundle into Application CRD after retries (continuing — assume external injection): %v", err)
+				}
 			}
 
 			// Set up HTTP server with conversion handler

@@ -16,6 +16,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 )
 
+// maxRequestBodySize bounds the size of an incoming ConversionReview to prevent
+// memory DoS. ConversionReview requests carry a list of full Application objects;
+// 16 MiB comfortably covers the largest Applications kube-apiserver will send.
+const maxRequestBodySize = 16 << 20
+
 // Handler handles CRD conversion webhook requests for Application resources.
 // It converts between v1alpha1 and v1beta1 API versions.
 type Handler struct{}
@@ -32,13 +37,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.WithError(err).Error("Failed to read conversion webhook request body")
 		http.Error(w, "failed to read request body", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	var review apiextensionsv1.ConversionReview
 	if err := json.Unmarshal(body, &review); err != nil {
