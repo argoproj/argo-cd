@@ -1935,6 +1935,37 @@ func simulatePartialClone(ctx context.Context, t *testing.T, repoDir string, rev
 	require.NoError(t, runCmd(ctx, repoDir, "git", "config", "remote.origin.partialclonefilter", "blob:none"))
 }
 
+// After `git sparse-checkout init --cone` writes extensions.worktreeConfig=true
+// at repositoryformatversion=0, go-git's PlainOpen rejects the repo. Init() must
+// remain idempotent in that state — without this, the very next sync fails with
+// "Failed to initialize git repo: core.repositoryformatversion does not support
+// extension: worktreeconfig".
+func Test_nativeGitClient_Init_IdempotentAfterSparseCheckoutInit(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(remoteDir, "subdir"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "subdir", "f.txt"), []byte("x"), 0o644))
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "add", "-A"))
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "commit", "-m", "with subdir"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0, false))
+
+	require.NoError(t, client.ConfigureSparseCheckout([]string{"subdir"}))
+
+	cfg, err := os.ReadFile(filepath.Join(localDir, ".git", "config"))
+	require.NoError(t, err)
+	require.Contains(t, string(cfg), "worktreeConfig = true",
+		"precondition: sparse-checkout init must have written the extension that trips go-git")
+
+	require.NoError(t, client.Init(),
+		"Init must remain idempotent after sparse-checkout init writes extensions.worktreeConfig=true")
+}
+
 func Test_nativeGitClient_HasLocalRef(t *testing.T) {
 	ctx := t.Context()
 	remoteDir, err := _createEmptyGitRepo(ctx)

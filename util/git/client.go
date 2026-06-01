@@ -525,15 +525,18 @@ func (m *nativeGitClient) RepoURL() string {
 
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
-	_, err := git.PlainOpen(m.root)
-	if err == nil {
+	// Probe with a filesystem check instead of go-git's PlainOpen. After
+	// `git sparse-checkout init --cone` runs, git writes
+	// `extensions.worktreeConfig = true` even at `core.repositoryformatversion = 0`.
+	// The git CLI tolerates this combination, but go-git enforces the spec strictly
+	// and PlainOpen fails with "core.repositoryformatversion does not support extension:
+	// worktreeconfig", causing the subsequent Init() call to return an error and the
+	// whole sync to fail.
+	if info, err := os.Stat(filepath.Join(m.root, ".git")); err == nil && info.IsDir() {
 		return nil
 	}
-	if !errors.Is(err, git.ErrRepositoryNotExists) {
-		return err
-	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	err = os.RemoveAll(m.root)
+	err := os.RemoveAll(m.root)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %w", m.root, err)
 	}
