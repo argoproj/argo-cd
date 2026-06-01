@@ -184,9 +184,9 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
 	}
-	expectedDevApp := generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", "")
-	expectedStageApp := generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", "")
-	expectedProdApp := generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", "")
+	expectedDevApp := generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", "", false)
+	expectedStageApp := generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", "", false)
+	expectedProdApp := generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", "", false)
 
 	expectedStatusWave1 := map[string]v1alpha1.ApplicationSetApplicationStatus{
 		"prog-dev": {
@@ -381,9 +381,9 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 	}
 
 	expectedApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", ""),
-		generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", ""),
-		generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", ""),
+		generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", "", false),
+		generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", "", false),
+		generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", "", false),
 	}
 	Given(t).
 		When().
@@ -403,9 +403,9 @@ func TestNoApplicationStatusWhenNoApplications(t *testing.T) {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
 	}
 	expectedApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", ""),
-		generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", ""),
-		generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", ""),
+		generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", "", false),
+		generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", "", false),
+		generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", "", false),
 	}
 	Given(t).
 		When().
@@ -431,16 +431,16 @@ func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T
 	testFinalizer := "test.e2e.argoproj.io/wait-for-verification"
 	// Create expected app definitions for existence checks
 	expectedProdApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "ship", "prod", testFinalizer),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "run", "prod", testFinalizer),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "ship", "prod", testFinalizer, false),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "run", "prod", testFinalizer, false),
 	}
 	expectedStagingApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "verify", "staging", testFinalizer),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "validate", "staging", testFinalizer),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "verify", "staging", testFinalizer, false),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "validate", "staging", testFinalizer, false),
 	}
 	expectedDevApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "sketch", "dev", testFinalizer),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "build", "dev", testFinalizer),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "sketch", "dev", testFinalizer, false),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "build", "dev", testFinalizer, false),
 	}
 	var allExpectedApps []v1alpha1.Application
 	allExpectedApps = append(allExpectedApps, expectedProdApps...)
@@ -516,6 +516,60 @@ func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T
 			t.Log("Reverse deletion order verified successfully!")
 			t.Log("Deletion sequence was: prod -> staging -> dev")
 		})
+}
+
+func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
+	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
+		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
+	}
+
+	// all applications have the same source, simultaneous changes will still be gated
+	expectedApps := []v1alpha1.Application{
+		generateExpectedApp("refresh-dev", "progressive-sync/updateRevision", "app1", "dev", "", true),
+		generateExpectedApp("refresh-staging", "progressive-sync/updateRevision", "app2", "staging", "", true),
+		generateExpectedApp("refresh-prod", "progressive-sync/updateRevision", "app3", "prod", "", true),
+	}
+
+	expectAllHealthy := map[string]v1alpha1.ApplicationSetApplicationStatus{
+		"refresh-dev-app1":     {Application: "refresh-dev-app1", Status: v1alpha1.ProgressiveSyncHealthy},
+		"refresh-staging-app2": {Application: "refresh-staging-app2", Status: v1alpha1.ProgressiveSyncHealthy},
+		"refresh-prod-app3":    {Application: "refresh-prod-app3", Status: v1alpha1.ProgressiveSyncHealthy},
+	}
+
+	expectedOrder := []string{"refresh-dev-app1", "refresh-staging-app2", "refresh-prod-app3"}
+	var changeTime *metav1.Time
+	Given(t).
+		When().
+		Create(appSetForRefreshAnnotation).
+		Then().
+		Expect(ApplicationsExist(expectedApps)).
+		// Wait for all apps Synced on revisionA
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
+		Expect(ApplicationsLastTransitionTime(expectedOrder)).
+		And(func() {
+			t.Log("Updating targetRevision to new revision by patching git")
+			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": "2"}]`)
+			t.Log("Git revision changed to revisionB")
+		}).
+		// Immediately Check if Refresh Annotations added, implies progressive sync logic has begun, will wait for annotations before beginning to progress
+		// Can wait up till 3 minutes as the default time for changes to refresh (jitter+default refresh)
+		ExpectWithDuration(CheckApplicationHasAnnotation(expectedApps), TransitionTimeout*3).
+		// Before all applications become healthy, make another change
+		And(func() {
+			now := metav1.Now()
+			changeTime = &now
+			t.Log("Updating targetRevision to new revision by patching git")
+			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": "3"}]`)
+			t.Log("Git revision changed to revisionB")
+		}).
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
+		Expect(ApplicationsLastTransitionTime(expectedOrder)).
+		Expect(AppsTransitionedAfter([]string{"refresh-dev-app1", "refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
+		// Cleanup
+		When().
+		Delete(metav1.DeletePropagationForeground).
+		Then().
+		ExpectWithDuration(ApplicationsDoNotExist(expectedApps), TransitionTimeout)
 }
 
 var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
@@ -688,12 +742,75 @@ var appSetWithReverseDeletionOrder = v1alpha1.ApplicationSet{
 	},
 }
 
-func generateExpectedApp(prefix string, path string, name string, envVar string, testFinalizer string) v1alpha1.Application {
+var appSetForRefreshAnnotation = v1alpha1.ApplicationSet{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "progressive-sync-refresh-test",
+	},
+	Spec: v1alpha1.ApplicationSetSpec{
+		GoTemplate: true,
+		Template: v1alpha1.ApplicationSetTemplate{
+			ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+				Name:      "refresh-{{.environment}}-{{.name}}",
+				Namespace: fixture.TestNamespace(),
+				Labels: map[string]string{
+					"environment": "{{.environment}}",
+				},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "progressive-sync/updateRevision",
+					TargetRevision: "HEAD",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "refresh-{{.environment}}-{{.name}}",
+				},
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true"},
+				},
+			},
+		},
+		// List Generator in random order is on purpose
+		Generators: []v1alpha1.ApplicationSetGenerator{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						{Raw: []byte(`{"environment": "prod", "name": "app3"}`)},
+						// {Raw: []byte(`{"environment": "prod", "name": "app7"}`)},
+						// {Raw: []byte(`{"environment": "prod", "name": "app8"}`)},
+						// {Raw: []byte(`{"environment": "prod", "name": "app9"}`)},
+						{Raw: []byte(`{"environment": "dev", "name": "app1"}`)},
+						// {Raw: []byte(`{"environment": "dev", "name": "app2"}`)},
+						// {Raw: []byte(`{"environment": "staging", "name": "app3"}`)},
+						// {Raw: []byte(`{"environment": "staging", "name": "app4"}`)},
+						{Raw: []byte(`{"environment": "staging", "name": "app2"}`)},
+					},
+				},
+			},
+		},
+		Strategy: &v1alpha1.ApplicationSetStrategy{
+			Type: "RollingSync",
+			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+				Steps: generateStandardRolloutSyncSteps(),
+			},
+		},
+	},
+}
+
+func generateExpectedApp(prefix string, path string, name string, envVar string, testFinalizer string, samePath bool) v1alpha1.Application {
 	finalizers := []string{
 		"resources-finalizer.argocd.argoproj.io",
 	}
 	if testFinalizer != "" {
 		finalizers = append(finalizers, testFinalizer)
+	}
+	finalPath := ""
+	if samePath {
+		finalPath = path
+	} else {
+		finalPath = path + name
 	}
 	return v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -712,7 +829,7 @@ func generateExpectedApp(prefix string, path string, name string, envVar string,
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
-				Path:           path + name,
+				Path:           finalPath,
 				TargetRevision: "HEAD",
 			},
 			Destination: v1alpha1.ApplicationDestination{
