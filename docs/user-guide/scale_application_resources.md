@@ -27,3 +27,6 @@ You can also scale resources from the CLI using the `--param` flag:
 argocd app actions run APPNAME scale --kind Deployment --resource-name RESOURCE_NAME --param replicas=2
 argocd app actions run APPNAME scale --kind StatefulSet --resource-name RESOURCE_NAME --param replicas=3
 ```
+
+> [!NOTE]
+> If the same parameter is specified more than once, the last provided value for that parameter will be used.
