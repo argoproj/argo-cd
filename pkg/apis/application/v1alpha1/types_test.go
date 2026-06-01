@@ -4443,19 +4443,26 @@ func TestGetSourcesSyncStatus(t *testing.T) {
 		expectedSources ApplicationSources
 	}{
 		{"compareTo is empty", ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{}}}, ApplicationSources{}},
-		{"compareTo has single source",
-			ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{Source: ApplicationSource{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"}}}}, ApplicationSources{
+		{
+			"compareTo has single source",
+			ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{Source: ApplicationSource{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"}}}},
+			ApplicationSources{
 				{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"},
-			}},
-		{"compareTo has multisources",
-			ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{Sources: ApplicationSources{
+			},
+		},
+		{
+			"compareTo has multisources",
+			ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
+				Sources: ApplicationSources{
+					{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"},
+					{RepoURL: "https://github.com/test2.git", TargetRevision: "revision-1", Helm: &ApplicationSourceHelm{Values: "test"}},
+				},
+			}}},
+			ApplicationSources{
 				{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"},
 				{RepoURL: "https://github.com/test2.git", TargetRevision: "revision-1", Helm: &ApplicationSourceHelm{Values: "test"}},
 			},
-			}}}, ApplicationSources{
-				{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"},
-				{RepoURL: "https://github.com/test2.git", TargetRevision: "revision-1", Helm: &ApplicationSourceHelm{Values: "test"}},
-			}},
+		},
 	}
 	for _, testCase := range tests {
 		testCopy := testCase
