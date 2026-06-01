@@ -1503,15 +1503,15 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     return getAppDefaultSource(app);
 }
 
-export function getHydratorSyncSourceRepoURL(sourceHydrator: appModels.SourceHydrator): string {
-    return sourceHydrator.syncSource?.repoURL || sourceHydrator.drySource?.repoURL || '';
+export function getHydratorSyncSourceRepoURL(sourceHydrator?: appModels.SourceHydrator): string {
+    return sourceHydrator?.syncSource?.repoURL || sourceHydrator?.drySource?.repoURL || '';
 }
 
-export function getAppHydratorSyncSource(sourceHydrator: appModels.SourceHydrator): appModels.ApplicationSource {
+export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
     return {
         repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
-        targetRevision: sourceHydrator.syncSource.targetBranch,
-        path: sourceHydrator.syncSource.path
+        targetRevision: sourceHydrator?.syncSource?.targetBranch || sourceHydrator?.drySource?.targetRevision || '',
+        path: sourceHydrator?.syncSource?.path || sourceHydrator?.drySource?.path || ''
     };
 }
 
