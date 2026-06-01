@@ -38,8 +38,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
     const [activeContainer, setActiveContainer] = useState<number | null>(null);
     const appContext = React.useContext(Context);
-    const tab = new URLSearchParams(appContext.history.location.search).get('tab');
-    const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
+    const searchParams = new URLSearchParams(appContext.history.location.search);
+    const tab = searchParams.get('tab');
+    const showApplicationReference = !!searchParams.get('detailsApp');
+    const selectedNodeInfo = NodeInfo(searchParams.get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
 
     React.useEffect(() => {
@@ -361,6 +363,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                                     controlled={data.controlledState}
                                                     node={selectedNode}
                                                     links={data.links}
+                                                    showApplicationReference={showApplicationReference}
                                                 />
                                             )
                                         }
