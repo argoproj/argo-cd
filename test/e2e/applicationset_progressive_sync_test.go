@@ -525,9 +525,9 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 
 	// all applications have the same source, simultaneous changes will still be gated
 	expectedApps := []v1alpha1.Application{
-		generateExpectedApp("refresh-dev", "progressive-sync/updateRevision", "app1", "dev", "", true),
-		generateExpectedApp("refresh-staging", "progressive-sync/updateRevision", "app2", "staging", "", true),
-		generateExpectedApp("refresh-prod", "progressive-sync/updateRevision", "app3", "prod", "", true),
+		generateExpectedApp("refresh-dev-", "progressive-sync/updateRevision", "app1", "dev", "", true),
+		generateExpectedApp("refresh-staging-", "progressive-sync/updateRevision", "app2", "staging", "", true),
+		generateExpectedApp("refresh-prod-", "progressive-sync/updateRevision", "app3", "prod", "", true),
 	}
 
 	expectAllHealthy := map[string]v1alpha1.ApplicationSetApplicationStatus{
