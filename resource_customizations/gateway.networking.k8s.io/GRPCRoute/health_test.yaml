@@ -23,3 +23,7 @@ tests:
     status: Degraded
     message: "Parent : BackendRef service-does-not-exist not found"
   inputPath: testdata/degraded_no_parent_name.yaml
+- healthStatus:
+    status: Healthy
+    message: GRPCRoute is healthy
+  inputPath: testdata/healthy_multiple_generations.yaml
