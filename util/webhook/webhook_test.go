@@ -1532,7 +1532,7 @@ func TestFetchDiffStatBitbucketClient(t *testing.T) {
 			owner:                "test-owner",
 			repo:                 "test-repo",
 			spec:                 "badpath..ghijkl",
-			expectedChangedFiles: []string{""},
+			expectedChangedFiles: []string{},
 		},
 		{
 			name:              "invalid spec",
