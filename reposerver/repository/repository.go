@@ -417,7 +417,9 @@ func (s *Service) runRepoOperation(
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	if settings.sem != nil {
+		acquireStart := time.Now()
 		err = settings.sem.Acquire(ctx, 1)
+		s.metricsServer.ObserveParallelismWaitDuration(time.Since(acquireStart))
 		if err != nil {
 			return err
 		}
@@ -2991,8 +2993,8 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 
 // fetch is a convenience function to fetch revisions
 // We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
-func (s *Service) fetch(gitClient git.Client, targetRevisions []string, usePartialClone bool) error {
-	err := fetch(gitClient, targetRevisions, usePartialClone)
+func (s *Service) fetch(gitClient git.Client, targetRevisions []string, depth int64, usePartialClone bool) error {
+	err := fetch(gitClient, targetRevisions, depth)
 	if err != nil {
 		for _, revision := range targetRevisions {
 			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
@@ -3001,7 +3003,7 @@ func (s *Service) fetch(gitClient git.Client, targetRevisions []string, useParti
 	return err
 }
 
-func fetch(gitClient git.Client, targetRevisions []string, usePartialClone bool) error {
+func fetch(gitClient git.Client, targetRevisions []string, depth int64, usePartialClone bool) error {
 	revisionPresent := true
 	for _, revision := range targetRevisions {
 		revisionPresent = gitClient.IsRevisionPresent(revision)
@@ -3011,6 +3013,16 @@ func fetch(gitClient git.Client, targetRevisions []string, usePartialClone bool)
 	}
 	// Fetching can be skipped if the revision is already present locally.
 	if revisionPresent {
+		return nil
+	}
+	if depth > 0 {
+		for _, revision := range targetRevisions {
+			if !gitClient.IsRevisionPresent(revision) {
+				if err := gitClient.Fetch(revision, depth); err != nil {
+					return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
+				}
+			}
+		}
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
@@ -3179,8 +3191,11 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			return err
 		},
 	}
-	check := checks[repo.Type]
 	apiResp := &apiclient.TestRepositoryResponse{VerifiedRepository: false}
+	check, ok := checks[repo.Type]
+	if !ok {
+		return apiResp, fmt.Errorf("unsupported repository type %q", repo.Type)
+	}
 	err := check()
 	if err != nil {
 		return apiResp, fmt.Errorf("error testing repository connectivity: %w", err)
@@ -3442,7 +3457,7 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(gitClient, []string{syncedRevision}, len(repo.SparsePaths) > 0); err != nil {
+		if err := s.fetch(gitClient, []string{syncedRevision}, repo.Depth, len(repo.SparsePaths) > 0); err != nil {
 			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
 		}
 

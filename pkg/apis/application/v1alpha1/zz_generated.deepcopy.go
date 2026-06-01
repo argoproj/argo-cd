@@ -2111,6 +2111,11 @@ func (in *ExecProviderConfig) DeepCopyInto(out *ExecProviderConfig) {
 			(*out)[key] = val
 		}
 	}
+	if in.Config != nil {
+		in, out := &in.Config, &out.Config
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

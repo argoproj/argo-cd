@@ -123,11 +123,17 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         return props.match.params.appnamespace;
     }, [props.match.params.appnamespace]);
 
-    const onExtensionsUpdate = useCallback(() => {
-        setState(prevState => ({...prevState, ...getExtensionsState()}));
-    }, [getExtensionsState]);
+    const getExtensionsStateRef = useRef(getExtensionsState);
+    getExtensionsStateRef.current = getExtensionsState;
+
+    const onExtensionsUpdate = useRef(() => {
+        setState(prevState => ({...prevState, ...getExtensionsStateRef.current()}));
+    }).current;
 
     useEffect(() => {
+        // Capture any extensions that registered before this effect ran
+        setState(prevState => ({...prevState, ...getExtensionsStateRef.current()}));
+
         services.extensions.addEventListener('resource', onExtensionsUpdate);
         services.extensions.addEventListener('appView', onExtensionsUpdate);
         services.extensions.addEventListener('statusPanel', onExtensionsUpdate);
@@ -331,7 +337,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
-            sourceHeader?: JSX.Element
+            sourceHeader?: React.ReactElement
         ) => {
             const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
                 return (
@@ -407,7 +413,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
-            sourceHeader?: JSX.Element
+            sourceHeader?: React.ReactElement
         ) => {
             const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
                 return (
@@ -499,7 +505,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
-            sourceHeader?: JSX.Element
+            sourceHeader?: React.ReactElement
         ) => {
             const showNonMetadataInfo = (aSource: models.ApplicationSource, aRevision: string) => {
                 return (
@@ -569,7 +575,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 </DataLoader>
             );
         };
-        const cont: JSX.Element[] = [];
+        const cont: React.ReactElement[] = [];
         const sources: models.ApplicationSource[] = application.spec.sources;
         if (sources?.length > 0 && revisions) {
             revisions.forEach((rev, indx) => {
@@ -910,6 +916,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                               title: 'AppSet Details',
                                                               iconClassName: 'fa fa-info-circle',
                                                               action: () => selectNode(appFullName)
+                                                          },
+                                                          {
+                                                              title: 'Preview Apps',
+                                                              iconClassName: 'fa fa-eye',
+                                                              action: () => selectNode(appFullName, 0, 'preview')
                                                           }
                                                       ]
                                             },
@@ -1198,7 +1209,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         )}
                                         {!isApplication && (
                                             <SlidingPanel isShown={isAppSelected} onClose={() => selectNode('')}>
-                                                <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />
+                                                {isAppSelected && <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />}
                                             </SlidingPanel>
                                         )}
                                         {isApplication && (

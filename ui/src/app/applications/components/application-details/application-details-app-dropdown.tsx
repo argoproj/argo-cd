@@ -25,14 +25,15 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                             className='argo-field'
                             value={appFilter}
                             onChange={e => setAppFilter(e.target.value)}
-                            ref={el =>
-                                el &&
-                                setTimeout(() => {
-                                    if (el) {
-                                        el.focus();
-                                    }
-                                }, 100)
-                            }
+                            ref={el => {
+                                if (el) {
+                                    setTimeout(() => {
+                                        if (el) {
+                                            el.focus();
+                                        }
+                                    }, 100);
+                                }
+                            }}
                         />
                     </li>
                     <DataLoader load={() => services.applications.list([], props.objectListKind, {fields: ['items.metadata.name', 'items.metadata.namespace']})}>
