@@ -1315,7 +1315,10 @@ func (status *ApplicationStatus) GetSourcesSyncStatus() ApplicationSources {
 	if len(status.Sync.ComparedTo.Sources) != 0 {
 		return status.Sync.ComparedTo.Sources
 	}
-	return ApplicationSources{status.Sync.ComparedTo.Source}
+	if !status.Sync.ComparedTo.Source.IsZero() {
+		return ApplicationSources{status.Sync.ComparedTo.Source}
+	}
+	return ApplicationSources{}
 }
 
 // BuildComparedToStatus will build a ComparedTo object based on the current
