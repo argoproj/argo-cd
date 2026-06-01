@@ -17,6 +17,7 @@ import {
 import * as models from '../../../shared/models';
 import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
+import {resourceHealthStatus} from '../utils';
 import {useLegendDisplayText} from './truncated-text-tooltip';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
@@ -185,14 +186,14 @@ const ClusterLegendText = ({label, value, clusters}: {label: string; value: numb
 const ResourcesSummaryContent = ({resources, clusters}: {resources: models.Resource[]; clusters: models.Cluster[]}) => {
     const clusterLabel = (resource: models.Resource) => getResourceClusterLabel(resource, clusters);
     const sync = countBy(resources, resource => (resource.status as SyncStatusCode) || 'Unknown');
-    const health = countBy(resources, resource => resource.health?.status || 'Unknown');
+    const health = countBy(resources, resourceHealthStatus);
     const kind = countBy(resources, groupKindLabel);
     const cluster = countBy(resources, clusterLabel);
 
     const attributes = [
         {title: 'RESOURCES', value: resources.length},
         {title: 'SYNCED', value: resources.filter(resource => resource.status === 'Synced').length},
-        {title: 'HEALTHY', value: resources.filter(resource => resource.health?.status === 'Healthy').length},
+        {title: 'HEALTHY', value: resources.filter(resource => resourceHealthStatus(resource) === 'Healthy').length},
         {
             title: 'APPLICATIONS',
             value: new Set(resources.map(resource => `${resource.appNamespace}/${resource.appName}`)).size

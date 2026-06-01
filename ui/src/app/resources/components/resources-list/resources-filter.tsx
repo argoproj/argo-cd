@@ -4,6 +4,7 @@ import * as React from 'react';
 import {HealthStatusCode, HealthStatuses, Resource, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {ResourcesListPreferences, services} from '../../../shared/services';
 import {getResourceClusterLabel} from '../../../shared/utils';
+import {resourceHealthStatus} from '../utils';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
 
@@ -23,7 +24,7 @@ export function getFilterResults(resources: Resource[], pref: ResourcesListPrefe
         ...app,
         filterResult: {
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status),
-            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.health?.status),
+            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(resourceHealthStatus(app)),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.namespace && minimatch(app.namespace, ns)),
             clusters:
                 pref.clustersFilter.length === 0 ||
@@ -107,7 +108,7 @@ const HealthFilter = (props: AppFilterProps) => (
         options={getOptions(
             props.apps,
             'health',
-            app => app.health?.status || HealthStatuses.Unknown,
+            app => resourceHealthStatus(app),
             Object.keys(HealthStatuses),
             s => (
                 <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />

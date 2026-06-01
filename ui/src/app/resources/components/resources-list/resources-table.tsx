@@ -9,7 +9,7 @@ import {HealthPriority, SyncPriority, SyncStatusCode} from '../../../shared/mode
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 import {ResourceLabel} from '../../../applications/components/resource-label';
 import * as AppUtils from '../../../applications/components/utils';
-import {getManagingApplicationUrl, openResourceDetails} from '../utils';
+import {getManagingApplicationUrl, openResourceDetails, resourceHealthState, resourceHealthStatus} from '../utils';
 import '../../../applications/components/application-details/application-resource-list.scss';
 import './resources-table.scss';
 import {TruncatedTextTooltip, useTruncatedElement} from './truncated-text-tooltip';
@@ -70,8 +70,8 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                     compare = (a.appName || '').localeCompare(b.appName || '');
                     break;
                 case 'status': {
-                    const healthA = a.health?.status ?? 'Unknown';
-                    const healthB = b.health?.status ?? 'Unknown';
+                    const healthA = resourceHealthStatus(a);
+                    const healthB = resourceHealthStatus(b);
                     const syncA = (a.status as SyncStatusCode) ?? 'Unknown';
                     const syncB = (b.status as SyncStatusCode) ?? 'Unknown';
                     compare = HealthPriority[healthA] - HealthPriority[healthB];
@@ -259,11 +259,9 @@ const ResourceTableRow = (props: {
                                                     </Tooltip>
                                                 </div>
                                                 <div className='columns resources-table__status-col'>
-                                                    {resource.health && (
-                                                        <React.Fragment>
-                                                            <AppUtils.HealthStatusIcon state={resource.health} /> {resource.health.status} &nbsp;
-                                                        </React.Fragment>
-                                                    )}
+                                                    <React.Fragment>
+                                                        <AppUtils.HealthStatusIcon state={resourceHealthState(resource)} /> {resourceHealthStatus(resource)} &nbsp;
+                                                    </React.Fragment>
                                                     {resource.status && <AppUtils.ComparisonStatusIcon status={resource.status} resource={resource} label={true} />}
                                                 </div>
                                             </div>

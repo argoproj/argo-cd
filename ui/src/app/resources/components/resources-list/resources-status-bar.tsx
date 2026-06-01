@@ -3,6 +3,7 @@ import * as React from 'react';
 import {COLORS} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
+import {resourceHealthStatus} from '../utils';
 
 import './resources-status-bar.scss';
 
@@ -14,7 +15,7 @@ export const ResourcesStatusBar = ({resources}: ResourcesStatusBarProps) => {
     const readings = [
         {
             name: 'Healthy',
-            value: resources.filter(resource => resource?.health?.status === 'Healthy').length,
+            value: resources.filter(resource => resourceHealthStatus(resource) === 'Healthy').length,
             color: COLORS.health.healthy
         },
         {
@@ -39,7 +40,7 @@ export const ResourcesStatusBar = ({resources}: ResourcesStatusBarProps) => {
         },
         {
             name: 'Unknown',
-            value: resources.filter(resource => resource?.health?.status === 'Unknown' || !resource?.health).length,
+            value: resources.filter(resource => resource?.health?.status === 'Unknown').length,
             color: COLORS.health.unknown
         }
     ];
