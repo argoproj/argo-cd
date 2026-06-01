@@ -3,8 +3,10 @@ import {resourceIcons} from './resources';
 import {resourceIconGroups as resourceCustomizations} from './resource-customizations';
 import * as minimatch from 'minimatch';
 
+export type ResourceIconVariant = 'default' | 'table';
+
 // Raster icons use 40x32; argo-icon font defaults to 18px without explicit sizing.
-const resourceKindIconStyle: React.CSSProperties = {
+const tableFontIconStyle: React.CSSProperties = {
     display: 'block',
     fontSize: '32px',
     width: '40px',
@@ -14,15 +16,27 @@ const resourceKindIconStyle: React.CSSProperties = {
     flexShrink: 0
 };
 
-export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: string; customStyle?: React.CSSProperties}) => {
+export const ResourceIcon = ({
+    group,
+    kind,
+    customStyle,
+    variant = 'default'
+}: {
+    group: string;
+    kind: string;
+    customStyle?: React.CSSProperties;
+    variant?: ResourceIconVariant;
+}) => {
+    const fontIconStyle = variant === 'table' ? {...tableFontIconStyle, ...customStyle} : customStyle;
+
     if (kind === 'node') {
         return <img src={'assets/images/infrastructure_components/' + kind + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
     }
     if (kind === 'Application') {
-        return <i title={kind} className='icon argo-icon-application' style={{...resourceKindIconStyle, ...customStyle}} />;
+        return <i title={kind} className='icon argo-icon-application' style={fontIconStyle} />;
     }
     if (kind === 'ApplicationSet') {
-        return <i title={kind} className='icon argo-icon-applicationset' style={{...resourceKindIconStyle, ...customStyle}} />;
+        return <i title={kind} className='icon argo-icon-applicationset' style={fontIconStyle} />;
     }
     // First, check for group-based custom icons
     if (group) {

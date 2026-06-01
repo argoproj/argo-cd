@@ -135,5 +135,20 @@ describe('ResourceIcon', () => {
             const icon = document.querySelector('i.argo-icon-applicationset');
             expect(icon).toBeTruthy();
         });
+
+        it('should apply table sizing for Application when variant is table', () => {
+            render(<ResourceIcon group='' kind='Application' variant='table' />);
+            const icon = document.querySelector('i.argo-icon-application') as HTMLElement;
+            expect(icon).toBeTruthy();
+            expect(icon.style.fontSize).toBe('32px');
+            expect(icon.style.width).toBe('40px');
+        });
+
+        it('should not apply table sizing for Application by default', () => {
+            render(<ResourceIcon group='' kind='Application' />);
+            const icon = document.querySelector('i.argo-icon-application') as HTMLElement;
+            expect(icon).toBeTruthy();
+            expect(icon.style.fontSize).toBe('');
+        });
     });
 });
