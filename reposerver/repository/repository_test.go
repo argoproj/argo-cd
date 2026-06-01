@@ -402,7 +402,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil, "", nil)
+	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -427,7 +427,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil, "", nil)
+	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: nil})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -866,7 +866,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil, "", nil)
+		err := service.cache.GetManifests(getManifestCacheKey(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, nil), cachedManifestResponse)
 		require.NoError(t, err)
 		return cachedManifestResponse
 	}
@@ -2302,7 +2302,13 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
 			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
 			// operations is the point of the cache.
-			err = service.cache.GetManifests(mock.Anything, source, v1alpha1.RefTargetRevisionMapping{}, &v1alpha1.ClusterInfo{}, "", "", "", "test", res, nil, "", nil)
+			err = service.cache.GetManifests(cache.ManifestKey{
+				Revision:    mock.Anything,
+				AppSource:   source,
+				RefSources:  v1alpha1.RefTargetRevisionMapping{},
+				ClusterInfo: &v1alpha1.ClusterInfo{},
+				AppName:     "test",
+			}, res)
 			require.NoError(t, err)
 		})
 	})
@@ -3348,35 +3354,6 @@ func TestCheckoutRevisionSparseFallbackPreservesDepth(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestManifestCacheRevisionKey(t *testing.T) {
-	t.Run("nil repo returns revision unchanged", func(t *testing.T) {
-		assert.Equal(t, "abc", manifestCacheRevisionKey("abc", nil))
-	})
-
-	t.Run("empty SparsePaths returns revision unchanged", func(t *testing.T) {
-		repo := &v1alpha1.Repository{Repo: "https://x"}
-		assert.Equal(t, "abc", manifestCacheRevisionKey("abc", repo))
-	})
-
-	t.Run("non-empty SparsePaths suffixes the revision deterministically", func(t *testing.T) {
-		repo := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"charts"}}
-		got := manifestCacheRevisionKey("abc", repo)
-		assert.Equal(t, "abc|sparse:"+git.ComputePathHash([]string{"charts"}), got)
-	})
-
-	t.Run("different SparsePaths produce different keys at the same revision", func(t *testing.T) {
-		repoA := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"charts"}}
-		repoB := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"manifests"}}
-		assert.NotEqual(t, manifestCacheRevisionKey("abc", repoA), manifestCacheRevisionKey("abc", repoB))
-	})
-
-	t.Run("path order does not affect the key (ComputePathHash sorts)", func(t *testing.T) {
-		repoA := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"a", "b"}}
-		repoB := &v1alpha1.Repository{Repo: "https://x", SparsePaths: []string{"b", "a"}}
-		assert.Equal(t, manifestCacheRevisionKey("abc", repoA), manifestCacheRevisionKey("abc", repoB))
-	})
-}
-
 func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 
@@ -3415,7 +3392,7 @@ func TestFetchWithDepth(t *testing.T) {
 		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
 		gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(true)
 
-		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		err := fetch(gitClient, []string{revision1, revision2}, 1, false)
 		require.NoError(t, err)
 	})
 
@@ -3426,9 +3403,9 @@ func TestFetchWithDepth(t *testing.T) {
 		// After the initial check finds a missing revision, the per-revision loop runs
 		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
 		gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(false)
-		gitClient.EXPECT().Fetch(revision2, int64(1)).Return(nil)
+		gitClient.EXPECT().Fetch(revision2, int64(1), false).Return(nil)
 
-		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		err := fetch(gitClient, []string{revision1, revision2}, 1, false)
 		require.NoError(t, err)
 	})
 
@@ -3436,9 +3413,9 @@ func TestFetchWithDepth(t *testing.T) {
 		gitClient := &gitmocks.Client{}
 		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(false)
 		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(false)
-		gitClient.EXPECT().Fetch(revision1, int64(1)).Return(errors.New("fetch failed"))
+		gitClient.EXPECT().Fetch(revision1, int64(1), false).Return(errors.New("fetch failed"))
 
-		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		err := fetch(gitClient, []string{revision1, revision2}, 1, false)
 		require.Error(t, err)
 	})
 }
@@ -5474,18 +5451,8 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 
 	// Seed the manifest cache for the synced revision.
 	err := cacheMocks.cache.SetManifests(
-		syncedRevision,
-		request.ApplicationSource,
-		request.RefSources,
-		request,
-		request.Namespace,
-		request.TrackingMethod,
-		request.AppLabelKey,
-		request.AppName,
+		getManifestCacheKeyFromUpdateRevisionRequest(request, syncedRevision, nil),
 		&cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
-		nil,
-		request.InstallationID,
-		nil,
 	)
 	require.NoError(t, err)
 
@@ -6083,7 +6050,7 @@ func Test_fetch_PartialClone_UsesFilteredFetch(t *testing.T) {
 	// After fetch, revision is now present
 	gitClient.EXPECT().IsRevisionPresent("abc123").Return(true).Once()
 
-	err := fetch(gitClient, []string{"abc123"}, true)
+	err := fetch(gitClient, []string{"abc123"}, 0, true)
 	require.NoError(t, err)
 	gitClient.AssertExpectations(t)
 }
@@ -6097,7 +6064,7 @@ func Test_fetch_NonPartialClone_UsesFullFetch(t *testing.T) {
 	// After fetch, revision is now present
 	gitClient.EXPECT().IsRevisionPresent("abc123").Return(true).Once()
 
-	err := fetch(gitClient, []string{"abc123"}, false)
+	err := fetch(gitClient, []string{"abc123"}, 0, false)
 	require.NoError(t, err)
 	gitClient.AssertExpectations(t)
 }
@@ -6114,7 +6081,7 @@ func Test_fetch_PartialClone_FallbackToSpecificRevision(t *testing.T) {
 	// Fallback fetch should also use partial clone
 	gitClient.EXPECT().Fetch("abc123", int64(0), true).Return(nil)
 
-	err := fetch(gitClient, []string{"abc123"}, true)
+	err := fetch(gitClient, []string{"abc123"}, 0, true)
 	require.NoError(t, err)
 	gitClient.AssertExpectations(t)
 }

@@ -92,49 +92,103 @@ func TestCache_GetManifests(t *testing.T) {
 	// cache miss
 	q := &apiclient.ManifestRequest{}
 	value := &CachedManifestResponse{}
-	err := cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "", nil)
+	newManifestCacheKeyData := func(revision string, appSource *v1alpha1.ApplicationSource, namespace, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions) ManifestKey {
+		return ManifestKey{
+			Revision:            revision,
+			AppSource:           appSource,
+			RefSources:          q.RefSources,
+			ClusterInfo:         q,
+			Namespace:           namespace,
+			AppLabelKey:         appLabelKey,
+			AppName:             appName,
+			RefSourceCommitSHAs: refSourceCommitSHAs,
+		}
+	}
+	err := cache.GetManifests(newManifestCacheKeyData("my-revision", &v1alpha1.ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", nil), value)
 	require.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
 	res := &CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type"}}
-	err = cache.SetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", res, nil, "", nil)
+	err = cache.SetManifests(newManifestCacheKeyData("my-revision", &v1alpha1.ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", nil), res)
 	require.NoError(t, err)
 	t.Run("expect cache miss because of changed revision", func(t *testing.T) {
-		err = cache.GetManifests("other-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "", nil)
+		err = cache.GetManifests(newManifestCacheKeyData("other-revision", &v1alpha1.ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", nil), value)
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed path", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{Path: "other-path"}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "", nil)
+		err = cache.GetManifests(newManifestCacheKeyData("my-revision", &v1alpha1.ApplicationSource{Path: "other-path"}, "my-namespace", "my-app-label-key", "my-app-label-value", nil), value)
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed namespace", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "other-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "", nil)
+		err = cache.GetManifests(newManifestCacheKeyData("my-revision", &v1alpha1.ApplicationSource{}, "other-namespace", "my-app-label-key", "my-app-label-value", nil), value)
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed app label key", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "other-app-label-key", "my-app-label-value", value, nil, "", nil)
+		err = cache.GetManifests(newManifestCacheKeyData("my-revision", &v1alpha1.ApplicationSource{}, "my-namespace", "other-app-label-key", "my-app-label-value", nil), value)
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed app label value", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "other-app-label-value", value, nil, "", nil)
+		err = cache.GetManifests(newManifestCacheKeyData("my-revision", &v1alpha1.ApplicationSource{}, "my-namespace", "my-app-label-key", "other-app-label-value", nil), value)
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed referenced source", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "other-app-label-value", value, map[string]string{"my-referenced-source": "my-referenced-revision"}, "", nil)
+		err = cache.GetManifests(newManifestCacheKeyData("my-revision", &v1alpha1.ApplicationSource{}, "my-namespace", "my-app-label-key", "other-app-label-value", map[string]string{"my-referenced-source": "my-referenced-revision"}), value)
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache hit", func(t *testing.T) {
 		err = cache.SetManifests(
-			"my-revision1", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value",
-			&CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type", Revision: "my-revision2"}}, nil, "", nil)
+			newManifestCacheKeyData("my-revision1", &v1alpha1.ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", nil),
+			&CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type", Revision: "my-revision2"}})
 		require.NoError(t, err)
 
-		err = cache.GetManifests("my-revision1", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "", nil)
+		err = cache.GetManifests(newManifestCacheKeyData("my-revision1", &v1alpha1.ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", nil), value)
 		require.NoError(t, err)
 
 		assert.Equal(t, "my-source-type", value.ManifestResponse.SourceType)
 		assert.Equal(t, "my-revision1", value.ManifestResponse.Revision)
 	})
 	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 8})
+}
+
+// TestManifestKey_String_SparsePaths verifies that the SparsePaths field flows
+// into the cache key suffix so two requests at the same revision but different
+// sparse cones do NOT share a cache entry (which would serve manifests rendered
+// against the wrong file subset). Empty SparsePaths must produce the legacy key
+// shape so post-upgrade caches remain readable.
+func TestManifestKey_String_SparsePaths(t *testing.T) {
+	base := ManifestKey{
+		Revision:       "abc123",
+		AppSource:      &v1alpha1.ApplicationSource{},
+		Namespace:      "ns",
+		TrackingMethod: "label",
+		AppLabelKey:    "app.kubernetes.io/instance",
+		AppName:        "my-app",
+	}
+
+	t.Run("empty SparsePaths preserves legacy key shape (no sparse suffix)", func(t *testing.T) {
+		assert.NotContains(t, base.String(), "|sparse:")
+	})
+
+	t.Run("non-empty SparsePaths appends sparse suffix", func(t *testing.T) {
+		withSparse := base
+		withSparse.SparsePaths = []string{"charts"}
+		got := withSparse.String()
+		assert.Contains(t, got, "|sparse:")
+		assert.NotEqual(t, base.String(), got)
+	})
+
+	t.Run("different sparse cones produce different keys", func(t *testing.T) {
+		a, b := base, base
+		a.SparsePaths = []string{"charts"}
+		b.SparsePaths = []string{"manifests"}
+		assert.NotEqual(t, a.String(), b.String())
+	})
+
+	t.Run("equivalent sparse cones produce identical keys", func(t *testing.T) {
+		a, b := base, base
+		a.SparsePaths = []string{"charts/", "manifests"}
+		b.SparsePaths = []string{"manifests/", "charts"} // trailing-slash + reorder normalize to same hash
+		assert.Equal(t, a.String(), b.String())
+	})
 }
 
 func TestCache_GetAppDetails(t *testing.T) {
@@ -197,7 +251,16 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		NumberOfConsecutiveFailures:     0,
 	}
 	q := &apiclient.ManifestRequest{}
-	err := repoCache.SetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, store, nil, "", nil)
+	cacheKeyData := ManifestKey{
+		Revision:    response.Revision,
+		AppSource:   appSrc,
+		RefSources:  q.RefSources,
+		ClusterInfo: q,
+		Namespace:   response.Namespace,
+		AppLabelKey: appKey,
+		AppName:     appValue,
+	}
+	err := repoCache.SetManifests(cacheKeyData, store)
 	require.NoError(t, err)
 
 	// Get the cache entry of the set value directly from the in memory cache, and check the values
@@ -223,7 +286,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	// Retrieve the value using 'GetManifests' and confirm it works
 	retrievedVal := &CachedManifestResponse{}
-	err = repoCache.GetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, retrievedVal, nil, "", nil)
+	err = repoCache.GetManifests(cacheKeyData, retrievedVal)
 	require.NoError(t, err)
 	assert.Equal(t, retrievedVal, store)
 
@@ -241,7 +304,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	// Retrieve the value using GetManifests and confirm it returns a cache miss
 	retrievedVal = &CachedManifestResponse{}
-	err = repoCache.GetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, retrievedVal, nil, "", nil)
+	err = repoCache.GetManifests(cacheKeyData, retrievedVal)
 
 	assert.Equal(t, err, cacheutil.ErrCacheMiss)
 
