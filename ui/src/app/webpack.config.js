@@ -12,7 +12,9 @@ console.log(`Bundling in ${isProd ? 'production' : 'development'}...`);
 
 const proxyConf = {
     target: process.env.ARGOCD_API_URL || 'http://localhost:8080',
-    secure: false
+    secure: false,
+    // Rewrite Host header when proxying to a remote API server (e.g. a hosted Argo CD instance).
+    changeOrigin: !!process.env.ARGOCD_API_URL
 };
 
 const config = {
@@ -25,7 +27,9 @@ const config = {
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
-        alias: { react: require.resolve('react') },
+        alias: {
+            'react-form': require.resolve('argo-ui/src/components/form/compat.tsx'),
+        },
         fallback: { fs: false }
     },
     ignoreWarnings: [{
@@ -50,7 +54,20 @@ const config = {
             },
             {
                 test: /\.scss$/,
-                use: ['style-loader', 'raw-loader', 'sass-loader']
+                use: [
+                    'style-loader',
+                    'raw-loader',
+                    {
+                        loader: 'sass-loader',
+                        options: {
+                            sassOptions: {
+                                includePaths: ['node_modules'],
+                                quietDeps: true,
+                                silenceDeprecations: ['import', 'legacy-js-api', 'global-builtin', 'color-functions', 'mixed-decls']
+                            }
+                        }
+                    }
+                ]
             },
             {
                 test: /\.css$/,
@@ -108,7 +125,23 @@ const config = {
             disableDotRule: true
         },
         port: 4000,
-        host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
+        host: process.env.ARGOCD_E2E_JS_HOST || 'localhost',
+        client: {
+            overlay: {
+                errors: true,
+                warnings: false,
+                // Filter out 401 unauthorized errors from overlay
+                runtimeErrors: (error) => {
+                    if (error.message && error.message.includes('Unauthorized')) {
+                        return false;
+                    }
+                    if (error.message && error.message.includes('401')) {
+                        return false;
+                    }
+                    return true;
+                }
+            }
+        },
         proxy: {
             '/extensions': proxyConf,
             '/api': proxyConf,

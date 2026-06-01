@@ -20,11 +20,10 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [AppSet Progressive Syncs][2]             | v2.6.0     | Beta   |
 | [Proxy Extensions][3]                     | v2.7.0     | Beta   |
 | [Skip Application Reconcile][4]           | v2.7.0     | Alpha  |
-| [AppSets in any Namespace][5]             | v2.8.0     | Beta   |
 | [Cluster Sharding: round-robin][6]        | v2.8.0     | Alpha  |
 | [Dynamic Cluster Distribution][7]         | v2.9.0     | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | v2.12.0    | Alpha  |
-| [Service Account Impersonation][10]       | v2.13.0    | Alpha  |
+| [Service Account Impersonation][10]       | v2.13.0    | Beta   |
 | [Source Hydrator][11]                     | v2.14.0    | Alpha  |
 
 ## Unstable Configurations
@@ -39,42 +38,35 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 
 | Feature                             | Property                            | Status |
 | ----------------------------------- | ----------------------------------- | ------ |
-| [Service Account Impersonation][10] | `spec.destinationServiceAccounts.*` | Alpha  |
+| [Service Account Impersonation][10] | `spec.destinationServiceAccounts.*` | Beta   |
 
 ### ApplicationSet CRD
 
 | Feature                       | Property                     | Status |
-| ----------------------------- | ---------------------------- | ------ |
-| [AppSet Progressive Syncs][2] | `spec.strategy.*`            | Alpha  |
-| [AppSet Progressive Syncs][2] | `status.applicationStatus.*` | Alpha  |
+| ----------------------------- | ---------------------------- |--------|
+| [AppSet Progressive Syncs][2] | `spec.strategy.*`            | Beta   |
+| [AppSet Progressive Syncs][2] | `status.applicationStatus.*` | Beta   |
 
 ### Configuration
 
 | Feature                                   | Resource                                      | Property / Variable                                         | Status |
 | ----------------------------------------- | --------------------------------------------- | ----------------------------------------------------------- | ------ |
-| [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS`    | Beta   |
-| [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.allowed.scm.providers`            | Beta   |
-| [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.scm.providers`             | Beta   |
-| [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS`     | Beta   |
-| [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES`               | Beta   |
-| [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.namespaces`                       | Beta   |
-| [AppSet Progressive Syncs][2]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.progressive.syncs`         | Alpha  |
-| [AppSet Progressive Syncs][2]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS` | Alpha  |
-| [Proxy Extensions][3]                     | `ConfigMap/argocd-cmd-params-cm`              | `server.enable.proxy.extension`                             | Alpha  |
-| [Proxy Extensions][3]                     | `Deployment/argocd-server`                    | `ARGOCD_SERVER_ENABLE_PROXY_EXTENSION`                      | Alpha  |
-| [Proxy Extensions][3]                     | `ConfigMap/argocd-cm`                         | `extension.config`                                          | Alpha  |
+| [AppSet Progressive Syncs][2]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.progressive.syncs`         | Beta   |
+| [AppSet Progressive Syncs][2]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS` | Beta   |
+| [Proxy Extensions][3]                     | `ConfigMap/argocd-cmd-params-cm`              | `server.enable.proxy.extension`                             | Beta   |
+| [Proxy Extensions][3]                     | `Deployment/argocd-server`                    | `ARGOCD_SERVER_ENABLE_PROXY_EXTENSION`                      | Beta   |
+| [Proxy Extensions][3]                     | `ConfigMap/argocd-cm`                         | `extension.config`                                          | Beta   |
 | [Dynamic Cluster Distribution][7]         | `Deployment/argocd-application-controller`    | `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION`                | Alpha  |
 | [Dynamic Cluster Distribution][7]         | `Deployment/argocd-application-controller`    | `ARGOCD_CONTROLLER_HEARTBEAT_TIME`                          | Alpha  |
 | [Cluster Sharding: round-robin][6]        | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: round-robin`                | Alpha  |
 | [Cluster Sharding: round-robin][6]        | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=round-robin`          | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: consistent-hashing`         | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=consistent-hashing`   | Alpha  |
-| [Service Account Impersonation][10]       | `ConfigMap/argocd-cm`                         | `application.sync.impersonation.enabled`                    | Alpha  |
+| [Service Account Impersonation][10]       | `ConfigMap/argocd-cm`                         | `application.sync.impersonation.enabled`                    | Beta   |
 
 [2]: applicationset/Progressive-Syncs.md
 [3]: ../developer-guide/extensions/proxy-extensions.md
 [4]: ../user-guide/skip_reconcile.md
-[5]: applicationset/Appset-Any-Namespace.md
 [6]: ./high_availability.md#argocd-application-controller
 [7]: dynamic-cluster-distribution.md
 [8]: ../user-guide/diff-strategies.md#server-side-diff

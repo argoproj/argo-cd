@@ -183,8 +183,15 @@ func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags 
 	return a
 }
 
-func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
+func (a *Actions) CreateMultiSourceApp(flags ...string) *Actions {
 	a.context.T().Helper()
+
+	return a.CreateMultiSourceAppFromFile(func(_ *v1alpha1.Application) {}, flags...)
+}
+
+func (a *Actions) CreateMultiSourceAppFromFile(handler func(app *v1alpha1.Application), flags ...string) *Actions {
+	a.context.T().Helper()
+
 	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
@@ -199,11 +206,13 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					SelfHeal: true,
+					SelfHeal: new(true),
 				},
 			},
 		},
 	}
+
+	handler(app)
 
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
@@ -443,9 +452,10 @@ func (a *Actions) ConfirmDeletion() *Actions {
 
 	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
 
-	// Always sleep more than a second after the confirmation so the timestamp
-	// is not valid for immediate subsequent operations
-	time.Sleep(1500 * time.Millisecond)
+	// Always sleep a few seconds after the confirmation so the timestamp
+	// is not valid for immediate subsequent operations.
+	// Kubernetes containers may have clocks with a few seconds difference, and we want to avoid race conditions.
+	time.Sleep(3 * time.Second)
 
 	return a
 }

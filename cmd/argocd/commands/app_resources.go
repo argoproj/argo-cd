@@ -8,7 +8,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
+
+	"github.com/argoproj/argo-cd/v3/util/templates"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/cmd/util"
@@ -18,7 +20,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
@@ -38,6 +39,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		filteredFields    []string
 		showManagedFields bool
 		output            string
+		appNamespace      string
 	)
 	command := &cobra.Command{
 		Use:   "get-resource APPNAME",
@@ -73,7 +75,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 			os.Exit(1)
 		}
 
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer utilio.Close(conn)
@@ -87,7 +89,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		// Get manifests of resources
 		// If resource name is "" find all resources of that kind
 		var resources []unstructured.Unstructured
-		var fetchedStr string
+		var resourceNames []string
 		for _, r := range tree.Nodes {
 			if (resourceName != "" && r.Name != resourceName) || (group != "" && r.Group != group) || r.Kind != kind {
 				continue
@@ -117,17 +119,14 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 				obj = filterFieldsFromObject(obj, filteredFields)
 			}
 
-			fetchedStr += obj.GetName() + ", "
+			resourceNames = append(resourceNames, obj.GetName())
 			resources = append(resources, *obj)
 		}
+		fetchedStr := strings.Join(resourceNames, ", ")
 		printManifests(&resources, len(filteredFields) > 0, resourceName == "", output)
-
-		if fetchedStr != "" {
-			fetchedStr = strings.TrimSuffix(fetchedStr, ", ")
-		}
 		log.Infof("Resources '%s' fetched", fetchedStr)
 	}
-
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource, if none is included will output details of all resources with specified kind")
 	command.Flags().StringVar(&kind, "kind", "", "Kind of resource [REQUIRED]")
 	err := command.MarkFlagRequired("kind")
@@ -219,9 +218,9 @@ func reconstructObject(extracted []any, fields []string, depth int) map[string]a
 func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, showName bool, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	if showName {
-		fmt.Fprintf(w, "FIELD\tRESOURCE NAME\tVALUE\n")
+		fmt.Fprint(w, "FIELD\tRESOURCE NAME\tVALUE\n")
 	} else {
-		fmt.Fprintf(w, "FIELD\tVALUE\n")
+		fmt.Fprint(w, "FIELD\tVALUE\n")
 	}
 
 	for i, o := range *objs {
@@ -296,12 +295,13 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		group        string
 		all          bool
 		project      string
+		appNamespace string
 	)
 	command := &cobra.Command{
 		Use:   "patch-resource APPNAME",
 		Short: "Patch resource in an application",
 	}
-
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&patch, "patch", "", "Patch")
 	err := command.MarkFlagRequired("patch")
 	errors.CheckError(err)
@@ -321,7 +321,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer utilio.Close(conn)
@@ -338,14 +338,14 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Version:      ptr.To(gvk.Version),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Patch:        ptr.To(patch),
-				PatchType:    ptr.To(patchType),
-				Project:      ptr.To(project),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(obj.GetName()),
+				Version:      new(gvk.Version),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Patch:        new(patch),
+				PatchType:    new(patchType),
+				Project:      new(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -365,6 +365,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		orphan       bool
 		all          bool
 		project      string
+		appNamespace string
 	)
 	command := &cobra.Command{
 		Use:   "delete-resource APPNAME",
@@ -372,6 +373,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
 	err := command.MarkFlagRequired("kind")
 	errors.CheckError(err)
@@ -388,7 +390,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer utilio.Close(conn)
@@ -411,14 +413,14 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 				_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
 					Name:         &appName,
 					AppNamespace: &appNs,
-					Namespace:    ptr.To(obj.GetNamespace()),
-					ResourceName: ptr.To(obj.GetName()),
-					Version:      ptr.To(gvk.Version),
-					Group:        ptr.To(gvk.Group),
-					Kind:         ptr.To(gvk.Kind),
+					Namespace:    new(obj.GetNamespace()),
+					ResourceName: new(obj.GetName()),
+					Version:      new(gvk.Version),
+					Group:        new(gvk.Group),
+					Kind:         new(gvk.Kind),
 					Force:        &force,
 					Orphan:       &orphan,
-					Project:      ptr.To(project),
+					Project:      new(project),
 				})
 				errors.CheckError(err)
 				log.Infof("Resource '%s' deleted", obj.GetName())
@@ -481,7 +483,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	switch output {
 	case "tree=detailed":
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
+		fmt.Fprint(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
 
 		if !orphaned || listAll {
 			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
@@ -493,7 +495,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			printDetailedTreeViewAppResourcesOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
 		}
 	case "tree":
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
+		fmt.Fprint(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
 		if !orphaned || listAll {
 			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
@@ -527,13 +529,27 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		orphaned bool
-		output   string
-		project  string
+		orphaned     bool
+		output       string
+		project      string
+		appNamespace string
 	)
 	command := &cobra.Command{
 		Use:   "resources APPNAME",
-		Short: "List resource of application",
+		Short: "List resources of application",
+		Example: templates.Examples(`
+  # List first-level resources of application
+  argocd app resources my-app --refresh
+
+  # List only the orphaned resources of application
+  argocd app resources my-app --orphaned
+
+  # Shows resource hierarchy with parent-child relationships
+  argocd app resources my-app --output tree
+
+  # Shows resource hierarchy with parent-child relationships including information about age, health and reason
+  argocd app resources my-app --output tree=detailed
+  		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 			if len(args) != 1 {
@@ -541,7 +557,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 				os.Exit(1)
 			}
 			listAll := !c.Flag("orphaned").Changed
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer utilio.Close(conn)
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
@@ -554,7 +570,10 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 		},
 	}
 	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
-	command.Flags().StringVar(&output, "output", "", "Provides the tree view of the resources")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
+	command.Flags().StringVar(&output, "output", "", `Output format. One of: tree|tree=detailed.
+  tree: Shows resource hierarchy with parent-child relationships
+  tree=detailed: Same as tree, but includes AGE, HEALTH, and REASON columns`)
 	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	return command
 }

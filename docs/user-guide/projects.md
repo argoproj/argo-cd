@@ -294,9 +294,10 @@ Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inh
 * namespaceResourceWhitelist
 * clusterResourceBlacklist
 * clusterResourceWhitelist
-* SyncWindows
-* SourceRepos
-* Destinations
+* syncWindows
+* sourceRepos
+* destinations
+* destinationServiceAccounts
 
 Configure global projects in `argocd-cm` ConfigMap:
 ```yaml
@@ -312,7 +313,7 @@ data:
 kind: ConfigMap
 ``` 
 
-Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
 

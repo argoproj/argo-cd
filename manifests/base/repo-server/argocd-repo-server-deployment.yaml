@@ -320,7 +320,7 @@ spec:
           name: plugins
       initContainers:
       - args:
-          - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+          - /bin/cp /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -sf /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
         command:
           - sh
           - '-c'
@@ -369,6 +369,13 @@ spec:
           name: var-files
         - emptyDir: {}
           name: plugins
+        - name: argocd-cmd-params-cm
+          configMap:
+            optional: true
+            name: argocd-cmd-params-cm
+            items:
+              - key: reposerver.profile.enabled
+                path: profiler.enabled
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

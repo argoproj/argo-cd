@@ -56,8 +56,8 @@ import (
 	"k8s.io/klog/v2/textlogger"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
 )
 
 const (
@@ -90,6 +90,15 @@ const (
 	RespectRbacNormal
 	// RespectRbacStrict checks both api response for forbidden/unauthorized errors and SelfSubjectAccessReview
 	RespectRbacStrict
+)
+
+// callState tracks whether action() has been called on a resource during hierarchy iteration.
+type callState int
+
+const (
+	notCalled  callState = iota // action() has not been called yet
+	inProgress                  // action() is currently being processed (in call stack)
+	completed                   // action() has been called and processing is complete
 )
 
 type apiMeta struct {
@@ -208,10 +217,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		eventHandlers:           map[uint64]OnEventHandler{},
 		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
 		log:                     log,
-		listRetryLimit:      1,
-		listRetryUseBackoff: false,
-		listRetryFunc:       ListRetryFuncNever,
-		parentUIDToChildren: make(map[types.UID][]kube.ResourceKey),
+		listRetryLimit:          1,
+		listRetryUseBackoff:     false,
+		listRetryFunc:           ListRetryFuncNever,
+		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -271,10 +280,11 @@ type clusterCache struct {
 
 	respectRBAC int
 
-	// Parent-to-children index for O(1) hierarchy traversal
-	// Maps any resource's UID to its direct children's ResourceKeys
-	// Eliminates need for O(n) graph building during hierarchy traversal
-	parentUIDToChildren map[types.UID][]kube.ResourceKey
+	// Parent-to-children index for O(1) child lookup during hierarchy traversal
+	// Maps any resource's UID to a set of its direct children's ResourceKeys
+	// Using a set eliminates O(k) duplicate checking on insertions
+	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
+	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
 }
 
 type clusterCacheSync struct {
@@ -495,60 +505,65 @@ func (c *clusterCache) setNode(n *Resource) {
 		for k, v := range ns {
 			// update child resource owner references
 			if n.isInferredParentOf != nil && mightHaveInferredOwner(v) {
-				v.setOwnerRef(n.toOwnerRef(), n.isInferredParentOf(k))
+				shouldBeParent := n.isInferredParentOf(k)
+				v.setOwnerRef(n.toOwnerRef(), shouldBeParent)
+				// Update index inline for inferred ref changes.
+				// Note: The removal case (shouldBeParent=false) is currently unreachable for
+				// StatefulSet→PVC relationships because Kubernetes makes volumeClaimTemplates
+				// immutable. We include it for defensive correctness and future-proofing.
+				if n.Ref.UID != "" {
+					if shouldBeParent {
+						c.addToParentUIDToChildren(n.Ref.UID, k)
+					} else {
+						c.removeFromParentUIDToChildren(n.Ref.UID, k)
+					}
+				}
 			}
 			if mightHaveInferredOwner(n) && v.isInferredParentOf != nil {
-				n.setOwnerRef(v.toOwnerRef(), v.isInferredParentOf(n.ResourceKey()))
+				childKey := n.ResourceKey()
+				shouldBeParent := v.isInferredParentOf(childKey)
+				n.setOwnerRef(v.toOwnerRef(), shouldBeParent)
+				// Update index inline for inferred ref changes.
+				// Note: The removal case (shouldBeParent=false) is currently unreachable for
+				// StatefulSet→PVC relationships because Kubernetes makes volumeClaimTemplates
+				// immutable. We include it for defensive correctness and future-proofing.
+				if v.Ref.UID != "" {
+					if shouldBeParent {
+						c.addToParentUIDToChildren(v.Ref.UID, childKey)
+					} else {
+						c.removeFromParentUIDToChildren(v.Ref.UID, childKey)
+					}
+				}
 			}
 		}
 	}
 }
-
-// rebuildParentToChildrenIndex rebuilds the parent-to-children index after a full sync
-// This is called after initial sync to ensure all parent-child relationships are tracked
-func (c *clusterCache) rebuildParentToChildrenIndex() {
-	// Clear existing index
-	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
-
-	// Rebuild parent-to-children index from all resources with owner refs
-	for _, resource := range c.resources {
-		key := resource.ResourceKey()
-		for _, ownerRef := range resource.OwnerRefs {
-			if ownerRef.UID != "" {
-				c.addToParentUIDToChildren(ownerRef.UID, key)
-			}
-		}
-	}
-}
-
 
 // addToParentUIDToChildren adds a child to the parent-to-children index
 func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
-	// Check if child is already in the list to avoid duplicates
-	children := c.parentUIDToChildren[parentUID]
-	for _, existing := range children {
-		if existing == childKey {
-			return // Already exists, no need to add
-		}
+	// Get or create the set for this parent
+	childrenSet := c.parentUIDToChildren[parentUID]
+	if childrenSet == nil {
+		childrenSet = make(map[kube.ResourceKey]struct{})
+		c.parentUIDToChildren[parentUID] = childrenSet
 	}
-	c.parentUIDToChildren[parentUID] = append(children, childKey)
+	// Add child to set (O(1) operation, automatically handles duplicates)
+	childrenSet[childKey] = struct{}{}
 }
 
 // removeFromParentUIDToChildren removes a child from the parent-to-children index
 func (c *clusterCache) removeFromParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
-	children := c.parentUIDToChildren[parentUID]
-	for i, existing := range children {
-		if existing == childKey {
-			// Remove by swapping with last element and truncating
-			children[i] = children[len(children)-1]
-			c.parentUIDToChildren[parentUID] = children[:len(children)-1]
+	childrenSet := c.parentUIDToChildren[parentUID]
+	if childrenSet == nil {
+		return
+	}
 
-			// Clean up empty entries
-			if len(c.parentUIDToChildren[parentUID]) == 0 {
-				delete(c.parentUIDToChildren, parentUID)
-			}
-			return
-		}
+	// Remove child from set (O(1) operation)
+	delete(childrenSet, childKey)
+
+	// Clean up empty sets to avoid memory leaks
+	if len(childrenSet) == 0 {
+		delete(c.parentUIDToChildren, parentUID)
 	}
 }
 
@@ -1005,7 +1020,7 @@ func (c *clusterCache) sync() error {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
-	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
+	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1104,9 +1119,6 @@ func (c *clusterCache) sync() error {
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
 	}
 
-	// Rebuild orphaned children index after all resources are loaded
-	c.rebuildParentToChildrenIndex()
-
 	c.log.Info("Cluster successfully synced")
 	return nil
 }
@@ -1186,8 +1198,11 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	// Track visited resources to avoid cycles
-	visited := make(map[kube.ResourceKey]int)
+	// Track whether action() has been called on each resource (notCalled/inProgress/completed).
+	// This is shared across processNamespaceHierarchy and processCrossNamespaceChildren.
+	// Note: This is distinct from 'crossNSTraversed' in processCrossNamespaceChildren, which tracks
+	// whether we've traversed a cluster-scoped key's cross-namespace children.
+	actionCallState := make(map[kube.ResourceKey]callState)
 
 	// Group keys by namespace for efficient processing
 	keysPerNamespace := make(map[string][]kube.ResourceKey)
@@ -1203,23 +1218,40 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 	for namespace, namespaceKeys := range keysPerNamespace {
 		nsNodes := c.nsIndex[namespace]
 		graph := buildGraph(nsNodes)
-		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, visited, action)
+		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, actionCallState, action)
 	}
 
 	// Process pre-computed cross-namespace children
 	if clusterKeys, ok := keysPerNamespace[""]; ok {
-		c.processCrossNamespaceChildren(clusterKeys, visited, action)
+		// Track which cluster-scoped keys have had their cross-namespace children traversed.
+		// This is distinct from 'actionCallState' - a resource may have had action() called
+		// (i.e., its actionCallState is in the completed state) but not yet had its cross-namespace
+		// children traversed. This prevents infinite recursion when resources have circular
+		// ownerReferences.
+		crossNSTraversed := make(map[kube.ResourceKey]bool)
+		c.processCrossNamespaceChildren(clusterKeys, actionCallState, crossNSTraversed, action)
 	}
 }
 
 // processCrossNamespaceChildren processes namespaced children of cluster-scoped resources
-// This enables traversing from cluster-scoped parents to their namespaced children across namespace boundaries
+// This enables traversing from cluster-scoped parents to their namespaced children across namespace boundaries.
+// It also handles multi-level hierarchies where cluster-scoped resources own other cluster-scoped resources
+// that in turn own namespaced resources (e.g., Provider -> ProviderRevision -> Deployment in Crossplane).
+// The crossNSTraversed map tracks which keys have already been processed to prevent infinite recursion
+// from circular ownerReferences (e.g., a resource that owns itself).
 func (c *clusterCache) processCrossNamespaceChildren(
 	clusterScopedKeys []kube.ResourceKey,
-	visited map[kube.ResourceKey]int,
+	actionCallState map[kube.ResourceKey]callState,
+	crossNSTraversed map[kube.ResourceKey]bool,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	for _, clusterKey := range clusterScopedKeys {
+		// Skip if already processed (cycle detection)
+		if crossNSTraversed[clusterKey] {
+			continue
+		}
+		crossNSTraversed[clusterKey] = true
+
 		// Get cluster-scoped resource to access its UID
 		clusterResource := c.resources[clusterKey]
 		if clusterResource == nil {
@@ -1227,10 +1259,25 @@ func (c *clusterCache) processCrossNamespaceChildren(
 		}
 
 		// Use parent-to-children index for O(1) lookup of direct children
-		childKeys := c.parentUIDToChildren[clusterResource.Ref.UID]
-		for _, childKey := range childKeys {
+		childrenSet := c.parentUIDToChildren[clusterResource.Ref.UID]
+		for childKey := range childrenSet {
 			child := c.resources[childKey]
-			if child == nil || visited[childKey] != 0 {
+			if child == nil {
+				continue
+			}
+
+			alreadyProcessed := actionCallState[childKey] != notCalled
+
+			// If child is cluster-scoped and action() was already called by processNamespaceHierarchy,
+			// we still need to recursively check for its cross-namespace children.
+			// This handles multi-level hierarchies like: ClusterScoped -> ClusterScoped -> Namespaced
+			// (e.g., Crossplane's Provider -> ProviderRevision -> Deployment)
+			if alreadyProcessed {
+				if childKey.Namespace == "" {
+					// Recursively process cross-namespace children of this cluster-scoped child
+					// The crossNSTraversed map prevents infinite recursion on circular ownerReferences
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, actionCallState, crossNSTraversed, action)
+				}
 				continue
 			}
 
@@ -1242,10 +1289,16 @@ func (c *clusterCache) processCrossNamespaceChildren(
 
 			// Process this child
 			if action(child, nsNodes) {
-				visited[childKey] = 1
+				actionCallState[childKey] = inProgress
 				// Recursively process descendants using index-based traversal
-				c.iterateChildrenUsingIndex(child, nsNodes, visited, action)
-				visited[childKey] = 2
+				c.iterateChildrenUsingIndex(child, nsNodes, actionCallState, action)
+
+				// If this child is also cluster-scoped, recursively process its cross-namespace children
+				if childKey.Namespace == "" {
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, actionCallState, crossNSTraversed, action)
+				}
+
+				actionCallState[childKey] = completed
 			}
 		}
 	}
@@ -1256,14 +1309,14 @@ func (c *clusterCache) processCrossNamespaceChildren(
 func (c *clusterCache) iterateChildrenUsingIndex(
 	parent *Resource,
 	nsNodes map[kube.ResourceKey]*Resource,
-	visited map[kube.ResourceKey]int,
+	actionCallState map[kube.ResourceKey]callState,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	// Look up direct children of this parent using the index
-	childKeys := c.parentUIDToChildren[parent.Ref.UID]
-	for _, childKey := range childKeys {
-		if visited[childKey] != 0 {
-			continue // Already visited or in progress
+	childrenSet := c.parentUIDToChildren[parent.Ref.UID]
+	for childKey := range childrenSet {
+		if actionCallState[childKey] != notCalled {
+			continue // action() already called or in progress
 		}
 
 		child := c.resources[childKey]
@@ -1278,10 +1331,10 @@ func (c *clusterCache) iterateChildrenUsingIndex(
 		}
 
 		if action(child, nsNodes) {
-			visited[childKey] = 1
+			actionCallState[childKey] = inProgress
 			// Recursively process this child's descendants
-			c.iterateChildrenUsingIndex(child, nsNodes, visited, action)
-			visited[childKey] = 2
+			c.iterateChildrenUsingIndex(child, nsNodes, actionCallState, action)
+			actionCallState[childKey] = completed
 		}
 	}
 }
@@ -1291,22 +1344,19 @@ func (c *clusterCache) processNamespaceHierarchy(
 	namespaceKeys []kube.ResourceKey,
 	nsNodes map[kube.ResourceKey]*Resource,
 	graph map[kube.ResourceKey]map[types.UID]*Resource,
-	visited map[kube.ResourceKey]int,
+	actionCallState map[kube.ResourceKey]callState,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	for _, key := range namespaceKeys {
-		visited[key] = 0
-	}
-	for _, key := range namespaceKeys {
 		res := c.resources[key]
-		if visited[key] == 2 || !action(res, nsNodes) {
+		if actionCallState[key] == completed || !action(res, nsNodes) {
 			continue
 		}
-		visited[key] = 1
+		actionCallState[key] = inProgress
 		if _, ok := graph[key]; ok {
 			for _, child := range graph[key] {
-				if visited[child.ResourceKey()] == 0 && action(child, nsNodes) {
-					child.iterateChildrenV2(graph, nsNodes, visited, func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool {
+				if actionCallState[child.ResourceKey()] == notCalled && action(child, nsNodes) {
+					child.iterateChildrenV2(graph, nsNodes, actionCallState, func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool {
 						if err != nil {
 							c.log.V(2).Info(err.Error())
 							return false
@@ -1316,7 +1366,7 @@ func (c *clusterCache) processNamespaceHierarchy(
 				}
 			}
 		}
-		visited[key] = 2
+		actionCallState[key] = completed
 	}
 }
 
@@ -1584,6 +1634,10 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 				for k, v := range ns {
 					if mightHaveInferredOwner(v) && existing.isInferredParentOf(k) {
 						v.setOwnerRef(existing.toOwnerRef(), false)
+						// Update index inline when removing inferred ref
+						if existing.Ref.UID != "" {
+							c.removeFromParentUIDToChildren(existing.Ref.UID, k)
+						}
 					}
 				}
 			}

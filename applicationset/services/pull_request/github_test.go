@@ -10,10 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func toPtr(s string) *string {
-	return &s
-}
-
 func TestContainLabels(t *testing.T) {
 	cases := []struct {
 		Name       string
@@ -25,9 +21,9 @@ func TestContainLabels(t *testing.T) {
 			Name:   "Match labels",
 			Labels: []string{"label1", "label2"},
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
-				{Name: toPtr("label3")},
+				{Name: new("label1")},
+				{Name: new("label2")},
+				{Name: new("label3")},
 			},
 			Expect: true,
 		},
@@ -35,9 +31,9 @@ func TestContainLabels(t *testing.T) {
 			Name:   "Not match labels",
 			Labels: []string{"label1", "label4"},
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
-				{Name: toPtr("label3")},
+				{Name: new("label1")},
+				{Name: new("label2")},
+				{Name: new("label3")},
 			},
 			Expect: false,
 		},
@@ -45,9 +41,9 @@ func TestContainLabels(t *testing.T) {
 			Name:   "No specify",
 			Labels: []string{},
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
-				{Name: toPtr("label3")},
+				{Name: new("label1")},
+				{Name: new("label2")},
+				{Name: new("label3")},
 			},
 			Expect: true,
 		},
@@ -70,9 +66,9 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 		{
 			Name: "PR has labels",
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
-				{Name: toPtr("label3")},
+				{Name: new("label1")},
+				{Name: new("label2")},
+				{Name: new("label3")},
 			},
 			ExpectedResult: []string{"label1", "label2", "label3"},
 		},

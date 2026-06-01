@@ -284,6 +284,19 @@ func TestRepositoryServer(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("Test_validateWriteAccess", func(t *testing.T) {
+		repoServerClient := &mocks.RepoServerServiceClient{}
+		repoServerClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+
+		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, appLister, projInformer, testNamespace, settingsMgr, true)
+		url := "https://test"
+		_, err := s.ValidateWriteAccess(t.Context(), &repository.RepoAccessQuery{
+			Repo: url,
+		})
+		require.NoError(t, err)
+	})
+
 	t.Run("Test_Get", func(t *testing.T) {
 		repoServerClient := &mocks.RepoServerServiceClient{}
 		repoServerClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)

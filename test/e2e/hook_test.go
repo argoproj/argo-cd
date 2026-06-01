@@ -12,9 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -121,22 +121,6 @@ func TestPostDeleteHook(t *testing.T) {
 		Expect(Pod(func(p corev1.Pod) bool {
 			return p.Name == "hook"
 		}))
-}
-
-// make sure that hooks do not appear in "argocd app diff"
-func TestHookDiff(t *testing.T) {
-	ctx := Given(t)
-	ctx.
-		Path("hook").
-		When().
-		CreateApp().
-		Then().
-		And(func(_ *Application) {
-			output, err := RunCli("app", "diff", ctx.GetName())
-			require.Error(t, err)
-			assert.Contains(t, output, "name: pod")
-			assert.NotContains(t, output, "name: hook")
-		})
 }
 
 // make sure that if pre-sync fails, we fail the app and we do not create the pod

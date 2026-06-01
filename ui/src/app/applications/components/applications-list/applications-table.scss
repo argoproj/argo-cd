@@ -39,28 +39,36 @@
             flex: 1;
             min-width: 0;
         }
-        
-            .applications-table-source__labels {
-        max-width: 40%;
-    }
-}
 
-.applications-list__external-link {
-    button {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        margin: 0;
-        color: inherit;
-        
-        &:hover {
-            color: $argo-color-teal-5;
-        }
-        
-        i {
-            font-size: 14px;
+        .applications-table-source__labels {
+            max-width: 40%;
         }
     }
-}
+
+    .applications-list__external-link {
+        button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            color: inherit;
+
+            &:hover {
+                color: $argo-color-teal-5;
+            }
+
+            i {
+                font-size: 14px;
+            }
+        }
+    }
+
+    .applications-list__table-row button.managed-by-url-invalid {
+        color: #f4c030;
+
+        &:hover {
+            color: #f4c030;
+        }
+    }
 }

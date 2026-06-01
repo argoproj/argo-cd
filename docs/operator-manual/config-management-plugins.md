@@ -289,7 +289,7 @@ Plugin commands have access to
 You may leave the `name` field
 empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure 
 it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly 
-specified only that particular plugin will be used iff its discovery pattern/command matches the provided application repo.
+specified only that particular plugin will be used if its discovery pattern/command matches the provided application repo.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

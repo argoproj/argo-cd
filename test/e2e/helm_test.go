@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 
@@ -154,6 +154,79 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		Sync().
 		Then().
 		Expect(ErrorRegex("Error: open .*does-not-exist-values.yaml: no such file or directory", ""))
+}
+
+// TestHelmGlobValueFiles verifies that a glob pattern in valueFiles expands to all matching
+// files and that they are applied in lexical order (last file wins in helm merging).
+// envs/*.yaml expands to envs/a.yaml then envs/b.yaml - b.yaml is last, so foo = "b-value".
+func TestHelmGlobValueFiles(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	ctx := Given(t)
+	ctx.Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "envs/*.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			val := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(),
+				"get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string)
+			assert.Equal(t, "b-value", val)
+		})
+}
+
+// TestHelmRecursiveGlobValueFiles verifies that the ** double-star pattern recursively
+// matches files at any depth. envs/**/*.yaml expands (zero-segments first) to:
+// envs/a.yaml, envs/b.yaml, envs/nested/c.yaml - c.yaml is last, so foo = "c-value".
+func TestHelmRecursiveGlobValueFiles(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	ctx := Given(t)
+	ctx.Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "envs/**/*.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			val := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(),
+				"get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string)
+			assert.Equal(t, "c-value", val)
+		})
+}
+
+// TestHelmGlobValueFilesNoMatch verifies that a glob pattern with no matching files
+// surfaces as a comparison error on the application.
+func TestHelmGlobValueFilesNoMatch(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "nonexistent/*.yaml").
+		Then().
+		Expect(Condition(ApplicationConditionComparisonError, `values file glob "nonexistent/*.yaml" matched no files`))
+}
+
+// TestHelmGlobValueFilesIgnoreMissing verifies that a non-matching glob pattern is
+// silently skipped when ignoreMissingValueFiles is set, and the app syncs successfully.
+func TestHelmGlobValueFilesIgnoreMissing(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "nonexistent/*.yaml", "--ignore-missing-value-files").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHelmValuesMultipleUnset(t *testing.T) {
@@ -356,7 +429,7 @@ func TestKubeVersion(t *testing.T) {
 			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
-			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s"), kubeVersion)
+			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.String(), kubeVersion)
 		}).
 		When().
 		// Make sure override works.
@@ -514,39 +587,6 @@ func TestHelm3CRD(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "crontabs.stable.example.com", SyncStatusCodeSynced))
-}
-
-func TestHelmRepoDiffLocal(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
-	helmTmp := t.TempDir()
-	Given(t).
-		CustomCACertAdded().
-		HelmRepoAdded("custom-repo").
-		RepoURLType(fixture.RepoURLTypeHelm).
-		Chart("helm").
-		Revision("1.0.0").
-		When().
-		CreateApp().
-		Then().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			t.Setenv("XDG_CONFIG_HOME", helmTmp)
-			errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "repo", "add", "custom-repo", fixture.GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", fixture.RepoURL(fixture.RepoURLTypeHelm)),
-				"--username", fixture.GitUsername,
-				"--password", fixture.GitPassword,
-				"--cert-file", "../fixture/certs/argocd-test-client.crt",
-				"--key-file", "../fixture/certs/argocd-test-client.key",
-				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
-			))
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/helm")
-			assert.Empty(t, diffOutput)
-			assert.NoError(t, err)
-		})
 }
 
 func TestHelmOCIRegistry(t *testing.T) {

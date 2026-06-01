@@ -86,7 +86,7 @@ data:
     # Optional set of OIDC claims to request on the ID token.
     requestedIDTokenClaims: {"groups": {"essential": true}}
 
-  # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
+  # Configuration to customize resource behavior (optional) can be configured via split sub keys.
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
   # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group_kind>
   # resource.customizations.ignoreResourceUpdates.<group_kind>
@@ -115,7 +115,7 @@ data:
     jsonPointers:
     - /metadata/resourceVersion
 
-  # Configuration to define customizations ignoring differences during watched resource updates can be configured via splitted sub key.
+  # Configuration to define customizations ignoring differences during watched resource updates can be configured via split sub key.
   resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
     jsonPointers:
     - /status

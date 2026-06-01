@@ -63,7 +63,7 @@ func TestListPullRequestNoAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestListPullRequestPagination(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -206,7 +206,7 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceBasicAuth(t.Context(), "user", "password", ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceBasicAuth(t.Context(), "user", "password", ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestListPullRequestBearerAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceBearerToken(t.Context(), "tolkien", ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceBearerToken(t.Context(), "tolkien", ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -268,7 +268,6 @@ func TestListPullRequestTLS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				defaultHandler(t)(w, r)
@@ -289,7 +288,7 @@ func TestListPullRequestTLS(t *testing.T) {
 				}
 			}
 
-			svc, err := NewBitbucketServiceBasicAuth(t.Context(), "user", "password", ts.URL, "PROJECT", "REPO", "", test.tlsInsecure, certs)
+			svc, err := NewBitbucketServiceBasicAuth(t.Context(), "user", "password", ts.URL, "PROJECT", "REPO", "", test.tlsInsecure, certs, "", "")
 			require.NoError(t, err)
 			_, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 			if test.requireErr {
@@ -306,7 +305,7 @@ func TestListResponseError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, _ := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -331,7 +330,7 @@ func TestListResponseMalformed(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, _ := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -356,7 +355,7 @@ func TestListResponseEmpty(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -452,7 +451,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}))
 	defer ts.Close()
 	regexp := `feature-1[\d]{2}`
-	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -481,7 +480,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
-	svc, err = NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err = NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	require.NoError(t, err)
 	pullRequests, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -501,7 +500,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`
-	svc, err = NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err = NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil, "", "")
 	require.NoError(t, err)
 	_, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -524,7 +523,7 @@ func TestBitbucketServerListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewBitbucketServiceNoAuth(t.Context(), server.URL, "nonexistent", "nonexistent", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), server.URL, "nonexistent", "nonexistent", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())

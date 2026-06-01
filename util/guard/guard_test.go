@@ -79,7 +79,7 @@ func TestRun_ConcurrentPanicsLogged(t *testing.T) {
 	const n = 10
 	var wg sync.WaitGroup
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		go func(i int) {
 			defer wg.Done()
 			RecoverAndLog(func() { panic(fmt.Sprintf("boom-%d", i)) }, r, "msg")

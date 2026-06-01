@@ -45,9 +45,9 @@ spec:
 > [!NOTE]
 > **When using Helm there are multiple ways to provide values**
 >
-> Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
+> Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml`. [Value precedence](./helm.md#helm-value-precedence) has a more detailed example.
 
-See [here](../operator-manual/declarative-setup.md#helm) for more info about how to configure private Helm repositories and private OCI registries.
+The [Declarative Setup section on Helm](../operator-manual/declarative-setup.md#helm) has more info about how to configure private Helm repositories and private OCI registries.
 
 ## Values Files
 
@@ -89,6 +89,241 @@ source:
     - values-optional-override.yaml
     ignoreMissingValueFiles: true
 ```
+
+## Glob Patterns in Value Files
+
+Glob patterns can be used in `valueFiles` entries to match multiple files at once. This is useful
+when the set of environment-specific override files is not known in advance, or when you want to
+pick up new files automatically without updating the Application spec.
+
+```bash
+# Single quotes prevent the shell from expanding the glob before Argo CD receives it
+argocd app set helm-guestbook --values 'envs/*.yaml'
+```
+
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - envs/*.yaml
+```
+
+### Supported pattern syntax
+
+Glob expansion uses the [doublestar](https://github.com/bmatcuk/doublestar) library.
+
+| Pattern | Description |
+|---------|-------------|
+| `*` | Matches any sequence of non-separator characters within a single directory level |
+| `?` | Matches any single non-separator character |
+| `[abc]` | Matches one of the characters listed inside the brackets |
+| `[a-z]` | Matches any character in the given range |
+| `**` | Matches any sequence of characters including `/` (recursive across directory levels) |
+
+### How files are passed to Helm
+
+Each matched file is passed to `helm template` as a separate `--values <path>` flag, in the same
+order they appear after expansion. This is identical to listing each file individually in
+`valueFiles`. Argo CD does the expansion before invoking Helm.
+
+Matched files are expanded **in-place** within the `valueFiles` list and sorted in **lexical
+(alphabetical) order**. Because Helm gives higher precedence to later `--values` flags, lexical
+order determines which file wins when the same key appears in multiple files.
+
+```
+envs/
+  a.yaml   # sets foo: a-value
+  b.yaml   # sets foo: b-value
+```
+
+```yaml
+# envs/*.yaml expands to: envs/a.yaml, envs/b.yaml (lexical order)
+# b.yaml is last → foo = "b-value"
+source:
+  helm:
+    valueFiles:
+    - envs/*.yaml
+```
+
+When you have multiple entries in `valueFiles`, the relative order between entries is preserved.
+Glob expansion only reorders files within a single pattern:
+
+```yaml
+valueFiles:
+- base.yaml        # passed first
+- overrides/*.yaml # expanded in lexical order, passed after base.yaml
+- final.yaml       # passed last, highest precedence
+```
+
+### Recursive matching with `**`
+
+Use `**` to match files at any depth below a directory:
+
+```yaml
+# envs/**/*.yaml processes each directory's own files before descending into subdirectories,
+# with directories and files sorted alphabetically at each level.
+#
+#   envs/a.yaml           ← 'a' (flat file in envs/)
+#   envs/z.yaml           ← 'z' (flat file in envs/, processed before descending)
+#   envs/nested/c.yaml    ← inside envs/nested/, processed after envs/ flat files
+#
+# nested/c.yaml is last → foo = "nested-value"
+source:
+  helm:
+    valueFiles:
+    - envs/**/*.yaml
+```
+
+> [!NOTE]
+> `**` matches zero or more path segments, so `envs/**/*.yaml` also matches files directly
+> inside `envs/` (not just subdirectories). doublestar traverses directories in lexical order
+> and processes each directory's own files (alphabetically) before descending into its
+> subdirectories. This means `envs/z.yaml` always comes before `envs/nested/c.yaml`, even
+> though `'n' < 'z'` alphabetically. To make ordering fully explicit and predictable,
+> use numeric prefixes (see [Naming conventions](#naming-conventions)).
+
+### Using environment variables in glob patterns
+
+[Build environment variables](./build-environment.md) are substituted **before** the glob is
+evaluated, so you can construct patterns dynamically:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - envs/$ARGOCD_APP_NAME/*.yaml
+```
+
+This lets a single Application template expand to the right set of files per app name.
+
+### Glob patterns with multiple sources
+
+Glob patterns work with [value files from an external repository](./multiple_sources.md#helm-value-files-from-external-git-repository).
+The `$ref` variable is resolved first to the external repo's root, and the rest of the pattern is
+evaluated within that repo's directory tree:
+
+```yaml
+sources:
+- repoURL: https://git.example.com/my-configs.git
+  ref: configs
+- repoURL: https://git.example.com/my-chart.git
+  path: chart
+  helm:
+    valueFiles:
+    - $configs/envs/*.yaml  # matches files in the 'my-configs' repo under envs/
+```
+
+### Naming conventions
+
+Because files are sorted lexically, the sort order controls merge precedence. A common pattern is
+to use a numeric prefix to make the intended order explicit:
+
+```
+values/
+  00-defaults.yaml
+  10-region.yaml
+  20-env.yaml
+  30-override.yaml
+```
+
+```yaml
+valueFiles:
+- values/*.yaml
+# expands to: 00-defaults.yaml, 10-region.yaml, 20-env.yaml, 30-override.yaml
+# 30-override.yaml has the highest precedence
+```
+
+Without a prefix, pure alphabetical ordering applies. Be careful with names that sort
+unexpectedly, for example `values-10.yaml` sorts before `values-9.yaml` because `"1"` < `"9"`
+lexically.
+
+### Constraints and limitations
+
+**Path boundary**: Glob patterns cannot match files outside the repository root, even with
+patterns like `../../secrets/*.yaml`. Argo CD resolves the pattern's base path against the
+repository root before expanding it, and any match that would escape the root is rejected.
+
+**Symlinks**: Argo CD follows symlinks when checking the path boundary. A symlink that lives
+inside the repository but points to a target outside the repository root is rejected, even though
+the symlink's own path is within the repo. This check applies to every file produced by glob
+expansion, including multi-hop symlink chains. Symlinks that resolve to a target still inside the
+repository are allowed.
+
+**Absolute paths**: A path starting with `/` is treated as relative to the **repository root**,
+not the filesystem root. The pattern `/configs/*.yaml` matches files in the `configs/` directory
+at the top of the repository.
+
+**Remote URLs are not glob-expanded**: Entries that are remote URLs (e.g.
+`https://raw.githubusercontent.com/.../values.yaml`) are passed to Helm as-is. Glob characters
+in a URL have no special meaning and will cause the URL to fail if the literal characters are not
+part of the URL.
+
+**Shell quoting on the CLI**: Shells expand glob patterns before passing arguments to programs.
+Always quote patterns to prevent unintended shell expansion:
+
+```bash
+# Correct: single quotes pass the literal pattern to Argo CD
+argocd app set myapp --values 'envs/*.yaml'
+
+# Incorrect: the shell expands *.yaml against the current directory first
+argocd app set myapp --values envs/*.yaml
+```
+
+### Deduplication
+
+Each file is included only once, but **explicit entries take priority over glob matches** when
+determining position. If a file appears both in a glob pattern and as an explicit entry, the glob
+skips it and the explicit entry places it at its declared position.
+
+```yaml
+valueFiles:
+- envs/*.yaml        # expands to base.yaml, prod.yaml — but prod.yaml is listed explicitly below,
+                     # so the glob skips it: only base.yaml is added here
+- envs/prod.yaml     # placed here at the end, giving it highest Helm precedence
+```
+
+This means you can use a glob to pick up all files in a directory and then pin a specific file to
+the end (highest precedence) by listing it explicitly after the glob.
+
+If the same file (same absolute path) is matched by two glob patterns, it is included at the
+position of the first match. Subsequent glob matches for that exact path are silently dropped.
+Files with the same name but at different paths are treated as distinct files and are always included.
+
+```yaml
+valueFiles:
+- envs/*.yaml        # matches envs/base.yaml, envs/prod.yaml
+- envs/**/*.yaml     # envs/prod.yaml already matched above and is skipped;
+                     # envs/nested/prod.yaml is a different path and is still included
+```
+
+### No-match behavior
+
+If a glob pattern matches no files, Argo CD saves the Application spec (the spec is not invalid and
+the files may be added to the repository later) and surfaces a `ComparisonError` condition on the
+Application:
+
+```
+values file glob "nonexistent/*.yaml" matched no files
+```
+
+The app will remain in a degraded state until the pattern matches at least one file or the pattern
+is removed. No spec update is required once the files are added to the repository.
+
+To silently skip a pattern that matches no files instead of raising an error, combine the glob with
+`ignoreMissingValueFiles`:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - envs/*.yaml
+    ignoreMissingValueFiles: true
+```
+
+This is useful for implementing a default/override pattern where override files may not exist in
+every environment.
 
 ## Values
 
@@ -265,28 +500,28 @@ source:
 
 ## Helm Hooks
 
-Helm hooks are similar to [Argo CD hooks](resource_hooks.md). In Helm, a hook
+Helm hooks are similar to [Argo CD hooks](sync-waves.md). In Helm, a hook
 is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 
-Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:
+Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations. This is annotation compatibility, not a guarantee that hook lifecycle semantics are identical to Helm's:
 
-| Helm Annotation                 | Notes                                                                                         |
-| ------------------------------- |-----------------------------------------------------------------------------------------------|
-| `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                |
-| `helm.sh/hook: pre-delete`      | Supported as equivalent to `argocd.argoproj.io/hook: PreDelete`                               |
-| `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-delete`     | Supported as equivalent to `argocd.argoproj.io/hook: PostDelete`.                             |
-| `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                      |
-| `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                      |
-| `helm.sh/hook-delete-policy`    | Supported. See also `argocd.argoproj.io/hook-delete-policy`).                                 |
-| `helm.sh/hook-delete-timeout`   | Not supported. Never used in Helm stable                                                      |
-| `helm.sh/hook-weight`           | Supported as equivalent to `argocd.argoproj.io/sync-wave`.                                    |
-| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`.                   |
+| Helm Annotation                 | Notes                                                                                                                                              |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                                                                            |
+| `helm.sh/hook: pre-delete`      | Supported as equivalent to `argocd.argoproj.io/hook: PreDelete`                                                                                    |
+| `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                                                                          |
+| `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                                                                     |
+| `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                                                                     |
+| `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                                                                                    |
+| `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                                                                                    |
+| `helm.sh/hook: post-delete`     | Supported as equivalent to `argocd.argoproj.io/hook: PostDelete`.                                                                                  |
+| `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                                                                          |
+| `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                                                                           |
+| `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                                                                           |
+| `helm.sh/hook-delete-policy`    | Supported. Cleanup still follows Argo CD sync semantics, which can differ from Helm's hook event lifecycle. See also `argocd.argoproj.io/hook-delete-policy`. |
+| `helm.sh/hook-delete-timeout`   | Not supported. Never used in Helm stable                                                                                                           |
+| `helm.sh/hook-weight`           | Supported as equivalent to `argocd.argoproj.io/sync-wave`.                                                                                         |
+| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`.                                                                        |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
@@ -300,13 +535,18 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 >
 > Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.
 
+> [!NOTE]
+> **Hook delete semantics differ from Helm**
+>
+> Helm hook annotations are mapped onto Argo CD hooks, but deletion policies are still evaluated using Argo CD sync phases and sync result semantics. This differs from Helm's per-hook-event lifecycle. In particular, passive resources such as `ServiceAccount` do not have a Kubernetes completion state like `Job` or `Workflow`, so `hook-succeeded`/`HookSucceeded` may be evaluated at a different point than you would observe with Helm.
+
 ### Hook Tips
 
 * Make your hook idempotent.
 * Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
 * Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
 
-Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://helm.sh/docs/topics/charts_hooks/).
+Read more about [Argo hooks](sync-waves.md) and [Helm hooks](https://helm.sh/docs/topics/charts_hooks/).
 
 ## Random Data
 
