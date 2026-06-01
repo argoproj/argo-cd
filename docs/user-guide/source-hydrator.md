@@ -503,6 +503,8 @@ This improves efficiency and reduces commit noise in your repository.
 
 ### Signature Verification
 
+*Current Status: Alpha (Since v3.5)*
+
 Signature verification of the DRY sources the hydrator reads is **opt-in** via the
 `--hydrator-verify-source-integrity` flag (or `ARGOCD_HYDRATOR_VERIFY_SOURCE_INTEGRITY=true`) on the application
 controller. When enabled, the hydrator enforces the project's `SourceIntegrity` policy (e.g. GPG signature
