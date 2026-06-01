@@ -1934,3 +1934,81 @@ func simulatePartialClone(ctx context.Context, t *testing.T, repoDir string, rev
 	require.NoError(t, runCmd(ctx, repoDir, "git", "config", "remote.origin.promisor", "true"))
 	require.NoError(t, runCmd(ctx, repoDir, "git", "config", "remote.origin.partialclonefilter", "blob:none"))
 }
+
+func Test_nativeGitClient_HasLocalRef(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "tag", "v1.0.0"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0, false))
+
+	native := client.(*nativeGitClient)
+	assert.True(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "tag fetched with --tags should be locally present")
+	assert.False(t, native.hasLocalRef(ctx, "refs/tags/does-not-exist"), "missing tag should report false")
+	assert.False(t, native.hasLocalRef(ctx, "refs/heads/never-existed"), "missing branch should report false")
+}
+
+func Test_nativeGitClient_EnsureLocalTagRef_FaultsInMissingTag(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "tag", "v1.0.0"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	// Simulate a partial-clone-style fetch that intentionally omits --tags:
+	// fetch only the default refspec without pulling refs/tags/* in.
+	require.NoError(t, runCmd(ctx, localDir, "git", "fetch", "--no-tags", "origin"))
+
+	native := client.(*nativeGitClient)
+	require.False(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "precondition: tag must be absent before fault-in")
+
+	require.NoError(t, native.ensureLocalTagRef(ctx, "v1.0.0"))
+	assert.True(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "tag should be materialized after ensureLocalTagRef")
+}
+
+func Test_nativeGitClient_EnsureLocalTagRef_NoopWhenPresent(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "tag", "v1.0.0"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0, false)) // brings the tag in
+
+	native := client.(*nativeGitClient)
+	require.True(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "precondition: tag must be present")
+
+	// Break the remote so any actual fetch would fail. The call must still
+	// succeed because the ref is already local.
+	require.NoError(t, runCmd(ctx, localDir, "git", "remote", "set-url", "origin", "file:///nonexistent-remote-path"))
+	require.NoError(t, native.ensureLocalTagRef(ctx, "v1.0.0"))
+}
+
+func Test_nativeGitClient_EnsureLocalTagRef_PropagatesFetchError(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	// Note: deliberately no tag created on remote.
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, runCmd(ctx, localDir, "git", "fetch", "--no-tags", "origin"))
+
+	native := client.(*nativeGitClient)
+	err = native.ensureLocalTagRef(ctx, "does-not-exist")
+	require.Error(t, err, "ensureLocalTagRef should surface fetch errors for unknown tags")
+}

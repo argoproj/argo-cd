@@ -1293,8 +1293,38 @@ func gpgVerificationFromGitRevParse(oneLetter string) (GPGVerificationResult, er
 
 var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
 
+// hasLocalRef reports whether the given fully-qualified ref (e.g. "refs/tags/v1")
+// is present in the local repository. `git show-ref --verify --quiet` exits 0
+// when present and non-zero when missing; we treat any error as "missing".
+func (m *nativeGitClient) hasLocalRef(ctx context.Context, ref string) bool {
+	cmd := exec.CommandContext(ctx, "git", "show-ref", "--verify", "--quiet", ref)
+	_, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	return err == nil
+}
+
+// ensureLocalTagRef materializes refs/tags/<tagRevision> from the remote when
+// it isn't already in the local refdb. Partial-clone fetches intentionally
+// omit --tags to avoid an expensive full ref advertisement, so tag refs
+// referenced by callers like signature verification can be absent. The
+// targeted refspec + --no-tags keeps the network cost to a single tag.
+func (m *nativeGitClient) ensureLocalTagRef(ctx context.Context, tagRevision string) error {
+	ref := "refs/tags/" + tagRevision
+	if m.hasLocalRef(ctx, ref) {
+		return nil
+	}
+	refspec := ref + ":" + ref
+	return m.runCredentialedCmd(ctx, "fetch", "--no-tags", "origin", refspec)
+}
+
 func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
 	ctx := context.Background()
+	// On partial clones, fetches skip --tags so refs/tags/<x> may be missing.
+	// Fault it in before reading from the local refdb. A fetch failure here
+	// is non-fatal: the subsequent for-each-ref will report "no tag found"
+	// with the caller-friendly error path below.
+	if err := m.ensureLocalTagRef(ctx, tagRevision); err != nil {
+		log.Debugf("failed to fault-in tag ref %q before signature lookup: %v", tagRevision, err)
+	}
 	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
 	// for RevisionSignatureInfo from 2 different git invocations.
 	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)

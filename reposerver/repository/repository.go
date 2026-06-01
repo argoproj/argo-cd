@@ -213,9 +213,13 @@ func getSparseCheckoutPathsFromRepo(ctx context.Context, repoPath string) ([]str
 	// Use git sparse-checkout list command to get the configured paths
 	// This is more robust than parsing the file directly as it handles all git's internal logic
 	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "sparse-checkout", "list")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	output, err := cmd.Output()
 	if err != nil {
-		// If the command fails, sparse checkout is likely not configured
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return nil, fmt.Errorf("%w: %s", err, msg)
+		}
 		return nil, err
 	}
 
