@@ -1,6 +1,6 @@
 import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
 import * as React from 'react';
-import {FormApi} from 'react-form';
+import {FormApi} from 'argo-ui';
 import {RevisionHelpIcon} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';

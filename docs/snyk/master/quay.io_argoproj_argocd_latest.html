@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="68 known vulnerabilities found in 193 vulnerable dependency paths.">
+  <meta name="description" content="71 known vulnerabilities found in 200 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 24th 2026, 12:50:03 am (UTC+00:00)</p>
+                <p class="timestamp">May 31st 2026, 12:53:16 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,9 +506,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>68</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>193 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2437</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>71</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>200 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2413</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -5890,6 +5890,177 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-6238</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            glibc/libc-bin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.42-0ubuntu3.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-bin@2.42-0ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc6@2.42-0ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
+        <p>The deprecated functions ns_printrrf, ns_printrr and fp_nquery in the GNU C Library version 2.2 and newer fail to validate the RDATA content against the RDATA length in a DNS response when processing LOC, CERT, TKEY or TSIG records, which may allow an attacker to craft a DNS response, causing a target application to crash or read uninitialized memory.</p>
+        <p>These functions are for application debugging only and hence not in the path of code executed by the DNS resolver.  Further, they have been deprecated since version 2.34 and should not be used by any new applications.  Applications should consider porting away from these interfaces since they may be removed in future versions.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>glibc</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-6238">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-6238</a></li>
+        <li><a href="https://inbox.sourceware.org/libc-announce/7a655d55-276f-41fe-b550-feb3ebb2ce91@redhat.com/T/#u">https://inbox.sourceware.org/libc-announce/7a655d55-276f-41fe-b550-feb3ebb2ce91@redhat.com/T/#u</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=34069">https://sourceware.org/bugzilla/show_bug.cgi?id=34069</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-GLIBC-16338131">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-5435</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            glibc/libc-bin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.42-0ubuntu3.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-bin@2.42-0ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc6@2.42-0ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
+        <p>The deprecated functions ns_printrrf, ns_printrr and fp_nquery in the GNU C Library version 2.2 and newer fail to enforce the caller-supplied buffer length, and can result in an out-of-bounds write when printing TSIG records.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>glibc</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-5435">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-5435</a></li>
+        <li><a href="https://inbox.sourceware.org/libc-announce/7a655d55-276f-41fe-b550-feb3ebb2ce91@redhat.com/T/#u">https://inbox.sourceware.org/libc-announce/7a655d55-276f-41fe-b550-feb3ebb2ce91@redhat.com/T/#u</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=34033">https://sourceware.org/bugzilla/show_bug.cgi?id=34033</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-GLIBC-16338219">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Validation of Specified Type of Input</h2>
             <div class="card__section">
         
@@ -6563,6 +6734,108 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Heap-based Buffer Overflow</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            xz-utils/liblzma5
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and xz-utils/liblzma5@5.8.1-1build2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        xz-utils/liblzma5@5.8.1-1build2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg@1.22.21ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        xz-utils/liblzma5@5.8.1-1build2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.1.6ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg7.0@3.1.6ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        xz-utils/liblzma5@5.8.1-1build2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>xz-utils</code> package and not the <code>xz-utils</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
+        <p>XZ Utils provide a general-purpose data-compression library plus command-line tools. Prior to version 5.8.3, if lzma_index_decoder() was used to decode an Index that contained no Records, the resulting lzma_index was left in a state where where a subsequent lzma_index_append() would allocate too little memory, and a buffer overflow would occur. This issue has been patched in version 5.8.3.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>xz-utils</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-34743">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-34743</a></li>
+        <li><a href="https://github.com/tukaani-project/xz/commit/c8c22869e780ff57c96b46939c3d79ff99395f87">https://github.com/tukaani-project/xz/commit/c8c22869e780ff57c96b46939c3d79ff99395f87</a></li>
+        <li><a href="https://github.com/tukaani-project/xz/releases/tag/v5.8.3">https://github.com/tukaani-project/xz/releases/tag/v5.8.3</a></li>
+        <li><a href="https://github.com/tukaani-project/xz/security/advisories/GHSA-x872-m794-cxhv">https://github.com/tukaani-project/xz/security/advisories/GHSA-x872-m794-cxhv</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/31/13">http://www.openwall.com/lists/oss-security/2026/03/31/13</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-XZUTILS-15918346">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2024-56433</h2>
             <div class="card__section">
         
@@ -6728,7 +7001,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and libgcrypt20@1.11.0-7build1
+                                docker-image|quay.io/argoproj/argocd@latest and libgcrypt20@1.11.0-7ubuntu0.1
         
                     </li>
                 </ul>
@@ -6743,7 +7016,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.11.0-7build1
+                                        libgcrypt20@1.11.0-7ubuntu0.1
                                         
                                 </span>
         
@@ -6754,7 +7027,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg@2.4.8-2ubuntu2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.11.0-7build1
+                                        libgcrypt20@1.11.0-7ubuntu0.1
                                         
                                 </span>
         
@@ -6765,7 +7038,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg-agent@2.4.8-2ubuntu2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.11.0-7build1
+                                        libgcrypt20@1.11.0-7ubuntu0.1
                                         
                                 </span>
         
@@ -6778,7 +7051,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpgv@2.4.8-2ubuntu2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.11.0-7build1
+                                        libgcrypt20@1.11.0-7ubuntu0.1
                                         
                                 </span>
         
@@ -6791,7 +7064,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpgconf@2.4.8-2ubuntu2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.11.0-7build1
+                                        libgcrypt20@1.11.0-7ubuntu0.1
                                         
                                 </span>
         

@@ -2,14 +2,14 @@ module github.com/argoproj/argo-cd/v3
 
 // Do NOT bump this unless we use features that are only available on the new version.
 // If you want to update the BUILD version, just update go versions in the release workflows.
-go 1.26.1
+go 1.26.3
 
 require (
 	code.gitea.io/sdk/gitea v0.25.1
 	dario.cat/mergo v1.0.2
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
-	github.com/Azure/kubelogin v0.2.17
+	github.com/Azure/kubelogin v0.2.18
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
@@ -17,12 +17,12 @@ require (
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
 	github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717
 	github.com/argoproj/pkg/v2 v2.0.1
-	github.com/aws/aws-sdk-go-v2 v1.41.7
-	github.com/aws/aws-sdk-go-v2/config v1.32.18
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.17
-	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.14
-	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.32.0
-	github.com/aws/aws-sdk-go-v2/service/sts v1.42.1
+	github.com/aws/aws-sdk-go-v2 v1.41.9
+	github.com/aws/aws-sdk-go-v2/config v1.32.20
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.19
+	github.com/aws/aws-sdk-go-v2/service/codecommit v1.34.0
+	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.32.2
+	github.com/aws/aws-sdk-go-v2/service/sts v1.42.3
 	github.com/aws/smithy-go v1.26.0
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
@@ -87,7 +87,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/r3labs/diff/v3 v3.0.2
-	github.com/redis/go-redis/v9 v9.19.0
+	github.com/redis/go-redis/v9 v9.20.0
 	github.com/robfig/cron/v3 v3.0.2-0.20210106135023-bc59245fe10e
 	github.com/sirupsen/logrus v1.9.4
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
@@ -98,8 +98,8 @@ require (
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/yuin/gopher-lua v1.1.2
 	gitlab.com/gitlab-org/api/client-go v1.46.0
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.68.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.68.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.44.0
 	go.opentelemetry.io/otel/sdk v1.44.0
@@ -159,16 +159,16 @@ require (
 	github.com/PagerDuty/go-pagerduty v1.8.0 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20240116134246-a8cbe886bab0 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.23 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.23 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.23 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.24 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.9 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.23 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.0.11 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.26 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.25 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.1.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.38.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.30.17 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.30.19 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -321,11 +321,10 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
-require github.com/go-openapi/runtime/server-middleware v0.30.0
+require github.com/go-openapi/runtime/server-middleware v0.32.2
 
 require (
 	github.com/go-openapi/testify/enable/yaml/v2 v2.5.1 // indirect
-	github.com/go-openapi/testify/v2 v2.5.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 )
 

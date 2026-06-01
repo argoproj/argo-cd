@@ -1,6 +1,5 @@
 import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
-import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
@@ -123,11 +122,6 @@ export class App extends React.Component<
     {},
     {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings; sessionResolved: boolean}
 > {
-    public static childContextTypes = {
-        history: PropTypes.object,
-        apis: PropTypes.object
-    };
-
     public static getDerivedStateFromError(error: Error) {
         return {error};
     }
@@ -317,10 +311,6 @@ export class App extends React.Component<
                 <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
             </React.Fragment>
         );
-    }
-
-    public getChildContext() {
-        return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}};
     }
 
     private async subscribeUnauthorized() {
