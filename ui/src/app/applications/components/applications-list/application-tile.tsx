@@ -40,9 +40,9 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
     const appHref = `${ctx.baseHref}${AppUtils.getAppUrl(app)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
 
     const handleTileClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        // Let the browser handle modifier-clicks and middle-clicks natively so users
-        // get "open in new tab", right-click menu, status-bar URL preview, etc.
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) {
+        // Let the browser handle modifier-clicks natively so users get "open in new tab",
+        // right-click menu, status-bar URL preview, etc. (Middle-click bypasses onClick.)
+        if (e.metaKey || e.ctrlKey || e.shiftKey) {
             return;
         }
         e.preventDefault();
@@ -88,6 +88,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                 className='row applications-tiles__wrapper'
                 href={appHref}
                 onClick={handleTileClick}
+                draggable={false}
                 aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}

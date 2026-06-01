@@ -24,14 +24,15 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const appSetPath = `/${AppUtils.getAppUrl(appSet)}`;
-    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}`;
+    const view = pref.appDetails.view;
+    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
 
     const handleRowClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey) {
             return;
         }
         e.preventDefault();
-        ctx.navigation.goto(appSetPath, {}, {event: e});
+        ctx.navigation.goto(appSetPath, {view}, {event: e});
     };
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {

@@ -25,8 +25,11 @@ export interface ApplicationTableRowProps {
 }
 
 // Cell-wrapping anchor that lifts tooltip-bearing content above the row's overlay link
-// (so Tippy can receive hover) while staying out of the a11y tree to avoid duplicate tab
-// stops next to the row's name link. Defined at module scope so children like <Cluster>
+// (so Tippy can receive hover) and lets the cell behave as a real link (middle-click
+// open-in-new-tab, status-bar URL preview, etc.). tabIndex={-1} keeps it out of the
+// sequential tab order so it doesn't add a duplicate tab stop next to the row's name
+// link, but the cell content stays in the accessibility tree so screen readers can read
+// Source / Labels / Destination. Defined at module scope so children like <Cluster>
 // don't remount on each parent re-render.
 const CellLink = ({
     href,
@@ -39,7 +42,7 @@ const CellLink = ({
     className?: string;
     children: React.ReactNode;
 }) => (
-    <a className={`applications-list__table-row__cell-link${className ? ` ${className}` : ''}`} href={href} onClick={onClick} tabIndex={-1} aria-hidden='true'>
+    <a className={`applications-list__table-row__cell-link${className ? ` ${className}` : ''}`} href={href} onClick={onClick} tabIndex={-1}>
         {children}
     </a>
 );
@@ -53,14 +56,15 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const appPath = `/${AppUtils.getAppUrl(app)}`;
-    const appHref = `${ctx.baseHref}${AppUtils.getAppUrl(app)}`;
+    const view = pref.appDetails.view;
+    const appHref = `${ctx.baseHref}${AppUtils.getAppUrl(app)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
 
     const handleRowClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey) {
             return;
         }
         e.preventDefault();
-        ctx.navigation.goto(appPath, {}, {event: e});
+        ctx.navigation.goto(appPath, {view}, {event: e});
     };
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
