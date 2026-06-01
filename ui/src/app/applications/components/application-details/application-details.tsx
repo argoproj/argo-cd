@@ -26,11 +26,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {
-    APPLICATION_DETAILS_SORT_KEY,
-    APPLICATION_RESOURCE_SORT_OPTIONS,
-    GROUPED_NODES_DETAILS_SORT_KEY
-} from './application-resource-sort';
+import {APPLICATION_DETAILS_SORT_KEY, APPLICATION_RESOURCE_SORT_OPTIONS, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, OCIMetadata, ResourceStatus} from '../../../shared/models';

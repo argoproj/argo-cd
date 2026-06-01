@@ -16,17 +16,7 @@ const tableFontIconStyle: React.CSSProperties = {
     flexShrink: 0
 };
 
-export const ResourceIcon = ({
-    group,
-    kind,
-    customStyle,
-    variant = 'default'
-}: {
-    group: string;
-    kind: string;
-    customStyle?: React.CSSProperties;
-    variant?: ResourceIconVariant;
-}) => {
+export const ResourceIcon = ({group, kind, customStyle, variant = 'default'}: {group: string; kind: string; customStyle?: React.CSSProperties; variant?: ResourceIconVariant}) => {
     const fontIconStyle = variant === 'table' ? {...tableFontIconStyle, ...customStyle} : customStyle;
 
     if (kind === 'node') {

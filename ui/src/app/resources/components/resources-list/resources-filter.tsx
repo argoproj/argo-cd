@@ -142,10 +142,7 @@ const ProjectFilter = (props: AppFilterProps) => {
 
 const ClusterFilter = (props: AppFilterProps) => {
     const [clusters, loading, error] = useData(() => services.clusters.list());
-    const clusterOptions = optionsFrom(
-        Array.from(new Set(props.apps.map(app => getResourceClusterLabel(app, clusters)).filter(item => !!item))),
-        props.pref.clustersFilter
-    );
+    const clusterOptions = optionsFrom(Array.from(new Set(props.apps.map(app => getResourceClusterLabel(app, clusters)).filter(item => !!item))), props.pref.clustersFilter);
 
     return (
         <Filter

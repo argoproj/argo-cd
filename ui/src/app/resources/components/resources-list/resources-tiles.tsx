@@ -62,12 +62,9 @@ export const ResourceTiles = ({resources}: ResourceTilesProps) => {
         action: () => {
             if (selectedApp > -1) {
                 const resource = resources[selectedApp];
-                ctxh.navigation.goto(
-                    getManagingApplicationUrl(resource.appName, resource.appNamespace),
-                    {
-                        node: `/${resource.kind}${resource.namespace ? `/${resource.namespace}` : ''}/${resource.name}/0`
-                    }
-                );
+                ctxh.navigation.goto(getManagingApplicationUrl(resource.appName, resource.appNamespace), {
+                    node: `/${resource.kind}${resource.namespace ? `/${resource.namespace}` : ''}/${resource.name}/0`
+                });
                 return true;
             }
             return false;
@@ -130,6 +127,7 @@ export const ResourceTiles = ({resources}: ResourceTilesProps) => {
                                                     <div className='row '>
                                                         <div className='columns small-3'>
                                                             <ResourceIcon
+                                                                group={app.group}
                                                                 kind={app.kind}
                                                                 customStyle={{
                                                                     padding: '2px',

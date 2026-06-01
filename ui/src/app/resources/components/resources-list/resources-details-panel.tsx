@@ -56,8 +56,8 @@ export const ResourcesDetailsPanel = (props: {node: string | null; detailsApp: s
                     nodes:
                         application.status?.resources?.map((res: appModels.ResourceStatus) => ({
                             ...res,
-                            parentRefs: [],
-                            info: [],
+                            parentRefs: [] as appModels.ResourceRef[],
+                            info: [] as appModels.InfoItem[],
                             resourceVersion: '',
                             uid: ''
                         })) || [],
@@ -87,7 +87,7 @@ export const ResourcesDetailsPanel = (props: {node: string | null; detailsApp: s
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
         const updatedApp = await services.applications.update(latestApp, query);
-        appChanged.current.next(updatedApp);
+        appChanged.current.next(updatedApp as appModels.Application);
     };
 
     return (

@@ -157,10 +157,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
                     <DropDownMenu
                         anchor={() => (
-                            <button
-                                type='button'
-                                className='argo-button argo-button--light argo-button--lg argo-button--short'
-                                onMouseDown={() => document.body.click()}>
+                            <button type='button' className='argo-button argo-button--light argo-button--lg argo-button--short' onMouseDown={() => document.body.click()}>
                                 <i className='fa fa-ellipsis-v' />
                             </button>
                         )}

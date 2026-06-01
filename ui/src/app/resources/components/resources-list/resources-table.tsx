@@ -116,18 +116,14 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                                 onClick={() => handleSort(ctx, 'group-kind')}
                                                 style={{cursor: 'pointer'}}
                                                 title='GROUP/KIND'>
-                                                <span className='resources-table__head-text'>
-                                                    GROUP/KIND {getSortArrow(activeSortKey, sortDirection, 'group-kind')}
-                                                </span>
+                                                <span className='resources-table__head-text'>GROUP/KIND {getSortArrow(activeSortKey, sortDirection, 'group-kind')}</span>
                                             </div>
                                             <div
                                                 className='columns resources-table__col-namespace resources-table__head-col'
                                                 onClick={() => handleSort(ctx, 'namespace')}
                                                 style={{cursor: 'pointer'}}
                                                 title='NAMESPACE'>
-                                                <span className='resources-table__head-text'>
-                                                    NAMESPACE {getSortArrow(activeSortKey, sortDirection, 'namespace')}
-                                                </span>
+                                                <span className='resources-table__head-text'>NAMESPACE {getSortArrow(activeSortKey, sortDirection, 'namespace')}</span>
                                             </div>
                                             <div
                                                 className='columns resources-table__col-name resources-table__head-col'
@@ -141,9 +137,7 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                                 onClick={() => handleSort(ctx, 'cluster')}
                                                 style={{cursor: 'pointer'}}
                                                 title='CLUSTER'>
-                                                <span className='resources-table__head-text'>
-                                                    CLUSTER {getSortArrow(activeSortKey, sortDirection, 'cluster')}
-                                                </span>
+                                                <span className='resources-table__head-text'>CLUSTER {getSortArrow(activeSortKey, sortDirection, 'cluster')}</span>
                                             </div>
                                             <div
                                                 className='columns resources-table__col-application resources-table__head-col'
@@ -205,101 +199,90 @@ const ResourceTableRow = (props: {
     return (
         <div
             className={classNames('argo-table-list__row', {
-                                                'application-resource-tree__node--orphaned': resource.orphaned,
-                                                'resources-table__row--selected': selectedResource === i
-                                            })}
-                                            onClick={e => openDetails(ctx, resource)}>
-                                            <div className='row'>
-                                                <div className='columns resources-table__col-icon'>
-                                                    <div className='application-details__resource-icon'>
-                                                        <ResourceIcon group={resource.group} kind={resource.kind} variant='table' />
-                                                        <div className='resources-table__kind-label'>{ResourceLabel({kind: resource.kind})}</div>
-                                                    </div>
-                                                </div>
-                                                <div className='columns resources-table__col-group-kind'>
-                                                    <TruncatedTextTooltip content={groupKind} className='application-details__item_text resources-table__tooltip-anchor' />
-                                                </div>
-                                                <div className='columns resources-table__col-namespace'>
-                                                    <TruncatedTextTooltip content={resource.namespace} className='resources-table__tooltip-anchor' />
-                                                </div>
-                                                <div className='columns resources-table__col-name application-details__item'>
-                                                    <TruncatedTextTooltip content={resource.name} className='application-details__item_text resources-table__tooltip-anchor' />
-                                                </div>
-                                                <div className='columns resources-table__col-cluster'>
-                                                    <TruncatedTextTooltip
-                                                        content={resource.clusterName || resource.clusterServer || ''}
-                                                        className='resources-table__cell-text resources-table__tooltip-anchor'>
-                                                        <Cluster server={resource.clusterServer} name={resource.clusterName} />
-                                                    </TruncatedTextTooltip>
-                                                </div>
-                                                <div className='columns resources-table__col-application' onClick={e => e.stopPropagation()}>
-                                                    <Tooltip content={resource.appName} enabled={!!resource.appName && appLinkTruncation.isTruncated}>
-                                                        <button
-                                                            ref={appLinkTruncation.ref}
-                                                            type='button'
-                                                            className='resources-table__application-link'
-                                                            onClick={e => navigateToApplication(ctx, resource, e)}>
-                                                            {resource.appName}
-                                                        </button>
-                                                    </Tooltip>
-                                                </div>
-                                                <div className='columns resources-table__status-col'>
-                                                    <React.Fragment>
-                                                        <AppUtils.HealthStatusIcon state={resourceHealthState(resource)} /> {resourceHealthStatus(resource)} &nbsp;
-                                                    </React.Fragment>
-                                                    {resource.status && <AppUtils.ComparisonStatusIcon status={resource.status} resource={resource} label={true} />}
-                                                </div>
-                                            </div>
-                                            <div className='application-details__node-menu resources-table__row-menu' onClick={e => e.stopPropagation()}>
-                                                <DropDown
-                                                    isMenu={true}
-                                                    anchor={() => (
-                                                        <button
-                                                            type='button'
-                                                            className='argo-button argo-button--light argo-button--lg argo-button--short'
-                                                            onMouseDown={() => document.body.click()}>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
-                                                    )}>
-                                                    {() => (
-                                                        <ul>
-                                                            <li
-                                                                className='application-details__action-menu'
-                                                                tabIndex={0}
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    openDetails(ctx, resource);
-                                                                    document.body.click();
-                                                                }}
-                                                                onKeyDown={e => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.stopPropagation();
-                                                                        openDetails(ctx, resource);
-                                                                        document.body.click();
-                                                                    }
-                                                                }}>
-                                                                <i className='fa fa-fw fa-info-circle' /> Details
-                                                            </li>
-                                                            <li
-                                                                className='application-details__action-menu'
-                                                                tabIndex={0}
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    navigateToApplication(ctx, resource);
-                                                                    document.body.click();
-                                                                }}
-                                                                onKeyDown={e => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.stopPropagation();
-                                                                        navigateToApplication(ctx, resource);
-                                                                        document.body.click();
-                                                                    }
-                                                                }}>
-                                                                <i className='fa fa-fw fa-external-link-alt' /> Open application
-                                                            </li>
-                                                        </ul>
-                                                    )}
-                                                </DropDown>
+                'application-resource-tree__node--orphaned': resource.orphaned,
+                'resources-table__row--selected': selectedResource === i
+            })}
+            onClick={() => openDetails(ctx, resource)}>
+            <div className='row'>
+                <div className='columns resources-table__col-icon'>
+                    <div className='application-details__resource-icon'>
+                        <ResourceIcon group={resource.group} kind={resource.kind} variant='table' />
+                        <div className='resources-table__kind-label'>{ResourceLabel({kind: resource.kind})}</div>
+                    </div>
+                </div>
+                <div className='columns resources-table__col-group-kind'>
+                    <TruncatedTextTooltip content={groupKind} className='application-details__item_text resources-table__tooltip-anchor' />
+                </div>
+                <div className='columns resources-table__col-namespace'>
+                    <TruncatedTextTooltip content={resource.namespace} className='resources-table__tooltip-anchor' />
+                </div>
+                <div className='columns resources-table__col-name application-details__item'>
+                    <TruncatedTextTooltip content={resource.name} className='application-details__item_text resources-table__tooltip-anchor' />
+                </div>
+                <div className='columns resources-table__col-cluster'>
+                    <TruncatedTextTooltip content={resource.clusterName || resource.clusterServer || ''} className='resources-table__cell-text resources-table__tooltip-anchor'>
+                        <Cluster server={resource.clusterServer} name={resource.clusterName} />
+                    </TruncatedTextTooltip>
+                </div>
+                <div className='columns resources-table__col-application' onClick={e => e.stopPropagation()}>
+                    <Tooltip content={resource.appName} enabled={!!resource.appName && appLinkTruncation.isTruncated}>
+                        <button ref={appLinkTruncation.ref} type='button' className='resources-table__application-link' onClick={e => navigateToApplication(ctx, resource, e)}>
+                            {resource.appName}
+                        </button>
+                    </Tooltip>
+                </div>
+                <div className='columns resources-table__status-col'>
+                    <AppUtils.HealthStatusIcon state={resourceHealthState(resource)} /> {resourceHealthStatus(resource)} &nbsp;
+                    {resource.status && <AppUtils.ComparisonStatusIcon status={resource.status} resource={resource} label={true} />}
+                </div>
+            </div>
+            <div className='application-details__node-menu resources-table__row-menu' onClick={e => e.stopPropagation()}>
+                <DropDown
+                    isMenu={true}
+                    anchor={() => (
+                        <button type='button' className='argo-button argo-button--light argo-button--lg argo-button--short' onMouseDown={() => document.body.click()}>
+                            <i className='fa fa-ellipsis-v' />
+                        </button>
+                    )}>
+                    {() => (
+                        <ul>
+                            <li
+                                className='application-details__action-menu'
+                                tabIndex={0}
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    openDetails(ctx, resource);
+                                    document.body.click();
+                                }}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                        e.stopPropagation();
+                                        openDetails(ctx, resource);
+                                        document.body.click();
+                                    }
+                                }}>
+                                <i className='fa fa-fw fa-info-circle' /> Details
+                            </li>
+                            <li
+                                className='application-details__action-menu'
+                                tabIndex={0}
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    navigateToApplication(ctx, resource);
+                                    document.body.click();
+                                }}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                        e.stopPropagation();
+                                        navigateToApplication(ctx, resource);
+                                        document.body.click();
+                                    }
+                                }}>
+                                <i className='fa fa-fw fa-external-link-alt' /> Open application
+                            </li>
+                        </ul>
+                    )}
+                </DropDown>
             </div>
         </div>
     );

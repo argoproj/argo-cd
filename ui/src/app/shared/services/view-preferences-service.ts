@@ -1,8 +1,8 @@
 import * as deepMerge from 'deepmerge';
-import { BehaviorSubject, Observable } from 'rxjs';
+import {BehaviorSubject, Observable} from 'rxjs';
 
-import { PodGroupType } from '../../applications/components/application-pod-view/pod-view';
-import { UserMessages } from '../models';
+import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import {UserMessages} from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -164,9 +164,9 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     resourcesList: ResourcesListPreferences;
-    pageSizes: { [key: string]: number };
-    sortOptions?: { [key: string]: string };
-    sortDirections?: { [key: string]: 'asc' | 'desc' };
+    pageSizes: {[key: string]: number};
+    sortOptions?: {[key: string]: string};
+    sortDirections?: {[key: string]: 'asc' | 'desc'};
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
@@ -264,7 +264,7 @@ export class ViewPreferencesService {
 
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
-        const nextPref = Object.assign({}, current, change, { version: minVer });
+        const nextPref = Object.assign({}, current, change, {version: minVer});
         // Normalize appList to ensure all filter arrays are initialized
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);

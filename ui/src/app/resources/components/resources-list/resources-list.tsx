@@ -292,7 +292,7 @@ const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({resources, pref, ctx
 export const ResourcesList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const clusters = React.useMemo(() => services.clusters.list(), []);
-    const loaderRef = React.useRef<DataLoader>();
+    const loaderRef = React.useRef<DataLoader | null>(null);
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences) {
         services.viewPreferences.updatePreferences({resourcesList: newPref});

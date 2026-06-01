@@ -1,7 +1,7 @@
 import * as models from '../../../shared/models';
-import { HealthPriority, SyncPriority, SyncStatusCode } from '../../../shared/models';
-import { SortOption } from '../../../shared/components';
-import { resourceHealthStatus } from '../utils';
+import {HealthPriority, SyncPriority, SyncStatusCode} from '../../../shared/models';
+import {SortOption} from '../../../shared/components';
+import {resourceHealthStatus} from '../utils';
 
 export type ResourceSortKey = 'name' | 'group-kind' | 'namespace' | 'cluster' | 'application' | 'status';
 
@@ -19,7 +19,7 @@ export const RESOURCE_SORT_KEY_TO_TITLE: Record<ResourceSortKey, string> = {
 export const RESOURCE_SORT_TITLE_TO_KEY = Object.fromEntries(Object.entries(RESOURCE_SORT_KEY_TO_TITLE).map(([key, title]) => [title, key])) as Record<string, ResourceSortKey>;
 
 export const RESOURCE_SORT_OPTIONS: SortOption<models.Resource>[] = [
-    { title: 'Name', compare: (a, b) => a.name.localeCompare(b.name) },
+    {title: 'Name', compare: (a, b) => a.name.localeCompare(b.name)},
     {
         title: 'Group/Kind',
         compare: (a, b) => {
@@ -28,7 +28,7 @@ export const RESOURCE_SORT_OPTIONS: SortOption<models.Resource>[] = [
             return ga.localeCompare(gb);
         }
     },
-    { title: 'Namespace', compare: (a, b) => (a.namespace || '').localeCompare(b.namespace || '') },
+    {title: 'Namespace', compare: (a, b) => (a.namespace || '').localeCompare(b.namespace || '')},
     {
         title: 'Cluster',
         compare: (a, b) => {
@@ -37,7 +37,7 @@ export const RESOURCE_SORT_OPTIONS: SortOption<models.Resource>[] = [
             return ca.localeCompare(cb);
         }
     },
-    { title: 'Application', compare: (a, b) => (a.appName || '').localeCompare(b.appName || '') },
+    {title: 'Application', compare: (a, b) => (a.appName || '').localeCompare(b.appName || '')},
     {
         title: 'Status',
         compare: (a, b) => {

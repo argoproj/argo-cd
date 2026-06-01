@@ -9,17 +9,18 @@ export const APPLICATION_DETAILS_SORT_KEY = 'application-details';
 export const GROUPED_NODES_DETAILS_SORT_KEY = 'grouped-nodes-details';
 
 export const APPLICATION_RESOURCE_SORT_KEY_TO_TITLE: Record<ApplicationResourceSortKey, string> = {
-    name: 'Name',
+    'name': 'Name',
     'group-kind': 'Group/Kind',
-    syncOrder: 'Sync Order',
-    namespace: 'Namespace',
-    createdAt: 'Created At',
-    status: 'Status'
+    'syncOrder': 'Sync Order',
+    'namespace': 'Namespace',
+    'createdAt': 'Created At',
+    'status': 'Status'
 };
 
-export const APPLICATION_RESOURCE_SORT_TITLE_TO_KEY = Object.fromEntries(
-    Object.entries(APPLICATION_RESOURCE_SORT_KEY_TO_TITLE).map(([key, title]) => [title, key])
-) as Record<string, ApplicationResourceSortKey>;
+export const APPLICATION_RESOURCE_SORT_TITLE_TO_KEY = Object.fromEntries(Object.entries(APPLICATION_RESOURCE_SORT_KEY_TO_TITLE).map(([key, title]) => [title, key])) as Record<
+    string,
+    ApplicationResourceSortKey
+>;
 
 export const APPLICATION_RESOURCE_SORT_OPTIONS: SortOption<models.ResourceStatus>[] = [
     {
