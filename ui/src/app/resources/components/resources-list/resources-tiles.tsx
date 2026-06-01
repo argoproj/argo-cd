@@ -6,6 +6,7 @@ import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../../../applications/components/utils';
 import {services} from '../../../shared/services';
+import {getManagingApplicationUrl} from '../utils';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 
 import './resources-tiles.scss';
@@ -60,13 +61,12 @@ export const ResourceTiles = ({resources}: ResourceTilesProps) => {
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
+                const resource = resources[selectedApp];
                 ctxh.navigation.goto(
-                    AppUtils.getAppUrl({
-                        metadata: {
-                            name: resources[selectedApp].appName,
-                            namespace: resources[selectedApp].namespace
-                        }
-                    } as models.Application)
+                    getManagingApplicationUrl(resource.appName, resource.appNamespace),
+                    {
+                        node: `/${resource.kind}${resource.namespace ? `/${resource.namespace}` : ''}/${resource.name}/0`
+                    }
                 );
                 return true;
             }
@@ -118,12 +118,7 @@ export const ResourceTiles = ({resources}: ResourceTilesProps) => {
                                                 className='row resources-tiles__wrapper'
                                                 onClick={e =>
                                                     ctx.navigation.goto(
-                                                        `${AppUtils.getAppUrl({
-                                                            metadata: {
-                                                                name: app.appName,
-                                                                namespace: app.appNamespace
-                                                            }
-                                                        } as models.Application)}`,
+                                                        getManagingApplicationUrl(app.appName, app.appNamespace),
                                                         {
                                                             view: pref.appDetails.view,
                                                             node: `/${app.kind}${app.namespace ? `/${app.namespace}` : ''}/${app.name}/0`
@@ -174,12 +169,7 @@ export const ResourceTiles = ({resources}: ResourceTilesProps) => {
                                                             <a
                                                                 onClick={e =>
                                                                     ctx.navigation.goto(
-                                                                        AppUtils.getAppUrl({
-                                                                            metadata: {
-                                                                                name: app.appName,
-                                                                                namespace: app.appNamespace
-                                                                            }
-                                                                        } as models.Application),
+                                                                        getManagingApplicationUrl(app.appName, app.appNamespace),
                                                                         {view: pref.appDetails.view},
                                                                         {event: e}
                                                                     )

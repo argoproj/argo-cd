@@ -18,6 +18,8 @@ import {FilteredResource, getFilterResults, ResourcesFilter} from './resources-f
 import classNames from 'classnames';
 import {ResourcesTable} from './resources-table';
 import {ResourcesStatusBar} from './resources-status-bar';
+import {ResourcesDetailsPanel} from './resources-details-panel';
+import {openResourceDetails} from '../utils';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -423,12 +425,25 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                         if (pref.view === ResourcesListViewKey.Tiles) {
                                                                             return <ResourceTiles resources={data} />;
                                                                         }
-                                                                        return <ResourcesTable resources={data} />;
+                                                                        return (
+                                                                            <ResourcesTable
+                                                                                resources={data}
+                                                                                onOpenDetails={resource => openResourceDetails(ctx, resource)}
+                                                                            />
+                                                                        );
                                                                     }}
                                                                 </Paginate>
                                                             </>
                                                         )}
                                                     </div>
+                                                    <Query>
+                                                        {q => (
+                                                            <ResourcesDetailsPanel
+                                                                node={q.get('node')}
+                                                                detailsApp={q.get('detailsApp')}
+                                                            />
+                                                        )}
+                                                    </Query>
                                                 </React.Fragment>
                                             );
                                         }}

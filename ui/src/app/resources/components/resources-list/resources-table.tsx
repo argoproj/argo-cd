@@ -1,19 +1,89 @@
-import {DataLoader, Tooltip} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import Moment from 'react-moment';
+import classNames from 'classnames';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
-import {Consumer, Context} from '../../../shared/context';
+import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {services} from '../../../shared/services';
+import {HealthPriority, SyncPriority, SyncStatusCode} from '../../../shared/models';
+import {ResourceIcon} from '../../../applications/components/resource-icon';
+import {ResourceLabel} from '../../../applications/components/resource-label';
 import * as AppUtils from '../../../applications/components/utils';
+import {getManagingApplicationUrl, openResourceDetails} from '../utils';
+import '../../../applications/components/application-details/application-resource-list.scss';
 import './resources-table.scss';
 
-export const ResourcesTable = (props: {resources: models.Resource[]}) => {
+type SortKey = 'name' | 'group-kind' | 'namespace' | 'cluster' | 'application' | 'status';
+
+export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetails?: (resource: models.Resource) => void}) => {
     const [selectedResource, navResource, reset] = useNav(props.resources.length);
     const ctxh = React.useContext(Context);
+    const [sortConfig, setSortConfig] = React.useState<{key: SortKey; direction: 'asc' | 'desc'}>({key: 'name', direction: 'asc'});
 
     const {useKeybinding} = React.useContext(KeybindingContext);
+
+    const handleSort = (key: SortKey) => {
+        setSortConfig(prev => (prev.key !== key ? {key, direction: 'asc'} : {key, direction: prev.direction === 'asc' ? 'desc' : 'asc'}));
+    };
+
+    const getSortArrow = (key: SortKey) => {
+        if (sortConfig.key !== key) {
+            return null;
+        }
+        const isAsc = sortConfig.direction === 'asc';
+        const style: React.CSSProperties = {
+            position: 'relative',
+            top: isAsc ? '2px' : '-2px'
+        };
+        return (
+            <span style={style}>
+                <i className={isAsc ? 'fa fa-sort-up' : 'fa fa-sort-down'} />
+            </span>
+        );
+    };
+
+    const sortedResources = React.useMemo(() => {
+        const items = [...props.resources];
+        items.sort((a, b) => {
+            let compare = 0;
+            switch (sortConfig.key) {
+                case 'name':
+                    compare = a.name.localeCompare(b.name);
+                    break;
+                case 'group-kind': {
+                    const ga = [a.group, a.kind].filter(Boolean).join('/');
+                    const gb = [b.group, b.kind].filter(Boolean).join('/');
+                    compare = ga.localeCompare(gb);
+                    break;
+                }
+                case 'namespace':
+                    compare = (a.namespace || '').localeCompare(b.namespace || '');
+                    break;
+                case 'cluster': {
+                    const ca = a.clusterName || a.clusterServer || '';
+                    const cb = b.clusterName || b.clusterServer || '';
+                    compare = ca.localeCompare(cb);
+                    break;
+                }
+                case 'application':
+                    compare = (a.appName || '').localeCompare(b.appName || '');
+                    break;
+                case 'status': {
+                    const healthA = a.health?.status ?? 'Unknown';
+                    const healthB = b.health?.status ?? 'Unknown';
+                    const syncA = (a.status as SyncStatusCode) ?? 'Unknown';
+                    const syncB = (b.status as SyncStatusCode) ?? 'Unknown';
+                    compare = HealthPriority[healthA] - HealthPriority[healthB];
+                    if (compare === 0) {
+                        compare = SyncPriority[syncA] - SyncPriority[syncB];
+                    }
+                    break;
+                }
+            }
+            return sortConfig.direction === 'asc' ? compare : -compare;
+        });
+        return items;
+    }, [props.resources, sortConfig]);
 
     useKeybinding({keys: Key.DOWN, action: () => navResource(1)});
     useKeybinding({keys: Key.UP, action: () => navResource(-1)});
@@ -27,106 +97,198 @@ export const ResourcesTable = (props: {resources: models.Resource[]}) => {
     useKeybinding({
         keys: Key.ENTER,
         action: () => {
-            if (selectedResource > -1) {
-                ctxh.navigation.goto(
-                    AppUtils.getAppUrl({
-                        metadata: {
-                            name: props.resources[selectedResource].appName,
-                            namespace: props.resources[selectedResource].namespace
-                        }
-                    } as models.Application)
-                );
+            if (selectedResource > -1 && selectedResource < sortedResources.length) {
+                const resource = sortedResources[selectedResource];
+                if (props.onOpenDetails) {
+                    props.onOpenDetails(resource);
+                } else {
+                    openResourceDetails(ctxh, resource);
+                }
                 return true;
             }
             return false;
         }
     });
 
+    const openDetails = (ctx: ContextApis, resource: models.Resource) => {
+        if (props.onOpenDetails) {
+            props.onOpenDetails(resource);
+        } else {
+            openResourceDetails(ctx, resource);
+        }
+    };
+
+    const navigateToApplication = (ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) => {
+        ctx.navigation.goto(getManagingApplicationUrl(resource.appName, resource.appNamespace), {}, e ? {event: e} : undefined);
+    };
+
     return (
         <Consumer>
             {ctx => (
-                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                    {pref => {
-                        return (
-                            <div className='resources-table argo-table-list argo-table-list--clickable'>
-                                {props.resources.map((resource, i) => (
-                                    <div
-                                        key={`${resource.appProject}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.name}/${resource.kind}/${resource.group}/${resource.version}`}
-                                        className={`argo-table-list__row resources-list__entry resources-list__entry--health-${resource.health?.status} ${selectedResource === i ? 'resources-list__selected' : ''}`}>
+                <div className='application-details resources-table'>
+                            <div className='argo-table-list argo-table-list--clickable'>
+                                <div className='argo-table-list__head'>
+                                    <div className='row'>
+                                        <div className='columns resources-table__col-icon' />
                                         <div
-                                            className={`row resources-list__table-row`}
-                                            onClick={e =>
-                                                ctx.navigation.goto(
-                                                    AppUtils.getAppUrl({
-                                                        metadata: {
-                                                            name: resource.appName,
-                                                            namespace: resource.appNamespace
-                                                        }
-                                                    } as models.Application),
-                                                    {
-                                                        view: pref.appDetails.view,
-                                                        node: `/${resource.kind}${resource.appNamespace ? `/${resource.appNamespace}` : ''}/${resource.name}/0`
-                                                    },
-                                                    {event: e}
-                                                )
-                                            }>
-                                            <div className='columns small-4'>
-                                                <div className='row'>
-                                                    <div className='show-for-xxlarge columns small-4'>Project:</div>
-                                                    <div className='columns small-12 xxlarge-6'>{resource.appProject}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='show-for-xxlarge columns small-4'>Name:</div>
-                                                    <div className='columns small-12 xxlarge-6'>
-                                                        <Tooltip
-                                                            content={
-                                                                <>
-                                                                    {resource.name}
-                                                                    <br />
-                                                                    <Moment fromNow={true} ago={true}>
-                                                                        {resource.createdAt}
-                                                                    </Moment>
-                                                                </>
-                                                            }>
-                                                            <span>{resource.name}</span>
-                                                        </Tooltip>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className='columns small-4'>
-                                                <div className='row'>
-                                                    <div className='show-for-xxlarge columns small-4'>Application:</div>
-                                                    <div className='columns small-12 xxlarge-6'>{resource.appName}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='show-for-xxlarge columns small-4'>Destination:</div>
-                                                    <div className='columns small-12 xxlarge-6'>
-                                                        <Cluster server={resource.clusterServer} name={resource.clusterName} />/{resource.namespace}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className='columns small-2'>
-                                                {resource?.health && (
-                                                    <>
-                                                        <AppUtils.HealthStatusIcon state={resource?.health} /> {resource?.health?.status} <br />
-                                                    </>
-                                                )}
-                                                {resource?.status && (
-                                                    <>
-                                                        <AppUtils.ComparisonStatusIcon status={resource?.status} />
-                                                        <span>{resource.status}</span>
-                                                    </>
-                                                )}
-                                            </div>
+                                            className='columns resources-table__col-group-kind resources-table__head-col'
+                                            onClick={() => handleSort('group-kind')}
+                                            style={{cursor: 'pointer'}}
+                                            title='GROUP/KIND'>
+                                            <span className='resources-table__head-text'>
+                                                GROUP/KIND {getSortArrow('group-kind')}
+                                            </span>
+                                        </div>
+                                        <div
+                                            className='columns resources-table__col-namespace resources-table__head-col'
+                                            onClick={() => handleSort('namespace')}
+                                            style={{cursor: 'pointer'}}
+                                            title='NAMESPACE'>
+                                            <span className='resources-table__head-text'>
+                                                NAMESPACE {getSortArrow('namespace')}
+                                            </span>
+                                        </div>
+                                        <div
+                                            className='columns resources-table__col-name resources-table__head-col'
+                                            onClick={() => handleSort('name')}
+                                            style={{cursor: 'pointer'}}
+                                            title='NAME'>
+                                            <span className='resources-table__head-text'>NAME {getSortArrow('name')}</span>
+                                        </div>
+                                        <div
+                                            className='columns resources-table__col-cluster resources-table__head-col'
+                                            onClick={() => handleSort('cluster')}
+                                            style={{cursor: 'pointer'}}
+                                            title='CLUSTER'>
+                                            <span className='resources-table__head-text'>CLUSTER {getSortArrow('cluster')}</span>
+                                        </div>
+                                        <div
+                                            className='columns resources-table__col-application resources-table__head-col'
+                                            onClick={() => handleSort('application')}
+                                            style={{cursor: 'pointer'}}
+                                            title='APPLICATION'>
+                                            <span className='resources-table__head-text'>APPLICATION {getSortArrow('application')}</span>
+                                        </div>
+                                        <div
+                                            className='columns resources-table__status-col resources-table__head-col'
+                                            onClick={() => handleSort('status')}
+                                            style={{cursor: 'pointer'}}
+                                            title='STATUS'>
+                                            <span className='resources-table__head-text'>STATUS {getSortArrow('status')}</span>
                                         </div>
                                     </div>
-                                ))}
+                                </div>
+                                {sortedResources.map((resource, i) => {
+                                    const groupKind = [resource.group, resource.kind].filter(Boolean).join('/');
+                                    return (
+                                        <div
+                                            key={`${resource.appProject}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.kind}/${resource.group}/${resource.version}`}
+                                            className={classNames('argo-table-list__row', {
+                                                'application-resource-tree__node--orphaned': resource.orphaned,
+                                                'resources-table__row--selected': selectedResource === i
+                                            })}
+                                            onClick={e => openDetails(ctx, resource)}>
+                                            <div className='row'>
+                                                <div className='columns resources-table__col-icon'>
+                                                    <div className='application-details__resource-icon'>
+                                                        <ResourceIcon group={resource.group} kind={resource.kind} />
+                                                        <div className='resources-table__kind-label'>{ResourceLabel({kind: resource.kind})}</div>
+                                                    </div>
+                                                </div>
+                                                <div className='columns resources-table__col-group-kind'>
+                                                    <Tooltip content={groupKind}>
+                                                        <span className='application-details__item_text'>{groupKind}</span>
+                                                    </Tooltip>
+                                                </div>
+                                                <div className='columns resources-table__col-namespace'>
+                                                    <Tooltip content={resource.namespace} enabled={!!resource.namespace}>
+                                                        <span className='resources-table__tooltip-anchor'>{resource.namespace}</span>
+                                                    </Tooltip>
+                                                </div>
+                                                <div className='columns resources-table__col-name application-details__item'>
+                                                    <Tooltip content={resource.name} enabled={!!resource.name}>
+                                                        <span className='application-details__item_text'>{resource.name}</span>
+                                                    </Tooltip>
+                                                </div>
+                                                <div className='columns resources-table__col-cluster'>
+                                                    <Tooltip content={resource.clusterServer} enabled={!!resource.clusterServer}>
+                                                        <span className='resources-table__cell-text'>
+                                                            <Cluster server={resource.clusterServer} name={resource.clusterName} />
+                                                        </span>
+                                                    </Tooltip>
+                                                </div>
+                                                <div className='columns resources-table__col-application' onClick={e => e.stopPropagation()}>
+                                                    <Tooltip content={resource.appName} enabled={!!resource.appName}>
+                                                        <button
+                                                            type='button'
+                                                            className='resources-table__application-link'
+                                                            onClick={e => navigateToApplication(ctx, resource, e)}>
+                                                            {resource.appName}
+                                                        </button>
+                                                    </Tooltip>
+                                                </div>
+                                                <div className='columns resources-table__status-col'>
+                                                    {resource.health && (
+                                                        <React.Fragment>
+                                                            <AppUtils.HealthStatusIcon state={resource.health} /> {resource.health.status} &nbsp;
+                                                        </React.Fragment>
+                                                    )}
+                                                    {resource.status && <AppUtils.ComparisonStatusIcon status={resource.status} resource={resource} label={true} />}
+                                                </div>
+                                            </div>
+                                            <div className='application-details__node-menu resources-table__row-menu' onClick={e => e.stopPropagation()}>
+                                                <DropDown
+                                                    isMenu={true}
+                                                    anchor={() => (
+                                                        <button type='button' className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                            <i className='fa fa-ellipsis-v' />
+                                                        </button>
+                                                    )}>
+                                                    {() => (
+                                                        <ul>
+                                                            <li
+                                                                className='application-details__action-menu'
+                                                                tabIndex={0}
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    openDetails(ctx, resource);
+                                                                    document.body.click();
+                                                                }}
+                                                                onKeyDown={e => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.stopPropagation();
+                                                                        openDetails(ctx, resource);
+                                                                        document.body.click();
+                                                                    }
+                                                                }}>
+                                                                <i className='fa fa-fw fa-info-circle' /> Details
+                                                            </li>
+                                                            <li
+                                                                className='application-details__action-menu'
+                                                                tabIndex={0}
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    navigateToApplication(ctx, resource);
+                                                                    document.body.click();
+                                                                }}
+                                                                onKeyDown={e => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.stopPropagation();
+                                                                        navigateToApplication(ctx, resource);
+                                                                        document.body.click();
+                                                                    }
+                                                                }}>
+                                                                <i className='fa fa-fw fa-external-link-alt' /> Open application
+                                                            </li>
+                                                        </ul>
+                                                    )}
+                                                </DropDown>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        );
-                    }}
-                </DataLoader>
+                </div>
             )}
         </Consumer>
     );
