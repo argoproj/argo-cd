@@ -3,6 +3,7 @@ package helm
 import (
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -280,10 +281,10 @@ func TestSkipTests(t *testing.T) {
 
 func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 	tests := []struct {
-		name             string
-		mainPlainHTTP    bool
-		depInsecureHTTP  bool
-		expectPlainHTTP  bool
+		name            string
+		mainPlainHTTP   bool
+		depInsecureHTTP bool
+		expectPlainHTTP bool
 	}{
 		{
 			name:            "neither main nor dep plain-http",
@@ -333,14 +334,7 @@ func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 			err = h.DependencyBuild()
 			require.NoError(t, err)
 
-			hasPlainHTTP := false
-			for _, arg := range capturedArgs {
-				if arg == "--plain-http" {
-					hasPlainHTTP = true
-					break
-				}
-			}
-			require.Equal(t, tc.expectPlainHTTP, hasPlainHTTP)
+			require.Equal(t, tc.expectPlainHTTP, slices.Contains(capturedArgs, "--plain-http"))
 		})
 	}
 }

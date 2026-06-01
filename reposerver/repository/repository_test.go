@@ -5898,10 +5898,10 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepo(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		Repos: []*v1alpha1.Repository{{
-			Repo:                "oci://example.com",
-			Username:            "test",
-			Password:            "test",
-			Type:                "oci",
+			Repo:                 "oci://example.com",
+			Username:             "test",
+			Password:             "test",
+			Type:                 "oci",
 			InsecureOCIForceHttp: true,
 		}},
 		HelmRepoCreds: []*v1alpha1.RepoCreds{},
@@ -5918,10 +5918,10 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 	q := apiclient.ManifestRequest{
 		Repos: []*v1alpha1.Repository{},
 		HelmRepoCreds: []*v1alpha1.RepoCreds{{
-			URL:                 "oci://example.com",
-			Username:            "test",
-			Password:            "test",
-			Type:                "oci",
+			URL:                  "oci://example.com",
+			Username:             "test",
+			Password:             "test",
+			Type:                 "oci",
 			InsecureOCIForceHttp: true,
 		}},
 	}
