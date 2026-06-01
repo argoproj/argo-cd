@@ -68,11 +68,11 @@ export enum AppsListViewKey {
     Tiles = 'tiles'
 }
 
-export type ResourcesListViewType = 'list' | 'tiles';
+export type ResourcesListViewType = 'list' | 'summary';
 
 export enum ResourcesListViewKey {
     List = 'list',
-    Tiles = 'tiles'
+    Summary = 'summary'
 }
 
 export class AbstractAppsListPreferences {
@@ -306,6 +306,9 @@ export class ViewPreferencesService {
         resourcesList.apiGroupFilter = resourcesList.apiGroupFilter || [];
         resourcesList.kindFilter = resourcesList.kindFilter || [];
         resourcesList.statusBarView = resourcesList.statusBarView || {showHealthStatusBar: true};
+        if (resourcesList.view !== ResourcesListViewKey.List && resourcesList.view !== ResourcesListViewKey.Summary) {
+            resourcesList.view = ResourcesListViewKey.List;
+        }
     }
 
     private normalizeAppListPreferences(appList: AppsListPreferences): void {
