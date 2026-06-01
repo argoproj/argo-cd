@@ -1,7 +1,10 @@
 import * as React from 'react';
 const PieChart = require('react-svg-piechart').default;
 
-import {COLORS} from '../../../shared/components';
+import {Tooltip} from 'argo-ui';
+
+import {ClusterCtx, COLORS, DataLoader} from '../../../shared/components';
+import {getClusterLegendDisplay, getResourceClusterLabel} from '../../../shared/utils';
 import {
     ARGO_FAILED_COLOR,
     ARGO_GRAY4_COLOR,
@@ -14,6 +17,7 @@ import {
 import * as models from '../../../shared/models';
 import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
+import {useLegendDisplayText} from './truncated-text-tooltip';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -46,11 +50,18 @@ const MAX_PIE_SLICES = 10;
 const OTHERS_LABEL = 'Others';
 const OTHERS_COLOR = ARGO_GRAY4_COLOR;
 
+function capitalizeLegendLabel(label: string): string {
+    if (!label) {
+        return label;
+    }
+    return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 type PieSlice = {title: string; value: number; color: string};
 
 type SummaryChart = {
     title: string;
-    type: 'health' | 'sync' | 'category';
+    type: 'health' | 'sync' | 'category' | 'cluster' | 'kind';
     data: PieSlice[];
     legend: Map<string, string>;
 };
@@ -90,7 +101,7 @@ function countBy(resources: models.Resource[], getKey: (resource: models.Resourc
     return counts;
 }
 
-function buildCategoryChart(title: string, counts: Map<string, number>): SummaryChart {
+function buildCategoryChart(title: string, counts: Map<string, number>, type: 'category' | 'cluster' | 'kind' = 'category'): SummaryChart {
     const keys = Array.from(counts.keys()).sort((a, b) => {
         const byCount = (counts.get(b) || 0) - (counts.get(a) || 0);
         return byCount !== 0 ? byCount : a.localeCompare(b);
@@ -101,7 +112,7 @@ function buildCategoryChart(title: string, counts: Map<string, number>): Summary
         color: ''
     }));
     const data = assignCategoryColors(limitPieSlices(slices));
-    return {title, type: 'category', data, legend: legendFromSlices(data)};
+    return {title, type, data, legend: legendFromSlices(data)};
 }
 
 function buildStatusChart(title: string, type: 'sync' | 'health', counts: Map<string, number>, statusColors: Map<string, string>): SummaryChart {
@@ -114,14 +125,68 @@ function buildStatusChart(title: string, type: 'sync' | 'health', counts: Map<st
     return {title, type, data, legend: legendFromSlices(data, statusColors)};
 }
 
-function clusterLabel(resource: models.Resource): string {
-    return resource.clusterName || resource.clusterServer || 'Unknown';
+function groupKindLabel(resource: models.Resource): string {
+    return [resource.group, resource.kind].filter(Boolean).join('/') || 'Unknown';
 }
 
-export const ResourcesSummary = ({resources}: {resources: models.Resource[]}) => {
+function kindFromGroupKind(groupKind: string): string {
+    const slashIndex = groupKind.lastIndexOf('/');
+    return slashIndex >= 0 ? groupKind.slice(slashIndex + 1) : groupKind;
+}
+
+function hasGroupKindGroup(groupKind: string): boolean {
+    return groupKind.includes('/');
+}
+
+const SummaryLegendText = ({
+    label,
+    value,
+    tooltip,
+    showTooltipAlways,
+    showTooltipWhenTruncated
+}: {
+    label: string;
+    value: number;
+    tooltip: string;
+    showTooltipAlways: boolean;
+    showTooltipWhenTruncated: boolean;
+}) => {
+    const {ref, displayText, isTruncated} = useLegendDisplayText(label, value);
+    const showTooltip = !!tooltip && (showTooltipAlways || (showTooltipWhenTruncated && isTruncated));
+
+    return (
+        <Tooltip content={tooltip} enabled={showTooltip}>
+            <span ref={ref}>{displayText}</span>
+        </Tooltip>
+    );
+};
+
+const KindLegendText = ({label, value}: {label: string; value: number}) => {
+    const legendDisplay = capitalizeLegendLabel(kindFromGroupKind(label));
+
+    return <SummaryLegendText label={legendDisplay} value={value} tooltip={label} showTooltipAlways={hasGroupKindGroup(label)} showTooltipWhenTruncated={true} />;
+};
+
+const ClusterLegendText = ({label, value, clusters}: {label: string; value: number; clusters: models.Cluster[]}) => {
+    const {display, tooltip, truncate} = getClusterLegendDisplay(label, clusters);
+    const legendDisplay = capitalizeLegendLabel(display);
+
+    return (
+        <SummaryLegendText
+            label={legendDisplay}
+            value={value}
+            tooltip={tooltip || display}
+            showTooltipAlways={!!tooltip && !truncate}
+            showTooltipWhenTruncated={!!tooltip && truncate}
+        />
+    );
+};
+
+const ResourcesSummaryContent = ({resources, clusters}: {resources: models.Resource[]; clusters: models.Cluster[]}) => {
+    const clusterLabel = (resource: models.Resource) => getResourceClusterLabel(resource, clusters);
     const sync = countBy(resources, resource => (resource.status as SyncStatusCode) || 'Unknown');
     const health = countBy(resources, resource => resource.health?.status || 'Unknown');
-    const kind = countBy(resources, resource => resource.kind || 'Unknown');
+    const kind = countBy(resources, groupKindLabel);
     const cluster = countBy(resources, clusterLabel);
 
     const attributes = [
@@ -140,8 +205,8 @@ export const ResourcesSummary = ({resources}: {resources: models.Resource[]}) =>
     const charts: SummaryChart[] = [
         buildStatusChart('Sync', 'sync', sync, syncColors as Map<string, string>),
         buildStatusChart('Health', 'health', health, healthColors as Map<string, string>),
-        buildCategoryChart('Kind', kind),
-        buildCategoryChart('Cluster', cluster)
+        buildCategoryChart('Kind', kind, 'kind'),
+        buildCategoryChart('Cluster', cluster, 'cluster')
     ];
 
     return (
@@ -172,19 +237,29 @@ export const ResourcesSummary = ({resources}: {resources: models.Resource[]}) =>
                                     <div className='large-3 small-1'>
                                         <ul>
                                             {chart.data.map(slice => (
-                                                <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={slice.title}>
-                                                    {chart.type === 'health' && slice.title !== OTHERS_LABEL && (
-                                                        <HealthStatusIcon state={{status: slice.title as HealthStatusCode, message: ''}} noSpin={true} />
-                                                    )}
-                                                    {chart.type === 'sync' && slice.title !== OTHERS_LABEL && (
-                                                        <ComparisonStatusIcon status={slice.title as SyncStatusCode} noSpin={true} />
-                                                    )}
-                                                    {(chart.type === 'category' || slice.title === OTHERS_LABEL) && (
-                                                        <span style={{color: slice.color}}>
-                                                            <i className='fa fa-circle' style={{fontSize: '0.65em', verticalAlign: 'middle'}} />{' '}
-                                                        </span>
-                                                    )}
-                                                    {`${slice.title} (${slice.value})`}
+                                                <li className='resources-list__summary-legend-item' key={slice.title}>
+                                                    <span className='resources-list__summary-legend-icon'>
+                                                        {chart.type === 'health' && slice.title !== OTHERS_LABEL && (
+                                                            <HealthStatusIcon state={{status: slice.title as HealthStatusCode, message: ''}} noSpin={true} />
+                                                        )}
+                                                        {chart.type === 'sync' && slice.title !== OTHERS_LABEL && (
+                                                            <ComparisonStatusIcon status={slice.title as SyncStatusCode} noSpin={true} />
+                                                        )}
+                                                        {(chart.type === 'category' || chart.type === 'cluster' || chart.type === 'kind' || slice.title === OTHERS_LABEL) && (
+                                                            <span style={{color: slice.color}}>
+                                                                <i className='fa fa-circle' style={{fontSize: '0.65em', verticalAlign: 'middle'}} />
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    <span className='resources-list__summary-legend-text'>
+                                                        {chart.type === 'cluster' && slice.title !== OTHERS_LABEL ? (
+                                                            <ClusterLegendText label={slice.title} value={slice.value} clusters={clusters} />
+                                                        ) : chart.type === 'kind' && slice.title !== OTHERS_LABEL ? (
+                                                            <KindLegendText label={slice.title} value={slice.value} />
+                                                        ) : (
+                                                            `${capitalizeLegendLabel(slice.title)} (${slice.value})`
+                                                        )}
+                                                    </span>
                                                 </li>
                                             ))}
                                         </ul>
@@ -198,3 +273,11 @@ export const ResourcesSummary = ({resources}: {resources: models.Resource[]}) =>
         </div>
     );
 };
+
+export const ResourcesSummary = ({resources}: {resources: models.Resource[]}) => (
+    <ClusterCtx.Consumer>
+        {clusters => (
+            <DataLoader load={() => clusters}>{(clusterList: models.Cluster[]) => <ResourcesSummaryContent resources={resources} clusters={clusterList || []} />}</DataLoader>
+        )}
+    </ClusterCtx.Consumer>
+);

@@ -146,6 +146,49 @@ export const formatClusterQueryParam = (cluster: Cluster) => {
     return `${cluster.name} (${cluster.server})`;
 };
 
+export function getResourceClusterLabel(resource: {clusterName?: string; clusterServer?: string}, clusterList: Cluster[]): string {
+    const cluster = (clusterList || []).find(target => target.name === resource.clusterName || target.server === resource.clusterServer);
+    if (!cluster) {
+        return resource.clusterServer || resource.clusterName || 'Unknown';
+    }
+    return formatClusterQueryParam(cluster);
+}
+
+export function trimClusterServerProtocol(server: string): string {
+    return server.replace(/^https?:\/\//, '');
+}
+
+export type ClusterLegendDisplay = {
+    display: string;
+    tooltip?: string;
+    truncate: boolean;
+};
+
+export function getClusterLegendDisplay(label: string, clusterList: Cluster[]): ClusterLegendDisplay {
+    if (!label || label === 'Unknown') {
+        return {display: label || 'Unknown', truncate: false};
+    }
+
+    const match = label.match(/^(.*) [(](https?:\/\/.*)[)]$/);
+    if (match) {
+        const [, name, server] = match;
+        if (name && server && name !== server) {
+            return {display: name, tooltip: server, truncate: false};
+        }
+    }
+
+    const cluster = (clusterList || []).find(c => formatClusterQueryParam(c) === label || c.server === label || c.name === label);
+    const server = cluster?.server || (/^https?:\/\//.test(label) ? label : undefined);
+    const name = cluster?.name;
+
+    if (name && server && name !== server) {
+        return {display: name, tooltip: server, truncate: false};
+    }
+
+    const url = server || label;
+    return {display: trimClusterServerProtocol(url), tooltip: url, truncate: true};
+}
+
 /**
  * Checks if SSO is configured for authentication usage.
  * @param userInfo - User information from the session

@@ -209,6 +209,27 @@
     .chart {
         justify-content: space-evenly;
     }
+
+    .resources-list__summary-legend-item {
+        display: flex;
+        align-items: center;
+        list-style: none;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .resources-list__summary-legend-icon {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        margin-right: 0.35em;
+    }
+
+    .resources-list__summary-legend-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        white-space: nowrap;
+    }
 }
 i.menu_icon {
     vertical-align: middle;

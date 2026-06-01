@@ -1,8 +1,9 @@
 import {useData} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
-import {Cluster, HealthStatusCode, HealthStatuses, Resource, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import {HealthStatusCode, HealthStatuses, Resource, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {ResourcesListPreferences, services} from '../../../shared/services';
+import {getResourceClusterLabel} from '../../../shared/utils';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
 
@@ -139,19 +140,11 @@ const ProjectFilter = (props: AppFilterProps) => {
 };
 
 const ClusterFilter = (props: AppFilterProps) => {
-    const getClusterDetail = (dest: Resource, clusterList: Cluster[]): string => {
-        const cluster = (clusterList || []).find(target => target.name === dest.clusterName || target.server === dest.clusterServer);
-        if (!cluster) {
-            return dest.clusterServer || dest.clusterName;
-        }
-        if (cluster.name === cluster.server) {
-            return cluster.name;
-        }
-        return `${cluster.name} (${cluster.server})`;
-    };
-
     const [clusters, loading, error] = useData(() => services.clusters.list());
-    const clusterOptions = optionsFrom(Array.from(new Set(props.apps.map(app => getClusterDetail(app, clusters)).filter(item => !!item))), props.pref.clustersFilter);
+    const clusterOptions = optionsFrom(
+        Array.from(new Set(props.apps.map(app => getResourceClusterLabel(app, clusters)).filter(item => !!item))),
+        props.pref.clustersFilter
+    );
 
     return (
         <Filter
