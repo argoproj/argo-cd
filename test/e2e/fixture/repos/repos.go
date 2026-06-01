@@ -132,6 +132,7 @@ func AddOCIRepo(t *testing.T, name, imagePath string) {
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
+
 func AddAuthenticatedOCIRepo(t *testing.T, name, imagePath string) {
 	t.Helper()
 	args := []string{
@@ -156,6 +157,7 @@ func AddHelmOCIRepo(t *testing.T, name string) {
 		"--type", "helm",
 		"--name", name,
 		"--enable-oci",
+		"--insecure-oci-force-http",
 	}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
