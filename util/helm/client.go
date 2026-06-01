@@ -227,9 +227,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 				return "", nil, fmt.Errorf("failed to get file info for cached chart path: %w", statErr)
 			}
 			exists = false
-		}
-
-		if exists {
+		} else {
 			now := time.Now()
 			modTime := info.ModTime()
 			if modTime.After(now) || now.Sub(modTime) > c.chartCacheExpiration {
