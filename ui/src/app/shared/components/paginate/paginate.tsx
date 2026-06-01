@@ -127,6 +127,7 @@ function Paginator({page, pageCount, pageNumMinWidth, onPageChange}: PaginatorPr
 export interface SortOption<T> {
     title: string;
     compare: (a: T, b: T) => number;
+    defaultDirection?: 'asc' | 'desc';
 }
 
 export interface PaginateProps<T> {
@@ -210,7 +211,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                 if (sortOption && sortOptions) {
                     const selectedSort = sortOptions.find(o => o.title === sortOption);
                     if (selectedSort) {
-                        const direction = pref.sortDirections?.[preferencesKey] ?? 'asc';
+                        const direction = pref.sortDirections?.[preferencesKey] ?? selectedSort.defaultDirection ?? 'asc';
                         sortedData.sort((a, b) => {
                             const result = selectedSort.compare(a, b);
                             return direction === 'asc' ? result : -result;

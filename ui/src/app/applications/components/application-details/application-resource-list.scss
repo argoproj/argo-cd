@@ -1,13 +1,84 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$app-resource-list-icon-col-width: 88px;
+$app-resource-list-menu-width: 2.75rem;
+$app-resource-list-grid-columns: $app-resource-list-icon-col-width minmax(6rem, 1.5fr) minmax(8rem, 1.3fr) 6.5rem minmax(5rem, 1fr) minmax(9rem, 1.5fr) minmax(7rem, 2fr);
+$app-resource-list-grid-columns-with-revision: $app-resource-list-icon-col-width minmax(6rem, 1.5fr) minmax(8rem, 1.3fr) 6.5rem minmax(5rem, 1fr) minmax(4rem, auto) minmax(9rem, 1.5fr) minmax(7rem, 2fr);
+
 .application-details__item {
-  display: flex;
+    display: flex;
 
-  .application-details__item_text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+    .application-details__item_text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
-  .application-details__external_link {
-    flex: 0;
-    min-width: 13px;
-  }
+    .application-details__external_link {
+        flex: 0;
+        min-width: 13px;
+    }
+}
+
+.application-resource-list {
+    width: 100%;
+
+    .argo-table-list__head .row,
+    .argo-table-list__row .row {
+        display: grid;
+        grid-template-columns: $app-resource-list-grid-columns;
+        align-items: center;
+        width: 100%;
+        padding-right: $app-resource-list-menu-width;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    &--with-revision {
+        .argo-table-list__head .row,
+        .argo-table-list__row .row {
+            grid-template-columns: $app-resource-list-grid-columns-with-revision;
+        }
+    }
+
+    &__col-icon,
+    &__col-name,
+    &__col-group-kind,
+    &__col-sync-order,
+    &__col-namespace,
+    &__col-revision,
+    &__col-created-at,
+    &__col-status {
+        width: auto !important;
+        max-width: none !important;
+        flex: none !important;
+        min-width: 0;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    &__col-icon {
+        padding-left: 0;
+        text-align: center;
+    }
+
+    &__head-col {
+        white-space: nowrap;
+    }
+
+    &__col-group-kind,
+    &__col-namespace,
+    &__col-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__col-sync-order {
+        white-space: nowrap;
+        text-align: center;
+    }
+
+    &__head-col.application-resource-list__col-sync-order {
+        text-align: left;
+    }
 }
