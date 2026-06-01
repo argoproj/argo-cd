@@ -269,7 +269,10 @@ const ResourceTableRow = (props: {
                                                 <DropDown
                                                     isMenu={true}
                                                     anchor={() => (
-                                                        <button type='button' className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                        <button
+                                                            type='button'
+                                                            className='argo-button argo-button--light argo-button--lg argo-button--short'
+                                                            onMouseDown={() => document.body.click()}>
                                                             <i className='fa fa-ellipsis-v' />
                                                         </button>
                                                     )}>
