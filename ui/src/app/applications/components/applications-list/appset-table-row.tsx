@@ -72,6 +72,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                 {/* The name anchor below is the row's sole accessible link; this overlay is
                     only for pointer clicks on non-name areas, so hide it from the a11y tree
                     and tab order to avoid a duplicate tab stop / announcement. */}
+                {/* eslint-disable-next-line jsx-a11y/anchor-has-content -- intentional: a11y-equivalent anchor on the name (see comment above) */}
                 <a className='applications-list__table-row__overlay-link' href={appSetHref} onClick={handleRowClick} tabIndex={-1} aria-hidden='true' />
                 {/* First column: Favorite, Kind, Name */}
                 <div className='columns small-4'>

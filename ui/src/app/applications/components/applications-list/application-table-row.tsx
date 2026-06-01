@@ -104,6 +104,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                 {/* The name anchor below is the row's sole accessible link; this overlay is
                     only for pointer clicks on non-name areas, so hide it from the a11y tree
                     and tab order to avoid a duplicate tab stop / announcement. */}
+                {/* eslint-disable-next-line jsx-a11y/anchor-has-content -- intentional: a11y-equivalent anchor on the name (see comment above) */}
                 <a className='applications-list__table-row__overlay-link' href={appHref} onClick={handleRowClick} tabIndex={-1} aria-hidden='true' />
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
