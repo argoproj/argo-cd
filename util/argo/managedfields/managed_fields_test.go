@@ -153,6 +153,20 @@ func TestNormalize(t *testing.T) {
 		_, _, err := managedfields.Normalize(liveState, desiredState, []string{}, &pt)
 		require.NoError(t, err)
 	})
+	t.Run("does not panic when pt is nil", func(t *testing.T) {
+		// ResolveParseableType can return nil when a CRD's GVK isn't in the
+		// cluster's openapi schema; Normalize must fall back to the deduced
+		// type rather than dereferencing nil.
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		trustedManagers := []string{"kube-controller-manager"}
+
+		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, trustedManagers, nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, liveResult)
+		require.NotNil(t, desiredResult)
+	})
 }
 
 func validateNestedFloat64(t *testing.T, expected float64, obj *unstructured.Unstructured, fields ...string) {

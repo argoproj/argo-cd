@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="61 known vulnerabilities found in 214 vulnerable dependency paths.">
+  <meta name="description" content="79 known vulnerabilities found in 232 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 17th 2026, 12:57:20 am (UTC+00:00)</p>
+                <p class="timestamp">May 31st 2026, 1:02:06 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>61</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>214 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>79</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>232 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1134</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1789,6 +1789,81 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Improper Check for Certificate Revocation</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh/knownhosts
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh/knownhosts@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Check for Certificate Revocation in the <code>SignatureKey</code> verification process. An attacker can bypass revocation enforcement by presenting a certificate with a revoked <code>SignatureKey</code>, potentially allowing unauthorized access or trust to be established.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh/knownhosts</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5021">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781220">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79568">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHKNOWNHOSTS-16796449">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Improper Handling of Unexpected Data Type</h2>
             <div class="card__section">
         
@@ -1870,6 +1945,387 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-12668891">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Incorrect Type Conversion or Cast</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh/agent
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh/agent@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Incorrect Type Conversion or Cast due to the improper handling of crafted input data in the <code>ed25519.PrivateKey</code> component. An attacker can cause the client to panic by supplying malformed wire bytes.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh/agent</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5033">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781360">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79596">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-16796334">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Missing Release of Resource after Effective Lifetime</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Missing Release of Resource after Effective Lifetime through the repeated opening of channels by an authenticated SSH client that are subsequently rejected by the server. An attacker can cause unbounded memory growth and crash the server process by continuously triggering channel rejections.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5016">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781320">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/35127">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16795342">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Improper Authentication</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Improper Authentication due to the <code>Verify</code> method not checking the User Presence flag in FIDO/U2F security key types. An attacker can perform unauthorized authentication by generating signatures without requiring physical interaction with the hardware security key.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5019">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781662">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79566">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16795344">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Incorrect Type Conversion or Cast</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Incorrect Type Conversion or Cast due to an incorrectly placed cast from bytes to int in the <code>AES-GCM packet decoder</code> process. An attacker can cause a server-side panic by sending specially crafted inputs.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5013">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781620">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79561">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16796326">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Uncaught Exception</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Uncaught Exception in the <code>CertChecker</code> component when used as a public key callback without setting <code>IsUserAuthority</code> or <code>IsHostAuthority</code>. An attacker can cause the server to panic by presenting a crafted certificate.</p>
+        <p><strong>Note:</strong></p>
+        <p>This is only exploitable if both <code>IsUserAuthority</code> and <code>IsHostAuthority</code> are not set in the server configuration.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5015">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781660">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79563">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16796332">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2827,6 +3283,611 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/dexidp/dex@* and golang.org/x/net/html@v0.40.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) in the <code>inBodyEndTagOther()</code> function, when rendering sanitized HTML. An attacker can cause the execution of scripts in the context of the affected application by providing malicious HTML input containing unmatched tags.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/0dc5b7a5f81d7155ade6d5e9db35992998679932">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5025">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781700">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79571">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873672">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/dexidp/dex@* and golang.org/x/net/html@v0.40.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via the <code>readStartTag()</code> function in the <code>Tokenizer</code>. An attacker can cause the execution of scripts in the context of the affected application by supplying malicious HTML with duplicate attributes.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/a452f3cc17168a60bc3f439a3ae0fcffc32eca0e">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5030">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781685">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79575">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873674">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/dexidp/dex@* and golang.org/x/net/html@v0.40.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via the <code>childTextNodesAreLiteral()</code> function in `render.go. An attacker can cause the execution of scripts in the context of the affected application by providing malicious HTML input containing fostered elements that are outside their parent namespace.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/a8fb2fe4f7378f816302b9f2f7b8290ce512e5dd">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5027">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781701">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79572">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873676">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/dexidp/dex@* and golang.org/x/net/html@v0.40.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via the <code>writeQuoted()</code> function, which does not properly handle <code>&gt;</code> characters in DOCTYPE data. An attacker can cause the execution of scripts in the context of the affected application by providing malicious HTML input that contains unescaped <code>&gt;</code>s.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/4ece7b612ad44ad6c4d5e0d5d4df9c18cc211905">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5029">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781703">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79574">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873774">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/dexidp/dex@* and golang.org/x/net/html@v0.40.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity in <code>parse.go</code>, when checking attributes iteratively. An attacker can cause excessive CPU consumption by providing malicious HTML input.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/08be507abce89191d78cd49da60f4501fc910472">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5028">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781702">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79573">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873779">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Out-of-bounds Read</h2>
             <div class="card__section">
         
@@ -2898,6 +3959,157 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-14059804">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Check for Dropped Privileges</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh/agent
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh/agent@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Check for Dropped Privileges due to the omission of constraint extensions such as <code>restrict-destination-v00@openssh.com</code> when adding a key to a remote agent. An attacker can bypass intended key usage restrictions by forwarding keys without the associated constraints, enabling unrestricted use of the key on the remote host.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh/agent</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5006">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/778642">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79435">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-16796343">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Missing Authorization</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh/agent
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh/agent@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Missing Authorization due to the <code>NewKeyring</code> function not enforcing the <code>ConfirmBeforeUse</code> constraint. An attacker can perform unauthorized signing operations by adding keys with constraints that are silently ignored.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh/agent</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5005">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/778640">Go Commit</a></li>
+        <li><a href="https://go.dev/cl/778641">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79436">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-16796347">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2974,6 +4186,388 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-14059803">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the public key parsers. An attacker can exhaust CPU resources by submitting crafted RSA or DSA public keys with excessively large parameters during signature verification. This can be triggered by unauthenticated clients during public key authentication.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5018">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781641">Go Commit</a></li>
+        <li><a href="https://go.dev/cl/781661">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79565">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16795338">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Integer Overflow or Wraparound</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Integer Overflow or Wraparound in the payload size calculation within the <code>Write</code> process. An attacker can cause the process to enter an infinite loop and exhaust system resources by sending a single write operation with data larger than 4GB.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5020">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781663">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79567">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16795340">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Missing Release of Resource after Effective Lifetime</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Missing Release of Resource after Effective Lifetime through the handling of unsolicited global request responses, which can fill an internal buffer and block the connection&#39;s read loop. An attacker can cause a resource leak and prevent the release of blocked goroutines by sending unexpected responses.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5017">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781640">Go Commit</a></li>
+        <li><a href="https://go.dev/cl/781664">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79564">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16796305">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Incorrect Authorization</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Incorrect Authorization. When an SSH server authentication callback returned PartialSuccessError with non-nil Permissions, those permissions were silently discarded, potentially dropping certificate restrictions such as force-command after a second factor succeeded. Returning non-nil Permissions with PartialSuccessError now results in a connection error.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5014">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781621">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79562">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16796309">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Incorrect Authorization</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Incorrect Authorization due to improper enforcement of permissions in the <code>VerifiedPublicKeyCallback</code> process. An attacker can bypass source-address validation by passing a callback type other than public key.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.52.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5023">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781642">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79570">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/a082jnz-LvI">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-16796316">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
