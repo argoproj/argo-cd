@@ -731,15 +731,39 @@ func (m *nativeGitClient) Submodule() error {
 	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
 }
 
-// Checkout checks out the specified revision
-// Uses credentialed command because partial clone repos may trigger lazy blob
-// fetches from the remote during checkout, which require authentication.
+// isPartialClone reports whether the local repo is a partial clone, by checking
+// for any promisor pack file in .git/objects/pack/*.promisor. Partial-clone
+// fetches (--filter=blob:none) always write such a marker, so its presence is a
+// reliable, subprocess-free signal that `git checkout` may trigger lazy blob
+// fetches against the remote and therefore needs credentials.
+func (m *nativeGitClient) isPartialClone() bool {
+	matches, err := filepath.Glob(filepath.Join(m.root, ".git", "objects", "pack", "*.promisor"))
+	if err != nil {
+		// filepath.Glob only errors on a malformed pattern (impossible here).
+		return false
+	}
+	return len(matches) > 0
+}
+
+// Checkout checks out the specified revision. For partial-clone repos (detected
+// via isPartialClone) the command is run through the credentialed path so that
+// any lazy blob fetches triggered by `git checkout` can authenticate against
+// the promisor remote. For non-partial repos the plain runCmd path is used so
+// we don't mint OAuth/JWT tokens (GitHub App, GCP, Azure WorkloadIdentity) on
+// every checkout — a no-op that adds latency and consumes provider rate limits.
 func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
 	ctx := context.Background()
-	if out, err := m.runCredentialedCmdWithOutput(ctx, "checkout", "--force", revision); err != nil {
+	var out string
+	var err error
+	if m.isPartialClone() {
+		out, err = m.runCredentialedCmdWithOutput(ctx, "checkout", "--force", revision)
+	} else {
+		out, err = m.runCmd(ctx, "checkout", "--force", revision)
+	}
+	if err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least

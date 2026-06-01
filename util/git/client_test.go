@@ -1549,48 +1549,71 @@ func Test_LsSignatures_Error(t *testing.T) {
 	}
 }
 
-func Test_nativeGitClient_Checkout_UsesCredentials(t *testing.T) {
-	// This test verifies that Checkout() passes credentials to git, which is
-	// required for partial clone repos where checkout triggers lazy blob fetches.
+// checkoutCredsTestRepo builds a small file:// source repo and a client pointing
+// at it, returning the client, the commit SHA to check out, and the mock creds.
+// Shared by the two Checkout-credential tests below.
+func checkoutCredsTestRepo(t *testing.T) (Client, string, *mockCreds) {
+	t.Helper()
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
 
-	// Add a file and commit so we have something to checkout
-	p := path.Join(tempDir, "testfile")
-	require.NoError(t, os.WriteFile(p, []byte("content"), 0o644))
-	err = runCmd(ctx, tempDir, "git", "add", "testfile")
-	require.NoError(t, err)
-	err = runCmd(ctx, tempDir, "git", "commit", "-m", "add testfile")
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "testfile"), []byte("content"), 0o644))
+	require.NoError(t, runCmd(ctx, tempDir, "git", "add", "testfile"))
+	require.NoError(t, runCmd(ctx, tempDir, "git", "commit", "-m", "add testfile"))
 
-	commitSHA, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	out, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
 	require.NoError(t, err)
-	revision := strings.TrimSpace(string(commitSHA))
+	revision := strings.TrimSpace(string(out))
 
 	creds := &mockCreds{
 		environ: []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
 	}
 
-	// Use NewClient which creates a separate working dir with 'origin' pointing to tempDir
 	client, err := NewClient("file://"+tempDir, creds, true, false, "", "")
 	require.NoError(t, err)
 	t.Cleanup(func() { os.RemoveAll(client.Root()) })
 
-	err = client.Init()
-	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(revision, 0, false))
 
-	err = client.Fetch("", 0, false)
-	require.NoError(t, err)
+	return client, revision, creds
+}
 
-	// Reset the call count after Init/Fetch so we can track checkout specifically
+// Test_nativeGitClient_Checkout_NonPartialClone_SkipsCredentials verifies the
+// rate-limit-saving gate: when the workdir is not a partial clone, Checkout
+// must NOT call creds.Environ(). Minting an OAuth/JWT token (GitHub App, GCP,
+// Azure WorkloadIdentity) on every checkout would consume provider rate limits
+// for no benefit, since a non-partial clone never triggers lazy blob fetches.
+func Test_nativeGitClient_Checkout_NonPartialClone_SkipsCredentials(t *testing.T) {
+	client, revision, creds := checkoutCredsTestRepo(t)
+
+	// Reset after Init/Fetch so we measure only Checkout.
 	creds.environCalls = 0
 
-	_, err = client.Checkout(revision, false, true)
+	_, err := client.Checkout(revision, false, true)
 	require.NoError(t, err)
 
-	// Checkout must call Environ() to pass credentials for partial clone lazy fetches
-	assert.Positive(t, creds.environCalls, "Checkout should call creds.Environ() to support partial clone lazy blob fetches")
+	assert.Zero(t, creds.environCalls, "non-partial-clone Checkout must not invoke creds.Environ()")
+}
+
+// Test_nativeGitClient_Checkout_PartialClone_UsesCredentials covers the other
+// half of the gate: once the workdir is a partial clone (promisor pack present),
+// Checkout must run through the credentialed path so that lazy blob fetches
+// triggered by `git checkout` can authenticate against the promisor remote.
+func Test_nativeGitClient_Checkout_PartialClone_UsesCredentials(t *testing.T) {
+	client, revision, creds := checkoutCredsTestRepo(t)
+
+	// Convert the on-disk repo into a partial-clone-shaped state so that
+	// isPartialClone() returns true.
+	simulatePartialClone(t.Context(), t, client.Root(), revision)
+
+	creds.environCalls = 0
+
+	_, err := client.Checkout(revision, false, true)
+	require.NoError(t, err)
+
+	assert.Positive(t, creds.environCalls, "partial-clone Checkout must call creds.Environ() so lazy blob fetches can authenticate")
 }
 
 func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {

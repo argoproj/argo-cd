@@ -136,9 +136,12 @@ type Repository struct {
 	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty" protobuf:"bytes,31,opt,name=azureServicePrincipalTenantId"`
 	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
 	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty" protobuf:"bytes,32,opt,name=azureActiveDirectoryEndpoint"`
-	// SparsePaths specifies which paths to checkout when using sparse checkout with partial clone.
-	// Paths can be absolute (e.g., "/charts") or relative to the repository root.
-	// If empty, a full checkout will be used, otherwise a partial clone will be used.
+	// SparsePaths specifies which directories to checkout when using sparse
+	// checkout with partial clone. Each entry must be a directory path relative
+	// to the repository root (e.g., "charts" or "apps/foo"). Leading slashes are
+	// rejected by git's cone-mode parser; trailing slashes are accepted and
+	// stripped. If empty, a full checkout will be used; otherwise a partial
+	// clone with the listed directories will be used.
 	SparsePaths []string `json:"sparsePaths,omitempty" protobuf:"bytes,33,rep,name=sparsePaths"`
 }
 
