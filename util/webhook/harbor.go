@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 const (
@@ -74,7 +76,15 @@ func (p *harborParser) CanHandle(r *http.Request) bool {
 	if p.secret == "" {
 		return false
 	}
-	return subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte(p.secret)) == 1
+	got := r.Header.Get("Authorization")
+	if got == "" {
+		return false
+	}
+	if subtle.ConstantTimeCompare([]byte(got), []byte(p.secret)) == 1 {
+		return true
+	}
+	log.WithField(common.SecurityField, common.SecurityHigh).Info("Harbor webhook auth header mismatch")
+	return false
 }
 
 // Parse reads the request body, validates that it is a Harbor push event,

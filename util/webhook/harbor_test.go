@@ -259,6 +259,11 @@ func TestParseHarborRegistryURL(t *testing.T) {
 			resourceURL: "harbor.example.com",
 			wantErr:     true,
 		},
+		{
+			name:        "URL with explicit port",
+			resourceURL: "harbor.example.com:5000/project/repo:v1.0.0",
+			want:        "harbor.example.com:5000",
+		},
 	}
 
 	for _, tt := range tests {
