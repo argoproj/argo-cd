@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -126,21 +127,15 @@ func (p *harborParser) Parse(r *http.Request) (any, error) {
 
 // parseHarborRegistryURL extracts the registry hostname from a Harbor resource URL.
 // resource_url format: "<hostname>/<namespace>/<repo>:<tag>" or "<hostname>/<namespace>/<repo>@<digest>"
-//
-// net/url is intentionally avoided here: Harbor's resource_url frequently omits
-// the scheme (e.g. "hub.harbor.com/project/repo:tag"), which causes url.Parse to
-// treat the entire string as a path rather than a host. Working around that would
-// require prepending a dummy scheme and adding extra validation, making the code
-// less readable than the simple strings.
 func parseHarborRegistryURL(resourceURL string) (string, error) {
-	// Strip any scheme that may have been prepended.
-	u := resourceURL
-	if i := strings.Index(u, "://"); i != -1 {
-		u = u[i+3:]
+	rawURL := resourceURL
+	if !strings.Contains(resourceURL, "://") {
+		rawURL = "oci://" + resourceURL
 	}
-	before, _, ok := strings.Cut(u, "/")
-	if !ok {
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host == "" || parsed.Path == "" || parsed.Path == "/" {
 		return "", fmt.Errorf("harbor webhook: cannot parse registry hostname from resource_url %q", resourceURL)
 	}
-	return before, nil
+	return parsed.Host, nil
 }
