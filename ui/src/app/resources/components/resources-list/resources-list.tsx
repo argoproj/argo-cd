@@ -303,7 +303,9 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                 sync: newPref.syncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
-                cluster: newPref.clustersFilter.join(',')
+                cluster: newPref.clustersFilter.join(','),
+                apiGroup: newPref.apiGroupFilter.join(','),
+                kind: newPref.kindFilter.join(',')
             },
             {replace: true}
         );

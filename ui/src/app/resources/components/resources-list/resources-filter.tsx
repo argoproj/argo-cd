@@ -193,8 +193,24 @@ const KindFilter = (props: AppFilterProps) => {
 };
 
 export const ResourcesFilter = (props: AppFilterProps) => {
+    const appliedFilter = [
+        ...(props.pref.syncFilter || []),
+        ...(props.pref.healthFilter || []),
+        ...(props.pref.projectsFilter || []),
+        ...(props.pref.clustersFilter || []),
+        ...(props.pref.namespacesFilter || []),
+        ...(props.pref.apiGroupFilter || []),
+        ...(props.pref.kindFilter || [])
+    ];
+
+    const onClearFilter = () => {
+        const newPref: ResourcesListPreferences = {...props.pref};
+        ResourcesListPreferences.clearFilters(newPref);
+        props.onChange(newPref);
+    };
+
     return (
-        <FiltersGroup title='Resources filters' content={props.children} collapsed={props.collapsed}>
+        <FiltersGroup title='Resources filters' content={props.children} appliedFilter={appliedFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             <SyncFilter {...props} />
             <HealthFilter {...props} />
             <ProjectFilter {...props} />
