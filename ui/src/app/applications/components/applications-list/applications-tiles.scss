@@ -30,11 +30,19 @@
     // Header buttons (URLs, external-link, favorite) live outside the wrapping anchor
     // to keep the markup valid (no <a>/<button> nested inside <a>). They're absolutely
     // positioned over the top-right of the tile where the original button column rendered.
+    // `pointer-events: none` on the container lets clicks in the gap between icons fall
+    // through to the wrapping anchor below (so empty space still navigates into the tile),
+    // while the children get `pointer-events: auto` so they still receive their own clicks.
     &__header-buttons {
         position: absolute;
         top: 10px;
         right: 14px;
         z-index: 1;
+        pointer-events: none;
+
+        > * {
+            pointer-events: auto;
+        }
     }
 
     &__item {
@@ -47,7 +55,10 @@
     }
 
     // Action buttons (Sync, Refresh, Delete) likewise live outside the wrapping anchor,
-    // absolutely positioned at the bottom of the tile.
+    // absolutely positioned at the bottom of the tile. As with `__header-buttons` above,
+    // the container is `pointer-events: none` so dead-zone clicks between buttons fall
+    // through to the wrapping anchor (preserving the original "click anywhere on the
+    // tile to navigate" behaviour), and the buttons opt back in.
     &__actions {
         position: absolute;
         bottom: 8px;
@@ -57,6 +68,11 @@
         // (0.9375rem) so the buttons align with the labels above.
         padding: 0 calc(1em + 0.9375rem);
         z-index: 1;
+        pointer-events: none;
+
+        button {
+            pointer-events: auto;
+        }
     }
 
     .argo-table-list__row {

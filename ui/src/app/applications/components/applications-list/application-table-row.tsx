@@ -2,7 +2,7 @@ import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
 import {Cluster} from '../../../shared/components';
-import {ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
@@ -24,13 +24,14 @@ export interface ApplicationTableRowProps {
     deleteApplication: (appName: string, appNamespace: string) => void;
 }
 
-// Cell-wrapping anchor that lifts tooltip-bearing content above the row's overlay link
-// (so Tippy can receive hover) and lets the cell behave as a real link (middle-click
-// open-in-new-tab, status-bar URL preview, etc.). tabIndex={-1} keeps it out of the
-// sequential tab order so it doesn't add a duplicate tab stop next to the row's name
-// link, but the cell content stays in the accessibility tree so screen readers can read
-// Source / Labels / Destination. Defined at module scope so children like <Cluster>
-// don't remount on each parent re-render.
+// Wraps a cell's content in an <a> so middle-click / right-click / status-bar URL preview
+// work on the cell itself. tabIndex={-1} keeps it out of the keyboard tab order — the
+// row's overlay anchor is the single tab stop carrying the row's link semantics. The
+// cell content remains in the a11y tree so screen readers can still read Source / Labels
+// / Destination; the trade-off is that SR link lists will show one entry per CellLink
+// (same href as the overlay), which is the accepted cost for preserving mouse affordances
+// on cell content. Defined at module scope so children like <Cluster> don't remount on
+// each parent re-render.
 const CellLink = ({
     href,
     onClick,
@@ -48,6 +49,7 @@ const CellLink = ({
 );
 
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = app.status.health.status;
     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
@@ -94,18 +96,23 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+            ctx.navigation.goto(appPath, {view});
         }
     };
 
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <div className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}>
-                {/* The name anchor below is the row's sole accessible link; this overlay is
-                    only for pointer clicks on non-name areas, so hide it from the a11y tree
-                    and tab order to avoid a duplicate tab stop / announcement. */}
-                {/* eslint-disable-next-line jsx-a11y/anchor-has-content -- intentional: a11y-equivalent anchor on the name (see comment above) */}
-                <a className='applications-list__table-row__overlay-link' href={appHref} onClick={handleRowClick} tabIndex={-1} aria-hidden='true' />
+                {/* The overlay anchor is the row's accessible link: a real link in tab order with an
+                    aria-label so screen readers announce the application name once per row. It sits
+                    behind the row's interactive children (lifted via z-index in the SCSS) so the
+                    visible buttons, dropdowns, status icons, etc. still receive their own clicks. */}
+                <a
+                    className='applications-list__table-row__overlay-link'
+                    href={appHref}
+                    onClick={handleRowClick}
+                    aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                />
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
                     <div className='row'>
@@ -163,7 +170,9 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     </div>
                 </div>
 
-                {/* Second column: Source and Destination */}
+                {/* Second column: Source and Destination — wrapped in CellLink so each cell
+                    behaves as a real link (middle-click / right-click / status-bar URL preview).
+                    Keyboard users tab to the overlay anchor instead (CellLink uses tabIndex=-1). */}
                 <div className='columns small-6'>
                     <div className='row'>
                         <div className='show-for-xxlarge columns small-2'>Source:</div>

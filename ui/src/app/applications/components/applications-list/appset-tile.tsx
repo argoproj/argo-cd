@@ -26,16 +26,17 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
     const managedByURL = getManagedByURL(appSet);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
+    // `pref.appDetails.view` is the Application details view ('tree'|'network'|'list'|'pods'),
+    // which AppSet pages don't support — so the AppSet URL is intentionally view-less.
     const appSetPath = `/${AppUtils.getAppUrl(appSet)}`;
-    const view = pref.appDetails.view;
-    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
+    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}`;
 
     const handleTileClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (e.metaKey || e.ctrlKey || e.shiftKey) {
             return;
         }
         e.preventDefault();
-        ctx.navigation.goto(appSetPath, {view}, {event: e});
+        ctx.navigation.goto(appSetPath, {}, {event: e});
     };
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
@@ -65,7 +66,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`);
+            ctx.navigation.goto(appSetPath);
         }
     };
 

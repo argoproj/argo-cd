@@ -25,27 +25,43 @@
     .applications-list__table-row {
         position: relative;
 
-        // Lift interactive descendants above the overlay link so they receive clicks
-        // directly. The overlay anchor catches clicks on the non-interactive areas.
+        // Lift interactive and tooltip-bearing descendants above the overlay link so they
+        // receive their own clicks and so native `title` / Tippy hover fires on them. The
+        // overlay anchor catches clicks on the remaining non-interactive areas of the row.
+        // `[title]` covers status icons (HealthStatusIcon, ComparisonStatusIcon, etc. in
+        // utils.tsx which render `<i title=…>`); `.application-notice-icon` covers the
+        // NoticeIcon, which uses Tippy instead of native `title`.
         button,
-        a:not(.applications-list__table-row__overlay-link) {
+        a:not(.applications-list__table-row__overlay-link),
+        [title],
+        .application-notice-icon {
             position: relative;
             z-index: 2;
         }
 
-        // .argo-dropdown is already position: absolute via a more specific rule above;
-        // just add z-index so it sits above the overlay link.
+        // `.argo-dropdown` is `position: static` by default (argo-ui dropdown.scss), so
+        // z-index alone wouldn't lift it. Promote it to positioned. The third-column
+        // action menu has a more-specific `position: absolute` rule above which wins,
+        // leaving its absolute layout intact while still getting the z-index lift.
         .argo-dropdown {
+            position: relative;
             z-index: 2;
         }
 
-        // The name itself is a real anchor (same href as the overlay) so clicks on
-        // the name navigate just like clicks elsewhere on the row, and Tippy's hover
-        // listener fires on it. The link-reset styles keep it looking like plain text.
-        // Lift is provided by the `a:not(.applications-list__table-row__overlay-link)`
-        // rule above; the rules here are just visual reset.
-        .applications-list__table-row-name,
+        // Visual reset for the name: it's a plain <span> styled to read like text, since
+        // the row's link semantics live on the overlay anchor.
+        .applications-list__table-row-name {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        // CellLink anchors wrap Source / Labels / Destination cell content. They're
+        // visually identical to the divs they replace (the overlay anchor provides
+        // the visual link semantics); block + min-width:0 preserves the prior
+        // flex/truncation behaviour of those cells.
         .applications-list__table-row__cell-link {
+            display: block;
+            min-width: 0;
             color: inherit;
             text-decoration: none;
 
@@ -53,14 +69,6 @@
                 color: inherit;
                 text-decoration: none;
             }
-        }
-
-        // Cell-wrapping anchors stand in for the divs they replaced (Source, labels,
-        // Destination). Block display + min-width:0 preserves the prior flex/truncation
-        // behaviour of those cells.
-        .applications-list__table-row__cell-link {
-            display: block;
-            min-width: 0;
         }
     }
 
@@ -71,9 +79,16 @@
         color: inherit;
         text-decoration: none;
 
-        &:hover, &:focus, &:visited, &:active {
+        &:hover, &:visited, &:active {
             color: inherit;
             text-decoration: none;
+        }
+
+        // Keyboard focus indicator — the anchor itself is invisible, so draw the outline
+        // on its bounding box (the whole row) for keyboard users.
+        &:focus-visible {
+            outline: 2px solid $argo-color-teal-5;
+            outline-offset: -2px;
         }
     }
 

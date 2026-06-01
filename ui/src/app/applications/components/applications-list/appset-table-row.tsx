@@ -1,7 +1,7 @@
 import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
-import {ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../utils';
 import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
@@ -17,22 +17,24 @@ export interface AppSetTableRowProps {
 }
 
 export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = getAppSetHealthStatus(appSet);
     const linkInfo = getApplicationLinkURL(appSet, ctx.baseHref);
     const managedByURL = getManagedByURL(appSet);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
+    // `pref.appDetails.view` is the Application details view ('tree'|'network'|'list'|'pods'),
+    // which AppSet pages don't support — so the AppSet URL is intentionally view-less.
     const appSetPath = `/${AppUtils.getAppUrl(appSet)}`;
-    const view = pref.appDetails.view;
-    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
+    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}`;
 
     const handleRowClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (e.metaKey || e.ctrlKey || e.shiftKey) {
             return;
         }
         e.preventDefault();
-        ctx.navigation.goto(appSetPath, {view}, {event: e});
+        ctx.navigation.goto(appSetPath, {}, {event: e});
     };
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
@@ -62,18 +64,23 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`);
+            ctx.navigation.goto(appSetPath);
         }
     };
 
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <div className='row applications-list__table-row'>
-                {/* The name anchor below is the row's sole accessible link; this overlay is
-                    only for pointer clicks on non-name areas, so hide it from the a11y tree
-                    and tab order to avoid a duplicate tab stop / announcement. */}
-                {/* eslint-disable-next-line jsx-a11y/anchor-has-content -- intentional: a11y-equivalent anchor on the name (see comment above) */}
-                <a className='applications-list__table-row__overlay-link' href={appSetHref} onClick={handleRowClick} tabIndex={-1} aria-hidden='true' />
+                {/* The overlay anchor is the row's accessible link: a real link in tab order with an
+                    aria-label so screen readers announce the appset name once per row. It sits
+                    behind the row's interactive children (lifted via z-index in the SCSS) so the
+                    visible buttons and dropdowns still receive their own clicks. */}
+                <a
+                    className='applications-list__table-row__overlay-link'
+                    href={appSetHref}
+                    onClick={handleRowClick}
+                    aria-label={AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                />
                 {/* First column: Favorite, Kind, Name */}
                 <div className='columns small-4'>
                     <div className='row'>

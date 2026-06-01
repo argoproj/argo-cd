@@ -76,7 +76,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+            ctx.navigation.goto(appPath, {view});
         }
     };
 
@@ -275,11 +275,14 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                 </button>
                 &nbsp;
                 <Tooltip className='custom-tooltip' content={'Refresh'}>
+                    {/* Spreading refreshLinkAttrs (= {disabled: isAppRefreshing(app)}) onto a real
+                        <button> would actively block clicks while a refresh is in flight, leaving
+                        the user no way to retrigger a stuck refresh — that attribute only existed
+                        because this used to be an <a>, where `disabled` is meaningless. */}
                     <button
                         type='button'
                         className='argo-button argo-button--base'
                         qe-id='applications-tiles-button-refresh'
-                        {...AppUtils.refreshLinkAttrs(app)}
                         onClick={() => refreshApplication(app.metadata.name, app.metadata.namespace)}>
                         <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} /> <span className='show-for-xxlarge'>Refresh</span>
                     </button>
