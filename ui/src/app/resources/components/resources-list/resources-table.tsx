@@ -10,7 +10,7 @@ import {services} from '../../../shared/services';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 import {ResourceLabel} from '../../../applications/components/resource-label';
 import * as AppUtils from '../../../applications/components/utils';
-import {getManagingApplicationUrl, openResourceDetails, resourceHealthState, resourceHealthStatus} from '../utils';
+import {navigateToManagingApplication, openResourceDetails, resourceHealthState, resourceHealthStatus} from '../utils';
 import '../../../applications/components/application-details/application-resource-list.scss';
 import './resources-table.scss';
 import {TruncatedTextTooltip, useTruncatedElement} from './truncated-text-tooltip';
@@ -93,7 +93,7 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
     };
 
     const navigateToApplication = (ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) => {
-        ctx.navigation.goto(getManagingApplicationUrl(resource.appName, resource.appNamespace), {}, e ? {event: e} : undefined);
+        navigateToManagingApplication(ctx, resource, e);
     };
 
     return (

@@ -6,7 +6,7 @@ import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../../../applications/components/utils';
 import {services} from '../../../shared/services';
-import {getManagingApplicationUrl} from '../utils';
+import {getManagingApplicationUrl, navigateToManagingApplication, resourceHighlightUrl} from '../utils';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 
 import './resources-tiles.scss';
@@ -62,9 +62,7 @@ export const ResourceTiles = ({resources}: ResourceTilesProps) => {
         action: () => {
             if (selectedApp > -1) {
                 const resource = resources[selectedApp];
-                ctxh.navigation.goto(getManagingApplicationUrl(resource.appName, resource.appNamespace), {
-                    node: `/${resource.kind}${resource.namespace ? `/${resource.namespace}` : ''}/${resource.name}/0`
-                });
+                navigateToManagingApplication(ctxh, resource);
                 return true;
             }
             return false;
@@ -118,7 +116,7 @@ export const ResourceTiles = ({resources}: ResourceTilesProps) => {
                                                         getManagingApplicationUrl(app.appName, app.appNamespace),
                                                         {
                                                             view: pref.appDetails.view,
-                                                            node: `/${app.kind}${app.namespace ? `/${app.namespace}` : ''}/${app.name}/0`
+                                                            highlight: resourceHighlightUrl(app)
                                                         },
                                                         {event: e}
                                                     )
@@ -165,13 +163,7 @@ export const ResourceTiles = ({resources}: ResourceTilesProps) => {
                                                         </div>
                                                         <div className='columns small-9'>
                                                             <a
-                                                                onClick={e =>
-                                                                    ctx.navigation.goto(
-                                                                        getManagingApplicationUrl(app.appName, app.appNamespace),
-                                                                        {view: pref.appDetails.view},
-                                                                        {event: e}
-                                                                    )
-                                                                }
+                                                                onClick={e => navigateToManagingApplication(ctx, app, e)}
                                                                 target='_blank'
                                                                 style={{fontSize: '16px', fontWeight: 400}}>
                                                                 {app.appName}

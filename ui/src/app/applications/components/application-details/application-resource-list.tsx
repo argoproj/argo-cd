@@ -56,11 +56,19 @@ export interface ApplicationResourceListProps {
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     tree?: models.ApplicationTree;
+    selectedNodeFullName?: string;
 }
 
 export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
     const nodeByKey = new Map<string, models.ResourceNode>();
     props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
+    const selectedRowRef = React.useRef<HTMLDivElement | null>(null);
+
+    React.useEffect(() => {
+        if (props.selectedNodeFullName && selectedRowRef.current) {
+            selectedRowRef.current.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+        }
+    }, [props.selectedNodeFullName, props.resources]);
 
     const getSortArrow = (activeKey: ApplicationResourceSortKey, direction: 'asc' | 'desc', key: ApplicationResourceSortKey) => {
         if (activeKey !== key) {
@@ -166,13 +174,17 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                 </div>
                                 {props.resources.map(res => {
                                     const groupkindjoin = [res.group, res.kind].filter(item => !!item).join('/');
+                                    const resKey = nodeKey(res);
+                                    const isSelected = props.selectedNodeFullName === resKey;
                                     return (
                                         <div
-                                            key={nodeKey(res)}
+                                            key={isSelected ? `${resKey}-highlighted` : resKey}
+                                            ref={isSelected ? selectedRowRef : undefined}
                                             className={classNames('argo-table-list__row', {
+                                                'application-resource-list__row--selected': isSelected,
                                                 'application-resource-tree__node--orphaned': res.orphaned
                                             })}
-                                            onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
+                                            onClick={() => props.onNodeClick && props.onNodeClick(resKey)}>
                                             <div className='row'>
                                                 <div className='application-resource-list__col-icon'>
                                                     <div className='application-details__resource-icon'>

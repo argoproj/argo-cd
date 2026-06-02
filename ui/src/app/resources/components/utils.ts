@@ -1,3 +1,4 @@
+import * as React from 'react';
 import * as AppUtils from '../../applications/components/utils';
 import {ContextApis} from '../../shared/context';
 import * as models from '../../shared/models';
@@ -42,4 +43,14 @@ export function openResourceDetails(ctx: ContextApis, resource: models.Resource)
         },
         {replace: true}
     );
+}
+
+/** `highlight` query value: highlight a resource in list/tree view without opening the details panel. */
+export function resourceHighlightUrl(resource: models.Resource): string {
+    return resourceNodeUrl(resource);
+}
+
+/** Navigate to the owning Application and highlight the resource in list/tree view. */
+export function navigateToManagingApplication(ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) {
+    ctx.navigation.goto(getManagingApplicationUrl(resource.appName, resource.appNamespace), {highlight: resourceHighlightUrl(resource)}, e ? {event: e} : undefined);
 }

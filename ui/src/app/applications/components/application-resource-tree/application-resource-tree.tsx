@@ -41,6 +41,21 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
+export function nodeIdMatchesResourceKey(nodeId: string, targetKey: string, nodes: ResourceTreeNode[]): boolean {
+    if (nodeId === targetKey) {
+        return true;
+    }
+    const node = nodes.find(n => n.uid === nodeId || nodeKey(n) === nodeId);
+    return !!node && nodeKey(node) === targetKey;
+}
+
+export function groupedNodeIdsContainKey(groupedNodeIds: string[], targetKey: string, nodes: ResourceTreeNode[]): boolean {
+    if (!targetKey) {
+        return false;
+    }
+    return groupedNodeIds.some(id => nodeIdMatchesResourceKey(id, targetKey, nodes));
+}
+
 const color = require('color');
 
 export interface ResourceTreeNode extends models.ResourceNode {
@@ -105,6 +120,17 @@ const NODE_TYPES = {
     groupedNodes: 'grouped_nodes',
     podGroup: 'pod_group'
 };
+
+function isGraphNodeHighlighted(graphKey: string, node: dagre.Node & ResourceTreeNode, nodeType: string, selectedNodeFullName: string | undefined, allNodes: ResourceTreeNode[]): boolean {
+    if (!selectedNodeFullName) {
+        return false;
+    }
+    if (nodeType === NODE_TYPES.groupedNodes) {
+        return groupedNodeIdsContainKey((node as {groupedNodeIds?: string[]}).groupedNodeIds || [], selectedNodeFullName, allNodes);
+    }
+    return graphKey === selectedNodeFullName || nodeKey(node) === selectedNodeFullName;
+}
+
 // generate lots of colors with different darkness
 const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6].map(darken => BASE_COLORS.map(item => color(item).darken(darken).hex())).reduce((first, second) => first.concat(second), []);
 
@@ -286,15 +312,18 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
     );
 }
 
-function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode) {
+function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode, allNodes: ResourceTreeNode[]) {
     const indicators = new Array<number>();
     let count = Math.min(node.count - 1, 3);
     while (count > 0) {
         indicators.push(count--);
     }
+    const isActive = groupedNodeIdsContainKey(node.groupedNodeIds, props.selectedNodeFullName || '', allNodes);
     return (
         <React.Fragment>
-            <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            <div
+                className={classNames('application-resource-tree__node', {active: isActive})}
+                style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon'>
                     <ResourceIcon group={node.group} kind={node.kind} />
                     <br />
@@ -1001,6 +1030,14 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
     return result;
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
+    const [highlightEpoch, setHighlightEpoch] = React.useState(0);
+
+    React.useEffect(() => {
+        if (props.selectedNodeFullName) {
+            setHighlightEpoch(epoch => epoch + 1);
+        }
+    }, [props.selectedNodeFullName]);
+
     const graph = new dagre.graphlib.Graph<{[key: string]: any}>();
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
@@ -1497,21 +1534,23 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;
+                    const highlighted = isGraphNodeHighlighted(key, node as dagre.Node & ResourceTreeNode, nodeType, props.selectedNodeFullName, nodes);
+                    const fragmentKey = highlighted ? `${key}-${highlightEpoch}` : key;
                     switch (nodeType) {
                         case NODE_TYPES.filteredIndicator:
-                            return <React.Fragment key={key}>{renderFilteredNode(node as any, props.onClearFilter)}</React.Fragment>;
+                            return <React.Fragment key={fragmentKey}>{renderFilteredNode(node as any, props.onClearFilter)}</React.Fragment>;
                         case NODE_TYPES.externalTraffic:
-                            return <React.Fragment key={key}>{renderTrafficNode(node)}</React.Fragment>;
+                            return <React.Fragment key={fragmentKey}>{renderTrafficNode(node)}</React.Fragment>;
                         case NODE_TYPES.internalTraffic:
                             return null;
                         case NODE_TYPES.externalLoadBalancer:
-                            return <React.Fragment key={key}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
+                            return <React.Fragment key={fragmentKey}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
                         case NODE_TYPES.groupedNodes:
-                            return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
+                            return <React.Fragment key={fragmentKey}>{renderGroupedNodes(props, node as any, nodes)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return <React.Fragment key={key}>{renderPodGroup(props, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>;
+                            return <React.Fragment key={fragmentKey}>{renderPodGroup(props, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
+                            return <React.Fragment key={fragmentKey}>{renderResourceNode(props, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (

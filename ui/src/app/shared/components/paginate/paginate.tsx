@@ -1,7 +1,7 @@
 import {DataLoader, DropDownMenu} from 'argo-ui';
 
 import * as React from 'react';
-import {services} from '../../services';
+import {services, ViewPreferences} from '../../services';
 
 require('./paginate.scss');
 
@@ -140,92 +140,168 @@ export interface PaginateProps<T> {
     header?: React.ReactNode;
     showHeader?: boolean;
     sortOptions?: SortOption<T>[];
+    focusItemKey?: string;
+    getItemKey?: (item: T) => string;
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions, focusItemKey, getItemKey}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
-            {pref => {
-                preferencesKey = preferencesKey || 'default';
-                const pageSize = pref.pageSizes[preferencesKey] || 10;
-                const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
-                const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
-                if (pageCount <= page) {
-                    page = pageCount - 1;
-                }
-
-                function paginator() {
-                    const pageNumMinWidth = `${Math.max(2, String(pageCount).length)}ch`;
-                    return (
-                        <div style={{marginBottom: '0.5em'}}>
-                            <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em', paddingLeft: '1em'}}>
-                                {pageCount > 1 && <Paginator page={page} pageCount={pageCount} pageNumMinWidth={pageNumMinWidth} onPageChange={onPageChange} />}
-                                <div className='paginate__size-menu'>
-                                    {sortOptions && (
-                                        <DropDownMenu
-                                            qeId={`paginate-sort-${preferencesKey}`}
-                                            anchor={() => (
-                                                <a onMouseDown={() => document.body.click()}>
-                                                    Sort: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
-                                                </a>
-                                            )}
-                                            items={sortOptions.map(so => ({
-                                                title: so.title,
-                                                action: () => {
-                                                    if (!pref.sortOptions) {
-                                                        pref.sortOptions = {};
-                                                    }
-                                                    pref.sortOptions[preferencesKey] = so.title;
-                                                    if (!pref.sortDirections) {
-                                                        pref.sortDirections = {};
-                                                    }
-                                                    pref.sortDirections[preferencesKey] = 'asc';
-                                                    services.viewPreferences.updatePreferences(pref);
-                                                    onPageChange(0);
-                                                }
-                                            }))}
-                                        />
-                                    )}
-                                    <DropDownMenu
-                                        qeId={`paginate-items-per-page-${preferencesKey}`}
-                                        anchor={() => (
-                                            <a onMouseDown={() => document.body.click()}>
-                                                Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
-                                            </a>
-                                        )}
-                                        items={[5, 10, 15, 20, -1].map(count => ({
-                                            title: count === -1 ? 'all' : count.toString(),
-                                            action: () => {
-                                                pref.pageSizes[preferencesKey] = count;
-                                                services.viewPreferences.updatePreferences(pref);
-                                            }
-                                        }))}
-                                    />
-                                </div>
-                            </div>
-                            {showHeader && header}
-                        </div>
-                    );
-                }
-                const sortedData = [...data];
-                if (sortOption && sortOptions) {
-                    const selectedSort = sortOptions.find(o => o.title === sortOption);
-                    if (selectedSort) {
-                        const direction = pref.sortDirections?.[preferencesKey] ?? selectedSort.defaultDirection ?? 'asc';
-                        sortedData.sort((a, b) => {
-                            const result = selectedSort.compare(a, b);
-                            return direction === 'asc' ? result : -result;
-                        });
-                    }
-                }
-                return (
-                    <React.Fragment>
-                        <div className='paginate'>{paginator()}</div>
-                        {sortedData.length === 0 && emptyState ? emptyState() : children(pageSize === -1 ? sortedData : sortedData.slice(pageSize * page, pageSize * (page + 1)))}
-                        <div className='paginate'>{pageCount > 1 && paginator()}</div>
-                    </React.Fragment>
-                );
-            }}
+            {pref => (
+                <PaginateContent
+                    page={page}
+                    onPageChange={onPageChange}
+                    data={data}
+                    emptyState={emptyState}
+                    preferencesKey={preferencesKey || 'default'}
+                    header={header}
+                    showHeader={showHeader}
+                    sortOptions={sortOptions}
+                    focusItemKey={focusItemKey}
+                    getItemKey={getItemKey}
+                    pref={pref}>
+                    {children}
+                </PaginateContent>
+            )}
         </DataLoader>
+    );
+}
+
+function PaginateContent<T>({
+    page,
+    onPageChange,
+    children,
+    data,
+    emptyState,
+    preferencesKey,
+    header,
+    showHeader,
+    sortOptions,
+    focusItemKey,
+    getItemKey,
+    pref
+}: PaginateProps<T> & {pref: ViewPreferences}) {
+    const pageSize = pref.pageSizes[preferencesKey] || 10;
+    const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
+    const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
+    const currentPage = pageCount <= page ? pageCount - 1 : page;
+
+    const sortedData = React.useMemo(() => {
+        const next = [...data];
+        if (sortOption && sortOptions) {
+            const selectedSort = sortOptions.find(o => o.title === sortOption);
+            if (selectedSort) {
+                const direction = pref.sortDirections?.[preferencesKey] ?? selectedSort.defaultDirection ?? 'asc';
+                next.sort((a, b) => {
+                    const result = selectedSort.compare(a, b);
+                    return direction === 'asc' ? result : -result;
+                });
+            }
+        }
+        return next;
+    }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey]);
+
+    const autoFocusDoneForKey = React.useRef<string | null>(null);
+    const userPaginatedForKey = React.useRef<string | null>(null);
+    const getItemKeyRef = React.useRef(getItemKey);
+    getItemKeyRef.current = getItemKey;
+    const onPageChangeRef = React.useRef(onPageChange);
+    onPageChangeRef.current = onPageChange;
+
+    React.useEffect(() => {
+        if (!focusItemKey || !getItemKeyRef.current) {
+            autoFocusDoneForKey.current = null;
+            userPaginatedForKey.current = null;
+            return;
+        }
+        if (autoFocusDoneForKey.current && autoFocusDoneForKey.current !== focusItemKey) {
+            autoFocusDoneForKey.current = null;
+            userPaginatedForKey.current = null;
+        }
+        if (userPaginatedForKey.current === focusItemKey || autoFocusDoneForKey.current === focusItemKey) {
+            return;
+        }
+        const index = sortedData.findIndex(item => getItemKeyRef.current!(item) === focusItemKey);
+        if (index < 0) {
+            return;
+        }
+        const targetPage = pageSize === -1 ? 0 : Math.floor(index / pageSize);
+        if (targetPage < 0 || targetPage >= pageCount) {
+            return;
+        }
+        autoFocusDoneForKey.current = focusItemKey;
+        onPageChangeRef.current(targetPage);
+    }, [focusItemKey, pageCount, pageSize, sortedData, sortOption]);
+
+    const handlePageChange = React.useCallback(
+        (newPage: number) => {
+            if (focusItemKey) {
+                userPaginatedForKey.current = focusItemKey;
+            }
+            onPageChange(newPage);
+        },
+        [focusItemKey, onPageChange]
+    );
+
+    function paginator() {
+        const pageNumMinWidth = `${Math.max(2, String(pageCount).length)}ch`;
+        return (
+            <div style={{marginBottom: '0.5em'}}>
+                <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em', paddingLeft: '1em'}}>
+                    {pageCount > 1 && <Paginator page={currentPage} pageCount={pageCount} pageNumMinWidth={pageNumMinWidth} onPageChange={handlePageChange} />}
+                    <div className='paginate__size-menu'>
+                        {sortOptions && (
+                            <DropDownMenu
+                                qeId={`paginate-sort-${preferencesKey}`}
+                                anchor={() => (
+                                    <a onMouseDown={() => document.body.click()}>
+                                        Sort: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
+                                    </a>
+                                )}
+                                items={sortOptions.map(so => ({
+                                    title: so.title,
+                                    action: () => {
+                                        if (!pref.sortOptions) {
+                                            pref.sortOptions = {};
+                                        }
+                                        pref.sortOptions[preferencesKey] = so.title;
+                                        if (!pref.sortDirections) {
+                                            pref.sortDirections = {};
+                                        }
+                                        pref.sortDirections[preferencesKey] = 'asc';
+                                        services.viewPreferences.updatePreferences(pref);
+                                        onPageChange(0);
+                                    }
+                                }))}
+                            />
+                        )}
+                        <DropDownMenu
+                            qeId={`paginate-items-per-page-${preferencesKey}`}
+                            anchor={() => (
+                                <a onMouseDown={() => document.body.click()}>
+                                    Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
+                                </a>
+                            )}
+                            items={[5, 10, 15, 20, -1].map(count => ({
+                                title: count === -1 ? 'all' : count.toString(),
+                                action: () => {
+                                    pref.pageSizes[preferencesKey] = count;
+                                    services.viewPreferences.updatePreferences(pref);
+                                }
+                            }))}
+                        />
+                    </div>
+                </div>
+                {showHeader && header}
+            </div>
+        );
+    }
+
+    return (
+        <React.Fragment>
+            <div className='paginate'>{paginator()}</div>
+            {sortedData.length === 0 && emptyState ? emptyState() : children(pageSize === -1 ? sortedData : sortedData.slice(pageSize * currentPage, pageSize * (currentPage + 1)))}
+            <div className='paginate'>{pageCount > 1 && paginator()}</div>
+        </React.Fragment>
     );
 }

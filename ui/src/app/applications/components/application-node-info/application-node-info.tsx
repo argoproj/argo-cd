@@ -10,7 +10,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, formatCreationTimestamp, getAppUrl, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, formatCreationTimestamp, getAppUrl, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon, nodeKey} from '../utils';
 import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
 import Moment from 'react-moment';
@@ -208,7 +208,7 @@ export const ApplicationNodeInfo = (props: {
     }
     if (props.showApplicationReference) {
         const openApplication = (e?: React.MouseEvent) => {
-            appContext.navigation.goto(`/${getAppUrl(props.application)}`, {}, e ? {event: e} : undefined);
+            appContext.navigation.goto(`/${getAppUrl(props.application)}`, {highlight: `${nodeKey(props.node)}/0`}, e ? {event: e} : undefined);
         };
 
         attributes.push({
