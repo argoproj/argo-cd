@@ -319,6 +319,19 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     </span>
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
+                                {showApplicationReference && (
+                                    <button
+                                        onClick={() =>
+                                            appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
+                                                node: `${AppUtils.nodeKey(selectedNode)}/0`,
+                                                tab: tab || null
+                                            })
+                                        }
+                                        style={{marginLeft: 'auto', marginRight: '5px'}}
+                                        className='argo-button argo-button--base'>
+                                        <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
+                                    </button>
+                                )}
                                 {!showApplicationReference && (
                                     <>
                                         <button
