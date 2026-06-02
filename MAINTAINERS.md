@@ -37,7 +37,7 @@ This document lists the maintainers of the Argo CD project.
 | Regina Voloshin           | [reggie-k](https://github.com/reggie-k)                 | Approver             | [Octopus Deploy](https://octopus.com/)          |
 | Hong Wang                 | [wanghong230](https://github.com/wanghong230)           | Reviewer             | [Akuity](https://akuity.io/)                    |
 | Jonathan West             | [jgwest](https://github.com/jgwest)                     | Reviewer             | [Red Hat](https://redhat.com/)                  |
-| Jaewoo Choi               | [choejwoo](https://github.com/choejwoo)                 | Reviewer             | [Hyundai-Autoever](https://www.hyundai-autoever.com/eng/)        |
+| Jaewoo Choi               | [choejwoo](https://github.com/choejwoo)                 | Reviewer             | [Hyundai Autoever](https://www.hyundai-autoever.com/eng/)        |
 | Alexy Mantha              | [alexymantha](https://github.com/alexymantha)           | Reviewer             | GoTo                                                              |
 | Kanika Rana               | [ranakan19](https://github.com/ranakan19)               | Reviewer             | [Red Hat](https://redhat.com/)                                    |
 | Jonathan Winters          | [jwinters01](https://github.com/jwinters01)             | Approver(ui)         | [Intuit](https://www.github.com/intuit/)                          |
