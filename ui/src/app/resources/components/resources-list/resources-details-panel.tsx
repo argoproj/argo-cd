@@ -1,7 +1,7 @@
 import {SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {BehaviorSubject, combineLatest, from, merge} from 'rxjs';
-import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {combineLatest, from, merge} from 'rxjs';
+import {delay, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader} from '../../../shared/components';
 import {AppContext, Context} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
@@ -30,9 +30,24 @@ function findResourceNode(application: appModels.Application, tree: appModels.Ap
     return nodeByKey.get(selectedNodeKey) || null;
 }
 
+function buildFallbackTree(application: appModels.Application): appModels.ApplicationTree {
+    return {
+        nodes:
+            application.status?.resources?.map((res: appModels.ResourceStatus) => ({
+                ...res,
+                parentRefs: [] as appModels.ResourceRef[],
+                info: [] as appModels.InfoItem[],
+                resourceVersion: '',
+                uid: ''
+            })) || [],
+        orphanedNodes: [],
+        hosts: []
+    };
+}
+
+/** Sliding resource details panel for the global Resources page (read-only app context). */
 export const ResourcesDetailsPanel = (props: {node: string | null; detailsApp: string | null}) => {
     const appContext = React.useContext(Context);
-    const appChanged = React.useRef(new BehaviorSubject<appModels.Application>(null));
     const parsed = props.detailsApp ? parseDetailsApp(props.detailsApp) : null;
     const isShown = !!props.node && !!parsed;
 
@@ -45,30 +60,15 @@ export const ResourcesDetailsPanel = (props: {node: string | null; detailsApp: s
             return from([]);
         }
         const {appName, appNamespace} = parsed;
-        const fallbackTree: appModels.ApplicationTree = {
-            nodes: [],
-            orphanedNodes: [],
-            hosts: []
-        };
         return from(services.applications.get(appName, appNamespace, 'application')).pipe(
             mergeMap(application => {
-                const fallback: appModels.ApplicationTree = {
-                    nodes:
-                        application.status?.resources?.map((res: appModels.ResourceStatus) => ({
-                            ...res,
-                            parentRefs: [] as appModels.ResourceRef[],
-                            info: [] as appModels.InfoItem[],
-                            resourceVersion: '',
-                            uid: ''
-                        })) || [],
-                    orphanedNodes: [],
-                    hosts: []
-                };
+                const fallbackTree = buildFallbackTree(application as appModels.Application);
+                const emptyTree: appModels.ApplicationTree = {nodes: [], orphanedNodes: [], hosts: []};
                 return combineLatest([
-                    merge(from([application]), appChanged.current.pipe(filter(item => !!item))),
+                    from([application]),
                     merge(
-                        from([fallback]),
-                        from(services.applications.resourceTree(appName, appNamespace, 'application')).pipe(map(tree => tree || fallbackTree)),
+                        from([fallbackTree]),
+                        from(services.applications.resourceTree(appName, appNamespace, 'application')).pipe(map(tree => tree || emptyTree)),
                         AppUtils.handlePageVisibility(() =>
                             services.applications
                                 .watchResourceTree(appName, appNamespace, 'application')
@@ -76,18 +76,9 @@ export const ResourcesDetailsPanel = (props: {node: string | null; detailsApp: s
                                 .pipe(retryWhen(errors => errors.pipe(delay(500))))
                         )
                     )
-                ]).pipe(map(([app, tree]) => ({application: app, tree: tree || fallback})));
+                ]).pipe(map(([app, tree]) => ({application: app, tree: tree || fallbackTree})));
             })
         );
-    };
-
-    const updateApp = async (app: appModels.Application, query: {validate?: boolean}) => {
-        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace, 'application');
-        latestApp.metadata.labels = app.metadata.labels;
-        latestApp.metadata.annotations = app.metadata.annotations;
-        latestApp.spec = app.spec;
-        const updatedApp = await services.applications.update(latestApp, query);
-        appChanged.current.next(updatedApp as appModels.Application);
     };
 
     return (
@@ -105,7 +96,9 @@ export const ResourcesDetailsPanel = (props: {node: string | null; detailsApp: s
                                 tree={tree}
                                 application={application}
                                 isAppSelected={false}
-                                updateApp={updateApp}
+                                updateApp={async () => {
+                                    throw new Error('Application updates are not available from the Resources page');
+                                }}
                                 selectedNode={selectedNode}
                                 appCxt={{...appContext, apis: appContext} as unknown as AppContext}
                             />
