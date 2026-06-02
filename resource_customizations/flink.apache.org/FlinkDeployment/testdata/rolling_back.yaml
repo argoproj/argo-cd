@@ -1,0 +1,17 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: test-flink
+  namespace: default
+  generation: 2
+spec:
+  image: flink:1.18
+  flinkVersion: v1_18
+status:
+  observedGeneration: 2
+  lifecycleState: ROLLING_BACK
+  jobStatus:
+    state: RECONCILING
+  jobManagerDeploymentStatus: READY
+  reconciliationStatus:
+    state: ROLLING_BACK

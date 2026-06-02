@@ -1,0 +1,49 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for Flink operator"
+    inputPath: testdata/no_status.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Rolling back to last stable spec"
+    inputPath: testdata/rolling_back.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Rolled back: Upgrade failed, green deployment unhealthy"
+    inputPath: testdata/rolled_back.yaml
+  - healthStatus:
+      status: Healthy
+      message: "ACTIVE_BLUE"
+    inputPath: testdata/active_blue.yaml
+  - healthStatus:
+      status: Healthy
+      message: "ACTIVE_GREEN"
+    inputPath: testdata/active_green.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Job crash-looping (RESTARTING) in ACTIVE_BLUE"
+    inputPath: testdata/active_blue_restarting.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Initializing blue deployment"
+    inputPath: testdata/initializing_blue.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Rolling back to blue deployment"
+    inputPath: testdata/transitioning_to_blue.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Transitioning to green deployment"
+    inputPath: testdata/transitioning_to_green.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Taking savepoint: SAVEPOINTING_BLUE"
+    inputPath: testdata/savepointing_blue.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Job failed, operator recovering"
+    inputPath: testdata/job_failed.yaml
+  - healthStatus:
+      status: "Healthy"
+      message: "ACTIVE_BLUE (warning: Savepoint trigger failed)"
+    inputPath: testdata/active_blue_with_error.yaml

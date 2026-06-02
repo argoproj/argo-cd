@@ -1,0 +1,15 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkBlueGreenDeployment
+metadata:
+  name: test-bg
+  namespace: default
+spec:
+  template:
+    spec:
+      image: flink:1.18
+      flinkVersion: v1_18
+status:
+  blueGreenState: ACTIVE_BLUE
+  jobStatus:
+    state: RUNNING
+  error: "Savepoint trigger failed"
