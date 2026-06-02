@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"dario.cat/mergo"
+	"github.com/mohae/deepcopy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
@@ -58,11 +59,19 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		}
 		for _, b := range g1 {
 			if appSet.Spec.GoTemplate {
+				aCopy, err := deepCopyParams(a)
+				if err != nil {
+					return nil, fmt.Errorf("failed to deep copy params from the first generator in the matrix generator: %w", err)
+				}
+				bCopy, err := deepCopyParams(b)
+				if err != nil {
+					return nil, fmt.Errorf("failed to deep copy params from the second generator in the matrix generator: %w", err)
+				}
 				tmp := map[string]any{}
-				if err := mergo.Merge(&tmp, b, mergo.WithOverride); err != nil {
+				if err := mergo.Merge(&tmp, bCopy, mergo.WithOverride); err != nil {
 					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with temp map: %w", err)
 				}
-				if err := mergo.Merge(&tmp, a, mergo.WithOverride); err != nil {
+				if err := mergo.Merge(&tmp, aCopy, mergo.WithOverride); err != nil {
 					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with the first: %w", err)
 				}
 				res = append(res, tmp)
@@ -172,4 +181,21 @@ func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*ar
 
 func (m *MatrixGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.Matrix.Template
+}
+
+// deepCopyParams returns a deep copy of a generated parameter set so that
+// nested values are not shared across generated matrix combinations.
+func deepCopyParams(params map[string]any) (map[string]any, error) {
+	if params == nil {
+		return nil, nil
+	}
+
+	copied := deepcopy.Copy(params)
+
+	copiedParams, ok := copied.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("expected map[string]any, got %T", copied)
+	}
+
+	return copiedParams, nil
 }
