@@ -155,7 +155,7 @@ func NewCommand() *cobra.Command {
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
-				RepoCacheExpiration:                          repoCacheExpiration,
+				HelmChartCacheExpiration:                     repoCacheExpiration,
 			}, askPassServer)
 			errors.CheckError(err)
 
