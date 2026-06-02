@@ -140,7 +140,9 @@ export interface PaginateProps<T> {
     header?: React.ReactNode;
     showHeader?: boolean;
     sortOptions?: SortOption<T>[];
+    /** Resource key (e.g. from `?highlight=`) of the row to show after navigation. */
     focusItemKey?: string;
+    /** Maps each list item to the same key format as `focusItemKey`. */
     getItemKey?: (item: T) => string;
 }
 
@@ -201,6 +203,10 @@ function PaginateContent<T>({
         return next;
     }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey]);
 
+    // Deep-link highlight: when `focusItemKey` is set (e.g. opening an Application from the
+    // Resources page with `?highlight=group/kind/namespace/name`), jump to the page that
+    // contains that item once. We do not keep forcing the page if the user changes pages
+    // afterward (`userPaginatedForKey`), and we reset when `focusItemKey` changes.
     const autoFocusDoneForKey = React.useRef<string | null>(null);
     const userPaginatedForKey = React.useRef<string | null>(null);
     const getItemKeyRef = React.useRef(getItemKey);
@@ -235,6 +241,7 @@ function PaginateContent<T>({
 
     const handlePageChange = React.useCallback(
         (newPage: number) => {
+            // User took over pagination; stop auto-jumping for this highlight key.
             if (focusItemKey) {
                 userPaginatedForKey.current = focusItemKey;
             }

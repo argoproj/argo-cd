@@ -29,6 +29,8 @@ export interface FilterResult {
     health: boolean;
     namespaces: boolean;
     clusters: boolean;
+    apiGroup: boolean;
+    kind: boolean;
 }
 
 export interface FilteredResource extends Resource {
@@ -68,7 +70,7 @@ const optionsFrom = (options: string[], filter: string[]) => {
         });
 };
 
-interface AppFilterProps {
+interface ResourcesFilterProps {
     apps: FilteredResource[];
     pref: ResourcesListPreferences;
     onChange: (newPrefs: ResourcesListPreferences) => void;
@@ -99,7 +101,7 @@ const getOptions = (apps: FilteredResource[], filterType: keyof FilterResult, fi
     });
 };
 
-const SyncFilter = (props: AppFilterProps) => (
+const SyncFilter = (props: ResourcesFilterProps) => (
     <Filter
         label='SYNC STATUS'
         selected={props.pref.syncFilter}
@@ -116,7 +118,7 @@ const SyncFilter = (props: AppFilterProps) => (
     />
 );
 
-const HealthFilter = (props: AppFilterProps) => (
+const HealthFilter = (props: ResourcesFilterProps) => (
     <Filter
         label='HEALTH STATUS'
         selected={props.pref.healthFilter}
@@ -133,7 +135,7 @@ const HealthFilter = (props: AppFilterProps) => (
     />
 );
 
-const ProjectFilter = (props: AppFilterProps) => {
+const ProjectFilter = (props: ResourcesFilterProps) => {
     const [projects, loading, error] = useData(
         () => services.projects.list('items.metadata.name'),
         null,
@@ -156,7 +158,7 @@ const ProjectFilter = (props: AppFilterProps) => {
     );
 };
 
-const ClusterFilter = (props: AppFilterProps) => {
+const ClusterFilter = (props: ResourcesFilterProps) => {
     const [clusters, loading, error] = useData(() => services.clusters.list());
     const clusterOptions = optionsFrom(Array.from(new Set(props.apps.map(app => getResourceClusterLabel(app, clusters)).filter(item => !!item))), props.pref.clustersFilter);
 
@@ -174,7 +176,7 @@ const ClusterFilter = (props: AppFilterProps) => {
     );
 };
 
-const NamespaceFilter = (props: AppFilterProps) => {
+const NamespaceFilter = (props: ResourcesFilterProps) => {
     const hasClusterScoped = props.apps.some(app => isClusterScopedResource(app.namespace));
     const namespaces = Array.from(new Set(props.apps.map(app => app.namespace).filter(item => !!item)));
     const namespaceOptions = [
@@ -192,7 +194,7 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
-const ApiGroupFilter = (props: AppFilterProps) => {
+const ApiGroupFilter = (props: ResourcesFilterProps) => {
     const apiGroupOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.group).filter(item => !!item))), props.pref.apiGroupFilter);
     return (
         <Filter
@@ -205,12 +207,12 @@ const ApiGroupFilter = (props: AppFilterProps) => {
     );
 };
 
-const KindFilter = (props: AppFilterProps) => {
+const KindFilter = (props: ResourcesFilterProps) => {
     const kindOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.kind).filter(item => !!item))), props.pref.kindFilter);
     return <Filter label='KINDS' selected={props.pref.kindFilter} setSelected={s => props.onChange({...props.pref, kindFilter: s})} field={true} options={kindOptions} />;
 };
 
-export const ResourcesFilter = (props: AppFilterProps) => {
+export const ResourcesFilter = (props: ResourcesFilterProps) => {
     const appliedFilter = [
         ...(props.pref.syncFilter || []),
         ...(props.pref.healthFilter || []),

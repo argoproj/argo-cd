@@ -20,27 +20,27 @@ export const ResourcesStatusBar = ({resources}: ResourcesStatusBarProps) => {
         },
         {
             name: 'Progressing',
-            value: resources.filter(resource => resource?.health?.status === 'Progressing').length,
+            value: resources.filter(resource => resourceHealthStatus(resource) === 'Progressing').length,
             color: COLORS.health.progressing
         },
         {
             name: 'Degraded',
-            value: resources.filter(resource => resource?.health?.status === 'Degraded').length,
+            value: resources.filter(resource => resourceHealthStatus(resource) === 'Degraded').length,
             color: COLORS.health.degraded
         },
         {
             name: 'Suspended',
-            value: resources.filter(resource => resource?.health?.status === 'Suspended').length,
+            value: resources.filter(resource => resourceHealthStatus(resource) === 'Suspended').length,
             color: COLORS.health.suspended
         },
         {
             name: 'Missing',
-            value: resources.filter(resource => resource?.health?.status === 'Missing').length,
+            value: resources.filter(resource => resourceHealthStatus(resource) === 'Missing').length,
             color: COLORS.health.missing
         },
         {
             name: 'Unknown',
-            value: resources.filter(resource => resource?.health?.status === 'Unknown').length,
+            value: resources.filter(resource => resourceHealthStatus(resource) === 'Unknown').length,
             color: COLORS.health.unknown
         }
     ];

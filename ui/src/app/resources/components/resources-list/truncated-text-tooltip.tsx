@@ -1,6 +1,7 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 
+/** Tracks whether `text` overflows its container (CSS ellipsis); updates on resize. */
 export function useTruncatedElement<T extends HTMLElement>(text: string) {
     const ref = React.useRef<T>(null);
     const [isTruncated, setIsTruncated] = React.useState(false);
@@ -108,7 +109,17 @@ export function useLegendDisplayText(label: string, value: number) {
     return {ref, displayText, isTruncated: displayText !== fullText};
 }
 
-export const TruncatedTextTooltip = (props: {content: string; tooltipContent?: string; className?: string; children?: React.ReactNode}) => {
+export interface TruncatedTextTooltipProps {
+    /** Visible text; also used as the tooltip when `tooltipContent` is omitted. */
+    content: string;
+    /** Tooltip text when it differs from `content` (e.g. full URL while the cell shows a short label). */
+    tooltipContent?: string;
+    className?: string;
+    children?: React.ReactNode;
+}
+
+/** Renders single-line text with ellipsis; shows a tooltip only when the text is truncated. */
+export const TruncatedTextTooltip = (props: TruncatedTextTooltipProps) => {
     const text = props.content ?? '';
     const tooltipText = props.tooltipContent ?? text;
     const {ref, isTruncated} = useTruncatedElement<HTMLSpanElement>(text);

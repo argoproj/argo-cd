@@ -33,7 +33,6 @@ type Routes = {[path: string]: {component: React.ComponentType<RouteComponentPro
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
-    // TODO: Uncomment when ApplicationSet details page is fully implemented
     '/applicationsets': {component: applications.component},
     '/resources': {component: resources.component},
     '/settings': {component: settings.component},
@@ -63,7 +62,7 @@ const navItems: NavItem[] = [
     },
     {
         title: 'Resources',
-        tooltip: 'Display all resource argocd managed.',
+        tooltip: 'Display all managed resources.',
         path: '/resources',
         iconClassName: 'argo-icon argo-icon-catalog'
     },

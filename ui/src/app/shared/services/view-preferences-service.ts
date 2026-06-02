@@ -1,8 +1,8 @@
 import * as deepMerge from 'deepmerge';
-import {BehaviorSubject, Observable} from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 
-import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
-import {UserMessages} from '../models';
+import { PodGroupType } from '../../applications/components/application-pod-view/pod-view';
+import { UserMessages } from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -164,16 +164,16 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     resourcesList: ResourcesListPreferences;
-    pageSizes: {[key: string]: number};
-    sortOptions?: {[key: string]: string};
-    sortDirections?: {[key: string]: 'asc' | 'desc'};
+    pageSizes: { [key: string]: number };
+    sortOptions?: { [key: string]: string };
+    sortDirections?: { [key: string]: 'asc' | 'desc' };
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
     theme: string;
     // Per-application notice dismissals, keyed by namespaced app + content hash.
     // See application-notice/notice.ts (dismissalKey).
-    dismissedNotices?: {[key: string]: boolean};
+    dismissedNotices?: { [key: string]: boolean };
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -264,7 +264,7 @@ export class ViewPreferencesService {
 
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
-        const nextPref = Object.assign({}, current, change, {version: minVer});
+        const nextPref = Object.assign({}, current, change, { version: minVer });
         // Normalize appList to ensure all filter arrays are initialized
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
@@ -306,7 +306,7 @@ export class ViewPreferencesService {
         resourcesList.healthFilter = resourcesList.healthFilter || [];
         resourcesList.apiGroupFilter = resourcesList.apiGroupFilter || [];
         resourcesList.kindFilter = resourcesList.kindFilter || [];
-        resourcesList.statusBarView = resourcesList.statusBarView || {showHealthStatusBar: true};
+        resourcesList.statusBarView = resourcesList.statusBarView || { showHealthStatusBar: true };
         if (resourcesList.view !== ResourcesListViewKey.List && resourcesList.view !== ResourcesListViewKey.Summary) {
             resourcesList.view = ResourcesListViewKey.List;
         }

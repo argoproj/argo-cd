@@ -8,68 +8,6 @@
         padding: 0;
     }
     min-height: 88vh;
-    &__title {
-        font-weight: bolder;
-        font-size: 15px;
-        @include themify($themes) {
-            color: themed('text-1');
-        }
-        padding-top: 0.25em;
-        padding-bottom: 0.5em;
-        margin-left: 1em;
-    }
-
-    &__info {
-        line-height: 24px;
-        margin: 1em 0;
-    }
-
-    &__icons {
-        line-height: 24px;
-    }
-
-    &__empty-state {
-        text-align: center;
-    }
-
-    &__entry {
-        padding-left: 1em;
-        border-left: 5px solid $argo-color-gray-4;
-        padding-right: 1em;
-        color: $argo-color-gray-7;
-
-        // healthy statuses
-        &--health-Healthy {
-            border-left-color: $argo-success-color;
-        }
-
-        // intermediate statuses
-        &--health-Progressing {
-            border-left-color: $argo-running-color;
-        }
-
-        &--health-Suspended {
-            border-left-color: $argo-suspended-color;
-        }
-
-        // failed statuses
-        &--health-Degraded {
-            border-left-color: $argo-failed-color;
-        }
-
-        &--health-Unknown {
-            border-left-color: $argo-color-gray-4;
-        }
-
-        &--health-Missing {
-            border-left-color: $argo-status-warning-color;
-        }
-
-        &--actions {
-            padding-top: 1em;
-        }
-
-    }
 
     &__accordion {
         cursor: pointer;
@@ -94,19 +32,6 @@
             cursor: default;
             color: $argo-color-teal-5;
         }
-    }
-
-    &__table-icon {
-        display: inline-block;
-        margin-right: 10px;
-        width: 80px;
-    }
-
-    &__table-row {
-        & > .columns:first-child {
-            padding-left: 15px;
-        }
-        margin-left: -30px !important;
     }
 
     &__search-wrapper {
@@ -172,21 +97,6 @@
                 color: $argo-color-gray-6;
             }
         }
-    }
-
-    &__external-link {
-        position: absolute;
-        top: 1em;
-        right: 1em;
-
-        .large-text-height {
-            line-height: 1.5;
-        }
-    }
-
-    &__external-links-icon-container {
-        position: relative;
-        display: inline-block;
     }
 
     .filters-group__panel {
