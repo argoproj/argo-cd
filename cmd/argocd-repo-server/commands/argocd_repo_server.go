@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"crypto/x509"
 	stderrors "errors"
 	"fmt"
 	"math"
@@ -42,11 +41,6 @@ import (
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 
 	ctls "crypto/tls"
-)
-
-var (
-	healthCheckCert      *ctls.Certificate
-	healthCheckCertMutex sync.RWMutex
 )
 
 var (
@@ -195,9 +189,7 @@ func NewCommand() *cobra.Command {
 
 			healthCheckTLSConfig := &apiclient.TLSConfiguration{DisableTLS: disableTLS}
 			if !disableTLS {
-				cfg, err := buildHealthCheckTLSConfig(server.GetTLSConfig())
-				errors.CheckError(err)
-				healthCheckTLSConfig = &cfg
+				healthCheckTLSConfig = new(buildHealthCheckTLSConfig(server.GetHealthCheckClientCert()))
 			}
 
 			mux := http.NewServeMux()
@@ -304,61 +296,14 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func generateSelfSignedCerts() (apiclient.TLSConfiguration, error) {
-	healthCheckCertMutex.RLock()
-	if healthCheckCert != nil {
-		cfg := apiclient.TLSConfiguration{
-			StrictValidation:   false,
-			ClientCertificates: []ctls.Certificate{*healthCheckCert},
-		}
-		healthCheckCertMutex.RUnlock()
-		return cfg, nil
+func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate) apiclient.TLSConfiguration {
+	cfg := apiclient.TLSConfiguration{
+		// InsecureSkipVerify=true: it is always a localhost connection, so no reason to re-verify the server
+		// certificate on every probe.
+		StrictValidation: false,
 	}
-	healthCheckCertMutex.RUnlock()
-
-	healthCheckCertMutex.Lock()
-	defer healthCheckCertMutex.Unlock()
-
-	if healthCheckCert != nil {
-		return apiclient.TLSConfiguration{
-			StrictValidation:   false,
-			ClientCertificates: []ctls.Certificate{*healthCheckCert},
-		}, nil
+	if healthCheckClientCert != nil {
+		cfg.ClientCertificates = []ctls.Certificate{*healthCheckClientCert}
 	}
-
-	cert, err := tls.GenerateX509KeyPair(tls.CertOptions{
-		Hosts:        []string{"localhost"},
-		Organization: "Argo CD Health Check",
-	})
-	if err != nil {
-		return apiclient.TLSConfiguration{}, err
-	}
-
-	healthCheckCert = cert
-	return apiclient.TLSConfiguration{
-		StrictValidation:   false,
-		ClientCertificates: []ctls.Certificate{*healthCheckCert},
-	}, nil
-}
-
-func buildHealthCheckTLSConfig(srvTLSConfig *ctls.Config) (apiclient.TLSConfiguration, error) {
-	if srvTLSConfig != nil && len(srvTLSConfig.Certificates) > 0 {
-		serverCert, err := x509.ParseCertificate(srvTLSConfig.Certificates[0].Certificate[0])
-		if err != nil {
-			return apiclient.TLSConfiguration{}, fmt.Errorf("failed to parse server certificate: %w", err)
-		}
-		certPool := x509.NewCertPool()
-		certPool.AddCert(serverCert)
-		return apiclient.TLSConfiguration{
-			StrictValidation:   true,
-			Certificates:       certPool,
-			ClientCertificates: srvTLSConfig.Certificates,
-		}, nil
-	}
-
-	selfSignedConfig, err := generateSelfSignedCerts()
-	if err != nil {
-		return apiclient.TLSConfiguration{}, err
-	}
-	return selfSignedConfig, nil
+	return cfg
 }

@@ -582,6 +582,26 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		assert.Equal(t, "test-client-cert-key", config.ClientCertKeyFile)
 	})
 
+	t.Run("Error when only client cert is specified without key", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		err := cmd.Flags().Set("repo-server-client-cert", "test-client-cert")
+		require.NoError(t, err)
+
+		_, err = configSrc()
+		require.ErrorContains(t, err, "--repo-server-client-cert-key is required when --repo-server-client-cert is specified")
+	})
+
+	t.Run("Error when only client cert key is specified without cert", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		err := cmd.Flags().Set("repo-server-client-cert-key", "test-client-cert-key")
+		require.NoError(t, err)
+
+		_, err = configSrc()
+		require.ErrorContains(t, err, "--repo-server-client-cert is required when --repo-server-client-cert-key is specified")
+	})
+
 	t.Run("No mTLS client certificate by default", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
@@ -691,4 +711,32 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 		assert.Contains(t, string(keyPEM), "-----BEGIN RSA PRIVATE KEY-----")
 		assert.Contains(t, string(keyPEM), "-----END RSA PRIVATE KEY-----")
 	})
+}
+
+func TestGenerateHealthCheckClientCert(t *testing.T) {
+	cert, err := GenerateHealthCheckClientCert()
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+	require.NotEmpty(t, cert.Certificate)
+
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+
+	assert.Equal(t, parsed.Subject.String(), parsed.Issuer.String(), "health-check cert must be self-signed")
+	assert.True(t, parsed.IsCA, "health-check cert must have IsCA=true to be usable in a ClientCAs pool")
+	require.Len(t, parsed.ExtKeyUsage, 1)
+	assert.Equal(t, x509.ExtKeyUsageClientAuth, parsed.ExtKeyUsage[0], "health-check cert must only carry ExtKeyUsageClientAuth, not ExtKeyUsageServerAuth")
+
+	assert.NotNil(t, cert.Leaf)
+}
+
+func TestGenerateHealthCheckClientCert_IsRegistrableAsClientCA(t *testing.T) {
+	cert, err := GenerateHealthCheckClientCert()
+	require.NoError(t, err)
+
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+
+	pool := x509.NewCertPool()
+	assert.NotPanics(t, func() { pool.AddCert(parsed) })
 }

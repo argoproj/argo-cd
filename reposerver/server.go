@@ -2,6 +2,7 @@ package reposerver
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,6 +37,9 @@ type ArgoCDRepoServer struct {
 	repoService *repository.Service
 	opts        []grpc.ServerOption
 	tlsConfig   *tls.Config
+	// healthCheckClientCert is an ephemeral cert generated at startup for the liveness probe self-connection.
+	// It is nil when mTLS is not enabled.
+	healthCheckClientCert *tls.Certificate
 }
 
 // The hostnames to generate self-signed certificates with
@@ -44,10 +48,9 @@ var tlsHostList = []string{"localhost", "reposerver"}
 // NewServer returns a new instance of the Argo CD Repo server
 func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
+	var healthCheckClientCert *tls.Certificate
 
 	if !disableTLS {
-		// Generate or load TLS server certificates to use with this instance of
-		//  the repository server.
 		var err error
 		certPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.crt"
 		keyPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.key"
@@ -57,6 +60,26 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		}
 		if tlsConfCustomizer != nil {
 			tlsConfCustomizer(tlsConfig)
+		}
+
+		// When mTLS is active the server will reject any connection that does not present a valid client cert.
+		// The liveness probe connects to localhost, so we generate a dedicated ephemeral cert and register it with the
+		// server's ClientCAs pool.
+		if clientCAPath != "" {
+			hcCert, err := tlsutil.GenerateHealthCheckClientCert()
+			if err != nil {
+				return nil, fmt.Errorf("error generating health-check client certificate: %w", err)
+			}
+			if tlsConfig.ClientCAs == nil {
+				tlsConfig.ClientCAs = x509.NewCertPool()
+			}
+			parsedCert, err := x509.ParseCertificate(hcCert.Certificate[0])
+			if err != nil {
+				return nil, fmt.Errorf("error parsing health-check certificate: %w", err)
+			}
+			tlsConfig.ClientCAs.AddCert(parsedCert)
+			healthCheckClientCert = hcCert
+			log.Infof("Generated ephemeral health-check client certificate (CN=%s)", parsedCert.Subject.CommonName)
 		}
 	}
 
@@ -104,9 +127,10 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	}
 
 	return &ArgoCDRepoServer{
-		opts:        serverOpts,
-		repoService: repoService,
-		tlsConfig:   tlsConfig,
+		opts:                  serverOpts,
+		repoService:           repoService,
+		tlsConfig:             tlsConfig,
+		healthCheckClientCert: healthCheckClientCert,
 	}, nil
 }
 
@@ -130,4 +154,9 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 // GetTLSConfig returns the TLS configuration of the server
 func (a *ArgoCDRepoServer) GetTLSConfig() *tls.Config {
 	return a.tlsConfig
+}
+
+// GetHealthCheckClientCert returns the ephemeral client certificate used by the liveness probe self-connection
+func (a *ArgoCDRepoServer) GetHealthCheckClientCert() *tls.Certificate {
+	return a.healthCheckClientCert
 }

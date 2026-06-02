@@ -125,20 +125,9 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 	if tlsConfig.DisableTLS {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
-		tlsC := &tls.Config{}
-		if !tlsConfig.StrictValidation {
-			tlsC.InsecureSkipVerify = true
-		} else {
-			tlsC.RootCAs = tlsConfig.Certificates
-		}
-		if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
-			cert, err := getClientCertFromCache(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
-			if err != nil {
-				return nil, fmt.Errorf("failed to load client certificate: %w", err)
-			}
-			tlsC.Certificates = []tls.Certificate{cert}
-		} else if len(tlsConfig.ClientCertificates) > 0 {
-			tlsC.Certificates = tlsConfig.ClientCertificates
+		tlsC, err := buildTLSClientConfig(tlsConfig)
+		if err != nil {
+			return nil, err
 		}
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
 	}
@@ -154,4 +143,28 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 // NewRepoServerClientset creates new instance of repo server Clientset
 func NewRepoServerClientset(address string, timeoutSeconds int, tlsConfig TLSConfiguration) Clientset {
 	return &clientSet{address: address, timeoutSeconds: timeoutSeconds, tlsConfig: tlsConfig}
+}
+
+func buildTLSClientConfig(tlsConfig *TLSConfiguration) (*tls.Config, error) {
+	tlsC := &tls.Config{}
+
+	strictValidation := tlsConfig.StrictValidation || tlsConfig.Certificates != nil
+
+	if !strictValidation {
+		tlsC.InsecureSkipVerify = true //nolint:gosec // intentional, controlled by operator flag
+	} else {
+		tlsC.RootCAs = tlsConfig.Certificates
+	}
+
+	if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
+		cert, err := getClientCertFromCache(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load client certificate: %w", err)
+		}
+		tlsC.Certificates = []tls.Certificate{cert}
+	} else if len(tlsConfig.ClientCertificates) > 0 {
+		tlsC.Certificates = tlsConfig.ClientCertificates
+	}
+
+	return tlsC, nil
 }

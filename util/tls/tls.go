@@ -58,6 +58,9 @@ type CertOptions struct {
 	RSABits int
 	// ECDSA curve to use to generate a key. Valid values are P224, P256 (recommended), P384, P521
 	ECDSACurve string
+	// ExtKeyUsage overrides the default ExtKeyUsage list on the generated certificate.
+	// If nil, defaults to []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}.
+	ExtKeyUsage []x509.ExtKeyUsage
 }
 
 type ConfigCustomizer = func(*tls.Config)
@@ -272,6 +275,11 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	if opts.Organization == "" {
 		return nil, nil, errors.New("organization not supplied")
 	}
+
+	extKeyUsage := opts.ExtKeyUsage
+	if extKeyUsage == nil {
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	}
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
@@ -281,7 +289,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 		NotAfter:  notAfter,
 
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		ExtKeyUsage:           extKeyUsage,
 		BasicConstraintsValid: true,
 	}
 
@@ -497,6 +505,14 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 
 	return func() (apiclient.TLSConfiguration, error) {
 		config := tlsConfig
+
+		if config.ClientCertFile != "" && config.ClientCertKeyFile == "" {
+			return config, errors.New("--repo-server-client-cert-key is required when --repo-server-client-cert is specified")
+		}
+		if config.ClientCertKeyFile != "" && config.ClientCertFile == "" {
+			return config, errors.New("--repo-server-client-cert is required when --repo-server-client-cert-key is specified")
+		}
+
 		config.StrictValidation = repoServerCACert != ""
 
 		if repoServerCACert != "" {
@@ -511,4 +527,26 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 
 		return config, nil
 	}
+}
+
+// GenerateHealthCheckClientCert generates an ephemeral self-signed CA + leaf certificate
+// pair for use by the repo-server liveness probe self-connection.
+//
+// The returned certificate is self-signed with IsCA=true so that it can be added directly
+// to a tls.Config.ClientCAs pool: Go's TLS stack will accept any certificate whose issuer
+// appears in ClientCAs, and for a self-signed cert the issuer IS the cert itself.
+//
+// The cert is scoped to the process lifetime and never written to disk. It must be added
+// to the server's ClientCAs pool (via AppendServerClientCA) before the server starts.
+func GenerateHealthCheckClientCert() (*tls.Certificate, error) {
+	return GenerateX509KeyPair(CertOptions{
+		Hosts:        []string{"argocd-repo-server-healthcheck"},
+		Organization: "Argo CD Health Check",
+		IsCA:         true, // self-signed CA so it can be added to ClientCAs pool directly
+		ECDSACurve:   "P256",
+		ValidFor:     10 * 365 * 24 * time.Hour,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageClientAuth,
+		},
+	})
 }
