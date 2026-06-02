@@ -17,6 +17,7 @@ import (
 	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -328,6 +329,8 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		}
 	}
 
+	runHooksOnPartialSync := syncOp.SyncOptions.HasOption(cdcommon.SyncOptionRunHooksOnPartialSync)
+
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
@@ -336,10 +339,11 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 				return m.db.GetProjectClusters(ctx, proj)
 			}, un, res)
 		}),
-		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
+		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || (len(syncOp.Resources) > 0 && !runHooksOnPartialSync)),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||
+				(runHooksOnPartialSync && target != nil && hook.IsHook(target)) ||
 				isPostDeleteHook(target) ||
 				isPreDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
