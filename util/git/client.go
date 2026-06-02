@@ -570,12 +570,13 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 		args = append(args, "--filter=blob:none")
 	}
 
-	if depth > 0 {
+	switch {
+	case depth > 0:
 		args = append(args, "--depth", strconv.FormatInt(depth, 10))
-	} else if !usePartialClone {
+	case !usePartialClone:
 		// Only add --tags if we're doing a full fetch (no partial clone, no depth limit)
 		args = append(args, "--tags")
-	} else {
+	default:
 		// Partial clone with no depth limit. --filter=blob:none omits blobs, but git
 		// still transfers every commit and tree in the repo's entire history. On large
 		// repositories this can take minutes and can look like a hang. A shallow depth
