@@ -295,7 +295,7 @@ func (m myFeatureGates) Enabled(f clientgofeatures.Feature) bool {
 	return m.parent.Enabled(f)
 }
 
-// remove when we have proper WatchListClient and InOrderInformers support
+// FIXME: remove when we have proper WatchListClient and InOrderInformers support
 func ConfigureGoClientFeatures() {
 	gates := clientgofeatures.FeatureGates()
 	isWatchListEnabled := gates.Enabled(clientgofeatures.WatchListClient)

@@ -353,6 +353,17 @@ func (sc SaneFakeClient) Get(ctx context.Context, key client.ObjectKey, obj clie
 	return err
 }
 
+// A workaround for backward compatibility of the fake client.  Before
+// v0.22 controller runtime fake client was always filling GVK of the
+// returned objects.  Now it allways clears TypeMeta field in the
+// target object if it's a typed object (see
+// https://github.com/kubernetes-sigs/controller-runtime/pull/3229)
+// The new behavior is purposed to discourage relying on the returned
+// GVK. But, really, this does not completely map to the behaviour of
+// real k8s client, which preserves the values in the target
+// object. Some of our application code actively relies on this
+// behaviour.  This wrapper preserves existing values, thus better
+// simulating behaviour of a real client instance.
 func MakeSaneFakeClient(fakeClient client.WithWatch) client.WithWatch {
 	client := SaneFakeClient{WithWatch: fakeClient}
 	return client

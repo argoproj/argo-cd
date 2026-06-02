@@ -1239,16 +1239,18 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
-				got := &v1alpha1.Application{}
+				got := &v1alpha1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+				}
 				_ = client.Get(t.Context(), crtclient.ObjectKey{
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
 				}, got)
 
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
-				// controller-runtime's fake client (v0.22+) intentionally clears TypeMeta
-				// for typed objects returned from Get(), matching real Kubernetes API behaviour
-				obj.TypeMeta = metav1.TypeMeta{}
 				assert.Equal(t, obj, *got)
 			}
 		})
@@ -2167,7 +2169,7 @@ func TestCreateApplications(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
@@ -2181,17 +2183,18 @@ func TestCreateApplications(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
-				got := &v1alpha1.Application{}
+				got := &v1alpha1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+				}
 				_ = client.Get(t.Context(), crtclient.ObjectKey{
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
 				}, got)
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
 				require.NoError(t, err)
-
-				// controller-runtime's fake client (v0.22+) intentionally clears TypeMeta
-				// for typed objects returned from Get(), matching real Kubernetes API behaviour
-				obj.TypeMeta = metav1.TypeMeta{}
 				assert.Equal(t, obj, *got)
 			}
 		})
