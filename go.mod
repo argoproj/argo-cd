@@ -317,11 +317,13 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
-require github.com/go-openapi/runtime/server-middleware v0.32.3
+require (
+	github.com/go-openapi/runtime/server-middleware v0.32.3
+	k8s.io/streaming v0.36.1
+)
 
 require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	k8s.io/streaming v0.36.1 // indirect
 )
 
 replace (
