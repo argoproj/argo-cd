@@ -148,16 +148,14 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedResolvedRev:    "",
 		},
 		{
-			name: "hydration failed within cooldown without last compared revision",
+			name: "failed within cooldown, empty baseline",
 			app: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
 					CurrentOperation: &v1alpha1.HydrateOperation{
-						DrySHA:         "abc123",
 						StartedAt:      now,
 						FinishedAt:     &now,
 						Phase:          v1alpha1.HydrateOperationPhaseFailed,
-						Message:        "Failed to hydrate: commit server unavailable",
 						SourceHydrator: v1alpha1.SourceHydrator{},
 					},
 				}},
@@ -167,7 +165,41 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedResolvedRev:    "",
 		},
 		{
-			name: "hydration failed within cooldown",
+			name: "failed within cooldown, nil finishedAt, empty baseline",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						StartedAt:      now,
+						Phase:          v1alpha1.HydrateOperationPhaseFailed,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+				}},
+			},
+			expectedNeedsHydration: false,
+			expectedMessage:        "previous hydrate operation failed",
+			expectedResolvedRev:    "",
+		},
+		{
+			name: "failed within cooldown, normal hydrate requested",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"}},
+				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						StartedAt:      now,
+						FinishedAt:     &now,
+						Phase:          v1alpha1.HydrateOperationPhaseFailed,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+				}},
+			},
+			expectedNeedsHydration: true,
+			expectedMessage:        "retrying previous failed hydration",
+			expectedResolvedRev:    "",
+		},
+		{
+			name: "failed within cooldown, dry baseline, new commit",
 			app: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
@@ -181,9 +213,15 @@ func Test_appNeedsHydration(t *testing.T) {
 					LastComparedDryRevision: "abc123",
 				}},
 			},
-			expectedNeedsHydration: false,
-			expectedMessage:        "previous hydrate operation failed",
-			expectedResolvedRev:    "",
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, false).Return(true, "new-sha", nil)
+			},
+			expectedNeedsHydration: true,
+			expectedMessage:        "new revision may have changes",
+			expectedResolvedRev:    "new-sha",
 		},
 		{
 			name: "new revision detected",

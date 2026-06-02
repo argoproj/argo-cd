@@ -581,11 +581,22 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration boo
 	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
 		return true, "spec.sourceHydrator differs", ""
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed:
-		if app.Status.SourceHydrator.CurrentOperation.FinishedAt == nil ||
-			metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) <= 2*time.Minute {
+		finishedAt := app.Status.SourceHydrator.CurrentOperation.FinishedAt
+		withinCooldown := finishedAt == nil || metav1.Now().Sub(finishedAt.Time) <= 2*time.Minute
+		switch {
+		case requested:
+			// Manual/API refresh or dry-source webhook explicitly asks to hydrate;
+			// retry now (hard requests are handled by the earlier case).
+			return true, "retrying previous failed hydration", ""
+		case !withinCooldown:
+			return true, "previous hydrate operation failed more than 2 minutes ago", ""
+		case app.Status.SourceHydrator.LastComparedDryRevision == "":
+			// No baseline to diff against; revision evaluation would always report
+			// "needs hydration", causing a tight retry loop. Wait out the cooldown.
 			return false, "previous hydrate operation failed", ""
 		}
-		return true, "previous hydrate operation failed more than 2 minutes ago", ""
+		// Within cooldown with a baseline: fall through to newRevisionHasChanges so a
+		// new dry commit retries immediately while an unchanged revision stays idle.
 	}
 
 	// Check for new revision changes
