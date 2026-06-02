@@ -33634,7 +33634,7 @@ spec:
         - name: ARGOCD_HYDRATOR_VERIFY_SOURCE_INTEGRITY
           valueFrom:
             configMapKeyRef:
-              key: hydrator.verify.source.integrity
+              key: hydrator.verifySourceIntegrity
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
