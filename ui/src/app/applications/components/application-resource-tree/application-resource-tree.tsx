@@ -121,8 +121,19 @@ const NODE_TYPES = {
     podGroup: 'pod_group'
 };
 
-function isGraphNodeHighlighted(graphKey: string, node: dagre.Node & ResourceTreeNode, nodeType: string, selectedNodeFullName: string | undefined, allNodes: ResourceTreeNode[]): boolean {
+function isGraphNodeHighlighted(
+    graphKey: string,
+    node: dagre.Node & ResourceTreeNode,
+    nodeType: string,
+    selectedNodeFullName: string | undefined,
+    allNodes: ResourceTreeNode[],
+    app: models.AbstractApplication
+): boolean {
     if (!selectedNodeFullName) {
+        return false;
+    }
+    // The synthetic root node uses the same nodeKey as a self-managed Application resource.
+    if (graphKey === appNodeKey(app)) {
         return false;
     }
     if (nodeType === NODE_TYPES.groupedNodes) {
@@ -321,9 +332,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
     const isActive = groupedNodeIdsContainKey(node.groupedNodeIds, props.selectedNodeFullName || '', allNodes);
     return (
         <React.Fragment>
-            <div
-                className={classNames('application-resource-tree__node', {active: isActive})}
-                style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            <div className={classNames('application-resource-tree__node', {active: isActive})} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon'>
                     <ResourceIcon group={node.group} kind={node.kind} />
                     <br />
@@ -505,7 +514,7 @@ function renderPodGroup(
     return (
         <div
             className={classNames('application-resource-tree__node', {
-                'active': fullName === props.selectedNodeFullName,
+                'active': fullName === props.selectedNodeFullName && !rootNode,
                 'application-resource-tree__node--orphaned': node.orphaned,
                 'application-resource-tree__node--grouped-node': !showPodGroupByStatus
             })}
@@ -840,7 +849,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', !isManagedAppSet && 'application-resource-tree__node--' + node.kind.toLowerCase(), {
-                'active': fullName === props.selectedNodeFullName,
+                'active': fullName === props.selectedNodeFullName && !rootNode,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={isAppSetParent ? `ApplicationSet: ${node.name}\nThis ApplicationSet generates and manages this Application.` : describeNode(node)}
@@ -1534,7 +1543,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;
-                    const highlighted = isGraphNodeHighlighted(key, node as dagre.Node & ResourceTreeNode, nodeType, props.selectedNodeFullName, nodes);
+                    const highlighted = isGraphNodeHighlighted(key, node as dagre.Node & ResourceTreeNode, nodeType, props.selectedNodeFullName, nodes, props.app);
                     const fragmentKey = highlighted ? `${key}-${highlightEpoch}` : key;
                     switch (nodeType) {
                         case NODE_TYPES.filteredIndicator:
@@ -1548,7 +1557,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.groupedNodes:
                             return <React.Fragment key={fragmentKey}>{renderGroupedNodes(props, node as any, nodes)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return <React.Fragment key={fragmentKey}>{renderPodGroup(props, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>;
+                            return (
+                                <React.Fragment key={fragmentKey}>{renderPodGroup(props, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>
+                            );
                         default:
                             return <React.Fragment key={fragmentKey}>{renderResourceNode(props, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
                     }
