@@ -122,7 +122,7 @@ importers:
         specifier: ^9.22.3
         version: 9.22.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       redoc:
-        specifier: 2.5.1
+        specifier: ^2.5.1
         version: 2.5.1(core-js@3.49.0)(mobx@6.15.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(styled-components@6.4.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))
       rxjs:
         specifier: 6.6.7
