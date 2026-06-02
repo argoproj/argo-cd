@@ -8,6 +8,22 @@ import {resourceHealthStatus} from '../utils';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
 
+/** Sentinel namespace filter value for resources without a namespace (cluster-scoped). */
+export const CLUSTER_SCOPED_NAMESPACE_FILTER = '<cluster-scoped>';
+
+function isClusterScopedResource(namespace: string | undefined): boolean {
+    return !namespace;
+}
+
+function matchesNamespaceFilter(namespace: string | undefined, namespacesFilter: string[]): boolean {
+    return namespacesFilter.some(ns => {
+        if (ns === CLUSTER_SCOPED_NAMESPACE_FILTER) {
+            return isClusterScopedResource(namespace);
+        }
+        return !!namespace && minimatch(namespace, ns);
+    });
+}
+
 export interface FilterResult {
     sync: boolean;
     health: boolean;
@@ -25,7 +41,7 @@ export function getFilterResults(resources: Resource[], pref: ResourcesListPrefe
         filterResult: {
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(resourceHealthStatus(app)),
-            namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.namespace && minimatch(app.namespace, ns)),
+            namespaces: pref.namespacesFilter.length === 0 || matchesNamespaceFilter(app.namespace, pref.namespacesFilter),
             clusters:
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(filterString => {
@@ -159,7 +175,12 @@ const ClusterFilter = (props: AppFilterProps) => {
 };
 
 const NamespaceFilter = (props: AppFilterProps) => {
-    const namespaceOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.namespace).filter(item => !!item))), props.pref.namespacesFilter);
+    const hasClusterScoped = props.apps.some(app => isClusterScopedResource(app.namespace));
+    const namespaces = Array.from(new Set(props.apps.map(app => app.namespace).filter(item => !!item)));
+    const namespaceOptions = [
+        ...(hasClusterScoped && props.pref.namespacesFilter.indexOf(CLUSTER_SCOPED_NAMESPACE_FILTER) === -1 ? [{label: CLUSTER_SCOPED_NAMESPACE_FILTER}] : []),
+        ...namespaces.filter(ns => props.pref.namespacesFilter.indexOf(ns) === -1).map(item => ({label: item}))
+    ];
     return (
         <Filter
             label='NAMESPACES'
