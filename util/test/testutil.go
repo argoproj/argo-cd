@@ -351,7 +351,6 @@ func (sc SaneFakeClient) Get(ctx context.Context, key client.ObjectKey, obj clie
 	err := sc.WithWatch.Get(ctx, key, obj, opts...)
 	obj.GetObjectKind().SetGroupVersionKind(ok)
 	return err
-
 }
 
 func MakeSaneFakeClient(fakeClient client.WithWatch) client.WithWatch {

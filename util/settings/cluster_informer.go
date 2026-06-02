@@ -305,5 +305,4 @@ func ConfigureGoClientFeatures() {
 		wrapper := myFeatureGates{parent: gates}
 		clientgofeatures.ReplaceFeatureGates(wrapper)
 	}
-
 }
