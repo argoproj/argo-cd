@@ -31,6 +31,8 @@ import (
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"sigs.k8s.io/yaml"
 
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
+
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
@@ -51,6 +53,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
@@ -1716,6 +1719,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		retryBackoffFactor        int64
 		local                     string
 		localRepoRoot             string
+		serverSideGenerate        bool
+		localIncludes             []string
 		infos                     []string
 		diffChanges               bool
 		diffChangesConfirm        bool
@@ -1791,6 +1796,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 
+			if err := validateLocalSyncFlags(local, serverSideApply, serverSideGenerate); err != nil {
+				log.Fatal(err.Error())
+			}
+
+			if shouldWarnDeprecatedLocalSync(local, serverSideGenerate) {
+				fmt.Fprint(os.Stderr, "Warning: local sync without --server-side-generate is deprecated and does not work with plugins.")
+			}
+
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer utilio.Close(conn)
@@ -1851,7 +1864,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			var clusterIf clusterpkg.ClusterServiceClient
 			var projIf projectpkg.ProjectServiceClient
-			if local != "" {
+			if local != "" && !serverSideGenerate {
 				conn, c := acdClient.NewClusterClientOrDie()
 				defer utilio.Close(conn)
 				clusterIf = c
@@ -1938,13 +1951,26 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
-					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-					errors.CheckError(err)
+					if serverSideGenerate {
+						client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
+						errors.CheckError(err)
 
-					proj, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: app.Spec.Project})
-					errors.CheckError(err)
+						err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
+						errors.CheckError(err)
 
-					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
+						targetManifests, err := client.CloseAndRecv()
+						errors.CheckError(err)
+
+						localObjsStrings = targetManifests.Manifests
+					} else {
+						cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+						errors.CheckError(err)
+
+						proj, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: app.Spec.Project})
+						errors.CheckError(err)
+
+						localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
+					}
 				}
 
 				syncOptionsFactory := func() *application.SyncOptions {
@@ -2071,6 +2097,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
+	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for manifest generation")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringArrayVar(&infos, "info", []string{}, "A list of key-value pairs during sync process. These infos will be persisted in app.")
 	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
@@ -2101,6 +2129,17 @@ func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationSer
 		}
 	}
 	return appNames, nil
+}
+
+func validateLocalSyncFlags(local string, serverSideApply bool, serverSideGenerate bool) error {
+	if local != "" && serverSideApply && !serverSideGenerate {
+		return stderrors.New("--server-side with --local requires --server-side-generate")
+	}
+	return nil
+}
+
+func shouldWarnDeprecatedLocalSync(local string, serverSideGenerate bool) bool {
+	return local != "" && !serverSideGenerate
 }
 
 // ResourceState tracks the state of a resource when waiting on an application status.
