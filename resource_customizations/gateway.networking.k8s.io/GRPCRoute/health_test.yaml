@@ -27,3 +27,7 @@ tests:
     status: Healthy
     message: GRPCRoute is healthy
   inputPath: testdata/healthy_multiple_generations.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for GRPCRoute status
+  inputPath: testdata/progressing_all_stale.yaml
