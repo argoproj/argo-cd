@@ -355,6 +355,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 		gpgKeys        []string
 		deleteGPGKeys  []string
 		addGPGKeys     []string
+		yes            bool
 	)
 	command := &cobra.Command{
 		Use:   "update PROJECT POLICY_ID",
@@ -441,12 +442,12 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				}
 			}
 
-			// There are no other types for now, so turning GPG is the only sensible thing
+			// There are no other types for now, so turning GPG on is the only sensible thing
 			if policy.GPG == nil {
 				policy.GPG = &v1alpha1.SourceIntegrityGitPolicyGPG{}
 			}
 
-			// Reset mode
+			// Update gpg mode
 			if gpgMode != "" {
 				mode, err := validateGpgMode(gpgMode)
 				if err != nil {
@@ -493,13 +494,21 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				return err
 			}
 
+			// Print resulting policies out of convenience
+			listGitGpgPolicies(c.OutOrStdout(), proj)
+
+			if !yes {
+				prompt := fmt.Sprintf("Are you sure you want to update policy %d from project %q? [y/N] ", index, projName)
+				if cli.AskToProceedS(prompt) != "y" {
+					fmt.Fprintln(c.OutOrStdout(), "Aborted by user.")
+					return nil
+				}
+			}
 			_, err = projects.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			if err != nil {
 				return fmt.Errorf("failed updating project %q: %w", projName, err)
 			}
 
-			// Print resulting policies out of convenience
-			listGitGpgPolicies(c.OutOrStdout(), proj)
 			return nil
 		},
 	}
@@ -510,6 +519,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 	command.Flags().StringSliceVar(&gpgKeys, "gpg-key", []string{}, "Set GPG key ID (replaces existing)")
 	command.Flags().StringSliceVar(&addGPGKeys, "add-gpg-key", []string{}, "Add GPG key ID")
 	command.Flags().StringSliceVar(&deleteGPGKeys, "delete-gpg-key", []string{}, "Delete GPG key ID")
+	command.Flags().BoolVarP(&yes, "yes", "y", false, "Skip explicit confirmation")
 	return command
 }
 

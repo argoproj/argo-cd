@@ -37,6 +37,7 @@ argocd proj source-integrity git policies update PROJECT POLICY_ID [flags]
       --gpg-mode string           Set GPG verification mode (strict, head, or none)
   -h, --help                      help for update
       --repo-url strings          Set repository URL pattern (replaces existing)
+  -y, --yes                       Skip explicit confirmation
 ```
 
 ### Options inherited from parent commands

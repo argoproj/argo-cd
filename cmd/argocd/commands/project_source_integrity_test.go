@@ -302,7 +302,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		{
 			name:            "Set GPG mode",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "0", "--gpg-mode=strict"},
+			args:            []string{projectName, "0", "--gpg-mode=strict", "--yes"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	strict	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git
@@ -323,7 +323,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		{
 			name:            "Set GPG keys",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "1", "--gpg-key=FEDCBA9876543210", "--gpg-key=FEDCBA9876543219"},
+			args:            []string{projectName, "1", "--gpg-key=FEDCBA9876543210", "--gpg-key=FEDCBA9876543219", "--yes"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git
 1	strict	FEDCBA9876543210, FEDCBA9876543219	https://github.com/argoproj/argo-cd.git
@@ -342,7 +342,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		{
 			name:            "Delete GPG key",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "0", "--delete-gpg-key=ABCD1234ABCD1234"},
+			args:            []string{projectName, "0", "--delete-gpg-key=ABCD1234ABCD1234", "-y"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	<none>	*, !https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git
@@ -363,7 +363,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		{
 			name:            "Set repo URLs",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "1", "--repo-url=https://github.com/example/repo.git", "--repo-url=https://github.com/example/other.git"},
+			args:            []string{projectName, "1", "--repo-url=https://github.com/example/repo.git", "--repo-url=https://github.com/example/other.git", "--yes"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/example/repo.git, https://github.com/example/other.git
@@ -384,7 +384,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		{
 			name:            "Remove repo URL",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "0", "--delete-repo-url=*", "--delete-repo-url=not://present.is/ignored"},
+			args:            []string{projectName, "0", "--delete-repo-url=*", "--delete-repo-url=not://present.is/ignored", "--yes"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	head	ABCD1234ABCD1234	!https://github.com/argoproj/argo-cd.git
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git
@@ -409,6 +409,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 				"--add-repo-url=https://new-repo.com",
 				"--delete-gpg-key=ABCD1234ABCD1234",
 				"--delete-repo-url=!https://github.com/argoproj/argo-cd.git",
+				"--yes",
 			},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS
 0	none	9876543210FEDCBA	*, https://new-repo.com
@@ -430,37 +431,37 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		{
 			name:            "Update policy with invalid project name",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{"not-a-project", "0", "--gpg-mode=strict"},
+			args:            []string{"not-a-project", "0", "--gpg-mode=strict", "--yes"},
 			expectedStderr:  "Error: failed getting project \"not-a-project\": rpc error: code = NotFound desc = appprojects.argoproj.io \"not-a-project\" not found\n",
 		},
 		{
 			name:            "Update policy with invalid ID",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "42", "--gpg-mode=strict"},
+			args:            []string{projectName, "42", "--gpg-mode=strict", "--yes"},
 			expectedStderr:  "Error: the POLICY_ID 42 is out of range (0-1)\n",
 		},
 		{
 			name:            "Update policy with incorrect ID",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "the first one, bro", "--gpg-mode=strict"},
+			args:            []string{projectName, "the first one, bro", "--gpg-mode=strict", "--yes"},
 			expectedStderr:  "Error: invalid POLICY_ID 'the first one, bro'\n",
 		},
 		{
 			name:            "Update policy when no Source Integrity",
 			sourceIntegrity: nil,
-			args:            []string{projectName, "0", "--gpg-mode=strict"},
+			args:            []string{projectName, "0", "--gpg-mode=strict", "--yes"},
 			expectedStderr:  "Error: no source integrity git policies defined for project \"test-project\"\n",
 		},
 		{
 			name:            "Set and add key",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "0", "--gpg-key=FAKE", "--add-gpg-key=FAKE2", "--gpg-mode=strict"},
+			args:            []string{projectName, "0", "--gpg-key=FAKE", "--add-gpg-key=FAKE2", "--gpg-mode=strict", "--yes"},
 			expectedStderr:  "Error: option --gpg-key, cannot be combined with --add-gpg-key or --delete-gpg-key\n",
 		},
 		{
 			name:            "Set and add repo",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "0", "--repo-url=FAKE", "--delete-repo-url=FAKE2", "--gpg-mode=strict"},
+			args:            []string{projectName, "0", "--repo-url=FAKE", "--delete-repo-url=FAKE2", "--gpg-mode=strict", "--yes"},
 			expectedStderr:  "Error: option --repo-url, cannot be combined with --add-repo-url or --delete-repo-url\n",
 		},
 	}
