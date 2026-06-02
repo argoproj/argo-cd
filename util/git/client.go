@@ -575,6 +575,13 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 	} else if !usePartialClone {
 		// Only add --tags if we're doing a full fetch (no partial clone, no depth limit)
 		args = append(args, "--tags")
+	} else {
+		// Partial clone with no depth limit. --filter=blob:none omits blobs, but git
+		// still transfers every commit and tree in the repo's entire history. On large
+		// repositories this can take minutes and can look like a hang. A shallow depth
+		// (set Repository.depth) bounds the history and is almost always what you want
+		// when pairing partial clone with sparse checkout. Warn so the cost is visible.
+		log.Warnf("Partial clone of %s requested without a depth limit; fetching full history (commits and trees) which may be slow on large repositories. Set the repository's depth to bound history.", m.repoURL)
 	}
 
 	args = append(args, "--force")
