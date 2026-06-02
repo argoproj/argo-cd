@@ -189,10 +189,12 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
 
 	Normalize(live, opts...)
 	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
 
 	if isCoreSecret(config) {
 		// Mask Secret data symmetrically before comparison.
@@ -288,13 +290,13 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
 	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
 
-	// After applying the predicted live to live state, this would cause any removed fields to be restored.
-	// We need to re-remove these from predicted live.
-	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
-
 	if err != nil {
 		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
+
+	// After applying the predicted live to live state, this would cause any removed fields to be restored.
+	// We need to re-remove these from predicted live.
+	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
 
 	plu := typedPredictedLive.AsValue().Unstructured()
 	pl, ok := plu.(map[string]any)

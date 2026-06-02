@@ -36,7 +36,6 @@ argocd proj [flags]
       --password string            Password for basic authentication to the API server
       --proxy-url string           If provided, this URL will be used to connect via proxy
       --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --tls-server-name string     If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string               Bearer token for authentication to the API server
       --user string                The name of the kubeconfig user to use
       --username string            Username for basic authentication to the API server
@@ -75,11 +74,10 @@ argocd proj [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd proj add-destination](argocd_proj_add-destination.md)	 - Add project destination
 * [argocd proj add-destination-service-account](argocd_proj_add-destination-service-account.md)	 - Add project destination's default service account
 * [argocd proj add-orphaned-ignore](argocd_proj_add-orphaned-ignore.md)	 - Add a resource to orphaned ignore list
-* [argocd proj add-signature-key](argocd_proj_add-signature-key.md)	 - Add GnuPG signature key to project
 * [argocd proj add-source](argocd_proj_add-source.md)	 - Add project source repository
 * [argocd proj add-source-namespace](argocd_proj_add-source-namespace.md)	 - Add source namespace to the AppProject
 * [argocd proj allow-cluster-resource](argocd_proj_allow-cluster-resource.md)	 - Adds a cluster-scoped API resource to the allow list and removes it from deny list
@@ -94,7 +92,6 @@ argocd proj [flags]
 * [argocd proj remove-destination](argocd_proj_remove-destination.md)	 - Remove project destination
 * [argocd proj remove-destination-service-account](argocd_proj_remove-destination-service-account.md)	 - Remove default destination service account from the project
 * [argocd proj remove-orphaned-ignore](argocd_proj_remove-orphaned-ignore.md)	 - Remove a resource from orphaned ignore list
-* [argocd proj remove-signature-key](argocd_proj_remove-signature-key.md)	 - Remove GnuPG signature key from project
 * [argocd proj remove-source](argocd_proj_remove-source.md)	 - Remove project source repository
 * [argocd proj remove-source-namespace](argocd_proj_remove-source-namespace.md)	 - Removes the source namespace from the AppProject
 * [argocd proj role](argocd_proj_role.md)	 - Manage a project's roles

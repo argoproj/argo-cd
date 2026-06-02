@@ -32,6 +32,7 @@ func InitCommand(cmd *cobra.Command) *cobra.Command {
 		"as",
 		"as-group",
 		"as-uid",
+		"tls-server-name",
 	}
 
 	flags.VisitAll(func(flag *pflag.Flag) {

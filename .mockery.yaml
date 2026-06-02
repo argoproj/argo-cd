@@ -89,6 +89,11 @@ packages:
   github.com/argoproj/argo-cd/gitops-engine/pkg/diff:
     interfaces:
       ServerSideDryRunner: {}
+  github.com/go-logr/logr:
+    config:
+      dir: gitops-engine/pkg/utils/tracing/mocks
+    interfaces:
+      LogSink: {}
   github.com/microsoft/azure-devops-go-api/azuredevops/v7/git:
     config:
       dir: applicationset/services/scm_provider/azure_devops/git/mocks

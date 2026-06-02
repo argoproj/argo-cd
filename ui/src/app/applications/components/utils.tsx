@@ -1,9 +1,8 @@
 import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip, HelpIcon} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
-import * as ReactForm from 'react-form';
-import {FormApi, Text} from 'react-form';
+import {ReactForm, FormApi, Text} from 'argo-ui';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
@@ -14,7 +13,6 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
 
@@ -994,14 +992,10 @@ export function syncStatusMessage(app: appModels.Application) {
 }
 
 export function hydrationStatusMessage(app: appModels.Application) {
-    const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
+    const sourceHydrator = app.status.sourceHydrator.currentOperation.sourceHydrator;
+    const drySource = sourceHydrator.drySource;
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
-    const syncSource: ApplicationSource = {
-        repoURL: drySource.repoURL,
-        targetRevision:
-            app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
-        path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
-    };
+    const syncSource = getAppHydratorSyncSource(sourceHydrator);
     const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
@@ -1465,6 +1459,14 @@ export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
 
+export function isAppSetNode(node: appModels.ResourceNode) {
+    return node.kind === 'ApplicationSet' && node.group === 'argoproj.io';
+}
+
+export function getApplicationSetOwnerRef(application: appModels.Application) {
+    return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
+}
+
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
     // ApplicationSets don't have overrides
     if (!isApp(app)) {
@@ -1494,9 +1496,23 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     if (!app) {
         return null;
     }
-    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
+    if (app.spec.sourceHydrator?.drySource) {
+        const {path, targetRevision, repoURL} = app.spec.sourceHydrator.drySource;
+        return {repoURL, targetRevision, path};
+    }
+    return getAppDefaultSource(app);
+}
 
-    return {repoURL, targetRevision, path};
+export function getHydratorSyncSourceRepoURL(sourceHydrator: appModels.SourceHydrator): string {
+    return sourceHydrator.syncSource?.repoURL || sourceHydrator.drySource?.repoURL || '';
+}
+
+export function getAppHydratorSyncSource(sourceHydrator: appModels.SourceHydrator): appModels.ApplicationSource {
+    return {
+        repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
+        targetRevision: sourceHydrator.syncSource.targetBranch,
+        path: sourceHydrator.syncSource.path
+    };
 }
 
 // getAppAllSources gets all app sources as an array. For single source apps, returns [source].
@@ -1507,13 +1523,7 @@ export function getAppAllSources(app?: appModels.Application): appModels.Applica
     }
 
     if (app.spec.sourceHydrator) {
-        return [
-            {
-                repoURL: app.spec.sourceHydrator.drySource.repoURL,
-                targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
-                path: app.spec.sourceHydrator.syncSource.path
-            } as appModels.ApplicationSource
-        ];
+        return [getAppHydratorSyncSource(app.spec.sourceHydrator)];
     }
 
     if (app.spec.sources && app.spec.sources.length > 0) {
@@ -1584,11 +1594,7 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
     if (spec.sourceHydrator) {
-        return {
-            repoURL: spec.sourceHydrator.drySource.repoURL,
-            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
-            path: spec.sourceHydrator.syncSource.path
-        };
+        return getAppHydratorSyncSource(spec.sourceHydrator);
     }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
