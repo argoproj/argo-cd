@@ -371,13 +371,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                         {resources.length === 0 && pref.projectsFilter?.length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
                                                                 <h4>No resources available to you just yet</h4>
-                                                                <h5>Create new application to start managing resources in your cluster</h5>
-                                                                <button
-                                                                    qe-id='resources-list-button-create-application'
-                                                                    className='argo-button argo-button--base'
-                                                                    onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})}, {replace: true})}>
-                                                                    Create application
-                                                                </button>
+                                                                <h5>Resources from your applications will appear here once they are available</h5>
                                                             </EmptyState>
                                                         ) : (
                                                             <>
