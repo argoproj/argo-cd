@@ -21,9 +21,7 @@ kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubuse
 Wait for all Argo CD pods to become ready:
 
 ```bash
-kubectl rollout status deployment/argocd-server -n argocd --watch
-kubectl rollout status deployment/argocd-repo-server -n argocd --watch
-kubectl rollout status deployment/argocd-application-controller -n argocd --watch
+kubectl get pods -n argocd --watch
 ```
 
 This will create a new `argocd` namespace where all Argo CD services and application resources will reside. It will also install Argo CD by applying the official manifests from the stable branch. Using a pinned version (like `v3.2.0`) is recommended for production.
