@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -184,10 +185,60 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 	return nil
 }
 
+// matchPath reports whether the file at relativePath matches the given pattern.
+// Patterns containing a '/' are matched against the full relative path, with
+// '**' treated as a wildcard that spans multiple path segments (e.g.
+// "charts/**" matches any file anywhere under the charts/ directory).
+// Patterns without a '/' are matched against the filename only via
+// filepath.Match, preserving the original behaviour.
+func matchPath(pattern, relativePath string) (bool, error) {
+	// Expand '**' into a per-segment match: split both the pattern and the
+	// path on '/' and walk them together.
+	patternParts := strings.Split(pattern, "/")
+	pathParts := strings.Split(relativePath, "/")
+	return matchParts(patternParts, pathParts)
+}
+
+// matchParts recursively matches pattern segments against path segments,
+// treating "**" as a wildcard that consumes zero or more path segments.
+func matchParts(patternParts, pathParts []string) (bool, error) {
+	for len(patternParts) > 0 {
+		switch patternParts[0] {
+		case "**":
+			// "**" can match zero or more path segments.
+			patternParts = patternParts[1:]
+			for i := range len(pathParts) + 1 {
+				if ok, err := matchParts(patternParts, pathParts[i:]); err != nil || ok {
+					return ok, err
+				}
+			}
+			return false, nil
+		default:
+			if len(pathParts) == 0 {
+				return false, nil
+			}
+			ok, err := filepath.Match(patternParts[0], pathParts[0])
+			if err != nil || !ok {
+				return false, err
+			}
+			patternParts = patternParts[1:]
+			pathParts = pathParts[1:]
+		}
+	}
+	return len(pathParts) == 0, nil
+}
+
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
 // the given file in the tgz.tarWriter applying the exclusion pattern defined
 // in tgz.exclusions, or the inclusion pattern defined in tgz.inclusions.
 // Only regular files will be added in the tarball.
+//
+// Inclusion pattern matching rules:
+//   - Patterns containing a path separator ('/') are matched against the
+//     file's relative path. The special segment "**" matches zero or more
+//     path segments, so "charts/**" includes every file under charts/.
+//   - Patterns without a path separator are matched against the filename only
+//     via filepath.Match (original behaviour, e.g. "*.yaml").
 func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if err != nil {
 		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
@@ -203,9 +254,20 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
 		included := false
 		for _, inclusionPattern := range t.inclusions {
-			found, err := filepath.Match(inclusionPattern, base)
-			if err != nil {
-				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, err)
+			var (
+				found    bool
+				matchErr error
+			)
+			if strings.Contains(inclusionPattern, "/") {
+				// Path-aware pattern: match against the full relative path so
+				// callers can target subdirectories (e.g. "charts/**").
+				found, matchErr = matchPath(inclusionPattern, relativePath)
+			} else {
+				// Simple glob: match against the filename only (original behaviour).
+				found, matchErr = filepath.Match(inclusionPattern, base)
+			}
+			if matchErr != nil {
+				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, matchErr)
 			}
 			if found {
 				included = true
