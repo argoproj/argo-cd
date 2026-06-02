@@ -188,6 +188,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		ClientSecret:             o.ClientSecret,
 		Azure:                    o.Azure,
 		CLIClientID:              o.CLIClientID,
+		UserInfoBaseURL:          o.UserInfoBaseURL,
 		UserInfoPath:             o.UserInfoPath,
 		EnableUserInfoGroups:     o.EnableUserInfoGroups,
 		UserInfoCacheExpiration:  o.UserInfoCacheExpiration,
@@ -208,6 +209,7 @@ type OIDCConfig struct {
 	ClientSecret             string                 `json:"clientSecret,omitempty"`
 	CLIClientID              string                 `json:"cliClientID,omitempty"`
 	EnableUserInfoGroups     bool                   `json:"enableUserInfoGroups,omitempty"`
+	UserInfoBaseURL          string                 `json:"userInfoBaseURL,omitempty"` // the URL (without path) where the userinfo endpoint is located
 	UserInfoPath             string                 `json:"userInfoPath,omitempty"`
 	UserInfoCacheExpiration  string                 `json:"userInfoCacheExpiration,omitempty"`
 	RequestedScopes          []string               `json:"requestedScopes,omitempty"`
@@ -326,6 +328,14 @@ type Repository struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
+	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty"`
+	// AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientId string `json:"azureServicePrincipalClientId,omitempty"`
+	// AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientSecret string `json:"azureServicePrincipalClientSecret,omitempty"`
+	// AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -360,6 +370,14 @@ type RepositoryCredentials struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
+	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty"`
+	// AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientId string `json:"azureServicePrincipalClientId,omitempty"`
+	// AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientSecret string `json:"azureServicePrincipalClientSecret,omitempty"`
+	// AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty"`
 }
 
 // DeepLink structure
@@ -1275,7 +1293,8 @@ func (mgr *SettingsManager) RequireOverridePrivilegeForRevisionSync() (bool, err
 	}
 
 	maybeBooleanFlagValue, err2 := strconv.ParseBool(
-		argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey])
+		argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey],
+	)
 	if err2 != nil {
 		return false, fmt.Errorf("error parsing %s value: %w, expected true or false",
 			requireOverridePrivilegeForRevisionSyncKey, err2)
@@ -1540,6 +1559,9 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
+	if err := ValidateOIDCConfig(settings.OIDCConfigRAW); err != nil {
+		log.Warnf("Failed to validate OIDC config: %v", err)
+	}
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootURLKey]
@@ -1931,7 +1953,15 @@ func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
 }
 
 func ValidateOIDCConfig(configStr string) error {
-	_, err := unmarshalOIDCConfig(configStr)
+	settings, err := unmarshalOIDCConfig(configStr)
+	if err != nil {
+		return err
+	}
+	err = ValidateExternalURL(settings.Issuer)
+	if err != nil {
+		return err
+	}
+	err = ValidateExternalURL(settings.UserInfoBaseURL)
 	return err
 }
 
@@ -1949,6 +1979,18 @@ func (a *ArgoCDSettings) TLSConfig() *tls.Config {
 	return &tls.Config{
 		RootCAs: certPool,
 	}
+}
+
+func (a *ArgoCDSettings) UserInfoBaseURL() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		if err := ValidateExternalURL(oidcConfig.UserInfoBaseURL); err == nil {
+			return oidcConfig.UserInfoBaseURL
+		}
+	}
+	if a.DexConfig != "" {
+		return a.URL + common.DexAPIEndpoint
+	}
+	return ""
 }
 
 func (a *ArgoCDSettings) IssuerURL() string {

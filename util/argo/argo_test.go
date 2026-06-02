@@ -41,7 +41,8 @@ func TestRefreshApp(t *testing.T) {
 	testApp.Namespace = "default"
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, true)
+	ht := argoappv1.HydrateTypeNormal
+	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, &ht)
 	require.NoError(t, err)
 	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
@@ -454,6 +455,95 @@ func TestValidateRepo(t *testing.T) {
 	assert.Equal(t, app.Spec.Destination.Namespace, receivedRequest.Namespace)
 	assert.Equal(t, &source, receivedRequest.ApplicationSource)
 	assert.Equal(t, kustomizeOptions, receivedRequest.KustomizeOptions)
+}
+
+func TestValidateRepo_SourceHydrator(t *testing.T) {
+	repoPath, err := filepath.Abs("./../..")
+	require.NoError(t, err)
+
+	apiResources := []kube.APIResourceInfo{{
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta1"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}, {
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta2"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}}
+	kubeVersion := "v1.16"
+
+	repoURL := "file://" + repoPath
+	repo := &argoappv1.Repository{Repo: repoURL, Type: "git"}
+	cluster := &argoappv1.Cluster{Server: "sample server"}
+
+	app := &argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Destination: argoappv1.ApplicationDestination{
+				Server:    cluster.Server,
+				Namespace: "default",
+			},
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        repoURL,
+					TargetRevision: "HEAD",
+					Path:           "guestbook",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "env/test",
+					Path:         "guestbook",
+				},
+			},
+		},
+	}
+
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+		},
+	}
+
+	repoClient := &mocks.RepoServerServiceClient{}
+
+	syncSource := app.Spec.GetSource()
+	repoClient.EXPECT().TestRepository(mock.Anything, mock.MatchedBy(func(req *apiclient.TestRepositoryRequest) bool {
+		return req.Repo.Repo == syncSource.RepoURL
+	})).Return(&apiclient.TestRepositoryResponse{VerifiedRepository: true}, nil)
+
+	var receivedRequest *apiclient.ManifestRequest
+	repoClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+		receivedRequest = req
+		return true
+	})).Return(nil, nil)
+
+	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetRepository(mock.Anything, repoURL, "").Return(repo, nil).Maybe()
+	db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil)
+	db.EXPECT().ListOCIRepositories(mock.Anything).Return(nil, nil)
+	db.EXPECT().GetCluster(mock.Anything, cluster.Server).Return(cluster, nil)
+	db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil)
+	db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil)
+
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+	}
+	kubeClient := fake.NewClientset(&cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+
+	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+
+	require.NoError(t, err)
+	assert.Empty(t, conditions)
+	require.NotNil(t, receivedRequest)
+
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	assert.Equal(t, &drySource, receivedRequest.ApplicationSource)
+	assert.Equal(t, "HEAD", receivedRequest.Revision)
+	assert.Empty(t, receivedRequest.KubeVersion, "KubeVersion must be empty for dry sources to match hydrator cache keys")
+	assert.Nil(t, receivedRequest.ApiVersions, "ApiVersions must be nil for dry sources to match hydrator cache keys")
 }
 
 func TestFormatAppConditions(t *testing.T) {
@@ -950,6 +1040,71 @@ func TestValidatePermissions(t *testing.T) {
 	})
 }
 
+func TestValidatePermissions_SourceHydratorSyncSourceRepo(t *testing.T) {
+	t.Run("Sync source repo not permitted in project", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://example.com/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry",
+				},
+				SyncSource: argoappv1.SyncSource{
+					RepoURL:      "https://example.com/sync-repo",
+					TargetBranch: "main",
+					Path:         "hydrated",
+				},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default"},
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{{
+					Server:    "*",
+					Namespace: "*",
+				}},
+				SourceRepos: []string{"https://example.com/dry-repo"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
+
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		require.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "sync source repo https://example.com/sync-repo is not permitted in project")
+	})
+
+	t.Run("HydrateTo requires targetBranch", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://example.com/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "main",
+					Path:         "hydrated",
+				},
+				HydrateTo: &argoappv1.HydrateTo{},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		require.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "spec.sourceHydrator.hydrateTo.targetBranch is required")
+	})
+}
+
 func TestSetAppOperations(t *testing.T) {
 	t.Run("Application not existing", func(t *testing.T) {
 		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")
@@ -1292,6 +1447,107 @@ func TestGetGlobalProjects(t *testing.T) {
 	})
 }
 
+func Test_mergeVirtualProject(t *testing.T) {
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}},
+			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
+				{
+					Server:                "test",
+					Namespace:             "test",
+					DefaultServiceAccount: "custom-serviceaccount",
+				},
+			},
+			Destinations:               []argoappv1.ApplicationDestination{{Server: "test", Namespace: "test"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Service"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "", Kind: "Pod"}},
+			SourceRepos:                []string{"http://some/where"},
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:         "allow",
+					Schedule:     "* * * * *",
+					Duration:     "24h",
+					Clusters:     []string{"test"},
+					Namespaces:   []string{"test"},
+					Applications: []string{"test"},
+				},
+			},
+		},
+	}
+
+	globalProj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
+				{
+					Server:                "*",
+					Namespace:             "*",
+					DefaultServiceAccount: "default",
+				},
+			},
+			Destinations:               []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			SourceRepos:                []string{"http://some/where/else"},
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:         "deny",
+					Schedule:     "0 0 * * *",
+					Duration:     "24h",
+					Clusters:     []string{"*"},
+					Namespaces:   []string{"*"},
+					Applications: []string{"*"},
+				},
+			},
+		},
+	}
+
+	expected := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}, {Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}, {Group: "*", Kind: "*"}},
+			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
+				{
+					Server:                "test",
+					Namespace:             "test",
+					DefaultServiceAccount: "custom-serviceaccount",
+				},
+				{
+					Server:                "*",
+					Namespace:             "*",
+					DefaultServiceAccount: "default",
+				},
+			},
+			Destinations:               []argoappv1.ApplicationDestination{{Server: "test", Namespace: "test"}, {Server: "*", Namespace: "*"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Service"}, {Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "", Kind: "Pod"}, {Group: "*", Kind: "*"}},
+			SourceRepos:                []string{"http://some/where", "http://some/where/else"},
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:         "allow",
+					Schedule:     "* * * * *",
+					Duration:     "24h",
+					Clusters:     []string{"test"},
+					Namespaces:   []string{"test"},
+					Applications: []string{"test"},
+				},
+				{
+					Kind:         "deny",
+					Schedule:     "0 0 * * *",
+					Duration:     "24h",
+					Clusters:     []string{"*"},
+					Namespaces:   []string{"*"},
+					Applications: []string{"*"},
+				},
+			},
+		},
+	}
+	mergeVirtualProject(proj, globalProj)
+	assert.Equal(t, expected, proj)
+}
+
 func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
 	r1 := argoappv1.Repository{}
 	r2 := argoappv1.Repository{
@@ -1483,6 +1739,25 @@ func Test_GetRefSources(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Empty(t, refSources)
+	})
+
+	t.Run("single source with ref populates refSources", func(t *testing.T) {
+		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
+			{RepoURL: "file://" + repoPath, TargetRevision: "HEAD", Ref: "gitops"},
+		})
+
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+			return repo, nil
+		}, []string{})
+
+		require.NoError(t, err)
+		expected := argoappv1.RefTargetRevisionMapping{
+			"$gitops": &argoappv1.RefTarget{
+				Repo:           *repo,
+				TargetRevision: "HEAD",
+			},
+		}
+		assert.Equal(t, expected, refSources)
 	})
 }
 
@@ -2112,4 +2387,32 @@ func Test_GetSyncedRefSources(t *testing.T) {
 			assert.Equal(t, tt.result, syncedRefSources)
 		})
 	}
+}
+
+// Covers https://github.com/argoproj/argo-cd/issues/27759:
+// spec.sources with one element still sets HasMultipleSources(); GetRefSources must populate refSources so
+// GetSyncedRefSources does not dereference a missing map entry.
+func Test_GetRefSourcesAndSyncedRefSources_SingleSourceWithRef(t *testing.T) {
+	repoPath, err := filepath.Abs("./../..")
+	require.NoError(t, err)
+	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
+	sources := argoappv1.ApplicationSources{
+		{RepoURL: "file://" + repoPath, TargetRevision: "HEAD", Ref: "gitops"},
+	}
+
+	refSources, err := GetRefSources(t.Context(), sources, "", func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		return repo, nil
+	}, []string{})
+	require.NoError(t, err)
+
+	syncedRevisions := []string{"rev"}
+	synced := GetSyncedRefSources(refSources, sources, syncedRevisions)
+
+	expected := argoappv1.RefTargetRevisionMapping{
+		"$gitops": &argoappv1.RefTarget{
+			Repo:           *repo,
+			TargetRevision: "rev",
+		},
+	}
+	assert.Equal(t, expected, synced)
 }

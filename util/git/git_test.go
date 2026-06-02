@@ -102,6 +102,20 @@ func TestIsSSHURLUserName(t *testing.T) {
 	assert.Equal(t, "john@doe.org", user)
 }
 
+func TestSSHHostWithPort(t *testing.T) {
+	data := map[string]string{
+		"git@github.com:argoproj/test.git":            "github.com:22",
+		"ssh://git@github.com/argoproj/test.git":      "github.com:22",
+		"ssh://git@github.com:2222/argoproj/test.git": "github.com:2222",
+		"ssh://john@john-server.org:29418/project":    "john-server.org:29418",
+		"https://github.com/argoproj/test":            "",
+		"":                                            "",
+	}
+	for repoURL, want := range data {
+		assert.Equal(t, want, SSHHostWithPort(repoURL), "input: %q", repoURL)
+	}
+}
+
 func TestSameURL(t *testing.T) {
 	data := map[string]string{
 		"git@GITHUB.com:argoproj/test":                     "git@github.com:argoproj/test.git",
@@ -358,7 +372,7 @@ func TestLFSClient(t *testing.T) {
 func TestVerifyCommitSignature(t *testing.T) {
 	p := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
+	client, err := NewClientExt("https://github.com/argoproj/argocd-example-apps.git", p, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -375,8 +389,8 @@ func TestVerifyCommitSignature(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch the specific commits needed for signature verification
-	signedCommit := "28027897aad1262662096745f2ce2d4c74d02b7f"
-	unsignedCommit := "85d660f0b967960becce3d49bd51c678ba2a5d24"
+	signedCommit := "723b86e01bea11dcf72316cb172868fcbf05d69e"
+	unsignedCommit := "1ccdee0a611224ccc6b9ff7919fe7002f905436e"
 	err = client.Fetch(signedCommit, 1)
 	require.NoError(t, err)
 	err = client.Fetch(unsignedCommit, 1)

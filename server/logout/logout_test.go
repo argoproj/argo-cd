@@ -463,7 +463,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 				}
 			} else {
 				if tt.wantErr {
-					t.Errorf("expected error but did not get one")
+					t.Error("expected error but did not get one")
 				} else {
 					require.Equal(t, tt.expectedLogoutURL, tt.responseRecorder.Result().Header["Location"][0])
 				}

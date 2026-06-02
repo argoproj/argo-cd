@@ -80,6 +80,16 @@ func assertLogContains(t *testing.T, hook *test.Hook, msg string) {
 	t.Errorf("log hook did not contain message: %q", msg)
 }
 
+func assertLogContainsSubstr(t *testing.T, hook *test.Hook, substr string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if strings.Contains(entry.Message, substr) {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message with substring: %q", substr)
+}
+
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
 	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
@@ -429,9 +439,8 @@ func TestInvalidMethod(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
-	assertLogContains(t, hook, expectedLogResult)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContains(t, hook, "Webhook processing failed: invalid HTTP Method")
+	assert.Equal(t, "Webhook processing failed\n", w.Body.String())
 	hook.Reset()
 }
 
@@ -445,9 +454,8 @@ func TestInvalidEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 50 MB) and ensure it is valid JSON"
-	assertLogContains(t, hook, expectedLogResult)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 50 MB)")
+	assert.Equal(t, "Webhook processing failed: payload must be valid JSON under 50 MB\n", w.Body.String())
 	hook.Reset()
 }
 
@@ -763,8 +771,7 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
-	assertLogContains(t, hook, expectedLogResult)
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 0 MB)")
 	hook.Reset()
 }
 
@@ -1194,7 +1201,14 @@ func TestHandleEvent(t *testing.T) {
 					// Verify cache was updated with afterSHA
 					clusterInfo := &mockClusterInfo{}
 					var afterManifests cache.CachedManifestResponse
-					err := repoCache.GetManifests(testAfterSHA, source, nil, clusterInfo, "", "", testAppLabelKey, ttc.app.Name, &afterManifests, nil, "")
+					err := repoCache.GetManifests(cache.ManifestKey{
+						Revision:    testAfterSHA,
+						AppSource:   source,
+						RefSources:  nil,
+						ClusterInfo: clusterInfo,
+						AppLabelKey: testAppLabelKey,
+						AppName:     ttc.app.Name,
+					}, &afterManifests)
 					require.NoError(t, err, "cache should be updated with afterSHA")
 					if err == nil {
 						assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
@@ -1243,10 +1257,10 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
     ]
   },
   "repository":{
-    "type": "repository", 
+    "type": "repository",
     "full_name": "{{.owner}}/{{.repo}}",
-    "name": "{{.name}}", 
-    "scm": "git", 
+    "name": "{{.name}}",
+    "scm": "git",
     "links": {
       "self": {"href": "https://api.bitbucket.org/2.0/repositories/{{.owner}}/{{.repo}}"},
       "html": {"href": "https://bitbucket.org/{{.owner}}/{{.repo}}"}
@@ -1702,6 +1716,13 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 			Server:    testClusterURL,
 		},
 	}
-	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "")
+	err := repoCache.SetManifests(cache.ManifestKey{
+		Revision:    testBeforeSHA,
+		AppSource:   source,
+		RefSources:  nil,
+		ClusterInfo: clusterInfo,
+		AppLabelKey: testAppLabelKey,
+		AppName:     appName,
+	}, dummyManifests)
 	require.NoError(t, err)
 }

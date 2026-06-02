@@ -421,7 +421,7 @@ fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
 			}
 
 			writer := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-			_, err = fmt.Fprintf(writer, "ID\tISSUED AT\tEXPIRES AT\n")
+			_, err = fmt.Fprint(writer, "ID\tISSUED AT\tEXPIRES AT\n")
 			errors.CheckError(err)
 
 			tokenRowFormat := "%s\t%v\t%v\n"
@@ -515,7 +515,7 @@ func printProjectRoleListName(roles []v1alpha1.ProjectRole) {
 // Print table of project roles
 func printProjectRoleListTable(roles []v1alpha1.ProjectRole) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "ROLE-NAME\tDESCRIPTION\n")
+	fmt.Fprint(w, "ROLE-NAME\tDESCRIPTION\n")
 	for _, role := range roles {
 		fmt.Fprintf(w, "%s\t%s\n", role.Name, role.Description)
 	}
@@ -603,9 +603,9 @@ ID          ISSUED-AT                                  EXPIRES-AT
 			printRoleFmtStr := "%-15s%s\n"
 			fmt.Printf(printRoleFmtStr, "Role Name:", roleName)
 			fmt.Printf(printRoleFmtStr, "Description:", role.Description)
-			fmt.Printf("Policies:\n")
+			fmt.Print("Policies:\n")
 			fmt.Printf("%s\n", proj.ProjectPoliciesString())
-			fmt.Printf("Groups:\n")
+			fmt.Print("Groups:\n")
 			// if the group exists in the role
 			// range over each group and print it
 			if v1alpha1.RoleGroupExists(role) {
@@ -615,9 +615,9 @@ ID          ISSUED-AT                                  EXPIRES-AT
 			} else {
 				fmt.Println("<none>")
 			}
-			fmt.Printf("JWT Tokens:\n")
+			fmt.Print("JWT Tokens:\n")
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ID\tISSUED-AT\tEXPIRES-AT\n")
+			fmt.Fprint(w, "ID\tISSUED-AT\tEXPIRES-AT\n")
 			for _, token := range proj.Status.JWTTokensByRole[roleName].Items {
 				expiresAt := "<none>"
 				if token.ExpiresAt > 0 {

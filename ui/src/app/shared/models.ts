@@ -272,6 +272,7 @@ export interface DrySource {
 export interface SyncSource {
     targetBranch: string;
     path: string;
+    repoURL?: string;
 }
 
 export interface HydrateTo {
@@ -677,6 +678,10 @@ export interface Repository {
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
     depth?: number;
+    azureServicePrincipalClientId?: string;
+    azureServicePrincipalClientSecret?: string;
+    azureServicePrincipalTenantId?: string;
+    azureActiveDirectoryEndpoint?: string;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -889,6 +894,7 @@ export interface SyncWindow {
     timeZone: string;
     andOperator: boolean;
     description: string;
+    syncOverrun: boolean;
 }
 
 export interface Project {

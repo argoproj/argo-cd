@@ -18,6 +18,7 @@ func newKey() ([]byte, error) {
 }
 
 func TestEncryptDecrypt_Successful(t *testing.T) {
+	t.Parallel()
 	key, err := newKey()
 	require.NoError(t, err)
 	encrypted, err := Encrypt([]byte("test"), key)
@@ -30,6 +31,7 @@ func TestEncryptDecrypt_Successful(t *testing.T) {
 }
 
 func TestEncryptDecrypt_Failed(t *testing.T) {
+	t.Parallel()
 	key, err := newKey()
 	require.NoError(t, err)
 	encrypted, err := Encrypt([]byte("test"), key)

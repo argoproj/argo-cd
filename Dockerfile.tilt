@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.26.2@sha256:5f3787b7f902c07c7ec4f3aa91a301a3eda8133aa32661a3b3a3a86ab3a68a36
+FROM docker.io/library/golang:1.26.3@sha256:2d6c80227255c3112a4d08e67ba98e58efd3846daf15d9d7d4c389565d881b1a
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -43,7 +43,7 @@ RUN touch ssh_known_hosts && \
 WORKDIR /app/config
 RUN mkdir -p tls && \
     mkdir -p gpg/source && \
-    mkdir -p gpg/keys 
+    mkdir -p gpg/keys
 
 COPY .tilt-bin/argocd_linux /usr/local/bin/argocd
 

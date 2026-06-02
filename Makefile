@@ -26,7 +26,7 @@ BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%S
 GIT_COMMIT:=$(if $(GIT_COMMIT),$(GIT_COMMIT),$(shell git rev-parse HEAD))
 GIT_TAG:=$(if $(GIT_TAG),$(GIT_TAG),$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi))
 GIT_TREE_STATE:=$(if $(GIT_TREE_STATE),$(GIT_TREE_STATE),$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi))
-VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":delegated"; else echo ""; fi)
+VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":Z"; else echo ""; fi)
 KUBECTL_VERSION=$(shell go list -m k8s.io/client-go | head -n 1 | rev | cut -d' ' -f1 | rev)
 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
@@ -286,11 +286,11 @@ resourceiconsgen:
 	hack/generate-icons-typescript.sh
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
-codegen-local-fast: mockgen gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
@@ -352,8 +352,8 @@ controller:
 .PHONY: build-ui
 build-ui:
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
-	find ./ui/dist -type f -not -name gitkeep -delete
-	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	find ./ui/dist -type f -not -name .gitkeep -delete
+	$(DOCKER) run $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
@@ -611,7 +611,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -e HOME=/tmp/home $(PODMAN_ARGS) ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs:Z -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install --user -r docs/requirements.txt; /tmp/home/.local/bin/mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
@@ -619,7 +619,7 @@ serve-docs-local:
 
 .PHONY: serve-docs
 serve-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -e HOME=/tmp/home $(PODMAN_ARGS) ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs:Z -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install --user -r docs/requirements.txt; /tmp/home/.local/bin/mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
