@@ -25,6 +25,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Cluster Sharding: consistent-hashing][9] | v2.12.0    | Alpha  |
 | [Service Account Impersonation][10]       | v2.13.0    | Beta   |
 | [Source Hydrator][11]                     | v2.14.0    | Alpha  |
+| [ApplicationSet Web UI][12]               | v3.5.0     | Alpha  |
 
 ## Unstable Configurations
 
@@ -73,3 +74,4 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 [9]: ./high_availability.md#argocd-application-controller
 [10]: app-sync-using-impersonation.md
 [11]: ../user-guide/source-hydrator.md
+[12]: ../user-guide/application-set-ui.md
