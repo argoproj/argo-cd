@@ -999,7 +999,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                     <div className='argo-table-list__head'>
                                         <div className='row'>
                                             <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                            <div className='columns small-3'>CREDS</div>
+                                            <div className='columns small-3'>Credentials</div>
                                         </div>
                                     </div>
                                     {creds.map(repo => (
@@ -1009,7 +1009,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <i className='icon argo-icon-git' /> <Repo url={repo.url} />
                                                 </div>
                                                 <div className='columns small-3'>
-                                                    -
+                                                    <i className='fa fa-key' /> Configured
                                                     <DropDownMenu
                                                         anchor={() => (
                                                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
@@ -1122,7 +1122,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
                                                 <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                                <div className='columns small-3'>CREDS</div>
+                                                <div className='columns small-3'>Credentials</div>
                                             </div>
                                         </div>
                                         {creds.map(repo => (
@@ -1132,7 +1132,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         <i className='icon argo-icon-git' /> <Repo url={repo.url} />
                                                     </div>
                                                     <div className='columns small-3'>
-                                                        -
+                                                        <i className='fa fa-key' /> Configured
                                                         <DropDownMenu
                                                             anchor={() => (
                                                                 <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
