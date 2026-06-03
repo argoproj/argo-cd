@@ -38,63 +38,56 @@
         hyphens: auto;
         line-height: 1.4;
     }
-}
 
-.applications-tiles .columns:has(> .icon) {
-    display: flex;
-    align-items: center;
-
-    .applications-list__title {
-        width: auto;
-        flex: 0 1 auto;
-        min-width: 0;
-    }
-}
-
-@media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
-    .custom-tooltip {
-        display: none !important;
-    }
-}
-
-.applications-list__external-link {
-    align-items: center;
-    display: flex;
-
-    button {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        margin: 0;
-        color: inherit;
+    .applications-tiles__title-col {
         display: flex;
         align-items: center;
-        justify-content: center;
 
-        &:hover {
-            color: $argo-color-teal-5;
+        .applications-list__title {
+            width: auto;
+            flex: 0 1 auto;
+            min-width: 0;
         }
+    }
 
-        &.managed-by-url-invalid {
-            color: #f4c030;
+    .applications-list__external-link {
+        align-items: center;
+        display: flex;
+
+        button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
 
             &:hover {
-                color: #f4c030;
+                color: $argo-color-teal-5;
             }
-        }
 
-        i {
-            font-size: 14px;
+            &.managed-by-url-invalid {
+                color: #f4c030;
+
+                &:hover {
+                    color: #f4c030;
+                }
+            }
+
+            i {
+                font-size: 14px;
+            }
         }
     }
 }
 
-/* Table / name column external-link (not under .applications-list__external-link) */
-.applications-list__table-row button.managed-by-url-invalid {
-    color: #f4c030;
-
-    &:hover {
-        color: #f4c030;
+// Tippy renders the tooltip on document.body, so this rule must be global.
+// Hide once button labels are visible (show-for-xxlarge).
+@media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
+    .applications-tiles__action-tooltip {
+        display: none !important;
     }
 }

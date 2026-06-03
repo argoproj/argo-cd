@@ -64,7 +64,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(appSet)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
-                        <div className='columns small-11'>
+                        <div className='columns small-11 applications-tiles__title-col'>
                             <i className='icon argo-icon-applicationset' />
                             <Tooltip content={AppUtils.appInstanceName(appSet)}>
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>

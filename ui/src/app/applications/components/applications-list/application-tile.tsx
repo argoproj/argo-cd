@@ -74,7 +74,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
-                        <div className={app.status.summary?.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
+                        <div className={(app.status.summary?.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11') + ' applications-tiles__title-col'}>
                             <i className={'icon argo-icon-' + (source?.chart != null ? 'helm' : isOci ? 'oci applications-tiles__item__small' : 'git')} />
                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>
@@ -261,7 +261,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 <i className='fa fa-sync' /> Sync
                             </a>
                             &nbsp;
-                            <Tooltip className='custom-tooltip' content={'Refresh'}>
+                            <Tooltip className='applications-tiles__action-tooltip' content={'Refresh'}>
                                 <a
                                     className='argo-button argo-button--base'
                                     qe-id='applications-tiles-button-refresh'
@@ -275,7 +275,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 </a>
                             </Tooltip>
                             &nbsp;
-                            <Tooltip className='custom-tooltip' content={'Delete'}>
+                            <Tooltip className='applications-tiles__action-tooltip' content={'Delete'}>
                                 <a
                                     className='argo-button argo-button--base'
                                     qe-id='applications-tiles-button-delete'
