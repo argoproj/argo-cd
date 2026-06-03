@@ -2,6 +2,7 @@ package sourceintegrity
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -14,6 +15,15 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	utilTest "github.com/argoproj/argo-cd/v3/util/test"
 )
+
+// stubPrimaryKeyLookup replaces the keyring-backed primary key resolution with the
+// given function for the duration of the test, keeping unit tests from shelling out to gpg.
+func stubPrimaryKeyLookup(t *testing.T, fn func(signingKeyID string) (string, error)) {
+	t.Helper()
+	prev := lookupPrimaryKeyID
+	lookupPrimaryKeyID = fn
+	t.Cleanup(func() { lookupPrimaryKeyID = prev })
+}
 
 func Test_IsGPGEnabled(t *testing.T) {
 	t.Run("true", func(t *testing.T) {
@@ -303,6 +313,119 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, keyId)
 	}
 }
 
+// TestGPGSubkeySignature verifies that a commit signed with a signing subkey passes when its
+// primary key is the one listed in the policy, and still fails when the primary is not allowed.
+func TestGPGSubkeySignature(t *testing.T) {
+	const primaryKeyID = "92bfcec2e8161558"
+	const subkeyID = "9c698b961c1088db"
+	const unrelatedKeyID = "f4b9db205449e1d9"
+
+	// The keyring resolves the signing subkey to its primary key.
+	stubPrimaryKeyLookup(t, func(signingKeyID string) (string, error) {
+		if signingKeyID == subkeyID {
+			return primaryKeyID, nil
+		}
+		return "", fmt.Errorf("no such key %s", signingKeyID)
+	})
+
+	subkeySignature := func() *gitmocks.Client {
+		gitClient := &gitmocks.Client{}
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return(
+			[]git.RevisionSignatureInfo{{
+				Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: subkeyID, Date: "ignored", AuthorIdentity: "ignored",
+			}},
+			`gpg: Good signature from "test user <testuser@example.com>" [ultimate]`,
+			nil,
+		)
+		return gitClient
+	}
+
+	t.Run("subkey accepted when its primary is allowed", func(t *testing.T) {
+		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{primaryKeyID}}
+		result, _, err := verify(gpg, subkeySignature(), "1.0")
+		require.NoError(t, err)
+		assert.True(t, result.IsValid())
+		require.NoError(t, result.AsError())
+	})
+
+	t.Run("subkey rejected when its primary is not allowed", func(t *testing.T) {
+		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{unrelatedKeyID}}
+		result, _, err := verify(gpg, subkeySignature(), "1.0")
+		require.NoError(t, err)
+		assert.False(t, result.IsValid())
+		require.ErrorContains(t, result.AsError(), "signed with unallowed key (key_id="+subkeyID+")")
+	})
+
+	t.Run("primary match is case-insensitive", func(t *testing.T) {
+		// gpg emits key IDs in upper case; the operator may have used a different case in the policy.
+		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{strings.ToUpper(primaryKeyID)}}
+		result, _, err := verify(gpg, subkeySignature(), "1.0")
+		require.NoError(t, err)
+		assert.True(t, result.IsValid())
+		require.NoError(t, result.AsError())
+	})
+
+	t.Run("40-char fingerprint matches a configured key without keyring lookup", func(t *testing.T) {
+		// git may report the signing key as a full 40-char fingerprint. Verification must normalize
+		// it to the 16-char key ID before comparing, without depending on the keyring (the primary
+		// lookup deterministically fails for this fingerprint).
+		fingerprint := "abcd1234abcd1234abcd1234" + primaryKeyID
+		gitClient := &gitmocks.Client{}
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return(
+			[]git.RevisionSignatureInfo{{
+				Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: fingerprint, Date: "ignored", AuthorIdentity: "ignored",
+			}},
+			`gpg: Good signature from "test user <testuser@example.com>" [ultimate]`,
+			nil,
+		)
+		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{primaryKeyID}}
+		result, _, err := verify(gpg, gitClient, "1.0")
+		require.NoError(t, err)
+		assert.True(t, result.IsValid())
+		require.NoError(t, result.AsError())
+	})
+}
+
+// TestVerifyGnuPGSignatureSubkey covers the deprecated legacy verification path: a commit signed
+// with a signing subkey is accepted when its primary key is configured, and rejected otherwise.
+func TestVerifyGnuPGSignatureSubkey(t *testing.T) {
+	const primaryKeyID = "92BFCEC2E8161558"
+	const subkeyID = "9C698B961C1088DB"
+	const unrelatedKeyID = "F4B9DB205449E1D9"
+
+	stubPrimaryKeyLookup(t, func(signingKeyID string) (string, error) {
+		if signingKeyID == subkeyID {
+			return primaryKeyID, nil
+		}
+		return "", fmt.Errorf("no such key %s", signingKeyID)
+	})
+
+	verifyResult := `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
+gpg:                using RSA key ` + subkeyID + `
+gpg: Good signature from "test user <testuser@example.com>" [ultimate]`
+
+	t.Run("subkey accepted when its primary is allowed", func(t *testing.T) {
+		assert.Nil(t, VerifyGnuPGSignature("rev", []string{primaryKeyID}, verifyResult))
+	})
+
+	t.Run("subkey rejected when its primary is not allowed", func(t *testing.T) {
+		cond := VerifyGnuPGSignature("rev", []string{unrelatedKeyID}, verifyResult)
+		require.NotNil(t, cond)
+		assert.Contains(t, cond.Message, "not allowed in AppProject")
+	})
+
+	t.Run("40-char fingerprint emitted by gpg matches a configured key", func(t *testing.T) {
+		// Modern gpg prints the full 40-char fingerprint in "using RSA key ...".
+		// Verification must normalize it to the 16-char key ID before comparing,
+		// without relying on the keyring (the primary lookup deterministically fails here).
+		const fingerprint = "abcd1234abcd1234abcd1234" + primaryKeyID
+		fpResult := `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
+gpg:                using RSA key ` + fingerprint + `
+gpg: Good signature from "test user <testuser@example.com>" [ultimate]`
+		assert.Nil(t, VerifyGnuPGSignature("rev", []string{primaryKeyID}, fpResult))
+	})
+}
+
 func TestDescribeProblems(t *testing.T) {
 	const r = "aafc9e88599f24802b113b6278e42eaadda32cd6"
 	const a = "Commit Author <nereply@acme.com>"
@@ -507,6 +630,11 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 
 	for _, test := range tests {
 		t.Run("verify "+test.revision, func(t *testing.T) {
+			// The fabricated keys are not in any keyring, so deterministically fail subkey resolution.
+			stubPrimaryKeyLookup(t, func(signingKeyID string) (string, error) {
+				return "", fmt.Errorf("no such key %s", signingKeyID)
+			})
+
 			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
 			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(

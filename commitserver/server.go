@@ -11,6 +11,7 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/server/version"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/gpgsign"
 )
 
 // ArgoCDCommitServer is the server that handles commit requests.
@@ -18,9 +19,11 @@ type ArgoCDCommitServer struct {
 	commitService *commit.Service
 }
 
-// NewServer returns a new instance of the commit server.
-func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *ArgoCDCommitServer {
-	return &ArgoCDCommitServer{commitService: commit.NewService(gitCredsStore, metricsServer)}
+// NewServer returns a new instance of the commit server. When signingConfig is
+// non-nil, hydrated commits will be GPG-signed with the configured key and
+// locally verified before being pushed.
+func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server, signingConfig *gpgsign.Config) *ArgoCDCommitServer {
+	return &ArgoCDCommitServer{commitService: commit.NewService(gitCredsStore, metricsServer, signingConfig)}
 }
 
 // CreateGRPC creates a new gRPC server.

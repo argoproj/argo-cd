@@ -377,6 +377,78 @@ func (_c *Client_CheckoutOrOrphan_Call) RunAndReturn(run func(branch string, sub
 	return _c
 }
 
+// Commit provides a mock function for the type Client
+func (_mock *Client) Commit(message string, signingKeyID string, gpgProgram string) (string, error) {
+	ret := _mock.Called(message, signingKeyID, gpgProgram)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Commit")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string, string) (string, error)); ok {
+		return returnFunc(message, signingKeyID, gpgProgram)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, string, string) string); ok {
+		r0 = returnFunc(message, signingKeyID, gpgProgram)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = returnFunc(message, signingKeyID, gpgProgram)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_Commit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Commit'
+type Client_Commit_Call struct {
+	*mock.Call
+}
+
+// Commit is a helper method to define mock.On call
+//   - message string
+//   - signingKeyID string
+//   - gpgProgram string
+func (_e *Client_Expecter) Commit(message interface{}, signingKeyID interface{}, gpgProgram interface{}) *Client_Commit_Call {
+	return &Client_Commit_Call{Call: _e.mock.On("Commit", message, signingKeyID, gpgProgram)}
+}
+
+func (_c *Client_Commit_Call) Run(run func(message string, signingKeyID string, gpgProgram string)) *Client_Commit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_Commit_Call) Return(s string, err error) *Client_Commit_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Client_Commit_Call) RunAndReturn(run func(message string, signingKeyID string, gpgProgram string) (string, error)) *Client_Commit_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CommitAndPush provides a mock function for the type Client
 func (_mock *Client) CommitAndPush(branch string, message string) (string, error) {
 	ret := _mock.Called(branch, message)
@@ -675,6 +747,65 @@ func (_c *Client_HasFileChanged_Call) Return(b bool, err error) *Client_HasFileC
 }
 
 func (_c *Client_HasFileChanged_Call) RunAndReturn(run func(filePath string) (bool, error)) *Client_HasFileChanged_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// HeadSignatureStatus provides a mock function for the type Client
+func (_mock *Client) HeadSignatureStatus() (string, string, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for HeadSignatureStatus")
+	}
+
+	var r0 string
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func() (string, string, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() string); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func() string); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+	if returnFunc, ok := ret.Get(2).(func() error); ok {
+		r2 = returnFunc()
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// Client_HeadSignatureStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HeadSignatureStatus'
+type Client_HeadSignatureStatus_Call struct {
+	*mock.Call
+}
+
+// HeadSignatureStatus is a helper method to define mock.On call
+func (_e *Client_Expecter) HeadSignatureStatus() *Client_HeadSignatureStatus_Call {
+	return &Client_HeadSignatureStatus_Call{Call: _e.mock.On("HeadSignatureStatus")}
+}
+
+func (_c *Client_HeadSignatureStatus_Call) Run(run func()) *Client_HeadSignatureStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Client_HeadSignatureStatus_Call) Return(status string, keyID string, err error) *Client_HeadSignatureStatus_Call {
+	_c.Call.Return(status, keyID, err)
+	return _c
+}
+
+func (_c *Client_HeadSignatureStatus_Call) RunAndReturn(run func() (string, string, error)) *Client_HeadSignatureStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1133,6 +1264,66 @@ func (_c *Client_LsSignatures_Call) Return(revisionSignatureInfos []git.Revision
 }
 
 func (_c *Client_LsSignatures_Call) RunAndReturn(run func(revision string, deep bool) ([]git.RevisionSignatureInfo, string, error)) *Client_LsSignatures_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Push provides a mock function for the type Client
+func (_mock *Client) Push(branch string) (string, error) {
+	ret := _mock.Called(branch)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Push")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return returnFunc(branch)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string) string); ok {
+		r0 = returnFunc(branch)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
+		r1 = returnFunc(branch)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_Push_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Push'
+type Client_Push_Call struct {
+	*mock.Call
+}
+
+// Push is a helper method to define mock.On call
+//   - branch string
+func (_e *Client_Expecter) Push(branch interface{}) *Client_Push_Call {
+	return &Client_Push_Call{Call: _e.mock.On("Push", branch)}
+}
+
+func (_c *Client_Push_Call) Run(run func(branch string)) *Client_Push_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_Push_Call) Return(s string, err error) *Client_Push_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Client_Push_Call) RunAndReturn(run func(branch string) (string, error)) *Client_Push_Call {
 	_c.Call.Return(run)
 	return _c
 }
