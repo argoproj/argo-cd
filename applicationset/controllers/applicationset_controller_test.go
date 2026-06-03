@@ -2316,7 +2316,7 @@ func TestDeleteInCluster(t *testing.T) {
 			initObjs = append(initObjs, &temp)
 		}
 
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+		client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 		metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 		kubeclientset := kubefake.NewClientset()
@@ -2339,7 +2339,12 @@ func TestDeleteInCluster(t *testing.T) {
 
 		// For each of the expected objects, verify they exist on the cluster
 		for _, obj := range c.expected {
-			got := &v1alpha1.Application{}
+			got := &v1alpha1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       application.ApplicationKind,
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+			}
 			_ = client.Get(t.Context(), crtclient.ObjectKey{
 				Namespace: obj.Namespace,
 				Name:      obj.Name,
@@ -2347,10 +2352,6 @@ func TestDeleteInCluster(t *testing.T) {
 
 			err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
 			require.NoError(t, err)
-
-			// controller-runtime's fake client (v0.22+) intentionally clears TypeMeta
-			// for typed objects returned from Get(), matching real Kubernetes API behaviour
-			obj.TypeMeta = metav1.TypeMeta{}
 			assert.Equal(t, obj, *got)
 		}
 
