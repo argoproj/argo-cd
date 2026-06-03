@@ -6,8 +6,8 @@ if not replicas then
 end
 
 local replicasNum = tonumber(replicas)
-if not replicasNum or replicasNum < 0 then
-    error("invalid number: " .. replicas .. " (must be >= 0)", 0)
+if not replicasNum or replicasNum < 0 or replicasNum %1 ~=0 then
+    error("invalid number: " .. replicas .. " (must be a non-negative integer)", 0)
 end
 
 obj.spec.replicas = replicasNum
