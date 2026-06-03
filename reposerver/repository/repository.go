@@ -3358,6 +3358,8 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
+	// Normalize the repository in the request to ensure all fields are correctly set
+	repo = repo.Normalize()
 
 	if len(refreshPaths) == 0 {
 		// Always refresh if path is not specified
