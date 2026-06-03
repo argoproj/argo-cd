@@ -103,12 +103,13 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                         </div>
                     </div>
 
+                    <div className='applications-tiles__fields'>
                     {/* Labels row */}
-                    <div className='row'>
-                        <div className='columns small-3' title='Labels:'>
+                    <div className='row applications-tiles__field-row'>
+                        <div className='columns applications-tiles__field-label' title='Labels:'>
                             Labels:
                         </div>
-                        <div className='columns small-9'>
+                        <div className='columns applications-tiles__field-value'>
                             <Tooltip
                                 zIndex={4}
                                 content={
@@ -132,29 +133,30 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                     </div>
 
                     {/* Status row */}
-                    <div className='row'>
-                        <div className='columns small-3' title='Status:'>
+                    <div className='row applications-tiles__field-row'>
+                        <div className='columns applications-tiles__field-label' title='Status:'>
                             Status:
                         </div>
-                        <div className='columns small-9' qe-id='applications-tiles-health-status'>
+                        <div className='columns applications-tiles__field-value' qe-id='applications-tiles-health-status'>
                             <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> {healthStatus}
                         </div>
                     </div>
 
                     {/* Applications count row */}
-                    <div className='row'>
-                        <div className='columns small-3' title='Applications:'>
+                    <div className='row applications-tiles__field-row'>
+                        <div className='columns applications-tiles__field-label' title='Applications:'>
                             Applications:
                         </div>
-                        <div className='columns small-9'>{appSet.status?.resourcesCount ?? appSet.status?.resources?.length ?? 0}</div>
+                        <div className='columns applications-tiles__field-value'>{appSet.status?.resourcesCount ?? appSet.status?.resources?.length ?? 0}</div>
                     </div>
 
                     {/* Created At row */}
-                    <div className='row'>
-                        <div className='columns small-3' title='Age:'>
+                    <div className='row applications-tiles__field-row'>
+                        <div className='columns applications-tiles__field-label' title='Age:'>
                             Created At:
                         </div>
-                        <div className='columns small-9'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
+                        <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
+                    </div>
                     </div>
                 </div>
             </div>

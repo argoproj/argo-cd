@@ -26,6 +26,18 @@
     .argo-table-list__row {
         padding-top: 0;
         padding-bottom: 0;
+
+        .columns.applications-tiles__field-label {
+            overflow: visible;
+            white-space: nowrap;
+            text-overflow: clip;
+        }
+
+        .columns.applications-tiles__title-col {
+            overflow: visible;
+            white-space: normal;
+            text-overflow: clip;
+        }
     }
     &__selected {
         box-shadow: 0 0 0 1px $argo-color-teal-5;
@@ -42,12 +54,54 @@
     .applications-tiles__title-col {
         display: flex;
         align-items: center;
+        overflow: visible;
+        white-space: normal;
+        text-overflow: clip;
 
         .applications-list__title {
             width: auto;
-            flex: 0 1 auto;
-            min-width: 0;
+            flex: 1 1 auto;
+            overflow: visible;
         }
+    }
+
+    .applications-tiles__fields {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        column-gap: 1rem;
+        align-items: baseline;
+    }
+
+    .applications-tiles__field-row {
+        display: contents;
+
+        &::before,
+        &::after {
+            display: none;
+        }
+    }
+
+    .applications-tiles__field-label {
+        width: auto;
+        max-width: none;
+        float: none;
+        padding-left: 0;
+        padding-right: 0;
+        overflow: visible;
+        white-space: nowrap;
+        text-overflow: clip;
+    }
+
+    .applications-tiles__field-value {
+        width: auto;
+        max-width: none;
+        float: none;
+        min-width: 0;
+        padding-left: 0;
+        padding-right: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .applications-list__external-link {
