@@ -1510,8 +1510,8 @@ export function getHydratorSyncSourceRepoURL(sourceHydrator?: appModels.SourceHy
 export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
     return {
         repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
-        targetRevision: sourceHydrator?.syncSource?.targetBranch || sourceHydrator?.drySource?.targetRevision || '',
-        path: sourceHydrator?.syncSource?.path || sourceHydrator?.drySource?.path || ''
+        targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
+        path: sourceHydrator?.syncSource?.path || ''
     };
 }
 
