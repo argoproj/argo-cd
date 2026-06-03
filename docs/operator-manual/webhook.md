@@ -176,7 +176,9 @@ stringData:
 
 #### Example Application
 
-When a OCI artifact with a known media type is pushed to GHCR, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`:
+When a OCI artifact with a known media type is pushed to GHCR, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`. The source can be expressed in two ways.
+
+A full-path OCI source, where `repoURL` points directly at the artifact:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -185,13 +187,32 @@ metadata:
   name: my-app
 spec:
   source:
-    repoURL: oci://ghcr.io/myorg/myimage
+    repoURL: oci://ghcr.io/myorg/mychart
     targetRevision: v1.0.0
-    chart: mychart
   destination:
     server: https://kubernetes.default.svc
     namespace: default
 ```
+
+A Helm-OCI source, where `repoURL` is the registry namespace and the chart name is given separately in `chart` (note: no `oci://` scheme on `repoURL` for this form):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: ghcr.io/myorg
+    chart: mychart
+    targetRevision: v1.0.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+> [!NOTE]
+> When a `chart` is set, Argo CD appends it to `repoURL` before matching the webhook event (so `ghcr.io/myorg` + `chart: mychart` matches a push to `ghcr.io/myorg/mychart`). The chart is not appended if `repoURL` already ends in `/<chart>`, so both forms above match the same push.
 
 The `targetRevision` field supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints):
 
@@ -246,7 +267,7 @@ If no secret is configured, Argo CD accepts Docker Hub events without validation
 
 #### Example Application
 
-When an image is pushed to Docker Hub, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`:
+When an image is pushed to Docker Hub, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`. As with GHCR, the source can be a full-path OCI source:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -255,15 +276,31 @@ metadata:
   name: my-app
 spec:
   source:
-    repoURL: oci://docker.io/myorg/myimage
+    repoURL: oci://docker.io/myorg/mychart
     targetRevision: v1.0.0
-    chart: mychart
   destination:
     server: https://kubernetes.default.svc
     namespace: default
 ```
 
-As with GHCR, `targetRevision` supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints).
+or a Helm-OCI source, where the chart name is given separately in `chart` (no `oci://` scheme on `repoURL`):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: docker.io/myorg
+    chart: mychart
+    targetRevision: v1.0.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+As with GHCR, `targetRevision` supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints), and a `chart` field is appended to `repoURL` before matching.
 
 > [!NOTE]
 > The `repoURL` host must be `docker.io`. Official images (pushed without a namespace) are matched under the implicit `library/` namespace, e.g. a push to `nginx` matches `oci://docker.io/library/nginx`.
