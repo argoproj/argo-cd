@@ -669,7 +669,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 func (s *Server) Refresh(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
-	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionUpdate, namespace, q.Name)
+	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
 	if err != nil {
 		return nil, err
 	}
