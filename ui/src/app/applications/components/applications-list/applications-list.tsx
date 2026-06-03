@@ -443,6 +443,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
+                                                        key={`toolbar-${healthBarPrefs.showHealthStatusBar}-${pref.view}`}
                                                         toolbar={{
                                                             tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
                                                             actionMenu: {

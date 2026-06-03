@@ -1,8 +1,8 @@
 import * as deepMerge from 'deepmerge';
-import {BehaviorSubject, Observable} from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 
-import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
-import {UserMessages} from '../models';
+import { PodGroupType } from '../../applications/components/application-pod-view/pod-view';
+import { UserMessages } from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -68,6 +68,13 @@ export enum AppsListViewKey {
     Tiles = 'tiles'
 }
 
+export type ResourcesListViewType = 'list' | 'summary';
+
+export enum ResourcesListViewKey {
+    List = 'list',
+    Summary = 'summary'
+}
+
 export class AbstractAppsListPreferences {
     public static clearFilters(pref: AbstractAppsListPreferences) {
         pref.healthFilter = [];
@@ -110,6 +117,42 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
     public operationFilter: string[];
 }
 
+export class ResourcesListPreferences {
+    public static countEnabledFilters(pref: ResourcesListPreferences) {
+        return [pref.clustersFilter, pref.healthFilter, pref.namespacesFilter, pref.projectsFilter, pref.syncFilter, pref.apiGroupFilter, pref.kindFilter].reduce(
+            (count, filter) => {
+                if (filter && filter.length > 0) {
+                    return count + 1;
+                }
+                return count;
+            },
+            0
+        );
+    }
+
+    public static clearFilters(pref: ResourcesListPreferences) {
+        pref.clustersFilter = [];
+        pref.healthFilter = [];
+        pref.namespacesFilter = [];
+        pref.projectsFilter = [];
+        pref.syncFilter = [];
+        pref.apiGroupFilter = [];
+        pref.kindFilter = [];
+    }
+
+    public projectsFilter: string[];
+    public syncFilter: string[];
+    public healthFilter: string[];
+    public namespacesFilter: string[];
+    public clustersFilter: string[];
+    public hideFilters: boolean;
+    public apiGroupFilter: string[];
+    public kindFilter: string[];
+    public view: ResourcesListViewType;
+
+    public statusBarView: HealthStatusBarPreferences;
+}
+
 export class AppSetsListPreferences extends AbstractAppsListPreferences {
     public static clearFilters(pref: AppSetsListPreferences) {
         super.clearFilters(pref);
@@ -120,15 +163,17 @@ export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
-    pageSizes: {[key: string]: number};
-    sortOptions?: {[key: string]: string};
+    resourcesList: ResourcesListPreferences;
+    pageSizes: { [key: string]: number };
+    sortOptions?: { [key: string]: string };
+    sortDirections?: { [key: string]: 'asc' | 'desc' };
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
     theme: string;
     // Per-application notice dismissals, keyed by namespaced app + content hash.
     // See application-notice/notice.ts (dismissalKey).
-    dismissedNotices?: {[key: string]: boolean};
+    dismissedNotices?: { [key: string]: boolean };
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -179,6 +224,20 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             showHealthStatusBar: true
         }
     },
+    resourcesList: {
+        projectsFilter: new Array<string>(),
+        namespacesFilter: new Array<string>(),
+        clustersFilter: new Array<string>(),
+        syncFilter: new Array<string>(),
+        healthFilter: new Array<string>(),
+        kindFilter: new Array<string>(),
+        apiGroupFilter: new Array<string>(),
+        hideFilters: false,
+        view: 'list' as ResourcesListViewType,
+        statusBarView: {
+            showHealthStatusBar: true
+        }
+    },
     pageSizes: {},
     hideBannerContent: '',
     hideSidebar: false,
@@ -205,10 +264,13 @@ export class ViewPreferencesService {
 
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
-        const nextPref = Object.assign({}, current, change, {version: minVer});
+        const nextPref = Object.assign({}, current, change, { version: minVer });
         // Normalize appList to ensure all filter arrays are initialized
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
+        }
+        if (nextPref.resourcesList) {
+            this.normalizeResourcesListPreferences(nextPref.resourcesList);
         }
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
@@ -232,7 +294,22 @@ export class ViewPreferencesService {
         const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
         // Ensure all filter arrays are initialized to prevent undefined errors
         this.normalizeAppListPreferences(merged.appList);
+        this.normalizeResourcesListPreferences(merged.resourcesList);
         return merged;
+    }
+
+    private normalizeResourcesListPreferences(resourcesList: ResourcesListPreferences): void {
+        resourcesList.projectsFilter = resourcesList.projectsFilter || [];
+        resourcesList.namespacesFilter = resourcesList.namespacesFilter || [];
+        resourcesList.clustersFilter = resourcesList.clustersFilter || [];
+        resourcesList.syncFilter = resourcesList.syncFilter || [];
+        resourcesList.healthFilter = resourcesList.healthFilter || [];
+        resourcesList.apiGroupFilter = resourcesList.apiGroupFilter || [];
+        resourcesList.kindFilter = resourcesList.kindFilter || [];
+        resourcesList.statusBarView = resourcesList.statusBarView || { showHealthStatusBar: true };
+        if (resourcesList.view !== ResourcesListViewKey.List && resourcesList.view !== ResourcesListViewKey.Summary) {
+            resourcesList.view = ResourcesListViewKey.List;
+        }
     }
 
     private normalizeAppListPreferences(appList: AppsListPreferences): void {
