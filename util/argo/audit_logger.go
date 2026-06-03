@@ -80,6 +80,13 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		logFields["resource-namespace"] = objMeta.Namespace
 	}
 
+	// Kubernetes requires InvolvedObject.Namespace to match the event namespace.
+	// Cluster-scoped resources have an empty namespace and are exempt from this check.
+	involvedObjectNamespace := objMeta.Namespace
+	if objMeta.Namespace != "" {
+		involvedObjectNamespace = eventNamespace
+	}
+
 	event := corev1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
@@ -92,7 +99,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		InvolvedObject: corev1.ObjectReference{
 			Kind:            gvk.Kind,
 			Name:            objMeta.Name,
-			Namespace:       objMeta.Namespace, // Keep the original namespace in InvolvedObject
+			Namespace:       involvedObjectNamespace,
 			ResourceVersion: objMeta.ResourceVersion,
 			APIVersion:      gvk.GroupVersion().String(),
 			UID:             objMeta.UID,
