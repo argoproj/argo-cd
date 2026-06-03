@@ -15,8 +15,10 @@ permissions: read-all
 
 network: defaults
 
-# # This workflow runs often, so you can use a small model to keep costs down.
-engine: claude
+# This workflow runs often, so you can use a small model to keep costs down.
+engine:
+  id: claude
+  model: claude-haiku-4-5-20251001
 
 safe-outputs:
   add-labels:
