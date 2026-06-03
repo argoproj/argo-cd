@@ -35,7 +35,7 @@ func TestNewCommand_DisableTLSAndClientCAPathAreMutuallyExclusive(t *testing.T) 
 }
 
 func TestBuildHealthCheckTLSConfig_NilCert(t *testing.T) {
-	cfg := buildHealthCheckTLSConfig(nil)
+	cfg := buildHealthCheckTLSConfig(nil, false)
 
 	assert.False(t, cfg.StrictValidation, "strict validation must be off: the probe verifies itself over localhost")
 	assert.Empty(t, cfg.ClientCertificates, "no client cert must be present when mTLS is not active")
@@ -48,7 +48,7 @@ func TestBuildHealthCheckTLSConfig_WithCert(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, hcCert)
 
-	cfg := buildHealthCheckTLSConfig(hcCert)
+	cfg := buildHealthCheckTLSConfig(hcCert, false)
 
 	assert.False(t, cfg.StrictValidation, "server-cert verification is always skipped for localhost self-connections")
 	require.Len(t, cfg.ClientCertificates, 1, "the ephemeral health-check cert must appear as the client identity")
@@ -60,8 +60,8 @@ func TestBuildHealthCheckTLSConfig_IsIdempotent(t *testing.T) {
 	hcCert, err := utilstls.GenerateHealthCheckClientCert()
 	require.NoError(t, err)
 
-	cfg1 := buildHealthCheckTLSConfig(hcCert)
-	cfg2 := buildHealthCheckTLSConfig(hcCert)
+	cfg1 := buildHealthCheckTLSConfig(hcCert, false)
+	cfg2 := buildHealthCheckTLSConfig(hcCert, false)
 
 	assert.Equal(t, cfg1.StrictValidation, cfg2.StrictValidation)
 	assert.Equal(t, cfg1.DisableTLS, cfg2.DisableTLS)
@@ -78,7 +78,7 @@ func TestBuildHealthCheckTLSConfig_MutatingReturnedCertDoesNotAffectSource(t *te
 	originalDER := make([]byte, len(hcCert.Certificate[0]))
 	copy(originalDER, hcCert.Certificate[0])
 
-	cfg := buildHealthCheckTLSConfig(hcCert)
+	cfg := buildHealthCheckTLSConfig(hcCert, false)
 	require.Len(t, cfg.ClientCertificates, 1)
 
 	cfg.ClientCertificates[0] = ctls.Certificate{}
