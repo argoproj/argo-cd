@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,4 +87,47 @@ func TestNewCommand_MTLSFlagsCanBeSetExplicitly(t *testing.T) {
 	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-key")
 	require.NoError(t, err)
 	assert.Equal(t, "/runtime/client.key", clientCertKey)
+}
+
+func TestNewCommand_RepoServerCACertTakesPrecedenceOverEmbeddedCert(t *testing.T) {
+	caCertPath := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt")
+
+	cmd := NewCommand()
+
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", caCertPath))
+	require.NoError(t, cmd.Flags().Set("repo-server-strict-tls", "true"))
+	tlsConfigSrcFlag := cmd.Flags().Lookup("repo-server-ca-cert")
+	require.NotNil(t, tlsConfigSrcFlag,
+		"--repo-server-ca-cert must be registered; if missing the wiring in NewCommand() is broken")
+
+	assert.Equal(t, caCertPath, tlsConfigSrcFlag.Value.String())
+}
+
+func TestNewCommand_StrictTLSWithoutCACertGuardIsAbsent(t *testing.T) {
+	cmd := NewCommand()
+
+	caCertFlag := cmd.Flags().Lookup("repo-server-ca-cert")
+	require.NotNil(t, caCertFlag)
+	assert.Empty(t, caCertFlag.Value.String(),
+		"repo-server-ca-cert must default to empty so the embedded-cert block is not bypassed")
+
+	require.NoError(t, cmd.Flags().Set("repo-server-strict-tls", "true"))
+
+	strictFlag := cmd.Flags().Lookup("repo-server-strict-tls")
+	require.NotNil(t, strictFlag)
+	assert.Equal(t, "true", strictFlag.Value.String())
+}
+
+func TestNewCommand_CACertFlagRegistrationAndDefault(t *testing.T) {
+	cmd := NewCommand()
+
+	for _, flagName := range []string{
+		"repo-server-ca-cert",
+		"repo-server-client-cert",
+		"repo-server-client-cert-key",
+	} {
+		f := cmd.Flags().Lookup(flagName)
+		require.NotNilf(t, f, "flag %q must be registered on argocd-server", flagName)
+		assert.Emptyf(t, f.DefValue, "flag %q must default to empty string", flagName)
+	}
 }

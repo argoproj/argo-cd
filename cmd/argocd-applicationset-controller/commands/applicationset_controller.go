@@ -219,7 +219,7 @@ func NewCommand() *cobra.Command {
 			tlsConfig, err := repoServerClientTLSConfigSrc()
 			errors.CheckError(err)
 			tlsConfig.DisableTLS = repoServerPlaintext
-			tlsConfig.StrictValidation = repoServerStrictTLS
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || repoServerStrictTLS
 
 			if !repoServerPlaintext && repoServerStrictTLS && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(

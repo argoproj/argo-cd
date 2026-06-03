@@ -118,7 +118,7 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to get repo-server client TLS configuration: %w", err)
 			}
 			tlsConfig.DisableTLS = argocdRepoServerPlaintext
-			tlsConfig.StrictValidation = argocdRepoServerStrictTLS
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || argocdRepoServerStrictTLS
 
 			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(

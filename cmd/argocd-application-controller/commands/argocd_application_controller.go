@@ -150,7 +150,7 @@ func NewCommand() *cobra.Command {
 			tlsConfig, err := repoServerClientTLSConfigSrc()
 			errors.CheckError(err)
 			tlsConfig.DisableTLS = repoServerPlaintext
-			tlsConfig.StrictValidation = repoServerStrictTLS
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || repoServerStrictTLS
 
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.

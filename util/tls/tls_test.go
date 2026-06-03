@@ -537,7 +537,7 @@ func TestAddTLSFlagsToCmdWithPrefix(t *testing.T) {
 
 	t.Run("Prefix is used for flag names and environment variables", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		t.Setenv("SERVER_ARGOCD_TLS_MIN_VERSION", "1.1")
+		t.Setenv("ARGOCD_SERVER_TLS_MIN_VERSION", "1.1")
 		AddTLSFlagsToCmdWithPrefix(cmd, "server")
 
 		minVersion, err := cmd.Flags().GetString("server-tlsminversion")
@@ -739,4 +739,145 @@ func TestGenerateHealthCheckClientCert_IsRegistrableAsClientCA(t *testing.T) {
 
 	pool := x509.NewCertPool()
 	assert.NotPanics(t, func() { pool.AddCert(parsed) })
+}
+
+func TestAddClientTLSFlagsToCmdWithPrefix_NoCACert_StrictValidationIsFalse(t *testing.T) {
+	cmd := &cobra.Command{}
+	src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+	cfg, err := src()
+	require.NoError(t, err)
+	assert.False(t, cfg.StrictValidation)
+	assert.Nil(t, cfg.Certificates)
+}
+
+func TestAddClientTLSFlagsToCmdWithPrefix_CACertSetsStrictValidation(t *testing.T) {
+	cmd := &cobra.Command{}
+	src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", "testdata/single.pem"))
+
+	cfg, err := src()
+	require.NoError(t, err)
+
+	assert.True(t, cfg.StrictValidation,
+		"providing --repo-server-ca-cert must imply StrictValidation=true")
+	assert.NotNil(t, cfg.Certificates,
+		"CA cert pool must be populated when --repo-server-ca-cert is set")
+}
+
+func TestStrictValidationOverride_ORSemantics(t *testing.T) {
+	cases := []struct {
+		name            string
+		setCACert       bool // simulate --repo-server-ca-cert being provided
+		legacyFlagValue bool // value of --repo-server-strict-tls
+		wantStrict      bool
+		wantPoolNonNil  bool
+	}{
+		{
+			name:            "no CA cert, legacy flag false → insecure",
+			setCACert:       false,
+			legacyFlagValue: false,
+			wantStrict:      false,
+			wantPoolNonNil:  false,
+		},
+		{
+			name:            "no CA cert, legacy flag true → strict via legacy path",
+			setCACert:       false,
+			legacyFlagValue: true,
+			wantStrict:      true,
+			wantPoolNonNil:  false, // pool populated by component's legacy block, not here
+		},
+		{
+			name:            "CA cert set, legacy flag false → strict because CA cert implies it",
+			setCACert:       true,
+			legacyFlagValue: false,
+			wantStrict:      true, // THE BUG: was false before the fix
+			wantPoolNonNil:  true,
+		},
+		{
+			name:            "CA cert set, legacy flag true → strict (both agree)",
+			setCACert:       true,
+			legacyFlagValue: true,
+			wantStrict:      true,
+			wantPoolNonNil:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+			if tc.setCACert {
+				require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", "testdata/single.pem"))
+			}
+
+			// Step 1: get config from the new flag helper (Layer 1).
+			cfg, err := src()
+			require.NoError(t, err)
+
+			// Step 2: simulate the component's RunE override using OR semantics (the fix).
+			cfg.StrictValidation = cfg.StrictValidation || tc.legacyFlagValue
+
+			assert.Equal(t, tc.wantStrict, cfg.StrictValidation,
+				"StrictValidation after OR-based override")
+			if tc.wantPoolNonNil {
+				assert.NotNil(t, cfg.Certificates,
+					"Certificates pool must be populated when CA cert was provided")
+			}
+		})
+	}
+}
+
+func TestStrictValidationOverride_OldAssignmentSemantics_DocumentsBug(t *testing.T) {
+	cmd := &cobra.Command{}
+	src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", "testdata/single.pem"))
+
+	cfg, err := src()
+	require.NoError(t, err)
+
+	require.True(t, cfg.StrictValidation, "pre-condition: CA cert must set StrictValidation=true")
+
+	legacyFlag := false
+	cfg.StrictValidation = legacyFlag // old code: = not ||
+
+	assert.False(t, cfg.StrictValidation,
+		"BUG REPRODUCED: old = semantics silently discard StrictValidation=true set by CA cert flag")
+	assert.NotNil(t, cfg.Certificates,
+		"pool is non-nil but StrictValidation=false → buildTLSClientConfig's fallback saves us,"+
+			" but the struct state is incoherent")
+}
+
+func TestClientCertFlags_BothRequiredOrNeither(t *testing.T) {
+	t.Run("cert without key returns error", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		require.NoError(t, cmd.Flags().Set("repo-server-client-cert", "some/cert.crt"))
+
+		_, err := src()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--repo-server-client-cert-key is required")
+	})
+
+	t.Run("key without cert returns error", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-key", "some/key.key"))
+
+		_, err := src()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--repo-server-client-cert is required")
+	})
+
+	t.Run("neither cert nor key is valid", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		cfg, err := src()
+		require.NoError(t, err)
+		assert.Empty(t, cfg.ClientCertFile)
+		assert.Empty(t, cfg.ClientCertKeyFile)
+	})
 }

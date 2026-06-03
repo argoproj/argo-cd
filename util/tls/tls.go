@@ -182,9 +182,9 @@ func AddTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (Confi
 		envPrefix = strings.ReplaceAll(strings.ToUpper(prefix), "-", "_") + "_"
 		prefix = prefix + "-"
 	}
-	cmd.Flags().StringVar(&minVersionStr, prefix+"tlsminversion", env.StringFromEnv(envPrefix+"ARGOCD_TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
-	cmd.Flags().StringVar(&maxVersionStr, prefix+"tlsmaxversion", env.StringFromEnv(envPrefix+"ARGOCD_TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
-	cmd.Flags().StringVar(&tlsCiphersStr, prefix+"tlsciphers", env.StringFromEnv(envPrefix+"ARGOCD_TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
+	cmd.Flags().StringVar(&minVersionStr, prefix+"tlsminversion", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&maxVersionStr, prefix+"tlsmaxversion", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&tlsCiphersStr, prefix+"tlsciphers", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
 
 	return func() (ConfigCustomizer, error) {
 		return getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr)
@@ -486,7 +486,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 		}
 		tlsConfig.ClientCAs = pool
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-		log.Infof("mTLS enabled: requiring client certificates from CA=%s", clientCAPath)
+		log.Infof("mTLS enabled for repo-server: requiring client certificates from CA=%s", clientCAPath)
 	}
 
 	return tlsConfig, nil

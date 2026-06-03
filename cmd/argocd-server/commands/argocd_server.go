@@ -161,7 +161,7 @@ func NewCommand() *cobra.Command {
 			tlsConfig, err := repoServerClientTLSConfigSrc()
 			errors.CheckError(err)
 			tlsConfig.DisableTLS = repoServerPlaintext
-			tlsConfig.StrictValidation = repoServerStrictTLS
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || repoServerStrictTLS
 
 			dynamicClient := dynamic.NewForConfigOrDie(config)
 
@@ -174,9 +174,11 @@ func NewCommand() *cobra.Command {
 			controllerClient = client.NewDryRunClient(controllerClient)
 			controllerClient = client.NewNamespacedClient(controllerClient, namespace)
 
-			// Load CA information to use for validating connections to the
-			// repository server, if strict TLS validation was requested.
-			if !repoServerPlaintext && repoServerStrictTLS {
+			// Load CA information to use for validating connections to the repository server, if strict TLS validation
+			// was requested.
+			// Skip loading the embedded cert if the operator already provided anδ explicit CA via --repo-server-ca-cert;
+			// that pool takes precedence.
+			if !repoServerPlaintext && repoServerStrictTLS && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/server/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/server/tls/ca.crt",
