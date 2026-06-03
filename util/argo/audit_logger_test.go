@@ -240,7 +240,7 @@ func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.
 
 	event := events.Items[0]
 	assert.Equal(t, "my-deployment", event.InvolvedObject.Name)
-	assert.Equal(t, _targetNs, event.InvolvedObject.Namespace, "InvolvedObject should preserve original namespace")
+	assert.Equal(t, _argocdNs, event.InvolvedObject.Namespace, "InvolvedObject.Namespace must match event namespace")
 	assert.Equal(t, _argocdNs, event.Namespace, "Event itself should be in ArgoCD namespace")
 	assert.Equal(t, "Resource action executed", event.Message)
 
@@ -343,7 +343,7 @@ func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
 
 			event := events.Items[0]
 			assert.Equal(t, _argocdNs, event.Namespace, "Event should be in ArgoCD namespace for %s", tc.resourceKind)
-			assert.Equal(t, tc.resourceNs, event.InvolvedObject.Namespace, "InvolvedObject should preserve original namespace")
+			assert.Equal(t, _argocdNs, event.InvolvedObject.Namespace, "InvolvedObject.Namespace must match event namespace")
 			assert.Equal(t, tc.resourceNs, event.Annotations["resource-namespace"])
 		})
 	}
