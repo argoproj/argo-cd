@@ -82,6 +82,10 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 			log.Infof("Generated ephemeral health-check client certificate (CN=%s)", parsedCert.Subject.CommonName)
 		}
 	}
+	// Always ensure ClientAuth is set if we have a CA pool, as we might have customized the config.
+	if tlsConfig != nil && tlsConfig.ClientCAs != nil {
+		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	}
 
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {

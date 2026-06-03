@@ -474,13 +474,19 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 
 	if clientCAPath != "" {
+		if _, statErr := os.Stat(clientCAPath); statErr != nil {
+			if errors.Is(statErr, os.ErrNotExist) {
+				return nil, fmt.Errorf("client CA file does not exist: %s", clientCAPath)
+			}
+			return nil, fmt.Errorf("could not stat client CA file %s: %w", clientCAPath, statErr)
+		}
 		pool, err := LoadX509CertPool(clientCAPath)
 		if err != nil {
 			return nil, fmt.Errorf("error loading client CA: %w", err)
 		}
 		tlsConfig.ClientCAs = pool
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-		log.Infof("mTLS enabled for repo-server: requiring client certificates from CA=%s", clientCAPath)
+		log.Infof("mTLS enabled: requiring client certificates from CA=%s", clientCAPath)
 	}
 
 	return tlsConfig, nil
@@ -529,15 +535,8 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 	}
 }
 
-// GenerateHealthCheckClientCert generates an ephemeral self-signed CA + leaf certificate
-// pair for use by the repo-server liveness probe self-connection.
-//
-// The returned certificate is self-signed with IsCA=true so that it can be added directly
-// to a tls.Config.ClientCAs pool: Go's TLS stack will accept any certificate whose issuer
-// appears in ClientCAs, and for a self-signed cert the issuer IS the cert itself.
-//
-// The cert is scoped to the process lifetime and never written to disk. It must be added
-// to the server's ClientCAs pool (via AppendServerClientCA) before the server starts.
+// GenerateHealthCheckClientCert generates an ephemeral self-signed CA and a leaf certificate pair for use by the
+// repo-server liveness probe self-connection.
 func GenerateHealthCheckClientCert() (*tls.Certificate, error) {
 	return GenerateX509KeyPair(CertOptions{
 		Hosts:        []string{"argocd-repo-server-healthcheck"},

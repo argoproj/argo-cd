@@ -187,10 +187,7 @@ func NewCommand() *cobra.Command {
 			listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
-			healthCheckTLSConfig := &apiclient.TLSConfiguration{DisableTLS: disableTLS}
-			if !disableTLS {
-				healthCheckTLSConfig = new(buildHealthCheckTLSConfig(server.GetHealthCheckClientCert()))
-			}
+			healthCheckTLSConfig := buildHealthCheckTLSConfig(server.GetHealthCheckClientCert(), disableTLS)
 
 			mux := http.NewServeMux()
 			healthz.ServeHealthCheck(mux, func(r *http.Request) error {
@@ -296,8 +293,9 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate) apiclient.TLSConfiguration {
-	cfg := apiclient.TLSConfiguration{
+func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate, disableTLS bool) *apiclient.TLSConfiguration {
+	cfg := &apiclient.TLSConfiguration{
+		DisableTLS: disableTLS,
 		// InsecureSkipVerify=true: it is always a localhost connection, so no reason to re-verify the server
 		// certificate on every probe.
 		StrictValidation: false,

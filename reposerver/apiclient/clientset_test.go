@@ -114,7 +114,7 @@ func TestNewConnection_InMemoryCertificates(t *testing.T) {
 	assert.NotNil(t, conn)
 }
 
-func TestNewConnection_CachesClientCertificateFromFiles(t *testing.T) {
+func TestNewConnection_ServesFromCacheWhenFilesUnchanged(t *testing.T) {
 	t.Cleanup(apiclient.ResetClientCertCache)
 	apiclient.ResetClientCertCache()
 
@@ -126,13 +126,11 @@ func TestNewConnection_CachesClientCertificateFromFiles(t *testing.T) {
 
 	certBytes, err := os.ReadFile(certFile)
 	require.NoError(t, err)
-	err = os.WriteFile(tempCertFile, certBytes, 0o600)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempCertFile, certBytes, 0o600))
 
 	keyBytes, err := os.ReadFile(keyFile)
 	require.NoError(t, err)
-	err = os.WriteFile(tempKeyFile, keyBytes, 0o600)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempKeyFile, keyBytes, 0o600))
 
 	tlsConfig := apiclient.TLSConfiguration{
 		StrictValidation:  false,
@@ -140,18 +138,98 @@ func TestNewConnection_CachesClientCertificateFromFiles(t *testing.T) {
 		ClientCertKeyFile: tempKeyFile,
 	}
 
+	// First call: loads from disk and populates the cache.
 	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 	require.NoError(t, err)
 	assert.NotNil(t, conn)
 
-	err = os.WriteFile(tempCertFile, []byte("invalid cert"), 0o600)
-	require.NoError(t, err)
-	err = os.WriteFile(tempKeyFile, []byte("invalid key"), 0o600)
-	require.NoError(t, err)
-
+	// Second call: files are untouched, mtime is unchanged — cert must be served from the cache without re-reading disk.
 	conn, err = apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 	require.NoError(t, err)
 	assert.NotNil(t, conn)
+}
+
+func TestNewConnection_ReloadsClientCertificateWhenFileChanges(t *testing.T) {
+	t.Cleanup(apiclient.ResetClientCertCache)
+	apiclient.ResetClientCertCache()
+
+	certFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt")
+	keyFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.key")
+
+	tempCertFile := filepath.Join(t.TempDir(), "client.crt")
+	tempKeyFile := filepath.Join(t.TempDir(), "client.key")
+
+	certBytes, err := os.ReadFile(certFile)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempCertFile, certBytes, 0o600))
+
+	keyBytes, err := os.ReadFile(keyFile)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempKeyFile, keyBytes, 0o600))
+
+	tlsConfig := apiclient.TLSConfiguration{
+		StrictValidation:  false,
+		ClientCertFile:    tempCertFile,
+		ClientCertKeyFile: tempKeyFile,
+	}
+
+	// First call: loads and caches the cert.
+	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+
+	// Simulate cert rotation: overwrite with fresh (still valid) cert bytes.
+	// Writing updates the mtime, which is enough to trigger a reload.
+	require.NoError(t, os.WriteFile(tempCertFile, certBytes, 0o600))
+	require.NoError(t, os.WriteFile(tempKeyFile, keyBytes, 0o600))
+
+	// Second call: mtime changed → cache invalidated → reloads from disk.
+	// The new cert is valid, so the call must succeed.
+	conn, err = apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+}
+
+func TestNewConnection_ErrorWhenRotatedCertIsInvalid(t *testing.T) {
+	t.Cleanup(apiclient.ResetClientCertCache)
+	apiclient.ResetClientCertCache()
+
+	certFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt")
+	keyFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.key")
+
+	tempCertFile := filepath.Join(t.TempDir(), "client.crt")
+	tempKeyFile := filepath.Join(t.TempDir(), "client.key")
+
+	certBytes, err := os.ReadFile(certFile)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempCertFile, certBytes, 0o600))
+
+	keyBytes, err := os.ReadFile(keyFile)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempKeyFile, keyBytes, 0o600))
+
+	tlsConfig := apiclient.TLSConfiguration{
+		StrictValidation:  false,
+		ClientCertFile:    tempCertFile,
+		ClientCertKeyFile: tempKeyFile,
+	}
+
+	// First call: succeeds and populates the cache.
+	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+
+	require.NoError(t, os.WriteFile(tempCertFile, []byte("not a valid certificate"), 0o600))
+	require.NoError(t, os.WriteFile(tempKeyFile, []byte("not a valid key"), 0o600))
+
+	// Second call: mtime changed → reload attempted → parse fails → error returned.
+	// The stale (valid) cached cert must NOT be silently served.
+	_, err = apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.Error(t, err,
+		"a corrupt cert file must cause an error after cache invalidation, "+
+			"not silently serve the stale cached cert")
+	assert.Contains(t, err.Error(), "failed to load client certificate",
+		"error must identify the cert load as the failure site")
 }
 
 func TestNewConnection_DoesNotCacheClientCertificateLoadError(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"math"
+	"os"
 	"sync"
 	"time"
 
@@ -53,19 +54,20 @@ type clientSet struct {
 	tlsConfig      TLSConfiguration
 }
 
-type certCacheEntry struct {
-	cert tls.Certificate
+type clientCertEntry struct {
+	cert        tls.Certificate
+	certModTime time.Time
+	keyModTime  time.Time
 }
 
 var clientCertCache = struct {
-	mu      sync.Mutex
-	entries map[string]certCacheEntry
+	mu      sync.RWMutex
+	entries map[string]*clientCertEntry
 }{
-	entries: map[string]certCacheEntry{},
+	entries: map[string]*clientCertEntry{},
 }
 
-// ResetClientCertCache clears the client certificate cache.
-// Intended for tests.
+// ResetClientCertCache clears the client certificate cache. // Intended for tests.
 func ResetClientCertCache() {
 	clientCertCache.mu.Lock()
 	defer clientCertCache.mu.Unlock()
@@ -75,26 +77,51 @@ func ResetClientCertCache() {
 func getClientCertFromCache(certFile, keyFile string) (tls.Certificate, error) {
 	cacheKey := certFile + "\x00" + keyFile
 
-	clientCertCache.mu.Lock()
-	if entry, ok := clientCertCache.entries[cacheKey]; ok {
-		clientCertCache.mu.Unlock()
-		return entry.cert, nil
+	// Stat both files before acquiring the write lock.
+	// os.Stat is cheap; we do it outside the lock to minimise contention.
+	certInfo, err := os.Stat(certFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("cannot stat client cert file %s: %w", certFile, err)
 	}
-	clientCertCache.mu.Unlock()
+	keyInfo, err := os.Stat(keyFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("cannot stat client cert key file %s: %w", keyFile, err)
+	}
 
+	// Fast path: read lock, return cached cert if still fresh.
+	clientCertCache.mu.RLock()
+	if entry, ok := clientCertCache.entries[cacheKey]; ok {
+		if !certInfo.ModTime().After(entry.certModTime) && !keyInfo.ModTime().After(entry.keyModTime) {
+			cert := entry.cert
+			clientCertCache.mu.RUnlock()
+			return cert, nil
+		}
+	}
+	clientCertCache.mu.RUnlock()
+
+	// Slow path: files changed or not yet cached — reload from disk.
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return tls.Certificate{}, err
+		return tls.Certificate{}, fmt.Errorf("failed to load client certificate: %w", err)
 	}
 
 	clientCertCache.mu.Lock()
+	// Double-check: another goroutine may have loaded between our RUnlock and Lock.
 	if entry, ok := clientCertCache.entries[cacheKey]; ok {
-		clientCertCache.mu.Unlock()
-		return entry.cert, nil
+		if !certInfo.ModTime().After(entry.certModTime) && !keyInfo.ModTime().After(entry.keyModTime) {
+			cert := entry.cert
+			clientCertCache.mu.Unlock()
+			return cert, nil
+		}
 	}
-	clientCertCache.entries[cacheKey] = certCacheEntry{cert: cert}
+	clientCertCache.entries[cacheKey] = &clientCertEntry{
+		cert:        cert,
+		certModTime: certInfo.ModTime(),
+		keyModTime:  keyInfo.ModTime(),
+	}
 	clientCertCache.mu.Unlock()
 
+	log.Infof("Client certificate reloaded from %s (mtime changed)", certFile)
 	return cert, nil
 }
 
@@ -142,26 +169,38 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 
 // NewRepoServerClientset creates new instance of repo server Clientset
 func NewRepoServerClientset(address string, timeoutSeconds int, tlsConfig TLSConfiguration) Clientset {
-	return &clientSet{address: address, timeoutSeconds: timeoutSeconds, tlsConfig: tlsConfig}
+	return &clientSet{
+		address:        address,
+		timeoutSeconds: timeoutSeconds,
+		tlsConfig:      tlsConfig,
+	}
 }
 
 func buildTLSClientConfig(tlsConfig *TLSConfiguration) (*tls.Config, error) {
 	tlsC := &tls.Config{}
 
 	strictValidation := tlsConfig.StrictValidation || tlsConfig.Certificates != nil
-
 	if !strictValidation {
-		tlsC.InsecureSkipVerify = true //nolint:gosec // intentional, controlled by operator flag
+		tlsC.InsecureSkipVerify = true
 	} else {
 		tlsC.RootCAs = tlsConfig.Certificates
 	}
 
 	if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
-		cert, err := getClientCertFromCache(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load client certificate: %w", err)
+		certFile := tlsConfig.ClientCertFile
+		keyFile := tlsConfig.ClientCertKeyFile
+
+		if _, err := getClientCertFromCache(certFile, keyFile); err != nil {
+			return nil, fmt.Errorf("failed to load initial client certificate: %w", err)
 		}
-		tlsC.Certificates = []tls.Certificate{cert}
+
+		tlsC.GetClientCertificate = func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			cert, err := getClientCertFromCache(certFile, keyFile)
+			if err != nil {
+				return nil, err
+			}
+			return &cert, nil
+		}
 	} else if len(tlsConfig.ClientCertificates) > 0 {
 		tlsC.Certificates = tlsConfig.ClientCertificates
 	}
