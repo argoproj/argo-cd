@@ -1,0 +1,3 @@
+// Hook class for ResourceIcon font glyphs (Application, ApplicationSet).
+// Sizing is applied via inline styles in resource-icon.tsx; this class is used by
+// parent selectors (e.g. application-resource-tree) to avoid double-scaling.

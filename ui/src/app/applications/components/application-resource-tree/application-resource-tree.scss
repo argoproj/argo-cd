@@ -84,7 +84,7 @@
             box-shadow: 1px 1px 1px $argo-color-gray-7;
         }
 
-        .icon {
+        .icon:not(.resource-icon__font-icon) {
             font-size: 2em;
         }
 

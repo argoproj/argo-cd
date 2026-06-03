@@ -33,17 +33,22 @@
 
     .applications-list__title {
         white-space: normal !important;
-        word-break: break-word; 
-        overflow-wrap: break-word; 
-        hyphens: auto; 
-        line-height: 1.4; 
-        width: 100%; 
+        word-break: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+        line-height: 1.4;
     }
 }
 
-.columns:has(> .argo-icon-git), .columns:has(> .argo-icon-helm) {
+.applications-tiles .columns:has(> .icon) {
     display: flex;
     align-items: center;
+
+    .applications-list__title {
+        width: auto;
+        flex: 0 1 auto;
+        min-width: 0;
+    }
 }
 
 @media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
@@ -55,7 +60,7 @@
 .applications-list__external-link {
     align-items: center;
     display: flex;
-    
+
     button {
         background: none;
         border: none;
@@ -66,7 +71,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        
+
         &:hover {
             color: $argo-color-teal-5;
         }
@@ -78,7 +83,7 @@
                 color: #f4c030;
             }
         }
-        
+
         i {
             font-size: 14px;
         }

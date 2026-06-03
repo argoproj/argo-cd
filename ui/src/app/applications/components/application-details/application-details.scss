@@ -95,6 +95,10 @@ $header: 120px;
     }
 
     &__resource-icon {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         text-align: center;
         position: absolute;
         left: 0;
@@ -102,7 +106,6 @@ $header: 120px;
         width: 60px;
         line-height: 1;
         color: $argo-color-gray-7;
-        font-size: 0.8em;
     }
 
     .application-resource-tree {
@@ -409,6 +412,3 @@ $header: 120px;
         }
     }
 }
-
-
-

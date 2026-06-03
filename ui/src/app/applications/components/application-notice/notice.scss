@@ -74,15 +74,6 @@ $notice-severities: (
     }
 }
 
-// The tile's title column is a flex container (due to the `:has(> .argo-icon-git)`
-// rule in applications-tiles.scss) and `.applications-list__title` is sized to
-// `width: 100%`, so without this override the title fills the column and shoves
-// the notice icon to the far right.
-.applications-tiles .columns:has(> .application-notice-icon) .applications-list__title {
-    width: auto;
-    flex: 0 1 auto;
-    min-width: 0;
-}
 
 .application-notice-icon {
     // Negative top margin nudges the icon up to align optically with the
