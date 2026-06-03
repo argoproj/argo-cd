@@ -941,6 +941,25 @@ func TestRefreshAppSetWithConflicts(t *testing.T) {
 	assert.Equal(t, "true", res.Annotations[common.AnnotationApplicationSetRefresh])
 }
 
+func TestRefreshAppSetGetError(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
+	appSetServer := newTestAppSetServer(t, appSet1)
+	fakeAppCs := appSetServer.appclientset.(*apps.Clientset)
+
+	fakeAppCs.Lock()
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("simulated get error")
+	})
+	fakeAppCs.Unlock()
+
+	_, err := appSetServer.refreshAppSet(context.Background(), appSet1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error getting ApplicationSet: simulated get error")
+}
+
 func TestRefreshAppSetTooManyConflicts(t *testing.T) {
 	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
