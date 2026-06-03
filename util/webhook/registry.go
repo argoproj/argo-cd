@@ -88,9 +88,18 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 		}
 
 		for _, source := range sources {
-			if normalizeOCI(source.RepoURL) != normalizedRepoURL {
+			// For Helm-OCI sources the chart lives in a separate field
+			// (repoURL: ghcr.io/myorg + chart: mychart), so the configured
+			// repoURL alone is the registry/namespace and never matches the
+			// full pushed path (ghcr.io/myorg/mychart). Append the chart name
+			// unless repoURL already ends in /<chart> (avoids .../mychart/mychart).
+			sourceRepoURL := source.RepoURL
+			if source.Chart != "" && !strings.HasSuffix(normalizeOCI(sourceRepoURL), "/"+strings.ToLower(source.Chart)) {
+				sourceRepoURL = strings.TrimSuffix(sourceRepoURL, "/") + "/" + source.Chart
+			}
+			if normalizeOCI(sourceRepoURL) != normalizedRepoURL {
 				log.WithFields(log.Fields{
-					"sourceRepoURL": source.RepoURL,
+					"sourceRepoURL": sourceRepoURL,
 					"eventRepoURL":  repoURL,
 				}).Debug("Skipping app: OCI repository URLs do not match")
 				continue
