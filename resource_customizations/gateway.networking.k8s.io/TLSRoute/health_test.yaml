@@ -27,3 +27,7 @@ tests:
     status: Healthy
     message: TLSRoute is healthy
   inputPath: testdata/healthy_multiple_generations.yaml
+- healthStatus:
+    status: Progressing
+    message: "Parent example-gateway: Waiting for TLSRoute conditions"
+  inputPath: testdata/progressing_missing_route_conditions.yaml

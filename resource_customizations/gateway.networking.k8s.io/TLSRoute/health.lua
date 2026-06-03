@@ -19,10 +19,10 @@
 -- Ref: https://gateway-api.sigs.k8s.io/guides/implementers/#conditions
 --
 -- Argo CD health mapping (consistent with HTTPRoute/GRPCRoute):
---   Accepted/ResolvedRefs = False              -> Degraded
---   Programmed exists and status != True       -> Progressing
---   Otherwise (current generation, no failure) -> Healthy
---   No status / no parents                     -> Progressing
+--   Accepted=False or ResolvedRefs=False                 -> Degraded
+--   Programmed exists and status != True                 -> Progressing
+--   Accepted=True AND ResolvedRefs=True on a fresh parent -> Healthy
+--   No status / no parents / required conditions missing  -> Progressing
 --
 -- NOTE: Only status="False" is treated as a hard failure for Accepted/ResolvedRefs.
 -- status="Unknown" is considered non-failing, consistent with existing HTTPRoute/GRPCRoute
@@ -37,15 +37,27 @@
 
 local hs = {}
 
--- Only treat status="False" as a hard failure for consistency with HTTPRoute/GRPCRoute.
--- status="Unknown" is considered non-failing and may still be gated by Programmed/generation checks.
-function checkConditions(conditions, conditionType)
+function findCondition(conditions, conditionType)
   for _, condition in ipairs(conditions) do
-    if condition.type == conditionType and condition.status == "False" then
-      return false, condition.message or ("Failed condition: " .. conditionType)
+    if condition.type == conditionType then
+      return condition
     end
   end
-  return true
+  return nil
+end
+
+function conditionMessage(condition, conditionType)
+  if condition ~= nil and condition.message ~= nil and condition.message ~= "" then
+    return condition.message
+  end
+  return "Failed condition: " .. conditionType
+end
+
+function getParentName(parent)
+  if parent.parentRef ~= nil and parent.parentRef.name ~= nil then
+    return parent.parentRef.name
+  end
+  return ""
 end
 
 -- Skip parent conditions that do not match the current generation (stale status).
@@ -72,70 +84,58 @@ function isParentGenerationObserved(obj, parent)
   return true
 end
 
-if obj.status ~= nil then
-  if obj.status.parents ~= nil then
-    for _, parent in ipairs(obj.status.parents) do
-      if parent.conditions ~= nil then
-        if not isParentGenerationObserved(obj, parent) then
-          goto continue
+if obj.status ~= nil and obj.status.parents ~= nil then
+  local hasHealthyParent = false
+  local progressingMsg = ""
+  local waitingMsg = ""
+
+  for _, parent in ipairs(obj.status.parents) do
+    if parent.conditions ~= nil and #parent.conditions > 0 and isParentGenerationObserved(obj, parent) then
+      local name = getParentName(parent)
+      local resolvedRefs = findCondition(parent.conditions, "ResolvedRefs")
+      local accepted = findCondition(parent.conditions, "Accepted")
+      local programmed = findCondition(parent.conditions, "Programmed")
+
+      if resolvedRefs ~= nil and resolvedRefs.status == "False" then
+        hs.status = "Degraded"
+        hs.message = "Parent " .. name .. ": " .. conditionMessage(resolvedRefs, "ResolvedRefs")
+        return hs
+      end
+
+      if accepted ~= nil and accepted.status == "False" then
+        hs.status = "Degraded"
+        hs.message = "Parent " .. name .. ": " .. conditionMessage(accepted, "Accepted")
+        return hs
+      end
+
+      if programmed ~= nil and programmed.status ~= "True" then
+        if progressingMsg == "" then
+          progressingMsg = "Parent " .. name .. ": " .. (programmed.message or "Route is still being programmed")
         end
-
-        -- parentRef and parentRef.name may be omitted depending on implementation;
-        -- fall back to empty name / generic messages to keep health output deterministic.
-        local parentName = ""
-        if parent.parentRef ~= nil and parent.parentRef.name ~= nil then
-          parentName = parent.parentRef.name
-        end
-
-        local resolvedRefsFalse, resolvedRefsMsg = checkConditions(parent.conditions, "ResolvedRefs")
-        local acceptedFalse, acceptedMsg = checkConditions(parent.conditions, "Accepted")
-
-        if not resolvedRefsFalse then
-          hs.status = "Degraded"
-          hs.message = "Parent " .. parentName .. ": " .. resolvedRefsMsg
-          return hs
-        end
-
-        if not acceptedFalse then
-          hs.status = "Degraded"
-          hs.message = "Parent " .. parentName .. ": " .. acceptedMsg
-          return hs
-        end
-
-        local isProgressing = false
-        local progressingMsg = ""
-
-        for _, condition in ipairs(parent.conditions) do
-          if condition.type == "Programmed" and condition.status ~= "True" then
-            isProgressing = true
-            progressingMsg = condition.message or "Route is still being programmed"
-            break
-          end
-        end
-
-        if isProgressing then
-          hs.status = "Progressing"
-          hs.message = "Parent " .. parentName .. ": " .. progressingMsg
-          return hs
-        end
-
-        ::continue::
+      elseif accepted ~= nil and accepted.status == "True" and resolvedRefs ~= nil and resolvedRefs.status == "True" then
+        hasHealthyParent = true
+      elseif waitingMsg == "" then
+        waitingMsg = "Parent " .. name .. ": Waiting for TLSRoute conditions"
       end
     end
+  end
 
-    -- If we found at least one parent with conditions for the current generation and no hard failures,
-    -- consider the Route healthy (consistent with existing HTTPRoute/GRPCRoute health scripts).
-    if #obj.status.parents > 0 then
-      for _, parent in ipairs(obj.status.parents) do
-        if parent.conditions ~= nil and #parent.conditions > 0 then
-          if isParentGenerationObserved(obj, parent) then
-            hs.status = "Healthy"
-            hs.message = "TLSRoute is healthy"
-            return hs
-          end
-        end
-      end
-    end
+  if progressingMsg ~= "" then
+    hs.status = "Progressing"
+    hs.message = progressingMsg
+    return hs
+  end
+
+  if hasHealthyParent then
+    hs.status = "Healthy"
+    hs.message = "TLSRoute is healthy"
+    return hs
+  end
+
+  if waitingMsg ~= "" then
+    hs.status = "Progressing"
+    hs.message = waitingMsg
+    return hs
   end
 end
 
