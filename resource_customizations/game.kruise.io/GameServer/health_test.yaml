@@ -1,0 +1,20 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: GameServer is Ready
+  inputPath: testdata/healthy.yaml
+
+- healthStatus:
+    status: Progressing
+    message: 'State change: Creating → Ready'
+  inputPath: testdata/progressing.yaml
+
+- healthStatus:
+    status: Degraded
+    message: 'Pod is not ready: KruisePodReady'
+  inputPath: testdata/degraded.yaml
+
+- healthStatus:
+    status: Unknown
+    message: Waiting for GameServer to be ready
+  inputPath: testdata/unknown.yaml

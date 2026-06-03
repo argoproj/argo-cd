@@ -19,34 +19,37 @@ function isLoggedIn(): Observable<boolean> {
 export const AddAuthToToolbar = (init: Toolbar | Observable<Toolbar>, ctx: ContextApis): Observable<Toolbar> => {
     return Utils.toObservable(init).pipe(
         map(toolbar => {
-            toolbar = toolbar || {};
-            toolbar.tools = [
-                toolbar.tools,
-                <DataLoader key='loginPanel' load={() => isLoggedIn()}>
-                    {loggedIn =>
-                        loggedIn ? (
-                            <button className='login-logout-button' key='logout' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
-                                Log out
-                            </button>
-                        ) : (
-                            <button className='login-logout-button' key='login' onClick={() => ctx.navigation.goto(`/login?return_url=${encodeURIComponent(location.href)}`)}>
-                                Log in
-                            </button>
-                        )
-                    }
-                </DataLoader>
-            ];
-            return toolbar;
+            const base = toolbar || {};
+            return {
+                ...base,
+                tools: [
+                    base.tools,
+                    <DataLoader key='loginPanel' load={() => isLoggedIn()}>
+                        {loggedIn =>
+                            loggedIn ? (
+                                <button className='login-logout-button' key='logout' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
+                                    Log out
+                                </button>
+                            ) : (
+                                <button className='login-logout-button' key='login' onClick={() => ctx.navigation.goto(`/login?return_url=${encodeURIComponent(location.href)}`)}>
+                                    Log in
+                                </button>
+                            )
+                        }
+                    </DataLoader>
+                ]
+            };
         })
     );
 };
 
-interface PageProps extends React.Props<any> {
+interface PageProps {
     title: string;
     hideAuth?: boolean;
     toolbar?: Toolbar | Observable<Toolbar>;
     topBarTitle?: string;
     useTitleOnly?: boolean;
+    children?: React.ReactNode;
 }
 
 export const Page = (props: PageProps) => {
@@ -54,7 +57,7 @@ export const Page = (props: PageProps) => {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => (
-                <div className={`${props.hideAuth ? 'page-wrapper' : ''} ${!!pref.hideSidebar ? 'sb-page-wrapper__sidebar-collapsed' : 'sb-page-wrapper'}`}>
+                <div className={`${props.hideAuth ? 'page-wrapper' : ''} ${pref.hideSidebar ? 'sb-page-wrapper__sidebar-collapsed' : 'sb-page-wrapper'}`}>
                     <ArgoPage
                         title={props.title}
                         children={props.children}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]*Filter, error) {
@@ -16,13 +16,19 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 		if filter.BranchMatch != nil {
 			outFilter.BranchMatch, err = regexp.Compile(*filter.BranchMatch)
 			if err != nil {
-				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %v", *filter.BranchMatch, err)
+				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %w", *filter.BranchMatch, err)
 			}
 		}
 		if filter.TargetBranchMatch != nil {
 			outFilter.TargetBranchMatch, err = regexp.Compile(*filter.TargetBranchMatch)
 			if err != nil {
-				return nil, fmt.Errorf("error compiling TargetBranchMatch regexp %q: %v", *filter.TargetBranchMatch, err)
+				return nil, fmt.Errorf("error compiling TargetBranchMatch regexp %q: %w", *filter.TargetBranchMatch, err)
+			}
+		}
+		if filter.TitleMatch != nil {
+			outFilter.TitleMatch, err = regexp.Compile(*filter.TitleMatch)
+			if err != nil {
+				return nil, fmt.Errorf("error compiling TitleMatch regexp %q: %w", *filter.TitleMatch, err)
 			}
 		}
 		outFilters = append(outFilters, outFilter)
@@ -35,6 +41,9 @@ func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 		return false
 	}
 	if filter.TargetBranchMatch != nil && !filter.TargetBranchMatch.MatchString(pullRequest.TargetBranch) {
+		return false
+	}
+	if filter.TitleMatch != nil && !filter.TitleMatch.MatchString(pullRequest.Title) {
 		return false
 	}
 

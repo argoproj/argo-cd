@@ -1,9 +1,7 @@
 # ApplicationSet in any namespace
 
-**Current feature state**: Beta
-
-!!! warning
-    Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
+> [!WARNING]
+> Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
 
@@ -25,7 +23,9 @@ This feature can only be enabled and used when your Argo CD ApplicationSet contr
 
 ### SCM Providers secrets consideration
 
-By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using `scmProvider` or `pullRequest` generators.
+By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using `scmProvider` or `pullRequest` generators. This means if ApplicationSet controller is configured to allow namespace `appNs` and some user is allowed to create 
+an ApplicationSet in `appNs` namespace, then the user can install a malicious Pod into the `appNs` namespace as described below
+and read out the content of the secret indirectly, thus exfiltrating the secret value.
 
 Here is an example:
 
@@ -34,6 +34,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: myapps
+  namespace: appNs
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -43,7 +44,7 @@ spec:
         # The Gitea owner to scan.
         owner: myorg
         # With this malicious setting, user can send all request to a Pod that will log incoming requests including headers with tokens
-        api: http://my-service.my-namespace.svc.cluster.local
+        api: http://my-service.appNs.svc.cluster.local
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
         # By changing this token reference, user can exfiltrate any secrets
@@ -53,7 +54,7 @@ spec:
   template:
 ```
 
-Therefore administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
+In order to prevent the scenario above administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
 
 For example:
 ```yaml
@@ -65,14 +66,37 @@ data:
   applicationsetcontroller.allowed.scm.providers: https://git.mydomain.com/,https://gitlab.mydomain.com/
 ```
 
-!!! note
-    Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
+> [!NOTE]
+> Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
 
-!!! warning
-    The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
-    generator does not accept a custom API URL, the provider is implicitly allowed.
+> [!WARNING]
+> The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
+> generator does not accept a custom API URL, the provider is implicitly allowed.
 
 If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.enable.scm.providers` to `false`.
+
+#### `tokenRef` Restrictions
+
+It is **highly recommended** to enable SCM Providers secrets restrictions to avoid any secrets exfiltration. This
+recommendation applies even when AppSets-in-any-namespace is disabled, but is especially important when it is enabled,
+since non-Argo-admins may attempt to reference out-of-bounds secrets in the `argocd` namespace from an AppSet
+`tokenRef`.
+
+When this mode is enabled, the referenced secret must have a label `argocd.argoproj.io/secret-type` with value
+`scm-creds`.
+
+To enable this mode, set the `ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE` environment variable to `true` in the
+`argocd-application-controller` deployment. You can do this by adding the following to your `argocd-cmd-paramscm`
+ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+    applicationsetcontroller.tokenref.strict.mode: "true"
+```
 
 ### Overview
 
@@ -89,7 +113,24 @@ It can be achieved by setting the environment variable `ARGOCD_APPLICATIONSET_CO
 
 #### Change workload startup parameters
 
-In order to enable this feature, the Argo CD administrator must reconfigure the and `argocd-applicationset-controller` workloads to add the `--applicationset-namespaces` parameter to the container's startup command.
+In order to enable this feature, the Argo CD administrator must reconfigure the `argocd-applicationset-controller` workloads to add the `--applicationset-namespaces` parameter to the container's startup command.
+
+The `--applicationset-namespaces` parameter takes a comma-separated list of namespaces where `ApplicationSet` are to be allowed in. Each entry of the list supports:
+
+- shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
+- regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
+
+The startup parameters for the `argocd-applicationset-controller` can also be conveniently set up and kept in sync by specifying the `applicationsetcontroller.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the `ApplicationSet`. For example:
+
+```yaml
+data:
+  applicationsetcontroller.namespaces: "app-team-one, app-team-two"
+```
+would allow the `app-team-one` and `app-team-two` namespaces for managing `ApplicationSet` resources. After a change to the `argocd-cmd-params-cm` namespace, the `ApplicationSet` workload need to be restarted:
+
+```bash
+kubectl rollout restart -n argocd deployment argocd-applicationset-controller
+```
 
 ### Safely template project
 
@@ -164,7 +205,11 @@ For backwards compatibility, if the namespace of the ApplicationSet is the contr
 
 The RBAC syntax for Application objects has been changed from `<project>/<applicationset>` to `<project>/<namespace>/<applicationset>` to accommodate the need to restrict access based on the source namespace of the Application to be managed.
 
-For backwards compatibility, Applications in the argocd namespace can still be referred to as `<project>/<applicationset>` in the RBAC policy rules.
+For backwards compatibility, Applications in the `argocd` namespace will still be referred to as `<project>/<applicationset>` in the RBAC policy rules.
+
+!!! note
+
+    Due to backward compatibility, it is not possible to define RBAC policies specifically for applications in the Argo CD control plane namespace (typically `argocd`) using the pattern `foo/argocd/*`. Applications in the control plane namespace are always normalized to the 2-segment format `<project>/<application>` in RBAC enforcement. For security reasons, an AppProject should never grant access to the control plane namespace through the `.spec.sourceNamespaces` field, as this would allow users to create applications with elevated privileges.
 
 Wildcards do not make any distinction between project and applicationset namespaces yet. For example, the following RBAC rule would match any application belonging to project foo, regardless of the namespace it is created in:
 
@@ -183,7 +228,7 @@ p, somerole, applicationsets, get, foo/bar/*, allow
 
 ### Using the CLI
 
-You can use all existing Argo CD CLI commands for managing applications in other namespaces, exactly as you would use the CLI to manage applications in the control plane's namespace.
+You can use all existing Argo CD CLI commands for managing ApplicationSets in other namespaces, exactly as you would use the CLI to manage ApplicationSets in the control plane's namespace.
 
 For example, to retrieve the `ApplicationSet` named `foo` in the namespace `bar`, you can use the following CLI command:
 

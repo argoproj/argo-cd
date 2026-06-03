@@ -6,7 +6,7 @@ in the `argocd-server` Pods that are placed in the `/tmp/extensions` directory a
 ```
 /tmp/extensions
 ├── example1
-│   └── extension-1.js
+│   └── extension-1.js
 └── example2
     └── extension-2.js
 ```
@@ -73,7 +73,7 @@ registerSystemLevelExtension(component: ExtensionComponent, title: string, optio
 
 Below is an example of a simple system level extension:
 
-```typescript
+```javascript
 ((window) => {
   const component = () => {
     return React.createElement(
@@ -106,7 +106,7 @@ registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: st
 
 Below is an example of a simple extension:
 
-```typescript
+```javascript
 ((window) => {
   const component = () => {
     return React.createElement(
@@ -129,16 +129,14 @@ It is also possible to add an optional flyout widget to your extension. It can b
 
 Below is an example of an extension using the flyout widget:
 
-```typescript
+```javascript
 ((window) => {
-  const component = (props: {
-      openFlyout: () => any
-    }) => {
+  const component = (props: { openFlyout: () => any }) => {
     return React.createElement(
       "div",
-      { 
+      {
         style: { padding: "10px" },
-        onClick: () => props.openFlyout()
+        onClick: () => props.openFlyout(),
       },
       "Hello World"
     );
@@ -158,3 +156,107 @@ Below is an example of an extension using the flyout widget:
   );
 })(window);
 ```
+
+## Top Bar Action Menu Extensions
+
+The top bar panel is the action menu at the top of the application view where the action buttons are displayed like Details, Sync, Refresh. Argo CD allows you to add new button to the top bar action menu of an application.
+When the extension button is clicked, the custom widget will be rendered in a flyout panel.
+
+The extension should be registered using the `extensionsAPI.registerTopBarActionMenuExt` method:
+
+```typescript
+registerTopBarActionMenuExt(
+  component: TopBarActionMenuExtComponent,
+  title: string,
+  id: string,
+  flyout?: ExtensionComponent,
+  shouldDisplay: (app?: Application) => boolean = () => true,
+  iconClassName?: string,
+  isMiddle = false
+)
+```
+
+The callback function `shouldDisplay` should return true if the extension should be displayed and false otherwise:
+
+```typescript
+const shouldDisplay = (app: Application) => {
+  return (
+    application.metadata?.labels?.["application.environmentLabelKey"] === "prd"
+  );
+};
+```
+
+Below is an example of a simple extension with a flyout widget:
+
+```javascript
+((window) => {
+  const shouldDisplay = () => {
+    return true;
+  };
+  const flyout = () => {
+    return React.createElement(
+      "div",
+      { style: { padding: "10px" } },
+      "This is a flyout"
+    );
+  };
+  const component = () => {
+    return React.createElement(
+      "div",
+      {
+        onClick: () => flyout(),
+      },
+      "Toolbar Extension Test"
+    );
+  };
+  window.extensionsAPI.registerTopBarActionMenuExt(
+    component,
+    "Toolbar Extension Test",
+    "Toolbar_Extension_Test",
+    flyout,
+    shouldDisplay,
+    "",
+    true
+  );
+})(window);
+```
+
+## App View Extensions
+
+App View extensions allow you to create a new Application Details View for an application. This view would be selectable alongside the other views like the Node Tree, Pod, and Network views. When the extension's icon is clicked, the extension's component is rendered as the main content of the application view.
+
+Register this extension through the `extensionsAPI.registerAppViewExtension` method.
+
+```typescript
+registerAppViewExtension(
+  component: ExtensionComponent,  // the component to be rendered
+  title: string,                  // the title of the page once the component is rendered
+  icon: string,                   // the favicon classname for the icon tab
+  shouldDisplay?: (app: Application): boolean // returns true if the view should be available
+)
+```
+
+Below is an example of a simple extension:
+
+```javascript
+((window) => {
+  const component = () => {
+    return React.createElement(
+      "div",
+      { style: { padding: "10px" } },
+      "Hello World"
+    );
+  };
+  window.extensionsAPI.registerAppViewExtension(
+    component,
+    "My Extension",
+    "fa-question-circle",
+    (app) =>
+      application.metadata?.labels?.["application.environmentLabelKey"] ===
+      "prd"
+  );
+})(window);
+```
+
+Example rendered extension:
+![destination](../../assets/application-view-extension.png)

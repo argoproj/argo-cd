@@ -1,0 +1,24 @@
+apiVersion: metrics.keptn.sh/v1
+kind: Analysis
+metadata:
+  labels:
+    app.kubernetes.io/name: analysis
+    app.kubernetes.io/instance: analysis-sample
+    app.kubernetes.io/part-of: metrics-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: metrics-operator
+  name: analysis-sample
+spec:
+  timeframe:
+    recent: 5m
+  args:
+    project: my-project
+    stage: dev
+    service: svc1
+    nodename: test
+  analysisDefinition:
+    name: ad-my-proj-dev-svc1
+    namespace: keptn-system
+status:
+  warning: true
+  state: Completed

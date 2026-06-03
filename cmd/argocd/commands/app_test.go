@@ -1,43 +1,52 @@
 package commands
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
-	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
-	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
-	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	k8swatch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apimachinery/pkg/watch"
+	"sigs.k8s.io/yaml"
+
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
+	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
+	notificationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
+	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
+	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -99,7 +108,6 @@ func Test_getRefreshType(t *testing.T) {
 }
 
 func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
-
 	histories := v1alpha1.RevisionHistories{}
 
 	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
@@ -109,7 +117,7 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -124,15 +132,8 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	}
 
 	history, err := findRevisionHistory(&application, -1)
-
-	if err != nil {
-		t.Fatal("Find revision history should fail without errors")
-	}
-
-	if history == nil {
-		t.Fatal("History should be found")
-	}
-
+	require.NoError(t, err, "Find revision history should fail without errors")
+	require.NotNil(t, history, "History should be found")
 }
 
 func TestPrintTreeViewAppGet(t *testing.T) {
@@ -143,9 +144,9 @@ func TestPrintTreeViewAppGet(t *testing.T) {
 	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
 	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
 
-	var nodeMapping = make(map[string]v1alpha1.ResourceNode)
-	var mapParentToChild = make(map[string][]string)
-	var parentNode = make(map[string]struct{})
+	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
 
 	for _, node := range nodes {
 		nodeMapping[node.UID] = node
@@ -182,9 +183,9 @@ func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
 	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
 
-	var nodeMapping = make(map[string]v1alpha1.ResourceNode)
-	var mapParentToChild = make(map[string][]string)
-	var parentNode = make(map[string]struct{})
+	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
 
 	for _, node := range nodes {
 		nodeMapping[node.UID] = node
@@ -212,7 +213,35 @@ func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 	assert.Contains(t, output, "numalogic-rollout-demo-5dcd5457d5-6trpt")
 	assert.Contains(t, output, "Degraded")
 	assert.Contains(t, output, "Readiness Gate failed")
+}
 
+func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
+	histories := v1alpha1.RevisionHistories{}
+
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 3})
+
+	status := v1alpha1.ApplicationStatus{
+		Resources:      nil,
+		Sync:           v1alpha1.SyncStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
+		History:        histories,
+		Conditions:     nil,
+		ReconciledAt:   nil,
+		OperationState: nil,
+		ObservedAt:     nil,
+		SourceType:     "",
+		Summary:        v1alpha1.ApplicationSummary{},
+	}
+
+	application := v1alpha1.Application{
+		Status: status,
+	}
+
+	history, err := findRevisionHistory(&application, -1)
+	require.NoError(t, err, "Find revision history should fail without errors")
+	require.NotNil(t, history, "History should be found")
 }
 
 func TestDefaultWaitOptions(t *testing.T) {
@@ -223,10 +252,10 @@ func TestDefaultWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, true, opts.health)
-	assert.Equal(t, true, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.True(t, opts.health)
+	assert.True(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestOverrideWaitOptions(t *testing.T) {
@@ -237,20 +266,19 @@ func TestOverrideWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, false, opts.health)
-	assert.Equal(t, false, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.False(t, opts.health)
+	assert.False(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
-
 	histories := v1alpha1.RevisionHistories{}
 
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -266,22 +294,12 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 
 	history, err := findRevisionHistory(&application, -1)
 
-	if err == nil {
-		t.Fatal("Find revision history should fail with errors")
-	}
-
-	if history != nil {
-		t.Fatal("History should be empty")
-	}
-
-	if err.Error() != "Application '' should have at least two successful deployments" {
-		t.Fatal("Find revision history should fail with correct error message")
-	}
-
+	require.Error(t, err, "Find revision history should fail with errors")
+	require.Nil(t, history, "History should be empty")
+	require.EqualError(t, err, "application '' should have at least two successful deployments", "Find revision history should fail with correct error message")
 }
 
 func TestFindRevisionHistoryWithPassedId(t *testing.T) {
-
 	histories := v1alpha1.RevisionHistories{}
 
 	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
@@ -291,7 +309,7 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -306,23 +324,12 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	}
 
 	history, err := findRevisionHistory(&application, 3)
-
-	if err != nil {
-		t.Fatal("Find revision history should fail without errors")
-	}
-
-	if history == nil {
-		t.Fatal("History should be found")
-	}
-
-	if history.Revision != "123" {
-		t.Fatal("Failed to find correct history with correct revision")
-	}
-
+	require.NoError(t, err, "Find revision history should fail without errors")
+	require.NotNil(t, history, "History should be found")
+	require.Equal(t, "123", history.Revision, "Failed to find correct history with correct revision")
 }
 
 func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
-
 	histories := v1alpha1.RevisionHistories{}
 
 	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
@@ -332,7 +339,7 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -348,83 +355,18 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 
 	history, err := findRevisionHistory(&application, 4)
 
-	if err == nil {
-		t.Fatal("Find revision history should fail with errors")
-	}
-
-	if history != nil {
-		t.Fatal("History should be not found")
-	}
-
-	if err.Error() != "Application '' does not have deployment id '4' in history\n" {
-		t.Fatal("Find revision history should fail with correct error message")
-	}
-
-}
-
-func Test_groupObjsByKey(t *testing.T) {
-	localObjs := []*unstructured.Unstructured{
-		{
-			Object: map[string]interface{}{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]interface{}{
-					"name":      "pod-name",
-					"namespace": "default",
-				},
-			},
-		},
-		{
-			Object: map[string]interface{}{
-				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]interface{}{
-					"name": "certificates.cert-manager.io",
-				},
-			},
-		},
-	}
-	liveObjs := []*unstructured.Unstructured{
-		{
-			Object: map[string]interface{}{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]interface{}{
-					"name":      "pod-name",
-					"namespace": "default",
-				},
-			},
-		},
-		{
-			Object: map[string]interface{}{
-				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]interface{}{
-					"name": "certificates.cert-manager.io",
-				},
-			},
-		},
-	}
-
-	expected := map[kube.ResourceKey]*unstructured.Unstructured{
-		{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
-		{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
-	}
-
-	objByKey := groupObjsByKey(localObjs, liveObjs, "default")
-	assert.Equal(t, expected, objByKey)
+	require.Error(t, err, "Find revision history should fail with errors")
+	require.Nil(t, history, "History should be not found")
+	require.EqualError(t, err, "application '' does not have deployment id '4' in history", "Find revision history should fail with correct error message")
 }
 
 func TestFormatSyncPolicy(t *testing.T) {
-
 	t.Run("Policy not defined", func(t *testing.T) {
 		app := v1alpha1.Application{}
 
 		policy := formatSyncPolicy(app)
 
-		if policy != "<none>" {
-			t.Fatalf("Incorrect policy %q, should be <none>", policy)
-		}
+		require.Equalf(t, "Manual", policy, "Incorrect policy %q, should be Manual", policy)
 	})
 
 	t.Run("Auto policy", func(t *testing.T) {
@@ -438,9 +380,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 		policy := formatSyncPolicy(app)
 
-		if policy != "Auto" {
-			t.Fatalf("Incorrect policy %q, should be Auto", policy)
-		}
+		require.Equalf(t, "Auto", policy, "Incorrect policy %q, should be Auto", policy)
 	})
 
 	t.Run("Auto policy with prune", func(t *testing.T) {
@@ -448,7 +388,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -456,11 +396,8 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 		policy := formatSyncPolicy(app)
 
-		if policy != "Auto-Prune" {
-			t.Fatalf("Incorrect policy %q, should be Auto-Prune", policy)
-		}
+		require.Equalf(t, "Auto-Prune", policy, "Incorrect policy %q, should be Auto-Prune", policy)
 	})
-
 }
 
 func TestFormatConditionSummary(t *testing.T) {
@@ -469,16 +406,14 @@ func TestFormatConditionSummary(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
 		}
 
 		summary := formatConditionsSummary(app)
-		if summary != "<none>" {
-			t.Fatalf("Incorrect summary %q, should be <none>", summary)
-		}
+		require.Equalf(t, "<none>", summary, "Incorrect summary %q, should be <none>", summary)
 	})
 
 	t.Run("Few conditions are defined", func(t *testing.T) {
@@ -499,9 +434,28 @@ func TestFormatConditionSummary(t *testing.T) {
 		}
 
 		summary := formatConditionsSummary(app)
-		if summary != "type1(2),type2" && summary != "type2,type1(2)" {
-			t.Fatalf("Incorrect summary %q, should be type1(2),type2", summary)
+		require.Equalf(t, "type1(2),type2", summary, "Incorrect summary %q, should be type1(2),type2", summary)
+	})
+
+	t.Run("Conditions are sorted for idempotent summary", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type: "type2",
+					},
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type1",
+					},
+				},
+			},
 		}
+
+		summary := formatConditionsSummary(app)
+		require.Equalf(t, "type1(2),type2", summary, "Incorrect summary %q, should be type1(2),type2", summary)
 	})
 }
 
@@ -512,9 +466,7 @@ func TestPrintOperationResult(t *testing.T) {
 			return nil
 		})
 
-		if output != "" {
-			t.Fatalf("Incorrect print operation output %q, should be ''", output)
-		}
+		require.Emptyf(t, output, "Incorrect print operation output %q, should be ''", output)
 	})
 
 	t.Run("Operation state sync result is not empty", func(t *testing.T) {
@@ -528,9 +480,7 @@ func TestPrintOperationResult(t *testing.T) {
 		})
 
 		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\n"
-		if output != expectation {
-			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
-		}
+		require.Equalf(t, output, expectation, "Incorrect print operation output %q, should be %q", output, expectation)
 	})
 
 	t.Run("Operation state sync result with message is not empty", func(t *testing.T) {
@@ -545,9 +495,7 @@ func TestPrintOperationResult(t *testing.T) {
 		})
 
 		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\nMessage:            test\n"
-		if output != expectation {
-			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
-		}
+		require.Equalf(t, output, expectation, "Incorrect print operation output %q, should be %q", output, expectation)
 	})
 }
 
@@ -557,18 +505,21 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 			ID: 1,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "1",
+				RepoURL:        "test",
 			},
 		},
 		{
 			ID: 2,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "2",
+				RepoURL:        "test",
 			},
 		},
 		{
 			ID: 3,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "3",
+				RepoURL:        "test",
 			},
 		},
 	}
@@ -578,11 +529,86 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 		return nil
 	})
 
-	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
+	expectation := "SOURCE  test\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1\n2       0001-01-01 00:00:00 +0000 UTC  2\n3       0001-01-01 00:00:00 +0000 UTC  3\n"
 
-	if output != expectation {
-		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	require.Equalf(t, output, expectation, "Incorrect print operation output %q, should be %q", output, expectation)
+}
+
+func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
+	histories := []v1alpha1.RevisionHistory{
+		{
+			ID: 0,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "0",
+				RepoURL:        "test",
+			},
+		},
+		{
+			ID: 1,
+			Revisions: []string{
+				"1a",
+				"1b",
+			},
+			// added Source just for testing the fuction
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "-1",
+				RepoURL:        "ignore",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "1a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "1b",
+				},
+			},
+		},
+		{
+			ID: 2,
+			Revisions: []string{
+				"2a",
+				"2b",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "2a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "2b",
+				},
+			},
+		},
+		{
+			ID: 3,
+			Revisions: []string{
+				"3a",
+				"3b",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "3a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "3b",
+				},
+			},
+		},
 	}
+
+	output, _ := captureOutput(func() error {
+		printApplicationHistoryTable(histories)
+		return nil
+	})
+
+	expectation := "SOURCE  test\nID      DATE                           REVISION\n0       0001-01-01 00:00:00 +0000 UTC  0\n\nSOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n"
+
+	require.Equalf(t, output, expectation, "Incorrect print operation output %q, should be %q", output, expectation)
 }
 
 func TestPrintAppSummaryTable(t *testing.T) {
@@ -595,7 +621,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 				Project:     "default",
@@ -614,9 +640,8 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeOutOfSync,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusProgressing,
 				},
 			},
 		}
@@ -669,7 +694,7 @@ SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
@@ -684,7 +709,7 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 				Project:     "default",
@@ -709,9 +734,8 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeOutOfSync,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusProgressing,
 				},
 			},
 		}
@@ -767,7 +791,7 @@ SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
@@ -796,41 +820,85 @@ func TestPrintAppConditions(t *testing.T) {
 		return nil
 	})
 	expectation := "CONDITION\tMESSAGE\tLAST TRANSITION\nDeletionError\ttest\t<nil>\nExcludedResourceWarning\ttest2\t<nil>\nRepeatedResourceWarning\ttest3\t<nil>\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print app conditions output %q, should be %q", output, expectation)
-	}
+	require.Equalf(t, output, expectation, "Incorrect print app conditions output %q, should be %q", output, expectation)
 }
 
 func TestPrintParams(t *testing.T) {
-	output, _ := captureOutput(func() error {
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				Source: &v1alpha1.ApplicationSource{
-					Helm: &v1alpha1.ApplicationSourceHelm{
-						Parameters: []v1alpha1.HelmParameter{
-							{
-								Name:  "name1",
-								Value: "value1",
-							},
-							{
-								Name:  "name2",
-								Value: "value2",
-							},
-							{
-								Name:  "name3",
-								Value: "value3",
+	testCases := []struct {
+		name           string
+		app            *v1alpha1.Application
+		sourcePosition int
+		expectedOutput string
+	}{
+		{
+			name: "Single Source application with valid helm parameters",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							Parameters: []v1alpha1.HelmParameter{
+								{
+									Name:  "name1",
+									Value: "value1",
+								},
+								{
+									Name:  "name2",
+									Value: "value2",
+								},
+								{
+									Name:  "name3",
+									Value: "value3",
+								},
 							},
 						},
 					},
 				},
 			},
-		}
-		printParams(app)
-		return nil
-	})
-	expectation := "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+			sourcePosition: -1,
+			expectedOutput: "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n",
+		},
+		{
+			name: "Multi-source application with a valid Source Position",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: []v1alpha1.ApplicationSource{
+						{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{
+										Name:  "nameA",
+										Value: "valueA",
+									},
+								},
+							},
+						},
+						{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{
+										Name:  "nameB",
+										Value: "valueB",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			sourcePosition: 1,
+			expectedOutput: "\n\nNAME   VALUE\nnameA  valueA\n",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, _ := captureOutput(func() error {
+				printParams(tc.app, tc.sourcePosition)
+				return nil
+			})
+
+			require.Equalf(t, tc.expectedOutput, output, "Incorrect print params output %q, should be %q\n", output, tc.expectedOutput)
+		})
 	}
 }
 
@@ -841,9 +909,7 @@ func TestAppUrlDefault(t *testing.T) {
 			PlainText:  true,
 		}), "test")
 		expectation := "http://localhost:80/applications/test"
-		if result != expectation {
-			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
-		}
+		require.Equalf(t, result, expectation, "Incorrect url %q, should be %q", result, expectation)
 	})
 	t.Run("https", func(t *testing.T) {
 		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
@@ -851,18 +917,14 @@ func TestAppUrlDefault(t *testing.T) {
 			PlainText:  false,
 		}), "test")
 		expectation := "https://localhost/applications/test"
-		if result != expectation {
-			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
-		}
+		require.Equalf(t, result, expectation, "Incorrect url %q, should be %q", result, expectation)
 	})
 }
 
 func TestTruncateString(t *testing.T) {
 	result := truncateString("argocdtool", 2)
 	expectation := "ar..."
-	if result != expectation {
-		t.Fatalf("Incorrect truncate string %q, should be %q", result, expectation)
-	}
+	require.Equalf(t, result, expectation, "Incorrect truncate string %q, should be %q", result, expectation)
 }
 
 func TestGetService(t *testing.T) {
@@ -876,9 +938,7 @@ func TestGetService(t *testing.T) {
 		}
 		result := getServer(app)
 		expectation := "test-server"
-		if result != expectation {
-			t.Fatalf("Incorrect server %q, should be %q", result, expectation)
-		}
+		require.Equal(t, result, expectation, "Incorrect server %q, should be %q", result, expectation)
 	})
 	t.Run("Name", func(t *testing.T) {
 		app := &v1alpha1.Application{
@@ -890,9 +950,7 @@ func TestGetService(t *testing.T) {
 		}
 		result := getServer(app)
 		expectation := "test-name"
-		if result != expectation {
-			t.Fatalf("Incorrect server name %q, should be %q", result, expectation)
-		}
+		require.Equal(t, result, expectation, "Incorrect server name %q, should be %q", result, expectation)
 	})
 }
 
@@ -906,17 +964,9 @@ func TestTargetObjects(t *testing.T) {
 		},
 	}
 	objects, err := targetObjects(resources)
-	if err != nil {
-		t.Fatal("operation should finish without error")
-	}
-
-	if len(objects) != 2 {
-		t.Fatalf("incorrect number of objects %v, should be 2", len(objects))
-	}
-
-	if objects[0].GetName() != "test-helm-guestbook" {
-		t.Fatalf("incorrect name %q, should be %q", objects[0].GetName(), "test-helm-guestbook")
-	}
+	require.NoError(t, err, "operation should finish without error")
+	require.Lenf(t, objects, 2, "incorrect number of objects %v, should be 2", len(objects))
+	require.Equalf(t, "test-helm-guestbook", objects[0].GetName(), "incorrect name %q, should be %q", objects[0].GetName(), "test-helm-guestbook")
 }
 
 func TestTargetObjects_invalid(t *testing.T) {
@@ -926,11 +976,9 @@ func TestTargetObjects_invalid(t *testing.T) {
 }
 
 func TestCheckForDeleteEvent(t *testing.T) {
-
-	ctx := context.Background()
 	fakeClient := new(fakeAcdClient)
 
-	checkForDeleteEvent(ctx, fakeClient, "testApp")
+	checkForDeleteEvent(t.Context(), fakeClient, "testApp")
 }
 
 func TestPrintApplicationNames(t *testing.T) {
@@ -944,17 +992,49 @@ func TestPrintApplicationNames(t *testing.T) {
 		return nil
 	})
 	expectation := "test\ntest\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
+}
+
+func TestNewApplicationUnsetCommand_Validation(t *testing.T) {
+	if os.Getenv("BE_CRASHER") == "1" {
+		cmd := NewApplicationUnsetCommand(nil)
+		cmd.SetArgs([]string{"my-app", "--source-position", "1", "--source-name", "test"})
+		_ = cmd.Execute()
 	}
+
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
+	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() {
+		assert.Contains(t, stderr.String(), "Only one of source-position and source-name can be specified.")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
+func TestNewApplicationUnsetCommand_Flags(t *testing.T) {
+	cmd := NewApplicationUnsetCommand(nil)
+	assert.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("source-name")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "source-name", flag.Name)
+
+	flag = cmd.Flags().Lookup("source-position")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "source-position", flag.Name)
 }
 
 func Test_unset(t *testing.T) {
 	kustomizeSource := &v1alpha1.ApplicationSource{
 		Kustomize: &v1alpha1.ApplicationSourceKustomize{
-			NamePrefix: "some-prefix",
-			NameSuffix: "some-suffix",
-			Version:    "123",
+			IgnoreMissingComponents: true,
+			NamePrefix:              "some-prefix",
+			NameSuffix:              "some-suffix",
+			Version:                 "123",
 			Images: v1alpha1.KustomizeImages{
 				"old1=new:tag",
 				"old2=new:tag",
@@ -1011,7 +1091,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some-prefix", kustomizeSource.Kustomize.NamePrefix)
 	updated, nothingToUnset := unset(kustomizeSource, unsetOpts{namePrefix: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.NamePrefix)
+	assert.Empty(t, kustomizeSource.Kustomize.NamePrefix)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{namePrefix: true})
@@ -1020,7 +1100,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some-suffix", kustomizeSource.Kustomize.NameSuffix)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.NameSuffix)
+	assert.Empty(t, kustomizeSource.Kustomize.NameSuffix)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
@@ -1029,43 +1109,52 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "123", kustomizeSource.Kustomize.Version)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.Version)
+	assert.Empty(t, kustomizeSource.Kustomize.Version)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Images))
+	assert.Len(t, kustomizeSource.Kustomize.Images, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
-	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Images))
+	assert.Len(t, kustomizeSource.Kustomize.Images, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Replicas))
+	assert.Len(t, kustomizeSource.Kustomize.Replicas, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
-	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Replicas))
+	assert.Len(t, kustomizeSource.Kustomize.Replicas, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(helmSource.Helm.Parameters))
+	assert.True(t, kustomizeSource.Kustomize.IgnoreMissingComponents)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{ignoreMissingComponents: true})
+	assert.False(t, kustomizeSource.Kustomize.IgnoreMissingComponents)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{ignoreMissingComponents: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Len(t, helmSource.Helm.Parameters, 2)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
-	assert.Equal(t, 1, len(helmSource.Helm.Parameters))
+	assert.Len(t, helmSource.Helm.Parameters, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(helmSource.Helm.ValueFiles))
+	assert.Len(t, helmSource.Helm.ValueFiles, 2)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
-	assert.Equal(t, 1, len(helmSource.Helm.ValueFiles))
+	assert.Len(t, helmSource.Helm.ValueFiles, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
@@ -1074,34 +1163,34 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some: yaml", helmSource.Helm.ValuesString())
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
-	assert.Equal(t, "", helmSource.Helm.ValuesString())
+	assert.Empty(t, helmSource.Helm.ValuesString())
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.True(t, helmSource.Helm.IgnoreMissingValueFiles)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
-	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.False(t, helmSource.Helm.IgnoreMissingValueFiles)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.PassCredentials)
+	assert.True(t, helmSource.Helm.PassCredentials)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
-	assert.Equal(t, false, helmSource.Helm.PassCredentials)
+	assert.False(t, helmSource.Helm.PassCredentials)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(pluginSource.Plugin.Env))
+	assert.Len(t, pluginSource.Plugin.Env, 2)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
-	assert.Equal(t, 1, len(pluginSource.Plugin.Env))
+	assert.Len(t, pluginSource.Plugin.Env, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
@@ -1110,6 +1199,8 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name   string
 		source v1alpha1.ApplicationSource
@@ -1175,7 +1266,8 @@ func TestFilterAppResources(t *testing.T) {
 	app := v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			Resources: []v1alpha1.ResourceStatus{
-				appReplicaSet1, appReplicaSet2, appJob, appService1, appService2, appDeployment},
+				appReplicaSet1, appReplicaSet2, appJob, appService1, appService2, appDeployment,
+			},
 		},
 	}
 	// Resource filters
@@ -1185,49 +1277,64 @@ func TestFilterAppResources(t *testing.T) {
 			Kind:      "",
 			Name:      "",
 			Namespace: "",
-			Exclude:   false}
+			Exclude:   false,
+		}
 		// *:*:*
 		includeAllResources = v1alpha1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "*",
 			Name:      "*",
 			Namespace: "",
-			Exclude:   false}
+			Exclude:   false,
+		}
 		// !*:*:*
 		excludeAllResources = v1alpha1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "*",
 			Name:      "*",
 			Namespace: "",
-			Exclude:   true}
+			Exclude:   true,
+		}
 		// *:Service:*
 		includeAllServiceResources = v1alpha1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "Service",
 			Name:      "*",
 			Namespace: "",
-			Exclude:   false}
+			Exclude:   false,
+		}
 		// !*:Service:*
 		excludeAllServiceResources = v1alpha1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "Service",
 			Name:      "*",
 			Namespace: "",
-			Exclude:   true}
+			Exclude:   true,
+		}
+		// apps:ReplicaSet:*
+		includeAllReplicaSetResource = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   false,
+		}
 		// apps:ReplicaSet:replicaSet-name1
 		includeReplicaSet1Resource = v1alpha1.SyncOperationResource{
 			Group:     "apps",
 			Kind:      "ReplicaSet",
 			Name:      "replicaSet-name1",
 			Namespace: "",
-			Exclude:   false}
+			Exclude:   false,
+		}
 		// !apps:ReplicaSet:replicaSet-name2
 		excludeReplicaSet2Resource = v1alpha1.SyncOperationResource{
 			Group:     "apps",
 			Kind:      "ReplicaSet",
 			Name:      "replicaSet-name2",
 			Namespace: "",
-			Exclude:   true}
+			Exclude:   true,
+		}
 	)
 
 	// Filtered resources
@@ -1275,55 +1382,72 @@ func TestFilterAppResources(t *testing.T) {
 		expectedResult    []*v1alpha1.SyncOperationResource
 	}{
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
+		{
+			testName:          "Include ReplicaSet replicaSet-name1 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &service1, &service2},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
+		{
+			testName:          "Include ReplicaSet replicaSet-name1 resource and exclude all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
-		{testName: "Exclude ReplicaSet replicaSet-name2 resouce and all service resources",
+		{
+			testName:          "Exclude ReplicaSet replicaSet-name2 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2
-		{testName: "Exclude ReplicaSet replicaSet-name2 resouce",
+		{
+			testName:          "Exclude ReplicaSet replicaSet-name2 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1
-		{testName: "Include ReplicaSet replicaSet-name1 resouce",
+		{
+			testName:          "Include ReplicaSet replicaSet-name1 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
+		// --resource apps:ReplicaSet:* --resource !apps:ReplicaSet:replicaSet-name2
+		{
+			testName:          "Include All ReplicaSet resource and exclude replicaSet-name1 resource",
+			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllReplicaSetResource, &excludeReplicaSet2Resource},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
+		},
 		// --resource !*:Service:*
-		{testName: "Exclude Service resouces",
+		{
+			testName:          "Exclude Service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource *:Service:*
-		{testName: "Include Service resouces",
+		{
+			testName:          "Include Service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&service1, &service2},
 		},
 		// --resource !*:*:*
-		{testName: "Exclude all resouces",
+		{
+			testName:          "Exclude all resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllResources},
 			expectedResult:    nil,
 		},
 		// --resource *:*:*
-		{testName: "Include all resouces",
+		{
+			testName:          "Include all resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
-		{testName: "No Filters",
+		{
+			testName:          "No Filters",
 			selectedResources: []*v1alpha1.SyncOperationResource{&blankValues},
 			expectedResult:    nil,
 		},
-		{testName: "Empty Filter",
+		{
+			testName:          "Empty Filter",
 			selectedResources: []*v1alpha1.SyncOperationResource{},
 			expectedResult:    nil,
 		},
@@ -1338,47 +1462,49 @@ func TestFilterAppResources(t *testing.T) {
 }
 
 func TestParseSelectedResources(t *testing.T) {
-	resources := []string{"v1alpha:Application:test",
+	resources := []string{
+		"v1alpha:Application:test",
 		"v1alpha:Application:namespace/test",
 		"!v1alpha:Application:test",
 		"apps:Deployment:default/test",
-		"!*:*:*"}
+		"!*:*:*",
+	}
 	operationResources, err := parseSelectedResources(resources)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, operationResources, 5)
-	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
+	}, *operationResources[0])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "namespace",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
+	}, *operationResources[1])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      "Application",
 		Group:     "v1alpha",
 		Exclude:   true,
-	})
-	assert.Equal(t, *operationResources[3], v1alpha1.SyncOperationResource{
+	}, *operationResources[2])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "default",
 		Name:      "test",
 		Kind:      "Deployment",
 		Group:     "apps",
 		Exclude:   false,
-	})
-	assert.Equal(t, *operationResources[4], v1alpha1.SyncOperationResource{
+	}, *operationResources[3])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "*",
 		Kind:      "*",
 		Group:     "*",
 		Exclude:   true,
-	})
+	}, *operationResources[4])
 }
 
 func TestParseSelectedResourcesIncorrect(t *testing.T) {
@@ -1391,14 +1517,13 @@ func TestParseSelectedResourcesIncorrectNamespace(t *testing.T) {
 	resources := []string{"v1alpha:Application:namespace/test/unknown"}
 	_, err := parseSelectedResources(resources)
 	assert.ErrorContains(t, err, "v1alpha:Application:namespace/test/unknown")
-
 }
 
 func TestParseSelectedResourcesEmptyList(t *testing.T) {
 	var resources []string
 	operationResources, err := parseSelectedResources(resources)
-	assert.NoError(t, err)
-	assert.Len(t, operationResources, 0)
+	require.NoError(t, err)
+	assert.Empty(t, operationResources)
 }
 
 func TestPrintApplicationTableNotWide(t *testing.T) {
@@ -1418,7 +1543,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status: "Healthy",
 				},
 			},
@@ -1427,8 +1552,8 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
+	require.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\n"
 	assert.Equal(t, output, expectation)
 }
 
@@ -1454,7 +1579,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status: "Healthy",
 				},
 			},
@@ -1463,8 +1588,8 @@ func TestPrintApplicationTableWide(t *testing.T) {
 		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	require.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
 	assert.Equal(t, output, expectation)
 }
 
@@ -1500,7 +1625,6 @@ func TestFormatItems(t *testing.T) {
 	assert.Equal(t, "health", items[6])
 	assert.Equal(t, "hook", items[7])
 	assert.Equal(t, "message", items[8])
-
 }
 
 func TestMerge(t *testing.T) {
@@ -1566,7 +1690,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: true,
 			health:    true,
 			degraded:  true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded, Suspended and health status failed", func(t *testing.T) {
@@ -1574,57 +1698,57 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: true,
 			health:    true,
 			degraded:  true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Suspended and health status passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Suspended and health status failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Suspended passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    false,
-		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Suspended failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    false,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Health passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: false,
 			health:    true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Health failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: false,
 			health:    true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Synced passed", func(t *testing.T) {
-		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Synced failed", func(t *testing.T) {
-		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{})
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded passed", func(t *testing.T) {
@@ -1632,7 +1756,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: false,
 			health:    false,
 			degraded:  true,
-		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded failed", func(t *testing.T) {
@@ -1640,7 +1764,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: false,
 			health:    false,
 			degraded:  true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 }
@@ -1703,9 +1827,8 @@ func Test_hasAppChanged(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := hasAppChanged(tt.args.appReq, tt.args.appRes, tt.args.upsert); got != tt.want {
-				t.Errorf("hasAppChanged() = %v, want %v", got, tt.want)
-			}
+			got := hasAppChanged(tt.args.appReq, tt.args.appRes, tt.args.upsert)
+			assert.Equalf(t, tt.want, got, "hasAppChanged() = %v, want %v", got, tt.want)
 		})
 	}
 }
@@ -1727,7 +1850,709 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 	}
 }
 
-type fakeAcdClient struct{}
+func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
+	acdClient := &customAcdClient{&fakeAcdClient{}}
+	ctx := t.Context()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:      false,
+		health:    false,
+		operation: true,
+		suspended: false,
+	}
+	watch = getWatchOpts(watch)
+
+	output, err := captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+		return nil
+	},
+	)
+	require.NoError(t, err)
+	assert.True(t, json.Valid([]byte(output)))
+
+	output, err = captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		return nil
+	})
+
+	require.NoError(t, err)
+	err = yaml.Unmarshal([]byte(output), &v1alpha1.Application{})
+	require.NoError(t, err)
+
+	output, _ = captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		return nil
+	})
+	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+
+	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
+%s            Service     default         service-name1    Synced  Healthy
+%s   apps  Deployment     default                  test    Synced  Healthy
+
+Name:               argocd/test
+Project:            default
+Server:             local
+Namespace:          argocd
+URL:                http://localhost:8080/applications/app-name
+Source:
+- Repo:             test
+  Target:           master
+  Path:             /test
+  Helm Values:      path1,path2
+  Name Prefix:      prefix
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated (Prune)
+Sync Status:        OutOfSync from master
+Health Status:      Progressing
+
+Operation:          Sync
+Sync Revision:      revision
+Phase:
+Start:              0001-01-01 00:00:00 +0000 UTC
+Finished:           2020-11-10 23:00:00 +0000 UTC
+Duration:           2333448h16m18.871345152s
+Message:            test
+
+GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
+       Service     default    service-name1  Synced  Healthy
+apps   Deployment  default    test           Synced  Healthy
+`
+	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
+	expectationParts := strings.Split(expectation, "\n")
+	// Trim trailing whitespace from each line
+	for i := range expectationParts {
+		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+	}
+	slices.Sort(expectationParts)
+	expectationSorted := strings.Join(expectationParts, "\n")
+	outputParts := strings.Split(output, "\n")
+	// Trim trailing whitespace from each line
+	for i := range outputParts {
+		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+	}
+	slices.Sort(outputParts)
+	outputSorted := strings.Join(outputParts, "\n")
+	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
+	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
+}
+
+func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T) {
+	acdClient := &customAcdClient{&fakeAcdClient{simulateTimeout: 15}}
+	ctx := t.Context()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:      false,
+		health:    false,
+		operation: true,
+		suspended: false,
+	}
+	watch = getWatchOpts(watch)
+
+	output, _ := captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
+		return nil
+	})
+	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+
+	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
+%s            Service     default         service-name1    Synced  Healthy
+%s   apps  Deployment     default                  test    Synced  Healthy
+
+The command timed out waiting for the conditions to be met.
+
+This is the state of the app after wait timed out:
+
+Name:               argocd/test
+Project:            default
+Server:             local
+Namespace:          argocd
+URL:                http://localhost:8080/applications/app-name
+Source:
+- Repo:             test
+  Target:           master
+  Path:             /test
+  Helm Values:      path1,path2
+  Name Prefix:      prefix
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated (Prune)
+Sync Status:        OutOfSync from master
+Health Status:      Progressing
+
+Operation:          Sync
+Sync Revision:      revision
+Phase:
+Start:              0001-01-01 00:00:00 +0000 UTC
+Finished:           2020-11-10 23:00:00 +0000 UTC
+Duration:           2333448h16m18.871345152s
+Message:            test
+
+GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
+       Service     default    service-name1  Synced  Healthy
+apps   Deployment  default    test           Synced  Healthy
+`
+	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
+	expectationParts := strings.Split(expectation, "\n")
+	// Trim trailing whitespace from each line
+	for i := range expectationParts {
+		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+	}
+	slices.Sort(expectationParts)
+	expectationSorted := strings.Join(expectationParts, "\n")
+	outputParts := strings.Split(output, "\n")
+	// Trim trailing whitespace from each line
+	for i := range outputParts {
+		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+	}
+	slices.Sort(outputParts)
+	outputSorted := strings.Join(outputParts, "\n")
+	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
+	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
+}
+
+// TestCheckAppWaitConditions covers the branches of the pure readiness helper
+// used by `waitOnApplicationStatus`. Related to #12211.
+func TestCheckAppWaitConditions(t *testing.T) {
+	syncHealth := watchOpts{sync: true, health: true, operation: true}
+	finishedAt := metav1.NewTime(time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC))
+	afterFinished := metav1.NewTime(finishedAt.Add(time.Minute))
+	beforeFinished := metav1.NewTime(finishedAt.Add(-time.Minute))
+
+	appWith := func(sync v1alpha1.SyncStatusCode, h health.HealthStatusCode) *v1alpha1.Application {
+		return &v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: sync},
+				Health: v1alpha1.AppHealthStatus{Status: h},
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		app               *v1alpha1.Application
+		watch             watchOpts
+		selectedResources []*v1alpha1.SyncOperationResource
+		wantReady         bool
+		wantOpInProgress  bool
+	}{
+		{
+			name:      "synced and healthy with no operation returns ready",
+			app:       appWith(v1alpha1.SyncStatusCodeSynced, health.HealthStatusHealthy),
+			watch:     syncHealth,
+			wantReady: true,
+		},
+		{
+			name:             "pending operation marks operation in progress",
+			app:              &v1alpha1.Application{Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}, Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}}},
+			watch:            syncHealth,
+			wantReady:        false, // !watch.operation || operationStatus == nil → false when operation pending and watch.operation
+			wantOpInProgress: true,
+		},
+		{
+			name: "operation state without FinishedAt marks operation in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}},
+			}},
+			watch:            syncHealth,
+			wantReady:        true,
+			wantOpInProgress: true,
+		},
+		{
+			name: "finished operation not yet reconciled marks operation in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, FinishedAt: &finishedAt},
+				ReconciledAt:   &beforeFinished,
+			}},
+			watch:            syncHealth,
+			wantReady:        true,
+			wantOpInProgress: true,
+		},
+		{
+			name: "finished operation reconciled afterwards is not in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, FinishedAt: &finishedAt},
+				ReconciledAt:   &afterFinished,
+			}},
+			watch:     syncHealth,
+			wantReady: true,
+		},
+		{
+			name:      "out of sync app is not ready",
+			app:       appWith(v1alpha1.SyncStatusCodeOutOfSync, health.HealthStatusHealthy),
+			watch:     syncHealth,
+			wantReady: false,
+		},
+		{
+			name: "selected resources all ready returns ready",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Resources: []v1alpha1.ResourceStatus{
+					{Kind: "Deployment", Name: "a", Namespace: "default", Status: v1alpha1.SyncStatusCodeSynced, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy}},
+				},
+			}},
+			watch:             syncHealth,
+			selectedResources: []*v1alpha1.SyncOperationResource{{Kind: "Deployment", Name: "a", Namespace: "default"}},
+			wantReady:         true,
+		},
+		{
+			name: "selected resources with one not ready returns not ready",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Resources: []v1alpha1.ResourceStatus{
+					{Kind: "Deployment", Name: "a", Namespace: "default", Status: v1alpha1.SyncStatusCodeSynced, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy}},
+					{Kind: "Deployment", Name: "b", Namespace: "default", Status: v1alpha1.SyncStatusCodeOutOfSync, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusProgressing}},
+				},
+			}},
+			watch: syncHealth,
+			selectedResources: []*v1alpha1.SyncOperationResource{
+				{Kind: "Deployment", Name: "a", Namespace: "default"},
+				{Kind: "Deployment", Name: "b", Namespace: "default"},
+			},
+			wantReady: false,
+		},
+		{
+			// Regression: CurrentOperation set without LastSuccessfulOperation
+			// must not panic on the hydration check.
+			name: "hydration in progress without prior successful hydration does not panic",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrating},
+				},
+			}},
+			watch:     watchOpts{sync: true, health: true, hydrated: true},
+			wantReady: false, // hydration not finished yet
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ready, opInProgress := checkAppWaitConditions(tc.app, tc.watch, tc.selectedResources)
+			assert.Equal(t, tc.wantReady, ready, "ready")
+			assert.Equal(t, tc.wantOpInProgress, opInProgress, "operationInProgress")
+		})
+	}
+}
+
+// TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState verifies
+// that `argocd app wait` returns right away when the application already matches
+// the requested conditions, instead of hanging on the watch stream until timeout.
+// Regression test for https://github.com/argoproj/argo-cd/issues/12211.
+func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *testing.T) {
+	// simulateTimeout controls how long the fake watch blocks before emitting an
+	// event. If the fix is removed, waitOnApplicationStatus would block for this
+	// long before observing the readiness condition; with the fix it returns
+	// from the initial Get result without touching the watch channel.
+	acdClient := &readyAcdClient{&fakeAcdClient{simulateTimeout: 10}}
+	ctx := t.Context()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:      true,
+		health:    true,
+		operation: true,
+	}
+
+	start := time.Now()
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	assert.Less(t, elapsed, 2*time.Second, "wait should return immediately when app is already in desired state, took %s", elapsed)
+}
+
+// TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn verifies that
+// `argocd app wait --delete` does not short-circuit on the initial Get and
+// instead consumes the watch for the Deleted event — the Get can only return
+// an existing application, so its state cannot satisfy the delete condition.
+func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
+	acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+	ctx := t.Context()
+	watch := watchOpts{delete: true}
+
+	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "")
+	require.NoError(t, err)
+	assert.Nil(t, app)
+	assert.Nil(t, opState)
+}
+
+// TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions
+// exercises the watch loop path: the initial Get returns an OutOfSync app so the
+// early return is skipped, and a subsequent event carries the desired state.
+// Covers the helper call and readiness return inside the watch loop.
+func TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions(t *testing.T) {
+	acdClient := &readyEventAcdClient{fakeAcdClient: &fakeAcdClient{}}
+	ctx := t.Context()
+	watch := watchOpts{sync: true, health: true}
+
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json")
+	require.NoError(t, err)
+	// The function returns via the readiness path inside the watch loop.
+	// The returned app may be re-fetched by printFinalStatus so we only
+	// assert the function returned successfully rather than matching on its
+	// status fields.
+	assert.NotNil(t, app)
+}
+
+// readyEventAcdClient returns an OutOfSync app from Get so the early-return is
+// skipped, then emits a single event carrying a Synced+Healthy app with a
+// pending non-dry-run Operation (to exercise the refresh side-effect branch in
+// the watch loop).
+type readyEventAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *readyEventAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 1)
+	appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+		Type: watch.Modified,
+		Application: v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+			Operation:  &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			},
+		},
+	}
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *readyEventAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &fakeAppServiceClient{}
+}
+
+func (c *readyEventAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// deleteAcdClient emits a single Deleted event immediately so the watch loop
+// can return without relying on a timeout.
+type deleteAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *deleteAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 1)
+	appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+		Type: watch.Deleted,
+		Application: v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+		},
+	}
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *deleteAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &readyFakeAppServiceClient{}
+}
+
+func (c *deleteAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// readyAcdClient is like customAcdClient but returns an application that is
+// already Synced and Healthy with no operation pending.
+type readyAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *readyAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	go func() {
+		// Block long enough that the test would clearly fail if the early
+		// return regresses. Never emit an event — mirrors the real-world
+		// behavior reported in #12211 where no events arrive because the
+		// application CR is not changing.
+		time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
+		close(appEventsCh)
+	}()
+	return appEventsCh
+}
+
+func (c *readyAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &readyFakeAppServiceClient{}
+}
+
+func (c *readyAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type readyFakeAppServiceClient struct {
+	fakeAppServiceClient
+}
+
+func (c *readyFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+		},
+	}, nil
+}
+
+type customAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	_, appClient := c.NewApplicationClientOrDie()
+	app, _ := appClient.Get(ctx, &applicationpkg.ApplicationQuery{})
+
+	newApp := v1alpha1.Application{
+		TypeMeta:   app.TypeMeta,
+		ObjectMeta: app.ObjectMeta,
+		Spec:       app.Spec,
+		Status:     app.Status,
+		Operation:  app.Operation,
+	}
+
+	go func() {
+		time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
+		appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+			Type:        watch.Bookmark,
+			Application: newApp,
+		}
+		close(appEventsCh)
+	}()
+
+	return appEventsCh
+}
+
+func (c *customAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &fakeAppServiceClient{}
+}
+
+func (c *customAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type fakeConnection struct{}
+
+func (c *fakeConnection) Close() error {
+	return nil
+}
+
+type fakeSettingsServiceClient struct{}
+
+func (f fakeSettingsServiceClient) Get(_ context.Context, _ *settingspkg.SettingsQuery, _ ...grpc.CallOption) (*settingspkg.Settings, error) {
+	return &settingspkg.Settings{
+		URL: "http://localhost:8080",
+	}, nil
+}
+
+func (f fakeSettingsServiceClient) GetPlugins(_ context.Context, _ *settingspkg.SettingsQuery, _ ...grpc.CallOption) (*settingspkg.SettingsPluginsResponse, error) {
+	return nil, nil
+}
+
+type fakeAppServiceClient struct{}
+
+func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			SyncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{
+					Prune: new(true),
+				},
+			},
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "test",
+				TargetRevision: "master",
+				Path:           "/test",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValueFiles: []string{"path1", "path2"},
+				},
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
+			},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Resources: []v1alpha1.ResourceStatus{
+				{
+					Group:     "",
+					Kind:      "Service",
+					Namespace: "default",
+					Name:      "service-name1",
+					Status:    "Synced",
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "health-message",
+					},
+				},
+				{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Namespace: "default",
+					Name:      "test",
+					Status:    "Synced",
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "health-message",
+					},
+				},
+			},
+			OperationState: &v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{
+					Revision: "revision",
+				},
+				FinishedAt: &time,
+				Message:    "test",
+			},
+			Sync: v1alpha1.SyncStatus{
+				Status: v1alpha1.SyncStatusCodeOutOfSync,
+			},
+			Health: v1alpha1.AppHealthStatus{
+				Status: health.HealthStatusProgressing,
+			},
+		},
+	}, nil
+}
+
+func (c *fakeAppServiceClient) List(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceEvents(_ context.Context, _ *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*eventspkg.EventList, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Watch(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (applicationpkg.ApplicationService_WatchClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Create(_ context.Context, _ *applicationpkg.ApplicationCreateRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetApplicationSyncWindows(_ context.Context, _ *applicationpkg.ApplicationSyncWindowsQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetOCIMetadata(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.OCIMetadata, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RevisionMetadata(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RevisionChartDetails(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetManifests(_ context.Context, _ *applicationpkg.ApplicationManifestQuery, _ ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetManifestsWithFiles(_ context.Context, _ ...grpc.CallOption) (applicationpkg.ApplicationService_GetManifestsWithFilesClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Update(_ context.Context, _ *applicationpkg.ApplicationUpdateRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) UpdateSpec(_ context.Context, _ *applicationpkg.ApplicationUpdateSpecRequest, _ ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Patch(_ context.Context, _ *applicationpkg.ApplicationPatchRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Delete(_ context.Context, _ *applicationpkg.ApplicationDeleteRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Sync(_ context.Context, _ *applicationpkg.ApplicationSyncRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ManagedResources(_ context.Context, _ *applicationpkg.ResourcesQuery, _ ...grpc.CallOption) (*applicationpkg.ManagedResourcesResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ResourceTree(_ context.Context, _ *applicationpkg.ResourcesQuery, _ ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) WatchResourceTree(_ context.Context, _ *applicationpkg.ResourcesQuery, _ ...grpc.CallOption) (applicationpkg.ApplicationService_WatchResourceTreeClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Rollback(_ context.Context, _ *applicationpkg.ApplicationRollbackRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) TerminateOperation(_ context.Context, _ *applicationpkg.OperationTerminateRequest, _ ...grpc.CallOption) (*applicationpkg.OperationTerminateResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetResource(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) PatchResource(_ context.Context, _ *applicationpkg.ApplicationResourcePatchRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceActions(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.ResourceActionsListResponse, error) {
+	return nil, nil
+}
+
+// nolint:staticcheck // ResourceActionRunRequest is deprecated, but we still need to implement it to satisfy the server interface.
+func (c *fakeAppServiceClient) RunResourceAction(_ context.Context, _ *applicationpkg.ResourceActionRunRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RunResourceActionV2(_ context.Context, _ *applicationpkg.ResourceActionRunRequestV2, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) DeleteResource(_ context.Context, _ *applicationpkg.ApplicationResourceDeleteRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) PodLogs(_ context.Context, _ *applicationpkg.ApplicationPodLogsQuery, _ ...grpc.CallOption) (applicationpkg.ApplicationService_PodLogsClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListLinks(_ context.Context, _ *applicationpkg.ListAppLinksRequest, _ ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceLinks(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ServerSideDiff(_ context.Context, _ *applicationpkg.ApplicationServerSideDiffQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationServerSideDiffResponse, error) {
+	return nil, nil
+}
+
+type fakeAcdClient struct {
+	simulateTimeout uint
+}
 
 func (c *fakeAcdClient) ClientOptions() argocdclient.ClientOptions {
 	return argocdclient.ClientOptions{}
@@ -1736,94 +2561,140 @@ func (c *fakeAcdClient) HTTPClient() (*http.Client, error) { return nil, nil }
 func (c *fakeAcdClient) OIDCConfig(context.Context, *settingspkg.Settings) (*oauth2.Config, *oidc.Provider, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewCertClient() (io.Closer, certificatepkg.CertificateServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient) {
 	return nil, nil
 }
-func (c *fakeAcdClient) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
+
+func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 
 	go func() {
 		modifiedEvent := new(v1alpha1.ApplicationWatchEvent)
-		modifiedEvent.Type = k8swatch.Modified
+		modifiedEvent.Type = watch.Modified
 		appEventsCh <- modifiedEvent
 		deletedEvent := new(v1alpha1.ApplicationWatchEvent)
-		deletedEvent.Type = k8swatch.Deleted
+		deletedEvent.Type = watch.Deleted
 		appEventsCh <- deletedEvent
 	}()
 	return appEventsCh
+}
+
+func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
+	go func() {
+		defer close(appSetEventsCh)
+		addedEvent := &v1alpha1.ApplicationSetWatchEvent{
+			Type: watch.Added,
+			ApplicationSet: v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusTrue},
+					},
+				},
+			},
+		}
+		appSetEventsCh <- addedEvent
+	}()
+	return appSetEventsCh
 }

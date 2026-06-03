@@ -1,0 +1,46 @@
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: test
+  namespace: ns-test
+  ownerReferences:
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Cluster
+      name: test
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-30T11:10:03Z"
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2024-07-26T14:35:48Z"
+      status: "True"
+      type: ClusterSecurityGroupsReady
+    - lastTransitionTime: "2024-07-30T02:20:06Z"
+      status: "True"
+      type: EKSAddonsConfigured
+    - lastTransitionTime: "2024-07-26T14:43:57Z"
+      reason: created
+      severity: Info
+      status: "False"
+      type: EKSControlPlaneCreating
+    - lastTransitionTime: "2024-07-30T11:10:03Z"
+      status: "True"
+      type: EKSControlPlaneReady
+    - lastTransitionTime: "2024-07-30T13:05:45Z"
+      status: "True"
+      type: EKSIdentityProviderConfigured
+    - lastTransitionTime: "2024-07-26T15:28:01Z"
+      status: "True"
+      type: IAMAuthenticatorConfigured
+    - lastTransitionTime: "2024-07-26T15:27:58Z"
+      status: "True"
+      type: IAMControlPlaneRolesReady
+    - lastTransitionTime: "2024-07-26T14:35:48Z"
+      status: "True"
+      type: SubnetsReady
+    - lastTransitionTime: "2024-07-26T14:35:46Z"
+      status: "True"
+      type: VpcReady
+  ready: true

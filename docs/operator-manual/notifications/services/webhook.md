@@ -14,6 +14,10 @@ The Webhook notification service configuration includes following settings:
 - `retryWaitMin` - Optional, the minimum wait time between retries. Default value: 1s.
 - `retryWaitMax` - Optional, the maximum wait time between retries. Default value: 5s.
 - `retryMax` - Optional, the maximum number of retries. Default value: 3.
+- `maxIdleConns` - optional, maximum number of idle (keep-alive) connections across all hosts.
+- `maxIdleConnsPerHost` - optional, maximum number of idle (keep-alive) connections per host.
+- `maxConnsPerHost` - optional, maximum total connections per host.
+- `idleConnTimeout` - optional, maximum amount of time an idle (keep-alive) connection will remain open before closing, e.g. '90s'.
 
 ## Retry Behavior
 
@@ -73,6 +77,29 @@ metadata:
   annotations:
     notifications.argoproj.io/subscribe.<trigger-name>.<webhook-name>: ""
 ```
+
+4. TLS configuration (optional)
+
+If your webhook server uses a custom TLS certificate, you can configure the notification service to trust it by adding the certificate to the `argocd-tls-certs-cm` ConfigMap as shown below:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-tls-certs-cm
+data:
+  <hostname>: |
+    -----BEGIN CERTIFICATE-----
+    <TLS DATA>
+    -----END CERTIFICATE-----
+```
+
+*NOTE:*
+*If the custom certificate is not trusted, you may encounter errors such as:*
+```
+Put \"https://...\": x509: certificate signed by unknown authority
+```
+*Adding the server's certificate to `argocd-tls-certs-cm` resolves this issue.*
 
 ## Examples
 

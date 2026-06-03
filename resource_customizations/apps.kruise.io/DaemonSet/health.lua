@@ -8,7 +8,7 @@ if obj.status ~= nil then
             hs.status = "Suspended"
             hs.message = "Daemonset is paused"
             return hs
-        elseif obj.spec.updateStrategy.rollingUpdate.partition ~= 0 and obj.metadata.generation > 1 then
+        elseif (obj.spec.updateStrategy.rollingUpdate.partition ~= nil) and (obj.spec.updateStrategy.rollingUpdate.partition ~= 0 and obj.metadata.generation > 1) then
             if obj.status.updatedNumberScheduled > (obj.status.desiredNumberScheduled - obj.spec.updateStrategy.rollingUpdate.partition) then
                 hs.status = "Suspended"
                 hs.message = "Daemonset needs manual intervention"

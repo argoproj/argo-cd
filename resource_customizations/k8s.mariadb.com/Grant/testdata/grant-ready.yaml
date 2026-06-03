@@ -1,0 +1,26 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: mariadb-metrics
+spec:
+  database: '*'
+  grantOption: false
+  mariaDbRef:
+    name: mariadb
+    namespace: bridge
+    waitForIt: false
+  privileges:
+  - SELECT
+  - PROCESS
+  - REPLICATION CLIENT
+  - REPLICA MONITOR
+  - SLAVE MONITOR
+  table: '*'
+  username: mariadb-metrics
+status:
+  conditions:
+  - lastTransitionTime: "2024-04-20T20:45:02Z"
+    message: Created
+    reason: Created
+    status: "True"
+    type: Ready

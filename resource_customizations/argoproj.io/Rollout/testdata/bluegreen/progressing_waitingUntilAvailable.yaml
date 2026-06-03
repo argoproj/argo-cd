@@ -32,7 +32,7 @@ spec:
         app: ks-guestbook-ui
     spec:
       containers:
-      - image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+      - image: quay.io/argoprojlabs/argocd-e2e-container:0.1
         name: ks-guestbook-ui
         ports:
         - containerPort: 83

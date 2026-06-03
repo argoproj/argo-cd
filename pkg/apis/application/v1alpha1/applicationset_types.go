@@ -18,24 +18,34 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/security"
-
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 type SecretRef struct {
 	SecretName string `json:"secretName" protobuf:"bytes,1,opt,name=secretName"`
 	Key        string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
-// ApplicationSet is a set of Application resources
+// ConfigMapKeyRef struct for a reference to a configmap key.
+type ConfigMapKeyRef struct {
+	ConfigMapName string `json:"configMapName" protobuf:"bytes,1,opt,name=configMapName"`
+	Key           string `json:"key" protobuf:"bytes,2,opt,name=key"`
+}
+
+// Note: ApplicationSet and Application share the same field structure (TypeMeta, ObjectMeta, spec, status)
+// for frontend abstraction (AbstractApplication), but spec and status have different types.
+
+// ApplicationSet is a set of Application resources.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -43,9 +53,9 @@ type SecretRef struct {
 // +kubebuilder:subresource:status
 type ApplicationSet struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              ApplicationSetSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            ApplicationSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"` // Common: shared with Application
+	Spec              ApplicationSetSpec                                     `json:"spec" protobuf:"bytes,2,opt,name=spec"`               // Common: shared with Application (different type)
+	Status            ApplicationSetStatus                                   `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"` // Common: shared with Application (different type)
 }
 
 // RBACName formats fully qualified application name for RBAC check.
@@ -62,7 +72,10 @@ type ApplicationSetSpec struct {
 	Strategy          *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
 	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
 	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
-	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.
+	//
+	// Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
+	// version of the ApplicationSet CRD.
 	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
 	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
 	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,10,name=templatePatch"`
@@ -77,7 +90,9 @@ type ApplicationPreservedFields struct {
 type ApplicationSetStrategy struct {
 	Type        string                         `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
 	RollingSync *ApplicationSetRolloutStrategy `json:"rollingSync,omitempty" protobuf:"bytes,2,opt,name=rollingSync"`
-	// RollingUpdate *ApplicationSetRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
+	// DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
+	// accepts values "AllAtOnce" and "Reverse"
+	DeletionOrder string `json:"deletionOrder,omitempty" protobuf:"bytes,3,opt,name=deletionOrder"`
 }
 type ApplicationSetRolloutStrategy struct {
 	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
@@ -260,6 +275,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 
 // ListGenerator include items info
 type ListGenerator struct {
+	// +kubebuilder:validation:Optional
 	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
 	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
@@ -372,6 +388,9 @@ type ClusterGenerator struct {
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
+
+	// returns the clusters a single 'clusters' value in the template
+	FlatList bool `json:"flatList,omitempty" protobuf:"bytes,4,name=flatList"`
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -409,7 +428,8 @@ type GitDirectoryGeneratorItem struct {
 }
 
 type GitFileGeneratorItem struct {
-	Path string `json:"path" protobuf:"bytes,1,name=path"`
+	Path    string `json:"path" protobuf:"bytes,1,name=path"`
+	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
@@ -436,16 +456,17 @@ type SCMProviderGenerator struct {
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
-func (g *SCMProviderGenerator) CustomApiUrl() string {
-	if g.Github != nil {
+func (g *SCMProviderGenerator) CustomApiUrl() string { //nolint:revive //FIXME(var-naming)
+	switch {
+	case g.Github != nil:
 		return g.Github.API
-	} else if g.Gitlab != nil {
+	case g.Gitlab != nil:
 		return g.Gitlab.API
-	} else if g.Gitea != nil {
+	case g.Gitea != nil:
 		return g.Gitea.API
-	} else if g.BitbucketServer != nil {
+	case g.BitbucketServer != nil:
 		return g.BitbucketServer.API
-	} else if g.AzureDevOps != nil {
+	case g.AzureDevOps != nil:
 		return g.AzureDevOps.API
 	}
 	return ""
@@ -463,6 +484,8 @@ type SCMProviderGeneratorGitea struct {
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 	// Allow self-signed TLS / Certificates; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
@@ -477,6 +500,8 @@ type SCMProviderGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,4,opt,name=appSecretName"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
@@ -497,6 +522,10 @@ type SCMProviderGeneratorGitlab struct {
 	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
 	// Filter repos list based on Gitlab Topic.
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
+	// Include repositories that are archived.
+	IncludeArchivedRepos bool `json:"includeArchivedRepos,omitempty" protobuf:"varint,10,opt,name=includeArchivedRepos"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -525,6 +554,12 @@ type SCMProviderGeneratorBitbucketServer struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
+	// Credentials for AccessToken (Bearer auth)
+	BearerToken *BearerTokenBitbucket `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -591,10 +626,14 @@ type PullRequestGenerator struct {
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
+	// ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
+	ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
-func (p *PullRequestGenerator) CustomApiUrl() string {
+func (p *PullRequestGenerator) CustomApiUrl() string { //nolint:revive //FIXME(var-naming)
 	if p.Github != nil {
 		return p.Github.API
 	}
@@ -628,6 +667,8 @@ type PullRequestGeneratorGitea struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Allow insecure tls, for self-signed certificates; default: false.
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// Labels is used to filter the PRs that you want to target
+	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -646,7 +687,7 @@ type PullRequestGeneratorAzureDevOps struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 type PullRequestGeneratorGithub struct {
 	// GitHub org or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
@@ -672,10 +713,13 @@ type PullRequestGeneratorGitLab struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
 	// Labels is used to filter the MRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
-	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
+	// Valid values: opened, closed, merged, locked".
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
@@ -688,6 +732,12 @@ type PullRequestGeneratorBitbucketServer struct {
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
 	// Credentials for Basic auth
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+	// Credentials for AccessToken (Bearer auth)
+	BearerToken *BearerTokenBitbucket `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
@@ -702,6 +752,12 @@ type PullRequestGeneratorBitbucket struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
 	// Credentials for AppToken (Bearer auth)
 	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+}
+
+// BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.
+type BearerTokenBitbucket struct {
+	// Password (or personal access token) reference.
+	TokenRef *SecretRef `json:"tokenRef" protobuf:"bytes,1,opt,name=tokenRef"`
 }
 
 // BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
@@ -724,6 +780,7 @@ type BasicAuthBitbucketServer struct {
 type PullRequestGeneratorFilter struct {
 	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
+	TitleMatch        *string `json:"titleMatch,omitempty" protobuf:"bytes,3,op,name=titleMatch"`
 }
 
 type PluginConfigMapRef struct {
@@ -758,9 +815,16 @@ type ApplicationSetStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	Conditions        []ApplicationSetCondition         `json:"conditions,omitempty" protobuf:"bytes,1,name=conditions"`
 	ApplicationStatus []ApplicationSetApplicationStatus `json:"applicationStatus,omitempty" protobuf:"bytes,2,name=applicationStatus"`
+	// Resources is a list of Applications resources managed by this application set.
+	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
+	// ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
+	// the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
+	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"varint,4,opt,name=resourcesCount"`
+	// Health contains information about the applicationset's current health status based on the applicationset conditions
+	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 type ApplicationSetCondition struct {
 	// Type is an applicationset condition type
 	Type ApplicationSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
@@ -770,11 +834,11 @@ type ApplicationSetCondition struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 	// True/False/Unknown
 	Status ApplicationSetConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
-	//Single word camelcase representing the reason for the status eg ErrorOccurred
+	// Single word camelcase representing the reason for the status eg ErrorOccurred
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
 }
 
-// SyncStatusCode is a type which represents possible comparison results
+// ApplicationSetConditionStatus is a type which represents possible comparison results
 type ApplicationSetConditionStatus string
 
 // Application Condition Status
@@ -820,6 +884,20 @@ const (
 	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
 )
 
+// Represents resource health status
+type ProgressiveSyncStatusCode string
+
+const (
+	// Indicates that an Application sync is waiting to be trigerred
+	ProgressiveSyncWaiting ProgressiveSyncStatusCode = "Waiting"
+	// Indicates that a sync has been trigerred, but the application did not report any status
+	ProgressiveSyncPending ProgressiveSyncStatusCode = "Pending"
+	// Indicates that the application has not yet reached an Healthy state in regards to the requested sync
+	ProgressiveSyncProgressing ProgressiveSyncStatusCode = "Progressing"
+	// Indicates that the application has reached an Healthy state in regards to the requested sync
+	ProgressiveSyncHealthy ProgressiveSyncStatusCode = "Healthy"
+)
+
 // ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet
 type ApplicationSetApplicationStatus struct {
 	// Application contains the name of the Application resource
@@ -828,10 +906,12 @@ type ApplicationSetApplicationStatus struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,2,opt,name=lastTransitionTime"`
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
-	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Status contains the AppSet's perceived status of the managed Application resource
+	Status ProgressiveSyncStatusCode `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
+	// TargetRevision tracks the desired revisions the Application should be synced to.
+	TargetRevisions []string `json:"targetRevisions" protobuf:"bytes,6,opt,name=targetrevisions"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -841,6 +921,21 @@ type ApplicationSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []ApplicationSet `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+type ApplicationSetTree struct {
+	// Nodes contains list of nodes which are directly managed by the applicationset
+	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+}
+
+// Normalize sorts applicationset tree nodes. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
+func (t *ApplicationSetTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
 }
 
 // func init() {
@@ -853,37 +948,125 @@ func (a *ApplicationSet) RefreshRequired() bool {
 	return found
 }
 
+// CalculateHealth derives the health status from the applicationset conditions.
+// Health is determined by priority:
+// 1. ErrorOccurred=True → Degraded
+// 2. RolloutProgressing=True → Progressing
+// 3. ResourcesUpToDate=True → Healthy
+// 4. Otherwise → Unknown
+func (status *ApplicationSetStatus) CalculateHealth() HealthStatus {
+	if len(status.Conditions) == 0 {
+		return HealthStatus{
+			Status:  health.HealthStatusUnknown,
+			Message: "No status conditions found for ApplicationSet",
+		}
+	}
+	var (
+		progressing *ApplicationSetCondition
+		healthy     *ApplicationSetCondition
+	)
+
+	for _, c := range status.Conditions {
+		if c.Status != ApplicationSetConditionStatusTrue {
+			continue
+		}
+		switch c.Type {
+		case ApplicationSetConditionErrorOccurred:
+			return HealthStatus{
+				Status:  health.HealthStatusDegraded,
+				Message: c.Message,
+			}
+		case ApplicationSetConditionRolloutProgressing:
+			progressing = &c
+		case ApplicationSetConditionResourcesUpToDate:
+			healthy = &c
+		}
+	}
+
+	if progressing != nil {
+		return HealthStatus{
+			Status:  health.HealthStatusProgressing,
+			Message: progressing.Message,
+		}
+	}
+
+	if healthy != nil {
+		return HealthStatus{
+			Status:  health.HealthStatusHealthy,
+			Message: healthy.Message,
+		}
+	}
+
+	return HealthStatus{
+		Status:  health.HealthStatusUnknown,
+		Message: "Waiting for health status to be determined",
+	}
+}
+
 // SetConditions updates the applicationset status conditions for a subset of evaluated types.
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
 func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, evaluatedTypes map[ApplicationSetConditionType]bool) {
-	applicationSetConditions := make([]ApplicationSetCondition, 0)
+	newConditions := make([]ApplicationSetCondition, 0)
 	now := metav1.Now()
+	// Keep the existing conditions when they are not evaluated
+	for i := range status.Conditions {
+		currentCondition := status.Conditions[i]
+		if isEvaluated, ok := evaluatedTypes[currentCondition.Type]; !ok || !isEvaluated {
+			if currentCondition.LastTransitionTime == nil {
+				currentCondition.LastTransitionTime = &now
+			}
+			newConditions = append(newConditions, currentCondition)
+		}
+	}
+
+	// Update the evaluated conditions
 	for i := range conditions {
 		condition := conditions[i]
+		if isEvaluated, ok := evaluatedTypes[condition.Type]; !ok || !isEvaluated {
+			// ignore an new condition when it is not evaluated
+			continue
+		}
+
 		if condition.LastTransitionTime == nil {
 			condition.LastTransitionTime = &now
 		}
-		eci := findConditionIndex(status.Conditions, condition.Type)
+		eci := condition.Type.findConditionIndex(status.Conditions)
 		if eci >= 0 && status.Conditions[eci].Message == condition.Message && status.Conditions[eci].Reason == condition.Reason && status.Conditions[eci].Status == condition.Status {
-			// If we already have a condition of this type, status and reason, only update the timestamp if something
-			// has changed.
-			applicationSetConditions = append(applicationSetConditions, status.Conditions[eci])
+			// If we already have a condition of this type and nothing has changed, do not update it
+			newConditions = append(newConditions, status.Conditions[eci])
 		} else {
-			// Otherwise we use the new incoming condition with an updated timestamp:
-			applicationSetConditions = append(applicationSetConditions, condition)
+			// Otherwise we use the new incoming condition with updated information
+			newConditions = append(newConditions, condition)
 		}
 	}
-	sort.Slice(applicationSetConditions, func(i, j int) bool {
-		left := applicationSetConditions[i]
-		right := applicationSetConditions[j]
-		return fmt.Sprintf("%s/%s/%s/%s/%v", left.Type, left.Message, left.Status, left.Reason, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%s/%s/%v", right.Type, right.Message, right.Status, right.Reason, right.LastTransitionTime)
+
+	sort.Slice(newConditions, func(i, j int) bool {
+		left := newConditions[i]
+		right := newConditions[j]
+
+		if left.Type != right.Type {
+			return left.Type < right.Type
+		}
+		if left.Status != right.Status {
+			return left.Status < right.Status
+		}
+		if left.Reason != right.Reason {
+			return left.Reason < right.Reason
+		}
+		if left.Message != right.Message {
+			return left.Message < right.Message
+		}
+		return left.LastTransitionTime.Before(right.LastTransitionTime)
 	})
-	status.Conditions = applicationSetConditions
+	status.Conditions = newConditions
+
+	// Recalculate health based on the updated conditions
+	status.Health = status.CalculateHealth()
 }
 
-func findConditionIndex(conditions []ApplicationSetCondition, t ApplicationSetConditionType) int {
+func (t ApplicationSetConditionType) findConditionIndex(conditions []ApplicationSetCondition) int {
 	for i := range conditions {
 		if conditions[i].Type == t {
 			return i
@@ -892,24 +1075,26 @@ func findConditionIndex(conditions []ApplicationSetCondition, t ApplicationSetCo
 	return -1
 }
 
-func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSetApplicationStatus) {
-	for i := range status.ApplicationStatus {
-		appStatus := status.ApplicationStatus[i]
-		if appStatus.Application == newStatus.Application {
-			status.ApplicationStatus[i] = newStatus
-			return
-		}
-	}
-	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
-}
-
 // QualifiedName returns the full qualified name of the applicationset, including
 // the name of the namespace it is created in delimited by a forward slash,
 // i.e. <namespace>/<appname>
 func (a *ApplicationSet) QualifiedName() string {
 	if a.Namespace == "" {
 		return a.Name
-	} else {
-		return a.Namespace + "/" + a.Name
 	}
+	return a.Namespace + "/" + a.Name
+}
+
+// ApplicationSetWatchEvent contains information about application change.
+type ApplicationSetWatchEvent struct {
+	// Type represents the Kubernetes watch event type. The protobuf tag uses
+	// casttype to ensure the generated Go code keeps this field as
+	// watch.EventType (a strong Go type) instead of falling back to a plain string
+	Type watch.EventType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
+	// ApplicationSet is:
+	//  * If Type is Added or Modified: the new state of the object.
+	//  * If Type is Deleted: the state of the object immediately before deletion.
+	//  * If Type is Error: *api.Status is recommended; other types may make sense
+	//    depending on context
+	ApplicationSet ApplicationSet `json:"applicationSet" protobuf:"bytes,2,opt,name=applicationSet"`
 }

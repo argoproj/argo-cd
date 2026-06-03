@@ -29,7 +29,7 @@ export class ExternalLink {
     }
 }
 
-export const ApplicationURLs = ({urls}: {urls: string[]}) => {
+export const ExternalLinks = (urls?: string[]) => {
     const externalLinks: ExternalLink[] = [];
     for (const url of urls || []) {
         try {
@@ -42,15 +42,25 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
 
     // sorted alphabetically & links with titles first
     externalLinks.sort((a, b) => {
-        if (a.title !== '' && b.title !== '') {
+        const hasTitle = (x: ExternalLink): boolean => {
+            return x.title !== x.ref && x.title !== '';
+        };
+
+        if (hasTitle(a) && hasTitle(b) && a.title !== b.title) {
             return a.title > b.title ? 1 : -1;
-        } else if (a.title === '') {
+        } else if (hasTitle(b) && !hasTitle(a)) {
             return 1;
-        } else if (b.title === '') {
+        } else if (hasTitle(a) && !hasTitle(b)) {
             return -1;
         }
         return a.ref > b.ref ? 1 : -1;
     });
+
+    return externalLinks;
+};
+
+export const ApplicationURLs = ({urls}: {urls: string[]}) => {
+    const externalLinks: ExternalLink[] = ExternalLinks(urls);
 
     return (
         ((externalLinks || []).length > 0 && (

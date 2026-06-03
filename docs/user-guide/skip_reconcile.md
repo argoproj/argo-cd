@@ -1,9 +1,11 @@
 # Skip Application Reconcile
 
-!!! warning "Alpha Feature"
-    This is an experimental, alpha-quality feature.
-    The primary use case is to provide integration with third party projects.
-    This feature may be removed in future releases or modified in backwards-incompatible ways.
+> [!WARNING]
+> **Alpha Feature (Since v2.7.0)**
+>
+> This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) feature.
+> The primary use case is to provide integration with third party projects.
+> This feature may be removed in future releases or modified in backwards-incompatible ways.
 
 Argo CD allows users to stop an Application from reconciling.
 The skip reconcile option is configured with the `argocd.argoproj.io/skip-reconcile: "true"` annotation.

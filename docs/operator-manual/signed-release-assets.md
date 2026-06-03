@@ -1,26 +1,27 @@
 # Verification of Argo CD Artifacts
 
 ## Prerequisites
-- cosign `v2.0.0` or higher [installation instructions](https://docs.sigstore.dev/cosign/installation)
+- cosign `v2.0.0` or higher [installation instructions](https://docs.sigstore.dev/cosign/system_config/installation/)
 - slsa-verifier [installation instructions](https://github.com/slsa-framework/slsa-verifier#installation)
 - crane [installation instructions](https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md) (for container verification only)
 
 ***
 ## Release Assets
-| Asset                   | Description                   |
-|-------------------------|-------------------------------|
-| argocd-darwin-amd64     | CLI Binary                    |
-| argocd-darwin-arm64     | CLI Binary                    |
-| argocd-linux_amd64      | CLI Binary                    |
-| argocd-linux_arm64      | CLI Binary                    |
-| argocd-linux_ppc64le    | CLI Binary                    |
-| argocd-linux_s390x      | CLI Binary                    |
-| argocd-windows_amd64    | CLI Binary                    |
-| argocd-cli.intoto.jsonl | Attestation of CLI binaries   |
-| cli_checksums.txt       | Checksums of binaries         |
-| sbom.tar.gz             | Sbom                          |
-| sbom.tar.gz.pem         | Certificate used to sign sbom |
-| sbom.tar.gz.sig         | Signature of sbom                |
+| Asset                    | Description                   |
+|--------------------------|-------------------------------|
+| argocd-darwin-amd64      | CLI Binary                    |
+| argocd-darwin-arm64      | CLI Binary                    |
+| argocd-linux_amd64       | CLI Binary                    |
+| argocd-linux_arm64       | CLI Binary                    |
+| argocd-linux_ppc64le     | CLI Binary                    |
+| argocd-linux_s390x       | CLI Binary                    |
+| argocd-windows_amd64     | CLI Binary                    |
+| argocd-cli.intoto.jsonl  | Attestation of CLI binaries   |
+| argocd-sbom.intoto.jsonl | Attestation of SBOM           |
+| cli_checksums.txt        | Checksums of binaries         |
+| sbom.tar.gz              | Sbom                          |
+| sbom.tar.gz.pem          | Certificate used to sign sbom |
+| sbom.tar.gz.sig          | Signature of sbom             |
 
 ***
 ## Verification of container images
@@ -31,7 +32,8 @@ Argo CD container images are signed by [cosign](https://github.com/sigstore/cosi
 cosign verify \
 --certificate-identity-regexp https://github.com/argoproj/argo-cd/.github/workflows/image-reuse.yaml@refs/tags/v \
 --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-quay.io/argoproj/argocd:v2.7.0 | jq
+--certificate-github-workflow-repository "argoproj/argo-cd" \
+quay.io/argoproj/argocd:v2.11.3 | jq
 ```
 The command should output the following if the container image was correctly verified:
 ```bash
@@ -79,7 +81,7 @@ slsa-verifier verify-image "$IMAGE" \
     --source-tag v2.7.0
 ```
 
-If you only want to verify up to the major or minor verion of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
+If you only want to verify up to the major or minor version of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
 
 ```shell
 slsa-verifier verify-image "$IMAGE" \
@@ -98,9 +100,9 @@ slsa-verifier verify-image "$IMAGE" \
 
 If you prefer using cosign, follow these [instructions](https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#cosign).
 
-!!! tip
-    `cosign` or `slsa-verifier` can both be used to verify image attestations.
-    Check the documentation of each binary for detailed instructions.
+> [!TIP]
+> `cosign` or `slsa-verifier` can both be used to verify image attestations.
+> Check the documentation of each binary for detailed instructions.
 
 ***
 
@@ -115,7 +117,7 @@ slsa-verifier verify-artifact argocd-linux-amd64 \
   --source-tag v2.7.0
 ```
 
-If you only want to verify up to the major or minor verion of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
+If you only want to verify up to the major or minor version of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
 
 ```shell
 slsa-verifier verify-artifact argocd-linux-amd64 \
@@ -149,7 +151,7 @@ slsa-verifier verify-artifact sbom.tar.gz \
 ## Verification on Kubernetes
 
 ### Policy controllers
-!!! note
-    We encourage all users to verify signatures and provenances with your admission/policy controller of choice. Doing so will verify that an image was built by us before it's deployed on your Kubernetes cluster.
+> [!NOTE]
+> We encourage all users to verify signatures and provenances with your admission/policy controller of choice. Doing so will verify that an image was built by us before it's deployed on your Kubernetes cluster.
 
-Cosign signatures and SLSA provenances are compatible with several types of admission controllers. Please see the [cosign documentation](https://docs.sigstore.dev/cosign/overview/#kubernetes-integrations) and [slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#verification) for supported controllers.
+Cosign signatures and SLSA provenances are compatible with several types of admission controllers. Please see the [cosign documentation](https://docs.sigstore.dev/policy-controller/overview/) and [slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#verification) for supported controllers.

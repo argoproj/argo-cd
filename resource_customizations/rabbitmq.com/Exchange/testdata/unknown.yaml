@@ -1,0 +1,15 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: Exchange
+metadata:
+  generation: 3
+  name: example-rabbit
+  namespace: example-rabbit
+spec:
+  autoDelete: false
+  durable: true
+  name: example-rabbit
+  rabbitmqClusterReference:
+    name: example-rabbit
+  type: topic
+  vhost: /
+status: {}

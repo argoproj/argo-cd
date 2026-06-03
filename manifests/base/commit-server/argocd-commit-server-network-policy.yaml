@@ -1,0 +1,26 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-commit-server
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: commit-server
+  name: argocd-commit-server-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-commit-server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-application-controller
+      ports:
+        - protocol: TCP
+          port: 8086
+    - from:
+        - namespaceSelector: { }
+      ports:
+        - port: 8087

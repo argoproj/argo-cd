@@ -7,7 +7,7 @@ enforced.
 
 ## Logical layers
 
-The diagram bellow suggests 4 different logical layers (represented by
+The diagram below suggests 4 different logical layers (represented by
 4 boxes: HTTP, gRPC, AuthN and AuthZ) inside Argo CD API server that
 collaborate to provide authentication and authorization. 
 
@@ -104,6 +104,6 @@ elements are described below with their respective numbers:
 [3]: https://en.wikipedia.org/wiki/Representational_state_transfer
 [4]: https://grpc.io/
 [5]: https://casbin.org/
-[6]: https://github.com/golang/go/wiki/LearnServerProgramming#middleware
+[6]: https://go.dev/wiki/LearnServerProgramming#middleware
 [7]: https://en.wikipedia.org/wiki/Role-based_access_control
 [8]: https://pkg.go.dev/net/http#ServeMux

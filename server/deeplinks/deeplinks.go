@@ -6,14 +6,13 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/antonmedv/expr"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/expr-lang/expr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -31,6 +30,7 @@ const (
 	AppDeepLinkShortKey = "app"
 	ClusterDeepLinkKey  = "cluster"
 	ProjectDeepLinkKey  = "project"
+	ManagedByURLKey     = "managedByURL"
 )
 
 type ClusterLinksData struct {
@@ -62,14 +62,34 @@ func SanitizeCluster(cluster *v1alpha1.Cluster) (*unstructured.Unstructured, err
 	})
 }
 
-func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstructured.Unstructured, cluster *unstructured.Unstructured, project *unstructured.Unstructured) map[string]interface{} {
-	deeplinkObj := map[string]interface{}{}
+func managedByURLFromAnnotations(annotations map[string]any) (string, bool) {
+	managedByURL, ok := annotations[v1alpha1.AnnotationKeyManagedByURL].(string)
+	if !ok {
+		return "", false
+	}
+	if err := settings.ValidateExternalURL(managedByURL); err != nil {
+		return "", false
+	}
+	return managedByURL, true
+}
+
+func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstructured.Unstructured, cluster *unstructured.Unstructured, project *unstructured.Unstructured) map[string]any {
+	deeplinkObj := map[string]any{}
 	if resourceObj != nil {
 		deeplinkObj[ResourceDeepLinkKey] = resourceObj.Object
 	}
 	if app != nil {
 		deeplinkObj[AppDeepLinkKey] = app.Object
 		deeplinkObj[AppDeepLinkShortKey] = app.Object
+
+		// Add managed-by URL if present in annotations
+		if metadata, ok := app.Object["metadata"].(map[string]any); ok {
+			if annotations, ok := metadata["annotations"].(map[string]any); ok {
+				if managedByURL, ok := managedByURLFromAnnotations(annotations); ok {
+					deeplinkObj[ManagedByURLKey] = managedByURL
+				}
+			}
+		}
 	}
 	if cluster != nil {
 		deeplinkObj[ClusterDeepLinkKey] = cluster.Object
@@ -80,10 +100,27 @@ func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstruct
 	return deeplinkObj
 }
 
-func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []settings.DeepLink) (*application.LinksResponse, []string) {
+func EvaluateDeepLinksResponse(obj map[string]any, name string, links []settings.DeepLink) (*application.LinksResponse, []string) {
 	finalLinks := []*application.LinkInfo{}
 	errors := []string{}
 	for _, link := range links {
+		if link.Condition != nil {
+			out, err := expr.Eval(*link.Condition, obj)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("failed to evaluate link condition '%v' with resource %v, error=%v", *link.Condition, name, err.Error()))
+				continue
+			}
+			switch condResult := out.(type) {
+			case bool:
+				if !condResult {
+					continue
+				}
+			default:
+				errors = append(errors, fmt.Sprintf("link condition '%v' evaluated to non-boolean value for resource %v", *link.Condition, name))
+				continue
+			}
+		}
+
 		t, err := template.New("deep-link").Funcs(sprigFuncMap).Parse(link.URL)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("failed to parse link template '%v', error=%v", link.URL, err.Error()))
@@ -95,34 +132,13 @@ func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []
 			errors = append(errors, fmt.Sprintf("failed to evaluate link template '%v' with resource %v, error=%v", link.URL, name, err.Error()))
 			continue
 		}
-		if link.Condition != nil {
-			out, err := expr.Eval(*link.Condition, obj)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("failed to evaluate link condition '%v' with resource %v, error=%v", *link.Condition, name, err.Error()))
-				continue
-			}
-			switch resOut := out.(type) {
-			case bool:
-				if resOut {
-					finalLinks = append(finalLinks, &application.LinkInfo{
-						Title:       pointer.String(link.Title),
-						Url:         pointer.String(finalURL.String()),
-						Description: link.Description,
-						IconClass:   link.IconClass,
-					})
-				}
-			default:
-				errors = append(errors, fmt.Sprintf("link condition '%v' evaluated to non-boolean value for resource %v", *link.Condition, name))
-				continue
-			}
-		} else {
-			finalLinks = append(finalLinks, &application.LinkInfo{
-				Title:       pointer.String(link.Title),
-				Url:         pointer.String(finalURL.String()),
-				Description: link.Description,
-				IconClass:   link.IconClass,
-			})
-		}
+
+		finalLinks = append(finalLinks, &application.LinkInfo{
+			Title:       new(link.Title),
+			Url:         new(finalURL.String()),
+			Description: link.Description,
+			IconClass:   link.IconClass,
+		})
 	}
 	return &application.LinksResponse{
 		Items: finalLinks,

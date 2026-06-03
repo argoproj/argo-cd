@@ -36,7 +36,7 @@ job.metadata = deepCopy(obj.spec.jobTemplate.metadata)
 if job.metadata == nil then
   job.metadata = {}
 end
-job.metadata.name = obj.metadata.name .. "-" ..os.date("!%Y%m%d%H%M")
+job.metadata.name = obj.metadata.name .. "-" ..os.date("!%y%m%d%H%M")
 job.metadata.namespace = obj.metadata.namespace
 if job.metadata.annotations == nil then
   job.metadata.annotations = {}

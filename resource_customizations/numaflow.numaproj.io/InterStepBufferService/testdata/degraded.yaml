@@ -1,0 +1,87 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: InterStepBufferService
+metadata:
+  creationTimestamp: "2024-10-08T16:32:12Z"
+  finalizers:
+  - isbsvc-controller
+  generation: 1
+  name: test-isbservice-rollout
+  namespace: numaplane-system
+  ownerReferences:
+  - apiVersion: numaplane.numaproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ISBServiceRollout
+    name: test-isbservice-rollout
+    uid: 28fc22f1-83f3-441c-bf76-dd4a11ce3891
+  resourceVersion: "348334"
+  uid: 06a5cb44-f3f9-42f8-ab9e-7d2f10323f9e
+spec:
+  jetstream:
+    containerTemplate:
+      resources:
+        limits:
+          memory: 10Mi
+    persistence:
+      volumeSize: 10Mi
+    version: 2.9.6
+status:
+  conditions:
+  - lastTransitionTime: "2024-10-08T16:32:37Z"
+    message: |
+      Waiting for 3 pods to be ready...
+    reason: Unavailable
+    status: "False"
+    type: ChildrenResourcesHealthy
+  - lastTransitionTime: "2024-10-08T16:32:37Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Configured
+  - lastTransitionTime: "2024-10-08T16:32:37Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Deployed
+  config:
+    jetstream:
+      auth:
+        basic:
+          password:
+            key: client-auth-password
+            name: isbsvc-test-isbservice-rollout-js-client-auth
+          user:
+            key: client-auth-user
+            name: isbsvc-test-isbservice-rollout-js-client-auth
+      streamConfig: |
+        consumer:
+          ackwait: 60s
+          maxackpending: 25000
+        otbucket:
+          history: 1
+          maxbytes: 0
+          maxvaluesize: 0
+          replicas: 3
+          storage: 0
+          ttl: 3h
+        procbucket:
+          history: 1
+          maxbytes: 0
+          maxvaluesize: 0
+          replicas: 3
+          storage: 0
+          ttl: 72h
+        stream:
+          duplicates: 60s
+          maxage: 72h
+          maxbytes: -1
+          maxmsgs: 100000
+          replicas: 3
+          retention: 0
+          storage: 0
+      url: nats://isbsvc-test-isbservice-rollout-js-svc.numaplane-system.svc:4222
+  message: |
+    Unavailable: Waiting for 3 pods to be ready...
+  observedGeneration: 1
+  phase: Running
+  type: jetstream

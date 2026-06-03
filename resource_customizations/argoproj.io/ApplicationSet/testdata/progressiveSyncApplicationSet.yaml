@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-git
+  namespace: argocd
+spec:
+  generators:
+    - merge:
+        generators: []
+        mergeKeys:
+          - server
+  strategy:
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: env
+              operator: In
+              values:
+                - dev
+        - matchExpressions:
+            - key: env
+              operator: In
+              values:
+                - prod
+  template:
+    metadata:
+      name: '{{name}}'
+    spec:
+      destination:
+        namespace: default
+        server: '{{server}}'
+      project: default
+      source:
+        path: helm-guestbook
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        targetRevision: HEAD
+status:
+  conditions:
+    - lastTransitionTime: '2025-05-30T15:41:02Z'
+      message: All applications have been generated successfully
+      reason: ApplicationSetUpToDate
+      status: 'False'
+      type: ErrorOccurred
+    - lastTransitionTime: '2025-05-27T18:45:48Z'
+      message: Successfully generated parameters for all Applications
+      reason: ParametersGenerated
+      status: 'True'
+      type: ParametersGenerated
+    - lastTransitionTime: '2025-05-30T15:41:02Z'
+      message: All applications have been generated successfully
+      reason: ApplicationSetUpToDate
+      status: 'True'
+      type: ResourcesUpToDate
+    - lastTransitionTime: '2025-05-30T15:44:06Z'
+      message: ApplicationSet is performing rollout of step 1
+      reason: ApplicationSetModified
+      status: 'True'
+      type: RolloutProgressing

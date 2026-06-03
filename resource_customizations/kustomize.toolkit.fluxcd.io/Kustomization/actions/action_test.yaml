@@ -1,0 +1,35 @@
+discoveryTests:
+- inputPath: testdata/initial_kustomization.yaml
+  result:
+    - name: reconcile
+      disabled: false
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+- inputPath: testdata/suspended_kustomization.yaml
+  result:
+    - name: reconcile
+      disabled: true
+    - name: suspend
+      disabled: true
+    - name: resume
+      disabled: false
+- inputPath: testdata/resumed_kustomization.yaml
+  result:
+    - name: reconcile
+      disabled: false
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+actionTests:
+- action: reconcile
+  inputPath: testdata/initial_kustomization.yaml
+  expectedOutputPath: testdata/reconciled_kustomization.yaml
+- action: suspend
+  inputPath: testdata/initial_kustomization.yaml
+  expectedOutputPath: testdata/suspended_kustomization.yaml
+- action: resume
+  inputPath: testdata/suspended_kustomization.yaml
+  expectedOutputPath: testdata/resumed_kustomization.yaml

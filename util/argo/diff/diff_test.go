@@ -1,17 +1,22 @@
 package diff_test
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	testutil "github.com/argoproj/argo-cd/v2/test"
-	argo "github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v3/test"
+	argo "github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 )
 
 func TestStateDiff(t *testing.T) {
@@ -20,10 +25,7 @@ func TestStateDiff(t *testing.T) {
 		overrides      map[string]v1alpha1.ResourceOverride
 		label          string
 		trackingMethod string
-		noCache        bool
 		ignoreRoles    bool
-		appName        string
-		stateCache     *appstatecache.Cache
 	}
 	defaultDiffConfigParams := func() *diffConfigParams {
 		return &diffConfigParams{
@@ -31,16 +33,13 @@ func TestStateDiff(t *testing.T) {
 			overrides:      map[string]v1alpha1.ResourceOverride{},
 			label:          "",
 			trackingMethod: "",
-			noCache:        true,
 			ignoreRoles:    true,
-			appName:        "",
-			stateCache:     &appstatecache.Cache{},
 		}
 	}
 	diffConfig := func(t *testing.T, params *diffConfigParams) argo.DiffConfig {
 		t.Helper()
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(params.ignores, params.overrides, params.ignoreRoles).
+			WithDiffSettings(params.ignores, params.overrides, params.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(params.label, params.trackingMethod).
 			WithNoCache().
 			Build()
@@ -130,7 +129,6 @@ func TestStateDiff(t *testing.T) {
 		},
 	}
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			dc := diffConfig(t, tc.params())
@@ -139,22 +137,23 @@ func TestStateDiff(t *testing.T) {
 			result, err := argo.StateDiff(tc.liveState, tc.desiredState, dc)
 
 			// then
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.True(t, result.Modified)
 			normalized := testutil.YamlToUnstructured(string(result.NormalizedLive))
 			replicas, found, err := unstructured.NestedFloat64(normalized.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
-			assert.Equal(t, float64(tc.expectedNormalizedReplicas), replicas)
+			assert.InEpsilon(t, float64(tc.expectedNormalizedReplicas), replicas, 0.0001)
 			predicted := testutil.YamlToUnstructured(string(result.PredictedLive))
 			predictedReplicas, found, err := unstructured.NestedFloat64(predicted.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
-			assert.Equal(t, float64(tc.expectedPredictedReplicas), predictedReplicas)
+			assert.InEpsilon(t, float64(tc.expectedPredictedReplicas), predictedReplicas, 0.0001)
 		})
 	}
 }
+
 func TestDiffConfigBuilder(t *testing.T) {
 	type fixture struct {
 		ignores        []v1alpha1.ResourceIgnoreDifferences
@@ -164,7 +163,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 		noCache        bool
 		ignoreRoles    bool
 		appName        string
-		stateCache     *appstatecache.Cache
 	}
 	setup := func() *fixture {
 		return &fixture{
@@ -175,9 +173,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 			noCache:        true,
 			ignoreRoles:    false,
 			appName:        "application-name",
-			stateCache:     &appstatecache.Cache{},
 		}
-
 	}
 	t.Run("will build diff config successfully", func(t *testing.T) {
 		// given
@@ -185,7 +181,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithNoCache().
 			Build()
@@ -193,14 +189,14 @@ func TestDiffConfigBuilder(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, diffConfig)
-		assert.Equal(t, 0, len(diffConfig.Ignores()))
-		assert.Equal(t, 0, len(diffConfig.Overrides()))
+		assert.Empty(t, diffConfig.Ignores())
+		assert.Empty(t, diffConfig.Overrides())
 		assert.Equal(t, f.label, diffConfig.AppLabelKey())
 		assert.Equal(t, f.overrides, diffConfig.Overrides())
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
 		assert.Equal(t, f.noCache, diffConfig.NoCache())
 		assert.Equal(t, f.ignoreRoles, diffConfig.IgnoreAggregatedRoles())
-		assert.Equal(t, "", diffConfig.AppName())
+		assert.Empty(t, diffConfig.AppName())
 		assert.Nil(t, diffConfig.StateCache())
 	})
 	t.Run("will initialize ignore differences if nil is passed", func(t *testing.T) {
@@ -209,7 +205,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(nil, nil, f.ignoreRoles).
+			WithDiffSettings(nil, nil, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithNoCache().
 			Build()
@@ -217,8 +213,8 @@ func TestDiffConfigBuilder(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, diffConfig)
-		assert.Equal(t, 0, len(diffConfig.Ignores()))
-		assert.Equal(t, 0, len(diffConfig.Overrides()))
+		assert.Empty(t, diffConfig.Ignores())
+		assert.Empty(t, diffConfig.Overrides())
 		assert.Equal(t, f.label, diffConfig.AppLabelKey())
 		assert.Equal(t, f.overrides, diffConfig.Overrides())
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
@@ -231,7 +227,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithCache(&appstatecache.Cache{}, "").
 			Build()
@@ -246,7 +242,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithCache(nil, f.appName).
 			Build()
@@ -255,5 +251,75 @@ func TestDiffConfigBuilder(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, diffConfig)
 	})
+}
 
+func TestDiffFromCache(t *testing.T) {
+	t.Run("returns false and logs warning on cache miss", func(t *testing.T) {
+		// given
+		hook := test.NewLocal(logrus.StandardLogger())
+		defer hook.Reset()
+
+		// Real in-memory cache with no data stored → triggers ErrCacheMiss
+		cache := appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(0)), 0)
+
+		diffConfig, err := argo.NewDiffConfigBuilder().
+			WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{}, false, normalizers.IgnoreNormalizerOpts{}).
+			WithTracking("", "").
+			WithCache(cache, "application-name").
+			Build()
+		require.NoError(t, err)
+
+		// when
+		found, cachedDiff := diffConfig.DiffFromCache("application-name")
+
+		// then
+		assert.False(t, found)
+		assert.Nil(t, cachedDiff)
+		require.Len(t, hook.Entries, 1)
+		assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
+		assert.Contains(t, hook.LastEntry().Message, "cannot get managed resources for app application-name")
+		assert.Contains(t, hook.LastEntry().Message, appstatecache.ErrCacheMiss.Error())
+	})
+
+	t.Run("returns false and logs error on cache failure", func(t *testing.T) {
+		// given
+		hook := test.NewLocal(logrus.StandardLogger())
+		defer hook.Reset()
+
+		errCache := errors.New("cache unavailable")
+		// Custom cache client that always returns the given error on Get
+		failClient := &failingCacheClient{
+			InMemoryCache: cacheutil.NewInMemoryCache(0),
+			err:           errCache,
+		}
+		cache := appstatecache.NewCache(cacheutil.NewCache(failClient), 0)
+
+		diffConfig, err := argo.NewDiffConfigBuilder().
+			WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{}, false, normalizers.IgnoreNormalizerOpts{}).
+			WithTracking("", "").
+			WithCache(cache, "application-name").
+			Build()
+		require.NoError(t, err)
+
+		// when
+		found, cachedDiff := diffConfig.DiffFromCache("application-name")
+
+		// then
+		assert.False(t, found)
+		assert.Nil(t, cachedDiff)
+		require.Len(t, hook.Entries, 1)
+		assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
+		assert.Contains(t, hook.LastEntry().Message, "cannot get managed resources for app application-name")
+		assert.Contains(t, hook.LastEntry().Message, errCache.Error())
+	})
+}
+
+// failingCacheClient embeds InMemoryCache and overrides Get to always return a custom error.
+type failingCacheClient struct {
+	*cacheutil.InMemoryCache
+	err error
+}
+
+func (f *failingCacheClient) Get(_ string, _ any) error {
+	return f.err
 }

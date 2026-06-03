@@ -1,0 +1,38 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 5m
+  url: https://github.com/stefanprodan/podinfo-faulty
+  ref:
+    branch: master
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'processing object: new generation 1 -> 2'
+      observedGeneration: 2
+      reason: ProgressingWithRetry
+      status: "True"
+      type: Reconciling
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'failed to checkout and determine revision: unable to list remote for
+        ''https://github.com/stefanprodan/podinfo-faulty'': authentication required'
+      observedGeneration: 2
+      reason: GitOperationFailed
+      status: "False"
+      type: Ready
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'failed to checkout and determine revision: unable to list remote for
+        ''https://github.com/stefanprodan/podinfo-faulty'': authentication required'
+      observedGeneration: 2
+      reason: GitOperationFailed
+      status: "True"
+      type: FetchFailed
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: stored artifact for revision 'master@sha1:08238eada746de8114efa36d36e2aa93bd76cfab'
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: ArtifactInStorage

@@ -1,0 +1,27 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/installation-id: argocd.com
+    argocd.argoproj.io/tracking-id: >-
+      foo:grafana.integreatly.org/GrafanaDashboard:grafana-operator/progressing
+  creationTimestamp: '2025-03-21T20:19:50Z'
+  finalizers:
+    - operator.grafana.com/finalizer
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: foo
+  name: progressing
+  namespace: grafana-operator
+  resourceVersion: '185954752'
+  uid: a7d497f7-5a8d-450b-8b44-50d5f50ce72e
+spec:
+  allowCrossNamespaceImport: false
+  folderRef: barfolder
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  json: |
+    {
+    }
+  resyncPeriod: 10m0s
