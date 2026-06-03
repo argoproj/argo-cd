@@ -34,7 +34,7 @@ safe-outputs:
 tools:
   web-fetch:
   github:
-    toolsets: [issues, labels]
+    toolsets: [issues, labels, search, repos]
     min-integrity: none # This workflow is allowed to examine and comment on any issues
 
 timeout-minutes: 10
@@ -55,6 +55,13 @@ Do not make assumptions beyond what the issue content supports. Do not invent mi
 2. Fetch any comments on the issue using the `get_issue_comments` tool.
 3. Fetch the list of labels available in this repository using the `list_label` tool.
 4. Search for similar issues using the `search_issues` tool.
+
+## Step 1b: Locate relevant code
+
+Search the codebase for the component, function, or error message mentioned in the issue using the `search_code` tool.
+If relevant files are found, read them using the `get_file_contents` tool to understand the code path involved.
+Include a direct link to the relevant source file(s) in your triage report.
+Skip this step if the issue is clearly spam, a feature request with no code reference, or too vague to search for.
 
 ## Step 2: Spam and quality check
 
