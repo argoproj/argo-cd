@@ -534,13 +534,14 @@ func checkAllApplicationsReconciled(applications []argov1alpha1.Application, log
 
 	for _, app := range applications {
 		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
-			logCtx.Debug("Application still has refresh annotation, waiting for reconciliation")
+			logCtx.WithField("application", app.Name).Debug("Application still has refresh annotation, waiting for reconciliation")
 			hasAnnotations = append(hasAnnotations, app)
 			continue
 		}
 
 		if needsReconcile(logCtx, app, statusMap, sinceTime) {
 			addAnnotations = append(addAnnotations, app)
+			logCtx.WithField("application", app.Name).Debug("Application needs refresh annotation")
 		}
 	}
 

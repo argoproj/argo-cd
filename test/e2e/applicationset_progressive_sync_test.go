@@ -548,20 +548,21 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		Expect(ApplicationsLastTransitionTime(expectedOrder)).
 		And(func() {
 			t.Log("Updating targetRevision to new revision by patching git")
-			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": "2"}]`)
+			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 2}]`)
 			t.Log("Git revision changed to revisionB")
 		}).
-		// Immediately Check if Refresh Annotations added, implies progressive sync logic has begun, will wait for annotations before beginning to progress
-		// Can wait up till 3 minutes as the default time for changes to refresh (jitter+default refresh)
-		ExpectWithDuration(CheckApplicationHasAnnotation(expectedApps), TransitionTimeout*3).
-		// Before all applications become healthy, make another change
+		// Immediately make another change, before all applications become healthy,
 		And(func() {
 			now := metav1.Now()
 			changeTime = &now
 			t.Log("Updating targetRevision to new revision by patching git")
-			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": "3"}]`)
+			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
 			t.Log("Git revision changed to revisionB")
 		}).
+		// Since applications were already healthy, before checking the progressive sync status of all applications, check if all applications were reconciled after changeTime
+		// ensureApplicationsReconciled adds refresh annotations to applications, but processing that annotation happens asynchronously by app controller and thus difficult to check deterministically in e2e tests
+		// timeout for this is longer than 3 minutes to add a little buffer for above changes
+		ExpectWithDuration(CheckApplicationsReconciledAfter(expectedApps, changeTime), TransitionTimeout*4).
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
 		Expect(ApplicationsLastTransitionTime(expectedOrder)).
 		Expect(AppsTransitionedAfter([]string{"refresh-dev-app1", "refresh-prod-app3", "refresh-staging-app2"}, changeTime)).

@@ -180,22 +180,19 @@ func ApplicationsLastTransitionTime(expectedOrderApps []string) Expectation {
 	}
 }
 
-// CheckApplicationHasAnnotation expects all apps in expectedApps to have refresh Annotation - v1alpha1.AnnotationKeyRefresh
-func CheckApplicationHasAnnotation(expectedApps []v1alpha1.Application) Expectation {
+// CheckApplicationsReconciledAfter expects all apps in expectedApps to have reconciled after changeTime
+func CheckApplicationsReconciledAfter(expectedApps []v1alpha1.Application, changeTime *metav1.Time) Expectation {
 	return func(c *Consequences) (state, string) {
 		for _, expectedApp := range expectedApps {
 			foundApp := c.app(expectedApp.Name)
 			if foundApp == nil {
 				return pending, fmt.Sprintf("application '%s' not found", expectedApp.Name)
 			}
-			if foundApp.Annotations == nil {
-				return pending, fmt.Sprintf("application '%s' has no annotations", foundApp.Name)
-			}
-			if _, ok := foundApp.Annotations[v1alpha1.AnnotationKeyRefresh]; !ok {
-				return failed, fmt.Sprintf("application '%s' doesn't have expected annotation", foundApp.Name)
+			if foundApp.Status.ReconciledAt != nil && foundApp.Status.ReconciledAt.Before(changeTime) {
+				return pending, fmt.Sprintf("application '%s' has not reconciled yet", foundApp.Name)
 			}
 		}
-		return succeeded, "all applications have expected annotation to refresh"
+		return succeeded, "all applications have reconciled after changeTime"
 	}
 }
 
