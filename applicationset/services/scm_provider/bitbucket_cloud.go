@@ -10,7 +10,7 @@ import (
 )
 
 type BitBucketCloudProvider struct {
-	client      *ExtendedClient
+	client      *bitbucket.Client
 	allBranches bool
 	owner       string
 	// bearer tokens (workspace access tokens, OAuth client credentials) have no
@@ -18,30 +18,20 @@ type BitBucketCloudProvider struct {
 	omitRoleFilter bool
 }
 
-type ExtendedClient struct {
-	*bitbucket.Client
-}
-
 var _ SCMProviderService = &BitBucketCloudProvider{}
 
 func NewBitBucketCloudProvider(owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
-	bitbucketClient, err := bitbucket.NewBasicAuth(user, password)
+	client, err := bitbucket.NewBasicAuth(user, password)
 	if err != nil {
 		return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
-	}
-	client := &ExtendedClient{
-		Client: bitbucketClient,
 	}
 	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches}, nil
 }
 
 func NewBitBucketCloudProviderBearerToken(owner string, token string, allBranches bool) (*BitBucketCloudProvider, error) {
-	bitbucketClient, err := bitbucket.NewOAuthbearerToken(token)
+	client, err := bitbucket.NewOAuthbearerToken(token)
 	if err != nil {
 		return nil, fmt.Errorf("error creating BitBucket Cloud client with bearer token: %w", err)
-	}
-	client := &ExtendedClient{
-		Client: bitbucketClient,
 	}
 	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches, omitRoleFilter: true}, nil
 }
@@ -145,6 +135,9 @@ func (g *BitBucketCloudProvider) listBranches(repo *Repository) ([]bitbucket.Rep
 		})
 		if err != nil {
 			return nil, err
+		}
+		if allBranches == nil {
+			allBranches = make([]bitbucket.RepositoryBranch, 0, page.Size)
 		}
 		allBranches = append(allBranches, page.Branches...)
 		if page.Next == "" {
