@@ -550,6 +550,11 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 			t.Log("Updating targetRevision to new revision by patching git")
 			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 2}]`)
 			t.Log("Git revision changed to revisionB")
+			for _, app := range expectedApps {
+				// Refresh the app to detect git changes
+				_, err := fixture.RunCli("app", "get", app.Name, "--refresh")
+				require.NoError(t, err)
+			}
 		}).
 		// Immediately make another change, before all applications become healthy,
 		And(func() {
@@ -557,13 +562,13 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 			changeTime = &now
 			t.Log("Updating targetRevision to new revision by patching git")
 			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
-			t.Log("Git revision changed to revisionB")
+			t.Log("Git revision changed to revisionC")
 		}).
+		When().RefreshApp(expectedOrder).Then().
 		// Since applications were already healthy, before checking the progressive sync status of all applications, check if all applications were reconciled after changeTime
 		// ensureApplicationsReconciled adds refresh annotations to applications, but processing that annotation happens asynchronously by app controller and thus difficult to check deterministically in e2e tests
-		// timeout for this is longer than 3 minutes to add a little buffer for above changes
-		ExpectWithDuration(CheckApplicationsReconciledAfter(expectedApps, changeTime), TransitionTimeout*4).
-		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
+		ExpectWithDuration(CheckApplicationsReconciledAfter(expectedApps, changeTime), TransitionTimeout).
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout).
 		Expect(ApplicationsLastTransitionTime(expectedOrder)).
 		Expect(AppsTransitionedAfter([]string{"refresh-dev-app1", "refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
 		// Cleanup
