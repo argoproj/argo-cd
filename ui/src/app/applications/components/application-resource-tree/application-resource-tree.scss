@@ -370,6 +370,9 @@
         color: $argo-color-gray-7;
 
         &--big {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: $argo-color-gray-5;
             position: absolute;
             width: 65px;
@@ -377,16 +380,26 @@
             border-radius: 33px;
             left: -20px;
             top: -8px;
-            text-align: center;
             color: $white-color;
 
             @include themify($themes) {
                 border: 4px solid themed('background-2');
             }
 
-            i {
-                line-height: 56px;
-                font-size: 28px;
+            > br {
+                display: none;
+            }
+
+            img {
+                display: block;
+            }
+
+            .resource-icon__font-icon {
+                font-size: 32px !important;
+                line-height: 1 !important;
+                width: auto !important;
+                height: auto !important;
+                display: block !important;
             }
         }
     }
