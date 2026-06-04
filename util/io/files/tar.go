@@ -249,7 +249,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 				found    bool
 				matchErr error
 			)
-			if strings.Contains(exclusionPattern, "/") {
+			if strings.Contains(filepath.ToSlash(exclusionPattern), "/") {
 				// Path-aware exclusion: match against the full relative path
 				found, matchErr = matchPath(exclusionPattern, relativePath)
 			} else {
