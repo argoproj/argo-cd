@@ -223,7 +223,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 				found    bool
 				matchErr error
 			)
-			if strings.Contains(inclusionPattern, "/") {
+			if strings.Contains(filepath.ToSlash(inclusionPattern), "/") {
 				// Path-aware pattern: match against the full relative path so
 				// callers can target subdirectories (e.g. "charts/**").
 				found, matchErr = matchPath(inclusionPattern, relativePath)
