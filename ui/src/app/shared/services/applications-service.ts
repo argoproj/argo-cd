@@ -345,7 +345,7 @@ export class ApplicationsService {
                 try {
                     const parsed = JSON.parse(data);
                     return parsed && parsed.result ? (parsed.result as models.LogEntry) : null;
-                } catch (e) {
+                } catch {
                     return null;
                 }
             }),
