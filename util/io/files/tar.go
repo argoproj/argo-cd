@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -185,47 +186,10 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 	return nil
 }
 
-// matchPath reports whether the file at relativePath matches the given pattern.
-// Patterns containing a '/' are matched against the full relative path, with
-// '**' treated as a wildcard that spans multiple path segments (e.g.
-// "charts/**" matches any file anywhere under the charts/ directory).
-// Patterns without a '/' are matched against the filename only via
-// filepath.Match, preserving the original behaviour.
 func matchPath(pattern, relativePath string) (bool, error) {
-	// Expand '**' into a per-segment match: split both the pattern and the
-	// path on '/' and walk them together.
-	patternParts := strings.Split(pattern, "/")
-	pathParts := strings.Split(relativePath, "/")
-	return matchParts(patternParts, pathParts)
-}
-
-// matchParts recursively matches pattern segments against path segments,
-// treating "**" as a wildcard that consumes zero or more path segments.
-func matchParts(patternParts, pathParts []string) (bool, error) {
-	for len(patternParts) > 0 {
-		switch patternParts[0] {
-		case "**":
-			// "**" can match zero or more path segments.
-			patternParts = patternParts[1:]
-			for i := range len(pathParts) + 1 {
-				if ok, err := matchParts(patternParts, pathParts[i:]); err != nil || ok {
-					return ok, err
-				}
-			}
-			return false, nil
-		default:
-			if len(pathParts) == 0 {
-				return false, nil
-			}
-			ok, err := filepath.Match(patternParts[0], pathParts[0])
-			if err != nil || !ok {
-				return false, err
-			}
-			patternParts = patternParts[1:]
-			pathParts = pathParts[1:]
-		}
-	}
-	return len(pathParts) == 0, nil
+	normPattern := filepath.ToSlash(pattern)
+	normPath := filepath.ToSlash(relativePath)
+	return doublestar.Match(normPattern, normPath)
 }
 
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
@@ -250,6 +214,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if err != nil {
 		return fmt.Errorf("relative path error: %w", err)
 	}
+	relativePath = filepath.ToSlash(relativePath)
 
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
 		included := false
@@ -280,9 +245,19 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	}
 	if t.exclusions != nil {
 		for _, exclusionPattern := range t.exclusions {
-			found, err := filepath.Match(exclusionPattern, relativePath)
-			if err != nil {
-				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, err)
+			var (
+				found    bool
+				matchErr error
+			)
+			if strings.Contains(exclusionPattern, "/") {
+				// Path-aware exclusion: match against the full relative path
+				found, matchErr = matchPath(exclusionPattern, relativePath)
+			} else {
+				// Filename-only exclusion: preserve original behavior with filepath.Match
+				found, matchErr = filepath.Match(exclusionPattern, base)
+			}
+			if matchErr != nil {
+				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, matchErr)
 			}
 			if found {
 				if fi.IsDir() {
