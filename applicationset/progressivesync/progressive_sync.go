@@ -82,9 +82,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 
 	// Merge validation issues from build phase
 	if buildIssues.HasIssues() {
-		m.validationIssues.InvalidMatchExpressions = buildIssues.InvalidMatchExpressions
-		m.validationIssues.DuplicateAppSelections = buildIssues.DuplicateAppSelections
-		m.validationIssues.EmptySteps = buildIssues.EmptySteps
+		m.validationIssues = buildIssues
 	}
 
 	_, err := m.UpdateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
