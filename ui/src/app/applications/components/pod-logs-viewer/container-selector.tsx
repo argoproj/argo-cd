@@ -14,7 +14,7 @@ export const ContainerSelector = ({
     onClickContainer: (group: ContainerGroup, index: number, logs: string) => void;
 }) => {
     if (!containerGroups) {
-        return <></>;
+        return null;
     }
 
     const containers = containerGroups?.reduce((acc, group) => acc.concat(group.containers), []);
@@ -25,7 +25,7 @@ export const ContainerSelector = ({
     const containerIndex = (n: string) => {
         return containerGroup(n)?.containers.findIndex(container => container.name === n);
     };
-    if (containerNames.length <= 1) return <></>;
+    if (containerNames.length <= 1) return null;
     return (
         <Tooltip content='Select a container to view logs' interactive={false}>
             <select className='argo-field' value={containerName} onChange={e => onClickContainer(containerGroup(e.target.value), containerIndex(e.target.value), 'logs')}>

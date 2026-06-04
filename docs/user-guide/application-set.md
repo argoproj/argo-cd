@@ -4,9 +4,9 @@ The [ApplicationSet controller](../operator-manual/applicationset/index.md) adds
 
 The set of tools provided by the ApplicationSet controller may also be used to allow developers (without access to the Argo CD namespace) to independently create Applications without cluster-administrator intervention.
 
-!!! warning
-    Be aware of the [security implications](../operator-manual/applicationset/Security.md) before allowing developers to
-    create Applications via ApplicationSets.
+> [!WARNING]
+> Be aware of the [security implications](../operator-manual/applicationset/Security.md) before allowing developers to
+> create Applications via ApplicationSets.
 
 The ApplicationSet controller automatically generates Argo CD Applications based on the contents of an `ApplicationSet` Custom Resource (CR).
 
@@ -49,3 +49,5 @@ Likewise, changes made to the ApplicationSet `template` fields will automaticall
 Within ApplicationSet there exist other more powerful generators in addition to the List generator, including the Cluster generator (which automatically uses Argo CD-defined clusters to template Applications), and the Git generator (which uses the files/directories of a Git repository to template applications).
 
 To learn more about the ApplicationSet controller, check out the [ApplicationSet documentation](../operator-manual/applicationset/index.md).
+
+To manage ApplicationSets through the Argo CD Web UI, see [Managing ApplicationSets in the Web UI](application-set-ui.md).

@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,26 +8,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestHelmHooksAreCreated(t *testing.T) {
-	Given(t).
-		Path("hook").
+	ctx := Given(t)
+	ctx.Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"helm.sh/hook": "pre-install"}}]`).
 		CreateApp().
@@ -37,7 +31,7 @@ func TestHelmHooksAreCreated(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "hook", Message: "pod/hook created", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, HookType: HookTypePreSync, Status: ResultCodeSynced, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
 }
 
 // make sure we treat Helm weights as a sync wave
@@ -96,11 +90,11 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 }
 
 func TestHelmRepo(t *testing.T) {
-	SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		CustomCACertAdded().
 		HelmRepoAdded("custom-repo").
-		RepoURLType(RepoURLTypeHelm).
+		RepoURLType(fixture.RepoURLTypeHelm).
 		Chart("helm").
 		Revision("1.0.0").
 		When().
@@ -162,6 +156,79 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		Expect(ErrorRegex("Error: open .*does-not-exist-values.yaml: no such file or directory", ""))
 }
 
+// TestHelmGlobValueFiles verifies that a glob pattern in valueFiles expands to all matching
+// files and that they are applied in lexical order (last file wins in helm merging).
+// envs/*.yaml expands to envs/a.yaml then envs/b.yaml - b.yaml is last, so foo = "b-value".
+func TestHelmGlobValueFiles(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	ctx := Given(t)
+	ctx.Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "envs/*.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			val := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(),
+				"get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string)
+			assert.Equal(t, "b-value", val)
+		})
+}
+
+// TestHelmRecursiveGlobValueFiles verifies that the ** double-star pattern recursively
+// matches files at any depth. envs/**/*.yaml expands (zero-segments first) to:
+// envs/a.yaml, envs/b.yaml, envs/nested/c.yaml - c.yaml is last, so foo = "c-value".
+func TestHelmRecursiveGlobValueFiles(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	ctx := Given(t)
+	ctx.Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "envs/**/*.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			val := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(),
+				"get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string)
+			assert.Equal(t, "c-value", val)
+		})
+}
+
+// TestHelmGlobValueFilesNoMatch verifies that a glob pattern with no matching files
+// surfaces as a comparison error on the application.
+func TestHelmGlobValueFilesNoMatch(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "nonexistent/*.yaml").
+		Then().
+		Expect(Condition(ApplicationConditionComparisonError, `values file glob "nonexistent/*.yaml" matched no files`))
+}
+
+// TestHelmGlobValueFilesIgnoreMissing verifies that a non-matching glob pattern is
+// silently skipped when ignoreMissingValueFiles is set, and the app syncs successfully.
+func TestHelmGlobValueFilesIgnoreMissing(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "nonexistent/*.yaml", "--ignore-missing-value-files").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelmValuesMultipleUnset(t *testing.T) {
 	Given(t).
 		Path("helm").
@@ -214,16 +281,17 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 
 func TestHelmValuesLiteralFileRemote(t *testing.T) {
 	sentinel := "a: b"
+	lc := &net.ListenConfig{}
 	serve := func(c chan<- string) {
 		// listen on first available dynamic (unprivileged) port
-		listener, err := net.Listen("tcp", ":0")
+		listener, err := lc.Listen(t.Context(), "tcp", ":0")
 		if err != nil {
 			panic(err)
 		}
 
 		// send back the address so that it can be used
 		c <- listener.Addr().String()
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 			// return the sentinel text at root URL
 			fmt.Fprint(w, sentinel)
 		})
@@ -255,7 +323,7 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 }
 
 func TestHelmCrdHook(t *testing.T) {
-	SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		Path("helm-crd").
 		When().
@@ -318,8 +386,8 @@ func TestHelmSetFile(t *testing.T) {
 
 // ensure we can use envsubst in "set" variables
 func TestHelmSetEnv(t *testing.T) {
-	Given(t).
-		Path("helm-values").
+	ctx := Given(t)
+	ctx.Path("helm-values").
 		When().
 		CreateApp().
 		AppSet("--helm-set", "foo=$ARGOCD_APP_NAME").
@@ -327,14 +395,14 @@ func TestHelmSetEnv(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+		And(func(_ *Application) {
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
 
 func TestHelmSetStringEnv(t *testing.T) {
-	Given(t).
-		Path("helm-values").
+	ctx := Given(t)
+	ctx.Path("helm-values").
 		When().
 		CreateApp().
 		AppSet("--helm-set-string", "foo=$ARGOCD_APP_NAME").
@@ -342,26 +410,26 @@ func TestHelmSetStringEnv(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+		And(func(_ *Application) {
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
 
 // make sure kube-version gets passed down to resources
 func TestKubeVersion(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	Given(t).
-		Path("helm-kube-version").
+	fixture.SkipOnEnv(t, "HELM")
+	ctx := Given(t)
+	ctx.Path("helm-kube-version").
 		When().
 		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			kubeVersion := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+		And(func(_ *Application) {
+			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
-			assert.LessOrEqual(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
+			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.String(), kubeVersion)
 		}).
 		When().
 		// Make sure override works.
@@ -369,24 +437,24 @@ func TestKubeVersion(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Equal(t, "v999.999.999", FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+		And(func(_ *Application) {
+			assert.Equal(t, "v999.999.999", errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
 }
 
 // make sure api versions gets passed down to resources
 func TestApiVersions(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	Given(t).
-		Path("helm-api-versions").
+	fixture.SkipOnEnv(t, "HELM")
+	ctx := Given(t)
+	ctx.Path("helm-api-versions").
 		When().
 		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			apiVersions := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+		And(func(_ *Application) {
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			// The v1 API shouldn't be going anywhere.
 			assert.Contains(t, apiVersions, "v1")
@@ -397,15 +465,15 @@ func TestApiVersions(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			apiVersions := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+		And(func(_ *Application) {
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			assert.Contains(t, apiVersions, "v1/MyTestResource")
 		})
 }
 
 func TestHelmNamespaceOverride(t *testing.T) {
-	SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		Path("helm-namespace").
 		When().
@@ -421,7 +489,7 @@ func TestHelmNamespaceOverride(t *testing.T) {
 }
 
 func TestHelmValuesHiddenDirectory(t *testing.T) {
-	SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		Path(".hidden-helm").
 		When().
@@ -436,12 +504,28 @@ func TestHelmValuesHiddenDirectory(t *testing.T) {
 }
 
 func TestHelmWithDependencies(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	testHelmWithDependencies(t, "helm-with-dependencies", false)
+	fixture.SkipOnEnv(t, "HELM")
+
+	ctx := Given(t).
+		CustomCACertAdded().
+		// these are slow tests
+		Timeout(30).
+		HelmPassCredentials()
+
+	ctx = ctx.HelmRepoAdded("custom-repo")
+
+	helmVer := ""
+
+	ctx.Path("helm-with-dependencies").
+		When().
+		CreateApp("--helm-version", helmVer).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHelmWithMultipleDependencies(t *testing.T) {
-	SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM")
 
 	Given(t).Path("helm-with-multiple-dependencies").
 		CustomCACertAdded().
@@ -457,20 +541,18 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 }
 
 func TestHelmDependenciesPermissionDenied(t *testing.T) {
-	SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM")
 
-	projName := "argo-helm-project-denied"
-	projectFixture.
-		Given(t).
-		Name(projName).
+	ctx := projectFixture.Given(t)
+	ctx.Name("argo-helm-project-denied").
 		Destination("*,*").
 		When().
 		Create().
-		AddSource(RepoURL(RepoURLTypeFile))
+		AddSource(fixture.RepoURL(fixture.RepoURLTypeFile))
 
-	expectedErr := fmt.Sprintf("helm repos localhost:5000/myrepo are not permitted in project '%s'", projName)
-	GivenWithSameState(t).
-		Project(projName).
+	expectedErr := fmt.Sprintf("helm repos localhost:5000/myrepo are not permitted in project '%s'", ctx.GetName())
+	GivenWithSameState(ctx).
+		Project(ctx.GetName()).
 		Path("helm-oci-with-dependencies").
 		CustomCACertAdded().
 		HelmHTTPSCredentialsUserPassAdded().
@@ -481,9 +563,9 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 		Then().
 		Expect(Error("", expectedErr))
 
-	expectedErr = fmt.Sprintf("helm repos https://localhost:9443/argo-e2e/testdata.git/helm-repo/local, https://localhost:9443/argo-e2e/testdata.git/helm-repo/local2 are not permitted in project '%s'", projName)
-	GivenWithSameState(t).
-		Project(projName).
+	expectedErr = fmt.Sprintf("helm repos https://localhost:9443/argo-e2e/testdata.git/helm-repo/local, https://localhost:9443/argo-e2e/testdata.git/helm-repo/local2 are not permitted in project '%s'", ctx.GetName())
+	GivenWithSameState(ctx).
+		Project(ctx.GetName()).
 		Path("helm-with-multiple-dependencies-permission-denied").
 		CustomCACertAdded().
 		HelmHTTPSCredentialsUserPassAdded().
@@ -495,55 +577,8 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 		Expect(Error("", expectedErr))
 }
 
-func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	testHelmWithDependencies(t, "helm-with-dependencies", true)
-}
-
-func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
-	t.Helper()
-	ctx := Given(t).
-		CustomCACertAdded().
-		// these are slow tests
-		Timeout(30).
-		HelmPassCredentials()
-	if legacyRepo {
-		ctx.And(func() {
-			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
-				"-n", fixture.TestNamespace(),
-				"--from-file=certSecret="+repos.CertPath,
-				"--from-file=keySecret="+repos.CertKeyPath,
-				"--from-literal=username="+GitUsername,
-				"--from-literal=password="+GitPassword,
-			))
-			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Patch(context.Background(),
-				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
-
-			CheckError(fixture.SetHelmRepos(settings.HelmRepoCredentials{
-				URL:            RepoURL(RepoURLTypeHelm),
-				Name:           "custom-repo",
-				KeySecret:      &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
-				CertSecret:     &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
-				UsernameSecret: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
-				PasswordSecret: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
-			}))
-		})
-	} else {
-		ctx = ctx.HelmRepoAdded("custom-repo")
-	}
-
-	helmVer := ""
-
-	ctx.Path(chartPath).
-		When().
-		CreateApp("--helm-version", helmVer).
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
-}
-
 func TestHelm3CRD(t *testing.T) {
-	SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
 		Path("helm3-crd").
 		When().
@@ -554,43 +589,11 @@ func TestHelm3CRD(t *testing.T) {
 		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "crontabs.stable.example.com", SyncStatusCodeSynced))
 }
 
-func TestHelmRepoDiffLocal(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	helmTmp := t.TempDir()
-	Given(t).
-		CustomCACertAdded().
-		HelmRepoAdded("custom-repo").
-		RepoURLType(RepoURLTypeHelm).
-		Chart("helm").
-		Revision("1.0.0").
-		When().
-		CreateApp().
-		Then().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)
-			FailOnErr(Run("", "helm", "repo", "add", "custom-repo", GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", RepoURL(RepoURLTypeHelm)),
-				"--username", GitUsername,
-				"--password", GitPassword,
-				"--cert-file", "../fixture/certs/argocd-test-client.crt",
-				"--key-file", "../fixture/certs/argocd-test-client.key",
-				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
-			))
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
-			assert.Empty(t, diffOutput)
-		})
-}
-
 func TestHelmOCIRegistry(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
-		RepoURLType(RepoURLTypeHelmOCI).
+		RepoURLType(fixture.RepoURLTypeHelmOCI).
 		Chart("helm-values").
 		Revision("1.0.0").
 		When().
@@ -606,7 +609,7 @@ func TestHelmOCIRegistry(t *testing.T) {
 
 func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
 		Path("helm-oci-with-dependencies").
 		When().
@@ -622,10 +625,10 @@ func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 
 func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
-		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
-		RepoURLType(RepoURLTypeHelmOCI).
+		RepoURLType(fixture.RepoURLTypeHelmOCI).
 		Chart("helm-oci-with-dependencies").
 		Revision("1.0.0").
 		When().
@@ -641,7 +644,7 @@ func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 
 func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		HelmoOCICredentialsWithoutUserPassAdded().
 		Path("helm-oci-with-dependencies").
 		When().
@@ -657,10 +660,10 @@ func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 
 func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
-		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
 		HelmoOCICredentialsWithoutUserPassAdded().
-		RepoURLType(RepoURLTypeHelmOCI).
+		RepoURLType(fixture.RepoURLTypeHelmOCI).
 		Chart("helm-oci-with-dependencies").
 		Revision("1.0.0").
 		When().

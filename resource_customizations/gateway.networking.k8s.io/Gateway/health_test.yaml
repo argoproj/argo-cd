@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: Gateway is healthy
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: Failed to resolve references
+  inputPath: testdata/degraded_resolved_refs.yaml
+- healthStatus:
+    status: Degraded
+    message: Gateway has not been accepted by any controller
+  inputPath: testdata/degraded_accepted.yaml
+- healthStatus:
+    status: Degraded
+    message: "Listener: Listener has not been accepted"
+  inputPath: testdata/listener_degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: Gateway is still being programmed
+  inputPath: testdata/progressing.yaml

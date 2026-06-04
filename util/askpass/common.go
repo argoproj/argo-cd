@@ -1,7 +1,7 @@
 package askpass
 
 import (
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 var SocketPath = "/tmp/reposerver-ask-pass.sock"

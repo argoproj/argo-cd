@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2/google"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // defaultGCPScopes:
@@ -24,7 +24,7 @@ var defaultGCPScopes = []string{
 func newGCPCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "gcp",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			// Preferred way to retrieve GCP credentials

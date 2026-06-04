@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "3scale ActiveDoc is ready"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Failure message"
+    inputPath: testdata/degraded-failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Validation failure"
+    inputPath: testdata/degraded-invalid.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Referenced product does not exist"
+    inputPath: testdata/degraded-orphan.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale ActiveDoc status..."
+    inputPath: testdata/progressing.yaml

@@ -12,8 +12,8 @@ func NewExprs() map[string]any {
 	}
 }
 
-func replaceAll(s, old, new string) string {
-	return strings.ReplaceAll(s, old, new)
+func replaceAll(s, old, newV string) string {
+	return strings.ReplaceAll(s, old, newV)
 }
 
 func toUpper(s string) string {

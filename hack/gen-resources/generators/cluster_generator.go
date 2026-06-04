@@ -17,10 +17,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/helm"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/helm"
 )
 
 const POD_PREFIX = "vcluster"
@@ -146,7 +146,7 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 	return nil
 }
 
-func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix string) (string, error) {
+func (cg *ClusterGenerator) getClusterServerURI(namespace string, releaseSuffix string) (string, error) {
 	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), POD_PREFIX+"-"+releaseSuffix+"-0", metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -156,10 +156,10 @@ func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix 
 	return "https://" + pod.Status.PodIP + ":8443", nil
 }
 
-func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) string {
-	for i := 0; i < 10; i++ {
+func (cg *ClusterGenerator) retrieveClusterURI(namespace, releaseSuffix string) string {
+	for range 10 {
 		log.Print("Attempting to get cluster uri")
-		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
+		uri, err := cg.getClusterServerURI(namespace, releaseSuffix)
 		if err != nil {
 			log.Printf("Failed to get cluster uri due to %s", err.Error())
 			time.Sleep(10 * time.Second)
@@ -189,7 +189,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 	log.Print("Get cluster credentials")
 	caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
 
-	for o := 0; o < 5; o++ {
+	for range 5 {
 		if err == nil {
 			break
 		}
@@ -203,7 +203,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 
 	log.Print("Get cluster server uri")
 
-	uri := cg.retrieveClusterUri(namespace, releaseSuffix)
+	uri := cg.retrieveClusterURI(namespace, releaseSuffix)
 	log.Printf("Cluster server uri is %s", uri)
 
 	log.Print("Create cluster")
@@ -219,10 +219,12 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 				KeyData:    key,
 			},
 		},
-		ConnectionState: argoappv1.ConnectionState{},
-		ServerVersion:   "1.18",
-		Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
-		Labels:          labels,
+		Info: argoappv1.ClusterInfo{
+			ConnectionState: argoappv1.ConnectionState{},
+			ServerVersion:   "1.18",
+		},
+		Namespaces: []string{opts.ClusterOpts.DestinationNamespace},
+		Labels:     labels,
 	})
 	if err != nil {
 		return err
@@ -249,7 +251,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
-	log.Printf("Clean clusters")
+	log.Print("Clean clusters")
 	namespaces, err := cg.clientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err

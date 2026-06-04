@@ -6,8 +6,8 @@
 
 Sure thing! You can either open an Enhancement Proposal in our GitHub issue tracker or you can [join us on Slack](https://argoproj.github.io/community/join-slack) in channel #argo-contributors to discuss your ideas and get guidance for submitting a PR.
 
-!!! note
-    Regular [contributor meetings](https://argo-cd.readthedocs.io/en/latest/developer-guide/code-contributions/#regular-contributor-meeting) are held weekly. Please follow the link for more details.
+> [!NOTE]
+> Regular [contributor meetings](https://argo-cd.readthedocs.io/en/latest/developer-guide/code-contributions/#regular-contributor-meeting) are held weekly. Please follow the link for more details.
 
 ### No one has looked at my PR yet. Why?
 
@@ -15,7 +15,7 @@ As we have limited resources, it can sometimes take a while for someone to respo
 
 ### How do I get my PR labeled `ready-for-review` ?
 
-Conventionally an initial review is performed from a Argo member or reviewer. Once the initial review is approved, it can be labeled `ready-for-review` and then added to the [Argo CD Review](https://github.com/orgs/argoproj/projects/28) Github project. Details of the project dashboard can be found [here](https://github.com/orgs/argoproj/projects/28?pane=info).
+Conventionally an initial review is performed from a Argo member or reviewer. Once the initial review is approved, it can be labeled `ready-for-review` and then added to the [Argo CD Review](https://github.com/orgs/argoproj/projects/28) Github project. The project dashboard provides a helpful [info panel](https://github.com/orgs/argoproj/projects/28?pane=info) on the review process.
 
 High quality reviews are extremely encouraged from the community. A member/reviewer may work with a community reviewer to get a PR labeled `ready-for-review`. It can then be added to the project dashboard and marked `Community Reviewed`.
 

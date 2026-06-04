@@ -2,16 +2,97 @@
 
 This guide is for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
 
-There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the **app of apps pattern**.
+There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them.
 
-!!!warning "App of Apps is an admin-only tool"
-    The ability to create Applications in arbitrary [Projects](./declarative-setup.md#projects) 
-    is an admin-level capability. Only admins should have push access to the parent Application's source repository. 
-    Admins should review pull requests to that repository, paying particular attention to the `project` field in each 
-    Application. Projects with access to the namespace in which Argo CD is installed effectively have admin-level 
-    privileges.
+Our recommendation is to look at [ApplicationSets](./applicationset/index.md) and more specifically the [cluster generator](./applicationset/Generators-Cluster.md) which can handle most typical scenarios.
 
-## App Of Apps Pattern
+## Application Sets and cluster labels (recommended)
+
+Following the [Declaratively setup guide](declarative-setup.md) you can create a cluster and assign it several labels.
+
+Example
+
+```yaml
+apiVersion: v1
+data:
+  [...snip..]
+kind: Secret
+metadata:
+  annotations:
+    managed-by: argocd.argoproj.io
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+    cloud: gcp
+    department: billing
+    env: qa
+    region: eu
+    type: workload
+  name: cluster-qa-eu-example
+  namespace: argocd
+```
+
+Then as soon as you add the cluster to Argo CD, any application set that uses these labels will deploy the respective applications.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: eu-only-appset
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - matrix:
+      generators:
+        - git:
+            repoURL: <a git repo>
+            revision: HEAD
+            directories:
+            - path: my-eu-apps/*
+        - clusters:    
+            selector:
+              matchLabels:
+                type: "workload"     
+                region: "eu"                     
+  template:      
+    metadata:
+      name: 'eu-only-{{index .path.segments 1}}-{{.name}}'     
+    spec:
+      project: default
+      source:
+        repoURL: <a git repo>
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: '{{.server}}'
+        namespace: 'eu-only-{{index .path.segments 1}}'
+
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true  
+        automated: 
+          prune: true
+          selfHeal: true 
+```
+
+If you use Application Sets you also have access to all [gotemplate functions](./applicationset/GoTemplate.md) as well as [Sprig methods](https://masterminds.github.io/sprig/). So no Helm templating is required.
+
+For more information see also [Templating](./applicationset/Template.md).
+
+
+## App Of Apps Pattern (Alternative)
+
+ You can also use the **app of apps pattern**.
+
+> [!WARNING]
+> **App of Apps is an admin-only tool**
+>
+> The ability to create Applications in arbitrary [Projects](./declarative-setup.md#projects) 
+> is an admin-level capability. Only admins should have push access to the parent Application's source repository. 
+> Admins should review pull requests to that repository, paying particular attention to the `project` field in each 
+> Application. Projects with access to the namespace in which Argo CD is installed effectively have admin-level 
+> privileges.
 
 [Declaratively](declarative-setup.md) specify one Argo CD app that consists only of other apps.
 
@@ -20,6 +101,7 @@ There's no one particular pattern to solve this problem, e.g. you could write a 
 ### Helm Example
 
 This example shows how to use Helm to achieve this. You can, of course, use another tool if you like.
+Notice that most Helm functions are also available in Application Sets. 
 
 A typical layout of your Git repository for this might be:
 
@@ -54,9 +136,12 @@ spec:
     path: guestbook
     repoURL: https://github.com/argoproj/argocd-example-apps
     targetRevision: HEAD
-``` 
+  syncPolicy:
+    automated:
+      prune: true
+```
 
-The sync policy to automated + prune, so that child apps are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that your apps are deleted correctly.
+This example sets the sync policy to automated with pruning enabled, so child apps are automatically created, synced, and deleted when the parent app's manifest changes. You may wish to disable automated sync for more control over when changes are applied. The finalizer ensures that child app resources are properly cleaned up on deletion.
 
 Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.
 
@@ -85,7 +170,8 @@ The parent app will appear as in-sync but the child apps will be out of sync:
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
 
-> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [v1.8 upgrade notes](upgrading/1.7-1.8.md) for information on changing this.
+> [!NOTE]
+> You may want to modify this behavior to bootstrap your cluster in waves; see [the health assessment of Applications](./health.md#argocd-app) for information on changing this.
 
 You can either sync via the UI, firstly filter by the correct label:
 
@@ -121,9 +207,21 @@ spec:
  ...
 ```
 
+### Deleting child applications
+
+When working with the App of Apps pattern, you may need to delete individual child applications. Starting in 3.2, Argo CD provides consistent deletion behaviour whether you delete from the Applications List or from the parent application's Resource Tree.
+
+For detailed information about deletion options and behaviour, including:
+- Consistent deletion across UI views
+- Non-cascading (orphan) deletion to preserve managed resources
+- Child application detection and improved dialog messages
+- Best practices and example scenarios
+
+See [Deleting Applications in the UI](../user-guide/app_deletion.md#deleting-applications-in-the-ui).
+
 ### Ignoring differences in child applications
 
-To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing/). The example below shows how to ignore changes to syncPolicy and other common values.
+To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing.md). The example below shows how to ignore changes to syncPolicy and other common values.
 
 ```yaml
 spec:
@@ -136,7 +234,6 @@ spec:
   ignoreDifferences:
     - group: "*"
       kind: "Application"
-      namespace: "*"
       jsonPointers:
         # Allow manually disabling auto sync for apps, useful for debugging.
         - /spec/syncPolicy/automated

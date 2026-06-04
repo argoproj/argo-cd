@@ -16,16 +16,16 @@ builds:
     flags:
       - -v
     ldflags:
-      - -X github.com/argoproj/argo-cd/v2/common.version={{ .Version }}
-      - -X github.com/argoproj/argo-cd/v2/common.buildDate={{ .Date }}
-      - -X github.com/argoproj/argo-cd/v2/common.gitCommit={{ .FullCommit }}
-      - -X github.com/argoproj/argo-cd/v2/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
-      - -X github.com/argoproj/argo-cd/v2/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
+      - -X github.com/argoproj/argo-cd/v3/common.version={{ .Version }}
+      - -X github.com/argoproj/argo-cd/v3/common.buildDate={{ .Date }}
+      - -X github.com/argoproj/argo-cd/v3/common.gitCommit={{ .FullCommit }}
+      - -X github.com/argoproj/argo-cd/v3/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
+      - -X github.com/argoproj/argo-cd/v3/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
       - -extldflags="-static"
     goos:
       - linux
-      - darwin
       - windows
+      - darwin
     goarch:
       - amd64
       - arm64
@@ -45,17 +45,18 @@ builds:
 
 archives:
   - id: argocd-archive
-    builds:
-    - argocd-cli
+    ids:
+      - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    format: binary
+    formats: [binary]
 
 checksum:
   name_template: 'cli_checksums.txt'
   algorithm: sha256
 
 release:
+  make_latest: '{{ .Env.GORELEASER_MAKE_LATEST }}'
   prerelease: auto
   draft: false
   header: |
@@ -65,39 +66,42 @@ release:
 
     ```shell
     kubectl create namespace argocd
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.Tag}}/manifests/install.yaml
+    kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/{{.Tag}}/manifests/install.yaml
     ```
 
     ### HA:
 
     ```shell
     kubectl create namespace argocd
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.Tag}}/manifests/ha/install.yaml
+    kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/{{.Tag}}/manifests/ha/install.yaml
     ```
 
     ## Release Signatures and Provenance
 
     All Argo CD container images are signed by cosign.  A Provenance is generated for container images and CLI binaries which meet the SLSA Level 3 specifications. See the [documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/signed-release-assets) on how to verify.
 
+    ## Release Notes Blog Post
+    For a detailed breakdown of the key changes and improvements in this release, check out the [official blog post](https://blog.argoproj.io/argo-cd-v3-0-release-candidate-a0b933f4e58f)
 
     ## Upgrading
 
     If upgrading from a different minor version, be sure to read the [upgrading](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/) documentation.
   footer: |
-    **Full Changelog**: https://github.com/argoproj/argo-cd/compare/{{ .PreviousTag }}...{{ .Tag }}
-    
+    **Full Changelog**: https://github.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/compare/{{ .PreviousTag }}...{{ .Tag }}
+
     <a href="https://argoproj.github.io/cd/"><img src="https://raw.githubusercontent.com/argoproj/argo-site/master/content/pages/cd/gitops-cd.png" width="25%" ></a>
 
-
 snapshot: #### To be removed for PR
-  name_template: "2.6.0"
+  version_template: '2.6.0'
 
 changelog:
-  use:
-    github
+  use: github
   sort: asc
   abbrev: 0
   groups: # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
+    - title: 'Breaking Changes'
+      regexp: '^.*?(\([[:word:]]+\))??!:.+$'
+      order: 0
     - title: 'Features'
       regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
       order: 100
@@ -117,7 +121,4 @@ changelog:
       - '^test:'
       - '^.*?Bump(\([[:word:]]+\))?.+$'
       - '^.*?\[Bot\](\([[:word:]]+\))?.+$'
-
-
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-

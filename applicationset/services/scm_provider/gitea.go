@@ -9,44 +9,45 @@ import (
 	"os"
 
 	"code.gitea.io/sdk/gitea"
+
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GiteaProvider struct {
-	client      *gitea.Client
-	owner       string
-	allBranches bool
+	client               *gitea.Client
+	owner                string
+	allBranches          bool
+	excludeArchivedRepos bool
 }
 
 var _ SCMProviderService = &GiteaProvider{}
 
-func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches, insecure bool) (*GiteaProvider, error) {
+func NewGiteaProvider(owner, token, url string, allBranches, insecure, excludeArchivedRepos bool, proxyURL, noProxy string) (*GiteaProvider, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
-	httpClient := &http.Client{}
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if insecure {
-		cookieJar, _ := cookiejar.New(nil)
-
-		tr := http.DefaultTransport.(*http.Transport).Clone()
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-
-		httpClient = &http.Client{
-			Jar:       cookieJar,
-			Transport: tr,
-		}
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
+	transport.Proxy = proxy.GetCallback(proxyURL, noProxy)
+
+	cookieJar, _ := cookiejar.New(nil)
+	httpClient := &http.Client{Jar: cookieJar, Transport: transport}
 	client, err := gitea.NewClient(url, gitea.SetToken(token), gitea.SetHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("error creating a new gitea client: %w", err)
 	}
 	return &GiteaProvider{
-		client:      client,
-		owner:       owner,
-		allBranches: allBranches,
+		client:               client,
+		owner:                owner,
+		allBranches:          allBranches,
+		excludeArchivedRepos: excludeArchivedRepos,
 	}, nil
 }
 
-func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+func (g *GiteaProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
 	if !g.allBranches {
 		branch, status, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
 		if status.StatusCode == http.StatusNotFound {
@@ -87,7 +88,7 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 	return repos, nil
 }
 
-func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *GiteaProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
 	repos := []*Repository{}
 	repoOpts := gitea.ListOrgReposOptions{}
 	giteaRepos, _, err := g.client.ListOrgRepos(g.owner, repoOpts)
@@ -114,6 +115,11 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 		for _, label := range giteaLabels {
 			labels = append(labels, label.Name)
 		}
+
+		if g.excludeArchivedRepos && repo.Archived {
+			continue
+		}
+
 		repos = append(repos, &Repository{
 			Organization: g.owner,
 			Repository:   repo.Name,
@@ -126,7 +132,7 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 	return repos, nil
 }
 
-func (g *GiteaProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
+func (g *GiteaProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
 	_, resp, err := g.client.GetContents(repo.Organization, repo.Repository, repo.Branch, path)
 	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil

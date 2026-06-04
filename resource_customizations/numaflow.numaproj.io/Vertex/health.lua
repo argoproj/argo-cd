@@ -20,6 +20,10 @@ if obj.status ~= nil then
         hs.message = healthy.message
       end
       return hs
+    elseif obj.status.phase == "Paused" then
+      hs.status = "Healthy"
+      hs.message = "Vertex is paused"
+      return hs
     elseif obj.status.phase == "Running" then
       hs.status = "Healthy"
       hs.message = "Vertex is healthy"

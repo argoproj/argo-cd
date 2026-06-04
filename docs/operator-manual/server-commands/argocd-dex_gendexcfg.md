@@ -24,7 +24,7 @@ argocd-dex gendexcfg [flags]
   -h, --help                           help for gendexcfg
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster
-      --logformat string               Set the logging format. One of: text|json (default "text")
+      --logformat string               Set the logging format. One of: json|text (default "json")
       --loglevel string                Set the logging level. One of: debug|info|warn|error (default "info")
   -n, --namespace string               If present, the namespace scope for this CLI request
   -o, --out string                     Output to the specified file instead of stdout

@@ -35,7 +35,7 @@ spec:
 - Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications. **WARNING**: It doesn't prevent Application controller from deleting Applications according to [ownerReferences](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/) when deleting ApplicationSet.
 - Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed. **WARNING**: It doesn't prevent Application controller from deleting Applications according to [ownerReferences](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/) when deleting ApplicationSet.
 - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
-- Policy `sync`: Update and Delete are allowed.
+- Policy `sync`: Create, Update and Delete are allowed.
 
 If the controller parameter `--policy` is set, it takes precedence on the field `applicationsSync`. It is possible to allow per ApplicationSet sync policy by setting variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE` to argocd-cmd-params-cm `applicationsetcontroller.enable.policy.override` or directly with controller parameter `--enable-policy-override` (default to `false`).
 
@@ -198,12 +198,12 @@ spec:
     targetRevision: main
 ```
 
-!!! note
-    [Future improvements](https://github.com/argoproj/argo-cd/issues/15975) to the ApplicationSet controller may 
-    eliminate this problem. For example, the `ref` field might be made a merge key, allowing the ApplicationSet 
-    controller to generate and use a StrategicMergePatch instead of a MergePatch. You could then target a specific 
-    source by `ref`, ignore changes to a field in that source, and changes to other sources would not cause the ignored 
-    field to be overwritten.
+> [!NOTE]
+> [Future improvements](https://github.com/argoproj/argo-cd/issues/15975) to the ApplicationSet controller may 
+> eliminate this problem. For example, the `ref` field might be made a merge key, allowing the ApplicationSet 
+> controller to generate and use a StrategicMergePatch instead of a MergePatch. You could then target a specific 
+> source by `ref`, ignore changes to a field in that source, and changes to other sources would not cause the ignored 
+> field to be overwritten.
 
 ## Prevent an `Application`'s child resources from being deleted, when the parent Application is deleted
 
@@ -283,15 +283,15 @@ cd applicationset/manifests
 # as described in the previous section.
 
 # Apply the change to the cluster
-kubectl apply -n argocd -f install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f install.yaml
 ```
 
 ## Preserving changes made to an Applications annotations and labels
 
-!!! note
-    The same behavior can be achieved on a per-app basis using the [`ignoreApplicationDifferences`](#ignore-certain-changes-to-applications) 
-    feature described above. However, preserved fields may be configured globally, a feature that is not yet available
-    for `ignoreApplicationDifferences`.
+> [!NOTE]
+> The same behavior can be achieved on a per-app basis using the [`ignoreApplicationDifferences`](#ignore-certain-changes-to-applications) 
+> feature described above. However, preserved fields may be configured globally, a feature that is not yet available
+> for `ignoreApplicationDifferences`.
 
 It is common practice in Kubernetes to store state in annotations, operators will often make use of this. To allow for this, it is possible to configure a list of annotations that the ApplicationSet should preserve when reconciling.
 
@@ -325,9 +325,9 @@ The ApplicationSet controller will leave this annotation and label as-is when re
 
 By default, the Argo CD notifications and the Argo CD refresh type annotations are also preserved.
 
-!!!note
-  One can also set global preserved fields for the controller by passing a comma separated list of annotations and labels to 
-  `ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS` and `ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS` respectively.
+> [!NOTE]
+> One can also set global preserved fields for the controller by passing a comma separated list of annotations and labels to 
+> `ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS` and `ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS` respectively.
 
 ## Debugging unexpected changes to Applications
 

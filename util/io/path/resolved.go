@@ -110,7 +110,7 @@ func ResolveFileOrDirectoryPath(appPath, repoRoot, dir string) (ResolvedFileOrDi
 //
 // isRemote will be set to true if valueFile is an URL using an allowed
 // protocol scheme, or to false if it resolved to a local file.
-func ResolveValueFilePathOrUrl(appPath, repoRoot, valueFile string, allowedURLSchemes []string) (resolvedPath ResolvedFilePath, isRemote bool, err error) {
+func ResolveValueFilePathOrUrl(appPath, repoRoot, valueFile string, allowedURLSchemes []string) (resolvedPath ResolvedFilePath, isRemote bool, err error) { //nolint:revive //FIXME(var-naming)
 	// A value file can be specified as an URL to a remote resource.
 	// We only allow certain URL schemes for remote value files.
 	url, err := url.Parse(valueFile)
@@ -119,9 +119,8 @@ func ResolveValueFilePathOrUrl(appPath, repoRoot, valueFile string, allowedURLSc
 		if url.Scheme != "" {
 			if isURLSchemeAllowed(url.Scheme, allowedURLSchemes) {
 				return ResolvedFilePath(valueFile), true, nil
-			} else {
-				return "", false, fmt.Errorf("the URL scheme '%s' is not allowed", url.Scheme)
 			}
+			return "", false, fmt.Errorf("the URL scheme '%s' is not allowed", url.Scheme)
 		}
 	}
 

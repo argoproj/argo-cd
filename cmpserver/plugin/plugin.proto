@@ -1,9 +1,9 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/cmpserver/apiclient";
+option go_package = "github.com/argoproj/argo-cd/v3/cmpserver/apiclient";
 
 package plugin;
 
-import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
+import "github.com/argoproj/argo-cd/v3/reposerver/repository/repository.proto";
 import "google/protobuf/empty.proto";
 
 // AppStreamRequest is the request object used to send the application's

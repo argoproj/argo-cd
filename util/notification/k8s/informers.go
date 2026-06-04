@@ -4,7 +4,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/client-go/informers/core/v1"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -14,13 +14,13 @@ const (
 )
 
 func NewSecretInformer(clientset kubernetes.Interface, namespace string, secretName string) cache.SharedIndexInformer {
-	return corev1.NewFilteredSecretInformer(clientset, namespace, settingsResyncDuration, cache.Indexers{}, func(options *metav1.ListOptions) {
+	return informersv1.NewFilteredSecretInformer(clientset, namespace, settingsResyncDuration, cache.Indexers{}, func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=" + secretName
 	})
 }
 
 func NewConfigMapInformer(clientset kubernetes.Interface, namespace string, configMapName string) cache.SharedIndexInformer {
-	return corev1.NewFilteredConfigMapInformer(clientset, namespace, settingsResyncDuration, cache.Indexers{}, func(options *metav1.ListOptions) {
+	return informersv1.NewFilteredConfigMapInformer(clientset, namespace, settingsResyncDuration, cache.Indexers{}, func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=" + configMapName
 	})
 }

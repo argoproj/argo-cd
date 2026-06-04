@@ -14,7 +14,7 @@
     "description": "",
     "web_url": "https://gitlab.com/group/name",
     "avatar_url": null,
-    "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "git_ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
     "git_http_url": "https://gitlab.com/group/name.git",
     "namespace": "group",
     "visibility_level": 1,
@@ -22,17 +22,17 @@
     "default_branch": "master",
     "ci_config_path": null,
     "homepage": "https://gitlab.com/group/name",
-    "url": "ssh://git@gitlab:2222/group/name.git",
-    "ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "url": "ssh://git@gitlab.com:2222/group/name.git",
+    "ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
     "http_url": "https://gitlab.com/group/name.git"
   },
   "repository": {
     "name": "name",
-    "url": "ssh://git@gitlab:2222/group/name.git",
+    "url": "ssh://git@gitlab.com:2222/group/name.git",
     "description": "",
     "homepage": "https://gitlab.com/group/name",
     "git_http_url": "https://gitlab.com/group/name.git",
-    "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "git_ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
     "visibility_level": 10
   },
   "object_attributes": {
@@ -60,7 +60,7 @@
       "description": "Aut reprehenderit ut est.",
       "web_url": "https://gitlab.com/group/name",
       "avatar_url": null,
-      "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "git_ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
       "git_http_url": "https://gitlab.com/group/name.git",
       "namespace": "Awesome Space",
       "visibility_level": 20,
@@ -68,7 +68,7 @@
       "default_branch": "master",
       "homepage": "https://gitlab.com/group/name",
       "url": "https://gitlab.com/group/name.git",
-      "ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
       "http_url": "https://gitlab.com/group/name.git"
     },
     "target": {
@@ -76,7 +76,7 @@
       "description": "Aut reprehenderit ut est.",
       "web_url": "https://gitlab.com/group/name",
       "avatar_url": null,
-      "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "git_ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
       "git_http_url": "https://gitlab.com/group/name.git",
       "namespace": "Awesome Space",
       "visibility_level": 20,
@@ -84,7 +84,7 @@
       "default_branch": "master",
       "homepage": "https://gitlab.com/group/name",
       "url": "https://gitlab.com/group/name.git",
-      "ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
       "http_url": "https://gitlab.com/group/name.git"
     },
     "last_commit": {

@@ -6,64 +6,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-)
-
-const (
-	// please add new items to Resources
-	ResourceClusters          = "clusters"
-	ResourceProjects          = "projects"
-	ResourceApplications      = "applications"
-	ResourceApplicationSets   = "applicationsets"
-	ResourceRepositories      = "repositories"
-	ResourceWriteRepositories = "write-repositories"
-	ResourceCertificates      = "certificates"
-	ResourceAccounts          = "accounts"
-	ResourceGPGKeys           = "gpgkeys"
-	ResourceLogs              = "logs"
-	ResourceExec              = "exec"
-	ResourceExtensions        = "extensions"
-
-	// please add new items to Actions
-	ActionGet      = "get"
-	ActionCreate   = "create"
-	ActionUpdate   = "update"
-	ActionDelete   = "delete"
-	ActionSync     = "sync"
-	ActionOverride = "override"
-	ActionAction   = "action"
-	ActionInvoke   = "invoke"
-)
-
-var (
-	defaultScopes = []string{"groups"}
-	Resources     = []string{
-		ResourceClusters,
-		ResourceProjects,
-		ResourceApplications,
-		ResourceApplicationSets,
-		ResourceRepositories,
-		ResourceWriteRepositories,
-		ResourceCertificates,
-		ResourceAccounts,
-		ResourceGPGKeys,
-		ResourceLogs,
-		ResourceExec,
-		ResourceExtensions,
-	}
-	Actions = []string{
-		ActionGet,
-		ActionCreate,
-		ActionUpdate,
-		ActionDelete,
-		ActionSync,
-		ActionOverride,
-		ActionAction,
-		ActionInvoke,
-	}
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
 // RBACPolicyEnforcer provides an RBAC Claims Enforcer which additionally consults AppProject
@@ -91,7 +37,7 @@ func (p *RBACPolicyEnforcer) SetScopes(scopes []string) {
 func (p *RBACPolicyEnforcer) GetScopes() []string {
 	scopes := p.scopes
 	if scopes == nil {
-		scopes = defaultScopes
+		scopes = rbac.DefaultScopes
 	}
 	return scopes
 }
@@ -116,7 +62,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 		return false
 	}
 
-	subject := jwtutil.StringField(mapClaims, "sub")
+	subject := jwtutil.GetUserIdentifier(mapClaims)
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
 	var runtimePolicy string
@@ -142,7 +88,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 
 	scopes := p.scopes
 	if scopes == nil {
-		scopes = defaultScopes
+		scopes = rbac.DefaultScopes
 	}
 	// Finally check if any of the user's groups grant them permissions
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
@@ -186,11 +132,11 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...any) *v1alpha1.AppPr
 	if res, ok := rvals[1].(string); ok {
 		if obj, ok := rvals[3].(string); ok {
 			switch res {
-			case ResourceApplications, ResourceRepositories, ResourceClusters, ResourceLogs, ResourceExec:
+			case rbac.ResourceApplicationSets, rbac.ResourceApplications, rbac.ResourceRepositories, rbac.ResourceClusters, rbac.ResourceLogs, rbac.ResourceExec:
 				if objSplit := strings.Split(obj, "/"); len(objSplit) >= 2 {
 					return getProjectByName(objSplit[0])
 				}
-			case ResourceProjects:
+			case rbac.ResourceProjects:
 				// we also automatically give project tokens and groups 'get' access to the project
 				return getProjectByName(obj)
 			}

@@ -7,9 +7,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 )
 
 type ProjectGenerator struct {
@@ -43,7 +43,7 @@ func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (pg *ProjectGenerator) Clean(opts *util.GenerateOpts) error {
-	log.Printf("Clean projects")
+	log.Print("Clean projects")
 	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects(opts.Namespace)
 	return projects.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",

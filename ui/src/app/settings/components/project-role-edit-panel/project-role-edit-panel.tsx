@@ -1,6 +1,6 @@
 import {FormField} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'argo-ui';
 
 import * as models from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams} from '../../../shared/services';
@@ -19,8 +19,8 @@ interface ProjectRoleDefaultParams {
 interface ProjectRoleEditPanelProps {
     nameReadonly?: boolean;
     submit: (params: ProjectRoleParams) => any;
-    createJWTToken: (params: CreateJWTTokenParams) => void;
-    deleteJWTToken: (params: DeleteJWTTokenParams) => void;
+    createJWTToken: (params: CreateJWTTokenParams) => Promise<void>;
+    deleteJWTToken: (params: DeleteJWTTokenParams) => Promise<void>;
     hideJWTToken: () => void;
     token: string;
     getApi?: (formApi: FormApi) => void;

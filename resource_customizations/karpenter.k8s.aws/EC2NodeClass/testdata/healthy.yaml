@@ -1,0 +1,52 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  finalizers:
+    - karpenter.k8s.aws/termination
+  name: ec2nodeclass
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - alias: al2023@latest
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        deleteOnTermination: true
+        encrypted: false
+        volumeSize: 50Gi
+        volumeType: gp3
+  kubelet:
+    imageGCHighThresholdPercent: 85
+    imageGCLowThresholdPercent: 80
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 1
+    httpTokens: required
+  role: KarpenterInstanceProfile
+  securityGroupSelectorTerms:
+    - id: sg-002e1110bcbd37f8f1
+  subnetSelectorTerms:
+    - id: subnet-0b01fc471111fd661
+    - id: subnet-0af6c9817111edd26
+  tags:
+    Name: karpenter.sh/default
+    karpenter.sh/discovery: cluster
+status:
+  conditions:
+    - message: EC2NodeClass is ready
+      reason: Ready
+      status: "True"
+      type: Ready
+    - message: ""
+      reason: SubnetsReady
+      status: "True"
+      type: SubnetsReady
+    - message: ""
+      reason: SecurityGroupsReady
+      status: "True"
+      type: SecurityGroupsReady
+    - message: ""
+      reason: ValidationSucceeded
+      status: "True"
+      type: ValidationSucceeded

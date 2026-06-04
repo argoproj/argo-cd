@@ -27,7 +27,7 @@ func newCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:     "go run github.com/argoproj/argo-cd/hack/known_types ALIAS PACKAGE_PATH OUTPUT_PATH",
 		Example: "go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go",
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) < 3 {
 				return errors.New("alias and package are not specified")
 			}

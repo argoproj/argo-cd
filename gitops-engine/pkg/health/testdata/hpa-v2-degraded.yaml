@@ -1,0 +1,42 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  creationTimestamp: "2022-01-17T14:22:27Z"
+  name: sample
+  uid: 0e6d855e-83ed-4ed5-b80a-461a750f14db
+spec:
+  maxReplicas: 2
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-server
+  targetCPUUtilizationPercentage: 80
+status:
+  conditions:
+  - lastTransitionTime: "2022-04-14T19:44:23Z"
+    message: 'the HPA controller was unable to get the target''s current scale: deployments/scale.apps
+      "sandbox-test-app-8" not found'
+    reason: FailedGetScale
+    status: "False"
+    type: AbleToScale
+  - lastTransitionTime: "2022-04-14T15:41:57Z"
+    message: the HPA was able to successfully calculate a replica count from cpu resource
+      utilization (percentage of request)
+    reason: ValidMetricFound
+    status: "True"
+    type: ScalingActive
+  - lastTransitionTime: "2022-01-17T14:24:13Z"
+    message: the desired count is within the acceptable range
+    reason: DesiredWithinRange
+    status: "False"
+    type: ScalingLimited
+  currentMetrics:
+  - resource:
+      current:
+        averageUtilization: 6
+        averageValue: 12m
+      name: cpu
+    type: Resource
+  currentReplicas: 1
+  desiredReplicas: 1

@@ -3,6 +3,7 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 	// AccountCapabilityLogin represents capability to create UI session tokens.
 	AccountCapabilityLogin AccountCapability = "login"
 	// AccountCapabilityLogin represents capability to generate API auth tokens.
-	AccountCapabilityApiKey AccountCapability = "apiKey"
+	AccountCapabilityApiKey AccountCapability = "apiKey" //nolint:revive //FIXME(var-naming)
 )
 
 // Token holds the information about the generated auth token.
@@ -86,12 +87,7 @@ func (a *Account) TokenIndex(id string) int {
 
 // HasCapability return true if the account has the specified capability.
 func (a *Account) HasCapability(capability AccountCapability) bool {
-	for _, c := range a.Capabilities {
-		if c == capability {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a.Capabilities, capability)
 }
 
 func (mgr *SettingsManager) saveAccount(name string, account Account) error {
@@ -210,7 +206,7 @@ func parseAdminAccount(secret *corev1.Secret, cm *corev1.ConfigMap) (*Account, e
 	}
 
 	adminAccount.Tokens = make([]Token, 0)
-	if tokensStr, ok := secret.Data[settingAdminTokensKey]; ok && string(tokensStr) != "" {
+	if tokensStr, ok := secret.Data[settingAdminTokensKey]; ok && len(tokensStr) != 0 {
 		if err := json.Unmarshal(tokensStr, &adminAccount.Tokens); err != nil {
 			return nil, err
 		}
@@ -263,7 +259,7 @@ func parseAccounts(secret *corev1.Secret, cm *corev1.ConfigMap) (map[string]Acco
 		}
 		switch suffix {
 		case "":
-			for _, capability := range strings.Split(val, ",") {
+			for capability := range strings.SplitSeq(val, ",") {
 				capability = strings.TrimSpace(capability)
 				if capability == "" {
 					continue
@@ -296,15 +292,15 @@ func parseAccounts(secret *corev1.Secret, cm *corev1.ConfigMap) (map[string]Acco
 			account.PasswordHash = string(passwordHash)
 		}
 		if passwordMtime, ok := secret.Data[fmt.Sprintf("%s.%s.%s", accountsKeyPrefix, name, accountPasswordMtimeSuffix)]; ok {
-			if mTime, err := time.Parse(time.RFC3339, string(passwordMtime)); err != nil {
+			mTime, err := time.Parse(time.RFC3339, string(passwordMtime))
+			if err != nil {
 				return nil, err
-			} else {
-				account.PasswordMtime = &mTime
 			}
+			account.PasswordMtime = &mTime
 		}
 		if tokensStr, ok := secret.Data[fmt.Sprintf("%s.%s.%s", accountsKeyPrefix, name, accountTokensSuffix)]; ok {
 			account.Tokens = make([]Token, 0)
-			if string(tokensStr) != "" {
+			if len(tokensStr) != 0 {
 				if err := json.Unmarshal(tokensStr, &account.Tokens); err != nil {
 					log.Errorf("Account '%s' has invalid token in secret '%s'", name, secret.Name)
 				}

@@ -10,10 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
+	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
@@ -135,13 +135,13 @@ func TestNormalize(t *testing.T) {
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(liveResult.Object, &vwcLive)
 		require.NoError(t, err)
 		assert.Len(t, vwcLive.Webhooks, 1)
-		assert.Equal(t, "", string(vwcLive.Webhooks[0].ClientConfig.CABundle))
+		assert.Empty(t, string(vwcLive.Webhooks[0].ClientConfig.CABundle))
 
 		var vwcConfig arv1.ValidatingWebhookConfiguration
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(desiredResult.Object, &vwcConfig)
 		require.NoError(t, err)
 		assert.Len(t, vwcConfig.Webhooks, 1)
-		assert.Equal(t, "", string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
+		assert.Empty(t, string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
 	})
 	t.Run("does not fail if object fails validation schema", func(t *testing.T) {
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
@@ -152,6 +152,20 @@ func TestNormalize(t *testing.T) {
 
 		_, _, err := managedfields.Normalize(liveState, desiredState, []string{}, &pt)
 		require.NoError(t, err)
+	})
+	t.Run("does not panic when pt is nil", func(t *testing.T) {
+		// ResolveParseableType can return nil when a CRD's GVK isn't in the
+		// cluster's openapi schema; Normalize must fall back to the deduced
+		// type rather than dereferencing nil.
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		trustedManagers := []string{"kube-controller-manager"}
+
+		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, trustedManagers, nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, liveResult)
+		require.NotNil(t, desiredResult)
 	})
 }
 

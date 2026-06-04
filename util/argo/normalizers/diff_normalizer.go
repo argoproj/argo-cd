@@ -8,15 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/itchyny/gojq"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
 const (
@@ -70,8 +70,8 @@ type jqNormalizerPatch struct {
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
-	dataJson := make(map[string]any)
-	err := json.Unmarshal(data, &dataJson)
+	dataJSON := make(map[string]any)
+	err := json.Unmarshal(data, &dataJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
 	defer cancel()
 
-	iter := np.code.RunWithContext(ctx, dataJson)
+	iter := np.code.RunWithContext(ctx, dataJSON)
 	first, ok := iter.Next()
 	if !ok {
 		return nil, errors.New("JQ patch did not return any data")
@@ -210,7 +210,13 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 		patchedDocData, err := patch.Apply(docData)
 		if err != nil {
 			if shouldLogError(err) {
-				log.Debugf("Failed to apply normalization: %v", err)
+				gvk := un.GroupVersionKind()
+				log.WithFields(log.Fields{
+					"group":     gvk.Group,
+					"kind":      gvk.Kind,
+					"name":      un.GetName(),
+					"namespace": un.GetNamespace(),
+				}).Debugf("Failed to apply normalization patch: %v", err)
 			}
 			continue
 		}

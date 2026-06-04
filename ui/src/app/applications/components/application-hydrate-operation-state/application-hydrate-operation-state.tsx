@@ -1,10 +1,11 @@
 import {Duration, Ticker} from 'argo-ui';
 import * as moment from 'moment';
-import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
 import {Revision, Timestamp} from '../../../shared/components';
 import * as models from '../../../shared/models';
+
+import {getHydratorSyncSourceRepoURL} from '../utils';
 
 import './application-hydrate-operation-state.scss';
 
@@ -37,20 +38,22 @@ export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = 
     if (hydrateOperationState.finishedAt && hydrateOperationState.phase !== 'Hydrating') {
         operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={hydrateOperationState.finishedAt} />});
     }
-    operationAttributes.push({
-        title: 'DRY REVISION',
-        value: (
-            <div>
-                <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.drySHA} />
-            </div>
-        )
-    });
-    if (hydrateOperationState.finishedAt) {
+    if (hydrateOperationState.drySHA) {
+        operationAttributes.push({
+            title: 'DRY REVISION',
+            value: (
+                <div>
+                    <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.drySHA} />
+                </div>
+            )
+        });
+    }
+    if (hydrateOperationState.finishedAt && hydrateOperationState.hydratedSHA) {
         operationAttributes.push({
             title: 'HYDRATED REVISION',
             value: (
                 <div>
-                    <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.hydratedSHA} />
+                    <Revision repoUrl={getHydratorSyncSourceRepoURL(hydrateOperationState.sourceHydrator)} revision={hydrateOperationState.hydratedSHA} />
                 </div>
             )
         });
@@ -69,8 +72,4 @@ export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = 
             </div>
         </div>
     );
-};
-
-ApplicationHydrateOperationState.contextTypes = {
-    apis: PropTypes.object
 };

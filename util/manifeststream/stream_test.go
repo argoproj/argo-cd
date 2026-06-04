@@ -1,7 +1,6 @@
 package manifeststream_test
 
 import (
-	"context"
 	"errors"
 	"io"
 	"math"
@@ -13,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/manifeststream"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 )
 
 type applicationStreamMock struct {
@@ -89,7 +88,7 @@ func TestManifestStream(t *testing.T) {
 	appDir := filepath.Join(getTestDataDir(t), "app")
 
 	go func() {
-		err := manifeststream.SendApplicationManifestQueryWithFiles(context.Background(), appStreamMock, "test", "test", appDir, nil)
+		err := manifeststream.SendApplicationManifestQueryWithFiles(t.Context(), appStreamMock, "test", "test", appDir, nil)
 		assert.NoError(t, err)
 		appStreamMock.done <- true
 	}()
@@ -106,7 +105,7 @@ func TestManifestStream(t *testing.T) {
 		repoStreamMock.done <- true
 	}()
 
-	req2, meta, err := manifeststream.ReceiveManifestFileStream(context.Background(), repoStreamMock, workdir, math.MaxInt64, math.MaxInt64)
+	req2, meta, err := manifeststream.ReceiveManifestFileStream(t.Context(), repoStreamMock, workdir, math.MaxInt64, math.MaxInt64)
 	require.NoError(t, err)
 	require.NotNil(t, req2)
 	require.NotNil(t, meta)

@@ -41,14 +41,12 @@ const CustomBanner = (props: {
                         Don't show again
                     </button>
                 </>
-            ) : (
-                <></>
-            )}
+            ) : null}
         </div>
     );
 };
 
-export const Banner = (props: React.Props<any>) => {
+export const Banner = (props: React.PropsWithChildren<{}>) => {
     const [visible, setVisible] = React.useState(true);
     return (
         <DataLoader

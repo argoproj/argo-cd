@@ -3,12 +3,13 @@ package managedfields
 import (
 	"bytes"
 	"fmt"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
-	"sigs.k8s.io/structured-merge-diff/v4/typed"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 )
 
 // Normalize will compare the live and config states. If config mutates
@@ -39,7 +40,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 	}
 
 	for _, mf := range live.GetManagedFields() {
-		if trustedManager(mf.Manager, trustedManagers) {
+		if slices.Contains(trustedManagers, mf.Manager) {
 			err := normalize(mf, results)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error normalizing manager %s: %w", mf.Manager, err)
@@ -95,6 +96,9 @@ type typedResults struct {
 // and compare them. Returns a typedResults with the converted types and the comparison.
 // If pt is nil, will use the DeducedParseableType.
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
+	if pt == nil {
+		pt = &typed.DeducedParseableType
+	}
 	typedLive, err := pt.FromUnstructured(live.Object)
 	if err != nil {
 		return nil, fmt.Errorf("error creating typedLive: %w", err)
@@ -113,15 +117,4 @@ func newTypedResults(live, config *unstructured.Unstructured, pt *typed.Parseabl
 		config:     typedConfig,
 		comparison: comparison,
 	}, nil
-}
-
-// trustedManager will return true if trustedManagers contains curManager.
-// Returns false otherwise.
-func trustedManager(curManager string, trustedManagers []string) bool {
-	for _, m := range trustedManagers {
-		if m == curManager {
-			return true
-		}
-	}
-	return false
 }

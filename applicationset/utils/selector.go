@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,11 +70,11 @@ func (s internalSelector) Add(reqs ...Requirement) Selector {
 
 type nothingSelector struct{}
 
-func (n nothingSelector) Matches(l labels.Labels) bool {
+func (n nothingSelector) Matches(_ labels.Labels) bool {
 	return false
 }
 
-func (n nothingSelector) Add(r ...Requirement) Selector {
+func (n nothingSelector) Add(_ ...Requirement) Selector {
 	return n
 }
 
@@ -207,12 +208,7 @@ type Requirement struct {
 }
 
 func (r *Requirement) hasValue(value string) bool {
-	for i := range r.strValues {
-		if r.strValues[i] == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.strValues, value)
 }
 
 func (r *Requirement) Matches(ls labels.Labels) bool {

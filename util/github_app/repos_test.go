@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db/mocks"
 )
 
 type ArgocdRepositoryMock struct {
@@ -43,11 +44,11 @@ func Test_repoAsCredentials_GetAuth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := mock.Mock{}
-			m.On("GetRepoCredsBySecretName", mock.Anything, mock.Anything).Return(&tt.repo, nil)
-			creds := NewAuthCredentials(ArgocdRepositoryMock{mock: &m})
+			m := &mocks.RepoCredsDB{}
+			m.EXPECT().GetRepoCredsBySecretName(mock.Anything, mock.Anything).Return(&tt.repo, nil)
+			creds := NewAuthCredentials(m)
 
-			auth, err := creds.GetAuthSecret(context.Background(), "https://github.com/foo")
+			auth, err := creds.GetAuthSecret(t.Context(), "https://github.com/foo")
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

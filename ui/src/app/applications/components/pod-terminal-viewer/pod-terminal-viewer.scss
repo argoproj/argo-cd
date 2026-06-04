@@ -6,6 +6,42 @@
     }
 }
 
-.negative-space-arrow {
-    margin-left: -10px;
+.pod-terminal-viewer__tab {
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    padding: 0.25rem 1rem !important;
+    align-items: center;
+
+    &:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+
+    &--disabled {
+        opacity: 0.6;
+        cursor: not-allowed !important;
+
+        &:hover {
+            background-color: transparent;
+        }
+    }
+
+
+    .pod-terminal-viewer__icon {
+        top: 0.4rem;
+    }
+
+    .negative-space-arrow {
+        margin-left: 0.3rem;
+    }
+}
+
+.theme-light {
+    .pod-terminal-viewer__container {
+        .tooltip {
+            background-color: #fff;
+            border-color: #fff;
+            color: #191826;
+        }
+    }
 }

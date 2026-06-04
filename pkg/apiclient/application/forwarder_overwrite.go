@@ -7,15 +7,15 @@ import (
 	gohttp "net/http"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/kube"
 
-	"github.com/argoproj/pkg/grpc/http"
+	"github.com/argoproj/pkg/v2/grpc/http"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	"github.com/golang/protobuf/proto"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 // appFields is a map of fields that can be selected from an application.
@@ -29,6 +29,7 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
 	"metadata.deletionTimestamp": func(app *v1alpha1.Application) any { return app.DeletionTimestamp },
 	"spec":                       func(app *v1alpha1.Application) any { return app.Spec },
+	"status.sourceHydrator":      func(app *v1alpha1.Application) any { return app.Status.SourceHydrator },
 	"status.sync.status":         func(app *v1alpha1.Application) any { return app.Status.Sync.Status },
 	"status.health":              func(app *v1alpha1.Application) any { return app.Status.Health },
 	"status.summary":             func(app *v1alpha1.Application) any { return app.Status.Summary },
@@ -86,7 +87,7 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 				}
 				parts := strings.Split(field, ".")
 				item := converted
-				for i := 0; i < len(parts); i++ {
+				for i := range parts {
 					subField := parts[i]
 					if i == len(parts)-1 {
 						item[subField] = value

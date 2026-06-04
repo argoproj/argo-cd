@@ -1,6 +1,6 @@
 import * as moment from 'moment';
 import * as React from 'react';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import './application-deployment-history.scss';
 import '../../../shared/components/editable-panel/editable-panel.scss';
@@ -37,7 +37,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
         }
     };
 
-    const getCollapsedSection = (i: number, repoURL: string): React.ReactFragment => {
+    const getCollapsedSection = (i: number, repoURL: string) => {
         return (
             <div
                 id={i ? `'hide-parameters-'${i}` : 'hide-parameters'}
@@ -59,23 +59,21 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
         );
     };
 
-    const getExpandedSection = (index?: number): React.ReactFragment => {
+    const getExpandedSection = (index?: number) => {
         return (
-            <React.Fragment>
-                <div id={index ? `'show-parameters-'${index}` : 'show-parameters'} className='editable-panel__collapsible-button' style={{zIndex: 1001}}>
-                    <i
-                        className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
-                        onClick={() => {
-                            setShowParameterDetails(!showParameterDetails);
-                            updateMap(index);
-                        }}
-                    />
-                </div>
-            </React.Fragment>
+            <div id={index ? `'show-parameters-'${index}` : 'show-parameters'} className='editable-panel__collapsible-button' style={{zIndex: 1001}}>
+                <i
+                    className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
+                    onClick={() => {
+                        setShowParameterDetails(!showParameterDetails);
+                        updateMap(index);
+                    }}
+                />
+            </div>
         );
     };
 
-    const getErrorSection = (err: React.ReactNode): React.ReactFragment => {
+    const getErrorSection = (err: React.ReactNode) => {
         return (
             <div style={{padding: '1.7em'}}>
                 <p style={{textAlign: 'center'}}>{err}</p>

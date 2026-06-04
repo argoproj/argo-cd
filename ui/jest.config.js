@@ -3,11 +3,11 @@ module.exports = {
   testEnvironment: 'jsdom',
   reporters: ['default', 'jest-junit'],
   collectCoverage: true,
-  transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
+  testPathIgnorePatterns: ['/node_modules/', '/.yalc/'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  transformIgnorePatterns: ['node_modules/(?!(argo-ui|.*\\.pnpm.*argo-ui.*)/)'],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      isolatedModules: true,
-    }]
+    '^.+\\.tsx?$': ['ts-jest', {isolatedModules: true}]
   },
   globals: {
     'self': {}
@@ -15,6 +15,6 @@ module.exports = {
   moduleNameMapper: {
     // https://github.com/facebook/jest/issues/3094
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': '<rootDir>/__mocks__/fileMock.js',
-    '.+\\.(css|styl|less|sass|scss)$': 'jest-transform-css',
+    '.+\\.(css|styl|less|sass|scss)$': '<rootDir>/__mocks__/fileMock.js',
   },
 };
