@@ -375,13 +375,34 @@ $header: 120px;
 }
 
 // DropDown portals menu content to document.body, so these rules cannot live under .application-details.
-.argo-dropdown__content.is-menu {
-    .application-details-app-dropdown__item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 5px 10px;
+.argo-dropdown__content.is-menu ul li.application-details-app-dropdown__filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-bottom: none;
+
+    .application-details-app-dropdown__filter-spacer {
+        width: 14px;
+        flex-shrink: 0;
     }
+
+    .argo-field {
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+    }
+}
+
+.argo-dropdown__content.is-menu ul li.application-details-app-dropdown__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    font-size: 14px;
+    line-height: normal;
+    color: $argo-color-gray-6;
+    border-bottom: none;
 
     .application-details-app-dropdown__resource-icon.icon {
         font-size: 14px;

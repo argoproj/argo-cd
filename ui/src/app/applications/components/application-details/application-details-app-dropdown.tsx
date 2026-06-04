@@ -24,7 +24,8 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
             )}>
             {opened && (
                 <ul>
-                    <li>
+                    <li className='application-details-app-dropdown__filter'>
+                        <span className='application-details-app-dropdown__filter-spacer' aria-hidden='true' />
                         <input
                             className='argo-field'
                             value={appFilter}

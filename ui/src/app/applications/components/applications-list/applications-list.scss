@@ -128,7 +128,13 @@
         }
 
         .select__option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             padding: 5px 10px;
+            font-size: 14px;
+            color: $argo-color-gray-6;
+            line-height: normal;
         }
     }
 
@@ -138,6 +144,7 @@
         width: 14px;
         height: 14px;
         vertical-align: middle;
+        flex-shrink: 0;
     }
 
     &__search {
