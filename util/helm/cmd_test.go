@@ -42,7 +42,7 @@ func TestCmd_template_noApiVersionsInError(t *testing.T) {
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
 	_, err := NewCmd(".", "abcd", "", "")
 	log.Println(err)
-	assert.EqualError(t, err, "helm chart version 'abcd' is not supported")
+	assert.EqualError(t, err, "helm version 'abcd' is not supported")
 }
 
 func TestNewCmd_withProxy(t *testing.T) {
