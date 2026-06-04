@@ -122,10 +122,10 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 // CanI checks if the current account has permission to perform an action
 func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.CanIResponse, error) {
-	if !slices.Contains[[]string, string](rbac.Actions, r.Action) {
+	if !slices.Contains(rbac.Actions, r.Action) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Actions, r.Action)
 	}
-	if !slices.Contains[[]string, string](rbac.Resources, r.Resource) {
+	if !slices.Contains(rbac.Resources, r.Resource) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
