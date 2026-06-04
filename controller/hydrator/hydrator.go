@@ -74,6 +74,9 @@ type Dependencies interface {
 	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
 	GetHydratorCommitMessageTemplate() (string, error)
 
+	// GetHydratorReadmeMessageTemplate gets the configured template for rendering README messages.
+	GetHydratorReadmeMessageTemplate() (string, error)
+
 	// GetCommitAuthorName gets the configured commit author name from argocd-cm ConfigMap.
 	GetCommitAuthorName() (string, error)
 
@@ -466,6 +469,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}
 
+	// get the readme message template
+	readmeTemplate, err := h.dependencies.GetHydratorReadmeMessageTemplate()
+	if err != nil {
+		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
+	}
+
 	// get commit author configuration from argocd-cm
 	authorName, err := h.dependencies.GetCommitAuthorName()
 	if err != nil {
@@ -484,6 +493,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		CommitMessage:     commitMessage,
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
+		ReadmeMessage:     readmeTemplate,
 		AuthorName:        authorName,
 		AuthorEmail:       authorEmail,
 	}
