@@ -121,6 +121,15 @@ func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, e
 	return sourceHydratorCommitMessageKey, nil
 }
 
+func (ctrl *ApplicationController) GetHydratorReadmeMessageTemplate() (string, error) {
+	readmeTemplate, err := ctrl.settingsMgr.GetHydratorReadmeTemplate()
+	if err != nil {
+		return "", fmt.Errorf("failed to get sourceHydrator README message template: %w", err)
+	}
+
+	return readmeTemplate, nil
+}
+
 func (ctrl *ApplicationController) GetCommitAuthorName() (string, error) {
 	authorName, err := ctrl.settingsMgr.GetCommitAuthorName()
 	if err != nil {

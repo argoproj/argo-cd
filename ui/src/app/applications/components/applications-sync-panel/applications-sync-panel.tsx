@@ -1,6 +1,6 @@
 import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi} from 'react-form';
+import {Form, FormApi} from 'argo-ui';
 import {ARGO_WARNING_COLOR, ProgressPopup, Spinner} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';

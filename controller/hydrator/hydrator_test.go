@@ -148,7 +148,58 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedResolvedRev:    "",
 		},
 		{
-			name: "hydrate not needed",
+			name: "failed within cooldown, empty baseline",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						StartedAt:      now,
+						FinishedAt:     &now,
+						Phase:          v1alpha1.HydrateOperationPhaseFailed,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+				}},
+			},
+			expectedNeedsHydration: false,
+			expectedMessage:        "previous hydrate operation failed",
+			expectedResolvedRev:    "",
+		},
+		{
+			name: "failed within cooldown, nil finishedAt, empty baseline",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						StartedAt:      now,
+						Phase:          v1alpha1.HydrateOperationPhaseFailed,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+				}},
+			},
+			expectedNeedsHydration: false,
+			expectedMessage:        "previous hydrate operation failed",
+			expectedResolvedRev:    "",
+		},
+		{
+			name: "failed within cooldown, normal hydrate requested",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"}},
+				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						StartedAt:      now,
+						FinishedAt:     &now,
+						Phase:          v1alpha1.HydrateOperationPhaseFailed,
+						SourceHydrator: v1alpha1.SourceHydrator{},
+					},
+				}},
+			},
+			expectedNeedsHydration: true,
+			expectedMessage:        "retrying previous failed hydration",
+			expectedResolvedRev:    "",
+		},
+		{
+			name: "failed within cooldown, dry baseline, new commit",
 			app: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
@@ -166,11 +217,11 @@ func Test_appNeedsHydration(t *testing.T) {
 				proj := newTestProject()
 				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
 				drySource := app.Spec.SourceHydrator.GetDrySource()
-				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, false).Return(false, "abc123", nil)
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, false).Return(true, "new-sha", nil)
 			},
-			expectedNeedsHydration: false,
-			expectedMessage:        "hydration not needed",
-			expectedResolvedRev:    "abc123",
+			expectedNeedsHydration: true,
+			expectedMessage:        "new revision may have changes",
+			expectedResolvedRev:    "new-sha",
 		},
 		{
 			name: "new revision detected",
@@ -303,6 +354,7 @@ func Test_getAppsForHydrationKey_RepoURLNormalization(t *testing.T) {
 	hydrationKey := types.HydrationQueueKey{
 		SourceRepoURL:        "https://example.com/repo",
 		SourceTargetRevision: "main",
+		DestinationRepoURL:   "https://example.com/repo",
 		DestinationBranch:    "main",
 	}
 
@@ -853,6 +905,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
 	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
 	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
 	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
@@ -873,6 +926,38 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	assert.Equal(t, "abc123", persistedStatus.LastSuccessfulOperation.DrySHA)
 	assert.Equal(t, "def456", persistedStatus.LastSuccessfulOperation.HydratedSHA)
 	assert.Equal(t, app.Status.SourceHydrator.CurrentOperation.SourceHydrator, persistedStatus.LastSuccessfulOperation.SourceHydrator)
+}
+
+func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredentials(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
+	app.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/hydrated-repo"
+	hydrationKey := getHydrationQueueKey(app)
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
+	proj := newTestProject()
+	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, "https://example.com/hydrated-repo")
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
+
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return().Once()
+	d.EXPECT().RequestAppRefresh(app.Name, app.Namespace).Return(nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
+		Revision: "abc123",
+	}, nil).Once()
+	r.EXPECT().GetRepository(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
+	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/hydrated-repo", "test-project").Return(nil, nil).Once()
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
+
+	h.ProcessHydrationQueueItem(hydrationKey)
 }
 
 func TestValidateApplications_ProjectError(t *testing.T) {
@@ -932,8 +1017,40 @@ func TestValidateApplications_DuplicateDestination(t *testing.T) {
 	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
 	require.Nil(t, projects)
 	require.Len(t, errs, 2)
-	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator use the same destination")
-	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator use the same destination")
+	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator uses the same destination")
+	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator uses the same destination")
+}
+
+func TestValidateApplications_DifferentDestinationRepo_Success(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	app2.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/repo-2"
+	proj := newTestProject()
+	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, "https://example.com/repo-2")
+	d.EXPECT().GetProcessableAppProj(app1).Return(proj, nil).Once()
+	d.EXPECT().GetProcessableAppProj(app2).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
+	require.NotNil(t, projects)
+	require.Empty(t, errs)
+}
+
+func TestValidateApplications_DestinationRepoNotPermitted(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	app.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/repo-not-allowed"
+	proj := newTestProject()
+	d.EXPECT().GetProcessableAppProj(app).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+	require.Nil(t, projects)
+	require.Len(t, errs, 1)
+	require.ErrorContains(t, errs[app.QualifiedName()], "destination repo https://example.com/repo-not-allowed is not permitted in project 'test-project'")
 }
 
 func TestValidateApplications_Success(t *testing.T) {
@@ -1014,10 +1131,12 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	})
 	d.EXPECT().GetWriteCredentials(mock.Anything, readRepo.Repo, proj.Name).Return(writeRepo, nil)
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil)
 	d.EXPECT().GetCommitAuthorName().Return("", nil)
 	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated123"}, nil).Run(func(_ context.Context, in *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
 		assert.Equal(t, "commit message", in.CommitMessage)
+		assert.Equal(t, "readme message", in.ReadmeMessage)
 		assert.Equal(t, "hydrated", in.SyncBranch)
 		assert.Equal(t, "hydrated-next", in.TargetBranch)
 		assert.Equal(t, "sha123", in.DrySha)
@@ -1223,6 +1342,7 @@ func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil)
 	d.EXPECT().GetCommitAuthorName().Return("", nil)
 	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(nil, errors.New("commit error"))
