@@ -130,7 +130,7 @@
     "ts-jest": "^29.1.2",
     "ts-node": "10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^7.8.0",
+    "typescript-eslint": "^8.60.1",
     "webpack": "^5.105.4",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.2.3"
