@@ -291,7 +291,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
             wrapperProps={{className: 'applications-list__search-wrapper'}}
             renderItem={item => (
                 <React.Fragment>
-                    <i className='icon argo-icon-application' /> {item.label}
+                    <i className='icon argo-icon-application applications-list__search-resource-icon' /> {item.label}
                 </React.Fragment>
             )}
             onSelect={val => {

@@ -115,6 +115,18 @@
             margin-left: 0;
         }
         line-height: normal;
+
+        .select__option {
+            padding: 0.5em 1em;
+        }
+    }
+
+    &__search-resource-icon {
+        font-size: 14px;
+        line-height: 14px;
+        width: 14px;
+        height: 14px;
+        vertical-align: middle;
     }
 
     &__search {
