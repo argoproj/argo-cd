@@ -208,7 +208,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")
 			}
 
-			if repoOpts.InsecureOCIForceHTTP && (repoOpts.Repo.Type == "oci" || (repoOpts.Repo.Type == "helm" && repoOpts.Repo.EnableOCI)) {
+			if repoOpts.InsecureOCIForceHTTP {
+				err := cmdutil.ValidateInsecureOCIForceHTTP(repoOpts.InsecureOCIForceHTTP, repoOpts.Repo.Type, repoOpts.Repo.EnableOCI)
+				errors.CheckError(err)
 				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 			}
 

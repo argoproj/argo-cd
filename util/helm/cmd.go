@@ -34,11 +34,16 @@ type Cmd struct {
 
 func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd, error) {
 	switch version {
-	// If v3 is specified (or by default, if no value is specified) then use v3
-	case "", "v3":
+	// There was a point in time when we supported both v2 and v3, and at some point we stopped
+	// supporting v2.
+	// We now support v4 only, but from Helm docs v4 is backwards compatible with v3 charts.
+	// Removing the v3 value would break existing applications that specify v3.
+	// There is also no reason for users to specify v4 explicitly, but in case someone does it, we support the value.
+	// TODO: Remove support for v3 value in a major release.
+	case "", "v3", "v4":
 		return NewCmdWithVersion(workDir, false, proxy, noProxy)
 	}
-	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
+	return nil, fmt.Errorf("helm version '%s' is not supported", version)
 }
 
 func NewCmdWithVersion(workDir string, isHelmOci bool, proxy string, noProxy string) (*Cmd, error) {

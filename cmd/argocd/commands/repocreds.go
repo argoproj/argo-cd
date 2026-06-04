@@ -180,6 +180,9 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repo.BearerToken, git.IsHTTPSURL(repo.URL))
 			errors.CheckError(err)
 
+			err = cmdutil.ValidateInsecureOCIForceHTTP(repo.InsecureOCIForceHttp, repo.Type, repo.EnableOCI)
+			errors.CheckError(err)
+
 			repoCreateReq := repocredspkg.RepoCredsCreateRequest{
 				Creds:  &repo,
 				Upsert: upsert,

@@ -35,7 +35,6 @@ func TestOCIImage(t *testing.T) {
 }
 
 func TestOCIWithOCIHelmRegistryDependencies(t *testing.T) {
-	////
 	Given(t).
 		RepoURLType(fixture.RepoURLTypeOCI).
 		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
