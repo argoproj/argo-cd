@@ -1023,6 +1023,10 @@ describe('getHydratorSyncSourceRepoURL', () => {
             })
         ).toBe('https://github.com/example/dry.git');
     });
+
+    it('returns empty string when sourceHydrator is undefined', () => {
+        expect(getHydratorSyncSourceRepoURL(undefined)).toBe('');
+    });
 });
 
 describe('getAppHydratorSyncSource', () => {

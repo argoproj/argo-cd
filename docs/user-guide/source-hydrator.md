@@ -499,6 +499,27 @@ On each run, the hydrator:
 
 This improves efficiency and reduces commit noise in your repository.
 
+## Hydration failures and retries
+
+When hydration fails, the application remains in the `Failed` phase and the error message is kept on
+`status.sourceHydrator.currentOperation` so you can diagnose the problem.
+
+> [!NOTE]
+> After a failed hydration, the controller waits about **2 minutes** before automatically retrying
+> unattended hydration. That interval matches `ARGOCD_RECONCILIATION_TIMEOUT` (the application
+> controller `--app-resync` period, default **120s**).
+>
+> You do not need to wait for that cooldown when:
+>
+> - You trigger a **manual or API refresh** (or a **dry-source webhook**), which retries hydration
+>   immediately.
+> - A **new dry commit** is detected while a dry revision baseline is already recorded in
+>   `status.sourceHydrator.lastComparedDryRevision` (for example, hydration failed at the commit step
+>   after manifests were resolved).
+>
+> If the first hydration attempt fails before any dry revision is recorded, automatic detection of a
+> new commit during the cooldown may be delayed until the cooldown expires or you refresh manually.
+
 ## Limitations
 
 ### Signature Verification
