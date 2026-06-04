@@ -375,8 +375,8 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		{
 			Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: "ApplicationSet Rollout has completed",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
+			Message: "No steps defined for rollout",
+			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutError,
 		},
 	}
 
@@ -389,7 +389,7 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		When().
 		Create(appSetInvalidStepConfiguration).
 		Then().
-		Expect(ApplicationSetHasConditions(expectedConditions)). // TODO: when no steps created, condition should reflect that.
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().
