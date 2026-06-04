@@ -1,25 +1,30 @@
 import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {useRef, useContext} from 'react';
 import {Form, FormApi, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
-import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {useQuery} from '../../../shared/hooks/query';
+import {FlexTopBar} from '../../../shared/components';
 
 require('./gpgkeys-list.scss');
+
 
 interface NewGnuPGPublicKeyParams {
     keyData: string;
 }
 
 export const GpgKeysList = ({match, location}: RouteComponentProps) => {
-    const ctx = useContext(Context);
+    const ctx = React.useContext(Context);
+    const query = useQuery();
+    const searchText = query.get('search') || '';
+    const [page, setPage] = React.useState(0);
 
-    const formApi = useRef<FormApi | null>(null);
-    const loader = useRef<DataLoader | null>(null);
+    const formApi = React.useRef<FormApi | null>(null);
+    const loader = React.useRef<DataLoader | null>(null);
 
     const clearForms = () => {
         formApi.current?.resetAll();
@@ -82,21 +87,32 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     };
 
     return (
-        <Page
-            title='GnuPG public keys'
-            toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}],
-                actionMenu: {
-                    className: 'fa fa-plus',
-                    items: [
-                        {
-                            title: 'Add GnuPG key',
-                            iconClassName: 'fa fa-plus',
-                            action: () => setAddGnuPGKey(true)
-                        }
-                    ]
-                }
-            }}>
+        <Page title='GnuPG public keys' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}]}} hideAuth={true}>
+            <FlexTopBar
+                toolbar={{
+                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}],
+                    actionMenu: {
+                        className: 'fa fa-plus',
+                        items: [
+                            {
+                                title: 'Add GnuPG key',
+                                iconClassName: 'fa fa-plus',
+                                action: () => setAddGnuPGKey(true)
+                            }
+                        ]
+                    },
+                    tools: (
+                        <SearchBar
+                            value={searchText}
+                            onChange={value => {
+                                ctx.navigation.goto('.', {search: value || null}, {replace: true});
+                                setPage(0);
+                            }}
+                            placeholder='Search GPG keys...'
+                        />
+                    )
+                }}
+            />
             <div className='gpgkeys-list'>
                 <div className='argo-container'>
                     <DataLoader
@@ -104,53 +120,74 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                         ref={ref => {
                             loader.current = ref;
                         }}>
-                        {(gpgkeys: models.GnuPGPublicKey[]) =>
-                            (gpgkeys.length > 0 && (
-                                <div className='argo-table-list'>
-                                    <div className='argo-table-list__head'>
-                                        <div className='row'>
-                                            <div className='columns small-3'>KEY ID</div>
-                                            <div className='columns small-3'>KEY TYPE</div>
-                                            <div className='columns small-6'>IDENTITY</div>
-                                        </div>
-                                    </div>
-                                    {gpgkeys.map(gpgkey => (
-                                        <div className='argo-table-list__row' key={gpgkey.keyID}>
-                                            <div className='row'>
-                                                <div className='columns small-3'>
-                                                    <i className='fa fa-key' /> {gpgkey.keyID}
+                        {(gpgkeys: models.GnuPGPublicKey[]) => {
+                            const filteredGpgKeys = gpgkeys.filter(
+                                gpgkey =>
+                                    searchText === '' ||
+                                    gpgkey.keyID.toLowerCase().includes(searchText.toLowerCase()) ||
+                                    gpgkey.owner.toLowerCase().includes(searchText.toLowerCase()) ||
+                                    gpgkey.subType.toLowerCase().includes(searchText.toLowerCase())
+                            );
+
+                            return (
+                                <>
+                                    {filteredGpgKeys.length > 0 ? (
+                                        <Paginate page={page} data={filteredGpgKeys} onPageChange={setPage} preferencesKey='gpgkeys-list'>
+                                            {gpgkeysToDisplay => (
+                                                <div className='argo-table-list'>
+                                                    <div className='argo-table-list__head'>
+                                                        <div className='row'>
+                                                            <div className='columns small-3'>KEY ID</div>
+                                                            <div className='columns small-3'>KEY TYPE</div>
+                                                            <div className='columns small-6'>IDENTITY</div>
+                                                        </div>
+                                                    </div>
+                                                    {gpgkeysToDisplay.map(gpgkey => (
+                                                        <div className='argo-table-list__row' key={gpgkey.keyID}>
+                                                            <div className='row'>
+                                                                <div className='columns small-3'>
+                                                                    <i className='fa fa-key' /> {gpgkey.keyID}
+                                                                </div>
+                                                                <div className='columns small-3'>{gpgkey.subType.toUpperCase()}</div>
+                                                                <div className='columns small-6'>
+                                                                    {gpgkey.owner}
+                                                                    <DropDownMenu
+                                                                        anchor={() => (
+                                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                                <i className='fa fa-ellipsis-v' />
+                                                                            </button>
+                                                                        )}
+                                                                        items={[
+                                                                            {
+                                                                                title: 'Remove',
+                                                                                action: () => removeKey(gpgkey.keyID)
+                                                                            }
+                                                                        ]}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                <div className='columns small-3'>{gpgkey.subType.toUpperCase()}</div>
-                                                <div className='columns small-6'>
-                                                    {gpgkey.owner}
-                                                    <DropDownMenu
-                                                        anchor={() => (
-                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                <i className='fa fa-ellipsis-v' />
-                                                            </button>
-                                                        )}
-                                                        items={[
-                                                            {
-                                                                title: 'Remove',
-                                                                action: () => removeKey(gpgkey.keyID)
-                                                            }
-                                                        ]}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )) || (
-                                <EmptyState icon='fa fa-key'>
-                                    <h4>No GnuPG public keys currently configured</h4>
-                                    <h5>You can add GnuPG public keys below.</h5>
-                                    <button className='argo-button argo-button--base' onClick={() => setAddGnuPGKey(true)}>
-                                        Add GnuPG public key
-                                    </button>
-                                </EmptyState>
-                            )
-                        }
+                                            )}
+                                        </Paginate>
+                                    ) : gpgkeys.length === 0 ? (
+                                        <EmptyState icon='fa fa-key'>
+                                            <h4>No GnuPG public keys currently configured</h4>
+                                            <h5>You can add GnuPG public keys below.</h5>
+                                            <button className='argo-button argo-button--base' onClick={() => setAddGnuPGKey(true)}>
+                                                Add GnuPG public key
+                                            </button>
+                                        </EmptyState>
+                                    ) : (
+                                        <EmptyState icon='fa fa-key'>
+                                            <h4>No GPG keys matched your search</h4>
+                                            <h5>Try adjusting your search query</h5>
+                                        </EmptyState>
+                                    )}
+                                </>
+                            );
+                        }}
                     </DataLoader>
                 </div>
             </div>

@@ -1,61 +1,100 @@
 import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {useRef, useContext} from 'react';
 import {Form, FormApi, Text} from 'argo-ui';
 
-import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
+import {FlexTopBar} from '../../../shared/components';
+
 
 export function ProjectsList() {
-    const formApiRef = useRef<FormApi | null>(null);
-    const ctx = useContext(Context);
+    const formApiRef = React.useRef<FormApi | null>(null);
+    const ctx = React.useContext(Context);
     const query = useQuery();
+    const searchText = query.get('search') || '';
+    const [page, setPage] = React.useState(0);
 
     return (
         <Page
             title='Projects'
             toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
-                actionMenu: {
-                    className: 'fa fa-plus',
-                    items: [{title: 'New Project', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}]
-                }
-            }}>
+                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}]
+            }}
+            hideAuth={true}>
+            <FlexTopBar
+                toolbar={{
+                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
+                    actionMenu: {
+                        className: 'fa fa-plus',
+                        items: [{title: 'New Project', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}]
+                    },
+                    tools: (
+                        <SearchBar
+                            value={searchText}
+                            onChange={value => {
+                                ctx.navigation.goto('.', {search: value || null}, {replace: true});
+                                setPage(0);
+                            }}
+                            placeholder='Search projects...'
+                        />
+                    )
+                }}
+            />
             <div className='projects argo-container'>
                 <DataLoader load={() => services.projects.list()}>
-                    {projects =>
-                        (projects.length > 0 && (
-                            <div className='argo-table-list argo-table-list--clickable'>
-                                <div className='argo-table-list__head'>
-                                    <div className='row'>
-                                        <div className='columns small-3'>NAME</div>
-                                        <div className='columns small-6'>DESCRIPTION</div>
-                                    </div>
-                                </div>
-                                {projects.map(proj => (
-                                    <div className='argo-table-list__row' key={proj.metadata.name} onClick={() => ctx.navigation.goto(`./${proj.metadata.name}`)}>
-                                        <div className='row'>
-                                            <div className='columns small-3'>
-                                                <i className='fa fa-object-group' /> {proj.metadata.name}
+                    {projects => {
+                        const filteredProjects = projects.filter(
+                            proj =>
+                                searchText === '' ||
+                                proj.metadata.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                                (proj.spec.description && proj.spec.description.toLowerCase().includes(searchText.toLowerCase()))
+                        );
+
+                        return (
+                            <>
+                                {filteredProjects.length > 0 ? (
+                                    <Paginate page={page} data={filteredProjects} onPageChange={setPage} preferencesKey='projects-list'>
+                                        {projectsToDisplay => (
+                                            <div className='argo-table-list argo-table-list--clickable'>
+                                                <div className='argo-table-list__head'>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>NAME</div>
+                                                        <div className='columns small-6'>DESCRIPTION</div>
+                                                    </div>
+                                                </div>
+                                                {projectsToDisplay.map(proj => (
+                                                    <div className='argo-table-list__row' key={proj.metadata.name} onClick={() => ctx.navigation.goto(`./${proj.metadata.name}`)}>
+                                                        <div className='row'>
+                                                            <div className='columns small-3'>
+                                                                <i className='fa fa-object-group' /> {proj.metadata.name}
+                                                            </div>
+                                                            <div className='columns small-6'>{proj.spec.description}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <div className='columns small-6'>{proj.spec.description}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )) || (
-                            <EmptyState icon='fa fa-object-group'>
-                                <h4>No projects yet</h4>
-                                <h5>Create new projects to group your applications</h5>
-                                <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {add: true}, {replace: true})}>
-                                    New project
-                                </button>
-                            </EmptyState>
-                        )
-                    }
+                                        )}
+                                    </Paginate>
+                                ) : projects.length === 0 ? (
+                                    <EmptyState icon='fa fa-object-group'>
+                                        <h4>No projects yet</h4>
+                                        <h5>Create new projects to group your applications</h5>
+                                        <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {add: true}, {replace: true})}>
+                                            New project
+                                        </button>
+                                    </EmptyState>
+                                ) : (
+                                    <EmptyState icon='fa fa-object-group'>
+                                        <h4>No projects matched your search</h4>
+                                        <h5>Try adjusting your search query</h5>
+                                    </EmptyState>
+                                )}
+                            </>
+                        );
+                    }}
                 </DataLoader>
             </div>
             <SlidingPanel

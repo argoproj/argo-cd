@@ -17,7 +17,7 @@ import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
 import {ApplicationSetsSummary} from './application-sets-summary';
-import {FlexTopBar} from './flex-top-bar';
+import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 
 import './applications-list.scss';

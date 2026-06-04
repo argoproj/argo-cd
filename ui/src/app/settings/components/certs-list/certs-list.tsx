@@ -1,15 +1,17 @@
 import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {useRef, useContext} from 'react';
 import {Form, FormApi, Text, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
-import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {useQuery} from '../../../shared/hooks/query';
+import {FlexTopBar} from '../../../shared/components';
 
 require('./certs-list.scss');
+
 
 interface NewTLSCertParams {
     serverName: string;
@@ -22,11 +24,14 @@ interface NewSSHKnownHostParams {
 }
 
 export const CertsList = ({match, location}: RouteComponentProps) => {
-    const ctx = useContext(Context);
+    const ctx = React.useContext(Context);
+    const query = useQuery();
+    const searchText = query.get('search') || '';
+    const [page, setPage] = React.useState(0);
 
-    const formApiTLS = useRef<FormApi | null>(null);
-    const formApiSSH = useRef<FormApi | null>(null);
-    const loader = useRef<DataLoader | null>(null);
+    const formApiTLS = React.useRef<FormApi | null>(null);
+    const formApiSSH = React.useRef<FormApi | null>(null);
+    const loader = React.useRef<DataLoader | null>(null);
 
     const clearForms = () => {
         formApiSSH.current.resetAll();
@@ -125,24 +130,38 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
     return (
         <Page
             title='Repository certificates and known hosts'
-            toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}],
-                actionMenu: {
-                    className: 'fa fa-plus',
-                    items: [
-                        {
-                            title: 'Add TLS certificate',
-                            iconClassName: 'fa fa-plus',
-                            action: () => setAddTLSCertificate(true)
-                        },
-                        {
-                            title: 'Add SSH known hosts',
-                            iconClassName: 'fa fa-plus',
-                            action: () => setAddSSHKnownHosts(true)
-                        }
-                    ]
-                }
-            }}>
+            toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}]}}
+            hideAuth={true}>
+            <FlexTopBar
+                toolbar={{
+                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}],
+                    actionMenu: {
+                        className: 'fa fa-plus',
+                        items: [
+                            {
+                                title: 'Add TLS certificate',
+                                iconClassName: 'fa fa-plus',
+                                action: () => setAddTLSCertificate(true)
+                            },
+                            {
+                                title: 'Add SSH known hosts',
+                                iconClassName: 'fa fa-plus',
+                                action: () => setAddSSHKnownHosts(true)
+                            }
+                        ]
+                    },
+                    tools: (
+                        <SearchBar
+                            value={searchText}
+                            onChange={value => {
+                                ctx.navigation.goto('.', {search: value || null}, {replace: true});
+                                setPage(0);
+                            }}
+                            placeholder='Search certificates...'
+                        />
+                    )
+                }}
+            />
             <div className='certs-list'>
                 <div className='argo-container'>
                     <DataLoader
@@ -150,58 +169,80 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                         ref={ref => {
                             loader.current = ref;
                         }}>
-                        {(certs: models.RepoCert[]) =>
-                            (certs.length > 0 && (
-                                <div className='argo-table-list'>
-                                    <div className='argo-table-list__head'>
-                                        <div className='row'>
-                                            <div className='columns small-3'>SERVER NAME</div>
-                                            <div className='columns small-3'>CERT TYPE</div>
-                                            <div className='columns small-6'>CERT INFO</div>
-                                        </div>
-                                    </div>
-                                    {certs.map(cert => (
-                                        <div className='argo-table-list__row' key={cert.certType + '_' + cert.certSubType + '_' + cert.serverName}>
-                                            <div className='row'>
-                                                <div className='columns small-3'>
-                                                    <i className='icon argo-icon-git' /> {cert.serverName}
+                        {(certs: models.RepoCert[]) => {
+                            const filteredCerts = certs.filter(
+                                cert =>
+                                    searchText === '' ||
+                                    cert.serverName.toLowerCase().includes(searchText.toLowerCase()) ||
+                                    cert.certType.toLowerCase().includes(searchText.toLowerCase()) ||
+                                    cert.certSubType.toLowerCase().includes(searchText.toLowerCase()) ||
+                                    cert.certInfo.toLowerCase().includes(searchText.toLowerCase())
+                            );
+
+                            return (
+                                <>
+                                    {filteredCerts.length > 0 ? (
+                                        <Paginate page={page} data={filteredCerts} onPageChange={setPage} preferencesKey='certs-list'>
+                                            {certsToDisplay => (
+                                                <div className='argo-table-list'>
+                                                    <div className='argo-table-list__head'>
+                                                        <div className='row'>
+                                                            <div className='columns small-3'>SERVER NAME</div>
+                                                            <div className='columns small-3'>CERT TYPE</div>
+                                                            <div className='columns small-6'>CERT INFO</div>
+                                                        </div>
+                                                    </div>
+                                                    {certsToDisplay.map(cert => (
+                                                        <div className='argo-table-list__row' key={cert.certType + '_' + cert.certSubType + '_' + cert.serverName}>
+                                                            <div className='row'>
+                                                                <div className='columns small-3'>
+                                                                    <i className='icon argo-icon-git' /> {cert.serverName}
+                                                                </div>
+                                                                <div className='columns small-3'>
+                                                                    {cert.certType} {cert.certSubType}
+                                                                </div>
+                                                                <div className='columns small-6'>
+                                                                    {cert.certInfo}
+                                                                    <DropDownMenu
+                                                                        anchor={() => (
+                                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                                <i className='fa fa-ellipsis-v' />
+                                                                            </button>
+                                                                        )}
+                                                                        items={[
+                                                                            {
+                                                                                title: 'Remove',
+                                                                                action: () => removeCert(cert.serverName, cert.certType, cert.certSubType)
+                                                                            }
+                                                                        ]}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                <div className='columns small-3'>
-                                                    {cert.certType} {cert.certSubType}
-                                                </div>
-                                                <div className='columns small-6'>
-                                                    {cert.certInfo}
-                                                    <DropDownMenu
-                                                        anchor={() => (
-                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                <i className='fa fa-ellipsis-v' />
-                                                            </button>
-                                                        )}
-                                                        items={[
-                                                            {
-                                                                title: 'Remove',
-                                                                action: () => removeCert(cert.serverName, cert.certType, cert.certSubType)
-                                                            }
-                                                        ]}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )) || (
-                                <EmptyState icon='argo-icon-git'>
-                                    <h4>No certificates configured</h4>
-                                    <h5>You can add further certificates below.</h5>
-                                    <button className='argo-button argo-button--base' onClick={() => setAddTLSCertificate(true)}>
-                                        Add TLS certificates
-                                    </button>{' '}
-                                    <button className='argo-button argo-button--base' onClick={() => setAddSSHKnownHosts(true)}>
-                                        Add SSH known hosts
-                                    </button>
-                                </EmptyState>
-                            )
-                        }
+                                            )}
+                                        </Paginate>
+                                    ) : certs.length === 0 ? (
+                                        <EmptyState icon='argo-icon-git'>
+                                            <h4>No certificates configured</h4>
+                                            <h5>You can add further certificates below.</h5>
+                                            <button className='argo-button argo-button--base' onClick={() => setAddTLSCertificate(true)}>
+                                                Add TLS certificates
+                                            </button>{' '}
+                                            <button className='argo-button argo-button--base' onClick={() => setAddSSHKnownHosts(true)}>
+                                                Add SSH known hosts
+                                            </button>
+                                        </EmptyState>
+                                    ) : (
+                                        <EmptyState icon='argo-icon-git'>
+                                            <h4>No certificates matched your search</h4>
+                                            <h5>Try adjusting your search query</h5>
+                                        </EmptyState>
+                                    )}
+                                </>
+                            );
+                        }}
                     </DataLoader>
                 </div>
             </div>
