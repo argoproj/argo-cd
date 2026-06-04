@@ -146,7 +146,11 @@ When using source hydration, the `syncSource.path` field is required and must al
 directory in the repository. Setting the path to the repository root (for example `"."` or `""`) is not
 supported. This ensures that hydration is always scoped to a dedicated subdirectory, which avoids unintentionally overwriting or removing files that may exist in the repository root.
 
-During each hydration run, Argo CD overwrites the files it generates (such as `manifest.yaml`) in the application's configured path, but it does **not** delete other files already present in that path. Stale files from a previous hydration that are not overwritten will remain in the output directory. Because the generated `manifest.yaml` is fully rewritten on every run, resources that were removed from the dry source disappear from it and are pruned on the next sync (when the `prune` sync option is enabled); however, extra leftover files are not removed automatically. The repository root is never written to, so files such as CI/CD configuration, README files, or other root-level assets remain untouched.
+During each hydration run, Argo CD overwrites the files it generates (such as `manifest.yaml`) in the application's configured path, but it does **not** delete other files already present in that path. Stale files from a previous hydration that are not overwritten will remain in the output directory. 
+
+Because the generated `manifest.yaml` is fully rewritten on every run, resources that were removed from the dry source disappear from it and are pruned on the next sync (when the `prune` sync option is enabled); however, extra leftover files are not removed automatically.
+
+The repository root is never written to, so files such as CI/CD configuration, README files, or other root-level assets remain untouched.
 
 If an application’s path changes, the old directory is not removed automatically. Likewise, if an application is deleted, its output path remains in the repository and must be cleaned up manually by the repository owner if desired. This design is intentional: it prevents accidental deletion of files when applications are restructured or removed, and it protects critical files like CI pipelines that may coexist in the repository.
 
