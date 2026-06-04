@@ -109,6 +109,9 @@
     }
 
     &__search-wrapper {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
         margin-left: 15px;
         @include breakpoint(medium down) {
             flex-basis: 100%;
@@ -116,8 +119,16 @@
         }
         line-height: normal;
 
+        // Autocomplete positions the menu from the <input>; align to the full search bar instead.
+        .autocomplete__menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            width: 100% !important;
+        }
+
         .select__option {
-            padding: 0.5em 1em;
+            padding: 5px 10px;
         }
     }
 
