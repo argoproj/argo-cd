@@ -104,59 +104,59 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                     </div>
 
                     <div className='applications-tiles__fields'>
-                    {/* Labels row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Labels:'>
-                            Labels:
-                        </div>
-                        <div className='columns applications-tiles__field-value'>
-                            <Tooltip
-                                zIndex={4}
-                                content={
-                                    <div>
+                        {/* Labels row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Labels:'>
+                                Labels:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>
+                                <Tooltip
+                                    zIndex={4}
+                                    content={
+                                        <div>
+                                            {Object.keys(appSet.metadata.labels || {})
+                                                .map(label => ({label, value: appSet.metadata.labels[label]}))
+                                                .map(item => (
+                                                    <div key={item.label}>
+                                                        {item.label}={item.value}
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    }>
+                                    <span>
                                         {Object.keys(appSet.metadata.labels || {})
-                                            .map(label => ({label, value: appSet.metadata.labels[label]}))
-                                            .map(item => (
-                                                <div key={item.label}>
-                                                    {item.label}={item.value}
-                                                </div>
-                                            ))}
-                                    </div>
-                                }>
-                                <span>
-                                    {Object.keys(appSet.metadata.labels || {})
-                                        .map(label => `${label}=${appSet.metadata.labels[label]}`)
-                                        .join(', ')}
-                                </span>
-                            </Tooltip>
+                                            .map(label => `${label}=${appSet.metadata.labels[label]}`)
+                                            .join(', ')}
+                                    </span>
+                                </Tooltip>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Status row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Status:'>
-                            Status:
+                        {/* Status row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Status:'>
+                                Status:
+                            </div>
+                            <div className='columns applications-tiles__field-value' qe-id='applications-tiles-health-status'>
+                                <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> {healthStatus}
+                            </div>
                         </div>
-                        <div className='columns applications-tiles__field-value' qe-id='applications-tiles-health-status'>
-                            <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> {healthStatus}
-                        </div>
-                    </div>
 
-                    {/* Applications count row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Applications:'>
-                            Applications:
+                        {/* Applications count row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Applications:'>
+                                Applications:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>{appSet.status?.resourcesCount ?? appSet.status?.resources?.length ?? 0}</div>
                         </div>
-                        <div className='columns applications-tiles__field-value'>{appSet.status?.resourcesCount ?? appSet.status?.resources?.length ?? 0}</div>
-                    </div>
 
-                    {/* Created At row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Age:'>
-                            Created At:
+                        {/* Created At row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Age:'>
+                                Created At:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
                         </div>
-                        <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
-                    </div>
                     </div>
                 </div>
             </div>

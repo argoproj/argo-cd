@@ -116,139 +116,140 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                     </div>
 
                     <div className='applications-tiles__fields'>
-                    {/* Project row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Project:'>
-                            Project:
+                        {/* Project row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Project:'>
+                                Project:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>{app.spec.project}</div>
                         </div>
-                        <div className='columns applications-tiles__field-value'>{app.spec.project}</div>
-                    </div>
 
-                    {/* Labels row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Labels:'>
-                            Labels:
-                        </div>
-                        <div className='columns applications-tiles__field-value'>
-                            <Tooltip
-                                zIndex={4}
-                                content={
-                                    <div>
+                        {/* Labels row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Labels:'>
+                                Labels:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>
+                                <Tooltip
+                                    zIndex={4}
+                                    content={
+                                        <div>
+                                            {Object.keys(app.metadata.labels || {})
+                                                .map(label => ({label, value: app.metadata.labels[label]}))
+                                                .map(item => (
+                                                    <div key={item.label}>
+                                                        {item.label}={item.value}
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    }>
+                                    <span>
                                         {Object.keys(app.metadata.labels || {})
-                                            .map(label => ({label, value: app.metadata.labels[label]}))
-                                            .map(item => (
-                                                <div key={item.label}>
-                                                    {item.label}={item.value}
-                                                </div>
-                                            ))}
-                                    </div>
-                                }>
-                                <span>
-                                    {Object.keys(app.metadata.labels || {})
-                                        .map(label => `${label}=${app.metadata.labels[label]}`)
-                                        .join(', ')}
-                                </span>
-                            </Tooltip>
-                        </div>
-                    </div>
-
-                    {/* Status row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Status:'>
-                            Status:
-                        </div>
-                        <div className='columns applications-tiles__field-value' qe-id='applications-tiles-health-status'>
-                            <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
-                            &nbsp;
-                            {app.status.sourceHydrator?.currentOperation && (
-                                <>
-                                    <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
-                                    {app.status.sourceHydrator.currentOperation.phase}
-                                    &nbsp;
-                                </>
-                            )}
-                            <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
-                            &nbsp;
-                            <OperationState app={app} quiet={true} />
-                        </div>
-                    </div>
-
-                    {/* Repository row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Repository:'>
-                            Repository:
-                        </div>
-                        <div className='columns applications-tiles__field-value'>
-                            <Tooltip content={source?.repoURL || ''} zIndex={4}>
-                                <span>{source?.repoURL}</span>
-                            </Tooltip>
-                        </div>
-                    </div>
-
-                    {/* Target Revision row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Target Revision:'>
-                            Target Revision:
-                        </div>
-                        <div className='columns applications-tiles__field-value'>{targetRevision}</div>
-                    </div>
-
-                    {/* Path row (conditional) */}
-                    {source?.path && (
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Path:'>
-                                Path:
+                                            .map(label => `${label}=${app.metadata.labels[label]}`)
+                                            .join(', ')}
+                                    </span>
+                                </Tooltip>
                             </div>
-                            <div className='columns applications-tiles__field-value'>{source?.path}</div>
                         </div>
-                    )}
 
-                    {/* Chart row (conditional) */}
-                    {source?.chart && (
+                        {/* Status row */}
                         <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Chart:'>
-                                Chart:
+                            <div className='columns applications-tiles__field-label' title='Status:'>
+                                Status:
                             </div>
-                            <div className='columns applications-tiles__field-value'>{source?.chart}</div>
+                            <div className='columns applications-tiles__field-value' qe-id='applications-tiles-health-status'>
+                                <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
+                                &nbsp;
+                                {app.status.sourceHydrator?.currentOperation && (
+                                    <>
+                                        <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                        {app.status.sourceHydrator.currentOperation.phase}
+                                        &nbsp;
+                                    </>
+                                )}
+                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
+                                &nbsp;
+                                <OperationState app={app} quiet={true} />
+                            </div>
                         </div>
-                    )}
 
-                    {/* Destination row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Destination:'>
-                            Destination:
-                        </div>
-                        <div className='columns applications-tiles__field-value'>
-                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />
-                        </div>
-                    </div>
-
-                    {/* Namespace row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Namespace:'>
-                            Namespace:
-                        </div>
-                        <div className='columns applications-tiles__field-value'>{app.spec.destination.namespace}</div>
-                    </div>
-
-                    {/* Created At row */}
-                    <div className='row applications-tiles__field-row'>
-                        <div className='columns applications-tiles__field-label' title='Age:'>
-                            Created At:
-                        </div>
-                        <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
-                    </div>
-
-                    {/* Last Sync row (conditional) */}
-                    {app.status.operationState && (
+                        {/* Repository row */}
                         <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Last sync:'>
-                                Last Sync:
+                            <div className='columns applications-tiles__field-label' title='Repository:'>
+                                Repository:
                             </div>
-                            <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(app.status.operationState.finishedAt || app.status.operationState.startedAt)}</div>
+                            <div className='columns applications-tiles__field-value'>
+                                <Tooltip content={source?.repoURL || ''} zIndex={4}>
+                                    <span>{source?.repoURL}</span>
+                                </Tooltip>
+                            </div>
                         </div>
-                    )}
 
+                        {/* Target Revision row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Target Revision:'>
+                                Target Revision:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>{targetRevision}</div>
+                        </div>
+
+                        {/* Path row (conditional) */}
+                        {source?.path && (
+                            <div className='row applications-tiles__field-row'>
+                                <div className='columns applications-tiles__field-label' title='Path:'>
+                                    Path:
+                                </div>
+                                <div className='columns applications-tiles__field-value'>{source?.path}</div>
+                            </div>
+                        )}
+
+                        {/* Chart row (conditional) */}
+                        {source?.chart && (
+                            <div className='row applications-tiles__field-row'>
+                                <div className='columns applications-tiles__field-label' title='Chart:'>
+                                    Chart:
+                                </div>
+                                <div className='columns applications-tiles__field-value'>{source?.chart}</div>
+                            </div>
+                        )}
+
+                        {/* Destination row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Destination:'>
+                                Destination:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>
+                                <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />
+                            </div>
+                        </div>
+
+                        {/* Namespace row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Namespace:'>
+                                Namespace:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>{app.spec.destination.namespace}</div>
+                        </div>
+
+                        {/* Created At row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Age:'>
+                                Created At:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
+                        </div>
+
+                        {/* Last Sync row (conditional) */}
+                        {app.status.operationState && (
+                            <div className='row applications-tiles__field-row'>
+                                <div className='columns applications-tiles__field-label' title='Last sync:'>
+                                    Last Sync:
+                                </div>
+                                <div className='columns applications-tiles__field-value'>
+                                    {AppUtils.formatCreationTimestamp(app.status.operationState.finishedAt || app.status.operationState.startedAt)}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Action buttons */}
