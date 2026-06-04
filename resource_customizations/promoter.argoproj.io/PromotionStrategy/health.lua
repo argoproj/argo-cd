@@ -103,12 +103,11 @@ local function getShortSha(sha)
     return sha
 end
 
--- Find the first environment with a proposed commit dry sha that doesn't match the active one. Loop over its commit
--- statuses and build a summary about how many are pending, successful, or failed. Return a Progressing status for this
--- in-progress environment.
+-- Find the first environment with a genuinely promotable diff: proposed metadata dry sha differs from active. When only
+-- the hydrator note advanced (no-op re-hydration), proposed.dry.sha still matches active.dry.sha and no promotion is
+-- needed even if getProposedDrySha (note-based) differs from active.dry.sha.
 for _, env in ipairs(obj.status.environments) do
-    local envProposedSha = getProposedDrySha(env)
-    if envProposedSha ~= env.active.dry.sha then
+    if env.proposed.dry.sha ~= env.active.dry.sha then
         local pendingCount = 0
         local successCount = 0
         local failureCount = 0
@@ -133,7 +132,7 @@ for _, env in ipairs(obj.status.environments) do
         hs.message =
             "Promotion in progress for environment '" .. env.branch ..
             "' from '" .. getShortSha(env.active.dry.sha) ..
-            "' to '" .. getShortSha(envProposedSha) .. "': " ..
+            "' to '" .. getShortSha(env.proposed.dry.sha) .. "': " ..
             pendingCount .. " pending, " .. successCount .. " successful, " .. failureCount .. " failed. "
 
         if pendingCount > 0 then
@@ -142,6 +141,7 @@ for _, env in ipairs(obj.status.environments) do
         if failureCount > 0 then
             hs.message = hs.message .. "Failed commit statuses: " .. table.concat(failedKeys, ", ") .. ". "
         end
+        hs.message = hs.message .. "Hydrator has processed dry commit '" .. getShortSha(getProposedDrySha(env)) .. "'. "
         return hs
     end
 end
@@ -184,5 +184,5 @@ end
 -- If all environments have the same proposed commit dry sha as the active one, we can consider the promotion strategy
 -- healthy. This means all environments are in sync and no further action is needed.
 hs.status = "Healthy"
-hs.message = "All environments are up-to-date on commit '" .. getShortSha(getProposedDrySha(obj.status.environments[1])) .. "'."
+hs.message = "All environments are up-to-date on commit '" .. getShortSha(obj.status.environments[1].active.dry.sha) .. "'. Hydrator has processed dry commit '" .. getShortSha(getProposedDrySha(obj.status.environments[1])) .. "'."
 return hs
