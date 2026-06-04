@@ -246,7 +246,7 @@ func TestUntgz(t *testing.T) {
 	})
 }
 
-func TestTgz_HelmChartInclusion(t *testing.T) {
+func TestTgz_HelmChartInclusionExclusions(t *testing.T) {
 	t.Parallel()
 
 	helmAppDir := filepath.Join(getTestDataDir(t), "helm-app")
@@ -271,45 +271,36 @@ func TestTgz_HelmChartInclusion(t *testing.T) {
 	}
 
 	t.Run("default patterns exclude helm helper templates", func(t *testing.T) {
-		// given
 		t.Parallel()
 		f := setup(t)
 		defer teardown(f)
-		// Simulate the old default: only yaml/yml/json — no charts/**
 		inclusions := []string{"*.yaml", "*.yml", "*.json"}
 
-		// when
 		_, err := files.Tgz(helmAppDir, inclusions, nil, f.file)
 		require.NoError(t, err)
 		prepareRead(t, f)
 		got, err := read(f.file)
 		require.NoError(t, err)
 
-		// then: _helpers.tpl must NOT be present
 		assert.NotContains(t, got, "charts/podinfo/templates/_helpers.tpl",
 			"_helpers.tpl should be excluded by default yaml/yml/json patterns")
-		// yaml files inside charts/ ARE included because *.yaml matches on filename
 		assert.Contains(t, got, "charts/podinfo/templates/deployment.yaml")
 		assert.Contains(t, got, "charts/podinfo/Chart.yaml")
 		assert.Contains(t, got, "charts/podinfo/values.yaml")
 	})
 
 	t.Run("charts/** pattern includes helm helper templates", func(t *testing.T) {
-		// given
 		t.Parallel()
 		f := setup(t)
 		defer teardown(f)
-		// New default: yaml/yml/json plus charts/**
 		inclusions := []string{"*.yaml", "*.yml", "*.json", "charts/**"}
 
-		// when
 		_, err := files.Tgz(helmAppDir, inclusions, nil, f.file)
 		require.NoError(t, err)
 		prepareRead(t, f)
 		got, err := read(f.file)
 		require.NoError(t, err)
 
-		// then: _helpers.tpl MUST be present — this is the fix for #27259
 		assert.Contains(t, got, "charts/podinfo/templates/_helpers.tpl",
 			"_helpers.tpl must be included when charts/** is in the inclusion list")
 		assert.Contains(t, got, "charts/podinfo/templates/deployment.yaml")
@@ -319,21 +310,58 @@ func TestTgz_HelmChartInclusion(t *testing.T) {
 	})
 
 	t.Run("wildcard star includes all files including helm helpers", func(t *testing.T) {
-		// given
 		t.Parallel()
 		f := setup(t)
 		defer teardown(f)
 
-		// when
 		_, err := files.Tgz(helmAppDir, []string{"*"}, nil, f.file)
 		require.NoError(t, err)
 		prepareRead(t, f)
 		got, err := read(f.file)
 		require.NoError(t, err)
 
-		// then
 		assert.Contains(t, got, "charts/podinfo/templates/_helpers.tpl")
 		assert.Contains(t, got, "kustomization.yaml")
+	})
+
+	t.Run("exclude charts/** excludes all helm chart files", func(t *testing.T) {
+		t.Parallel()
+		f := setup(t)
+		defer teardown(f)
+
+		exclusions := []string{"charts/**"}
+
+		_, err := files.Tgz(helmAppDir, nil, exclusions, f.file)
+		require.NoError(t, err)
+		prepareRead(t, f)
+		got, err := read(f.file)
+		require.NoError(t, err)
+
+		assert.NotContains(t, got, "charts/podinfo/templates/_helpers.tpl")
+		assert.NotContains(t, got, "charts/podinfo/templates/deployment.yaml")
+		assert.NotContains(t, got, "charts/podinfo/Chart.yaml")
+		assert.NotContains(t, got, "charts/podinfo/values.yaml")
+		assert.Contains(t, got, "kustomization.yaml")
+	})
+
+	t.Run("selective path exclusion filters only matching files", func(t *testing.T) {
+		t.Parallel()
+		f := setup(t)
+		defer teardown(f)
+
+		inclusions := []string{"charts/**"}
+		exclusions := []string{"charts/**/templates/*.yaml"}
+
+		_, err := files.Tgz(helmAppDir, inclusions, exclusions, f.file)
+		require.NoError(t, err)
+		prepareRead(t, f)
+		got, err := read(f.file)
+		require.NoError(t, err)
+
+		assert.NotContains(t, got, "charts/podinfo/templates/deployment.yaml")
+		assert.Contains(t, got, "charts/podinfo/templates/_helpers.tpl")
+		assert.Contains(t, got, "charts/podinfo/Chart.yaml")
+		assert.Contains(t, got, "charts/podinfo/values.yaml")
 	})
 }
 
