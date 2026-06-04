@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
+	clientgofeatures "k8s.io/client-go/features"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -2575,4 +2576,32 @@ func (mgr *SettingsManager) IsInClusterEnabled() (bool, error) {
 		return inClusterEnabled != "false", nil
 	}
 	return defaultInClusterEnabledFlag, nil
+}
+
+func init() {
+	ConfigureGoClientFeatures()
+}
+
+type myFeatureGates struct {
+	parent clientgofeatures.Gates
+}
+
+func (m myFeatureGates) Enabled(f clientgofeatures.Feature) bool {
+	if f == clientgofeatures.WatchListClient ||
+		f == clientgofeatures.InOrderInformers {
+		return false
+	}
+	return m.parent.Enabled(f)
+}
+
+// FIXME: remove when we have proper WatchListClient and InOrderInformers support
+func ConfigureGoClientFeatures() {
+	gates := clientgofeatures.FeatureGates()
+	isWatchListEnabled := gates.Enabled(clientgofeatures.WatchListClient)
+	isInOrderInformersEnabled := gates.Enabled(clientgofeatures.InOrderInformers)
+
+	if isWatchListEnabled || isInOrderInformersEnabled {
+		wrapper := myFeatureGates{parent: gates}
+		clientgofeatures.ReplaceFeatureGates(wrapper)
+	}
 }
