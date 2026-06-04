@@ -50,6 +50,13 @@ type hydratorMetadataFile struct {
 	References []v1alpha1.RevisionReference `json:"references,omitempty"`
 }
 
+// CommitNote represents the structure of the git note associated with a hydrated commit.
+// This struct is used to serialize/deserialize commit metadata (such as the dry run SHA)
+// stored in the custom note namespace by the hydrator.
+type CommitNote struct {
+	DrySHA string `json:"drySha"` // SHA of original commit that triggerd the hydrator
+}
+
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
 // the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
 // pushes the changes. It returns the hydrated revision SHA and an error if one occurred.

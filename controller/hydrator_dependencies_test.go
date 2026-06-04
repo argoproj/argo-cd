@@ -140,7 +140,7 @@ func TestGetHydratorReadmeMessageTemplate_WhenTemplateIsNotDefined_FallbackToDef
 	tmpl, err := ctrl.GetHydratorReadmeMessageTemplate()
 	require.NoError(t, err)
 	assert.NotEmpty(t, tmpl)
-	assert.Equal(t, settings.ManifestHydrationReadmeTemplate, tmpl)
+	assert.Equal(t, settings.DefaultManifestHydrationReadmeTemplate, tmpl)
 }
 
 func TestGetHydratorReadmeMessageTemplate(t *testing.T) {

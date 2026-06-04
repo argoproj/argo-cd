@@ -2398,7 +2398,7 @@ func TestGetHydratorReadmeTemplate(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), map[string]string{})
 		template, err := settingsManager.GetHydratorReadmeTemplate()
 		require.NoError(t, err)
-		assert.Equal(t, ManifestHydrationReadmeTemplate, template)
+		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
 	})
 
 	t.Run("CustomTemplateInConfigMap", func(t *testing.T) {
@@ -2416,7 +2416,7 @@ func TestGetHydratorReadmeTemplate(t *testing.T) {
 		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 		template, err := settingsManager.GetHydratorReadmeTemplate()
 		require.Error(t, err)
-		assert.Equal(t, ManifestHydrationReadmeTemplate, template)
+		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
 	})
 }
 

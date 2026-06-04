@@ -33,11 +33,6 @@ func init() {
 	delete(sprigFuncMap, "getHostByName")
 }
 
-// CommitNote represents the structure of the git note associated with a hydrated commit.
-type CommitNote struct {
-	DrySHA string `json:"drySha"` // SHA of original commit that triggered the hydrator
-}
-
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
 func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client, rawReadmeTemplate string) (bool, error) { //nolint:revive //FIXME(var-naming)

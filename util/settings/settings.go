@@ -60,7 +60,7 @@ Co-authored-by: {{ .metadata.author }}
 {{- end }}
 `
 
-var ManifestHydrationReadmeTemplate = `# Manifest Hydration
+var DefaultManifestHydrationReadmeTemplate = `# Manifest Hydration
 
 To hydrate the manifests in this repository, run the following commands:
 
@@ -821,11 +821,11 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 func (mgr *SettingsManager) GetHydratorReadmeTemplate() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return ManifestHydrationReadmeTemplate, err
+		return DefaultManifestHydrationReadmeTemplate, err
 	}
 	readmeTemplate := argoCDCM.Data[settingsSourceHydratorReadmeMessageTemplateKey]
 	if readmeTemplate == "" {
-		return ManifestHydrationReadmeTemplate, nil
+		return DefaultManifestHydrationReadmeTemplate, nil
 	}
 	return readmeTemplate, nil
 }
