@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -298,6 +299,19 @@ func TestMTLSIntegration_NoClientCert_IsRejected(t *testing.T) {
 			t.Logf("failed to close connection: %v", err)
 		}
 	}(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn.Connect()
+	for {
+		st := conn.GetState()
+		if st == connectivity.Ready || st == connectivity.TransientFailure || st == connectivity.Shutdown {
+			break
+		}
+		if !conn.WaitForStateChange(ctx, st) {
+			break
+		}
+	}
 
 	err = healthCheck(t, conn)
 	require.Error(t, err, "the server enforces mTLS; a client without a certificate must be rejected")
