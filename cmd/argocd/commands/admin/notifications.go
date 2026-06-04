@@ -54,7 +54,7 @@ func NewNotificationsCommand() *cobra.Command {
 				log.Fatalf("Failed to get repo-server client TLS configuration: %v", err)
 			}
 			tlsConfig.DisableTLS = argocdRepoServerPlaintext
-			tlsConfig.StrictValidation = argocdRepoServerStrictTLS
+			tlsConfig.StrictValidation = argocdRepoServerStrictTLS || tlsConfig.StrictValidation
 			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",

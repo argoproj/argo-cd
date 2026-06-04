@@ -1,5 +1,8 @@
 # Mutual TLS (mTLS) for repo-server
 
+> [!TIP]
+> Looking for general TLS setup across Argo CD components? See [TLS configuration](./tls.md).
+
 Argo CD supports mutual TLS (mTLS) between the `argocd-server` (API server), `argocd-application-controller`, `argocd-applicationset-controller`, and the `argocd-repo-server`. This ensures the repo-server only accepts connections from authorized clients that present a valid client certificate.
 
 > [!NOTE]

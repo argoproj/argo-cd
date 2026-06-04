@@ -1,5 +1,8 @@
 # TLS configuration
 
+> [!TIP]
+> Need repo-server mutual TLS between components? See [Mutual TLS (mTLS) for repo-server](./mtls.md).
+
 Argo CD provides three inbound TLS endpoints that can be configured:
 
 * The user-facing endpoint of the `argocd-server` workload, which serves the UI
