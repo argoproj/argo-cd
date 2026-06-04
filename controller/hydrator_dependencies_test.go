@@ -43,7 +43,7 @@ func TestGetRepoObjs(t *testing.T) {
 		},
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 
@@ -92,7 +92,7 @@ func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined_FallbackToDef
 		},
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)
@@ -115,7 +115,7 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 		configMapData: cm.Data,
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)
@@ -135,11 +135,11 @@ func TestGetHydratorReadmeMessageTemplate_WhenTemplateIsNotDefined_FallbackToDef
 		},
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 
 	tmpl, err := ctrl.GetHydratorReadmeMessageTemplate()
 	require.NoError(t, err)
-	assert.NotEmpty(t, tmpl) // fallback 되어야 함
+	assert.NotEmpty(t, tmpl)
 	assert.Equal(t, settings.ManifestHydrationReadmeTemplate, tmpl)
 }
 
@@ -159,10 +159,57 @@ func TestGetHydratorReadmeMessageTemplate(t *testing.T) {
 		configMapData: cm.Data,
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 
 	tmpl, err := ctrl.GetHydratorReadmeMessageTemplate()
 	require.NoError(t, err)
 	assert.NotEmpty(t, tmpl)
 	assert.Equal(t, readmeTemplate, tmpl)
+}
+
+func TestEvaluateAppRevisionsChanges(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        app.Spec.Source.RepoURL,
+			TargetRevision: app.Spec.Source.TargetRevision,
+			Path:           app.Spec.Source.Path,
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "hydrated/path",
+		},
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+
+	data := fakeData{
+		resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+			{
+				Revision:          "new-sha",
+				AmbiguousRevision: app.Spec.SourceHydrator.GetDrySource().TargetRevision,
+			},
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+
+	hasChanges, resolvedRev, err := ctrl.EvaluateAppRevisionsChanges(t.Context(), app, drySource, "HEAD", &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}, false)
+	require.NoError(t, err)
+	assert.True(t, hasChanges)
+	assert.Equal(t, "new-sha", resolvedRev)
 }

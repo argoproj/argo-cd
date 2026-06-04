@@ -70,7 +70,7 @@ func newTestAccountServerExt(t *testing.T, ctx context.Context, enforceFn rbac.C
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
-	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, settingsMgr, nil, nil, nil)
+	return NewServer(sessionMgr, settingsMgr, enforcer, testNamespace), session.NewServer(sessionMgr, settingsMgr, nil, nil, nil)
 }
 
 func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
@@ -331,4 +331,138 @@ func TestCanI_GetLogsDeny(t *testing.T) {
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: "*/*"})
 	require.NoError(t, err)
 	assert.Equal(t, "no", resp.Value)
+}
+
+func TestCanI_RBACPolicyMatchingWithNormalizedSubresource(t *testing.T) {
+	tests := []struct {
+		name         string
+		policy       string
+		expectedResp string
+	}{
+		{
+			name:         "allow policy without namespace",
+			policy:       "p, role:log-viewer, logs, get, myproject/*, allow",
+			expectedResp: "yes",
+		},
+		{
+			name:         "deny explicit default namespace policy",
+			policy:       "p, role:log-viewer, logs, get, myproject/default/*, allow",
+			expectedResp: "no",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			accountServer, _ := newTestAccountServerExt(t, t.Context(), nil)
+			require.NoError(t, accountServer.enf.SetBuiltinPolicy(tt.policy))
+			accountServer.enf.SetDefaultRole("role:log-viewer")
+
+			resp, err := accountServer.CanI(adminContext(t.Context()), &account.CanIRequest{
+				Resource:    "logs",
+				Action:      "get",
+				Subresource: "myproject/default/myapp",
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedResp, resp.Value)
+		})
+	}
+}
+
+func TestCanI_NormalizeDefaultNamespace(t *testing.T) {
+	// Test: subresource "myproject/default/myapp" with default namespace "default"
+	// Expected: normalized to "myproject/myapp" (matches */* policy)
+	enforcer := func(_ jwt.Claims, rvals ...any) bool {
+		// Verify the subresource was normalized to 2 segments
+		if len(rvals) >= 4 {
+			if obj, ok := rvals[3].(string); ok {
+				return obj == "myproject/myapp"
+			}
+		}
+		return false
+	}
+
+	accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer)
+	ctx := adminContext(t.Context())
+
+	// UI sends 3-segment format with default namespace
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{
+		Resource:    "logs",
+		Action:      "get",
+		Subresource: "myproject/default/myapp", // default is default namespace
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "yes", resp.Value)
+}
+
+func TestCanI_PreserveNonDefaultNamespace(t *testing.T) {
+	// Test: subresource "myproject/other-ns/myapp" with default namespace "default"
+	// Expected: preserved as "myproject/other-ns/myapp" (needs */*/* policy)
+	enforcer := func(_ jwt.Claims, rvals ...any) bool {
+		// Verify the subresource was NOT normalized (3 segments)
+		if len(rvals) >= 4 {
+			if obj, ok := rvals[3].(string); ok {
+				return obj == "myproject/other-ns/myapp"
+			}
+		}
+		return false
+	}
+
+	accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer)
+	ctx := adminContext(t.Context())
+
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{
+		Resource:    "logs",
+		Action:      "get",
+		Subresource: "myproject/other-ns/myapp", // other-ns != default
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "yes", resp.Value)
+}
+
+func TestCanI_BackwardCompatibleTwoSegment(t *testing.T) {
+	// Test: old UI sends "myproject/myapp" (2 segments)
+	// Expected: stays as "myproject/myapp"
+	enforcer := func(_ jwt.Claims, rvals ...any) bool {
+		if len(rvals) >= 4 {
+			if obj, ok := rvals[3].(string); ok {
+				return obj == "myproject/myapp"
+			}
+		}
+		return false
+	}
+
+	accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer)
+	ctx := adminContext(t.Context())
+
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{
+		Resource:    "logs",
+		Action:      "get",
+		Subresource: "myproject/myapp",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "yes", resp.Value)
+}
+
+func TestCanI_NonProjectScopedResource(t *testing.T) {
+	// Test: non-project-scoped resources should not be normalized
+	enforcer := func(_ jwt.Claims, rvals ...any) bool {
+		if len(rvals) >= 4 {
+			if obj, ok := rvals[3].(string); ok {
+				// Should receive the original format unchanged
+				return obj == "some/value/here"
+			}
+		}
+		return false
+	}
+
+	accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer)
+	ctx := adminContext(t.Context())
+
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{
+		Resource:    "accounts", // not project-scoped
+		Action:      "update",
+		Subresource: "some/value/here",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "yes", resp.Value)
 }

@@ -298,12 +298,12 @@ func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false)
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false, "", "")
 	require.NoError(t, err)
 	prs, err := host.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, 1, prs[0].Number)
+	assert.Equal(t, int64(1), prs[0].Number)
 	assert.Equal(t, "add an empty file", prs[0].Title)
 	assert.Equal(t, "test", prs[0].Branch)
 	assert.Equal(t, "main", prs[0].TargetBranch)
@@ -359,7 +359,7 @@ func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", []string{}, false)
+	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", []string{}, false, "", "")
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())

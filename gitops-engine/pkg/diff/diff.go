@@ -26,11 +26,11 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v6/merge"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
-	"github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints"
-	"github.com/argoproj/gitops-engine/pkg/diff/internal/fieldmanager"
-	"github.com/argoproj/gitops-engine/pkg/sync/resource"
-	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
-	gescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/internal/fieldmanager"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	jsonutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/json"
+	gescheme "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 )
 
 const (
@@ -183,16 +183,33 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 		}
 	}
 
+	// Remarshal predictedLive to ensure it receives the same normalization as live.
+	predictedLive = remarshal(predictedLive, o)
+
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+
+	Normalize(live, opts...)
+	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+
+	if isCoreSecret(config) {
+		// Mask Secret data symmetrically before comparison.
+		// Equal values get equal placeholders, different values get different placeholders.
+		predictedLive, live, err = HideSecretData(predictedLive, live, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error hiding secret data for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
+		}
+	}
 
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
 
-	Normalize(live, opts...)
-	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
 	liveBytes, err := json.Marshal(live)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling live resource %s/%s: %w", config.GetKind(), config.GetName(), err)
@@ -267,19 +284,19 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	}
 
 	// In case any of the removed fields cause schema violations, we will keep those fields
-	nonArgoFieldsSet = safelyRemoveFieldsSet(typedPredictedLive, nonArgoFieldsSet)
+	nonArgoFieldsSet = filterOutCompositeKeyFields(typedPredictedLive, nonArgoFieldsSet)
 	typedPredictedLive = typedPredictedLive.RemoveItems(nonArgoFieldsSet)
 
 	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
 	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
 
-	// After applying the predicted live to live state, this would cause any removed fields to be restored.
-	// We need to re-remove these from predicted live.
-	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
-
 	if err != nil {
 		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
+
+	// After applying the predicted live to live state, this would cause any removed fields to be restored.
+	// We need to re-remove these from predicted live.
+	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
 
 	plu := typedPredictedLive.AsValue().Unstructured()
 	pl, ok := plu.(map[string]any)
@@ -289,29 +306,58 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	return &unstructured.Unstructured{Object: pl}, nil
 }
 
-// safelyRemoveFieldSet will validate if removing the fieldsToRemove set from predictedLive maintains
-// a valid schema. If removing a field in fieldsToRemove is invalid and breaks the schema, it is not safe
-// to remove and will be skipped from removal from predictedLive.
-func safelyRemoveFieldsSet(predictedLive *typed.TypedValue, fieldsToRemove *fieldpath.Set) *fieldpath.Set {
-	// In some cases, we cannot remove fields due to violation of the predicted live schema. In such cases we validate the removal
-	// of each field and only include it if the removal is valid.
-	testPredictedLive := predictedLive.RemoveItems(fieldsToRemove)
-	err := testPredictedLive.Validate()
-	if err != nil {
-		adjustedFieldsToRemove := fieldpath.NewSet()
-		fieldsToRemove.Iterate(func(p fieldpath.Path) {
-			singleFieldSet := fieldpath.NewSet(p)
-			testSingleRemoval := predictedLive.RemoveItems(singleFieldSet)
-			// Check if removing this single field maintains a valid schema
-			if testSingleRemoval.Validate() == nil {
-				// If valid, add this field to the adjusted set to remove
-				adjustedFieldsToRemove.Insert(p)
-			}
-		})
-		return adjustedFieldsToRemove
+// filterOutCompositeKeyFields filters out fields that are part of composite keys in associative lists.
+// These fields must be preserved to maintain list element identity during merge operations.
+func filterOutCompositeKeyFields(typedValue *typed.TypedValue, fieldsToRemove *fieldpath.Set) *fieldpath.Set {
+	filteredFields := fieldpath.NewSet()
+
+	fieldsToRemove.Iterate(func(fieldPath fieldpath.Path) {
+		isCompositeKey := isCompositeKeyField(fieldPath)
+		if !isCompositeKey {
+			// Only keep fields that are NOT composite keys - these are safe to remove
+			filteredFields.Insert(fieldPath)
+		}
+	})
+
+	return filteredFields
+}
+
+// isCompositeKeyField checks if a field path represents a field that is part of a composite key
+// in an associative list by examining the PathElement structure.
+// Example: .spec.containers[name="nginx"].ports[containerPort=80,protocol="TCP"].protocol
+// The path elements include:
+//   - PathElement{Key: {name: "nginx"}} - single key (not composite)
+//   - PathElement{Key: {containerPort: 80, protocol: "TCP"}} - composite key with 2 fields
+func isCompositeKeyField(fieldPath fieldpath.Path) bool {
+	if len(fieldPath) == 0 {
+		return false
 	}
-	// If no violations, return the original set to remove
-	return fieldsToRemove
+
+	// Get the last path element
+	lastElement := fieldPath[len(fieldPath)-1]
+	if lastElement.FieldName == nil {
+		return false
+	}
+	finalFieldName := *lastElement.FieldName
+
+	// Look backwards through the path to find the most recent associative list key
+	for i := len(fieldPath) - 2; i >= 0; i-- {
+		pe := fieldPath[i]
+		if pe.Key == nil {
+			continue
+		}
+		if len(*pe.Key) <= 1 {
+			continue
+		}
+		// This is a composite key
+		for _, keyField := range *pe.Key {
+			if keyField.Name == finalFieldName {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error) {
@@ -321,6 +367,15 @@ func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error
 		return nil, fmt.Errorf("unmarshal error: %w", err)
 	}
 	return &unstructured.Unstructured{Object: res}, nil
+}
+
+// isCoreSecret reports whether obj is a core/v1 Secret (Group="" and Kind="Secret").
+func isCoreSecret(obj *unstructured.Unstructured) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GroupVersionKind()
+	return gvk.Group == "" && gvk.Kind == "Secret"
 }
 
 // StructuredMergeDiff will calculate the diff using the structured-merge-diff

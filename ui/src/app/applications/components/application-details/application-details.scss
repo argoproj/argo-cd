@@ -158,6 +158,28 @@ $header: 120px;
         }
     }
 
+    .argo-button:has(.application-details__dropdown-anchor-inner):hover .application-details__dropdown-anchor-inner {
+        background-color: $argo-color-gray-5;
+    }
+
+    &__dropdown-anchor-inner {
+        cursor: pointer;
+        border-radius: 0px 24px 24px 0px;
+        border-left: 1px solid #ccc;
+        justify-content: center;
+        position: absolute;
+        margin-left: 5px;
+        right: -10px;
+        top: 0;
+        bottom: 0;
+        width: 24px;
+        transition: background-color 0.2s;
+
+        &:hover {
+            background-color: $argo-color-gray-4 !important;
+        }
+    }
+
     .argo-table-list__row {
         .columns.small-1.xxxlarge-1 {
             width: 60px;
@@ -198,6 +220,9 @@ $header: 120px;
                     height: 50px;
                     align-items: center;
                     .argo-button {
+                        height: 34px;
+                    }
+                    .argo-split-button {
                         height: 34px;
                     }
                 }

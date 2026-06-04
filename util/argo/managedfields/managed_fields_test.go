@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 
 	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
@@ -152,6 +152,20 @@ func TestNormalize(t *testing.T) {
 
 		_, _, err := managedfields.Normalize(liveState, desiredState, []string{}, &pt)
 		require.NoError(t, err)
+	})
+	t.Run("does not panic when pt is nil", func(t *testing.T) {
+		// ResolveParseableType can return nil when a CRD's GVK isn't in the
+		// cluster's openapi schema; Normalize must fall back to the deduced
+		// type rather than dereferencing nil.
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		trustedManagers := []string{"kube-controller-manager"}
+
+		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, trustedManagers, nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, liveResult)
+		require.NotNil(t, desiredResult)
 	})
 }
 

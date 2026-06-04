@@ -1,6 +1,7 @@
 import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
-import React, {useRef, useContext} from 'react';
-import {Form, FormApi, Text, TextArea} from 'react-form';
+import * as React from 'react';
+import {useRef, useContext} from 'react';
+import {Form, FormApi, Text, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
 import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
@@ -144,7 +145,11 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
             }}>
             <div className='certs-list'>
                 <div className='argo-container'>
-                    <DataLoader load={() => services.certs.list()} ref={ref => (loader.current = ref)}>
+                    <DataLoader
+                        load={() => services.certs.list()}
+                        ref={ref => {
+                            loader.current = ref;
+                        }}>
                         {(certs: models.RepoCert[]) =>
                             (certs.length > 0 && (
                                 <div className='argo-table-list'>
@@ -187,7 +192,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                             )) || (
                                 <EmptyState icon='argo-icon-git'>
                                     <h4>No certificates configured</h4>
-                                    <h5>You can add further certificates below..</h5>
+                                    <h5>You can add further certificates below.</h5>
                                     <button className='argo-button argo-button--base' onClick={() => setAddTLSCertificate(true)}>
                                         Add TLS certificates
                                     </button>{' '}

@@ -77,12 +77,12 @@ func NewService() *unstructured.Unstructured {
 }
 
 func NewCRD() *unstructured.Unstructured {
-	return Unstructured(`apiVersion: apiextensions.k8s.io/v1beta1
+	return Unstructured(`apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: testcrds.argoproj.io
 spec:
-  group: argoproj.io
+  group: test.io
   version: v1
   scope: Namespaced
   names:
@@ -96,4 +96,56 @@ kind: Namespace
 metadata:
   name: testnamespace
 spec:`)
+}
+
+func NewRole() *unstructured.Unstructured {
+	return Unstructured(`apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-role
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]`)
+}
+
+func NewRoleBinding() *unstructured.Unstructured {
+	return Unstructured(`apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-role-binding
+subjects:
+- kind: User
+  name: user
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: my-role
+  apiGroup: rbac.authorization.k8s.io`)
+}
+
+func NewClusterRole() *unstructured.Unstructured {
+	return Unstructured(`apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-cluster-role
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]`)
+}
+
+func NewClusterRoleBinding() *unstructured.Unstructured {
+	return Unstructured(`apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-cluster-role-binding
+subjects:
+- kind: Group
+  name: group
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: my-cluster-role
+  apiGroup: rbac.authorization.k8s.io`)
 }

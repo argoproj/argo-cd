@@ -87,7 +87,7 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 				}
 				parts := strings.Split(field, ".")
 				item := converted
-				for i := 0; i < len(parts); i++ {
+				for i := range parts {
 					subField := parts[i]
 					if i == len(parts)-1 {
 						item[subField] = value

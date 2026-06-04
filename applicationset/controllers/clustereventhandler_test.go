@@ -137,7 +137,7 @@ func TestClusterEventHandler(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "my-app-set",
-						Namespace: "another-namespace",
+						Namespace: "argocd",
 					},
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
@@ -171,8 +171,36 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{
-				{NamespacedName: types.NamespacedName{Namespace: "another-namespace", Name: "my-app-set"}},
+				{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set"}},
 			},
+		},
+		{
+			name: "cluster generators in other namespaces should not match",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-app-set",
+						Namespace: "my-namespace-not-allowed",
+					},
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{
+								Clusters: &argov1alpha1.ClusterGenerator{},
+							},
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "argocd",
+					Name:      "my-secret",
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{},
 		},
 		{
 			name: "non-argo cd secret should not match",
@@ -552,8 +580,9 @@ func TestClusterEventHandler(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithLists(&appSetList).Build()
 
 			handler := &clusterSecretEventHandler{
-				Client: fakeClient,
-				Log:    log.WithField("type", "createSecretEventHandler"),
+				Client:                   fakeClient,
+				Log:                      log.WithField("type", "createSecretEventHandler"),
+				ApplicationSetNamespaces: []string{"argocd"},
 			}
 
 			mockAddRateLimitingInterface := mockAddRateLimitingInterface{}

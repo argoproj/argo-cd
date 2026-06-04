@@ -1,0 +1,86 @@
+discoveryTests:
+  - inputPath: testdata/scaledobject.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: fa fa-fw fa-pause-circle
+      - name: paused-replicas
+        disabled: false
+        iconClass: fa fa-fw fa-pause-circle
+        params:
+          - name: replicas
+            default: "0"
+      - name: resume
+        disabled: true
+        iconClass: fa fa-fw fa-play-circle
+
+  - inputPath: testdata/scaledobject-pause.yaml
+    result:
+      - name: pause
+        disabled: true
+        iconClass: fa fa-fw fa-pause-circle
+      - name: paused-replicas
+        disabled: true
+        iconClass: fa fa-fw fa-pause-circle
+        params:
+          - name: replicas
+            default: "0"
+      - name: resume
+        disabled: false
+        iconClass: fa fa-fw fa-play-circle
+
+  - inputPath: testdata/scaledobject-paused-replicas.yaml
+    result:
+      - name: pause
+        disabled: true
+        iconClass: fa fa-fw fa-pause-circle
+      - name: paused-replicas
+        disabled: false
+        iconClass: fa fa-fw fa-pause-circle
+        params:
+          - name: replicas
+            default: "0"
+      - name: resume
+        disabled: false
+        iconClass: fa fa-fw fa-play-circle
+
+  - inputPath: testdata/scaledobject-resume.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: fa fa-fw fa-pause-circle
+      - name: paused-replicas
+        disabled: false
+        iconClass: fa fa-fw fa-pause-circle
+        params:
+          - name: replicas
+            default: "0"
+      - name: resume
+        disabled: true
+        iconClass: fa fa-fw fa-play-circle
+
+actionTests:
+  - action: pause
+    inputPath: testdata/scaledobject.yaml
+    expectedOutputPath: testdata/scaledobject-pause.yaml
+
+  - action: resume
+    inputPath: testdata/scaledobject-pause.yaml
+    expectedOutputPath: testdata/scaledobject-resume.yaml
+
+  - action: paused-replicas
+    inputPath: testdata/scaledobject.yaml
+    expectedOutputPath: testdata/scaledobject-paused-replicas.yaml
+    parameters:
+      replicas: "6"
+
+  - action: paused-replicas
+    inputPath: testdata/scaledobject.yaml
+    expectedErrorMessage: "invalid number: not_a_number (must be >= 0)"
+    parameters:
+      replicas: "not_a_number"
+
+  - action: resume
+    inputPath: testdata/scaledobject-paused-replicas.yaml
+    expectedOutputPath: testdata/scaledobject-resume.yaml
+

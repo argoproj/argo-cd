@@ -1,6 +1,6 @@
 import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi} from 'react-form';
+import {Form, FormApi} from 'argo-ui';
 import {ARGO_WARNING_COLOR, ProgressPopup, Spinner} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -146,7 +146,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
 
                                 <ApplicationRetryOptions id='applications-sync-panel' formApi={formApi} />
 
-                                <ApplicationSelector apps={apps} formApi={formApi} />
+                                {show && <ApplicationSelector apps={apps} formApi={formApi} />}
                             </div>
                         )}
                     </Form>

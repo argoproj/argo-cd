@@ -5,14 +5,17 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/codecommit"
-	"github.com/aws/aws-sdk-go/service/resourcegroupstaggingapi"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/codecommit"
+	codecommittypes "github.com/aws/aws-sdk-go-v2/service/codecommit/types"
+	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
+	rgsatypes "github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/aws_codecommit/mocks"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -34,7 +37,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 		repositories           []*awsCodeCommitTestRepository
 		cloneProtocol          string
 		tagFilters             []*v1alpha1.TagFilter
-		expectTagFilters       []*resourcegroupstaggingapi.TagFilter
+		expectTagFilters       []rgsatypes.TagFilter
 		listRepositoryError    error
 		expectOverallError     bool
 		expectListAtCodeCommit bool
@@ -57,8 +60,8 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 				{Key: "key1", Value: "value2"},
 				{Key: "key2"},
 			},
-			expectTagFilters: []*resourcegroupstaggingapi.TagFilter{
-				{Key: aws.String("key1"), Values: aws.StringSlice([]string{"value1", "value2"})},
+			expectTagFilters: []rgsatypes.TagFilter{
+				{Key: aws.String("key1"), Values: []string{"value1", "value2"}},
 				{Key: aws.String("key2")},
 			},
 			expectOverallError:     false,
@@ -80,7 +83,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 			tagFilters: []*v1alpha1.TagFilter{
 				{Key: "key1"},
 			},
-			expectTagFilters: []*resourcegroupstaggingapi.TagFilter{
+			expectTagFilters: []rgsatypes.TagFilter{
 				{Key: aws.String("key1")},
 			},
 			expectOverallError:     false,
@@ -160,12 +163,12 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := t.Context()
-			codecommitRepoNameIdPairs := make([]*codecommit.RepositoryNameIdPair, 0)
-			resourceTaggings := make([]*resourcegroupstaggingapi.ResourceTagMapping, 0)
+			codecommitRepoNameIdPairs := make([]codecommittypes.RepositoryNameIdPair, 0)
+			resourceTaggings := make([]rgsatypes.ResourceTagMapping, 0)
 			validRepositories := make([]*awsCodeCommitTestRepository, 0)
 
 			for _, repo := range testCase.repositories {
-				repoMetadata := &codecommit.RepositoryMetadata{
+				repoMetadata := &codecommittypes.RepositoryMetadata{
 					AccountId:      aws.String(repo.accountId),
 					Arn:            aws.String(repo.arn),
 					CloneUrlHttp:   aws.String("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/" + repo.name),
@@ -177,14 +180,13 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 				if repo.getRepositoryNilMetadata {
 					repoMetadata = nil
 				}
-				codeCommitClient.
-					On("GetRepositoryWithContext", ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(repo.name)}).
-					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: repoMetadata}, repo.getRepositoryError)
-				codecommitRepoNameIdPairs = append(codecommitRepoNameIdPairs, &codecommit.RepositoryNameIdPair{
+				codeCommitClient.EXPECT().GetRepository(mock.Anything, &codecommit.GetRepositoryInput{RepositoryName: aws.String(repo.name)}).
+					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: repoMetadata}, repo.getRepositoryError).Maybe()
+				codecommitRepoNameIdPairs = append(codecommitRepoNameIdPairs, codecommittypes.RepositoryNameIdPair{
 					RepositoryId:   aws.String(repo.id),
 					RepositoryName: aws.String(repo.name),
 				})
-				resourceTaggings = append(resourceTaggings, &resourcegroupstaggingapi.ResourceTagMapping{
+				resourceTaggings = append(resourceTaggings, rgsatypes.ResourceTagMapping{
 					ResourceARN: aws.String(repo.arn),
 				})
 				if repo.valid {
@@ -193,20 +195,18 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 			}
 
 			if testCase.expectListAtCodeCommit {
-				codeCommitClient.
-					On("ListRepositoriesWithContext", ctx, &codecommit.ListRepositoriesInput{}).
+				codeCommitClient.EXPECT().ListRepositories(mock.Anything, &codecommit.ListRepositoriesInput{}).
 					Return(&codecommit.ListRepositoriesOutput{
 						Repositories: codecommitRepoNameIdPairs,
-					}, testCase.listRepositoryError)
+					}, testCase.listRepositoryError).Maybe()
 			} else {
-				taggingClient.
-					On("GetResourcesWithContext", ctx, mock.MatchedBy(equalIgnoringTagFilterOrder(&resourcegroupstaggingapi.GetResourcesInput{
-						TagFilters:          testCase.expectTagFilters,
-						ResourceTypeFilters: aws.StringSlice([]string{resourceTypeCodeCommitRepository}),
-					}))).
+				taggingClient.EXPECT().GetResources(mock.Anything, mock.MatchedBy(equalIgnoringTagFilterOrder(&resourcegroupstaggingapi.GetResourcesInput{
+					TagFilters:          testCase.expectTagFilters,
+					ResourceTypeFilters: []string{resourceTypeCodeCommitRepository},
+				}))).
 					Return(&resourcegroupstaggingapi.GetResourcesOutput{
 						ResourceTagMappingList: resourceTaggings,
-					}, testCase.listRepositoryError)
+					}, testCase.listRepositoryError).Maybe()
 			}
 
 			provider := &AWSCodeCommitProvider{
@@ -252,7 +252,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 			path:                  "lib/config.yaml",
 			expectedGetFolderPath: "/lib",
 			getFolderOutput: &codecommit.GetFolderOutput{
-				Files: []*codecommit.File{
+				Files: []codecommittypes.File{
 					{RelativePath: aws.String("config.yaml")},
 				},
 			},
@@ -264,7 +264,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 			path:                  "lib/config",
 			expectedGetFolderPath: "/lib",
 			getFolderOutput: &codecommit.GetFolderOutput{
-				SubFolders: []*codecommit.Folder{
+				SubFolders: []codecommittypes.Folder{
 					{RelativePath: aws.String("config")},
 				},
 			},
@@ -276,7 +276,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 			path:                  "/lib/submodule/",
 			expectedGetFolderPath: "/lib",
 			getFolderOutput: &codecommit.GetFolderOutput{
-				SubModules: []*codecommit.SubModule{
+				SubModules: []codecommittypes.SubModule{
 					{RelativePath: aws.String("submodule")},
 				},
 			},
@@ -288,7 +288,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 			path:                  "./lib/service.json",
 			expectedGetFolderPath: "/lib",
 			getFolderOutput: &codecommit.GetFolderOutput{
-				SymbolicLinks: []*codecommit.SymbolicLink{
+				SymbolicLinks: []codecommittypes.SymbolicLink{
 					{RelativePath: aws.String("service.json")},
 				},
 			},
@@ -300,16 +300,16 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 			path:                  "no-match.json",
 			expectedGetFolderPath: "/",
 			getFolderOutput: &codecommit.GetFolderOutput{
-				Files: []*codecommit.File{
+				Files: []codecommittypes.File{
 					{RelativePath: aws.String("config.yaml")},
 				},
-				SubFolders: []*codecommit.Folder{
+				SubFolders: []codecommittypes.Folder{
 					{RelativePath: aws.String("config")},
 				},
-				SubModules: []*codecommit.SubModule{
+				SubModules: []codecommittypes.SubModule{
 					{RelativePath: aws.String("submodule")},
 				},
-				SymbolicLinks: []*codecommit.SymbolicLink{
+				SymbolicLinks: []codecommittypes.SymbolicLink{
 					{RelativePath: aws.String("service.json")},
 				},
 			},
@@ -320,7 +320,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 			name:                  "RepoHasPath when parent folder not found",
 			path:                  "lib/submodule",
 			expectedGetFolderPath: "/lib",
-			getFolderError:        &codecommit.FolderDoesNotExistException{},
+			getFolderError:        &codecommittypes.FolderDoesNotExistException{},
 			expectOverallError:    false,
 		},
 		{
@@ -350,13 +350,12 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := t.Context()
 			if testCase.expectedGetFolderPath != "" {
-				codeCommitClient.
-					On("GetFolderWithContext", ctx, &codecommit.GetFolderInput{
-						CommitSpecifier: aws.String(branch),
-						FolderPath:      aws.String(testCase.expectedGetFolderPath),
-						RepositoryName:  aws.String(repoName),
-					}).
-					Return(testCase.getFolderOutput, testCase.getFolderError)
+				codeCommitClient.EXPECT().GetFolder(mock.Anything, &codecommit.GetFolderInput{
+					CommitSpecifier: aws.String(branch),
+					FolderPath:      aws.String(testCase.expectedGetFolderPath),
+					RepositoryName:  aws.String(repoName),
+				}).
+					Return(testCase.getFolderOutput, testCase.getFolderError).Maybe()
 			}
 			provider := &AWSCodeCommitProvider{
 				codeCommitClient: codeCommitClient,
@@ -423,18 +422,18 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := t.Context()
 			if testCase.allBranches {
-				codeCommitClient.
-					On("ListBranchesWithContext", ctx, &codecommit.ListBranchesInput{
-						RepositoryName: aws.String(name),
-					}).
-					Return(&codecommit.ListBranchesOutput{Branches: aws.StringSlice(testCase.branches)}, testCase.apiError)
+				branches := make([]string, len(testCase.branches))
+				copy(branches, testCase.branches)
+				codeCommitClient.EXPECT().ListBranches(mock.Anything, &codecommit.ListBranchesInput{
+					RepositoryName: aws.String(name),
+				}).
+					Return(&codecommit.ListBranchesOutput{Branches: branches}, testCase.apiError).Maybe()
 			} else {
-				codeCommitClient.
-					On("GetRepositoryWithContext", ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(name)}).
-					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: &codecommit.RepositoryMetadata{
+				codeCommitClient.EXPECT().GetRepository(mock.Anything, &codecommit.GetRepositoryInput{RepositoryName: aws.String(name)}).
+					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: &codecommittypes.RepositoryMetadata{
 						AccountId:     aws.String(organization),
 						DefaultBranch: aws.String(defaultBranch),
-					}}, testCase.apiError)
+					}}, testCase.apiError).Maybe()
 			}
 			provider := &AWSCodeCommitProvider{
 				codeCommitClient: codeCommitClient,
@@ -476,8 +475,22 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 func equalIgnoringTagFilterOrder(expected *resourcegroupstaggingapi.GetResourcesInput) func(*resourcegroupstaggingapi.GetResourcesInput) bool {
 	return func(actual *resourcegroupstaggingapi.GetResourcesInput) bool {
 		sort.Slice(actual.TagFilters, func(i, j int) bool {
-			return *actual.TagFilters[i].Key < *actual.TagFilters[j].Key
+			keyI := ""
+			keyJ := ""
+			if actual.TagFilters[i].Key != nil {
+				keyI = *actual.TagFilters[i].Key
+			}
+			if actual.TagFilters[j].Key != nil {
+				keyJ = *actual.TagFilters[j].Key
+			}
+			return keyI < keyJ
 		})
-		return cmp.Equal(expected, actual)
+		// Ignore unexported fields in AWS SDK v2 types
+		return cmp.Equal(expected, actual,
+			cmpopts.IgnoreUnexported(
+				rgsatypes.TagFilter{},
+				resourcegroupstaggingapi.GetResourcesInput{},
+			),
+		)
 	}
 }

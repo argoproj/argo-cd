@@ -58,7 +58,7 @@ $ argocd admin initial-password reset
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd admin app](argocd_admin_app.md)	 - Manage applications configuration
 * [argocd admin cluster](argocd_admin_cluster.md)	 - Manage clusters configuration
 * [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally

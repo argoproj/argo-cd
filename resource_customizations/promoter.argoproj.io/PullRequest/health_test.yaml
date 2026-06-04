@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: Pull request is being deleted
+    message: 'Pull request is being deleted. pullrequest.promoter.argoproj.io/finalizer: Waiting for SCM closure or reconciliation of the pull request. Risk if removed manually: the real PR can stay open after the CR is gone. changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer: Waiting for the ChangeTransferPolicy to observe PR identity and state. Risk if removed manually: promotion status or history can be wrong or racy.'
   inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Progressing
@@ -14,7 +14,11 @@ tests:
 - healthStatus:
     status: Degraded
     message: "Pull request reconciliation failed: Something went wrong"
-  inputPath: testdata/reconcile-error.yaml
+  inputPath: testdata/reconciliation-error.yaml
+- healthStatus:
+    status: Degraded
+    message: "Pull request reconciliation failed: Failed to create pull request: authentication failed"
+  inputPath: testdata/non-reconciliation-error.yaml
 - healthStatus:
     status: Progressing
     message: Pull request is not ready yet

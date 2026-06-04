@@ -48,6 +48,10 @@ type Dependencies interface {
 	// GetProcessableApps returns a list of applications that are processable by the controller.
 	GetProcessableApps() (*appv1.ApplicationList, error)
 
+	// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
+	// The returned string is the resolved revision for the given source.
+	EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, string, error)
+
 	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
 	// server and gets the manifests (objects).
 	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
@@ -60,8 +64,8 @@ type Dependencies interface {
 	// trigger a refresh after the application has been hydrated and a new commit has been pushed.
 	RequestAppRefresh(appName string, appNamespace string) error
 
-	// PersistAppHydratorStatus persists the application status for the source hydrator.
-	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
+	// PersistHydrationStatus persists the application status for the source hydrator.
+	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
 	// a group of applications which are hydrating to the same repo and target branch.
@@ -72,6 +76,12 @@ type Dependencies interface {
 
 	// GetHydratorReadmeMessageTemplate gets the configured template for rendering README messages.
 	GetHydratorReadmeMessageTemplate() (string, error)
+
+	// GetCommitAuthorName gets the configured commit author name from argocd-cm ConfigMap.
+	GetCommitAuthorName() (string, error)
+
+	// GetCommitAuthorEmail gets the configured commit author email from argocd-cm ConfigMap.
+	GetCommitAuthorEmail() (string, error)
 }
 
 // Hydrator is the main struct that implements the hydration logic. It uses the Dependencies interface to access the
@@ -112,7 +122,13 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
-	needsHydration, reason := appNeedsHydration(app)
+	needsHydration, reason, resolvedDryRevision := h.appNeedsHydration(app)
+	if resolvedDryRevision != "" && resolvedDryRevision != app.Status.SourceHydrator.LastComparedDryRevision {
+		// Update the last compared dry revision to the resolved revision
+		// If the app is currently hydrating, we should not have a resolvedDryRevision
+		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
+		logCtx.WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
+	}
 	if needsHydration {
 		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
 			StartedAt:      metav1.Now(),
@@ -120,8 +136,10 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 			Phase:          appv1.HydrateOperationPhaseHydrating,
 			SourceHydrator: *app.Spec.SourceHydrator,
 		}
-		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 	}
+
+	// Always persist to consume the hydrate annotation, even if hydration is not needed.
+	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 
 	needsRefresh := app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
 	if needsHydration || needsRefresh {
@@ -135,10 +153,12 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 }
 
 func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
+	hydrateToSource := app.Spec.GetHydrateToSource()
 	key := types.HydrationQueueKey{
 		SourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
 		SourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-		DestinationBranch:    app.Spec.GetHydrateToSource().TargetRevision,
+		DestinationRepoURL:   git.NormalizeGitURLAllowInvalid(hydrateToSource.RepoURL),
+		DestinationBranch:    hydrateToSource.TargetRevision,
 	}
 	return key
 }
@@ -151,6 +171,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
 		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
+		"destinationRepoURL":   hydrationKey.DestinationRepoURL,
 		"destinationBranch":    hydrationKey.DestinationBranch,
 	})
 
@@ -218,6 +239,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			if drySHA != "" {
 				// If we have a drySHA, we can set it on the app status
 				app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
+				app.Status.SourceHydrator.LastComparedDryRevision = drySHA
 			}
 			if err, ok := appErrors[app.QualifiedName()]; ok {
 				logCtx = logCtx.WithFields(applog.GetAppLogFields(app))
@@ -244,12 +266,13 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
 		app.Status.SourceHydrator.CurrentOperation = operation
+		app.Status.SourceHydrator.LastComparedDryRevision = drySHA
 		app.Status.SourceHydrator.LastSuccessfulOperation = &appv1.SuccessfulHydrateOperation{
 			DrySHA:         drySHA,
 			HydratedSHA:    hydratedSHA,
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
-		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 
 		// Request a refresh since we pushed a new commit.
 		err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
@@ -271,7 +294,7 @@ func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	failedAt := metav1.Now()
 	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &failedAt
 	app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrate: %v", err.Error())
-	h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 }
 
 // getAppsForHydrationKey returns the applications matching the hydration key.
@@ -300,7 +323,11 @@ func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) 
 func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*appv1.AppProject, map[string]error) {
 	projects := make(map[string]*appv1.AppProject)
 	errors := make(map[string]error)
-	uniquePaths := make(map[string]string, len(apps))
+	type hydrationDestKey struct {
+		repoURL string
+		path    string
+	}
+	uniquePaths := make(map[hydrationDestKey]string, len(apps))
 
 	for _, app := range apps {
 		// Get the project for the app and validate if the app is allowed to use the source.
@@ -311,9 +338,9 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 			errors[app.QualifiedName()] = fmt.Errorf("failed to get project %q: %w", app.Spec.Project, err)
 			continue
 		}
-		permitted := proj.IsSourcePermitted(app.Spec.GetSource())
-		if !permitted {
-			errors[app.QualifiedName()] = fmt.Errorf("application repo %s is not permitted in project '%s'", app.Spec.GetSource().RepoURL, proj.Name)
+		drySource := app.Spec.SourceHydrator.GetDrySource()
+		if !proj.IsSourcePermitted(drySource) {
+			errors[app.QualifiedName()] = fmt.Errorf("application repo %s is not permitted in project '%s'", drySource.RepoURL, proj.Name)
 			continue
 		}
 		projects[app.Spec.Project] = proj
@@ -322,20 +349,27 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		// Hydrating to root would overwrite or delete files at the top level of the repo,
 		// which can break other applications or shared configuration.
 		// Every hydrated app must write into a subdirectory instead.
-		destPath := app.Spec.SourceHydrator.SyncSource.Path
+		hydrateToSource := app.Spec.GetHydrateToSource()
+		destPath := hydrateToSource.Path
 		if IsRootPath(destPath) {
-			errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", app.Spec.GetHydrateToSource().TargetRevision, destPath)
+			errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", hydrateToSource.TargetRevision, destPath)
+			continue
+		}
+
+		if !proj.IsSourcePermitted(hydrateToSource) {
+			errors[app.QualifiedName()] = fmt.Errorf("destination repo %s is not permitted in project '%s'", hydrateToSource.RepoURL, proj.Name)
 			continue
 		}
 
 		// TODO: test the dupe detection
 		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
-		if appName, ok := uniquePaths[destPath]; ok {
-			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator use the same destination: %v", appName, app.Spec.SourceHydrator.SyncSource.Path)
-			errors[appName] = fmt.Errorf("app %s hydrator use the same destination: %v", app.QualifiedName(), app.Spec.SourceHydrator.SyncSource.Path)
+		destKey := hydrationDestKey{repoURL: hydrateToSource.RepoURL, path: destPath}
+		if appName, ok := uniquePaths[destKey]; ok {
+			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", appName, destKey.repoURL, destKey.path)
+			errors[appName] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", app.QualifiedName(), destKey.repoURL, destKey.path)
 			continue
 		}
-		uniquePaths[destPath] = app.QualifiedName()
+		uniquePaths[destKey] = app.QualifiedName()
 	}
 
 	// If there are any errors, return nil for projects to avoid possible partial processing.
@@ -353,7 +387,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	}
 
 	// These values are the same for all apps being hydrated together, so just get them from the first app.
-	repoURL := apps[0].Spec.GetHydrateToSource().RepoURL
+	destinationRepoURL := apps[0].Spec.GetHydrateToSource().RepoURL
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
 	// FIXME: As a convenience, the commit server will create the syncBranch if it does not exist. If the
 	// targetBranch does not exist, it will create it based on the syncBranch. On the next line, we take
@@ -361,6 +395,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	// app has a different syncBranch, we should send the commit server an empty string and allow it to
 	// create the targetBranch as an orphan since we can't reliable determine a reasonable base.
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
+	drySourceRepoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
 
 	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
 	targetRevision, pathDetails, err := h.getManifests(context.Background(), apps[0], "", projects[apps[0].Spec.Project])
@@ -369,12 +404,18 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		return "", "", errors, nil
 	}
 	paths := []*commitclient.PathDetails{pathDetails}
+	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
+	// De-dupe, if the drySha was already hydrated log a debug and return using the data from the last successful hydration run.
+	// We only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
+	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil && targetRevision == apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
+		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
+		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+	}
 
 	eg, ctx := errgroup.WithContext(context.Background())
 	var mu sync.Mutex
 
 	for _, app := range apps[1:] {
-		app := app
 		eg.Go(func() error {
 			_, pathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
 			mu.Lock()
@@ -402,19 +443,19 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	}
 
 	// Get the commit metadata for the target revision.
-	revisionMetadata, err := h.getRevisionMetadata(context.Background(), repoURL, project, targetRevision)
+	revisionMetadata, err := h.getRevisionMetadata(context.Background(), drySourceRepoURL, project, targetRevision)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get revision metadata for %q: %w", targetRevision, err)
 	}
 
-	repo, err := h.dependencies.GetWriteCredentials(context.Background(), repoURL, project)
+	repo, err := h.dependencies.GetWriteCredentials(context.Background(), destinationRepoURL, project)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator credentials: %w", err)
 	}
 	if repo == nil {
 		// Try without credentials.
 		repo = &appv1.Repository{
-			Repo: repoURL,
+			Repo: destinationRepoURL,
 		}
 		logCtx.Warn("no credentials found for repo, continuing without credentials")
 	}
@@ -423,7 +464,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated commit message template: %w", err)
 	}
-	commitMessage, errMsg := getTemplatedCommitMessage(repoURL, targetRevision, commitMessageTemplate, revisionMetadata)
+	commitMessage, errMsg := getTemplatedCommitMessage(drySourceRepoURL, targetRevision, commitMessageTemplate, revisionMetadata)
 	if errMsg != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}
@@ -431,7 +472,17 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	// get the readme message template
 	readmeTemplate, err := h.dependencies.GetHydratorReadmeMessageTemplate()
 	if err != nil {
-		return "", "", errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
+		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
+	}
+
+	// get commit author configuration from argocd-cm
+	authorName, err := h.dependencies.GetCommitAuthorName()
+	if err != nil {
+		return targetRevision, "", errors, fmt.Errorf("failed to get commit author name: %w", err)
+	}
+	authorEmail, err := h.dependencies.GetCommitAuthorEmail()
+	if err != nil {
+		return targetRevision, "", errors, fmt.Errorf("failed to get commit author email: %w", err)
 	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
@@ -443,6 +494,8 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
 		ReadmeMessage:     readmeTemplate,
+		AuthorName:        authorName,
+		AuthorEmail:       authorEmail,
 	}
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()
@@ -462,13 +515,9 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 //
 // If the given target revision is empty, it uses the target revision from the app dry source spec.
 func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
-	drySource := appv1.ApplicationSource{
-		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-		Path:           app.Spec.SourceHydrator.DrySource.Path,
-		TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-	}
+	drySource := app.Spec.SourceHydrator.GetDrySource()
 	if targetRevision == "" {
-		targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
+		targetRevision = drySource.TargetRevision
 	}
 
 	// TODO: enable signature verification
@@ -516,24 +565,76 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 	return resp, nil
 }
 
-// appNeedsHydration answers if application needs manifests hydrated.
-func appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string) {
-	switch {
-	case app.Spec.SourceHydrator == nil:
-		return false, "source hydrator not configured"
-	case app.Status.SourceHydrator.CurrentOperation == nil:
-		return true, "no previous hydrate operation"
-	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
-		return false, "hydration operation already in progress"
-	case app.IsHydrateRequested():
-		return true, "hydrate requested"
-	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
-		return true, "spec.sourceHydrator differs"
-	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
-		return true, "previous hydrate operation failed more than 2 minutes ago"
+// newRevisionHasChanges checks if the dry source has a new revision that differs from the last compared dry revision.
+// Returns true if the new revision may contain changes that would affect the hydrated manifests, the resolved
+// revision from evaluation (empty if evaluation was skipped), and any error encountered.
+func (h *Hydrator) newRevisionHasChanges(app *appv1.Application, noRevisionCache bool) (bool, string, error) {
+	if app.Status.SourceHydrator.LastComparedDryRevision == "" {
+		log.WithFields(applog.GetAppLogFields(app)).Debug("No LastComparedDryRevision, hydration needed")
+		return true, "", nil
 	}
 
-	return false, "hydration not needed"
+	project, err := h.dependencies.GetProcessableAppProj(app)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get project for revision check: %w", err)
+	}
+
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	hasChanges, resolvedRev, err := h.dependencies.EvaluateAppRevisionsChanges(context.Background(), app, drySource, drySource.TargetRevision, project, noRevisionCache)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to evaluate app revisions changes: %w", err)
+	}
+
+	return hasChanges, resolvedRev, nil
+}
+
+// appNeedsHydration answers if application needs manifests hydrated. The third return value is the resolved dry
+// source revision from revision evaluation (empty if evaluation was skipped or failed).
+func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string, resolvedDryRevision string) {
+	requested, hydrateType := app.IsHydrateRequested()
+	noRevisionCache := requested
+
+	switch {
+	case app.Spec.SourceHydrator == nil:
+		return false, "source hydrator not configured", ""
+	case app.Status.SourceHydrator.CurrentOperation == nil:
+		return true, "no previous hydrate operation", ""
+	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
+		return false, "hydration operation already in progress", ""
+	case requested && hydrateType == appv1.HydrateTypeHard:
+		return true, "hard hydrate requested", ""
+	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
+		return true, "spec.sourceHydrator differs", ""
+	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed:
+		finishedAt := app.Status.SourceHydrator.CurrentOperation.FinishedAt
+		withinCooldown := finishedAt == nil || metav1.Now().Sub(finishedAt.Time) <= 2*time.Minute
+		switch {
+		case requested:
+			// Manual/API refresh or dry-source webhook explicitly asks to hydrate;
+			// retry now (hard requests are handled by the earlier case).
+			return true, "retrying previous failed hydration", ""
+		case !withinCooldown:
+			return true, "previous hydrate operation failed more than 2 minutes ago", ""
+		case app.Status.SourceHydrator.LastComparedDryRevision == "":
+			// No baseline to diff against; revision evaluation would always report
+			// "needs hydration", causing a tight retry loop. Wait out the cooldown.
+			return false, "previous hydrate operation failed", ""
+		}
+		// Within cooldown with a baseline: fall through to newRevisionHasChanges so a
+		// new dry commit retries immediately while an unchanged revision stays idle.
+	}
+
+	// Check for new revision changes
+	hasChanges, resolvedRev, err := h.newRevisionHasChanges(app, noRevisionCache)
+	if err != nil {
+		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to check for new revision changes")
+		return false, "cannot determine if hydration is needed", resolvedRev
+	}
+	if hasChanges {
+		return true, "new revision may have changes", resolvedRev
+	}
+
+	return false, "hydration not needed", resolvedRev
 }
 
 // getTemplatedCommitMessage gets the multi-line commit message based on the template defined in the configmap. It is a two step process:

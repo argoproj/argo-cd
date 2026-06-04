@@ -37,7 +37,9 @@ argocd app get-resource APPNAME [flags]
 ### Options
 
 ```
+  -N, --app-namespace string    Namespace of the application
       --filter-fields strings   A comma separated list of fields to display, if not provided will output the entire manifest
+      --group string            Group
   -h, --help                    help for get-resource
       --kind string             Kind of resource [REQUIRED]
   -o, --output string           Format of the output, wide, yaml, or json (default "wide")

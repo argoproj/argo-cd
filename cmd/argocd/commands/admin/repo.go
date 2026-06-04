@@ -77,6 +77,15 @@ func NewGenRepoSpecCommand() *cobra.Command {
   
   # Add a private HTTP OCI repository named 'stable'
   argocd admin repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
+
+  # Add a private Git repository on GitHub.com via GitHub App. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
+  argocd admin repo generate-spec https://git.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
+
+  # Add a private Git repository on GitHub Enterprise via GitHub App. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
+  argocd admin repo generate-spec https://ghe.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
+
+  # Add a private Git repository on Google Cloud Sources via GCP service account credentials
+  argocd admin repo generate-spec https://source.developers.google.com/p/my-google-cloud-project/r/my-repo --gcp-service-account-key-path service-account-key.json
 `
 
 	command := &cobra.Command{
@@ -140,6 +149,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
 			repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
+			repoOpts.Repo.WebhookManifestCacheWarmDisabled = repoOpts.WebhookManifestCacheWarmDisabled
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.CheckError(stderrors.New("must specify --name for repos of type 'helm'"))
