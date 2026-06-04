@@ -11,6 +11,7 @@ import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedBy
 import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
+import {CellLink} from './cell-link';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 
@@ -24,30 +25,6 @@ export interface ApplicationTableRowProps {
     deleteApplication: (appName: string, appNamespace: string) => void;
 }
 
-// Wraps a cell's content in an <a> so middle-click / right-click / status-bar URL preview
-// work on the cell itself. tabIndex={-1} keeps it out of the keyboard tab order — the
-// row's overlay anchor is the single tab stop carrying the row's link semantics. The
-// cell content remains in the a11y tree so screen readers can still read Source / Labels
-// / Destination; the trade-off is that SR link lists will show one entry per CellLink
-// (same href as the overlay), which is the accepted cost for preserving mouse affordances
-// on cell content. Defined at module scope so children like <Cluster> don't remount on
-// each parent re-render.
-const CellLink = ({
-    href,
-    onClick,
-    className,
-    children
-}: {
-    href: string;
-    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
-    className?: string;
-    children: React.ReactNode;
-}) => (
-    <a className={`applications-list__table-row__cell-link${className ? ` ${className}` : ''}`} href={href} onClick={onClick} tabIndex={-1}>
-        {children}
-    </a>
-);
-
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
@@ -57,17 +34,8 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
     const managedByURL = getManagedByURL(app);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
-    const appPath = `/${AppUtils.getAppUrl(app)}`;
     const view = pref.appDetails.view;
-    const appHref = `${ctx.baseHref}${AppUtils.getAppUrl(app)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
-
-    const handleRowClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey) {
-            return;
-        }
-        e.preventDefault();
-        ctx.navigation.goto(appPath, {view}, {event: e});
-    };
+    const appLink = AppUtils.getAppListLink(ctx, app, view);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -96,7 +64,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(appPath, {view});
+            ctx.navigation.goto(appLink.path, {view});
         }
     };
 
@@ -109,8 +77,8 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     visible buttons, dropdowns, status icons, etc. still receive their own clicks. */}
                 <a
                     className='applications-list__table-row__overlay-link'
-                    href={appHref}
-                    onClick={handleRowClick}
+                    href={appLink.href}
+                    onClick={appLink.onClick}
                     aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
                 />
                 {/* First column: Favorite, URLs, Project, Name */}
@@ -154,7 +122,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                         </Moment>
                                     </>
                                 }>
-                                <a className='applications-list__table-row-name' href={appHref} onClick={handleRowClick}>
+                                <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
                                     {app.metadata.name}
                                 </a>
                             </Tooltip>
@@ -177,10 +145,10 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     <div className='row'>
                         <div className='show-for-xxlarge columns small-2'>Source:</div>
                         <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
-                            <CellLink href={appHref} onClick={handleRowClick} className='applications-table-source__link'>
+                            <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>
                                 <ApplicationsSource source={source} />
                             </CellLink>
-                            <CellLink href={appHref} onClick={handleRowClick} className='applications-table-source__labels'>
+                            <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__labels'>
                                 <ApplicationsLabels app={app} />
                             </CellLink>
                         </div>
@@ -188,7 +156,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     <div className='row'>
                         <div className='show-for-xxlarge columns small-2'>Destination:</div>
                         <div className='columns small-12 xxlarge-10'>
-                            <CellLink href={appHref} onClick={handleRowClick}>
+                            <CellLink href={appLink.href} onClick={appLink.onClick}>
                                 <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
                             </CellLink>
                         </div>
@@ -197,15 +165,20 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
 
                 {/* Third column: Status and Actions */}
                 <div className='columns small-2'>
-                    <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                    {app.status.sourceHydrator?.currentOperation && (
-                        <>
-                            <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
-                            <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
-                        </>
-                    )}
-                    <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                    <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                    {/* Status text/icons wrapped in CellLink so clicking the cell navigates (the icons
+                        carry a `title` and would otherwise sit above the overlay as click dead-zones).
+                        The `…` DropDownMenu below stays OUTSIDE — a <button> nested in an <a> is invalid. */}
+                    <CellLink href={appLink.href} onClick={appLink.onClick}>
+                        <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                        {app.status.sourceHydrator?.currentOperation && (
+                            <>
+                                <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                            </>
+                        )}
+                        <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
+                        <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                    </CellLink>
                     <DropDownMenu
                         anchor={() => (
                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

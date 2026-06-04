@@ -35,19 +35,8 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
     const managedByURL = getManagedByURL(app);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
-    const appPath = `/${AppUtils.getAppUrl(app)}`;
     const view = pref.appDetails.view;
-    const appHref = `${ctx.baseHref}${AppUtils.getAppUrl(app)}${view ? `?view=${encodeURIComponent(view)}` : ''}`;
-
-    const handleTileClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        // Let the browser handle modifier-clicks natively so users get "open in new tab",
-        // right-click menu, status-bar URL preview, etc. (Middle-click bypasses onClick.)
-        if (e.metaKey || e.ctrlKey || e.shiftKey) {
-            return;
-        }
-        e.preventDefault();
-        ctx.navigation.goto(appPath, {view}, {event: e});
-    };
+    const appLink = AppUtils.getAppListLink(ctx, app, view);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -76,7 +65,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(appPath, {view});
+            ctx.navigation.goto(appLink.path, {view});
         }
     };
 
@@ -86,8 +75,8 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <a
                 className='row applications-tiles__wrapper'
-                href={appHref}
-                onClick={handleTileClick}
+                href={appLink.href}
+                onClick={appLink.onClick}
                 draggable={false}
                 aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)} applications-tiles__item`}>

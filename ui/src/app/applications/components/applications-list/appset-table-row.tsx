@@ -8,6 +8,7 @@ import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_B
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 import {isValidManagedByURL} from '../../../shared/utils';
+import {CellLink} from './cell-link';
 
 export interface AppSetTableRowProps {
     appSet: models.ApplicationSet;
@@ -24,18 +25,8 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
     const managedByURL = getManagedByURL(appSet);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
-    // `pref.appDetails.view` is the Application details view ('tree'|'network'|'list'|'pods'),
-    // which AppSet pages don't support — so the AppSet URL is intentionally view-less.
-    const appSetPath = `/${AppUtils.getAppUrl(appSet)}`;
-    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}`;
-
-    const handleRowClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey) {
-            return;
-        }
-        e.preventDefault();
-        ctx.navigation.goto(appSetPath, {}, {event: e});
-    };
+    // AppSet pages don't support the Application details `view` param, so the link is view-less.
+    const appSetLink = AppUtils.getAppListLink(ctx, appSet);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -64,7 +55,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(appSetPath);
+            ctx.navigation.goto(appSetLink.path);
         }
     };
 
@@ -77,8 +68,8 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                     visible buttons and dropdowns still receive their own clicks. */}
                 <a
                     className='applications-list__table-row__overlay-link'
-                    href={appSetHref}
-                    onClick={handleRowClick}
+                    href={appSetLink.href}
+                    onClick={appSetLink.onClick}
                     aria-label={AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
                 />
                 {/* First column: Favorite, Kind, Name */}
@@ -117,7 +108,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                         </Moment>
                                     </>
                                 }>
-                                <a className='applications-list__table-row-name' href={appSetHref} onClick={handleRowClick}>
+                                <a className='applications-list__table-row-name' href={appSetLink.href} onClick={appSetLink.onClick} tabIndex={-1}>
                                     {appSet.metadata.name}
                                 </a>
                             </Tooltip>
@@ -133,9 +124,13 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                     </div>
                 </div>
 
-                {/* Status column (takes remaining space since no Source/Destination for AppSets) */}
+                {/* Status column (takes remaining space since no Source/Destination for AppSets) —
+                    wrapped in CellLink so the status icon (which carries a `title` and is lifted
+                    above the overlay) navigates on click instead of being a dead zone. */}
                 <div className='columns small-8'>
-                    <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> <span>{healthStatus}</span>
+                    <CellLink href={appSetLink.href} onClick={appSetLink.onClick}>
+                        <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> <span>{healthStatus}</span>
+                    </CellLink>
                 </div>
             </div>
         </div>

@@ -26,18 +26,8 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
     const managedByURL = getManagedByURL(appSet);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
-    // `pref.appDetails.view` is the Application details view ('tree'|'network'|'list'|'pods'),
-    // which AppSet pages don't support — so the AppSet URL is intentionally view-less.
-    const appSetPath = `/${AppUtils.getAppUrl(appSet)}`;
-    const appSetHref = `${ctx.baseHref}${AppUtils.getAppUrl(appSet)}`;
-
-    const handleTileClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey) {
-            return;
-        }
-        e.preventDefault();
-        ctx.navigation.goto(appSetPath, {}, {event: e});
-    };
+    // AppSet pages don't support the Application details `view` param, so the link is view-less.
+    const appSetLink = AppUtils.getAppListLink(ctx, appSet);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -66,7 +56,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(appSetPath);
+            ctx.navigation.goto(appSetLink.path);
         }
     };
 
@@ -76,8 +66,8 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <a
                 className='row applications-tiles__wrapper'
-                href={appSetHref}
-                onClick={handleTileClick}
+                href={appSetLink.href}
+                onClick={appSetLink.onClick}
                 draggable={false}
                 aria-label={AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(appSet)} applications-tiles__item`}>

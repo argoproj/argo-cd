@@ -23,7 +23,11 @@
     }
 
     .applications-list__table-row {
-        position: relative;
+        // No `position: relative` here on purpose: the overlay link anchors to the already-positioned
+        // outer `.argo-table-list__row` (argo-ui sets it `position: relative`). Making this inner
+        // Foundation `.row` a containing block would re-parent the absolutely-positioned third-column
+        // `.argo-dropdown` (which uses `right:0; top:50%`) onto the narrower max-width row, shifting
+        // the `…` action menu away from where the shared rule places it.
 
         // Lift interactive and tooltip-bearing descendants above the overlay link so they
         // receive their own clicks and so native `title` / Tippy hover fires on them. The
