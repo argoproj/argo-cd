@@ -17,12 +17,9 @@ interface FlexTopBarProps {
 
 export const FlexTopBar = (props: FlexTopBarProps) => {
     return (
-        <React.Fragment>
-            <div className='top-bar row flex-top-bar' key='tool-bar'>
-                <DataLoader load={() => Promise.resolve(props.toolbar)}>{(toolbar: ToolbarWithOptions) => <FlexTopBarContent toolbar={toolbar} />}</DataLoader>
-            </div>
-            <div className='flex-top-bar__padder' />
-        </React.Fragment>
+        <div className='top-bar row flex-top-bar' key='tool-bar'>
+            <DataLoader load={() => Promise.resolve(props.toolbar)}>{(toolbar: ToolbarWithOptions) => <FlexTopBarContent toolbar={toolbar} />}</DataLoader>
+        </div>
     );
 };
 

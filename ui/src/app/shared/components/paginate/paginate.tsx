@@ -157,7 +157,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                     const pageNumMinWidth = `${Math.max(2, String(pageCount).length)}ch`;
                     return (
                         <div style={{marginBottom: '0.5em'}}>
-                            <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em', paddingLeft: '1em'}}>
+                            <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
                                 {pageCount > 1 && <Paginator page={page} pageCount={pageCount} pageNumMinWidth={pageNumMinWidth} onPageChange={onPageChange} />}
                                 <div className='paginate__size-menu'>
                                     {sortOptions && (

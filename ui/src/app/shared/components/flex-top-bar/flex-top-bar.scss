@@ -2,17 +2,19 @@
 @import '../../../shared/config.scss';
 
 .flex-top-bar {
-    position: fixed;
     right: 0;
     z-index: 5;
     padding: 0 15px;
     left: $sidebar-width;
+    display: flex;
     align-items: center;
     flex-wrap: wrap;
+    min-height: 50px;
+    
     &__actions {
         display: flex;
         align-items: center;
-        height: 50px;
+        min-height: 50px;
         @include breakpoint(medium down) {
             flex-basis: 100%;
             justify-content: center;
@@ -25,6 +27,7 @@
         display: flex;
         flex-grow: 1;
         align-items: center;
+        min-height: 50px;
         @include breakpoint(medium down) {
             flex-wrap: wrap;
         }
@@ -43,12 +46,5 @@
         display: flex;
         align-items: center;
         margin-left: auto;
-    }
-
-    &__padder {
-        height: 50px;
-        @include breakpoint(medium down) {
-            height: 150px;
-        }
     }
 }
