@@ -98,3 +98,14 @@
 .argo-container {
     padding-top: 1em;
 }
+
+.argo-table-list__row {
+    .columns:last-child {
+        .argo-dropdown {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+    }
+}
