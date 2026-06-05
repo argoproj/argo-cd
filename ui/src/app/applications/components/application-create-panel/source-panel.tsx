@@ -1,4 +1,4 @@
-import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
+import {AutocompleteField, AutocompleteOption, DataLoader, DropDownMenu, FormField} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'argo-ui';
 import {RevisionHelpIcon} from '../../../shared/components';
@@ -23,7 +23,7 @@ function fieldPath(sourceIndex: number | undefined, field: string): string {
 
 export interface SourcePanelProps {
     formApi: FormApi;
-    repos: string[];
+    repos: models.Repository[];
     repoInfo?: models.Repository;
     sourceIndex?: number;
     suppressMultiSourceHeading?: boolean;
@@ -65,7 +65,12 @@ export const SourcePanel = (props: SourcePanelProps) => {
                         field={fieldPath(idx, 'repoURL')}
                         component={AutocompleteField}
                         componentProps={{
-                            items: props.repos,
+                            items: props.repos.map(
+                                (r): AutocompleteOption => ({
+                                    value: r.repo,
+                                    label: r.name ? `${r.repo} -- ${r.name}` : r.repo
+                                })
+                            ),
                             filterSuggestions: true
                         }}
                     />
