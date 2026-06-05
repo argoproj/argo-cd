@@ -145,8 +145,7 @@ type ApplicationController struct {
 	dynamicClusterDistributionEnabled bool
 	deploymentInformer                informerv1.DeploymentInformer
 
-	hydrator                      *hydrator.Hydrator
-	hydratorVerifySourceIntegrity bool
+	hydrator *hydrator.Hydrator
 }
 
 // NewApplicationController creates new instance of ApplicationController.
@@ -181,7 +180,6 @@ func NewApplicationController(
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 	enableK8sEvent []string,
 	hydratorEnabled bool,
-	hydratorVerifySourceIntegrity bool,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -218,10 +216,9 @@ func NewApplicationController(
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
-		hydratorVerifySourceIntegrity:     hydratorVerifySourceIntegrity,
 	}
 	if hydratorEnabled {
-		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db, hydratorVerifySourceIntegrity)
+		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)

@@ -1360,7 +1360,7 @@ func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
 func TestHydrator_getManifests_UnsignedCommit_IsRejected(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
-	h := &Hydrator{dependencies: d, verifySourceIntegrity: true}
+	h := &Hydrator{dependencies: d}
 
 	app := newTestApp("test-app")
 	proj := newTestProject()
@@ -1387,39 +1387,10 @@ func TestHydrator_getManifests_UnsignedCommit_IsRejected(t *testing.T) {
 	assert.Contains(t, err.Error(), "source integrity verification required but not performed")
 }
 
-func TestHydrator_getManifests_UnsignedCommit_NotVerified_IsAllowed(t *testing.T) {
-	t.Parallel()
-	d := mocks.NewDependencies(t)
-	h := &Hydrator{dependencies: d, verifySourceIntegrity: false}
-
-	app := newTestApp("test-app")
-	proj := newTestProject()
-	proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{
-		Git: &v1alpha1.SourceIntegrityGit{
-			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
-				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://example.com/repo"}},
-				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
-					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
-					Keys: []string{"4AEE18F83AFDEB23"},
-				},
-			}},
-		},
-	}
-
-	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).
-		Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{
-			Revision:              "sha123",
-			SourceIntegrityResult: nil,
-		}, nil)
-
-	_, _, err := h.getManifests(t.Context(), app, "sha123", proj)
-	require.NoError(t, err)
-}
-
 func TestHydrator_getManifests_VerificationFailed_IsRejected(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
-	h := &Hydrator{dependencies: d, verifySourceIntegrity: true}
+	h := &Hydrator{dependencies: d}
 
 	app := newTestApp("test-app")
 	proj := newTestProject()
@@ -1449,6 +1420,41 @@ func TestHydrator_getManifests_VerificationFailed_IsRejected(t *testing.T) {
 	_, _, err := h.getManifests(t.Context(), app, "sha123", proj)
 	require.Error(t, err, "hydrator must reject commits with failed integrity checks")
 	assert.Contains(t, err.Error(), "signature not trusted")
+}
+
+func TestHydrator_getManifests_VerificationPassed_IsAllowed(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+
+	app := newTestApp("test-app")
+	proj := newTestProject()
+	proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://example.com/repo"}},
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+					Keys: []string{"4AEE18F83AFDEB23"},
+				},
+			}},
+		},
+	}
+
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).
+		Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{
+			Revision: "sha123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{
+				Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "gpg",
+					Problems: nil,
+				}},
+			},
+		}, nil)
+
+	revision, _, err := h.getManifests(t.Context(), app, "sha123", proj)
+	require.NoError(t, err, "hydrator must allow commits whose integrity checks pass")
+	assert.Equal(t, "sha123", revision)
 }
 
 func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {

@@ -295,12 +295,6 @@ spec:
               name: argocd-cmd-params-cm
               key: hydrator.enabled
               optional: true
-        - name: ARGOCD_HYDRATOR_VERIFY_SOURCE_INTEGRITY
-          valueFrom:
-            configMapKeyRef:
-              name: argocd-cmd-params-cm
-              key: hydrator.verifySourceIntegrity
-              optional: true
         - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
           valueFrom:
             configMapKeyRef:

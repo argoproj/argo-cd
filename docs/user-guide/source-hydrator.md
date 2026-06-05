@@ -505,10 +505,9 @@ This improves efficiency and reduces commit noise in your repository.
 
 *Current Status: Alpha (Since v3.5)*
 
-Signature verification of the DRY sources the hydrator reads is **opt-in** via the
-`--hydrator-verify-source-integrity` flag (or `ARGOCD_HYDRATOR_VERIFY_SOURCE_INTEGRITY=true`) on the application
-controller. When enabled, the hydrator enforces the project's `SourceIntegrity` policy (e.g. GPG signature
-verification) on the DRY revision before producing manifests. It defaults to off for backward compatibility.
+The hydrator enforces the project's `SourceIntegrity` policy (e.g. GPG signature verification) on the DRY
+revision before producing manifests. If the project requires verification and the DRY commit fails it (or was
+not verified), hydration is rejected. Verification is opted into per project via the `SourceIntegrity` policy.
 
 The hydrator **does not** sign the commits it pushes to git, so if signature verification is enabled for the
 hydrated branch, those commits will fail verification when Argo CD attempts to sync the hydrated manifests.

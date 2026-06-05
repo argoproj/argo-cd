@@ -230,7 +230,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
 		false,
-		false,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
@@ -2500,7 +2499,7 @@ func TestNamespaceIndexerDoesNotSetConditions(t *testing.T) {
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)
 	require.NoError(t, err)
 
@@ -2569,7 +2568,7 @@ func TestNamespaceIndexerSetsConditionOnInvalidDestination(t *testing.T) {
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)
 	require.NoError(t, err)
 
@@ -2646,7 +2645,7 @@ func TestNamespaceIndexerDoesNotPatchDuringStartupRace(t *testing.T) {
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)
 	require.NoError(t, err)
 
@@ -2726,7 +2725,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)
 	require.NoError(t, err)
 
@@ -2791,7 +2790,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)
 	require.NoError(t, err)
 

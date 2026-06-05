@@ -21,9 +21,6 @@ data:
 
   # Enables the alpha "manifest hydrator" feature. (default "false")
   hydrator.enabled: "false"
-  # Enforces the project's SourceIntegrity policy (e.g. GPG signature verification)
-  # on DRY revisions during hydration. (default "false")
-  hydrator.verifySourceIntegrity: "false"
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
   otlp.address: ""

@@ -36,7 +36,6 @@ argocd-application-controller [flags]
       --gloglevel int                                             Set the glog logging level
   -h, --help                                                      help for argocd-application-controller
       --hydrator-enabled                                          Feature flag to enable Hydrator. Default ("false")
-      --hydrator-verify-source-integrity                          Feature flag to enforce the project's SourceIntegrity policy (e.g. GPG signature verification) on dry revisions during hydration. Default ("false")
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
       --insecure-skip-tls-verify                                  If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                                         Path to a kube config. Only required if out-of-cluster
