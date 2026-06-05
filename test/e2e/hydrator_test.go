@@ -13,6 +13,22 @@ import (
 	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 )
 
+func restrictedDefaultProjectSpec() AppProjectSpec {
+	return AppProjectSpec{
+		SourceRepos:              []string{"https://example.com/not-the-repo"},
+		Destinations:             []ApplicationDestination{{Server: "*", Namespace: "*"}},
+		ClusterResourceWhitelist: []ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+	}
+}
+
+func permissiveDefaultProjectSpec() AppProjectSpec {
+	return AppProjectSpec{
+		SourceRepos:              []string{"*"},
+		Destinations:             []ApplicationDestination{{Server: "*", Namespace: "*"}},
+		ClusterResourceWhitelist: []ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+	}
+}
+
 func TestSimpleHydrator(t *testing.T) {
 	Given(t).
 		DrySourcePath("guestbook").
@@ -107,6 +123,31 @@ func TestAddingApp(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist())
+}
+
+func TestHydratorNormalRefreshRecoversFailedHydration(t *testing.T) {
+	Given(t).
+		Name("test-normal-refresh-recovery").
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp("--validate=false").
+		And(func() {
+			require.NoError(t, fixture.SetProjectSpec("default", restrictedDefaultProjectSpec()))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseFailed)).
+		When().
+		And(func() {
+			require.NoError(t, fixture.SetProjectSpec("default", permissiveDefaultProjectSpec()))
+		}).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated))
 }
 
 func TestKustomizeVersionOverride(t *testing.T) {

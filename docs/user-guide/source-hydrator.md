@@ -112,6 +112,36 @@ repository. The `drySource` field tells Argo CD where your original, unrendered 
 This can be a Helm chart, a Kustomize directory, or plain manifests. Argo CD reads this source, renders the final Kubernetes
 manifests from it, and then writes those hydrated manifests into the location specified by `syncSource.path`.
 
+### Separate destination repository
+
+By default, hydrated manifests are written to the same Git repository as the dry source. Set `syncSource.repoURL` to
+hydrate into a different repository. When `syncSource.repoURL` is omitted, it defaults to `drySource.repoURL`.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/my-org/config
+      path: helm-guestbook
+      targetRevision: HEAD
+    syncSource:
+      repoURL: https://github.com/my-org/deployments
+      targetBranch: environments/dev
+      path: helm-guestbook
+```
+
+Both repositories must be permitted in the application's AppProject (`spec.sourceRepos`). The hydrator needs read
+access to the dry source repository and write access to the destination repository (a `repository-write` secret; see
+the push secret example above).
+
+> [!NOTE]
+> `hydrateTo` inherits its repository and path from `syncSource`. When `syncSource.repoURL` points to a separate
+> repository, staged manifests are pushed to that repository as well.
+
 When using source hydration, the `syncSource.path` field is required and must always point to a non-root
 directory in the repository. Setting the path to the repository root (for example `"."` or `""`) is not
 supported. This ensures that hydration is always scoped to a dedicated subdirectory, which avoids unintentionally overwriting or removing files that may exist in the repository root.
@@ -416,6 +446,45 @@ data:
     {{- end }}
 ```
 
+## README Template
+
+The hydration README is generated using a [Go text/template](https://pkg.go.dev/text/template), optionally configured by the user via the `argocd-cm` ConfigMap. The template is rendered using the values from `hydrator.metadata` and can be multi-line to define structured documentation. This allows users to customize how the hydration process and references are documented.
+
+To define the README template, set the `sourceHydrator.readmeMessageTemplate` field in the `argocd-cm` ConfigMap.
+
+The template may also use functions from the [Sprig function library](https://github.com/Masterminds/sprig).
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  sourceHydrator.readmeMessageTemplate: |
+    # Manifest Hydration
+
+    To hydrate the manifests in this repository, run the following commands:
+
+    ```shell
+    git clone {{ .RepoURL }}
+    git checkout {{ .DrySHA }}
+    {{ range $command := .Commands }}
+    {{ $command }}
+    {{ end }}
+    ```
+
+    {{ if .References }}
+    ## References
+
+    {{ range $ref := .References }}
+    {{ if $ref.Commit }}
+    * [{{ $ref.Commit.SHA | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+    {{ end }}
+    {{ end }}
+    {{ end }}
+```
+
 ## Commit Author Configuration
 
 You can customize the git commit author name and email used by the source hydrator when committing hydrated manifests. This is configured via the `argocd-cm` ConfigMap.
@@ -468,6 +537,27 @@ On each run, the hydrator:
 * If manifests have changed, commits the new manifests and updates the note as well.
 
 This improves efficiency and reduces commit noise in your repository.
+
+## Hydration failures and retries
+
+When hydration fails, the application remains in the `Failed` phase and the error message is kept on
+`status.sourceHydrator.currentOperation` so you can diagnose the problem.
+
+> [!NOTE]
+> After a failed hydration, the controller waits about **2 minutes** before automatically retrying
+> unattended hydration. That interval matches `ARGOCD_RECONCILIATION_TIMEOUT` (the application
+> controller `--app-resync` period, default **120s**).
+>
+> You do not need to wait for that cooldown when:
+>
+> - You trigger a **manual or API refresh** (or a **dry-source webhook**), which retries hydration
+>   immediately.
+> - A **new dry commit** is detected while a dry revision baseline is already recorded in
+>   `status.sourceHydrator.lastComparedDryRevision` (for example, hydration failed at the commit step
+>   after manifests were resolved).
+>
+> If the first hydration attempt fails before any dry revision is recorded, automatic detection of a
+> new commit during the cooldown may be delayed until the cooldown expires or you refresh manually.
 
 ## Limitations
 

@@ -74,6 +74,9 @@ type Dependencies interface {
 	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
 	GetHydratorCommitMessageTemplate() (string, error)
 
+	// GetHydratorReadmeMessageTemplate gets the configured template for rendering README messages.
+	GetHydratorReadmeMessageTemplate() (string, error)
+
 	// GetCommitAuthorName gets the configured commit author name from argocd-cm ConfigMap.
 	GetCommitAuthorName() (string, error)
 
@@ -150,10 +153,12 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 }
 
 func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
+	hydrateToSource := app.Spec.GetHydrateToSource()
 	key := types.HydrationQueueKey{
 		SourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
 		SourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-		DestinationBranch:    app.Spec.GetHydrateToSource().TargetRevision,
+		DestinationRepoURL:   git.NormalizeGitURLAllowInvalid(hydrateToSource.RepoURL),
+		DestinationBranch:    hydrateToSource.TargetRevision,
 	}
 	return key
 }
@@ -166,6 +171,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
 		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
+		"destinationRepoURL":   hydrationKey.DestinationRepoURL,
 		"destinationBranch":    hydrationKey.DestinationBranch,
 	})
 
@@ -317,7 +323,11 @@ func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) 
 func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*appv1.AppProject, map[string]error) {
 	projects := make(map[string]*appv1.AppProject)
 	errors := make(map[string]error)
-	uniquePaths := make(map[string]string, len(apps))
+	type hydrationDestKey struct {
+		repoURL string
+		path    string
+	}
+	uniquePaths := make(map[hydrationDestKey]string, len(apps))
 
 	for _, app := range apps {
 		// Get the project for the app and validate if the app is allowed to use the source.
@@ -328,9 +338,9 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 			errors[app.QualifiedName()] = fmt.Errorf("failed to get project %q: %w", app.Spec.Project, err)
 			continue
 		}
-		permitted := proj.IsSourcePermitted(app.Spec.GetSource())
-		if !permitted {
-			errors[app.QualifiedName()] = fmt.Errorf("application repo %s is not permitted in project '%s'", app.Spec.GetSource().RepoURL, proj.Name)
+		drySource := app.Spec.SourceHydrator.GetDrySource()
+		if !proj.IsSourcePermitted(drySource) {
+			errors[app.QualifiedName()] = fmt.Errorf("application repo %s is not permitted in project '%s'", drySource.RepoURL, proj.Name)
 			continue
 		}
 		projects[app.Spec.Project] = proj
@@ -339,20 +349,27 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		// Hydrating to root would overwrite or delete files at the top level of the repo,
 		// which can break other applications or shared configuration.
 		// Every hydrated app must write into a subdirectory instead.
-		destPath := app.Spec.SourceHydrator.SyncSource.Path
+		hydrateToSource := app.Spec.GetHydrateToSource()
+		destPath := hydrateToSource.Path
 		if IsRootPath(destPath) {
-			errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", app.Spec.GetHydrateToSource().TargetRevision, destPath)
+			errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", hydrateToSource.TargetRevision, destPath)
+			continue
+		}
+
+		if !proj.IsSourcePermitted(hydrateToSource) {
+			errors[app.QualifiedName()] = fmt.Errorf("destination repo %s is not permitted in project '%s'", hydrateToSource.RepoURL, proj.Name)
 			continue
 		}
 
 		// TODO: test the dupe detection
 		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
-		if appName, ok := uniquePaths[destPath]; ok {
-			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator use the same destination: %v", appName, app.Spec.SourceHydrator.SyncSource.Path)
-			errors[appName] = fmt.Errorf("app %s hydrator use the same destination: %v", app.QualifiedName(), app.Spec.SourceHydrator.SyncSource.Path)
+		destKey := hydrationDestKey{repoURL: hydrateToSource.RepoURL, path: destPath}
+		if appName, ok := uniquePaths[destKey]; ok {
+			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", appName, destKey.repoURL, destKey.path)
+			errors[appName] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", app.QualifiedName(), destKey.repoURL, destKey.path)
 			continue
 		}
-		uniquePaths[destPath] = app.QualifiedName()
+		uniquePaths[destKey] = app.QualifiedName()
 	}
 
 	// If there are any errors, return nil for projects to avoid possible partial processing.
@@ -370,7 +387,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	}
 
 	// These values are the same for all apps being hydrated together, so just get them from the first app.
-	repoURL := apps[0].Spec.GetHydrateToSource().RepoURL
+	destinationRepoURL := apps[0].Spec.GetHydrateToSource().RepoURL
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
 	// FIXME: As a convenience, the commit server will create the syncBranch if it does not exist. If the
 	// targetBranch does not exist, it will create it based on the syncBranch. On the next line, we take
@@ -378,6 +395,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	// app has a different syncBranch, we should send the commit server an empty string and allow it to
 	// create the targetBranch as an orphan since we can't reliable determine a reasonable base.
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
+	drySourceRepoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
 
 	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
 	targetRevision, pathDetails, err := h.getManifests(context.Background(), apps[0], "", projects[apps[0].Spec.Project])
@@ -425,19 +443,19 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	}
 
 	// Get the commit metadata for the target revision.
-	revisionMetadata, err := h.getRevisionMetadata(context.Background(), repoURL, project, targetRevision)
+	revisionMetadata, err := h.getRevisionMetadata(context.Background(), drySourceRepoURL, project, targetRevision)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get revision metadata for %q: %w", targetRevision, err)
 	}
 
-	repo, err := h.dependencies.GetWriteCredentials(context.Background(), repoURL, project)
+	repo, err := h.dependencies.GetWriteCredentials(context.Background(), destinationRepoURL, project)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator credentials: %w", err)
 	}
 	if repo == nil {
 		// Try without credentials.
 		repo = &appv1.Repository{
-			Repo: repoURL,
+			Repo: destinationRepoURL,
 		}
 		logCtx.Warn("no credentials found for repo, continuing without credentials")
 	}
@@ -446,9 +464,15 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated commit message template: %w", err)
 	}
-	commitMessage, errMsg := getTemplatedCommitMessage(repoURL, targetRevision, commitMessageTemplate, revisionMetadata)
+	commitMessage, errMsg := getTemplatedCommitMessage(drySourceRepoURL, targetRevision, commitMessageTemplate, revisionMetadata)
 	if errMsg != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
+	}
+
+	// get the readme message template
+	readmeTemplate, err := h.dependencies.GetHydratorReadmeMessageTemplate()
+	if err != nil {
+		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
 	}
 
 	// get commit author configuration from argocd-cm
@@ -469,6 +493,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		CommitMessage:     commitMessage,
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
+		ReadmeMessage:     readmeTemplate,
 		AuthorName:        authorName,
 		AuthorEmail:       authorEmail,
 	}
@@ -580,8 +605,23 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration boo
 		return true, "hard hydrate requested", ""
 	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
 		return true, "spec.sourceHydrator differs", ""
-	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
-		return true, "previous hydrate operation failed more than 2 minutes ago", ""
+	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed:
+		finishedAt := app.Status.SourceHydrator.CurrentOperation.FinishedAt
+		withinCooldown := finishedAt == nil || metav1.Now().Sub(finishedAt.Time) <= 2*time.Minute
+		switch {
+		case requested:
+			// Manual/API refresh or dry-source webhook explicitly asks to hydrate;
+			// retry now (hard requests are handled by the earlier case).
+			return true, "retrying previous failed hydration", ""
+		case !withinCooldown:
+			return true, "previous hydrate operation failed more than 2 minutes ago", ""
+		case app.Status.SourceHydrator.LastComparedDryRevision == "":
+			// No baseline to diff against; revision evaluation would always report
+			// "needs hydration", causing a tight retry loop. Wait out the cooldown.
+			return false, "previous hydrate operation failed", ""
+		}
+		// Within cooldown with a baseline: fall through to newRevisionHasChanges so a
+		// new dry commit retries immediately while an unchanged revision stays idle.
 	}
 
 	// Check for new revision changes

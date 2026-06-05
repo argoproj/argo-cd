@@ -291,6 +291,8 @@ Scraped at the `argocd-commit-server:8087/metrics` endpoint.
 If using Prometheus Operator, the following ServiceMonitor example manifests can be used.
 Add a namespace where Argo CD is installed and change `metadata.labels.release` to the name of label selected by your Prometheus.
 
+For a [high availability](high_availability.md) setup where the application controller runs multiple replicas, a `ServiceMonitor` works as expected because endpoint discovery scrapes every controller pod. Other scrapers that are not based on Prometheus Operator (such as Telegraf or Grafana Agent) should use Kubernetes pod or endpoint discovery rather than a ClusterIP target, as scraping the ClusterIP collects metrics from only one replica per request.
+
 ```yaml
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

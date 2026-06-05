@@ -4,7 +4,7 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:25.10@sha256:4a9232cc47bf99defcc8860ef62
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.26.3@sha256:6df14f4a4bc9d979a3721f488981e0d1b318006377e473ed23d026796f5f4c0a AS builder
+FROM docker.io/library/golang:1.26.4@sha256:68cb6d68bed024785b69195b89af7ac7a444f27791435f98647edff595aa0479 AS builder
 
 WORKDIR /tmp
 
@@ -63,6 +63,9 @@ COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/git-lfs /usr/local/bin/git-lfs
 
+# Initialize git-lfs system configuration (/etc/gitconfig) so LFS filters are active
+RUN git lfs install --system
+
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
 
@@ -109,7 +112,7 @@ RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OP
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26.3@sha256:6df14f4a4bc9d979a3721f488981e0d1b318006377e473ed23d026796f5f4c0a AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26.4@sha256:68cb6d68bed024785b69195b89af7ac7a444f27791435f98647edff595aa0479 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
