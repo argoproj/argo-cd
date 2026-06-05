@@ -1,6 +1,35 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
 
+.clusters-list {
+    &__info-banner {
+        position: fixed;
+        left: 230px;
+        right: 0;
+        top: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f7f7f7;
+        border-bottom: 1px solid #ddd;
+        padding: 0.5em 15px;
+        font-size: 0.85em;
+        color: #666;
+        z-index: 4;
+
+        i.fa-info-circle {
+            margin-right: 0.5em;
+        }
+
+        a {
+            color: #0dadea;
+        }
+    }
+
+    &__banner-spacer {
+        height: 35px;
+    }
+}
 
 .help-text {
     color: $argo-color-gray-8;
@@ -8,15 +37,15 @@
         color: themed('text-2');
     }
     a {
-        color: #007bff; /* Blue color for the link */
+        color: #007bff;
         @include themify($themes) {
             color: themed('light-argo-teal-7');
         }
-        text-decoration: none; /* Remove default underline */
-        transition: color 0.3s ease; /* Smooth transition for color change */
+        text-decoration: none;
+        transition: color 0.3s ease;
 
         &:hover {
-            color: #0056b3; /* Darker blue color on hover */
+            color: #0056b3;
             @include themify($themes) {
                 color: themed('light-argo-teal-5');
             }

@@ -12,7 +12,6 @@ import {filterClusters, getClusterFilterResults, ClustersFilter, ClustersListPre
 
 import './cluster-list.scss';
 
-
 export const ClustersList = () => {
     const clustersLoaderRef = React.useRef<DataLoader | null>(null);
     const query = useQuery();
@@ -33,8 +32,8 @@ export const ClustersList = () => {
         <Consumer>
             {ctx => (
                 <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}}>
-            <FlexTopBar
-                toolbar={{
+                    <FlexTopBar
+                        toolbar={{
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}],
                             tools: (
                                 <SearchBar
@@ -48,6 +47,20 @@ export const ClustersList = () => {
                             )
                         }}
                     />
+                    <div className='clusters-list__info-banner'>
+                        <i className='fa fa-info-circle' />
+                        <span>
+                            Refer to CLI{' '}
+                            <a
+                                href='https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster'
+                                target='_blank'
+                                rel='noopener noreferrer'>
+                                <i className='fa fa-external-link-alt' /> Documentation
+                            </a>
+                            {' '}for adding clusters.
+                        </span>
+                    </div>
+                    <div className='clusters-list__banner-spacer' />
                     <div className='repos-list'>
                         <div className='argo-container'>
                             <DataLoader
