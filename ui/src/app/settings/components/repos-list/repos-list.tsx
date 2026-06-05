@@ -796,7 +796,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                     {filteredRepos.length > 0 ? (
                                         <Paginate page={page} data={filteredRepos} onPageChange={setPage} preferencesKey='repos-list'>
                                             {reposToDisplay => (
-                                                <div className='argo-table-list'>
+                                                <div className='argo-table-list argo-table-list--clickable'>
                                                     <div className='argo-table-list__head'>
                                                         <div className='row'>
                                                             <div className='columns small-1' />
@@ -808,10 +808,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         </div>
                                                     </div>
                                                     {reposToDisplay.map(repo => (
-                                                        <div
-                                                            className={`argo-table-list__row ${isRepoUpdatable(repo) ? 'item-clickable' : ''}`}
-                                                            key={repo.repo}
-                                                            onClick={() => (isRepoUpdatable(repo) ? displayEditSliding(repo) : null)}>
+                                                        <div className='argo-table-list__row' key={repo.repo} onClick={() => displayEditSliding(repo)}>
                                                             <div className='row'>
                                                                 <div className='columns small-1'>
                                                                     <i className={'icon argo-icon-' + (repo.type || 'git')} />
@@ -946,7 +943,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                             }}>
                             {(repos: models.Repository[]) =>
                                 (repos.length > 0 && (
-                                    <div className='argo-table-list'>
+                                    <div className='argo-table-list argo-table-list--clickable'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
                                                 <div className='columns small-1' />
@@ -958,10 +955,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                             </div>
                                         </div>
                                         {repos.map(repo => (
-                                            <div
-                                                className={`argo-table-list__row ${isRepoUpdatable(repo) ? 'item-clickable' : ''}`}
-                                                key={repo.repo}
-                                                onClick={() => (isRepoUpdatable(repo) ? displayEditSliding(repo) : null)}>
+                                            <div className='argo-table-list__row' key={repo.repo} onClick={() => displayEditSliding(repo)}>
                                                 <div className='row'>
                                                     <div className='columns small-1'>
                                                         <i className='icon argo-icon-git' />
@@ -1074,7 +1068,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 }}
                 header={<SlidingPanelHeader />}>
                 {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} />}
-                {displayEditPanel && <RepoDetails repo={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} />}
+                {displayEditPanel && <RepoDetails repo={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} readonly={!isRepoUpdatable(currentRepo)} />}
                 {!displayEditPanel && (
                     <DataLoader load={() => services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort())}>
                         {projects => (

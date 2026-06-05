@@ -6,9 +6,9 @@ import * as models from '../../../shared/models';
 import {NewHTTPSRepoParams} from '../repos-list/repos-list';
 import {AuthSettingsCtx} from '../../../shared/context';
 
-export const RepoDetails = (props: {repo: models.Repository; save?: (params: NewHTTPSRepoParams) => Promise<void>}) => {
+export const RepoDetails = (props: {repo: models.Repository; save?: (params: NewHTTPSRepoParams) => Promise<void>; readonly?: boolean}) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
-    const {repo, save} = props;
+    const {repo, save, readonly} = props;
     const write = false;
     const FormItems = (repository: models.Repository): EditablePanelItem[] => {
         const items: EditablePanelItem[] = [
@@ -126,15 +126,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 bearerToken: input.password && input.bearerToken && 'Either the password or the bearer token must be set, but not both.',
                 depth: input.depth != undefined && input.depth < 0 && 'Depth must be a non-negative number'
             })}
-            save={async input => {
-                const params: NewHTTPSRepoParams = {...newRepo, write};
-                params.name = input.name || '';
-                params.username = input.username || '';
-                params.password = input.password || '';
-                params.bearerToken = input.bearerToken || '';
-                params.depth = input.depth || 0;
-                save(params);
-            }}
+            save={readonly ? undefined : save}
             title='CONNECTED REPOSITORY'
             items={FormItems(repo)}
         />
