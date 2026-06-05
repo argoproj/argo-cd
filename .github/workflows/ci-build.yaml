@@ -383,7 +383,6 @@ jobs:
         env:
           NODE_ENV: production
           NODE_ONLINE_ENV: online
-          HOST_ARCH: amd64
           # If we're on the master branch, set the codecov token so that we upload bundle analysis
           CODECOV_TOKEN: ${{ github.ref == 'refs/heads/master' && secrets.CODECOV_TOKEN || '' }}
         working-directory: ui/

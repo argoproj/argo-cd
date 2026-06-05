@@ -106,8 +106,11 @@ COPY ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-ARG TARGETARCH
-RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 pnpm build
+# Note: the UI bundle is architecture-independent. Keep this stage free of any
+# per-target-arch inputs (e.g. TARGETARCH) so buildx builds it once and copies an
+# identical dist into every per-arch image. Otherwise the bundle's contenthash
+# diverges across archs and mixed-arch clusters serve mismatched asset filenames.
+RUN NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 pnpm build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
