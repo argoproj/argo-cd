@@ -174,7 +174,6 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                             items={sortOptions.map(so => ({
                                                 title: so.title,
                                                 action: () => {
-                                                    // sortOptions might not be set in the browser storage
                                                     if (!pref.sortOptions) {
                                                         pref.sortOptions = {};
                                                     }
@@ -184,21 +183,23 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                             }))}
                                         />
                                     )}
-                                    <DropDownMenu
-                                        qeId={`paginate-items-per-page-${preferencesKey}`}
-                                        anchor={() => (
-                                            <a>
-                                                Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
-                                            </a>
-                                        )}
-                                        items={[5, 10, 15, 20, -1].map(count => ({
-                                            title: count === -1 ? 'all' : count.toString(),
-                                            action: () => {
-                                                pref.pageSizes[preferencesKey] = count;
-                                                services.viewPreferences.updatePreferences(pref);
-                                            }
-                                        }))}
-                                    />
+                                    {data.length > 5 && (
+                                        <DropDownMenu
+                                            qeId={`paginate-items-per-page-${preferencesKey}`}
+                                            anchor={() => (
+                                                <a>
+                                                    Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
+                                                </a>
+                                            )}
+                                            items={[5, 10, 15, 20, -1].map(count => ({
+                                                title: count === -1 ? 'all' : count.toString(),
+                                                action: () => {
+                                                    pref.pageSizes[preferencesKey] = count;
+                                                    services.viewPreferences.updatePreferences(pref);
+                                                }
+                                            }))}
+                                        />
+                                    )}
                                 </div>
                             </div>
                             {showHeader && header}
