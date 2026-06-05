@@ -587,9 +587,16 @@ The annotation's path filtering applies to the dry source. The sync source is al
 
 ### Signature Verification
 
-The source hydrator **does not currently support signature verification of the DRY sources it hydrates/commits**. It
-also does not sign the commits it pushes to git, so if signature verification is enabled, the commits will fail
-verification when Argo CD attempts to sync the hydrated manifests.
+*Current Status: Alpha (Since v3.5)*
+
+The hydrator enforces the project's `SourceIntegrity` policy (e.g. GPG signature verification) on the DRY
+revision before producing manifests. If the project requires verification and the DRY commit fails it (or was
+not verified), hydration is rejected. Verification is opted into per project by configuring `.spec.sourceIntegrity` on
+the `AppProject`. See [Source Integrity Verification](source-integrity.md) for how to set it up (for example, using
+[Git GnuPG verification](source-integrity-git-gpg.md)).
+
+The hydrator **does not** sign the commits it pushes to git, so if signature verification is enabled for the
+hydrated branch, those commits will fail verification when Argo CD attempts to sync the hydrated manifests.
 
 ### Project-Scoped Push Secrets
 

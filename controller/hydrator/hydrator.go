@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 // RepoGetter is an interface that defines methods for getting repository objects. It's a subset of the DB interface to
@@ -520,10 +521,18 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 		targetRevision = drySource.TargetRevision
 	}
 
-	// TODO: enable signature verification
 	objs, resp, err := h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
+	}
+
+	if si := project.EffectiveSourceIntegrity(); sourceintegrity.HasCriteria(si, drySource) {
+		if resp.SourceIntegrityResult == nil {
+			return "", nil, fmt.Errorf("source integrity verification required but not performed for app %q dry revision %q", app.QualifiedName(), resp.Revision)
+		}
+		if err := resp.SourceIntegrityResult.AsError(); err != nil {
+			return "", nil, fmt.Errorf("source integrity verification failed for app %q dry revision %q: %w", app.QualifiedName(), resp.Revision, err)
+		}
 	}
 
 	// Set up a ManifestsRequest

@@ -79,6 +79,52 @@ func TestGetRepoObjs(t *testing.T) {
 	assert.Equal(t, "ConfigMap", objs[0].GetKind())
 }
 
+// TestGetRepoObjs_SourceIntegrity_Wiring asserts the controller-level wiring of
+// source integrity verification: the project's effective SourceIntegrity is
+// passed through to repo-server in the ManifestRequest during hydration.
+func TestGetRepoObjs_SourceIntegrity_Wiring(t *testing.T) {
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SourceIntegrity: &v1alpha1.SourceIntegrity{
+				Git: &v1alpha1.SourceIntegrityGit{
+					Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+						Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
+						GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+							Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+							Keys: []string{"4AEE18F83AFDEB23"},
+						},
+					}},
+				},
+			},
+		},
+	}
+
+	cm := test.NewConfigMap()
+	cmBytes, _ := json.Marshal(cm)
+
+	var captured *apiclient.ManifestRequest
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(cmBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		onGenerateManifest: func(req *apiclient.ManifestRequest) { captured = req },
+	}
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
+
+	app := newFakeApp()
+	_, _, err := ctrl.GetRepoObjs(t.Context(), app, app.Spec.GetSource(), "abc123", proj)
+	require.NoError(t, err)
+	require.NotNil(t, captured, "repo-server was not called")
+	require.NotNil(t, captured.SourceIntegrity, "expected SourceIntegrity to be forwarded to repo-server")
+	assert.NotNil(t, captured.SourceIntegrity.Git)
+}
+
 func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined_FallbackToDefault(t *testing.T) {
 	cm := test.NewConfigMap()
 	cmBytes, _ := json.Marshal(cm)
