@@ -1,11 +1,14 @@
 import {DropDownMenu, ErrorNotification, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {clusterName, ConnectionStateIcon, DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
 import {FlexTopBar} from '../../../shared/components';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
+import {filterClusters, getClusterFilterResults, ClustersFilter, ClustersListPreferences, ClustersListPreferencesHelper} from './clusters-filter';
 
 import './cluster-list.scss';
 
@@ -15,6 +18,16 @@ export const ClustersList = () => {
     const query = useQuery();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
+    const [filterPref, setFilterPref] = React.useState<ClustersListPreferences>({
+        statusFilter: [],
+        credentialFilter: []
+    });
+    const sidebarTarget = useSidebarTarget();
+
+    const onFilterChange = (newPref: ClustersListPreferences) => {
+        setFilterPref(newPref);
+        setPage(0);
+    };
 
     return (
         <Consumer>
@@ -41,7 +54,9 @@ export const ClustersList = () => {
                                 ref={clustersLoaderRef}
                                 load={() => services.clusters.list().then(clusters => clusters.sort((first, second) => first.name.localeCompare(second.name)))}>
                                 {(clusters: models.Cluster[]) => {
-                                    const filteredClusters = clusters.filter(
+                                    const filterResults = getClusterFilterResults(clusters, filterPref);
+                                    const filteredByStatus = filterClusters(filterResults);
+                                    const filteredClusters = filteredByStatus.filter(
                                         cluster =>
                                             searchText === '' ||
                                             clusterName(cluster.name).toLowerCase().includes(searchText.toLowerCase()) ||
@@ -50,6 +65,14 @@ export const ClustersList = () => {
 
                                     return (
                                         <>
+                                            {ReactDOM.createPortal(
+                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                    {allpref => (
+                                                        <ClustersFilter clusters={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />
+                                                    )}
+                                                </DataLoader>,
+                                                sidebarTarget?.current
+                                            )}
                                             {filteredClusters.length > 0 ? (
                                                 <Paginate page={page} data={filteredClusters} onPageChange={setPage} preferencesKey='clusters-list'>
                                                     {clustersToDisplay => (
@@ -128,9 +151,19 @@ export const ClustersList = () => {
                                                     <h5>Connect more clusters using argocd CLI</h5>
                                                 </EmptyState>
                                             ) : (
-                                                <EmptyState icon='argo-icon-hosts'>
-                                                    <h4>No clusters matched your search</h4>
-                                                    <h5>Try adjusting your search query</h5>
+                                                <EmptyState icon='fa fa-search'>
+                                                    <h4>No matching clusters found</h4>
+                                                    <h5>
+                                                        Change filter criteria or&nbsp;
+                                                        <a
+                                                            onClick={() => {
+                                                                const newPref = {...filterPref};
+                                                                ClustersListPreferencesHelper.clearFilters(newPref);
+                                                                onFilterChange(newPref);
+                                                            }}>
+                                                            clear filters
+                                                        </a>
+                                                    </h5>
                                                 </EmptyState>
                                             )}
                                         </>
