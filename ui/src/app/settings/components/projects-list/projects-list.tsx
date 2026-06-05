@@ -22,8 +22,7 @@ export function ProjectsList() {
             title='Projects'
             toolbar={{
                 breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}]
-            }}
-            hideAuth={true}>
+            }}>
             <FlexTopBar
                 toolbar={{
                     breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],

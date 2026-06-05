@@ -1,4 +1,4 @@
-import {ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
+import {ErrorNotification, MockupList, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
@@ -268,7 +268,25 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
     return (
         <React.Fragment key='app-list-tools'>
             <ApplicationsListSearchBar content={query.get('search')} apps={applications} ctx={ctx} />
-            <ViewTypeSwitcher pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />
+            <Tooltip content='Toggle Health Status Bar'>
+                <button
+                    className={`applications-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
+                    style={{border: 'none'}}
+                    onClick={() => {
+                        healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                        services.viewPreferences.updatePreferences({
+                            appList: {
+                                ...pref,
+                                statusBarView: {
+                                    ...healthBarPrefs,
+                                    showHealthStatusBar: healthBarPrefs.showHealthStatusBar
+                                }
+                            }
+                        });
+                    }}>
+                    <i className='fas fa-ruler-horizontal' />
+                </button>
+            </Tooltip>
         </React.Fragment>
     );
 };
@@ -354,8 +372,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                 path: props.match.url
                                             }
                                         ]
-                                    }}
-                                    hideAuth={true}>
+                                    }}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
@@ -390,6 +407,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                     <FlexTopBar
                                                         toolbar={{
                                                             tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
+                                                            options: <ViewTypeSwitcher pref={pref} ctx={ctx} />,
                                                             actionMenu: {
                                                                 items: [
                                                                     {

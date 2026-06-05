@@ -772,7 +772,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     };
 
     return (
-        <Page title='Repositories' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}]}} hideAuth={true}>
+        <Page title='Repositories' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}]}}>
             <FlexTopBar
                 toolbar={{
                     breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}],

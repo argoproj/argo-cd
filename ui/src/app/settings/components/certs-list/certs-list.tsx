@@ -130,8 +130,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
     return (
         <Page
             title='Repository certificates and known hosts'
-            toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}]}}
-            hideAuth={true}>
+            toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}]}}>
             <FlexTopBar
                 toolbar={{
                     breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}],

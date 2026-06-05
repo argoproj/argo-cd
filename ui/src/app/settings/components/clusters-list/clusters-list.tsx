@@ -19,7 +19,7 @@ export const ClustersList = () => {
     return (
         <Consumer>
             {ctx => (
-                <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}} hideAuth={true}>
+                <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}}>
             <FlexTopBar
                 toolbar={{
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}],

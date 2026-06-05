@@ -1,4 +1,4 @@
-import {Autocomplete, MockupList} from 'argo-ui';
+import {Autocomplete, MockupList, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
@@ -232,7 +232,21 @@ const ApplicationSetsToolbar = (props: {
     return (
         <React.Fragment key='appset-list-tools'>
             <ApplicationSetsSearchBar content={query.get('search')} appSets={props.appSets} ctx={props.ctx} />
-            <ViewTypeSwitcher pref={props.pref} ctx={props.ctx} healthBarPrefs={props.healthBarPrefs} />
+            <Tooltip content='Toggle Health Status Bar'>
+                <button
+                    className={`applications-list__accordion argo-button argo-button--base${props.healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
+                    style={{border: 'none'}}
+                    onClick={() => {
+                        services.viewPreferences.updatePreferences({
+                            appList: {
+                                ...props.pref,
+                                statusBarView: {...props.healthBarPrefs, showHealthStatusBar: !props.healthBarPrefs.showHealthStatusBar}
+                            }
+                        });
+                    }}>
+                    <i className='fas fa-ruler-horizontal' />
+                </button>
+            </Tooltip>
         </React.Fragment>
     );
 };
@@ -412,12 +426,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                 {ctx => (
                     <ViewPref>
                         {pref => (
-                            <Page
-                                key={pref.view}
-                                title={getPageTitle(pref.view)}
-                                useTitleOnly={true}
-                                toolbar={{breadcrumbs: [{title: 'ApplicationSets', path: props.match.url}]}}
-                                hideAuth={true}>
+                            <Page key={pref.view} title={getPageTitle(pref.view)} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'ApplicationSets', path: props.match.url}]}}>
                                 <DataLoader
                                     input={pref.projectsFilter?.join(',')}
                                     load={() => AppUtils.handlePageVisibility(() => loadApplicationSets(pref.projectsFilter))}
@@ -445,6 +454,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                 <FlexTopBar
                                                     toolbar={{
                                                         tools: <ApplicationSetsToolbar appSets={appSets} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
+                                                        options: <ViewTypeSwitcher pref={pref} ctx={ctx} />,
                                                         actionMenu: {
                                                             items: []
                                                         }

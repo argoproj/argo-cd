@@ -87,7 +87,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     };
 
     return (
-        <Page title='GnuPG public keys' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}]}} hideAuth={true}>
+        <Page title='GnuPG public keys' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}]}}>
             <FlexTopBar
                 toolbar={{
                     breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}],

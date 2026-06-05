@@ -1,32 +1,34 @@
 import {Toolbar, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Observable} from 'rxjs';
-import {AddAuthToToolbar, DataLoader} from '../';
-import {Context} from '../../context';
+import {AuthOption, DataLoader} from '../';
 
 import './flex-top-bar.scss';
 
+// Extend Toolbar type to support options on the right and auth control
+export interface ToolbarWithOptions extends Toolbar {
+    options?: React.ReactNode;
+    addAuth?: boolean; // defaults to true
+}
+
 interface FlexTopBarProps {
-    toolbar: Toolbar | Observable<Toolbar>;
+    toolbar: ToolbarWithOptions | Observable<ToolbarWithOptions>;
 }
 
 export const FlexTopBar = (props: FlexTopBarProps) => {
-    const ctx = React.useContext(Context);
-    const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
-
     return (
         <React.Fragment>
             <div className='top-bar row flex-top-bar' key='tool-bar'>
-                <DataLoader load={() => loadToolbar}>
-                    {toolbar => <FlexTopBarContent toolbar={toolbar} />}
-                </DataLoader>
+                <DataLoader load={() => Promise.resolve(props.toolbar)}>{(toolbar: ToolbarWithOptions) => <FlexTopBarContent toolbar={toolbar} />}</DataLoader>
             </div>
             <div className='flex-top-bar__padder' />
         </React.Fragment>
     );
 };
 
-const FlexTopBarContent = (props: {toolbar: Toolbar}) => {
+const FlexTopBarContent = (props: {toolbar: ToolbarWithOptions}) => {
+    const shouldAddAuth = props.toolbar.addAuth !== false;
+
     return (
         <React.Fragment>
             <div className='flex-top-bar__actions'>
@@ -50,14 +52,16 @@ const FlexTopBarContent = (props: {toolbar: Toolbar}) => {
                 )}
             </div>
             <div className='flex-top-bar__tools'>
-                {Array.isArray(props.toolbar.tools) ? (
-                    <>
-                        {props.toolbar.tools.map((tool, index) => (
-                            <React.Fragment key={index}>{tool}</React.Fragment>
-                        ))}
-                    </>
-                ) : (
-                    props.toolbar.tools
+                {props.toolbar.tools && (
+                    <div className='flex-top-bar__tools-left'>
+                        {props.toolbar.tools}
+                    </div>
+                )}
+                {(props.toolbar.options || shouldAddAuth) && (
+                    <div className='flex-top-bar__tools-right'>
+                        {props.toolbar.options}
+                        {shouldAddAuth && <AuthOption />}
+                    </div>
                 )}
             </div>
         </React.Fragment>

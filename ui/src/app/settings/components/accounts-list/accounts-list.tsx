@@ -14,7 +14,7 @@ export const AccountsList = () => {
     const [page, setPage] = React.useState(0);
 
     return (
-        <Page title='Accounts' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts'}]}} hideAuth={true}>
+        <Page title='Accounts' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts'}]}}>
             <FlexTopBar
                 toolbar={{
                     breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts'}],
