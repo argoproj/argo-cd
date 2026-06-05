@@ -10,6 +10,7 @@
             margin-left: 0;
         }
         line-height: normal;
+        position: relative; // Required for autocomplete dropdown positioning
     }
 
     &__input {

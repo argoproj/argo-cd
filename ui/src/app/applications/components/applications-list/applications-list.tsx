@@ -1,11 +1,11 @@
-import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
+import {ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
+import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
@@ -220,92 +220,37 @@ function tryJsonParse(input: string) {
     }
 }
 
-const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
+const ApplicationsListSearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
     const {content, ctx, apps} = {...props};
-
-    const searchBar = React.useRef<HTMLDivElement>(null);
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const query = new URLSearchParams(window.location.search);
     const appInput = tryJsonParse(query.get('new'));
 
-    const {useKeybinding} = React.useContext(KeybindingContext);
-    const [isFocused, setFocus] = React.useState(false);
-    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
-
-    useKeybinding({
-        keys: Key.SLASH,
-        action: () => {
-            if (searchBar.current && !appInput) {
-                searchBar.current.querySelector('input').focus();
-                setFocus(true);
-                return true;
-            }
-            return false;
-        }
-    });
-
-    useKeybinding({
-        keys: Key.ESCAPE,
-        action: () => {
-            if (searchBar.current && !appInput && isFocused) {
-                searchBar.current.querySelector('input').blur();
-                setFocus(false);
-                return true;
-            }
-            return false;
-        }
-    });
-
     return (
-        <Autocomplete
-            filterSuggestions={true}
-            renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
-                    <i
-                        className='fa fa-search'
-                        style={{marginRight: '9px', cursor: 'pointer'}}
-                        onClick={() => {
-                            if (searchBar.current) {
-                                searchBar.current.querySelector('input').focus();
-                            }
-                        }}
-                    />
-                    <input
-                        {...inputProps}
-                        onFocus={e => {
-                            e.target.select();
-                            if (inputProps.onFocus) {
-                                inputProps.onFocus(e);
-                            }
-                        }}
-                        style={{fontSize: '14px'}}
-                        className='argo-field'
-                        placeholder='Search applications...'
-                    />
-                    <div className='keyboard-hint'>/</div>
-                    {content && (
-                        <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
-                    )}
-                </div>
-            )}
-            wrapperProps={{className: 'applications-list__search-wrapper'}}
-            renderItem={item => (
-                <React.Fragment>
-                    <i className='icon argo-icon-application' /> {item.label}
-                </React.Fragment>
-            )}
-            onSelect={val => {
-                const selectedApp = apps?.find(app => {
-                    const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
-                    return qualifiedName === val;
-                });
-                if (selectedApp) {
-                    ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedApp)}`);
-                }
-            }}
-            onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+        <SearchBar
             value={content || ''}
-            items={apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
+            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            placeholder='Search applications...'
+            disableKeyboardShortcuts={!!appInput}
+            autocomplete={{
+                items: apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
+                filterSuggestions: true,
+                onSelect: val => {
+                    const selectedApp = apps?.find(app => {
+                        const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
+                        return qualifiedName === val;
+                    });
+                    if (selectedApp) {
+                        ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedApp)}`);
+                    }
+                },
+                renderItem: item => (
+                    <React.Fragment>
+                        <i className='icon argo-icon-application' /> {item.label}
+                    </React.Fragment>
+                )
+            }}
         />
     );
 };
@@ -322,7 +267,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
 
     return (
         <React.Fragment key='app-list-tools'>
-            <SearchBar content={query.get('search')} apps={applications} ctx={ctx} />
+            <ApplicationsListSearchBar content={query.get('search')} apps={applications} ctx={ctx} />
             <ViewTypeSwitcher pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />
         </React.Fragment>
     );

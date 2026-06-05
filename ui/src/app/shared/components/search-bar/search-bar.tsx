@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {Autocomplete} from 'argo-ui';
 import {Key, KeybindingContext} from 'argo-ui/v2';
 
 import './search-bar.scss';
@@ -9,10 +10,18 @@ interface SearchBarProps {
     placeholder?: string;
     /** Disable keyboard shortcuts (useful when parent has custom handling) */
     disableKeyboardShortcuts?: boolean;
+    /** Optional autocomplete configuration */
+    autocomplete?: {
+        items: Array<string | {value: string; label: string}>;
+        onSelect: (value: string) => void;
+        renderItem?: (item: {value: string; label: string}) => React.ReactNode;
+        filterSuggestions?: boolean;
+    };
 }
 
-export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholder = 'Search...', disableKeyboardShortcuts = false}) => {
+export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholder = 'Search...', disableKeyboardShortcuts = false, autocomplete}) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
+    const searchBarRef = React.useRef<HTMLDivElement>(null);
     const {useKeybinding} = React.useContext(KeybindingContext);
     const [isFocused, setFocus] = React.useState(false);
     const [localValue, setLocalValue] = React.useState(value);
@@ -27,17 +36,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
         onChange(newValue);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (disableKeyboardShortcuts) {
-            return;
-        }
-        // Handle Escape key to blur input
-        if (e.key === 'Escape' && inputRef.current) {
-            e.preventDefault();
-            inputRef.current.blur();
-        }
-    };
-
     // Register global slash keybinding to focus search (when not already focused)
     useKeybinding({
         keys: Key.SLASH,
@@ -45,6 +43,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
             if (disableKeyboardShortcuts || isFocused) {
                 return false;
             }
+            // For autocomplete, we need to use querySelector since inputRef might not be set directly
+            if (autocomplete && searchBarRef.current) {
+                const input = searchBarRef.current.querySelector('input');
+                if (input) {
+                    input.focus();
+                    return true;
+                }
+            }
+            // For simple search bar, use inputRef
             if (inputRef.current) {
                 inputRef.current.focus();
                 return true;
@@ -53,6 +60,97 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
         }
     });
 
+    // Register global escape keybinding to blur search (only when focused)
+    useKeybinding({
+        keys: Key.ESCAPE,
+        action: () => {
+            if (disableKeyboardShortcuts || !isFocused) {
+                return false;
+            }
+            // For autocomplete, use querySelector
+            if (autocomplete && searchBarRef.current) {
+                const input = searchBarRef.current.querySelector('input');
+                if (input) {
+                    input.blur();
+                    setFocus(false);
+                    return true;
+                }
+            }
+            // For simple search bar, use inputRef
+            if (inputRef.current) {
+                inputRef.current.blur();
+                setFocus(false);
+                return true;
+            }
+            return false;
+        }
+    });
+
+    // If autocomplete is provided, use Autocomplete component
+    if (autocomplete) {
+        // Normalize items to {value, label} format
+        const normalizedItems = autocomplete.items.map(item => 
+            typeof item === 'string' ? {value: item, label: item} : item
+        );
+
+        return (
+            <Autocomplete
+                filterSuggestions={autocomplete.filterSuggestions ?? true}
+                renderInput={inputProps => (
+                    <div className='search-bar__input' ref={searchBarRef}>
+                        <i
+                            className='fa fa-search'
+                            style={{marginRight: '9px', cursor: 'pointer'}}
+                            onClick={() => {
+                                if (searchBarRef.current) {
+                                    const input = searchBarRef.current.querySelector('input');
+                                    if (input) {
+                                        input.focus();
+                                    }
+                                }
+                            }}
+                        />
+                        <input
+                            {...inputProps}
+                            ref={(node: HTMLInputElement | null) => {
+                                // Merge refs: set both our ref and Autocomplete's ref
+                                inputRef.current = node;
+                                if (typeof inputProps.ref === 'function') {
+                                    inputProps.ref(node);
+                                }
+                            }}
+                            onFocus={e => {
+                                setFocus(true);
+                                e.target.select();
+                                if (inputProps.onFocus) {
+                                    inputProps.onFocus(e);
+                                }
+                            }}
+                            onBlur={e => {
+                                setFocus(false);
+                                if (inputProps.onBlur) {
+                                    inputProps.onBlur(e);
+                                }
+                            }}
+                            style={{fontSize: '14px', flex: 1, minWidth: 0}}
+                            className='argo-field'
+                            placeholder={placeholder}
+                        />
+                        <div className='keyboard-hint'>/</div>
+                        {value && <i className='fa fa-times' onClick={() => handleChange('')} style={{cursor: 'pointer', marginLeft: '5px'}} />}
+                    </div>
+                )}
+                wrapperProps={{className: 'search-bar__wrapper', style: {flexGrow: 0}}}
+                renderItem={autocomplete.renderItem || (item => item.label)}
+                onSelect={val => autocomplete.onSelect(val)}
+                onChange={e => handleChange(e.target.value)}
+                value={value}
+                items={normalizedItems}
+            />
+        );
+    }
+
+    // Default simple search bar without autocomplete
     return (
         <div className='search-bar__wrapper'>
             <div className='search-bar__input'>
@@ -72,9 +170,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
                     placeholder={placeholder}
                     value={localValue}
                     onChange={e => handleChange(e.target.value)}
-                    onFocus={() => setFocus(true)}
+                    onFocus={e => {
+                        setFocus(true);
+                        e.target.select();
+                    }}
                     onBlur={() => setFocus(false)}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={e => {
+                        if (!disableKeyboardShortcuts && e.key === 'Escape' && inputRef.current) {
+                            e.preventDefault();
+                            inputRef.current.blur();
+                        }
+                    }}
                     style={{fontSize: '14px', flex: 1, minWidth: 0}}
                 />
                 <div className='keyboard-hint'>/</div>

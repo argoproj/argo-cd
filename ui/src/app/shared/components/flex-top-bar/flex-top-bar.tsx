@@ -52,8 +52,9 @@ const FlexTopBarContent = (props: {toolbar: Toolbar}) => {
             <div className='flex-top-bar__tools'>
                 {Array.isArray(props.toolbar.tools) ? (
                     <>
-                        <div style={{flexGrow: 1}}>{props.toolbar.tools[0]}</div>
-                        {props.toolbar.tools[1]}
+                        {props.toolbar.tools.map((tool, index) => (
+                            <React.Fragment key={index}>{tool}</React.Fragment>
+                        ))}
                     </>
                 ) : (
                     props.toolbar.tools
