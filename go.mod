@@ -23,7 +23,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/codecommit v1.34.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.32.2
 	github.com/aws/aws-sdk-go-v2/service/sts v1.42.3
-	github.com/aws/smithy-go v1.26.0
+	github.com/aws/smithy-go v1.27.0
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
@@ -321,7 +321,7 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
-require github.com/go-openapi/runtime/server-middleware v0.32.2
+require github.com/go-openapi/runtime/server-middleware v0.32.3
 
 require (
 	github.com/go-openapi/testify/enable/yaml/v2 v2.5.1 // indirect

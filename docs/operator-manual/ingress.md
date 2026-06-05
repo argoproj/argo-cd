@@ -546,7 +546,7 @@ Also note that we can configure the health check to return the gRPC health statu
 ## [Istio](https://www.istio.io)
 You can put Argo CD behind Istio using the following configuration. This example serves Argo CD behind Istio and uses a subpath (for example, `/argocd`).
 
-First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
+First we need to make sure that we can run Argo CD with subpath (i.e. /argocd). For this we have used install.yaml from argocd project as is
 
 ```bash
 curl -kLs -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
@@ -568,7 +568,7 @@ And following lines as patch.yml
 
 ```yaml
 # Use --insecure so Ingress can send traffic with HTTP
-# --bashref /argocd is the subpath like https://IP/argocd
+# --basehref /argocd is the subpath like https://IP/argocd
 # env was added because of https://github.com/argoproj/argo-cd/issues/3572 error
 ---
 apiVersion: apps/v1
@@ -754,7 +754,7 @@ spec:
 
 ---
 > [!NOTE]
-> The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
+> The next two steps (the certificate secret and the Ingress) are described assuming that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
 
 ---
 
