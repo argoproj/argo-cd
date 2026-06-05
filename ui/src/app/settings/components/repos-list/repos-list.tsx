@@ -1,5 +1,6 @@
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'argo-ui';
 import {Context} from '../../../shared/context';
@@ -9,6 +10,8 @@ import {services} from '../../../shared/services';
 import {RepoDetails} from '../repo-details/repo-details';
 import {useQuery} from '../../../shared/hooks/query';
 import {FlexTopBar} from '../../../shared/components';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
+import {filterRepos, getRepoFilterResults, ReposFilter, ReposListPreferences, ReposListPreferencesHelper} from './repos-filter';
 
 require('./repos-list.scss');
 
@@ -172,14 +175,22 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     const [currentRepo, setCurrentRepo] = React.useState<models.Repository | null>(null);
     const [displayEditPanel, setDisplayEditPanel] = React.useState(false);
     const [authSettings, setAuthSettings] = React.useState<models.AuthSettings | null>(null);
-    const [statusProperty, setStatusProperty] = React.useState<'all' | 'Successful' | 'Failed' | 'Unknown'>('all');
-    const [projectProperty, setProjectProperty] = React.useState<string>('all');
-    const [typeProperty, setTypeProperty] = React.useState<'all' | 'git' | 'helm'>('all');
+    const [filterPref, setFilterPref] = React.useState<ReposListPreferences>({
+        typeFilter: [],
+        projectFilter: [],
+        statusFilter: []
+    });
     const query = useQuery();
     const name = query.get('search') || '';
     const [page, setPage] = React.useState(0);
+    const sidebarTarget = useSidebarTarget();
 
     const ctx = React.useContext(Context);
+
+    const onFilterChange = (newPref: ReposListPreferences) => {
+        setFilterPref(newPref);
+        setPage(0);
+    };
 
     const formApi = React.useRef<FormApi | null>(null);
     const credsTemplate = React.useRef<boolean>(false);
@@ -705,57 +716,14 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         }
     };
 
-    // filtering function
-    const filterRepos = (repos: models.Repository[], type: string, project: string, status: string, name: string) => {
-        let newRepos = repos;
-
-        if (name && name.trim() !== '') {
-            const response = filteredName(newRepos, name);
-            newRepos = response;
-        }
-
-        if (type !== 'all') {
-            const response = filteredType(newRepos, type);
-            newRepos = response;
-        }
-
-        if (status !== 'all') {
-            const response = filteredStatus(newRepos, status);
-            newRepos = response;
-        }
-
-        if (project !== 'all') {
-            const response = filteredProject(newRepos, project);
-            newRepos = response;
-        }
-
-        return newRepos;
-    };
-
-    const filteredName = (repos: models.Repository[], name: string) => {
-        const trimmedName = name.trim();
+    const filteredName = (repos: models.Repository[], search: string) => {
+        const trimmedName = search.trim();
         if (trimmedName === '') {
             return repos;
         }
-        const newRepos = repos.filter(
+        return repos.filter(
             repo => (repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase())) || repo.repo.toLowerCase().includes(trimmedName.toLowerCase())
         );
-        return newRepos;
-    };
-
-    const filteredStatus = (repos: models.Repository[], status: string) => {
-        const newRepos = repos.filter(repo => repo.connectionState.status.includes(status));
-        return newRepos;
-    };
-
-    const filteredProject = (repos: models.Repository[], project: string) => {
-        const newRepos = repos.filter(repo => repo.project && repo.project.includes(project));
-        return newRepos;
-    };
-
-    const filteredType = (repos: models.Repository[], type: string) => {
-        const newRepos = repos.filter(repo => repo.type.includes(type));
-        return newRepos;
     };
 
     // Whether to show the new repository connection dialogue on the page
@@ -806,111 +774,25 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             />
             <div className='repos-list'>
                 <div className='argo-container'>
-                    <div style={{display: 'flex', margin: '20px 0', justifyContent: 'space-between'}}>
-                        <div style={{display: 'flex', gap: '8px', width: '50%'}}>
-                            <DropDownMenu
-                                items={[
-                                    {
-                                        title: 'all',
-                                        action: () => setTypeProperty('all')
-                                    },
-                                    {
-                                        title: 'git',
-                                        action: () => setTypeProperty('git')
-                                    },
-                                    {
-                                        title: 'helm',
-                                        action: () => setTypeProperty('helm')
-                                    }
-                                ]}
-                                anchor={() => (
-                                    <>
-                                        <a style={{whiteSpace: 'nowrap'}}>
-                                            Type: {typeProperty} <i className='fa fa-caret-down' />
-                                        </a>
-                                        &nbsp;
-                                    </>
-                                )}
-                                qeId='type-menu'
-                            />
-                            <DataLoader
-                                load={services.repos.list}
-                                ref={loader => {
-                                    repoLoader.current = loader;
-                                }}>
-                                {(repos: models.Repository[]) => {
-                                    const projectValues = Array.from(new Set(repos.map(repo => repo.project)));
-
-                                    const projectItems = [
-                                        {
-                                            title: 'all',
-                                            action: () => setProjectProperty('all')
-                                        },
-                                        ...projectValues
-                                            .filter(project => project && project.trim() !== '')
-                                            .map(project => ({
-                                                title: project,
-                                                action: () => setProjectProperty(project)
-                                            }))
-                                    ];
-
-                                    return (
-                                        <DropDownMenu
-                                            items={projectItems}
-                                            anchor={() => (
-                                                <>
-                                                    <a style={{whiteSpace: 'nowrap'}}>
-                                                        Project: {projectProperty} <i className='fa fa-caret-down' />
-                                                    </a>
-                                                    &nbsp;
-                                                </>
-                                            )}
-                                            qeId='project-menu'
-                                        />
-                                    );
-                                }}
-                            </DataLoader>
-                            <DropDownMenu
-                                items={[
-                                    {
-                                        title: 'all',
-                                        action: () => setStatusProperty('all')
-                                    },
-                                    {
-                                        title: 'Successful',
-                                        action: () => setStatusProperty('Successful')
-                                    },
-                                    {
-                                        title: 'Failed',
-                                        action: () => setStatusProperty('Failed')
-                                    },
-                                    {
-                                        title: 'Unknown',
-                                        action: () => setStatusProperty('Unknown')
-                                    }
-                                ]}
-                                anchor={() => (
-                                    <>
-                                        <a style={{whiteSpace: 'nowrap'}}>
-                                            Status: {statusProperty} <i className='fa fa-caret-down' />
-                                        </a>
-                                        &nbsp;
-                                    </>
-                                )}
-                                qeId='status-menu'
-                            />
-                        </div>
-                    </div>
                     <DataLoader
                         load={services.repos.list}
                         ref={loader => {
                             repoLoader.current = loader;
                         }}>
                         {(repos: models.Repository[]) => {
-                            const filteredRepos = filterRepos(repos, typeProperty, projectProperty, statusProperty, name);
+                            const filterResults = getRepoFilterResults(repos, filterPref);
+                            const filteredRepos = filteredName(filterRepos(filterResults), name);
 
                             return (
                                 <>
+                                    {ReactDOM.createPortal(
+                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                            {allpref => (
+                                                <ReposFilter repos={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />
+                                            )}
+                                        </DataLoader>,
+                                        sidebarTarget?.current
+                                    )}
                                     {filteredRepos.length > 0 ? (
                                         <Paginate page={page} data={filteredRepos} onPageChange={setPage} preferencesKey='repos-list'>
                                             {reposToDisplay => (
@@ -990,9 +872,19 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                             <h5>Connect your repo to deploy apps.</h5>
                                         </EmptyState>
                                     ) : (
-                                        <EmptyState icon='argo-icon-git'>
-                                            <h4>No repositories matched your filters</h4>
-                                            <h5>Try adjusting Type/Project/Status or your search.</h5>
+                                        <EmptyState icon='fa fa-search'>
+                                            <h4>No matching repositories found</h4>
+                                            <h5>
+                                                Change filter criteria or&nbsp;
+                                                <a
+                                                    onClick={() => {
+                                                        const newPref = {...filterPref};
+                                                        ReposListPreferencesHelper.clearFilters(newPref);
+                                                        onFilterChange(newPref);
+                                                    }}>
+                                                    clear filters
+                                                </a>
+                                            </h5>
                                         </EmptyState>
                                     )}
                                 </>
