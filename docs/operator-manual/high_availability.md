@@ -626,31 +626,32 @@ $ go tool pprof http://localhost:8082/debug/pprof/heap
 
 ## Mitigating OOMKilled Events from Memory Spikes
 
-Since Go 1.19 (argocd version >= 2.5.20), the `GOMEMLIMIT` environment variable can be used to set a soft limit to trigger the Go garbage collector. In the case of a high live working set, the application could hit the resource memory limit before the next GC trigger and cause an OOMKilled event. Increasing the memory limit solves the OOMKilled issue but leads to significant memory resource waste since steady-state baseline memory usage is often much lower than peak usage. Therefore, setting `GOMEMLIMIT` to 80%-90% of your container memory limit will mitigate OOMKilled events caused by memory spikes.
+To mitigate `OOMKilled` events caused by sudden memory spikes without over-provisioning resources, you can configure the `GOMEMLIMIT` environment variable on the relevant Argo CD containers (supported in Argo CD versions >= 2.7.0).
+
+Setting `GOMEMLIMIT` to **80%–90%** of your container's total memory limit forces the Go runtime to trigger garbage collection before the Kubernetes hard limit is reached. For more detail, see the [Go GC Guide](https://go.dev/doc/gc-guide#Memory_limit) and the [Environment variables](https://pkg.go.dev/runtime#hdr-Environment_Variables) reference.
 
 ```yaml
-  containers:
-    - name: container-name
-      env:
-        - name: GOMEMLIMIT
-          value: "1800MiB"  # ~90% of a 2Gi memory limit, GOMEMLIMIT uses MiB/GiB as units
+containers:
+  - name: argocd-application-controller
+    resources:
+      limits:
+        memory: "2Gi"
+    env:
+      - name: GOMEMLIMIT
+        value: "1800MiB"  # ~90% of the 2Gi memory limit above; GOMEMLIMIT uses MiB/GiB units
 ```
 
 ### Known Use Cases
 
-* argocd application controller cold start memory spike
-* argocd server memory spike caused by individual expensive requests
+* Application controller cold-start memory spike
+* Expensive per-request memory spikes in argocd-server
 
-### GOMEMLIMIT Trade-Offs
+### Trade-Offs & Tuning
 
-The Go runtime will trigger garbage collection more frequently as memory usage approaches the `GOMEMLIMIT`. This can cause temporary CPU spikes, which should subside once the GC cycle completes and memory is reclaimed.
+> [!WARNING]
+> Setting `GOMEMLIMIT` too close to the application's actual working set can cause **GC thrashing**. The Go runtime will spend excessive CPU cycles continuously attempting to reclaim memory, significantly degrading application performance.
 
-If `GOMEMLIMIT` is set too close to the application's actual working set (the minimum memory required to run), the system can fall into GC thrashing. The runtime will spend excessive CPU cycles continuously attempting to reclaim memory that is still actively in use, drastically degrading performance.
-
-To prevent an indefinite stall, the Go runtime caps GC CPU usage at 50%. However, this means your application's throughput will still drop by up to 2x, and if the GC cannot free up enough space within that 50% CPU budget, the runtime will allow memory to surpass the `GOMEMLIMIT`, potentially resulting in a Kubernetes OOMKilled event regardless.
-
-> [!TIP]
-> If you observe sustained high CPU utilization alongside frequent GC activity or OOMKilled events, increase the container's memory limit and recalculate `GOMEMLIMIT` proportionally to provide the runtime with sufficient breathing room.
+If you observe sustained high CPU utilization alongside frequent GC activity or ongoing `OOMKilled` events, increase the container's total memory limit and recalculate `GOMEMLIMIT` proportionally to give the runtime more breathing room.
 
 ## Shallow Clone
 
