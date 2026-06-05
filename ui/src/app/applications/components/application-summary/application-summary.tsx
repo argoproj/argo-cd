@@ -651,29 +651,31 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 info.value
             ),
             titleEdit: (formApi: FormApi) => (
-                <React.Fragment>
-                    {i > 0 && (
+                <div className='application-summary__info-field'>
+                    <div className='application-summary__info-sort'>
                         <i
-                            className='fa fa-sort-up application-summary__sort-icon'
+                            className={`fa fa-sort-up application-summary__sort-icon${i > 0 ? '' : ' application-summary__sort-icon--hidden'}`}
                             onClick={() => {
-                                formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i - 1));
+                                if (i > 0) {
+                                    formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i - 1));
+                                }
                             }}
                         />
-                    )}
-                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: {width: '99%'}}} />
-                    {i < allItems.length - 1 && (
                         <i
-                            className='fa fa-sort-down application-summary__sort-icon'
+                            className={`fa fa-sort-down application-summary__sort-icon${i < allItems.length - 1 ? '' : ' application-summary__sort-icon--hidden'}`}
                             onClick={() => {
-                                formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i + 1));
+                                if (i < allItems.length - 1) {
+                                    formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i + 1));
+                                }
                             }}
                         />
-                    )}
-                </React.Fragment>
+                    </div>
+                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: {width: '100%'}}} />
+                </div>
             ),
             edit: (formApi: FormApi) => (
-                <React.Fragment>
-                    <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text} />
+                <div className='application-summary__info-field'>
+                    <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text} componentProps={{style: {width: '100%'}}} />
                     <i
                         className='fa fa-times application-summary__remove-icon'
                         onClick={() => {
@@ -682,7 +684,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             setAdjustedCount(adjustedCount - 1);
                         }}
                     />
-                </React.Fragment>
+                </div>
             )
         }))
         .concat({
@@ -808,16 +810,18 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 )}
             </Consumer>
             <BadgePanel app={props.app.metadata.name} appNamespace={props.app.metadata.namespace} nsEnabled={useAuthSettingsCtx?.appsInAnyNamespaceEnabled} />
-            <EditablePanel
-                save={updateApp}
-                values={app}
-                title='INFO'
-                items={infoItems}
-                onModeSwitch={() => {
-                    setAdjustedCount(0);
-                    notificationSubscriptions.onResetNotificationSubscriptions();
-                }}
-            />
+            <div className='application-summary__info-panel'>
+                <EditablePanel
+                    save={updateApp}
+                    values={app}
+                    title='INFO'
+                    items={infoItems}
+                    onModeSwitch={() => {
+                        setAdjustedCount(0);
+                        notificationSubscriptions.onResetNotificationSubscriptions();
+                    }}
+                />
+            </div>
         </div>
     );
 };
