@@ -15,7 +15,6 @@ import {filterRepos, getRepoFilterResults, ReposFilter, ReposListPreferences, Re
 
 require('./repos-list.scss');
 
-
 interface NewSSHRepoParams {
     type: string;
     name: string;
@@ -246,13 +245,14 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     const onValidateErrors = (params: FormValues): FormErrors => {
         switch (method) {
-            case ConnectionMethod.SSH:
+            case ConnectionMethod.SSH: {
                 const sshValues = params as NewSSHRepoParams;
                 return {
                     url: !sshValues.url && 'Repository URL is required',
                     depth: sshValues.depth != undefined && sshValues.depth < 0 && 'Depth must be a non-negative number'
                 };
-            case ConnectionMethod.HTTPS:
+            }
+            case ConnectionMethod.HTTPS: {
                 const validURLValues = params as NewHTTPSRepoParams;
                 return {
                     url:
@@ -268,7 +268,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         (validURLValues.bearerToken && validURLValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories.'),
                     depth: validURLValues.depth != undefined && validURLValues.depth < 0 && 'Depth must be a non-negative number'
                 };
-            case ConnectionMethod.GITHUBAPP:
+            }
+            case ConnectionMethod.GITHUBAPP: {
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
                     url: (!githubAppValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
@@ -276,14 +277,16 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required',
                     depth: githubAppValues.depth != undefined && githubAppValues.depth < 0 && 'Depth must be a non-negative number'
                 };
-            case ConnectionMethod.GOOGLECLOUD:
+            }
+            case ConnectionMethod.GOOGLECLOUD: {
                 const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
                 return {
                     url: (!googleCloudValues.url && 'Repo URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required',
                     depth: googleCloudValues.depth != undefined && googleCloudValues.depth < 0 && 'Depth must be a non-negative number'
                 };
-            case ConnectionMethod.AZURESERVICEPRINCIPAL:
+            }
+            case ConnectionMethod.AZURESERVICEPRINCIPAL: {
                 const azureServicePrincipalValues = params as NewAzureServicePrincipalRepoParams;
                 return {
                     url:
@@ -293,6 +296,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     azureServicePrincipalClientSecret: !azureServicePrincipalValues.azureServicePrincipalClientSecret && 'Azure Service Principal Client Secret is required',
                     azureServicePrincipalTenantId: !azureServicePrincipalValues.azureServicePrincipalTenantId && 'Azure Service Principal Tenant ID is required'
                 };
+            }
         }
     };
 
@@ -721,9 +725,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         if (trimmedName === '') {
             return repos;
         }
-        return repos.filter(
-            repo => (repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase())) || repo.repo.toLowerCase().includes(trimmedName.toLowerCase())
-        );
+        return repos.filter(repo => (repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase())) || repo.repo.toLowerCase().includes(trimmedName.toLowerCase()));
     };
 
     // Whether to show the new repository connection dialogue on the page
@@ -787,9 +789,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                 <>
                                     {ReactDOM.createPortal(
                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                            {allpref => (
-                                                <ReposFilter repos={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />
-                                            )}
+                                            {allpref => <ReposFilter repos={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />}
                                         </DataLoader>,
                                         sidebarTarget?.current
                                     )}

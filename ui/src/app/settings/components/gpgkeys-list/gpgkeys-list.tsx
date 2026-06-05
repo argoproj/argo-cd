@@ -12,7 +12,6 @@ import {FlexTopBar} from '../../../shared/components';
 
 require('./gpgkeys-list.scss');
 
-
 interface NewGnuPGPublicKeyParams {
     keyData: string;
 }

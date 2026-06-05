@@ -9,7 +9,6 @@ import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
 import {FlexTopBar} from '../../../shared/components';
 
-
 export function ProjectsList() {
     const formApiRef = React.useRef<FormApi | null>(null);
     const ctx = React.useContext(Context);

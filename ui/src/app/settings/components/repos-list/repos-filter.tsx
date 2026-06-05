@@ -53,7 +53,13 @@ const getCounts = (repos: FilteredRepo[], filterType: keyof FilterResult, filter
     return map;
 };
 
-const getOptions = (repos: FilteredRepo[], filterType: keyof FilterResult, filter: (repo: models.Repository) => string, keys: string[], getIcon?: (k: string) => React.ReactNode) => {
+const getOptions = (
+    repos: FilteredRepo[],
+    filterType: keyof FilterResult,
+    filter: (repo: models.Repository) => string,
+    keys: string[],
+    getIcon?: (k: string) => React.ReactNode
+) => {
     const counts = getCounts(repos, filterType, filter, keys);
     return keys.map(k => ({
         label: k,
@@ -63,9 +69,7 @@ const getOptions = (repos: FilteredRepo[], filterType: keyof FilterResult, filte
 };
 
 const optionsFrom = (options: string[], filter: string[]) => {
-    return options
-        .filter(s => filter.indexOf(s) === -1)
-        .map(item => ({label: item}));
+    return options.filter(s => filter.indexOf(s) === -1).map(item => ({label: item}));
 };
 
 interface ReposFilterProps {
@@ -105,13 +109,7 @@ const ProjectFilter = React.memo((props: ReposFilterProps) => {
         [props.repos, props.pref.projectFilter]
     );
     return (
-        <Filter
-            label='PROJECT'
-            selected={props.pref.projectFilter}
-            setSelected={s => props.onChange({...props.pref, projectFilter: s})}
-            field={true}
-            options={projectOptions}
-        />
+        <Filter label='PROJECT' selected={props.pref.projectFilter} setSelected={s => props.onChange({...props.pref, projectFilter: s})} field={true} options={projectOptions} />
     );
 });
 

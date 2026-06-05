@@ -6,7 +6,6 @@ import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
 import {FlexTopBar} from '../../../shared/components';
 
-
 export const AccountsList = () => {
     const ctx = React.useContext(Context);
     const query = useQuery();

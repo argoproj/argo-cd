@@ -52,11 +52,7 @@ const FlexTopBarContent = (props: {toolbar: ToolbarWithOptions}) => {
                 )}
             </div>
             <div className='flex-top-bar__tools'>
-                {props.toolbar.tools && (
-                    <div className='flex-top-bar__tools-left'>
-                        {props.toolbar.tools}
-                    </div>
-                )}
+                {props.toolbar.tools && <div className='flex-top-bar__tools-left'>{props.toolbar.tools}</div>}
                 {(props.toolbar.options || shouldAddAuth) && (
                     <div className='flex-top-bar__tools-right'>
                         {props.toolbar.options}

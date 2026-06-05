@@ -1,4 +1,3 @@
-import {Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {ContextApis} from '../../../shared/context';

@@ -114,9 +114,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
     // If autocomplete is provided, use Autocomplete component
     if (autocomplete) {
         // Normalize items to {value, label} format
-        const normalizedItems = autocomplete.items.map(item => 
-            typeof item === 'string' ? {value: item, label: item} : item
-        );
+        const normalizedItems = autocomplete.items.map(item => (typeof item === 'string' ? {value: item, label: item} : item));
 
         return (
             <Autocomplete
@@ -124,11 +122,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
                 filterSuggestions={autocomplete.filterSuggestions ?? true}
                 renderInput={inputProps => (
                     <div className='search-bar__input' ref={searchBarRef}>
-                        <i
-                            className='fa fa-search'
-                            style={{marginRight: '9px', cursor: 'pointer'}}
-                            onClick={focusInput}
-                        />
+                        <i className='fa fa-search' style={{marginRight: '9px', cursor: 'pointer'}} onClick={focusInput} />
                         <input
                             {...inputProps}
                             ref={(node: HTMLInputElement | null) => {
@@ -173,11 +167,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
     return (
         <div className='search-bar__wrapper'>
             <div className='search-bar__input'>
-                <i
-                    className='fa fa-search'
-                    style={{marginRight: '9px', cursor: 'pointer'}}
-                    onClick={focusInput}
-                />
+                <i className='fa fa-search' style={{marginRight: '9px', cursor: 'pointer'}} onClick={focusInput} />
                 <input
                     ref={inputRef}
                     type='text'
