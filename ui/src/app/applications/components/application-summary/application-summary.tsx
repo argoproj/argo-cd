@@ -670,12 +670,12 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             }}
                         />
                     </div>
-                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: {width: '100%'}}} />
+                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} />
                 </div>
             ),
             edit: (formApi: FormApi) => (
                 <div className='application-summary__info-field'>
-                    <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text} componentProps={{style: {width: '100%'}}} />
+                    <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text} />
                     <i
                         className='fa fa-times application-summary__remove-icon'
                         onClick={() => {

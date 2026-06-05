@@ -23,7 +23,7 @@
 
     // Drop the value column's read-mode padding/line-height in edit mode only
     // (the field wrapper exists only while editing) so key/value inputs align.
-    & &__info-panel {
+    &__info-panel {
         .white-box__details-row .columns:has(.application-summary__info-field),
         .white-box__details-row .columns.small-9:has(.application-summary__info-field) {
             line-height: normal;
