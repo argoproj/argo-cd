@@ -780,3 +780,48 @@ func TestConvertToV1alpha1_SourceHydratorPreserved(t *testing.T) {
 	assert.Nil(t, dst.Spec.Source, "Source should not be set for hydrator apps")
 	assert.Empty(t, dst.Spec.Sources, "Sources should be empty for hydrator apps")
 }
+
+// TestConvertSyncOptions_AllKnownOptionsRoundTrip guards against silent data loss in
+// SyncOptions conversion. convertSyncOptionsFromStrings is a hard-coded allowlist, so a
+// newly-added sync option that isn't given a case there would be dropped on conversion.
+// Every option string defined in gitops-engine's sync/common and Argo CD's common package
+// must survive a v1alpha1 -> v1beta1 -> v1alpha1 round trip; if this list drifts from the
+// switch in conversion.go, this test fails.
+func TestConvertSyncOptions_AllKnownOptionsRoundTrip(t *testing.T) {
+	// Each entry is an option string that has a distinct structured representation and
+	// must be preserved. "true-only" toggles (e.g. CreateNamespace) have no meaningful
+	// "=false" form — every consumer checks HasOption("X=true") — so only "=true" is listed.
+	knownOptions := []string{
+		"Validate=true",
+		"Validate=false",
+		"CreateNamespace=true",
+		"PruneLast=true",
+		"Replace=true",
+		"Replace=false",
+		"Force=true",
+		"ServerSideApply=true",
+		"ServerSideApply=false",
+		"ApplyOutOfSyncOnly=true",
+		"ApplyOutOfSyncOnly=false",
+		"SkipDryRunOnMissingResource=true",
+		"RespectIgnoreDifferences=true",
+		"FailOnSharedResource=true",
+		"ClientSideApplyMigration=true",
+		"ClientSideApplyMigration=false",
+		"Prune=false",
+		"Prune=confirm",
+		"Delete=false",
+		"Delete=confirm",
+		"PrunePropagationPolicy=background",
+		"PrunePropagationPolicy=foreground",
+		"PrunePropagationPolicy=orphan",
+	}
+
+	for _, opt := range knownOptions {
+		t.Run(opt, func(t *testing.T) {
+			structured := convertSyncOptionsFromStrings(v1alpha1.SyncOptions{opt})
+			roundTripped := convertSyncOptionsToStrings(structured)
+			assert.Contains(t, roundTripped, opt, "sync option %q was lost during round-trip conversion; add a case for it in convertSyncOptionsFromStrings/convertSyncOptionsToStrings", opt)
+		})
+	}
+}

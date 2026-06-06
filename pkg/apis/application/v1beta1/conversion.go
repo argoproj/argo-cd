@@ -163,11 +163,16 @@ func convertSyncOptionsFromStrings(opts v1alpha1.SyncOptions) *SyncOptions {
 			dst.PrunePropagationPolicy = new(PrunePropagationPolicyOrphan)
 
 		default:
-			// Handle any unrecognized options by checking if they match known patterns
+			// PrunePropagationPolicy accepts an open-ended value, so match it by prefix.
 			if after, ok := strings.CutPrefix(opt, "PrunePropagationPolicy="); ok {
 				val := after
 				dst.PrunePropagationPolicy = new(PrunePropagationPolicy(val))
 			}
+			// Any other unrecognized option is dropped: v1beta1 SyncOptions is a
+			// structured type and cannot hold arbitrary strings. The cases above must
+			// cover every option in gitops-engine's sync/common and Argo CD's common
+			// package — TestConvertSyncOptions_AllKnownOptionsRoundTrip guards against a
+			// new option being added without a matching case here.
 		}
 	}
 
