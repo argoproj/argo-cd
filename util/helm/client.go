@@ -19,6 +19,7 @@ import (
 	"time"
 
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/oci"
 
 	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
@@ -435,10 +436,13 @@ func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (stri
 	return c.chartCachePaths.GetPath(string(keyData))
 }
 
-// Ensures that given OCI registries URL does not have protocol
+// IsHelmOciRepo Ensures that given OCI registries URL does not have protocol, or has oci:// protocol
 func IsHelmOciRepo(repoURL string) bool {
 	if repoURL == "" {
 		return false
+	}
+	if oci.HasOCIPrefix(repoURL) {
+		return true
 	}
 	parsed, err := url.Parse(repoURL)
 	// the URL parser treat hostname as either path or opaque if scheme is not specified, so hostname must be empty
