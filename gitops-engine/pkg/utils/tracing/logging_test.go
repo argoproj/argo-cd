@@ -4,21 +4,19 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"go.uber.org/mock/gomock"
+	"github.com/stretchr/testify/mock"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing/tracer_testing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing/mocks"
 )
 
 func TestLoggingTracer(t *testing.T) {
-	c := gomock.NewController(t)
-	l := tracer_testing.NewMockLogSink(c)
-	gomock.InOrder(
-		l.EXPECT().Init(gomock.Any()),
-		l.EXPECT().WithValues("my-key", "my-value").Return(l),
-		l.EXPECT().WithValues("operation_name", "my-operation", "time_ms", gomock.Any()).Return(l),
-		l.EXPECT().Enabled(gomock.Any()).Return(true),
-		l.EXPECT().Info(0, "Trace"),
-	)
+	l := mocks.NewLogSink(t)
+	initCall := l.EXPECT().Init(mock.Anything).Return().Once()
+	withBaggageCall := l.EXPECT().WithValues("my-key", "my-value").Return(l).Once()
+	withOperationCall := l.EXPECT().WithValues("operation_name", "my-operation", "time_ms", mock.Anything).Return(l).Once()
+	enabledCall := l.EXPECT().Enabled(mock.Anything).Return(true).Once()
+	infoCall := l.EXPECT().Info(0, "Trace").Return().Once()
+	mock.InOrder(initCall, withBaggageCall, withOperationCall, enabledCall, infoCall)
 
 	tr := NewLoggingTracer(logr.New(l))
 

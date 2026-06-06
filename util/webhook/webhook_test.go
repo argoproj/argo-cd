@@ -1201,7 +1201,14 @@ func TestHandleEvent(t *testing.T) {
 					// Verify cache was updated with afterSHA
 					clusterInfo := &mockClusterInfo{}
 					var afterManifests cache.CachedManifestResponse
-					err := repoCache.GetManifests(testAfterSHA, source, nil, clusterInfo, "", "", testAppLabelKey, ttc.app.Name, &afterManifests, nil, "")
+					err := repoCache.GetManifests(cache.ManifestKey{
+						Revision:    testAfterSHA,
+						AppSource:   source,
+						RefSources:  nil,
+						ClusterInfo: clusterInfo,
+						AppLabelKey: testAppLabelKey,
+						AppName:     ttc.app.Name,
+					}, &afterManifests)
 					require.NoError(t, err, "cache should be updated with afterSHA")
 					if err == nil {
 						assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
@@ -1250,10 +1257,10 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
     ]
   },
   "repository":{
-    "type": "repository", 
+    "type": "repository",
     "full_name": "{{.owner}}/{{.repo}}",
-    "name": "{{.name}}", 
-    "scm": "git", 
+    "name": "{{.name}}",
+    "scm": "git",
     "links": {
       "self": {"href": "https://api.bitbucket.org/2.0/repositories/{{.owner}}/{{.repo}}"},
       "html": {"href": "https://bitbucket.org/{{.owner}}/{{.repo}}"}
@@ -1709,6 +1716,13 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 			Server:    testClusterURL,
 		},
 	}
-	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "")
+	err := repoCache.SetManifests(cache.ManifestKey{
+		Revision:    testBeforeSHA,
+		AppSource:   source,
+		RefSources:  nil,
+		ClusterInfo: clusterInfo,
+		AppLabelKey: testAppLabelKey,
+		AppName:     appName,
+	}, dummyManifests)
 	require.NoError(t, err)
 }

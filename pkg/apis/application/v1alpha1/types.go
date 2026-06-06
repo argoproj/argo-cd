@@ -254,14 +254,19 @@ func (spec *ApplicationSpec) GetSource() ApplicationSource {
 }
 
 // GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+// HydrateTo only specifies a different branch; it inherits repo and path from syncSource.
 func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 	if spec.SourceHydrator != nil {
 		targetRevision := spec.SourceHydrator.SyncSource.TargetBranch
+		repoURL := spec.SourceHydrator.SyncSource.RepoURL
+		if repoURL == "" {
+			repoURL = spec.SourceHydrator.DrySource.RepoURL
+		}
 		if spec.SourceHydrator.HydrateTo != nil {
 			targetRevision = spec.SourceHydrator.HydrateTo.TargetBranch
 		}
 		return ApplicationSource{
-			RepoURL:        spec.SourceHydrator.DrySource.RepoURL,
+			RepoURL:        repoURL,
 			Path:           spec.SourceHydrator.SyncSource.Path,
 			TargetRevision: targetRevision,
 		}
@@ -286,13 +291,23 @@ func (spec *ApplicationSpec) HasMultipleSources() bool {
 	return spec.SourceHydrator == nil && len(spec.Sources) > 0
 }
 
+// GetSourcePtrByPosition returns the source pointer by position.
+// The position is 1-based index.
+// If the source is using hydrator, use 0 to return the dry source or 1 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	return spec.GetSourcePtrByIndex(sourcePosition - 1)
 }
 
+// GetSourcePtrByIndex returns the source pointer by index.
+// If the source is using hydrator, use -1 to return the dry source or 0 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	if spec.SourceHydrator != nil {
+		if sourceIndex < 0 {
+			// If the index is -1, return the dry source.
+			source := spec.SourceHydrator.GetDrySource()
+			return &source
+		}
 		source := spec.SourceHydrator.GetSyncSource()
 		return &source
 	}
@@ -418,9 +433,12 @@ type SourceHydrator struct {
 
 // GetSyncSource gets the source from which we should sync when a source hydrator is configured.
 func (s SourceHydrator) GetSyncSource() ApplicationSource {
+	repoURL := s.SyncSource.RepoURL
+	if repoURL == "" {
+		repoURL = s.DrySource.RepoURL
+	}
 	return ApplicationSource{
-		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
-		RepoURL:        s.DrySource.RepoURL,
+		RepoURL:        repoURL,
 		Path:           s.SyncSource.Path,
 		TargetRevision: s.SyncSource.TargetBranch,
 	}
@@ -476,8 +494,8 @@ func (in DrySource) Equals(other DrySource) bool {
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
-// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
-// associated DrySource config in the SourceHydrator.
+// SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
+// to be the same as the associated DrySource config in the SourceHydrator.
 type SyncSource struct {
 	// TargetBranch is the branch from which hydrated manifests will be synced.
 	// If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
@@ -490,10 +508,13 @@ type SyncSource struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
 	Path string `json:"path" protobuf:"bytes,2,name=path"`
+	// RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+	// the DrySource.RepoURL.
+	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,3,opt,name=repoURL"`
 }
 
-// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
-// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+// HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The repository and path are inherited from SyncSource.
 type HydrateTo struct {
 	// TargetBranch is the branch to which hydrated manifests should be committed
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
@@ -523,8 +544,10 @@ const (
 type HydrateType string
 
 const (
-	// HydrateTypeNormal is a normal hydration
+	// HydrateTypeNormal forces reevaluation of whether the dry requires hydration
 	HydrateTypeNormal HydrateType = "normal"
+	// HydrateTypeHard forces an app hydration of the dry source
+	HydrateTypeHard HydrateType = "hard"
 )
 
 type RefTarget struct {
@@ -536,6 +559,7 @@ type RefTarget struct {
 type RefTargetRevisionMapping map[string]*RefTarget
 
 // ApplicationSourceHelm holds helm specific options
+// +protobuf.options.(gogoproto.goproto_stringer)=false
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
@@ -1227,6 +1251,9 @@ type SourceHydratorStatus struct {
 	LastSuccessfulOperation *SuccessfulHydrateOperation `json:"lastSuccessfulOperation,omitempty" protobuf:"bytes,1,opt,name=lastSuccessfulOperation"`
 	// CurrentOperation holds the status of the hydrate operation
 	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
+	// LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
+	// This is updated on every evaluation, even when hydration is skipped due to no changes.
+	LastComparedDryRevision string `json:"lastComparedDryRevision,omitempty" protobuf:"bytes,3,opt,name=lastComparedDryRevision"`
 }
 
 func (status *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
@@ -1700,9 +1727,12 @@ type RevisionMetadata struct {
 	// Message contains the message associated with the revision, most likely the commit message.
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
-	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+	//
+	// Deprecated: Use SourceIntegrityResult for more detailed information. SignatureInfo will be removed with the next major version.
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// References contains references to information that's related to this commit in some way.
-	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	References            []RevisionReference         `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	SourceIntegrityResult *SourceIntegrityCheckResult `json:"sourceIntegrityResult,omitempty" protobuf:"bytes,7,opt,name=sourceIntegrityResult"`
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository
@@ -2458,6 +2488,21 @@ type ExecProviderConfig struct {
 
 	// This text is shown to the user when the executable doesn't seem to be present
 	InstallHint string `json:"installHint,omitempty" protobuf:"bytes,5,opt,name=installHint"`
+
+	// ProvideClusterInfo determines whether or not to provide cluster information,
+	// which could potentially contain very large CA data, to this exec plugin as a
+	// part of the KUBERNETES_EXEC_INFO environment variable.
+	// Comment mirrored from k8s.io/client-go/tools/clientcmd/api.ExecConfig.ProvideClusterInfo
+	ProvideClusterInfo bool `json:"provideClusterInfo,omitempty" protobuf:"bytes,6,opt,name=provideClusterInfo"`
+
+	// Config holds cluster-specific configuration data that will be passed to the exec plugin
+	// via ExecCredential.Spec.Cluster.Config. This is typically used to pass information like
+	// the cluster name to credential plugins that need it for multi-cluster authentication.
+	//
+	// This data is sourced from the kubeconfig cluster's extensions field with the reserved key
+	// "client.authentication.k8s.io/exec", as defined by the Kubernetes client authentication API.
+	// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+	Config *runtime.RawExtension `json:"config,omitempty" protobuf:"bytes,7,opt,name=config"`
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -2772,7 +2817,9 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 }
 
 // SignatureKey is the specification of a key required to verify commit signatures with
-type SignatureKey struct {
+//
+// Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
+type SignatureKey struct { // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// The ID of the key in hexadecimal notation
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }
@@ -2799,7 +2846,9 @@ type AppProjectSpec struct {
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 	// SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
-	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
+	//
+	// Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
+	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []ClusterResourceRestrictionItem `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 	// SourceNamespaces defines the namespaces application resources are allowed to be created in
@@ -2808,6 +2857,50 @@ type AppProjectSpec struct {
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+	// SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
+	// Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
+	SourceIntegrity *SourceIntegrity `json:"sourceIntegrity,omitempty" protobuf:"bytes,15,name=sourceIntegrity"`
+}
+
+// EffectiveSourceIntegrity incorporates the legacy SignatureKeys into SourceIntegrity, if possible
+// SignatureKeys are added as a Git GPG policy for repos specified with `*`. If such a policy exists, the SignatureKeys
+// are ignored with warning.
+func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
+	var legacyKeys []string
+	for _, k := range proj.Spec.SignatureKeys {
+		legacyKeys = append(legacyKeys, k.KeyID)
+	}
+
+	if len(legacyKeys) == 0 {
+		// Already using the modern version
+		return proj.Spec.SourceIntegrity
+	}
+
+	migratedGit := &SourceIntegrityGit{
+		Policies: []*SourceIntegrityGitPolicy{{
+			Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+			GPG: &SourceIntegrityGitPolicyGPG{
+				Mode: SourceIntegrityGitPolicyGPGModeHead,
+				Keys: legacyKeys,
+			},
+		}},
+	}
+
+	if proj.Spec.SourceIntegrity == nil {
+		log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+		return &SourceIntegrity{Git: migratedGit}
+	}
+
+	if proj.Spec.SourceIntegrity.Git != nil {
+		log.Errorf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.", proj.Name)
+		return proj.Spec.SourceIntegrity
+	}
+
+	log.Warnf("Merging SourceIntegrity with legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+	// Merge with non-git checks without modifying the AppProject - use deep-copy and amend
+	deepCopy := proj.Spec.SourceIntegrity.DeepCopy()
+	deepCopy.Git = migratedGit
+	return deepCopy
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
@@ -3495,20 +3588,21 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	return refreshType, true
 }
 
-// IsHydrateRequested returns whether hydration has been requested for an application
-func (app *Application) IsHydrateRequested() bool {
+// IsHydrateRequested returns whether hydration has been requested for an application and the type of hydration
+func (app *Application) IsHydrateRequested() (bool, HydrateType) {
 	annotations := app.GetAnnotations()
 	if annotations == nil {
-		return false
+		return false, ""
 	}
 	typeStr, ok := annotations[AnnotationKeyHydrate]
 	if !ok {
-		return false
+		return false, ""
 	}
-	if typeStr == string(HydrateTypeNormal) {
-		return true
+	hydrateType := HydrateTypeNormal
+	if typeStr == string(HydrateTypeHard) {
+		hydrateType = HydrateTypeHard
 	}
-	return false
+	return true, hydrateType
 }
 
 func (app *Application) HasPreDeleteFinalizer(stage ...string) bool {
@@ -3922,17 +4016,28 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					})
 				}
 			}
+			execConfig := &api.ExecConfig{
+				APIVersion:         c.Config.ExecProviderConfig.APIVersion,
+				Command:            c.Config.ExecProviderConfig.Command,
+				Args:               c.Config.ExecProviderConfig.Args,
+				Env:                env,
+				InstallHint:        c.Config.ExecProviderConfig.InstallHint,
+				ProvideClusterInfo: c.Config.ExecProviderConfig.ProvideClusterInfo,
+				InteractiveMode:    api.NeverExecInteractiveMode,
+			}
+			// If Config is set, pass cluster-specific data (like clusterName) to the exec plugin.
+			// This data flows through to ExecCredential.Spec.Cluster.Config when ProvideClusterInfo is true.
+			// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+			if c.Config.ExecProviderConfig.Config != nil && len(c.Config.ExecProviderConfig.Config.Raw) > 0 {
+				execConfig.Config = &runtime.Unknown{
+					Raw:         c.Config.ExecProviderConfig.Config.Raw,
+					ContentType: runtime.ContentTypeJSON,
+				}
+			}
 			config = &rest.Config{
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
-				ExecProvider: &api.ExecConfig{
-					APIVersion:      c.Config.ExecProviderConfig.APIVersion,
-					Command:         c.Config.ExecProviderConfig.Command,
-					Args:            c.Config.ExecProviderConfig.Args,
-					Env:             env,
-					InstallHint:     c.Config.ExecProviderConfig.InstallHint,
-					InteractiveMode: api.NeverExecInteractiveMode,
-				},
+				ExecProvider:    execConfig,
 			}
 		default:
 			config = &rest.Config{
