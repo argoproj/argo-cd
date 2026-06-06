@@ -4817,7 +4817,7 @@ func TestServerSideDiff(t *testing.T) {
 		mockApplier := &kubetest.MockKubeApplier{
 			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
 				applierCalled = true
-				return "", errors.New("applier should not be called for new objects")
+				return "", stderrors.New("applier should not be called for new objects")
 			},
 		}
 
