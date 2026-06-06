@@ -39,13 +39,13 @@ Allowing users to attach debug containers to pods is highly useful for debugging
 
 ## Proposal
 
-Rather than introducing a new RBAC resource, this proposal piggybacks on the existing `exec` resource by adding a new action `debug` (today `exec` only supports the `create` action). The feature is gated behind a `debug.enabled` flag in the `argocd-cm` ConfigMap (disabled by default). When enabled, a user with the `debug` action on the pod's project sees a new `Debug` tab on the pod view, with a dropdown of allowed debug images and a dropdown of the pod's containers for optional process-namespace sharing — enabling tools like busybox, netshoot, or dlv to inspect a running workload.
+Rather than introducing a new RBAC resource, this proposal uses on the existing `exec` resource by adding a new action `debug`. The feature is gated behind a `exec.debug.enabled` flag in the `argocd-cm` ConfigMap (disabled by default). When enabled, a user with the `debug` action on the pod's project sees a new `Debug` tab on the pod view, with a dropdown of allowed debug images and a dropdown of the pod's containers for optional process-namespace sharing — enabling tools like busybox, netshoot, or dlv to inspect a running workload.
 
-A `debug.images` field is also exposed in `argocd-cm` as the cluster-wide default allowlist of images that may be used. The same field is exposed on the AppProject CRD as `debugImages`; when set, it overrides `debug.images` for applications in that project.
+A `exec.debug.images` field is also exposed in `argocd-cm` as the cluster-wide default allowlist of images that may be used. The same field is exposed on the AppProject CRD as `debugImages`; when set, it overrides `debug.images` for applications in that project.
 
 ### RBAC
 
-The simple form grants the user the ability to attach any image permitted by `debug.images` / `debugImages`:
+The simple form grants the user the ability to attach any image permitted by `exec.debug.images` / `debugImages`:
 
 ```
 p, role:debugger, exec, debug, */*, allow
