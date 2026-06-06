@@ -1464,14 +1464,19 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		}, nil)
 
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
@@ -1552,15 +1557,20 @@ func TestFinalizeAppDeletion(t *testing.T) {
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
@@ -3618,6 +3628,11 @@ func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T
 		if patchCalls == 1 {
 			return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
 		}
+		// The status patch (and its fallback) goes through the v1beta1 client, so the
+		// reactor must return a v1beta1 object the fake client can type-assert.
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 
@@ -3696,6 +3711,11 @@ func TestApplicationController_PersistAppStatus_FallbackMessageContainsUserGuida
 		capturedPatches = append(capturedPatches, patchAction.GetPatch())
 		if patchCalls == 1 {
 			return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
+		}
+		// The status patch (and its fallback) goes through the v1beta1 client, so the
+		// reactor must return a v1beta1 object the fake client can type-assert.
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
