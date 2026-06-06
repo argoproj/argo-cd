@@ -2,7 +2,6 @@ package sync
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -37,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubemeta"
 )
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/gitops-engine/pkg/sync")
@@ -319,17 +319,17 @@ func groupResources(reconciliationResult ReconciliationResult) map[kubeutil.Reso
 func groupDiffResults(diffResultList *diff.DiffResultList) map[kubeutil.ResourceKey]bool {
 	modifiedResources := make(map[kubeutil.ResourceKey]bool)
 	for _, res := range diffResultList.Diffs {
-		var obj unstructured.Unstructured
-		var err error
-		if string(res.NormalizedLive) != "null" {
-			err = json.Unmarshal(res.NormalizedLive, &obj)
-		} else {
-			err = json.Unmarshal(res.PredictedLive, &obj)
+		// Only the resource key is needed here, so parse just the identifying
+		// fields rather than unmarshalling the full object.
+		state := res.NormalizedLive
+		if string(state) == "null" {
+			state = res.PredictedLive
 		}
+		obj, err := kubemeta.NewKubeJson(state)
 		if err != nil {
 			continue
 		}
-		modifiedResources[kubeutil.GetResourceKey(&obj)] = res.Modified
+		modifiedResources[kubemeta.GetResourceKey(obj)] = res.Modified
 	}
 	return modifiedResources
 }
