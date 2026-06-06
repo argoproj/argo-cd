@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2026-04-14
-last-updated: 2026-05-28
+last-updated: 2026-06-06
 ---
 
 # Attach Debug Containers via ArgoCD UI
@@ -39,10 +39,28 @@ Allowing users to attach debug containers to pods is highly useful for debugging
 
 ## Proposal
 
-ArgoCD will have new action `debug`, this action will be gated behind RBAC permission, and a flag in `argocd-cm` ConfigMap `debug.enabled`, another flag will be exposed `debug.images` this will be an array of images that will be allowed to be used in the debug container (empty by default). when the `debug.enabled` flag is enabled and a user with the `debug` permission will click on a pod, it will have another tab called `debug` which will present him with a dropdown list of debug images, and a dropdown list for which (if any) container to target (for process sharing).
-Another field named `debugImages` will be exposed in the appProject CRD, if specified it will override the images in `debug.images` from `argocd-cm` for the specific appProject
+Rather than introducing a new RBAC resource, this proposal piggybacks on the existing `exec` resource by adding a new action `debug` (today `exec` only supports the `create` action). The feature is gated behind a `debug.enabled` flag in the `argocd-cm` ConfigMap (disabled by default). When enabled, a user with the `debug` action on the pod's project sees a new `Debug` tab on the pod view, with a dropdown of allowed debug images and a dropdown of the pod's containers for optional process-namespace sharing — enabling tools like busybox, netshoot, or dlv to inspect a running workload.
 
-When an workload has debug container attached to it, its Application should have a note near the Sync OK text noting that a debug container has been attached `Sync OK (Debug Container Attached)`
+A `debug.images` field is also exposed in `argocd-cm` as the cluster-wide default allowlist of images that may be used. The same field is exposed on the AppProject CRD as `debugImages`; when set, it overrides `debug.images` for applications in that project.
+
+### RBAC
+
+The simple form grants the user the ability to attach any image permitted by `debug.images` / `debugImages`:
+
+```
+p, role:debugger, exec, debug, */*, allow
+```
+
+The action can be extended with an image pattern to further narrow which images a specific subject is allowed to attach. Glob matching is applied against the fully-qualified image reference, and the result is intersected with the configured allowlist:
+
+```
+p, role:net-debug, exec, debug/docker.io/library/busybox:*, */*, allow
+p, role:go-debug,  exec, debug/gcr.io/example/dlv:1.22, prod/*, allow
+```
+
+A bare `debug` action (no image suffix) is equivalent to `debug/*` for that subject. The image dropdown shown in the UI is the intersection of the configured allowlist and the patterns the user's RBAC grants.
+
+When a workload has a debug container attached, its Application shows a note near the Sync OK text: `Sync OK (Debug Container Attached)`.
 
 ### Use cases
 
