@@ -247,6 +247,34 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigOIDCWithDollarSign = `
+connectors:
+- type: oidc
+  id: oidc
+  name: Some OIDC Provider
+  config:
+    issuer: https://accounts.example.com
+    clientID: argo-cd
+    clientSecret: $dex.oidc.clientSecret
+    redirectURI: http://localhost/callback
+    scopes:
+    - openid
+    - profile
+    - email
+`
+
+var goodDexConfigGitHubWithDollarSign = `
+connectors:
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -542,6 +570,7 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 		name      string
 		secrets   map[string]string
 		dexConfig string
+		field     string
 		expected  string
 	}
 
@@ -551,36 +580,56 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 			secrets:   map[string]string{"dex.ldap.bindPW": "test$test"},
 			dexConfig: goodDexConfigLDAPWithDollarSign,
 			expected:  "test$$test",
+			field:     "bindPW",
 		},
 		{
 			name:      "LDAP bindPW without dollar sign is unaffected",
 			secrets:   map[string]string{"dex.ldap.bindPW": "plainpassword"},
 			dexConfig: goodDexConfigLDAPWithDollarSign,
 			expected:  "plainpassword",
+			field:     "bindPW",
 		},
 		{
 			name:      "LDAP bindPW with multiple dollar signs all escaped",
 			secrets:   map[string]string{"dex.ldap.bindPW": "a$b$c$d"},
 			dexConfig: goodDexConfigLDAPWithDollarSign,
 			expected:  "a$$b$$c$$d",
+			field:     "bindPW",
 		},
 		{
 			name:      "literal with multiple dollar signs in bindPW (no secret reference) is escaped",
 			secrets:   map[string]string{},
 			dexConfig: goodDexConfigPlainPasswordMultipleDollarSigns,
 			expected:  "a$$b$$c$$d",
+			field:     "bindPW",
 		},
 		{
 			name:      "literal dollar sign in bindPW (no secret reference) is escaped",
 			secrets:   map[string]string{},
 			dexConfig: goodDexConfigPasswordWithDollarSign,
 			expected:  "test$$test",
+			field:     "bindPW",
 		},
 		{
 			name:      "literal plain password in bindPW (no secret reference) is unaffected",
 			secrets:   map[string]string{},
 			dexConfig: goodDexConfigPlainPassword,
 			expected:  "plainpassword",
+			field:     "bindPW",
+		},
+		{
+			name:      "OIDC clientSecret with dollar sign is escaped",
+			secrets:   map[string]string{"dex.oidc.clientSecret": "oidc$secret"},
+			dexConfig: goodDexConfigOIDCWithDollarSign,
+			field:     "clientSecret",
+			expected:  "oidc$$secret",
+		},
+		{
+			name:      "GitHub clientSecret with dollar sign is escaped",
+			secrets:   map[string]string{"dex.github.clientSecret": "gh_$token"},
+			dexConfig: goodDexConfigGitHubWithDollarSign,
+			field:     "clientSecret",
+			expected:  "gh_$$token",
 		},
 	}
 
@@ -595,9 +644,18 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 
 			connectors := dexCfg["connectors"].([]any)
 			connCfg := connectors[0].(map[string]any)["config"].(map[string]any)
-			assert.Equal(t, tc.expected, connCfg["bindPW"])
+			assert.Equal(t, tc.expected, connCfg[tc.field])
 		})
 	}
+
+	t.Run("top-level issuer is NOT escaped even if it contained a dollar sign", func(t *testing.T) {
+		config, err := GenerateDexConfigYAML(argoCDSettings(goodDexConfigLDAPWithDollarSign,
+			map[string]string{"dex.ldap.bindPW": "test$test"}), false)
+		require.NoError(t, err)
+		var dexCfg map[string]any
+		require.NoError(t, yaml.Unmarshal(config, &dexCfg))
+		assert.NotContains(t, dexCfg["issuer"].(string), "$$")
+	})
 }
 
 func argoCDSettings(dexConfig string, secrets map[string]string) *settings.ArgoCDSettings {

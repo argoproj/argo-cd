@@ -2396,13 +2396,14 @@ func replaceStringSecret(val string, secretValues map[string]string, trimmer fun
 }
 
 // EscapeDollarSignsInMap recursively walks the given config map and escapes any
-// literal '$' characters in string values as '$$'. This is a post-processing
-// step for the Dex config, applied after the secret references have already been
-// resolved by ReplaceMapSecretsDex.
+// literal '$' characters in string values as '$$'. This should be called on a
+// connector's config sub-map after secret references have been resolved by
+// ReplaceMapSecrets. It protects resolved values from Dex's os.ExpandEnv
+// expansion (controlled by DEX_EXPAND_ENV, enabled by default), which is applied
+// to every string field in each connector's config block during unmarshalling.
 //
-// It ensures that values written directly into dex.config (i.e., not via a
-// $secret-key reference) are also protected from Dex's os.ExpandEnv expansion,
-// which silently corrupts any '$' it encounters.
+// Scoped to connector configs only — Dex does NOT apply ExpandEnv to top-level
+// fields like issuer, web, oauth2, staticClients, logger, etc.
 //
 // See: https://github.com/argoproj/argo-cd/issues/27803
 func EscapeDollarSignsInMap(obj map[string]any) map[string]any {
