@@ -631,6 +631,27 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 			field:     "clientSecret",
 			expected:  "gh_$$token",
 		},
+		{
+			name:      "password with special characters but no dollar sign is not modified",
+			secrets:   map[string]string{"dex.ldap.bindPW": `p@ssw0rd!#%^&*()[]{};:,.<>?/~` + "`" + `\n`},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			field:     "bindPW",
+			expected:  `p@ssw0rd!#%^&*()[]{};:,.<>?/~` + "`" + `\n`,
+		},
+		{
+			name:      "password with ${VAR} form dollar sign is also escaped",
+			secrets:   map[string]string{"dex.ldap.bindPW": "pass${WORD}end"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			field:     "bindPW",
+			expected:  "pass$${WORD}end",
+		},
+		{
+			name:      "password with unicode characters is not modified",
+			secrets:   map[string]string{"dex.ldap.bindPW": "pässwörð£€"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			field:     "bindPW",
+			expected:  "pässwörð£€",
+		},
 	}
 
 	for _, tc := range tt {
