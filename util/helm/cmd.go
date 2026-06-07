@@ -19,6 +19,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -238,9 +239,14 @@ func writeToTmp(data []byte) (string, utilio.Closer, error) {
 
 func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
 	args := []string{"pull", "--destination", destination}
-	if version != "" {
+	if versions.IsDigest(version) {
+		// For sha256 digest, append it to the chart name and pass as such to Helm CLI
+		chartName = fmt.Sprintf("%s@%s", chartName, version)
+	} else {
+		// use --version flag only if chart is not pointed by image digest
 		args = append(args, "--version", version)
 	}
+
 	if creds.GetUsername() != "" {
 		args = append(args, "--username", creds.GetUsername())
 	}
@@ -289,12 +295,18 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 }
 
 func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
-	args := []string{
-		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
-		version,
-		"--destination",
-		destination,
+	args := []string{"pull"}
+	chartRef := fmt.Sprintf("oci://%s/%s", repo, chart)
+
+	if versions.IsDigest(version) {
+		// For sha256 digest, append it to the chart name and pass as such to Helm CLI
+		args = append(args, fmt.Sprintf("%s@%s", chartRef, version))
+	} else {
+		// use --version flag only if chart is not pointed by image digest
+		args = append(args, chartRef, "--version", version)
 	}
+	args = append(args, "--destination", destination)
+
 	if creds.GetCAPath() != "" {
 		args = append(args, "--ca-file", creds.GetCAPath())
 	}
