@@ -4,6 +4,7 @@ metadata:
   name: statussubresources.argoproj.io
   labels:
     e2e.argoproj.io: "true"
+spec:
   conversion:
     strategy: None
   group: argoproj.io
