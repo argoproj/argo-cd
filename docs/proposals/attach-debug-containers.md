@@ -35,7 +35,7 @@ Allowing users to attach debug containers to pods is highly useful for debugging
 
 ### Non-Goals
 
-.
+This proposal does not cover managing the lifecycle of already-attached ephemeral containers (Kubernetes does not support removing them)
 
 ## Proposal
 
