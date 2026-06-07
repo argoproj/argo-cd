@@ -4,8 +4,7 @@ set -eux -o pipefail
 # Code from: https://github.com/argoproj/argo-rollouts/blob/f650a1fd0ba7beb2125e1598410515edd572776f/hack/installers/install-dev-tools.sh
 
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/../..; pwd)
-INSTALL_PATH="${BIN:-$INSTALL_PATH}"
-INSTALL_PATH="${INSTALL_PATH:-$PROJECT_ROOT/dist}"
+INSTALL_PATH="${BIN:-$PROJECT_ROOT/dist}"
 PATH="${INSTALL_PATH}:${PATH}"
 [ -d "$INSTALL_PATH" ] || mkdir -p "$INSTALL_PATH"
 
@@ -22,6 +21,11 @@ url="https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_
 
 mkdir -p /tmp/gotestsum-${GOTESTSUM_VERSION}
 tar -xvzf "${temp_path}" -C /tmp/gotestsum-${GOTESTSUM_VERSION}
-sudo cp /tmp/gotestsum-${GOTESTSUM_VERSION}/gotestsum "${INSTALL_PATH}/gotestsum"
-sudo chmod +x "${INSTALL_PATH}/gotestsum"
+if [ -w "$INSTALL_PATH" ]; then
+  cp /tmp/gotestsum-${GOTESTSUM_VERSION}/gotestsum "${INSTALL_PATH}/gotestsum"
+  chmod +x "${INSTALL_PATH}/gotestsum"
+else
+  sudo cp /tmp/gotestsum-${GOTESTSUM_VERSION}/gotestsum "${INSTALL_PATH}/gotestsum"
+  sudo chmod +x "${INSTALL_PATH}/gotestsum"
+fi
 gotestsum --version

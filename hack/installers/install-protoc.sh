@@ -4,6 +4,7 @@ set -eux -o pipefail
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/../..; pwd)
 DIST_PATH="${PROJECT_ROOT}/dist"
 PATH="${DIST_PATH}:${PATH}"
+[ -d "$DIST_PATH" ] || mkdir -p "$DIST_PATH"
 
 . "$(dirname "$0")"/../tool-versions.sh
 
@@ -41,7 +42,7 @@ url="https://github.com/protocolbuffers/protobuf/releases/download/v${protoc_ver
 mkdir -p "/tmp/protoc-${protoc_version}"
 unzip -o "$DOWNLOADS/${TARGET_FILE}" -d "/tmp/protoc-${protoc_version}"
 mkdir -p "${DIST_PATH}/protoc-include"
-sudo install -m 0755 "/tmp/protoc-${protoc_version}/bin/protoc" "${DIST_PATH}/protoc"
+install -m 0755 "/tmp/protoc-${protoc_version}/bin/protoc" "${DIST_PATH}/protoc"
 (
     cd "/tmp/protoc-${protoc_version}/include/"
     find -- * -type d -exec install -m 0755 -d "${DIST_PATH}/protoc-include/{}" \;

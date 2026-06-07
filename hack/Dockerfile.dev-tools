@@ -1,8 +1,8 @@
 FROM argocd-test-tools:latest as base
 
-RUN ./install.sh codegen-tools
-RUN ./install.sh codegen-go-tools
-RUN ./install.sh lint-tools
+RUN BIN=/usr/local/bin ./install.sh codegen-tools
+RUN BIN=/usr/local/bin ./install.sh codegen-go-tools
+RUN BIN=/usr/local/bin ./install.sh lint-tools
 
 RUN mkdir -p /home/user && chmod 777 /home/user
 
