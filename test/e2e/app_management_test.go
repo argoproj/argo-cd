@@ -550,6 +550,64 @@ func TestImmutableChange(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
+func TestMultiSyncCRDClientSideSame(t *testing.T) {
+	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml")
+}
+
+func TestMultiSyncCRDClientSideChanged(t *testing.T) {
+	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml")
+}
+
+func TestMultiSyncCRDServerSideSame(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml")
+}
+
+func TestMultiSyncCRDServerSideChanged(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml")
+}
+
+func TestMultiSyncBuiltinClientSideSame(t *testing.T) {
+	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml")
+}
+
+func TestMultiSyncBuiltinClientSideChanged(t *testing.T) {
+	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml")
+}
+
+func TestMultiSyncBuiltinServerSideSame(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml")
+}
+
+func TestMultiSyncBuiltinServerSideChanged(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml")
+}
+
+// demostrate that Sync still works after initial Sync (create vs patch code paths)
+func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string) {
+	t.Helper()
+	args := []string{}
+	if serverSide {
+		args = append(args, "--server-side")
+	}
+	ctx := Given(t)
+	acts := ctx.Path(dir).
+		When().
+		CreateApp().
+		Sync(args...).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When()
+	if doChange {
+		acts = acts.PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
+	}
+	acts = acts.Refresh(RefreshTypeNormal)
+	acts = acts.Sync(args...)
+	acts.Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestInvalidAppProject(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
