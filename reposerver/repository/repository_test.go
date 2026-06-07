@@ -8,6 +8,8 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"net/mail"
 	"os"
 	"os/exec"
@@ -18,6 +20,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -4379,6 +4382,49 @@ func Test_getResolvedValueFiles_optional(t *testing.T) {
 		require.Len(t, resolved, 1)
 		assert.Equal(t, path.Join(repoPath, "values.yaml"), string(resolved[0]))
 	})
+
+	// Remote value file URLs are fetched by helm at render time, not read from the
+	// repository, so the missing-file handling (which is stat-based) cannot apply to
+	// them. Both ignoreMissingValueFiles and the optional: prefix are therefore no-ops
+	// for remote URLs: the URL is always passed through to helm unchanged and is
+	// effectively required. These cases lock that behavior in so neither flag silently
+	// drops a remote URL, and assert that resolution itself performs no HTTP request
+	// (proving argo-cd defers the fetch to helm rather than probing reachability).
+	//
+	// Each case points the entry at a local httptest server that 404s every request
+	// and counts hits; a non-zero count would mean resolution probed the URL.
+	remoteCases := []struct {
+		name                    string
+		optional                bool
+		ignoreMissingValueFiles bool
+	}{
+		{name: "remote URL is not skipped by ignoreMissingValueFiles", ignoreMissingValueFiles: true},
+		{name: "remote URL is not skipped by optional: prefix", optional: true},
+		{name: "remote URL is not skipped even with optional: and ignoreMissingValueFiles together", optional: true, ignoreMissingValueFiles: true},
+	}
+	for _, rc := range remoteCases {
+		t.Run(rc.name, func(t *testing.T) {
+			t.Parallel()
+			var hits atomic.Int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				hits.Add(1)
+				w.WriteHeader(http.StatusNotFound)
+			}))
+			defer srv.Close()
+
+			entry := srv.URL + "/values.yaml"
+			if rc.optional {
+				entry = "optional:" + entry
+			}
+			// httptest serves over http, so allow that scheme for this entry to be treated as remote.
+			resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{"http"},
+				[]string{entry}, map[string]*v1alpha1.RefTarget{}, paths, rc.ignoreMissingValueFiles)
+			require.NoError(t, err)
+			require.Len(t, resolved, 1)
+			assert.Equal(t, srv.URL+"/values.yaml", string(resolved[0]))
+			assert.Zero(t, hits.Load(), "argo-cd must not fetch remote value file URLs itself; helm fetches them at render time")
+		})
+	}
 }
 
 func Test_verifyGlobMatchesWithinRoot(t *testing.T) {
