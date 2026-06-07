@@ -8,11 +8,11 @@ import (
 	"context"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	mock "github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
-	"k8s.io/api/core/v1"
 )
 
 // NewApplicationServiceClient creates a new instance of ApplicationServiceClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -1081,7 +1081,7 @@ func (_c *ApplicationServiceClient_ListResourceActions_Call) RunAndReturn(run fu
 }
 
 // ListResourceEvents provides a mock function for the type ApplicationServiceClient
-func (_mock *ApplicationServiceClient) ListResourceEvents(ctx context.Context, in *application.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+func (_mock *ApplicationServiceClient) ListResourceEvents(ctx context.Context, in *application.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*events.EventList, error) {
 	// grpc.CallOption
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
@@ -1096,16 +1096,16 @@ func (_mock *ApplicationServiceClient) ListResourceEvents(ctx context.Context, i
 		panic("no return value specified for ListResourceEvents")
 	}
 
-	var r0 *v1.EventList
+	var r0 *events.EventList
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationResourceEventsQuery, ...grpc.CallOption) (*v1.EventList, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationResourceEventsQuery, ...grpc.CallOption) (*events.EventList, error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationResourceEventsQuery, ...grpc.CallOption) *v1.EventList); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationResourceEventsQuery, ...grpc.CallOption) *events.EventList); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*v1.EventList)
+			r0 = ret.Get(0).(*events.EventList)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *application.ApplicationResourceEventsQuery, ...grpc.CallOption) error); ok {
@@ -1157,12 +1157,12 @@ func (_c *ApplicationServiceClient_ListResourceEvents_Call) Run(run func(ctx con
 	return _c
 }
 
-func (_c *ApplicationServiceClient_ListResourceEvents_Call) Return(eventList *v1.EventList, err error) *ApplicationServiceClient_ListResourceEvents_Call {
+func (_c *ApplicationServiceClient_ListResourceEvents_Call) Return(eventList *events.EventList, err error) *ApplicationServiceClient_ListResourceEvents_Call {
 	_c.Call.Return(eventList, err)
 	return _c
 }
 
-func (_c *ApplicationServiceClient_ListResourceEvents_Call) RunAndReturn(run func(ctx context.Context, in *application.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v1.EventList, error)) *ApplicationServiceClient_ListResourceEvents_Call {
+func (_c *ApplicationServiceClient_ListResourceEvents_Call) RunAndReturn(run func(ctx context.Context, in *application.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*events.EventList, error)) *ApplicationServiceClient_ListResourceEvents_Call {
 	_c.Call.Return(run)
 	return _c
 }

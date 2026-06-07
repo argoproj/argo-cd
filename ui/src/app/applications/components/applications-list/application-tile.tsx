@@ -1,5 +1,5 @@
 import {NotificationType, Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
 import {Cluster} from '../../../shared/components';
 import {ContextApis, AuthSettingsCtx} from '../../../shared/context';

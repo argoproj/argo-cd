@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="63 known vulnerabilities found in 147 vulnerable dependency paths.">
+  <meta name="description" content="66 known vulnerabilities found in 151 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 24th 2026, 12:49:25 am (UTC+00:00)</p>
+                <p class="timestamp">June 7th 2026, 12:54:56 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>63</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>147 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>66</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>151 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1192</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -760,6 +760,91 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPC-15691172">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Improper Authentication</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--critical">
+                        <span class="label__text">critical severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.45.0/hairyhenderson/gomplate/v5 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/idna
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v5@* and golang.org/x/net/idna@v0.48.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v5@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/idna@v0.48.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/idna@v0.50.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Authentication via the <code>ToASCII</code> and <code>ToUnicode</code> functions. An attacker can bypass hostname validation by submitting Punycode-encoded labels that decode to ASCII-only labels, potentially leading to privilege escalation in applications that rely on these functions for security checks.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/idna</code> to version 0.54.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/8c4c965e028475082408749b50ed7a686df0d265">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5026">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/767220">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/78760">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETIDNA-17116876">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -5239,6 +5324,85 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
+                            github.com/go-git/go-git/v5/plumbing/format/packfile
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v5@* and github.com/go-git/go-git/v5/plumbing/format/packfile@v5.16.4
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v5@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/format/packfile@v5.16.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling through the parsing of maliciously crafted Git repository data, such as <code>.pack</code>, <code>.idx</code>, or loose objects. An attacker can cause the application to panic by providing a payload that exceeds the declared size of a slice for <code>isCopyFromDelta()</code>, or consume excessive resources by sending an unlimited stream of calls to <code>isCopyFromDelta()</code> or a stream of calls with excessively large <code>targetSz</code> values (i.e. amplification).</p>
+        <p><strong>Note:</strong> This is only exploitable if the attacker can alter read-only files in the local repository&#39;s <code>.git/objects/pack/</code> directory or if the user interacts with a malicious remote server.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/format/packfile</code> to version 5.19.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-w5pp-99ch-qj29">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/0693fd127531cbc29557e34833f8ea3487fdc6c7">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/1f38e171218526ea254a73187a52f0648253c1b8">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/30a8e3405ff4a59b69fbf6f49c5ad8a294b3bd9c">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/396fffc1d28bb088f234fe487651f9e45e5c9346">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/9a42882ae4deae536c1d822b961e528ac14193cf">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/f7545a02529e03998d6a7219140dc0e6644ad337">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGFORMATPACKFILE-17111065">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.45.0/hairyhenderson/gomplate/v5 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
                             github.com/go-git/go-git/v5/plumbing/format/index
                     </li>
         
@@ -5358,6 +5522,85 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGFORMATINDEX-15855246">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.45.0/hairyhenderson/gomplate/v5 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-git/go-git/v5/plumbing/format/idxfile
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v5@* and github.com/go-git/go-git/v5/plumbing/format/idxfile@v5.16.4
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v5@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/format/idxfile@v5.16.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling through the parsing of maliciously crafted Git repository data, such as <code>.pack</code>, <code>.idx</code>, or loose objects. An attacker can cause the application to panic by providing a payload that exceeds the declared size of a slice for <code>isCopyFromDelta()</code>, or consume excessive resources by sending an unlimited stream of calls to <code>isCopyFromDelta()</code> or a stream of calls with excessively large <code>targetSz</code> values (i.e. amplification).</p>
+        <p><strong>Note:</strong> This is only exploitable if the attacker can alter read-only files in the local repository&#39;s <code>.git/objects/pack/</code> directory or if the user interacts with a malicious remote server.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/format/idxfile</code> to version 5.19.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-w5pp-99ch-qj29">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/0693fd127531cbc29557e34833f8ea3487fdc6c7">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/1f38e171218526ea254a73187a52f0648253c1b8">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/30a8e3405ff4a59b69fbf6f49c5ad8a294b3bd9c">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/396fffc1d28bb088f234fe487651f9e45e5c9346">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/9a42882ae4deae536c1d822b961e528ac14193cf">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/f7545a02529e03998d6a7219140dc0e6644ad337">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGFORMATIDXFILE-17111067">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
