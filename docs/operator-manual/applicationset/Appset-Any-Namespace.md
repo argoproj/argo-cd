@@ -95,7 +95,7 @@ kind: ConfigMap
 metadata:
   name: argocd-cmd-params-cm
 data:
-    applicationsetcontroller.tokenref.strict.mode: "true"
+    applicationsetcontroller.enable.tokenref.strict.mode: "true"
 ```
 
 ### Overview

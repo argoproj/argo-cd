@@ -12,8 +12,9 @@ export default [
     {
         rules: {
             '@typescript-eslint/no-explicit-any': 'off',
-            '@typescript-eslint/ban-types': 'off',
-            '@typescript-eslint/no-var-requires': 'off'
+            // `ban-types` and `no-var-requires` were renamed/split in typescript-eslint v8.
+            '@typescript-eslint/no-empty-object-type': 'off',
+            '@typescript-eslint/no-require-imports': 'off'
         }
     },
     {
