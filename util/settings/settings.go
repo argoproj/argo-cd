@@ -2389,7 +2389,7 @@ func replaceStringSecret(val string, secretValues map[string]string, trimmer fun
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
 	if !ok {
-		log.Warnf("config referenced '%s', but key does not exist in secret", val)
+		log.Warnf("secret key '%s' does not exist in secret", secretKey)
 		return val
 	}
 	return trimmer(secretVal)
