@@ -30153,6 +30153,9 @@ spec:
                   status:
                     type: string
                 type: object
+              observedGeneration:
+                format: int64
+                type: integer
               resources:
                 items:
                   properties:

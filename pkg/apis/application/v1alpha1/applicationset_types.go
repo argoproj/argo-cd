@@ -822,6 +822,10 @@ type ApplicationSetStatus struct {
 	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"varint,4,opt,name=resourcesCount"`
 	// Health contains information about the applicationset's current health status based on the applicationset conditions
 	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
+	// ObservedGeneration reflects the generation most recently observed by the controller.
+	// It allows consumers to determine if the status reflects the latest spec change.
+	// If ObservedGeneration is less than metadata.generation, the controller has not yet reconciled the latest spec.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty" protobuf:"varint,6,opt,name=observedGeneration"`
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
