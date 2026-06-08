@@ -624,6 +624,7 @@ export interface AuthSettings {
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
+    ssoAutoLogin: boolean;
 }
 
 export interface UserInfo {
