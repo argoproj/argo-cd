@@ -50,6 +50,12 @@ data:
   controller.repo.server.plaintext: "false"
   # Whether to use strict validation of the TLS cert presented by the repo server
   controller.repo.server.strict.tls: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  controller.repo.server.ca.cert: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  controller.repo.server.client.cert: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  controller.repo.server.client.cert.key: ""
   # Number of application status processors (default 20)
   controller.status.processors: "20"
   # Number of application operation processors (default 10)
@@ -171,6 +177,12 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  server.repo.server.ca.cert: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  server.repo.server.client.cert: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  server.repo.server.client.cert.key: ""
   # Dex server address (default "http://argocd-dex-server:5556")
   server.dex.server: "http://argocd-dex-server:5556"
   # Use a plaintext client (non-TLS) to connect to dex server
@@ -395,6 +407,12 @@ data:
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
   applicationsetcontroller.grpc.enable.txt.service.config: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  applicationsetcontroller.repo.server.ca.cert: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  applicationsetcontroller.repo.server.client.cert: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  applicationsetcontroller.repo.server.client.cert.key: ""
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
@@ -407,3 +425,9 @@ data:
   notificationscontroller.selfservice.enabled: "false"
   # Disable TLS on connections to repo server
   notificationscontroller.repo.server.plaintext: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  notificationscontroller.repo.server.ca.cert: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  notificationscontroller.repo.server.client.cert: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  notificationscontroller.repo.server.client.cert.key: ""

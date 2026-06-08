@@ -63,127 +63,133 @@ The `argocd-server`, `argocd-application-controller`, and `argocd-applicationset
 The environment variables follow the component's prefix and mirror the flags:
 
 #### argocd-server
-* `ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT`
-* `ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY`
-* `ARGOCD_SERVER_REPO_SERVER_CA_CERT`
+* `ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH`
+* `ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH`
+* `ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH`
 
 #### argocd-application-controller
-* `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT`
-* `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY`
-* `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT`
+* `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH`
+* `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH`
+* `ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH`
 
 #### argocd-applicationset-controller
-* `ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT`
-* `ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY`
-* `ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CA_CERT`
+* `ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH`
+* `ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH`
+* `ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CA_CERT_PATH`
+
+#### argocd-notifications-controller
+* `ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH`
+* `ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH`
+* `ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH`
+
+### argocd-cmd-params-cm ConfigMap keys
+
+These environment variables can also be set via the `argocd-cmd-params-cm` ConfigMap, which is the recommended approach for Kubernetes deployments:
+
+#### argocd-server
+* `server.repo.server.ca.cert` — path to the CA certificate for verifying the repo server's TLS certificate
+* `server.repo.server.client.cert` — path to the client certificate for mTLS
+* `server.repo.server.client.cert.key` — path to the client certificate key for mTLS
+
+#### argocd-application-controller
+* `controller.repo.server.ca.cert` — path to the CA certificate for verifying the repo server's TLS certificate
+* `controller.repo.server.client.cert` — path to the client certificate for mTLS
+* `controller.repo.server.client.cert.key` — path to the client certificate key for mTLS
+
+#### argocd-applicationset-controller
+* `applicationsetcontroller.repo.server.ca.cert` — path to the CA certificate for verifying the repo server's TLS certificate
+* `applicationsetcontroller.repo.server.client.cert` — path to the client certificate for mTLS
+* `applicationsetcontroller.repo.server.client.cert.key` — path to the client certificate key for mTLS
+
+#### argocd-notifications-controller
+* `notificationscontroller.repo.server.ca.cert` — path to the CA certificate for verifying the repo server's TLS certificate
+* `notificationscontroller.repo.server.client.cert` — path to the client certificate for mTLS
+* `notificationscontroller.repo.server.client.cert.key` — path to the client certificate key for mTLS
 
 > [!IMPORTANT]
 > Both `--repo-server-client-cert` and `--repo-server-client-cert-key` must be provided together. If you provide one without the other, the component will fail validation at startup.
 
 ## Deployment using Kubernetes Secrets
 
-It is recommended to use Kubernetes Secrets to mount the certificates and keys into the Argo CD pods.
+Argo CD automatically mounts the optional `argocd-repo-server-mtls` Kubernetes Secret into all relevant deployments, following the same pattern as `argocd-repo-server-tls`. You only need to create the secret with the correct keys — no manual volume or volumeMount configuration is required.
 
-1. Create a secret with the CA, client certificate, and key.
-2. Mount the secret as a volume in the `argocd-repo-server`, `argocd-server`, `argocd-application-controller`, and `argocd-applicationset-controller` deployments.
-3. Update the container arguments or environment variables to point to the mounted files.
+The secret is mounted at:
+- `/app/config/reposerver/mtls` in `argocd-repo-server`, `argocd-server`, `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-notifications-controller`.
 
-Example Secret containing repo-server client CA and client cert/key:
+### Secret format
+
+Create the secret with the following keys:
+
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: argocd-reposerver-mtls
+  name: argocd-repo-server-mtls
+  namespace: argocd
 type: Opaque
 data:
-  # Base64-encoded files
+  # Required for argocd-repo-server (server-side mTLS): CA used to verify client certs
   client-ca.crt: <BASE64_CA_PEM>
+  # Required for clients (argocd-server, argocd-application-controller, etc.)
   client.crt: <BASE64_CLIENT_CERT_PEM>
   client.key: <BASE64_CLIENT_KEY_PEM>
+  # Optional: CA used by clients to verify the repo-server's server certificate
+  # ca.crt: <BASE64_SERVER_CA_PEM>
 ```
 
-Example `argocd-repo-server` (enable mTLS):
+### Configuring argocd-repo-server (enable mTLS)
+
+Point `--client-ca-path` to the automatically mounted file:
+
 ```yaml
-containers:
-- name: argocd-repo-server
-  volumeMounts:
-  - name: reposerver-tls
-    mountPath: /app/config/reposerver/tls
-  args:
-  - --client-ca-path
-  - /app/config/reposerver/tls/client-ca.crt
-volumes:
-- name: reposerver-tls
-  secret:
-    secretName: argocd-reposerver-mtls
-    items:
-    - key: client-ca.crt
-      path: client-ca.crt
-    # If you also manage the server's TLS cert/key via the same Secret, include:
-    # - key: tls.crt
-    #   path: tls.crt
-    # - key: tls.key
-    #   path: tls.key
+args:
+- --client-ca-path
+- /app/config/reposerver/mtls/client-ca.crt
 ```
 
-Example `argocd-server` (use client cert to talk to repo-server):
+### Configuring clients (argocd-server, argocd-application-controller, argocd-applicationset-controller, argocd-notifications-controller)
+
+The recommended approach is to set the cert paths via `argocd-cmd-params-cm`. The deployments already expose the corresponding env vars from the ConfigMap, so you only need to patch the ConfigMap:
+
 ```yaml
-containers:
-- name: argocd-server
-  volumeMounts:
-  - name: reposerver-tls
-    mountPath: /app/config/reposerver/tls
-  args:
-  - --repo-server-client-cert
-  - /app/config/reposerver/tls/client.crt
-  - --repo-server-client-cert-key
-  - /app/config/reposerver/tls/client.key
-  # Optional: verify repo-server with a custom CA
-  # - --repo-server-ca-cert
-  # - /app/config/reposerver/tls/ca.crt
-volumes:
-- name: reposerver-tls
-  secret:
-    secretName: argocd-reposerver-mtls
-    items:
-    - key: client.crt
-      path: client.crt
-    - key: client.key
-      path: client.key
-    # Optional, when repo-server uses a custom CA for its server cert
-    # - key: ca.crt
-    #   path: ca.crt
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  # For argocd-server:
+  server.repo.server.client.cert: /app/config/reposerver/mtls/client.crt
+  server.repo.server.client.cert.key: /app/config/reposerver/mtls/client.key
+  # server.repo.server.ca.cert: /app/config/reposerver/mtls/ca.crt  # optional
+
+  # For argocd-application-controller:
+  controller.repo.server.client.cert: /app/config/reposerver/mtls/client.crt
+  controller.repo.server.client.cert.key: /app/config/reposerver/mtls/client.key
+  # controller.repo.server.ca.cert: /app/config/reposerver/mtls/ca.crt  # optional
+
+  # For argocd-applicationset-controller:
+  applicationsetcontroller.repo.server.client.cert: /app/config/reposerver/mtls/client.crt
+  applicationsetcontroller.repo.server.client.cert.key: /app/config/reposerver/mtls/client.key
+  # applicationsetcontroller.repo.server.ca.cert: /app/config/reposerver/mtls/ca.crt  # optional
+
+  # For argocd-notifications-controller:
+  notificationscontroller.repo.server.client.cert: /app/config/reposerver/mtls/client.crt
+  notificationscontroller.repo.server.client.cert.key: /app/config/reposerver/mtls/client.key
+  # notificationscontroller.repo.server.ca.cert: /app/config/reposerver/mtls/ca.crt  # optional
 ```
 
-Example `argocd-application-controller` configuration is analogous to `argocd-server` (use the same flags/paths and Secret mount).
+Alternatively, you can pass the flags directly in the container args:
 
-Example `argocd-applicationset-controller` (use client cert to talk to repo-server):
 ```yaml
-containers:
-- name: argocd-applicationset-controller
-  volumeMounts:
-  - name: reposerver-tls
-    mountPath: /app/config/reposerver/tls
-  args:
-  - --repo-server-client-cert
-  - /app/config/reposerver/tls/client.crt
-  - --repo-server-client-cert-key
-  - /app/config/reposerver/tls/client.key
-  # Optional: verify repo-server with a custom CA
-  # - --repo-server-ca-cert
-  # - /app/config/reposerver/tls/ca.crt
-volumes:
-- name: reposerver-tls
-  secret:
-    secretName: argocd-reposerver-mtls
-    items:
-    - key: client.crt
-      path: client.crt
-    - key: client.key
-      path: client.key
-    # Optional, when repo-server uses a custom CA for its server cert
-    # - key: ca.crt
-    #   path: ca.crt
+args:
+- --repo-server-client-cert
+- /app/config/reposerver/mtls/client.crt
+- --repo-server-client-cert-key
+- /app/config/reposerver/mtls/client.key
+# Optional: verify repo-server with a custom CA
+# - --repo-server-ca-cert
+# - /app/config/reposerver/mtls/ca.crt
 ```
 
 ## Verifying mTLS is active
