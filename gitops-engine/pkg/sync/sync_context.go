@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -1387,20 +1388,35 @@ func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstruct
 }
 
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
-	dryRunStrategy := cmdutil.DryRunNone
-	if dryRun {
-		// irrespective of the dry run mode set in the sync context, always run
-		// in client dry run mode as the goal is to validate only the
-		// yaml correctness of the rendered manifests.
-		// running dry-run in server mode breaks the auto create namespace feature
-		// https://github.com/argoproj/argo-cd/issues/13874
-		dryRunStrategy = cmdutil.DryRunServer
-	}
+	// dryRunStrategy := cmdutil.DryRunNone
+	// if dryRun {
+	// 	// irrespective of the dry run mode set in the sync context, always run
+	// 	// in client dry run mode as the goal is to validate only the
+	// 	// yaml correctness of the rendered manifests.
+	// 	// running dry-run in server mode breaks the auto create namespace feature
+	// 	// https://github.com/argoproj/argo-cd/issues/13874
+	// 	//if !(sc.force || sc.replace) {
+
+	// 	// TestNamespacedImmutableChange
+	// 	dryRunStrategy = cmdutil.DryRunClient
+	// 	//}
+	// }
+	//fmt.Fprintf(os.Stderr, "*** sc.force=%v sc.replace=%v dryRunStrategy=%v", sc.force, sc.replace, dryRunStrategy)
 
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionReplace))
 	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionForce))
+
+	dryRunStrategy := cmdutil.DryRunNone
+	if dryRun {
+		if !(shouldReplace || force) {
+			// TestNamespacedImmutableChange
+			dryRunStrategy = cmdutil.DryRunServer
+		}
+	}
+	fmt.Fprintf(os.Stderr, "*** sc.force=%v sc.replace=%v dryRunStrategy=%v", sc.force, sc.replace, dryRunStrategy)
+
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
 
 	// Check if we need to perform client-side apply migration for server-side apply
