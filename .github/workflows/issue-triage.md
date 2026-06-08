@@ -78,7 +78,9 @@ Skip this step if the issue is clearly spam, a feature request with no code refe
 
 Be specific about what is missing and why it is needed. Do not attempt to apply type or other labels to incomplete issues.
 
-If the issue has sufficient detail, proceed to Step 3.
+**Unsupported Argo CD versions:** Search argo-cd docs for supported versions, if the reported version is unsupported, add a polite comment listing the supported versions and saying this version is EOL and asking whether the issue is reproducible on a supported version.
+
+If the issue has sufficient detail and a supported version, proceed to Step 3.
 
 ## Step 3: Triage
 
@@ -159,4 +161,4 @@ Use this structure for the triage comment. Use collapsed sections to keep it tid
 
 If no similar issues were found, omit the "Similar issues" section. If there are no notes to add, omit the collapsed section.
 
-Omit the {2-3 sentence summary to help a maintainer quickly grasp the issue.} section.
+If 
