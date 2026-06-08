@@ -93,7 +93,8 @@ func NewCommand() *cobra.Command {
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
 
 		// argocd k8s event logging flag
-		enableK8sEvent  []string
+		enableK8sEvent []string
+		// feature flag that enables the manifest hydrator controller
 		hydratorEnabled bool
 	)
 	command := cobra.Command{

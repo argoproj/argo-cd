@@ -347,6 +347,14 @@ get no benefit from using these annotations.
 Similarly, applications referencing an external Helm values file will not get the benefits of this feature when an
 unrelated change happens in the external source.
 
+> [!NOTE]
+> The Git-history comparison described above is skipped for repositories configured with shallow cloning (`depth` greater
+> than `0`). In that case, Argo CD may not have enough history to compare the previous synced revision with the new
+> revision, so it treats the application as potentially changed and proceeds with normal refresh and manifest generation.
+> This does not affect webhook payload filtering, which uses the changed files reported by the webhook event. The
+> annotation can also still be used to calculate a common root path and reduce the repository content sent to a Config
+> Management Plugin sidecar when `--plugin-use-manifest-generate-paths` is enabled.
+
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
 > [!NOTE]
@@ -649,3 +657,9 @@ type: Opaque
 > You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.
+
+> [!NOTE]
+> Shallow cloning disables the non-webhook Git-history comparison optimization provided by the
+> `argocd.argoproj.io/manifest-generate-paths` annotation. If you rely on that annotation to avoid unnecessary refreshes
+> without webhooks, use a full clone (`depth: "0"` or omit `depth`) for that repository. Webhook payload filtering and
+> Config Management Plugin sidecar path narrowing can still use the annotation with shallow clones.
