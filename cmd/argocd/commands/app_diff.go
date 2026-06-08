@@ -587,9 +587,9 @@ func compareManifests(
 
 		hasLiveState := liveState != "null" && liveState != ""
 		hasTargetState := targetState != "null" && targetState != ""
-		
+
 		// For Secrets, redaction makes changed values appear identical (both get "+").
-			itemIsSecret := false
+		itemIsSecret := false
 		if i < len(items) {
 			obj := items[i].target
 			if obj == nil {

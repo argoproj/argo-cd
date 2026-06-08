@@ -3276,7 +3276,8 @@ func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32,
 			a.SetAnnotations(map[string]string{})
 			a.SetResourceVersion("999")
 			_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Update(
-				t.Context(), a, metav1.UpdateOptions{})
+				t.Context(), a, metav1.UpdateOptions{},
+			)
 			require.NoError(t, err)
 			atomic.AddInt32(patched, 1)
 			ch <- ""
@@ -5087,7 +5088,8 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 			a.Spec.Project = "proj-impersonate"
 		})
 
-		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		appServer := newTestAppServerWithEnforcerConfigure(
+			t, f,
 			map[string]string{"application.sync.impersonation.enabled": "true"},
 			app, projWithSA,
 		)
@@ -5104,7 +5106,8 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		}
 
 		app := newTestApp()
-		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		appServer := newTestAppServerWithEnforcerConfigure(
+			t, f,
 			map[string]string{"application.sync.impersonation.enabled": "true"},
 			app,
 		)
@@ -5149,7 +5152,8 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 		a.Spec.Project = "proj-impersonate"
 	})
 
-	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+	appServer := newTestAppServerWithEnforcerConfigure(
+		t, f,
 		map[string]string{"application.sync.impersonation.enabled": "true"},
 		app, projWithSA,
 	)
@@ -5170,28 +5174,6 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
 }
 
-func newCachedManagedResourcesWithLiveState(t *testing.T, server *Server, app *v1alpha1.Application, objects ...*unstructured.Unstructured) *servercache.Cache {
-	t.Helper()
-	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
-	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-	appInstanceName := app.InstanceName(server.appNamespaceOrDefault(app.Namespace))
-
-	managedResources := make([]*v1alpha1.ResourceDiff, len(objects))
-	for i, res := range objects {
-		liveStateBytes, err := json.Marshal(res)
-		require.NoError(t, err)
-		managedResources[i] = &v1alpha1.ResourceDiff{
-			Group:     res.GroupVersionKind().Group,
-			Kind:      res.GetObjectKind().GroupVersionKind().Kind,
-			Name:      res.GetName(),
-			Namespace: res.GetNamespace(),
-			LiveState: string(liveStateBytes), // ← this is what the fix reads
-		}
-	}
-	err := appStateCache.SetAppManagedResources(appInstanceName, managedResources)
-	require.NoError(t, err)
-	return servercache.NewCache(appStateCache, time.Hour, time.Hour)
-}
 func TestGetManifests_SecretDiffPreservesChanges(t *testing.T) {
 	// Regression test for https://github.com/argoproj/argo-cd/issues/28107
 	// Bug: GetManifests called HideSecretData(target, nil) — no live counterpart.

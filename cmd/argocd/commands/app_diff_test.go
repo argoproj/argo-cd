@@ -93,7 +93,8 @@ func mockDiffStrategyNoneModified() diffStrategy {
 		results := make([]*diff.DiffResult, len(items))
 		for i := range items {
 			results[i] = &diff.DiffResult{
-				Modified: false, }
+				Modified: false,
+			}
 		}
 		return results, nil
 	}
@@ -1521,6 +1522,7 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 		assert.Equal(t, "test-app", labels["app.kubernetes.io/instance"])
 	})
 }
+
 // TestCompareManifests_SecretAlwaysShown verifies that Secrets are always included
 // in diff output even when their values appear unmodified after redaction.
 // Regression test for https://github.com/argoproj/argo-cd/issues/28107
