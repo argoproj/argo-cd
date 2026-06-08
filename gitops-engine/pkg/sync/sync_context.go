@@ -1394,7 +1394,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 		// yaml correctness of the rendered manifests.
 		// running dry-run in server mode breaks the auto create namespace feature
 		// https://github.com/argoproj/argo-cd/issues/13874
-		dryRunStrategy = cmdutil.DryRunClient
+		dryRunStrategy = cmdutil.DryRunServer
 	}
 
 	var err error
