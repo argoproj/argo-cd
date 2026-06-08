@@ -1547,9 +1547,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 	// Before persisting a non-terminal operation phase, guard against a lost update. SyncAppState can run for a long
 	// time (e.g. waiting on hooks or resource health), during which another writer (e.g a second controller resuming
-	// the same operation during a rolling restart) may have already completed the operation and cleared spec.operation.
+	// the same operation during a rolling restart) may have already completed the operation and cleared .operation.
 	// Persisting our non-terminal phase on top of that would resurrect "Running" over a cleared operation, orphaning
-	// the operation state permanently because processRequestedAppOperation is gated on a non-nil spec.operation
+	// the operation state permanently because processRequestedAppOperation is gated on a non-nil .operation
 	// (see argoproj/argo-cd#18613, #23765). Re-fetch the latest app and bail rather than clobber the terminal result
 	// written by the other writer.
 	if !state.Phase.Completed() {
@@ -1567,7 +1567,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			// workqueue, and next time SyncAppState will operate in a Terminating phase, allowing the
 			// worker to perform cleanup (e.g. delete jobs, workflows, etc...).
 			state.Phase = synccommon.OperationTerminating
-			state.Message = freshApp.Status.OperationState.Message
+			// Adopt the terminating writer's message (e.g. "operation is terminating due to timeout")
+			// rather than a generic one, but fall back to a default if it happens to be empty.
+			if msg := freshApp.Status.OperationState.Message; msg != "" {
+				state.Message = msg
+			} else {
+				state.Message = "operation is terminating"
+			}
 		}
 	}
 

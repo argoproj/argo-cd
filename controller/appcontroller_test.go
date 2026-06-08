@@ -3026,7 +3026,7 @@ func TestProcessRequestedAppOperation_SkipsStaleNonTerminalUpdateWhenOperationCl
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 
 	// Simulate a concurrent writer (e.g. a second controller resuming the same operation during a
-	// rolling restart or shard handoff) that already finished and cleared spec.operation.
+	// rolling restart or shard handoff) that already finished and cleared .operation.
 	clearedApp := app.DeepCopy()
 	clearedApp.Operation = nil
 	getCalled := false
@@ -3060,13 +3060,13 @@ func TestProcessRequestedAppOperation_SkipsStaleNonTerminalUpdateWhenOperationCl
 // the fake clientset, and proves the guard prevents it.
 //
 // Setup: writer A (e.g. the completing controller) has already finished the operation and cleared
-// spec.operation, leaving {phase: Succeeded, operation: nil} in the store. Writer B - a second
+// .operation, leaving {phase: Succeeded, operation: nil} in the store. Writer B - a second
 // controller that resumed the same in-progress operation during a restart or shard handoff - then
 // runs with its stale in-memory view (operation still set, phase Running) and ends up wanting to
 // persist a non-terminal phase. Because setOperationState uses a field-level merge patch that only
-// clears spec.operation on a *completed* phase, persisting B's "Running" merges phase: Running on top
+// clears .operation on a *completed* phase, persisting B's "Running" merges phase: Running on top
 // of the already-cleared operation, producing {phase: Running, operation: nil} - an orphan that no
-// reconcile path ever revisits (processRequestedAppOperation is gated on a non-nil spec.operation).
+// reconcile path ever revisits (processRequestedAppOperation is gated on a non-nil .operation).
 //
 // With the guard, B detects via a fresh read that the operation was already cleared and skips its
 // stale write, so writer A's terminal state survives. Without the guard, the final stored state is
@@ -3074,7 +3074,7 @@ func TestProcessRequestedAppOperation_SkipsStaleNonTerminalUpdateWhenOperationCl
 func TestProcessRequestedAppOperation_LostUpdateDoesNotOrphanOperationState(t *testing.T) {
 	syncOp := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}, Retry: v1alpha1.RetryStrategy{Limit: 1}}
 
-	// The state writer A left behind: the operation completed and spec.operation was cleared.
+	// The state writer A left behind: the operation completed and .operation was cleared.
 	// "invalid-project" forces writer B's resumed sync to fail and take the retry path, which is a
 	// convenient way to make B attempt to persist a non-terminal ("Running") phase. The orphaning
 	// mechanism is identical for any non-terminal persist (e.g. the "waiting for health" state in #23765).
@@ -3135,7 +3135,7 @@ func TestProcessRequestedAppOperation_LostUpdateDoesNotOrphanInProgressSync(t *t
 
 	syncOp := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Source: &v1alpha1.ApplicationSource{}}}
 
-	// The state writer A left behind: the operation completed and spec.operation was cleared.
+	// The state writer A left behind: the operation completed and .operation was cleared.
 	completedApp := newFakeApp()
 	completedApp.Spec.Project = "default"
 	completedApp.Operation = nil
