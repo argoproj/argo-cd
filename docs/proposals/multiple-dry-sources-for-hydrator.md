@@ -28,7 +28,6 @@ Related Issues:
 ## Open Questions
 
 * How should the commit message template handle multiple dry source repos? This proposal uses the first dry source's commit metadata, but a more descriptive format may be preferred.
-* The manifest hydrator proposal is explicitly opinionated against nondeterministic configuration injection. Multiple dry sources from different repos mean the combination of source versions is held externally to any single git repo. Is this an acceptable trade-off given that the same pattern already exists with `sources` in the non-hydrator path?
 
 ## Summary
 
