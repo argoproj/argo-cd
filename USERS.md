@@ -103,6 +103,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [DaoCloud](https://daocloud.io/)
 1. [Datarisk](https://www.datarisk.io/)
 1. [Daydream](https://daydream.ing)
+1. [Delivery Hero](https://www.deliveryhero.com/)
 1. [Deloitte](https://www.deloitte.com/)
 1. [Dematic](https://www.dematic.com)
 1. [Deutsche Telekom AG](https://telekom.com)
