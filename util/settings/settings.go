@@ -2426,7 +2426,7 @@ func replaceStringSecret(val string, secretValues map[string]string, trimmer fun
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
 	if !ok {
-		log.Warnf("secret key '%s' does not exist in secret", secretKey)
+		log.Warn("secret key does not exist in secret")
 		return val
 	}
 	return trimmer(secretVal)
