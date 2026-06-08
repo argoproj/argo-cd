@@ -1567,7 +1567,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			// workqueue, and next time SyncAppState will operate in a Terminating phase, allowing the
 			// worker to perform cleanup (e.g. delete jobs, workflows, etc...).
 			state.Phase = synccommon.OperationTerminating
-			state.Message = "operation is terminating"
+			state.Message = freshApp.Status.OperationState.Message
 		}
 	}
 
