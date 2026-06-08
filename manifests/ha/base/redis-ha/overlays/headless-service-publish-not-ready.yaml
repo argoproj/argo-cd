@@ -1,3 +1,6 @@
-- op: add
-  path: /spec/publishNotReadyAddresses
-  value: true
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-redis-ha
+spec:
+  publishNotReadyAddresses: true
