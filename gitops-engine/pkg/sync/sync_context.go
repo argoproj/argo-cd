@@ -1410,13 +1410,16 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
-		if !(shouldReplace || force) {
-			// TestNamespacedImmutableChange
-			dryRunStrategy = cmdutil.DryRunServer
+		if shouldReplace || force {
+			fmt.Fprintf(os.Stderr, "*** FAKING DRY-RUN force=%v replace=%v dryRunStrategy=%v t=%v", force, shouldReplace, dryRunStrategy, t.targetObj)
+			return common.ResultCodeSynced, message
 		}
+		// TestNamespacedImmutableChange
+		dryRunStrategy = cmdutil.DryRunServer
+		//dryRunStrategy = cmdutil.DryRunClient
+		//}
+		fmt.Fprintf(os.Stderr, "*** SERVER DRY-RUN force=%v replace=%v dryRunStrategy=%v t=%v", force, shouldReplace, dryRunStrategy, t.targetObj)
 	}
-	fmt.Fprintf(os.Stderr, "*** sc.force=%v sc.replace=%v dryRunStrategy=%v", sc.force, sc.replace, dryRunStrategy)
-
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
 
 	// Check if we need to perform client-side apply migration for server-side apply
