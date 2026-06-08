@@ -126,6 +126,7 @@ type RepoServerInitConstants struct {
 	CMPUseManifestGeneratePaths                  bool
 	EnableBuiltinGitConfig                       bool
 	HelmUserAgent                                string
+	EnableTrackingLabelOnCRDs                    bool
 }
 
 var manifestGenerateLock = sync.NewKeyLock()
@@ -927,7 +928,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithTrackingLabelOnCRDs(s.initConstants.EnableTrackingLabelOnCRDs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1674,6 +1675,7 @@ type (
 		cmpTarDoneCh                chan<- bool
 		cmpTarExcludedGlobs         []string
 		cmpUseManifestGeneratePaths bool
+		trackingLabelOnCRDs         bool
 	}
 )
 
@@ -1707,6 +1709,12 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.cmpUseManifestGeneratePaths = enabled
+	}
+}
+
+func WithTrackingLabelOnCRDs(enabled bool) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.trackingLabelOnCRDs = enabled
 	}
 }
 
@@ -1803,7 +1811,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 
 		for _, target := range targets {
-			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
+			if q.AppLabelKey != "" && q.AppName != "" && (opt.trackingLabelOnCRDs || !kube.IsCRD(target)) {
 				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod), q.InstallationID)
 				if err != nil {
 					return nil, fmt.Errorf("failed to set app instance tracking info on manifest: %w", err)

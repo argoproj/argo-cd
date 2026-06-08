@@ -283,6 +283,8 @@ data:
   reposerver.grpc.enable.txt.service.config: "false"
   # Enables profile endpoint on the internal metrics port
   reposerver.profile.enabled: "false"
+  # Enable the Argo CD tracking label/annotation to be applied to Custom Resource Definitions
+  reposerver.enable.tracking.label.on.crds: "false"
 
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
