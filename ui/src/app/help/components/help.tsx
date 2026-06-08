@@ -45,9 +45,10 @@ export const Help = () => {
                                     <div className='columns large-4 small-6'>
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
-                                            {/* Arch-agnostic link: the server serves its own embedded binary regardless of
-                                                suffix, so this works on any pod and keeps the UI bundle architecture-independent.
-                                                The arch is shown for information only, when known. */}
+                                            {/* Arch-agnostic link: targets the suffix-less /argocd-linux route, which every
+                                                server serves from its own embedded binary regardless of the server's architecture.
+                                                This keeps the UI bundle architecture-independent (no arch baked in) and avoids
+                                                404s on mixed-arch clusters. The arch label is informational only, shown when known. */}
                                             <a href='download/argocd-linux' className='user-info-panel-buttons argo-button argo-button--base'>
                                                 <i className='fab fa-linux' /> Linux{hostArch && ` (${hostArch})`}
                                             </a>
