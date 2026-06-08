@@ -38,9 +38,9 @@ func TestNewCommand_MTLSFlagDefaults(t *testing.T) {
 }
 
 func TestNewCommand_MTLSEnvVarPrefix(t *testing.T) {
-	t.Setenv("ARGOCD_SERVER_REPO_SERVER_CA_CERT", "/etc/certs/ca.crt")
-	t.Setenv("ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT", "/etc/certs/client.crt")
-	t.Setenv("ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY", "/etc/certs/client.key")
+	t.Setenv("ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH", "/etc/certs/ca.crt")
+	t.Setenv("ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH", "/etc/certs/client.crt")
+	t.Setenv("ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH", "/etc/certs/client.key")
 
 	// NewCommand reads env vars at flag-definition time.
 	cmd := NewCommand()
@@ -59,7 +59,7 @@ func TestNewCommand_MTLSEnvVarPrefix(t *testing.T) {
 }
 
 func TestNewCommand_MTLSEnvVarNotOverriddenByOtherComponents(t *testing.T) {
-	t.Setenv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT", "/wrong/ca.crt")
+	t.Setenv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH", "/wrong/ca.crt")
 
 	cmd := NewCommand()
 
