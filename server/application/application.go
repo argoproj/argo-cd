@@ -43,6 +43,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
@@ -51,6 +52,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/broadcast"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
+	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
@@ -895,7 +897,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 }
 
 // ListResourceEvents returns a list of event resources
-func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*corev1.EventList, error) {
+func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*eventspb.EventList, error) {
 	a, p, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
@@ -955,7 +957,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return list.DeepCopy(), nil
+	return serverevents.K8sEventListToAPIEventList(list), nil
 }
 
 // validateAndUpdateApp validates and updates the application. currentProject is the name of the project the app
@@ -2995,12 +2997,12 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	}
 
 	// Create server-side diff dry run applier
-	openAPISchema, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
+	_, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, openAPISchema, func(_ string) (kube.CleanupFunc, error) {
+	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, func(_ string) (kube.CleanupFunc, error) {
 		return func() {}, nil
 	})
 	if err != nil {

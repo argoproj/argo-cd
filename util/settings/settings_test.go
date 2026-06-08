@@ -1082,6 +1082,48 @@ func TestGetOIDCConfig(t *testing.T) {
 				assert.Equal(t, time.Duration(0), settings.RefreshTokenThreshold())
 			},
 		},
+		{
+			name: "enableUserInfoEndpoints success",
+			configMapData: map[string]string{
+				"oidc.config": `
+enableUserInfoGroups: true
+userInfoPath: "/userinfo"
+userInfoBaseURL: "https://users.example.com"
+userInfoCacheExpiration: "5m"
+`,
+			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				assert.Equal(t, 5*time.Minute, settings.UserInfoCacheExpiration())
+				assert.Equal(t, "/userinfo", settings.UserInfoPath())
+				assert.Equal(t, "https://users.example.com", settings.UserInfoBaseURL())
+				assert.True(t, settings.UserInfoGroupsEnabled())
+			},
+		},
+		{
+			name: "userInfoBaseURL malformed url",
+			configMapData: map[string]string{
+				"oidc.config": `
+userInfoBaseURL: "://users.example.com"
+`,
+			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				assert.Empty(t, settings.UserInfoBaseURL())
+			},
+		},
 	}
 	for i := range testCases {
 		tc := testCases[i]
@@ -2349,6 +2391,33 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 			assert.Equal(t, tt.output, keys)
 		})
 	}
+}
+
+func TestGetHydratorReadmeTemplate(t *testing.T) {
+	t.Run("DefaultTemplate", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{})
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.NoError(t, err)
+		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
+	})
+
+	t.Run("CustomTemplateInConfigMap", func(t *testing.T) {
+		customTemplate := "Custom Readme Template: {{ .RepoURL }}"
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			settingsSourceHydratorReadmeMessageTemplateKey: customTemplate,
+		})
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.NoError(t, err)
+		assert.Equal(t, customTemplate, template)
+	})
+
+	t.Run("ConfigMapError", func(t *testing.T) {
+		kubeClient := fake.NewClientset()
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.Error(t, err)
+		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
+	})
 }
 
 func TestSecretsInformerExcludesClusterSecrets(t *testing.T) {
