@@ -31,12 +31,11 @@ type dockerhubParser struct {
 // DockerHubPayload represents the subset of the webhook payload Docker Hub sends
 // for repository push events that we need to identify the pushed image.
 // See https://docs.docker.com/docker-hub/webhooks/.
-type DockerHubPayload struct {
+type dockerHubPayload struct {
 	Repository struct {
 		Name      string `json:"name"`
 		Namespace string `json:"namespace"`
 		RepoName  string `json:"repo_name"`
-		Status    string `json:"status"`
 	} `json:"repository"`
 	PushData struct {
 		Tag string `json:"tag"`
@@ -88,7 +87,7 @@ func (p *dockerhubParser) Parse(r *http.Request) (any, error) {
 	// Log the payload size only, never the body itself: it is request-controlled
 	// and a misrouted request could carry sensitive data we don't want in logs.
 	log.WithField("bytes", len(body)).Debug("Parsing DockerHub webhook payload")
-	var payload DockerHubPayload
+	var payload dockerHubPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal DockerHub webhook payload: %w", err)
 	}
