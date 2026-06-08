@@ -10,6 +10,7 @@ on:
   issues:
     types: [opened, reopened]
   reaction: eyes
+  roles: all
 
 permissions: read-all
 
@@ -157,3 +158,5 @@ Use this structure for the triage comment. Use collapsed sections to keep it tid
 ```
 
 If no similar issues were found, omit the "Similar issues" section. If there are no notes to add, omit the collapsed section.
+
+Omit the {2-3 sentence summary to help a maintainer quickly grasp the issue.} section.
