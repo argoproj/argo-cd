@@ -39,9 +39,10 @@ func ValidateBearerTokenAndPasswordCombo(bearerToken string, password string) er
 }
 
 // ValidateInsecureOCIForceHTTP returns an error if --insecure-oci-force-http is set
-// on a repo that is not OCI-capable (type=oci, or type=helm with --enable-oci).
+// on a repo that is not OCI-capable. Only type=oci repos, or type=helm repos with
+// --enable-oci, are OCI-capable; --enable-oci is meaningful only for helm repos.
 func ValidateInsecureOCIForceHTTP(insecureOCIForceHTTP bool, repoType string, enableOCI bool) error {
-	if insecureOCIForceHTTP && repoType != "oci" && !enableOCI {
+	if insecureOCIForceHTTP && !(repoType == "oci" || (repoType == "helm" && enableOCI)) {
 		return stderrors.New("--insecure-oci-force-http requires --type oci or --enable-oci")
 	}
 	return nil

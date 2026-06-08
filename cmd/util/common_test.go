@@ -191,6 +191,13 @@ func TestValidateInsecureOCIForceHTTP(t *testing.T) {
 			expectError:          true,
 		},
 		{
+			name:                 "type=git with enable-oci and insecure-oci-force-http",
+			insecureOCIForceHTTP: true,
+			repoType:             "git",
+			enableOCI:            true,
+			expectError:          true,
+		},
+		{
 			name:                 "insecure-oci-force-http not set on git repo",
 			insecureOCIForceHTTP: false,
 			repoType:             "git",

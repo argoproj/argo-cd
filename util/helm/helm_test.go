@@ -280,25 +280,32 @@ func TestSkipTests(t *testing.T) {
 }
 
 func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
+	// dependency build has no per-repo --plain-http; if ANY dependency repo is
+	// plain-http, the whole build must use --plain-http (see helm.DependencyBuild).
 	tests := []struct {
 		name            string
-		depInsecureHTTP bool
+		depInsecureHTTP []bool // one entry per dependency repo
 		expectPlainHTTP bool
 	}{
 		{
-			name:            "dep is https — no plain-http",
-			depInsecureHTTP: false,
+			name:            "single https dep — no plain-http",
+			depInsecureHTTP: []bool{false},
 			expectPlainHTTP: false,
 		},
 		{
-			name:            "main repo plain-http has no effect when dep is https",
-			depInsecureHTTP: false,
-			expectPlainHTTP: false,
-		},
-		{
-			name:            "dep repo plain-http set",
-			depInsecureHTTP: true,
+			name:            "single plain-http dep — plain-http",
+			depInsecureHTTP: []bool{true},
 			expectPlainHTTP: true,
+		},
+		{
+			name:            "mixed deps — any plain-http dep forces plain-http for the whole build",
+			depInsecureHTTP: []bool{false, true},
+			expectPlainHTTP: true,
+		},
+		{
+			name:            "all https deps — no plain-http",
+			depInsecureHTTP: []bool{false, false},
+			expectPlainHTTP: false,
 		},
 	}
 	for _, tc := range tests {
@@ -310,14 +317,19 @@ func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			h := &helm{
-				cmd: *c,
-				repos: []HelmRepository{{
+			repos := make([]HelmRepository, len(tc.depInsecureHTTP))
+			for i, forceHTTP := range tc.depInsecureHTTP {
+				repos[i] = HelmRepository{
 					Repo:                 "oci://localhost:5000/myrepo",
 					EnableOci:            true,
-					InsecureOCIForceHttp: tc.depInsecureHTTP,
+					InsecureOCIForceHttp: forceHTTP,
 					Creds:                HelmCreds{},
-				}},
+				}
+			}
+
+			h := &helm{
+				cmd:   *c,
+				repos: repos,
 			}
 
 			err = h.DependencyBuild()
