@@ -1,23 +1,22 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: crontabs.stable.example.com
+  name: dummies.argoproj.io
   labels:
     e2e.argoproj.io: "true"
 spec:
   conversion:
     strategy: None
-  group: stable.example.com
+  group: argoproj.io
   names:
-    kind: CronTab
-    listKind: CronTabList
-    plural: crontabs
-    shortNames:
-    - ct
-    singular: crontab
+    kind: Dummy
+    listKind: DummyList
+    plural: dummies
+    singular: dummy
   scope: Namespaced
   versions:
-  - name: v1
+  - name: v1alpha1
     served: true
     storage: true
     schema:
@@ -32,5 +31,8 @@ spec:
             type: object
           spec:
             type: object
-            x-kubernetes-map-type: atomic
-            x-kubernetes-preserve-unknown-fields: true
+            properties:
+              cpu:
+                type: string
+              memory:
+                type: string
