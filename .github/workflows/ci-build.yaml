@@ -392,7 +392,7 @@ jobs:
       - name: Upload code coverage information to codecov.io
         # Only run when the workflow is for upstream (PR target or push is in argoproj/argo-cd).
         if: github.repository == 'argoproj/argo-cd'
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: test-results/full-coverage.out
           fail_ci_if_error: true
@@ -401,7 +401,7 @@ jobs:
       - name: Upload test results to Codecov
         # Codecov uploads test results to Codecov.io on upstream master branch.
         if: github.repository == 'argoproj/argo-cd' && github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: test-results/junit.xml
           fail_ci_if_error: true
