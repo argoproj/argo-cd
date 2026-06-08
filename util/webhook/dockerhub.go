@@ -85,6 +85,9 @@ func (p *dockerhubParser) Parse(r *http.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Log the payload size only, never the body itself: it is request-controlled
+	// and a misrouted request could carry sensitive data we don't want in logs.
+	log.WithField("bytes", len(body)).Debug("Parsing DockerHub webhook payload")
 	var payload DockerHubPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal DockerHub webhook payload: %w", err)
@@ -101,13 +104,23 @@ func (p *dockerhubParser) Parse(r *http.Request) (any, error) {
 		}
 	}
 	if repository != "" && !strings.Contains(repository, "/") {
+		log.WithField("repository", repository).Debug("Canonicalizing official DockerHub image to library/ namespace")
 		repository = "library/" + repository
 	}
 
 	if repository == "" || payload.PushData.Tag == "" {
-		log.Debug("Skipping DockerHub webhook event: missing repository or tag")
+		log.WithFields(log.Fields{
+			"repository": repository,
+			"tag":        payload.PushData.Tag,
+		}).Debug("Skipping DockerHub webhook event: missing repository or tag")
 		return nil, nil
 	}
+
+	log.WithFields(log.Fields{
+		"registry":   "docker.io",
+		"repository": repository,
+		"tag":        payload.PushData.Tag,
+	}).Info("Parsed DockerHub webhook push event")
 
 	return &RegistryEvent{
 		RegistryURL: "docker.io",
@@ -126,10 +139,14 @@ func (p *dockerhubParser) Parse(r *http.Request) (any, error) {
 // maps to an HTTP 401 response.
 func (p *dockerhubParser) validateSecret(r *http.Request) error {
 	if p.secret == "" {
+		log.Debug("DockerHub webhook secret not configured; skipping validation")
 		return nil // open endpoint
 	}
 	provided := r.URL.Query().Get("secret")
 	if subtle.ConstantTimeCompare([]byte(provided), []byte(p.secret)) != 1 {
+		// Never log the secret values; logging whether one was supplied is enough
+		// to distinguish "missing secret query param" from "wrong value".
+		log.WithField("secretProvided", provided != "").Debug("DockerHub webhook secret validation failed")
 		return fmt.Errorf("%w: invalid DockerHub webhook secret", ErrHMACVerificationFailed)
 	}
 	return nil
