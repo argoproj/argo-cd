@@ -46,7 +46,7 @@ The `sources` (plural) field on `ApplicationSpec` already solves this problem fo
 
 ### Goals
 
-1. **Bring `DrySource` to field parity with `ApplicationSource`** — add `Chart`, `Ref`, and `Name` to the `DrySource` struct. This enables OCI/Helm chart hydration and cross-source value file references for both `drySource` (singular) and `drySources` (plural) users.
+1. **Bring `DrySource` to full field parity with `ApplicationSource`** — add `Chart`, `Ref`, and `Name` to the `DrySource` struct. This explicitly includes OCI/Helm chart repo support (via `Chart`) and cross-source value file references (via `Ref`). These fields benefit both `drySource` (singular) and `drySources` (plural) users since both share the same struct.
 
 2. **Support multiple dry sources per Application** — users can specify a `drySources` array on `SourceHydrator`. Argo CD compiles manifests from all dry sources and commits the combined output.
 
@@ -57,7 +57,7 @@ The `sources` (plural) field on `ApplicationSpec` already solves this problem fo
 ### Non-Goals
 
 * **Partial hydration** — when any dry source changes, all sources are re-rendered and committed together. Incremental/partial hydration of individual sources is not a goal.
-* **Independent sync per dry source** — all dry sources produce a single merged manifest set committed to one sync path. Splitting dry sources into separate sync paths would lead to more sprawl in sync logic.
+* **Per-source sync paths** — all dry sources are merged into a single manifest set committed to one `syncSource` path. Routing individual dry sources to different sync paths or branches is not supported.
 * **UI changes** — all UI updates (models, utility functions, display components, create/edit panels) are out of scope and will be covered in a separate proposal.
 
 ## Proposal
