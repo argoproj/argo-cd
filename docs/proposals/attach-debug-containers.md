@@ -31,7 +31,10 @@ Allowing users to attach debug containers to pods is highly useful for debugging
 
 ### Goals
 
-* Users can debug workloads that use distroless images.
+* Debug distroless pods, or pods missing debug tools, from ArgoCD UI.
+* Network debugging from the UI (e.g. attach `netshoot` to check connectivity, DNS, traffic).
+* Attach profilers/debuggers (`dlv`, `py-spy`) via shared PID namespace.
+* Debug pods where `exec` won't work — distroless without a shell, crash-looping pods, pods whose entrypoint already exited.
 
 ### Non-Goals
 
@@ -41,17 +44,17 @@ This proposal does not cover managing the lifecycle of already-attached ephemera
 
 Rather than introducing a new RBAC resource, this proposal uses on the existing `exec` resource by adding a new action `debug`. The feature is gated behind a `exec.debug.enabled` flag in the `argocd-cm` ConfigMap (disabled by default). When enabled, a user with the `debug` action on the pod's project sees a new `Debug` tab on the pod view, with a dropdown of allowed debug images and a dropdown of the pod's containers for optional process-namespace sharing — enabling tools like busybox, netshoot, or dlv to inspect a running workload.
 
-A `exec.debug.images` field is also exposed in `argocd-cm` as the cluster-wide default allowlist of images that may be used. The same field is exposed on the AppProject CRD as `debugImages`; when set, it overrides `debug.images` for applications in that project.
+A `exec.debug.images` field is also exposed in `argocd-cm` as the cluster-wide default allowlist of images that may be used.
 
 ### RBAC
 
-The simple form grants the user the ability to attach any image permitted by `exec.debug.images` / `debugImages`:
+The simple form grants the user the ability to attach any image permitted by `exec.debug.images`:
 
 ```
 p, role:debugger, exec, debug, */*, allow
 ```
 
-The action can be extended with an image pattern to further narrow which images a specific subject is allowed to attach. Glob matching is applied against the fully-qualified image reference, and the result is intersected with the configured allowlist:
+The action can be extended with an image pattern to further narrow which images a specific subject is allowed to attach (you cannot add images not present in exec.debug.images). Glob matching is applied against the fully-qualified image reference, and the result is intersected with the configured allowlist:
 
 ```
 p, role:net-debug, exec, debug/docker.io/library/busybox:*, */*, allow
@@ -83,16 +86,23 @@ see [PR](https://github.com/argoproj/argo-cd/pull/27124/changes)
 
 ### Risks and Mitigations
 
-.
-
+* **Bigger attack surface than `exec`.** Debug container ships its own binaries — shells, package managers, net tools the workload image left out. `debug` grant = injecting arbitrary tooling into a live pod. Mitigation: off by default (`exec.debug.enabled`). Images limited to the `exec.debug.images` allowlist, RBAC supports per-image globs so a subject can be scoped tighter than the allowlist.
+* **Mutable image tags.** Allowlisting `busybox:latest` means the image pulled at attach time can change without ArgoCD approval — compromised upstream tag lands in prod. Mitigation: No mitigation in Argo itself, but docs will show a warning againts using mutable image tags.
+* **Resource exhaustion from a bad debug container.** Ephemeral containers share the pod's cgroup, and Kubernetes does not allow `resources` on ephemeral containers — so a profiler, packet capture, or fork bomb can't be bounded the way a sidecar can, and may starve the workload or fill node ephemeral storage. Mitigation: can't fix at the container level. Treat `exec.debug.images` as a trusted-image list and `debug` as a privileged grant on par with `exec`. Node-level protections (kubelet eviction thresholds, namespace ResourceQuotas on ephemeral storage) stay the operator's job.
+* **PID namespace sharing exposes the target's memory and FDs.** With shared PID namespace, the debug container can read `/proc/<pid>/mem`, `ptrace`, and see the workload's file descriptors — including in-memory secrets. Mitigation: opt-in per attach; audit log captures image + target container; same RBAC as `exec`.
+* **Debug history sticks around.** Kubernetes won't let you remove an ephemeral container once attached — the pod spec keeps the record until the pod is replaced. Called out in Non-Goals; UI shows `Sync OK (Debug Container Attached)` so the state isn't hidden.
 
 ### Upgrade / Downgrade Strategy
 
-.
+* **Upgrade.** Gated by `exec.debug.enabled` in `argocd-cm`, default `false` — upgrade is a no-op until an operator opts in. On opt-in: populate `exec.debug.images` and grant `exec, debug` to the relevant roles. Until then the Debug tab is hidden and the API rejects attach requests.
+* **Downgrade.** Older ArgoCD versions drop the Debug tab and the `exec, debug` endpoint. Already-attached ephemeral containers keep running — they're owned by Kubernetes, not ArgoCD — and stay visible via `kubectl`. No ArgoCD-side cleanup needed. The new ConfigMap keys are ignored by older versions; leave them in place for a future re-upgrade or remove them, either is fine. RBAC policies referencing `debug` are inert on older versions.
 
 ## Drawbacks
 
 ArgoCD might consider limiting attack surface that can be presented with with debug container (which are more powerful then exec'ing into a pod)
 
 ## Alternatives
-.
+
+* **`kubectl debug` against the cluster.** The status quo. Needs direct cluster creds and bypasses ArgoCD RBAC + audit — which is the reason teams that live in the ArgoCD UI want this in-product.
+* **`kubectl exec` (already in ArgoCD).** Fine when the image has a shell and the right tools. No good for distroless, crash-looping pods, or attaching a profiler to a running PID from outside.
+* **eBPF tooling.** Good for always-on, low-overhead network and syscall introspection across the cluster. Separate platform to run, needs cluster-wide privileges, and doesn't cover interactive use (attach a debugger to a PID, run ad-hoc commands in the pod's namespaces). Complements debug containers, doesn't replace them.
