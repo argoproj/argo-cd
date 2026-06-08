@@ -78,7 +78,7 @@ Skip this step if the issue is clearly spam, a feature request with no code refe
 
 Be specific about what is missing and why it is needed. Do not attempt to apply type or other labels to incomplete issues.
 
-**Unsupported Argo CD versions:** Search argo-cd docs for supported versions, if the reported version is unsupported, add a polite comment listing the supported versions and saying this version is EOL and asking whether the issue is reproducible on a supported version.
+**Unsupported Argo CD versions:** Extract the version from the issue's `argocd version` field only. Use `web-fetch` on https://github.com/argoproj/argo-cd/releases to determine the 3 most recent minor versions (Argo CD supports the last 3 minor versions per its security policy). If the version in the `argocd version` field is older than those 3, add a polite comment stating it is EOL, listing the supported versions, and asking whether the issue is reproducible on a supported version.
 
 If the issue has sufficient detail and a supported version, proceed to Step 3.
 
