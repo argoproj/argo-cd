@@ -624,6 +624,28 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
+	// Load live managed resources so we can call HideSecretData with both target
+	// and live counterparts. This preserves value differences (e.g. "+" vs "+++++")
+	// which allows the diff engine to correctly detect Secret changes.
+	// Without the live counterpart, HideSecretData collapses all values to "+",
+	// making changed Secrets appear unmodified and silently absent from diff output.
+	// See: https://github.com/argoproj/argo-cd/issues/28107
+	liveResources := make([]*v1alpha1.ResourceDiff, 0)
+	if err := s.cache.GetAppManagedResources(a.InstanceName(s.ns), &liveResources); err != nil && !errors.Is(err, servercache.ErrCacheMiss) {
+		log.Warnf("GetManifests: could not load managed resources for app %s, falling back to target-only secret redaction: %v", a.Name, err)
+		liveResources = nil
+	}
+	liveSecretsByKey := make(map[string]*unstructured.Unstructured)
+	for _, res := range liveResources {
+		if res.Kind == kube.SecretKind && res.Group == "" {
+			liveObj, err := v1alpha1.UnmarshalToUnstructured(res.LiveState)
+			if err != nil || liveObj == nil {
+				continue
+			}
+			liveSecretsByKey[res.Namespace+"/"+res.Name] = liveObj
+		}
+	}
+
 	manifests := &apiclient.ManifestResponse{}
 	for _, manifestInfo := range manifestInfos {
 		for i, manifest := range manifestInfo.Manifests {
@@ -633,7 +655,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
 			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
+				obj, _, err = diff.HideSecretData(obj, liveSecretsByKey[obj.GetNamespace()+"/"+obj.GetName()], s.settingsMgr.GetSensitiveAnnotations())
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
 				}

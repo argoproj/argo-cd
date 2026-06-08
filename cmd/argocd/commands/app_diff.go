@@ -581,13 +581,25 @@ func compareManifests(
 	}
 
 	results := make([]comparisonObject, 0)
-	for _, diffRes := range diffResults {
+	for i, diffRes := range diffResults {
 		liveState := string(diffRes.NormalizedLive)
 		targetState := string(diffRes.PredictedLive)
 
 		hasLiveState := liveState != "null" && liveState != ""
 		hasTargetState := targetState != "null" && targetState != ""
-		if (!diffRes.Modified && hasLiveState && hasTargetState) || (!hasLiveState && !hasTargetState) {
+		
+		// For Secrets, redaction makes changed values appear identical (both get "+").
+			itemIsSecret := false
+		if i < len(items) {
+			obj := items[i].target
+			if obj == nil {
+				obj = items[i].live
+			}
+			if obj != nil && obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+				itemIsSecret = true
+			}
+		}
+		if ((!diffRes.Modified && hasLiveState && hasTargetState) && !itemIsSecret) || (!hasLiveState && !hasTargetState) {
 			// If the item is not modified and it is neither an added or removed resource, skip it.
 			// If we dont have any live or target state, skip it.
 			continue

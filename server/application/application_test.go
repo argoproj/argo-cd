@@ -45,6 +45,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
@@ -5167,4 +5168,103 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+}
+
+func newCachedManagedResourcesWithLiveState(t *testing.T, server *Server, app *v1alpha1.Application, objects ...*unstructured.Unstructured) *servercache.Cache {
+	t.Helper()
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+	appInstanceName := app.InstanceName(server.appNamespaceOrDefault(app.Namespace))
+
+	managedResources := make([]*v1alpha1.ResourceDiff, len(objects))
+	for i, res := range objects {
+		liveStateBytes, err := json.Marshal(res)
+		require.NoError(t, err)
+		managedResources[i] = &v1alpha1.ResourceDiff{
+			Group:     res.GroupVersionKind().Group,
+			Kind:      res.GetObjectKind().GroupVersionKind().Kind,
+			Name:      res.GetName(),
+			Namespace: res.GetNamespace(),
+			LiveState: string(liveStateBytes), // ← this is what the fix reads
+		}
+	}
+	err := appStateCache.SetAppManagedResources(appInstanceName, managedResources)
+	require.NoError(t, err)
+	return servercache.NewCache(appStateCache, time.Hour, time.Hour)
+}
+func TestGetManifests_SecretDiffPreservesChanges(t *testing.T) {
+	// Regression test for https://github.com/argoproj/argo-cd/issues/28107
+	// Bug: GetManifests called HideSecretData(target, nil) — no live counterpart.
+	// This collapses all secret values to the same replacement, so diff engine
+	// sees Modified=false and silently drops the Secret from diff output.
+	// Fix: load live managed resources and call HideSecretData(target, live).
+
+	testApp := newTestApp()
+
+	liveSecret := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata":   map[string]any{"name": "my-secret", "namespace": test.FakeDestNamespace},
+			"type":       "Opaque",
+			"data":       map[string]any{"password": "b2xkcGFzc3dvcmQ="}, // base64("oldpassword")
+		},
+	}
+
+	targetSecretJSON := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"my-secret","namespace":"` + test.FakeDestNamespace + `"},"type":"Opaque","data":{"password":"bmV3cGFzc3dvcmQ="}}`
+
+	appServer := newTestAppServer(t, testApp)
+	liveStateBytes, err := json.Marshal(liveSecret)
+	require.NoError(t, err)
+	appInstanceName := testApp.InstanceName(appServer.appNamespaceOrDefault(testApp.Namespace))
+	freshAppStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(1*time.Hour)), time.Hour)
+	err = freshAppStateCache.SetAppManagedResources(appInstanceName, []*v1alpha1.ResourceDiff{
+		{Group: "", Kind: "Secret", Name: "my-secret", Namespace: test.FakeDestNamespace, LiveState: string(liveStateBytes)},
+	})
+	require.NoError(t, err)
+	appServer.cache = servercache.NewCache(freshAppStateCache, time.Hour, time.Hour)
+
+	mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
+	mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
+		Return(&apiclient.ManifestResponse{Manifests: []string{targetSecretJSON}}, nil)
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
+
+	resp, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+		Name:     &testApp.Name,
+		Revision: new("abc123"),
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.Manifests, 1, "secret must be present in response")
+
+	returnedObj := &unstructured.Unstructured{}
+	require.NoError(t, json.Unmarshal([]byte(resp.Manifests[0]), returnedObj))
+	returnedData, found, err := unstructured.NestedStringMap(returnedObj.Object, "data")
+	require.NoError(t, err)
+	require.True(t, found, "data field must be present")
+	targetReplacement := returnedData["password"]
+
+	// Verify HideSecretData(target, live) produces different replacements for different values
+	liveObjCheck := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata":   map[string]any{"name": "my-secret", "namespace": test.FakeDestNamespace},
+			"data":       map[string]any{"password": "b2xkcGFzc3dvcmQ="},
+		},
+	}
+	targetObjCheck := &unstructured.Unstructured{}
+	require.NoError(t, json.Unmarshal([]byte(targetSecretJSON), targetObjCheck))
+	checkedTarget, checkedLive, err := diff.HideSecretData(targetObjCheck, liveObjCheck, nil)
+	require.NoError(t, err)
+	checkedTargetPass, _, _ := unstructured.NestedString(checkedTarget.Object, "data", "password")
+	checkedLivePass, _, _ := unstructured.NestedString(checkedLive.Object, "data", "password")
+
+	assert.NotEqual(t, checkedTargetPass, checkedLivePass,
+		"HideSecretData must produce different replacements for different secret values")
+	assert.Equal(t, checkedTargetPass, targetReplacement,
+		"GetManifests must use live state when redacting secrets (issue #28107): want=%q got=%q",
+		checkedTargetPass, targetReplacement)
+	assert.NotContains(t, targetReplacement, "bmV3cGFzc3dvcmQ=", "must not leak base64")
+	assert.NotContains(t, targetReplacement, "newpassword", "must not leak plaintext")
+	assert.NotContains(t, targetReplacement, "b2xkcGFzc3dvcmQ=", "must not leak live base64")
 }

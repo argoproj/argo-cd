@@ -93,8 +93,7 @@ func mockDiffStrategyNoneModified() diffStrategy {
 		results := make([]*diff.DiffResult, len(items))
 		for i := range items {
 			results[i] = &diff.DiffResult{
-				Modified: false,
-			}
+				Modified: false, }
 		}
 		return results, nil
 	}
@@ -1521,4 +1520,56 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 		assert.NotNil(t, labels)
 		assert.Equal(t, "test-app", labels["app.kubernetes.io/instance"])
 	})
+}
+// TestCompareManifests_SecretAlwaysShown verifies that Secrets are always included
+// in diff output even when their values appear unmodified after redaction.
+// Regression test for https://github.com/argoproj/argo-cd/issues/28107
+func TestCompareManifests_SecretAlwaysShown(t *testing.T) {
+	ctx := context.Background()
+
+	liveSecret := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata":   map[string]any{"name": "my-secret", "namespace": "default"},
+			"type":       "Opaque",
+			"data":       map[string]any{"password": "+"},
+		},
+	}
+	targetSecret := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata":   map[string]any{"name": "my-secret", "namespace": "default"},
+			"type":       "Opaque",
+			"data":       map[string]any{"password": "+"},
+		},
+	}
+
+	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{liveSecret})
+	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetSecret})
+
+	// Simulate what happens after redaction: both sides have same "+" value → Modified=false
+	// Without the fix, the Secret would be silently dropped from diff output.
+	// With the fix, Secrets are always shown regardless of Modified flag.
+	performDiff := func(_ context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+		results := make([]*diff.DiffResult, len(items))
+		for i, item := range items {
+			liveBytes, _ := json.Marshal(item.live)
+			targetBytes, _ := json.Marshal(item.target)
+			results[i] = &diff.DiffResult{
+				Modified:       false,
+				NormalizedLive: liveBytes,
+				PredictedLive:  targetBytes,
+			}
+		}
+		return results, nil
+	}
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
+	require.NoError(t, err)
+
+	// Secret must appear in results even though Modified=false
+	require.Len(t, results, 1, "Secret must appear in diff output even when values appear identical after redaction (issue #28107)")
+	assert.Equal(t, "Secret", results[0].key.Kind)
+	assert.Equal(t, "my-secret", results[0].key.Name)
 }
