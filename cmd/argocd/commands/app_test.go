@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -2697,4 +2700,298 @@ func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string
 		appSetEventsCh <- addedEvent
 	}()
 	return appSetEventsCh
+}
+
+// TestWaitOnApplicationStatus_PollFallbackReturnsWhenWatchGoesQuiet simulates
+// two overlapping sync operations: the watch emits one non-satisfying event and
+// then goes quiet (never delivers the terminal event), while a periodic Get
+// eventually observes the desired Synced+Healthy state. Without the poll
+// fallback, waitOnApplicationStatus would block until the timeout.
+func TestWaitOnApplicationStatus_PollFallbackReturnsWhenWatchGoesQuiet(t *testing.T) {
+	orig := appWaitPollInterval
+	appWaitPollInterval = 10 * time.Millisecond
+	t.Cleanup(func() { appWaitPollInterval = orig })
+
+	acdClient := &pollFallbackAcdClient{&fakeAcdClient{}}
+	ctx := t.Context()
+	watchOpts := watchOpts{sync: true, health: true, operation: true}
+
+	start := time.Now()
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 3, watchOpts, nil, "json")
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.Less(t, elapsed, 2*time.Second, "poll fallback should return well before the wait timeout, took %s", elapsed)
+}
+
+// pollFallbackAcdClient: the watch emits one OutOfSync event then stays open but
+// quiet; the first Get (initial state) returns OutOfSync so the #12211 early
+// return is skipped, and later Gets (the poll) return Synced+Healthy.
+type pollFallbackAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *pollFallbackAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 1)
+	appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+		Type: watch.Modified,
+		Application: v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+			},
+		},
+	}
+	// Intentionally never closed: the watch stays open but quiet, so only the
+	// poll fallback can satisfy the wait.
+	return appEventsCh
+}
+
+func (c *pollFallbackAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &flippingFakeAppServiceClient{}
+}
+
+func (c *pollFallbackAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// flippingFakeAppServiceClient returns OutOfSync on the first Get (initial
+// state) and Synced+Healthy on every subsequent Get (the poll fallback).
+type flippingFakeAppServiceClient struct {
+	fakeAppServiceClient
+	calls atomic.Int32
+}
+
+func (c *flippingFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	syncStatus := v1alpha1.SyncStatusCodeSynced
+	healthStatus := health.HealthStatusHealthy
+	if c.calls.Add(1) == 1 {
+		syncStatus = v1alpha1.SyncStatusCodeOutOfSync
+		healthStatus = health.HealthStatusProgressing
+	}
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: syncStatus},
+			Health: v1alpha1.AppHealthStatus{Status: healthStatus},
+		},
+	}, nil
+}
+
+// TestWaitOnApplicationStatus_HealthDegradedTransitionReturnsError exercises the
+// watch-loop path where a watched resource transitions to Degraded health: the
+// first event records the resource as Healthy, the second flips it to Degraded,
+// and the wait must abort with a "health state has transitioned" error.
+func TestWaitOnApplicationStatus_HealthDegradedTransitionReturnsError(t *testing.T) {
+	acdClient := &healthDegradedAcdClient{&fakeAcdClient{}}
+	ctx := t.Context()
+	wo := watchOpts{sync: true, health: true}
+
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, wo, nil, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "health state has transitioned")
+}
+
+// healthDegradedAcdClient: initial Get is OutOfSync (so the early return is
+// skipped); the watch then emits the same resource first Healthy, then Degraded.
+type healthDegradedAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *healthDegradedAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	mk := func(h health.HealthStatusCode) *v1alpha1.ApplicationWatchEvent {
+		return &v1alpha1.ApplicationWatchEvent{
+			Type: watch.Modified,
+			Application: v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+				Status: v1alpha1.ApplicationStatus{
+					Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+					Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+					Resources: []v1alpha1.ResourceStatus{{
+						Kind:      "Deployment",
+						Name:      "test",
+						Namespace: "default",
+						Status:    "Synced",
+						Health:    &v1alpha1.HealthStatus{Status: h},
+					}},
+				},
+			},
+		}
+	}
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 3)
+	appEventsCh <- mk(health.HealthStatusHealthy)
+	appEventsCh <- mk(health.HealthStatusHealthy) // seen again, not degraded -> merge path
+	appEventsCh <- mk(health.HealthStatusDegraded)
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *healthDegradedAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &fakeAppServiceClient{}
+}
+
+func (c *healthDegradedAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// TestWaitOnApplicationStatus_PollFallbackToleratesTransientGetError verifies the
+// poll fallback skips a failed re-fetch (transient API error) and returns once a
+// later poll observes the desired state.
+func TestWaitOnApplicationStatus_PollFallbackToleratesTransientGetError(t *testing.T) {
+	orig := appWaitPollInterval
+	appWaitPollInterval = 10 * time.Millisecond
+	t.Cleanup(func() { appWaitPollInterval = orig })
+
+	acdClient := &pollErrorAcdClient{&fakeAcdClient{}}
+	ctx := t.Context()
+	wo := watchOpts{sync: true, health: true, operation: true}
+
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 3, wo, nil, "json")
+	require.NoError(t, err)
+	assert.NotNil(t, app)
+}
+
+// pollErrorAcdClient: the watch emits one OutOfSync event and stays quiet; the
+// poll Get errors once (transient) and then returns Synced+Healthy.
+type pollErrorAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *pollErrorAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 1)
+	appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+		Type: watch.Modified,
+		Application: v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+			},
+		},
+	}
+	return appEventsCh
+}
+
+func (c *pollErrorAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &erroringFakeAppServiceClient{}
+}
+
+func (c *pollErrorAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// erroringFakeAppServiceClient: Get returns OutOfSync on the first (initial) call
+// so the early return is skipped, errors on the second (first poll), then returns
+// Synced+Healthy.
+type erroringFakeAppServiceClient struct {
+	fakeAppServiceClient
+	calls atomic.Int32
+}
+
+func (c *erroringFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	switch c.calls.Add(1) {
+	case 1:
+		return &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+			Spec: v1alpha1.ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+			},
+		}, nil
+	case 2:
+		return nil, errors.New("transient API error")
+	default:
+		return &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+			Spec: v1alpha1.ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			},
+		}, nil
+	}
+}
+
+// TestWaitOnApplicationStatus_PollNotFoundDeleteSucceeds verifies that when the
+// poll fallback observes the app is gone (NotFound), a --delete wait returns
+// successfully — the symmetric quiet-watch case for deletions.
+func TestWaitOnApplicationStatus_PollNotFoundDeleteSucceeds(t *testing.T) {
+	orig := appWaitPollInterval
+	appWaitPollInterval = 10 * time.Millisecond
+	t.Cleanup(func() { appWaitPollInterval = orig })
+
+	app, _, err := waitOnApplicationStatus(t.Context(), &pollNotFoundAcdClient{&fakeAcdClient{}}, "app-name", 3, watchOpts{delete: true}, nil, "")
+	require.NoError(t, err)
+	assert.Nil(t, app)
+}
+
+// TestWaitOnApplicationStatus_PollNotFoundReturnsError verifies that when the
+// poll fallback observes the app is gone (NotFound) on a non-delete wait, it
+// stops early with a "not found" error instead of looping until the timeout.
+func TestWaitOnApplicationStatus_PollNotFoundReturnsError(t *testing.T) {
+	orig := appWaitPollInterval
+	appWaitPollInterval = 10 * time.Millisecond
+	t.Cleanup(func() { appWaitPollInterval = orig })
+
+	_, _, err := waitOnApplicationStatus(t.Context(), &pollNotFoundAcdClient{&fakeAcdClient{}}, "app-name", 3, watchOpts{sync: true, health: true}, nil, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+// pollNotFoundAcdClient: the watch stays quiet (no events); the initial Get
+// returns OutOfSync (so the early return is skipped) and every later (poll) Get
+// returns a NotFound, simulating the application being deleted.
+type pollNotFoundAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *pollNotFoundAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	return make(chan *v1alpha1.ApplicationWatchEvent) // quiet: only the poll fallback acts
+}
+
+func (c *pollNotFoundAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &notFoundOnPollClient{}
+}
+
+func (c *pollNotFoundAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type notFoundOnPollClient struct {
+	fakeAppServiceClient
+	calls atomic.Int32
+}
+
+func (c *notFoundOnPollClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	if c.calls.Add(1) == 1 {
+		return &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+			Spec: v1alpha1.ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+			},
+		}, nil
+	}
+	return nil, status.Error(codes.NotFound, "application not found")
 }
