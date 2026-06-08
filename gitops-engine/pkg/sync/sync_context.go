@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -1410,14 +1411,17 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
-		if shouldReplace || force {
-			fmt.Fprintf(os.Stderr, "*** FAKING DRY-RUN force=%v replace=%v dryRunStrategy=%v t=%v", force, shouldReplace, dryRunStrategy, t.targetObj)
-			return common.ResultCodeSynced, message
+		_, err := scheme.Scheme.New(t.groupVersionKind())
+		if err == nil {
+			fmt.Fprintf(os.Stderr, "*** CLIENT DRY-RUN force=%v replace=%v dryRunStrategy=%v t=%v", force, shouldReplace, dryRunStrategy, t.targetObj)
+			dryRunStrategy = cmdutil.DryRunClient
+		} else {
+			if shouldReplace || force {
+				fmt.Fprintf(os.Stderr, "*** FAKING DRY-RUN force=%v replace=%v dryRunStrategy=%v t=%v", force, shouldReplace, dryRunStrategy, t.targetObj)
+				return common.ResultCodeSynced, message
+			}
+			dryRunStrategy = cmdutil.DryRunServer
 		}
-		// TestNamespacedImmutableChange
-		dryRunStrategy = cmdutil.DryRunServer
-		//dryRunStrategy = cmdutil.DryRunClient
-		//}
 		fmt.Fprintf(os.Stderr, "*** SERVER DRY-RUN force=%v replace=%v dryRunStrategy=%v t=%v", force, shouldReplace, dryRunStrategy, t.targetObj)
 	}
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
