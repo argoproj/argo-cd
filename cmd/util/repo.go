@@ -33,6 +33,7 @@ type RepoOptions struct {
 	AzureServicePrincipalClientId     string
 	AzureServicePrincipalClientSecret string
 	AzureActiveDirectoryEndpoint      string
+	SparsePaths                       []string
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -65,4 +66,5 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.AzureServicePrincipalClientId, "azure-service-principal-client-id", "", "client id of the Azure Service Principal")
 	command.Flags().StringVar(&opts.AzureServicePrincipalClientSecret, "azure-service-principal-client-secret", "", "client secret of the Azure Service Principal")
 	command.Flags().StringVar(&opts.AzureActiveDirectoryEndpoint, "azure-active-directory-endpoint", "", "Active Directory endpoint when not using default Azure public cloud (e.g. https://login.microsoftonline.de)")
+	command.Flags().StringArrayVar(&opts.SparsePaths, "sparse-paths", []string{}, "Specify the sparse paths to checkout. Specifying sparse paths implies enabling partial clone for this repository")
 }

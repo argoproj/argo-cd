@@ -556,6 +556,13 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		AppName:        app.Name,
 		InstallationID: installationID,
 	}
+	// Mirror the reposerver: cached manifests are keyed by the repo's SparsePaths,
+	// so the rename must target the same key. Look up the repo and copy the field
+	// through. A miss here is non-fatal — the cache RenameItem will simply not
+	// match the manifests stored under the sparse-suffixed key.
+	if repo, repoErr := a.db.GetRepository(context.Background(), source.RepoURL, app.Spec.Project); repoErr == nil && repo != nil {
+		oldManifestKey.SparsePaths = repo.SparsePaths
+	}
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", oldManifestKey)
 
 	newManifestKey := oldManifestKey

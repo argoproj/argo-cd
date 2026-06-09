@@ -136,6 +136,13 @@ type Repository struct {
 	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty" protobuf:"bytes,31,opt,name=azureServicePrincipalTenantId"`
 	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
 	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty" protobuf:"bytes,32,opt,name=azureActiveDirectoryEndpoint"`
+	// SparsePaths specifies which directories to checkout when using sparse
+	// checkout with partial clone. Each entry must be a directory path relative
+	// to the repository root (e.g., "charts" or "apps/foo"). Leading slashes are
+	// rejected by git's cone-mode parser; trailing slashes are accepted and
+	// stripped. If empty, a full checkout will be used; otherwise a partial
+	// clone with the listed directories will be used.
+	SparsePaths []string `json:"sparsePaths,omitempty" protobuf:"bytes,33,rep,name=sparsePaths"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -385,6 +392,7 @@ func (repo *Repository) CopySettingsFrom(source *Repository) {
 		repo.Insecure = source.Insecure
 		repo.InheritedCreds = source.InheritedCreds
 		repo.Depth = source.Depth
+		repo.SparsePaths = source.SparsePaths
 	}
 }
 
@@ -418,6 +426,7 @@ func (repo *Repository) Sanitized() *Repository {
 		AzureServicePrincipalClientId: repo.AzureServicePrincipalClientId,
 		AzureServicePrincipalTenantId: repo.AzureServicePrincipalTenantId,
 		Depth:                         repo.Depth,
+		SparsePaths:                   repo.SparsePaths,
 	}
 }
 

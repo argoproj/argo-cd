@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -129,7 +130,13 @@ type Client interface {
 	Root() string
 	RepoURL() string
 	Init() error
-	Fetch(revision string, depth int64) error
+	Fetch(revision string, depth int64, usePartialClone bool) error
+	// FetchSparseBlobs pre-fetches blobs needed for the given sparse checkout paths in a single
+	// batch request. This should be called after a --filter=blob:none fetch and before checkout,
+	// to avoid slow individual lazy-fetch requests during git checkout.
+	FetchSparseBlobs(revision string, paths []string) error
+	ConfigureSparseCheckout(paths []string) error
+	DisableSparseCheckout() error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -518,15 +525,18 @@ func (m *nativeGitClient) RepoURL() string {
 
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
-	_, err := git.PlainOpen(m.root)
-	if err == nil {
+	// Probe with a filesystem check instead of go-git's PlainOpen. After
+	// `git sparse-checkout init --cone` runs, git writes
+	// `extensions.worktreeConfig = true` even at `core.repositoryformatversion = 0`.
+	// The git CLI tolerates this combination, but go-git enforces the spec strictly
+	// and PlainOpen fails with "core.repositoryformatversion does not support extension:
+	// worktreeconfig", causing the subsequent Init() call to return an error and the
+	// whole sync to fail.
+	if info, err := os.Stat(filepath.Join(m.root, ".git")); err == nil && info.IsDir() {
 		return nil
 	}
-	if !errors.Is(err, git.ErrRepositoryNotExists) {
-		return err
-	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	err = os.RemoveAll(m.root)
+	err := os.RemoveAll(m.root)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %w", m.root, err)
 	}
@@ -550,28 +560,54 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64) error {
+func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64, usePartialClone bool) error {
 	args := []string{"fetch", "origin"}
 	if revision != "" {
 		args = append(args, revision)
 	}
 
-	if depth > 0 {
-		args = append(args, "--depth", strconv.FormatInt(depth, 10))
-	} else {
-		args = append(args, "--tags")
+	if usePartialClone {
+		args = append(args, "--filter=blob:none")
 	}
-	args = append(args, "--force", "--prune")
+
+	switch {
+	case depth > 0:
+		args = append(args, "--depth", strconv.FormatInt(depth, 10))
+	case !usePartialClone:
+		// Only add --tags if we're doing a full fetch (no partial clone, no depth limit)
+		args = append(args, "--tags")
+	default:
+		// Partial clone with no depth limit. --filter=blob:none omits blobs, but git
+		// still transfers every commit and tree in the repo's entire history. On large
+		// repositories this can take minutes and can look like a hang. A shallow depth
+		// (set Repository.depth) bounds the history and is almost always what you want
+		// when pairing partial clone with sparse checkout. Warn so the cost is visible.
+		log.Warnf("Partial clone of %s requested without a depth limit; fetching full history (commits and trees) which may be slow on large repositories. Set the repository's depth to bound history.", m.repoURL)
+	}
+
+	args = append(args, "--force")
+
+	// Skip --prune for partial clone fetches. When fetching a specific SHA with
+	// --filter=blob:none, --prune forces a full ref advertisement from the remote
+	// to determine which local refs to remove. This is unnecessary and can take
+	// 30-60s on repos with thousands of tags/branches.
+	if !usePartialClone {
+		args = append(args, "--prune")
+	}
+
 	return m.runCredentialedCmd(ctx, args...)
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
+// GIT_NO_LAZY_FETCH=1 prevents partial clone repos from triggering a network
+// round-trip to the promisor remote, which can hang or timeout without credentials.
 func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	if revision == "" {
 		return false
 	}
 
 	cmd := exec.CommandContext(context.Background(), "git", "cat-file", "-t", revision)
+	cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1")
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out == "commit" && err == nil {
 		return true
@@ -579,18 +615,22 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	return false
 }
 
-// Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string, depth int64) error {
+// Fetch fetches latest updates from origin.
+// If usePartialClone is true, uses --filter=blob:none for partial clone (downloads commits/trees but not blobs).
+// If depth > 0, uses --depth for shallow clone (limits history depth).
+// Both options can be used together for maximum bandwidth savings.
+func (m *nativeGitClient) Fetch(revision string, depth int64, usePartialClone bool) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
 	ctx := context.Background()
 
-	err := m.fetch(ctx, revision, depth)
+	err := m.fetch(ctx, revision, depth, usePartialClone)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
-	if err == nil && m.IsLFSEnabled() {
+	// Note: LFS and partial clone don't work well together, so we skip LFS fetch when using partial clone
+	if err == nil && m.IsLFSEnabled() && !usePartialClone {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
@@ -601,6 +641,108 @@ func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	}
 
 	return err
+}
+
+// ConfigureSparseCheckout configures git sparse-checkout with the given paths
+// This limits which files are checked out in the working directory
+func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
+	if len(paths) == 0 {
+		return errors.New("sparse checkout requires at least one path")
+	}
+
+	// Reject paths that would be interpreted as flags by `git sparse-checkout set`.
+	// Cone-mode paths are directory names; a leading "-" is never valid and bypassing
+	// this check lets a SparsePaths entry like "--stdin" or "--no-cone" silently
+	// reconfigure the command (e.g. set zero patterns, producing an empty working tree).
+	for _, p := range paths {
+		if strings.HasPrefix(p, "-") {
+			return fmt.Errorf("invalid sparse checkout path %q: must not start with '-'", p)
+		}
+	}
+
+	ctx := context.Background()
+
+	// Initialize sparse-checkout with cone mode and sparse index.
+	// --sparse-index collapses out-of-cone directories to single index entries,
+	// dramatically reducing index size and speeding up git status/checkout/diff operations.
+	if _, err := m.runCmd(ctx, "sparse-checkout", "init", "--cone", "--sparse-index"); err != nil {
+		return fmt.Errorf("failed to initialize sparse-checkout: %w", err)
+	}
+
+	// Set the sparse-checkout paths. The "--" sentinel forces git to treat every
+	// subsequent argument as a positional path even on git versions where
+	// `sparse-checkout set` honors flag parsing.
+	args := append([]string{"sparse-checkout", "set", "--"}, paths...)
+	if _, err := m.runCmd(ctx, args...); err != nil {
+		return fmt.Errorf("failed to set sparse-checkout paths: %w", err)
+	}
+
+	log.Debugf("Configured sparse checkout with paths: %v", paths)
+	return nil
+}
+
+// DisableSparseCheckout disables sparse-checkout so that the full working tree
+// is restored. This is used when sparse-checkout configuration fails partway
+// through and the caller needs to fall back to a full checkout.
+func (m *nativeGitClient) DisableSparseCheckout() error {
+	ctx := context.Background()
+	if _, err := m.runCmd(ctx, "sparse-checkout", "disable"); err != nil {
+		return fmt.Errorf("failed to disable sparse-checkout: %w", err)
+	}
+	return nil
+}
+
+// FetchSparseBlobs pre-fetches blobs needed for the given sparse checkout paths in a single
+// batch request. Call this after a --filter=blob:none fetch and before checkout.
+// This uses "git rev-list --objects --no-object-names --missing=print" to list all object SHAs
+// under the sparse paths and identify missing blobs in a single pass, then uses "git fetch origin"
+// to fetch them in one batch from the promisor remote.
+func (m *nativeGitClient) FetchSparseBlobs(revision string, paths []string) error {
+	if len(paths) == 0 || revision == "" {
+		return nil
+	}
+
+	ctx := context.Background()
+
+	// List all objects under the sparse paths and identify which are missing locally.
+	// --missing=print outputs missing objects with a "?" prefix (e.g. "?<sha>"), while
+	// present objects are listed normally. In a --filter=blob:none partial clone, commits
+	// and trees are always present — only blobs are missing. This lets us identify exactly
+	// which blobs need to be fetched without a separate cat-file step.
+	revListArgs := append([]string{"rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--"}, paths...)
+	objectList, err := m.runCmd(ctx, revListArgs...)
+	if err != nil {
+		log.Warnf("Failed to list objects for sparse paths; falling back to on-demand lazy fetching from the promisor remote during checkout: %v", err)
+		return nil // Non-fatal: checkout will still work via lazy fetching
+	}
+
+	var missingBlobs []string
+	for line := range strings.SplitSeq(strings.TrimSpace(objectList), "\n") {
+		if sha, found := strings.CutPrefix(line, "?"); found && sha != "" {
+			missingBlobs = append(missingBlobs, sha)
+		}
+	}
+
+	if len(missingBlobs) == 0 {
+		log.Debugf("All blobs for sparse paths already present locally")
+		return nil
+	}
+
+	log.Infof("Pre-fetching %d missing blobs for sparse paths", len(missingBlobs))
+
+	// Fetch in chunks to avoid exceeding OS argument length limits (ARG_MAX).
+	const batchSize = 500
+	for i := 0; i < len(missingBlobs); i += batchSize {
+		end := min(i+batchSize, len(missingBlobs))
+		batch := missingBlobs[i:end]
+		if err := m.runCredentialedCmd(ctx, slices.Concat([]string{"fetch", "origin"}, batch)...); err != nil {
+			log.Warnf("Sparse-checkout blob pre-fetch failed for batch %d-%d of %d; falling back to on-demand lazy fetching from the promisor remote during checkout: %v", i, end, len(missingBlobs), err)
+			return nil // Non-fatal: checkout will still work via lazy fetching
+		}
+	}
+
+	log.Infof("Successfully pre-fetched %d blobs for sparse paths", len(missingBlobs))
+	return nil
 }
 
 // LsFiles lists the local working tree, including only files that are under source control
@@ -672,13 +814,39 @@ func (m *nativeGitClient) Submodule() error {
 	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
 }
 
-// Checkout checks out the specified revision
+// isPartialClone reports whether the local repo is a partial clone, by checking
+// for any promisor pack file in .git/objects/pack/*.promisor. Partial-clone
+// fetches (--filter=blob:none) always write such a marker, so its presence is a
+// reliable, subprocess-free signal that `git checkout` may trigger lazy blob
+// fetches against the remote and therefore needs credentials.
+func (m *nativeGitClient) isPartialClone() bool {
+	matches, err := filepath.Glob(filepath.Join(m.root, ".git", "objects", "pack", "*.promisor"))
+	if err != nil {
+		// filepath.Glob only errors on a malformed pattern (impossible here).
+		return false
+	}
+	return len(matches) > 0
+}
+
+// Checkout checks out the specified revision. For partial-clone repos (detected
+// via isPartialClone) the command is run through the credentialed path so that
+// any lazy blob fetches triggered by `git checkout` can authenticate against
+// the promisor remote. For non-partial repos the plain runCmd path is used so
+// we don't mint OAuth/JWT tokens (GitHub App, GCP, Azure WorkloadIdentity) on
+// every checkout — a no-op that adds latency and consumes provider rate limits.
 func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
 	ctx := context.Background()
-	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
+	var out string
+	var err error
+	if m.isPartialClone() {
+		out, err = m.runCredentialedCmdWithOutput(ctx, "checkout", "--force", revision)
+	} else {
+		out, err = m.runCmd(ctx, "checkout", "--force", revision)
+	}
+	if err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
@@ -1136,8 +1304,38 @@ func gpgVerificationFromGitRevParse(oneLetter string) (GPGVerificationResult, er
 
 var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
 
+// hasLocalRef reports whether the given fully-qualified ref (e.g. "refs/tags/v1")
+// is present in the local repository. `git show-ref --verify --quiet` exits 0
+// when present and non-zero when missing; we treat any error as "missing".
+func (m *nativeGitClient) hasLocalRef(ctx context.Context, ref string) bool {
+	cmd := exec.CommandContext(ctx, "git", "show-ref", "--verify", "--quiet", ref)
+	_, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	return err == nil
+}
+
+// ensureLocalTagRef materializes refs/tags/<tagRevision> from the remote when
+// it isn't already in the local refdb. Partial-clone fetches intentionally
+// omit --tags to avoid an expensive full ref advertisement, so tag refs
+// referenced by callers like signature verification can be absent. The
+// targeted refspec + --no-tags keeps the network cost to a single tag.
+func (m *nativeGitClient) ensureLocalTagRef(ctx context.Context, tagRevision string) error {
+	ref := "refs/tags/" + tagRevision
+	if m.hasLocalRef(ctx, ref) {
+		return nil
+	}
+	refspec := ref + ":" + ref
+	return m.runCredentialedCmd(ctx, "fetch", "--no-tags", "origin", refspec)
+}
+
 func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
 	ctx := context.Background()
+	// On partial clones, fetches skip --tags so refs/tags/<x> may be missing.
+	// Fault it in before reading from the local refdb. A fetch failure here
+	// is non-fatal: the subsequent for-each-ref will report "no tag found"
+	// with the caller-friendly error path below.
+	if err := m.ensureLocalTagRef(ctx, tagRevision); err != nil {
+		log.Debugf("failed to fault-in tag ref %q before signature lookup: %v", tagRevision, err)
+	}
 	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
 	// for RevisionSignatureInfo from 2 different git invocations.
 	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
@@ -1669,9 +1867,17 @@ func (m *nativeGitClient) runCmd(ctx context.Context, args ...string) (string, e
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string) error {
+	_, err := m.runCredentialedCmdWithOutput(ctx, args...)
+	return err
+}
+
+// runCredentialedCmdWithOutput runs a git command with credentials and returns the output.
+// This is needed for commands like checkout that may trigger lazy blob fetches in partial
+// clone repos and need credentials to authenticate with the remote.
+func (m *nativeGitClient) runCredentialedCmdWithOutput(ctx context.Context, args ...string) (string, error) {
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func() { _ = closer.Close() }()
 
@@ -1687,8 +1893,7 @@ func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
-	_, err = m.runCmdOutput(cmd, runOpts{})
-	return err
+	return m.runCmdOutput(cmd, runOpts{})
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {

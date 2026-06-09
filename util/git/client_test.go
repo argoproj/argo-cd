@@ -72,7 +72,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 }
 
@@ -90,7 +90,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	err = runCmd(ctx, tempDir, "git", "branch", "-d", "test/foo")
@@ -98,7 +98,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo/bar")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 }
 
@@ -407,7 +407,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -488,6 +488,46 @@ func Test_IsRevisionPresent(t *testing.T) {
 	// Ensure invalid revision is not returned.
 	revisionPresent = client.IsRevisionPresent("invalid-revision")
 	assert.False(t, revisionPresent)
+}
+
+func Test_IsRevisionPresent_NoLazyFetch(t *testing.T) {
+	ctx := t.Context()
+
+	// Create a source repo with a file
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "file.txt"), []byte("hello"), 0o644))
+	require.NoError(t, runCmd(ctx, tempDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tempDir, "git", "commit", "-m", "add file"))
+
+	commitSHA, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision := strings.TrimSpace(string(commitSHA))
+
+	// Get a blob SHA to test against
+	blobSHABytes, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD:file.txt")
+	require.NoError(t, err)
+	blobSHA := strings.TrimSpace(string(blobSHABytes))
+
+	// Clone and simulate partial clone (blobs removed, promisor remote configured)
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(revision, 0, false))
+
+	simulatePartialClone(ctx, t, client.Root(), revision)
+
+	// Commit objects are kept locally in partial clones, so this should be true
+	// without triggering any network request.
+	assert.True(t, client.IsRevisionPresent(revision))
+
+	// Blob objects are removed in partial clones. Without GIT_NO_LAZY_FETCH=1,
+	// git cat-file would attempt a lazy-fetch from the promisor remote (which
+	// could hang without credentials). With the env var set, it returns immediately.
+	assert.False(t, client.IsRevisionPresent(blobSHA))
 }
 
 func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
@@ -676,7 +716,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		out, err := client.SetAuthor("test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch("", 0, false)
 		require.NoError(t, err)
 
 		// checkout to origin base branch
@@ -899,7 +939,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false, true)
@@ -1268,11 +1308,13 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 }
 
 type mockCreds struct {
-	environ    []string
-	environErr bool
+	environ      []string
+	environErr   bool
+	environCalls int
 }
 
 func (m *mockCreds) Environ() (io.Closer, []string, error) {
+	m.environCalls++
 	if m.environErr {
 		return nil, nil, errors.New("error getting environment")
 	}
@@ -1466,7 +1508,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false, true)
@@ -1524,7 +1566,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false, true)
@@ -1588,7 +1630,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false, true)
@@ -1657,4 +1699,347 @@ func Test_LsSignatures_Error(t *testing.T) {
 		assert.Nil(t, signatures)
 		assert.Empty(t, legacy)
 	}
+}
+
+// checkoutCredsTestRepo builds a small file:// source repo and a client pointing
+// at it, returning the client, the commit SHA to check out, and the mock creds.
+// Shared by the two Checkout-credential tests below.
+func checkoutCredsTestRepo(t *testing.T) (Client, string, *mockCreds) {
+	t.Helper()
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "testfile"), []byte("content"), 0o644))
+	require.NoError(t, runCmd(ctx, tempDir, "git", "add", "testfile"))
+	require.NoError(t, runCmd(ctx, tempDir, "git", "commit", "-m", "add testfile"))
+
+	out, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision := strings.TrimSpace(string(out))
+
+	creds := &mockCreds{
+		environ: []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
+	}
+
+	client, err := NewClient("file://"+tempDir, creds, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(revision, 0, false))
+
+	return client, revision, creds
+}
+
+// Test_nativeGitClient_Checkout_NonPartialClone_SkipsCredentials verifies the
+// rate-limit-saving gate: when the workdir is not a partial clone, Checkout
+// must NOT call creds.Environ(). Minting an OAuth/JWT token (GitHub App, GCP,
+// Azure WorkloadIdentity) on every checkout would consume provider rate limits
+// for no benefit, since a non-partial clone never triggers lazy blob fetches.
+func Test_nativeGitClient_Checkout_NonPartialClone_SkipsCredentials(t *testing.T) {
+	client, revision, creds := checkoutCredsTestRepo(t)
+
+	// Reset after Init/Fetch so we measure only Checkout.
+	creds.environCalls = 0
+
+	_, err := client.Checkout(revision, false, true)
+	require.NoError(t, err)
+
+	assert.Zero(t, creds.environCalls, "non-partial-clone Checkout must not invoke creds.Environ()")
+}
+
+// Test_nativeGitClient_Checkout_PartialClone_UsesCredentials covers the other
+// half of the gate: once the workdir is a partial clone (promisor pack present),
+// Checkout must run through the credentialed path so that lazy blob fetches
+// triggered by `git checkout` can authenticate against the promisor remote.
+func Test_nativeGitClient_Checkout_PartialClone_UsesCredentials(t *testing.T) {
+	client, revision, creds := checkoutCredsTestRepo(t)
+
+	// Convert the on-disk repo into a partial-clone-shaped state so that
+	// isPartialClone() returns true.
+	simulatePartialClone(t.Context(), t, client.Root(), revision)
+
+	creds.environCalls = 0
+
+	_, err := client.Checkout(revision, false, true)
+	require.NoError(t, err)
+
+	assert.Positive(t, creds.environCalls, "partial-clone Checkout must call creds.Environ() so lazy blob fetches can authenticate")
+}
+
+func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
+	ctx := t.Context()
+
+	// Create a source repo with files in a subdirectory
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	err = os.MkdirAll(path.Join(tempDir, "subdir"), 0o755)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "subdir", "file1.txt"), []byte("content1"), 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "subdir", "file2.txt"), []byte("content2"), 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "root.txt"), []byte("root"), 0o644))
+	err = runCmd(ctx, tempDir, "git", "add", ".")
+	require.NoError(t, err)
+	err = runCmd(ctx, tempDir, "git", "commit", "-m", "add files")
+	require.NoError(t, err)
+
+	commitSHA, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision := strings.TrimSpace(string(commitSHA))
+
+	// Create a client pointing to the source repo and do a normal fetch
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+
+	err = client.Init()
+	require.NoError(t, err)
+	err = client.Fetch(revision, 0, false)
+	require.NoError(t, err)
+
+	// Simulate a partial clone (--filter=blob:none) state on disk.
+	// The local file:// protocol doesn't support --filter, so we:
+	// 1. Identify non-blob object SHAs (commits, trees)
+	// 2. Pack only those into a promisor pack
+	// 3. Remove the original pack that contains blobs
+	// 4. Configure the remote as a promisor remote
+	// This mirrors what a real --filter=blob:none clone looks like.
+	clientRoot := client.Root()
+	simulatePartialClone(ctx, t, clientRoot, revision)
+
+	// Verify blobs are actually missing now
+	missingCheck, err := outputCmd(ctx, clientRoot, "git", "rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--", "subdir")
+	require.NoError(t, err)
+	missingCount := 0
+	for line := range strings.SplitSeq(string(missingCheck), "\n") {
+		if strings.HasPrefix(line, "?") {
+			missingCount++
+		}
+	}
+	require.Equal(t, 2, missingCount, "should have 2 missing blobs (file1.txt and file2.txt)")
+
+	// FetchSparseBlobs should detect and fetch the missing blobs
+	err = client.FetchSparseBlobs(revision, []string{"subdir"})
+	require.NoError(t, err)
+
+	// Verify blobs are now present
+	missingAfter, err := outputCmd(ctx, clientRoot, "git", "rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--", "subdir")
+	require.NoError(t, err)
+	for line := range strings.SplitSeq(string(missingAfter), "\n") {
+		assert.False(t, strings.HasPrefix(line, "?"), "blob should no longer be missing: %s", line)
+	}
+
+	// Checkout should work without needing lazy fetches
+	_, err = client.Checkout(revision, false, true)
+	require.NoError(t, err)
+
+	// Verify the files exist in the working directory
+	content, err := os.ReadFile(path.Join(clientRoot, "subdir", "file1.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "content1", string(content))
+}
+
+func Test_nativeGitClient_ConfigureSparseCheckout_RejectsFlagInjection(t *testing.T) {
+	// A SparsePaths entry that begins with "-" would be interpreted by
+	// `git sparse-checkout set` as a flag (e.g. --stdin reads patterns from
+	// stdin and silently configures zero paths, producing an empty working
+	// tree). The client must reject such entries before invoking git.
+	tempDir := t.TempDir()
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+
+	badPaths := []string{
+		"--stdin",
+		"--no-cone",
+		"--skip-checks",
+		"--help",
+		"-x",
+	}
+	for _, bp := range badPaths {
+		t.Run(bp, func(t *testing.T) {
+			err := client.ConfigureSparseCheckout([]string{bp})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "must not start with '-'")
+		})
+	}
+
+	t.Run("rejects when only one entry in a list is flag-like", func(t *testing.T) {
+		err := client.ConfigureSparseCheckout([]string{"charts", "--no-cone", "manifests"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must not start with '-'")
+	})
+}
+
+// simulatePartialClone transforms a fully-fetched repo into a state that looks like
+// a --filter=blob:none partial clone. It packs all non-blob objects into a promisor
+// pack, removes any existing packs, and deletes loose blob objects. This is needed
+// because the local file:// git protocol does not support --filter.
+func simulatePartialClone(ctx context.Context, t *testing.T, repoDir string, revision string) {
+	t.Helper()
+
+	// Categorize all objects into blobs and non-blobs
+	allOutput, err := outputCmd(ctx, repoDir, "git", "rev-list", "--objects", "--no-object-names", revision)
+	require.NoError(t, err)
+	var nonBlobSHAs []string
+	var blobSHAs []string
+	for sha := range strings.SplitSeq(strings.TrimSpace(string(allOutput)), "\n") {
+		if sha == "" {
+			continue
+		}
+		objType, err := outputCmd(ctx, repoDir, "git", "cat-file", "-t", sha)
+		require.NoError(t, err)
+		if strings.TrimSpace(string(objType)) == "blob" {
+			blobSHAs = append(blobSHAs, sha)
+		} else {
+			nonBlobSHAs = append(nonBlobSHAs, sha)
+		}
+	}
+	require.NotEmpty(t, nonBlobSHAs, "should have non-blob objects")
+	require.NotEmpty(t, blobSHAs, "should have blob objects")
+
+	// Pack all non-blob objects into a promisor pack
+	packDir := filepath.Join(repoDir, ".git", "objects", "pack")
+	packCmd := exec.CommandContext(ctx, "git", "pack-objects", filepath.Join(packDir, "promisor"))
+	packCmd.Dir = repoDir
+	packCmd.Stdin = strings.NewReader(strings.Join(nonBlobSHAs, "\n"))
+	packOutput, err := packCmd.Output()
+	require.NoError(t, err)
+	packHash := strings.TrimSpace(string(packOutput))
+
+	// Mark the new pack as a promisor pack
+	require.NoError(t, os.WriteFile(filepath.Join(packDir, "promisor-"+packHash+".promisor"), []byte(""), 0o644))
+
+	// Remove any original packs (if objects came in as packfiles)
+	entries, err := os.ReadDir(packDir)
+	require.NoError(t, err)
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "pack-") {
+			require.NoError(t, os.Remove(filepath.Join(packDir, entry.Name())))
+		}
+	}
+
+	// Remove loose blob objects
+	objectsDir := filepath.Join(repoDir, ".git", "objects")
+	for _, sha := range blobSHAs {
+		loosePath := filepath.Join(objectsDir, sha[:2], sha[2:])
+		if err := os.Remove(loosePath); err != nil && !os.IsNotExist(err) {
+			t.Fatalf("failed to remove loose blob %s: %v", sha, err)
+		}
+	}
+
+	// Configure the remote as a promisor remote
+	require.NoError(t, runCmd(ctx, repoDir, "git", "config", "remote.origin.promisor", "true"))
+	require.NoError(t, runCmd(ctx, repoDir, "git", "config", "remote.origin.partialclonefilter", "blob:none"))
+}
+
+// After `git sparse-checkout init --cone` writes extensions.worktreeConfig=true
+// at repositoryformatversion=0, go-git's PlainOpen rejects the repo. Init() must
+// remain idempotent in that state — without this, the very next sync fails with
+// "Failed to initialize git repo: core.repositoryformatversion does not support
+// extension: worktreeconfig".
+func Test_nativeGitClient_Init_IdempotentAfterSparseCheckoutInit(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(remoteDir, "subdir"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "subdir", "f.txt"), []byte("x"), 0o644))
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "add", "-A"))
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "commit", "-m", "with subdir"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0, false))
+
+	require.NoError(t, client.ConfigureSparseCheckout([]string{"subdir"}))
+
+	cfg, err := os.ReadFile(filepath.Join(localDir, ".git", "config"))
+	require.NoError(t, err)
+	require.Contains(t, string(cfg), "worktreeConfig = true",
+		"precondition: sparse-checkout init must have written the extension that trips go-git")
+
+	require.NoError(t, client.Init(),
+		"Init must remain idempotent after sparse-checkout init writes extensions.worktreeConfig=true")
+}
+
+func Test_nativeGitClient_HasLocalRef(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "tag", "v1.0.0"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0, false))
+
+	native := client.(*nativeGitClient)
+	assert.True(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "tag fetched with --tags should be locally present")
+	assert.False(t, native.hasLocalRef(ctx, "refs/tags/does-not-exist"), "missing tag should report false")
+	assert.False(t, native.hasLocalRef(ctx, "refs/heads/never-existed"), "missing branch should report false")
+}
+
+func Test_nativeGitClient_EnsureLocalTagRef_FaultsInMissingTag(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "tag", "v1.0.0"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	// Simulate a partial-clone-style fetch that intentionally omits --tags:
+	// fetch only the default refspec without pulling refs/tags/* in.
+	require.NoError(t, runCmd(ctx, localDir, "git", "fetch", "--no-tags", "origin"))
+
+	native := client.(*nativeGitClient)
+	require.False(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "precondition: tag must be absent before fault-in")
+
+	require.NoError(t, native.ensureLocalTagRef(ctx, "v1.0.0"))
+	assert.True(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "tag should be materialized after ensureLocalTagRef")
+}
+
+func Test_nativeGitClient_EnsureLocalTagRef_NoopWhenPresent(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "tag", "v1.0.0"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0, false)) // brings the tag in
+
+	native := client.(*nativeGitClient)
+	require.True(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "precondition: tag must be present")
+
+	// Break the remote so any actual fetch would fail. The call must still
+	// succeed because the ref is already local.
+	require.NoError(t, runCmd(ctx, localDir, "git", "remote", "set-url", "origin", "file:///nonexistent-remote-path"))
+	require.NoError(t, native.ensureLocalTagRef(ctx, "v1.0.0"))
+}
+
+func Test_nativeGitClient_EnsureLocalTagRef_PropagatesFetchError(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	// Note: deliberately no tag created on remote.
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, runCmd(ctx, localDir, "git", "fetch", "--no-tags", "origin"))
+
+	native := client.(*nativeGitClient)
+	err = native.ensureLocalTagRef(ctx, "does-not-exist")
+	require.Error(t, err, "ensureLocalTagRef should surface fetch errors for unknown tags")
 }

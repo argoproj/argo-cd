@@ -1139,6 +1139,7 @@ func TestHandleEvent(t *testing.T) {
 				},
 			}, nil).Maybe()
 			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+			mockDB.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{}, nil).Maybe()
 
 			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
 				ServerVersion:   "1.28.0",

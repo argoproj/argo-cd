@@ -682,6 +682,7 @@ export interface Repository {
     azureServicePrincipalClientSecret?: string;
     azureServicePrincipalTenantId?: string;
     azureActiveDirectoryEndpoint?: string;
+    sparsePaths?: string[];
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
