@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 
 	bb "github.com/ktrysmt/go-bitbucket"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
 	alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -527,7 +528,15 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error validating destination: %w", err)
 	}
 
-	//project, err := argo.GetAppProject(context.Background(), app, nil, a.ns, &a.settingsSrc, a.db)
+	var sourceIntegrity *v1alpha1.SourceIntegrity
+	if app.Spec.Project != "" {
+		proj, err := a.appClientset.ArgoprojV1alpha1().AppProjects(a.ns).Get(context.Background(), app.Spec.Project, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		sourceIntegrity = proj.EffectiveSourceIntegrity()
+	}
+
 	var clusterInfo v1alpha1.ClusterInfo
 	err = a.serverCache.GetClusterInfo(destCluster.Server, &clusterInfo)
 	if err != nil {
@@ -555,7 +564,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		appInstanceLabelKey,
 		app.Name,
 		installationID,
-		nil,
+		sourceIntegrity,
 		&clusterInfo,
 		nil,
 	)
