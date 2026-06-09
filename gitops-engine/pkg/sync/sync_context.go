@@ -1408,19 +1408,24 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 
 	if dryRun {
 		// workaround for the go-client bug,
-		_, err := scheme.Scheme.New(t.groupVersionKind())
-		if err == nil {
-			// client dry-run works for object in the scheme (internal k8s objects)
+		if t.liveObj == nil {
+			// this case not affected by the k8s bug
 			dryRunStrategy = cmdutil.DryRunClient
 		} else {
-			// server-side  dry-run won't work with force or replace options
-			if shouldReplace || force {
-				// faking dry-run success, if something is wrong
-				// with the manifest, so be it, it will fail on real apply
-				return common.ResultCodeSynced, message
+			_, err := scheme.Scheme.New(t.groupVersionKind())
+			if err == nil {
+				// client dry-run works for object in the scheme (internal k8s objects)
+				dryRunStrategy = cmdutil.DryRunClient
+			} else {
+				// server-side  dry-run won't work with force or replace options
+				if shouldReplace || force {
+					// faking dry-run success, if something is wrong
+					// with the manifest, so be it, it will fail on real apply
+					return common.ResultCodeSynced, message
+				}
+				// using server-side dry run instead of client-side
+				dryRunStrategy = cmdutil.DryRunServer
 			}
-			// using server-side dry run instead of client-side
-			dryRunStrategy = cmdutil.DryRunServer
 		}
 	}
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
