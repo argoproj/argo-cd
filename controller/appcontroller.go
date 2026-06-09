@@ -969,20 +969,23 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}, time.Second, ctx.Done())
 
 	if ctrl.hydrator != nil {
-		// The app hydrate queue is intentionally drained by a single worker. It is keyed per
-		// application and only marks each app's hydration phase before enqueuing the (deduped)
-		// hydration key, so it is cheap and ordering-sensitive; parallelizing it would widen the
-		// race window described in hydrator.ProcessHydrationQueueItem without any throughput benefit.
+		// The app hydrate queue is keyed per application. Its only job is to decide whether the
+		// app needs hydration and, if so, enqueue the (deduped) hydration key. The Hydrating
+		// status mark and all subsequent per-app status writes live on the hydration queue side,
+		// so this worker is just an enqueuer and a single goroutine is sufficient
+		// (https://github.com/argoproj/argo-cd/issues/27926).
 		go wait.Until(func() {
 			for ctrl.processAppHydrateQueueItem() {
 			}
 		}, time.Second, ctx.Done())
 
-		// The hydration queue does the heavy lifting (generating manifests and committing to the
-		// hydrated branch) and is keyed by {SourceRepoURL, SourceTargetRevision, DestinationBranch}.
-		// Because it is a rate-limiting workqueue, the same key is never processed by two workers at
-		// once, so additional workers only parallelize hydration across *distinct* keys. This is the
-		// concurrency knob requested in https://github.com/argoproj/argo-cd/issues/27926.
+		// The hydration queue does the heavy lifting (marking apps Hydrating, generating
+		// manifests, committing to the hydrated branch, and writing the per-app statuses) and is
+		// keyed by {SourceRepoURL, SourceTargetRevision, DestinationBranch}. Because it is a
+		// rate-limiting workqueue, the same key is never processed by two workers at once, so
+		// additional workers only parallelize hydration across *distinct* keys. The per-key dedup
+		// is also what makes the status writes safe to do inside this worker rather than ahead of
+		// time on the app hydrate queue. This is the concurrency knob requested in #27926.
 		for range normalizeHydrationProcessors(hydrationProcessors) {
 			go wait.Until(func() {
 				for ctrl.processHydrationQueueItem() {
