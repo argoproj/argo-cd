@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,11 +17,10 @@ import (
 // a canned token and records the scopes it was called with so tests can
 // assert on them.
 type fakeTokenCredential struct {
-	token       string
-	err         error
-	calls       int
-	lastScopes  []string
-	lastTimeout time.Duration
+	token      string
+	err        error
+	calls      int
+	lastScopes []string
 }
 
 func (f *fakeTokenCredential) GetToken(_ context.Context, opts policy.TokenRequestOptions) (azcore.AccessToken, error) {
@@ -51,6 +49,7 @@ func TestExtractPrincipalID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("prefers oid over sub", func(t *testing.T) {
+		t.Parallel()
 		tok := makeJWT(t, `{"oid":"00000000-0000-0000-0000-000000000001","sub":"sub-value"}`)
 		got, err := extractPrincipalID(tok)
 		require.NoError(t, err)
@@ -58,6 +57,7 @@ func TestExtractPrincipalID(t *testing.T) {
 	})
 
 	t.Run("falls back to sub", func(t *testing.T) {
+		t.Parallel()
 		tok := makeJWT(t, `{"sub":"sub-value"}`)
 		got, err := extractPrincipalID(tok)
 		require.NoError(t, err)
@@ -65,6 +65,7 @@ func TestExtractPrincipalID(t *testing.T) {
 	})
 
 	t.Run("returns empty when neither claim present", func(t *testing.T) {
+		t.Parallel()
 		tok := makeJWT(t, `{"aud":"redis"}`)
 		got, err := extractPrincipalID(tok)
 		require.NoError(t, err)
@@ -72,16 +73,19 @@ func TestExtractPrincipalID(t *testing.T) {
 	})
 
 	t.Run("rejects malformed token", func(t *testing.T) {
+		t.Parallel()
 		_, err := extractPrincipalID("not.a-jwt")
 		require.Error(t, err)
 	})
 
 	t.Run("rejects single-segment token", func(t *testing.T) {
+		t.Parallel()
 		_, err := extractPrincipalID("onlyone")
 		require.Error(t, err)
 	})
 
 	t.Run("rejects undecodable payload", func(t *testing.T) {
+		t.Parallel()
 		_, err := extractPrincipalID("aaa.&&&.sig")
 		require.Error(t, err)
 	})
@@ -133,8 +137,8 @@ func TestAzureCredentialsProvider_PropagatesTokenError(t *testing.T) {
 
 	_, _, err := provider(context.Background())
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "federated token unavailable"),
-		"wrapped error must include the underlying credential failure: %v", err)
+	assert.Contains(t, err.Error(), "federated token unavailable",
+		"wrapped error must include the underlying credential failure")
 }
 
 func TestAzureCredentialsProvider_NoUsernameAvailable(t *testing.T) {
@@ -156,7 +160,7 @@ func TestAzureCredentialsProvider_RefreshesTokenPerCall(t *testing.T) {
 	cred := &fakeTokenCredential{token: makeJWT(t, `{"oid":"x"}`)}
 	provider := azureCredentialsProvider(cred, "", "")
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, _, err := provider(context.Background())
 		require.NoError(t, err)
 	}

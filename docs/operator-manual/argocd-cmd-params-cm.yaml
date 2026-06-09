@@ -23,9 +23,10 @@ data:
   # "azure" (Microsoft Entra ID workload identity for Azure Cache for Redis).
   # When set, redis.password / REDIS_PASSWORD are ignored.
   redis.credentials.provider: ""
-  # Optional override for the Microsoft Entra ID application/client ID used to acquire
-  # Redis access tokens. Defaults to the AZURE_CLIENT_ID env var injected by the
-  # workload-identity admission webhook. Only honoured when redis.credentials.provider=azure.
+  # Microsoft Entra ID application/client ID used to acquire Redis access tokens.
+  # When unset, falls back to azidentity.DefaultAzureCredential (which honours the
+  # AZURE_CLIENT_ID env var injected by the workload-identity admission webhook).
+  # Only honoured when redis.credentials.provider=azure.
   redis.azure.client.id: ""
   # OAuth scope to request when acquiring Microsoft Entra ID tokens for Redis.
   # Override only when targeting a non-public Azure cloud (e.g. Azure Government).

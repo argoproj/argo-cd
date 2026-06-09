@@ -51,7 +51,7 @@ func (a *azureCredentialsProviderFactory) Name() string {
 // "azure" is the selected backend.
 func (a *azureCredentialsProviderFactory) AddFlags(cmd *cobra.Command, flagPrefix, envPrefix string) {
 	cmd.Flags().StringVar(&a.clientID, flagPrefix+"redis-azure-client-id", env.StringFromEnv(envPrefix+"REDIS_AZURE_CLIENT_ID", ""),
-		"Optional override for the Microsoft Entra ID application/client ID used to acquire Redis access tokens. Defaults to the AZURE_CLIENT_ID injected by the workload-identity webhook. Only honoured when --redis-credentials-provider=azure.")
+		"Microsoft Entra ID application/client ID used to acquire Redis access tokens. When unset, falls back to azidentity.DefaultAzureCredential (which honours the AZURE_CLIENT_ID env var injected by the workload-identity admission webhook). Only honoured when --redis-credentials-provider=azure.")
 	cmd.Flags().StringVar(&a.scope, flagPrefix+"redis-azure-scope", env.StringFromEnv(envPrefix+"REDIS_AZURE_SCOPE", DefaultAzureCacheForRedisScope),
 		"OAuth scope to request when acquiring Microsoft Entra ID tokens for Redis. Override only when targeting a non-public Azure cloud (e.g. Azure Government). Only honoured when --redis-credentials-provider=azure.")
 }

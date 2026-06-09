@@ -41,7 +41,7 @@ func (s *stubProviderFactory) Build(loadedUsername string) (RedisCredentialsProv
 	}
 	user := s.providerUsername
 	pass := s.providerPassword
-	return func(ctx context.Context) (string, string, error) {
+	return func(_ context.Context) (string, string, error) {
 		return user, pass, nil
 	}, nil
 }
