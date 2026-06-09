@@ -31,8 +31,6 @@ import (
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"sigs.k8s.io/yaml"
 
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
-
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
@@ -53,7 +51,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
@@ -1200,7 +1197,7 @@ func findAndPrintDiff(
 	app *argoappv1.Application,
 	resources *application.ManagedResourcesResponse,
 	argoSettings *settings.Settings,
-	localObjsStrings []string,
+	localTargetManifests []*unstructured.Unstructured,
 	revision string,
 	revisions []string,
 	sourcePositions []int64,
@@ -1210,17 +1207,16 @@ func findAndPrintDiff(
 	appName, appNs string,
 	serverSideDiffConcurrency int,
 	serverSideDiffMaxBatchKB int,
+	excludeSecret bool,
 ) bool {
 	// Build target manifest provider based on sync type
 	var baseTargetProvider manifestProvider
-	excludeSecret := false
 	switch {
-	case len(localObjsStrings) > 0:
+	case len(localTargetManifests) > 0:
 		// Local sync: provider fetches and generates local manifests
 		baseTargetProvider = func(_ context.Context) ([]*unstructured.Unstructured, error) {
-			return manifestsToUnstructured(localObjsStrings)
+			return localTargetManifests, nil
 		}
-		excludeSecret = true
 	case len(revisions) > 0:
 		// Multi-source app with revisions
 		baseTargetProvider = newMultiSourceRevisionProvider(appIf, appName, appNs, revisions, sourcePositions, false)
@@ -1693,6 +1689,21 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 	_ = w.Flush()
 }
 
+// unstructuerdToManifests unstructured objects to manifest strings
+func unstructuredToManifests(unstructured []*unstructured.Unstructured) ([]string, error) {
+	result := make([]string, 0, len(unstructured))
+	for _, unstructured := range unstructured {
+		if unstructured != nil {
+			jsonBytes, err := json.Marshal(unstructured)
+			if err != nil {
+				return nil, fmt.Errorf("error marshaling unstructured manifest: %w", err)
+			}
+			result = append(result, string(jsonBytes))
+		}
+	}
+	return result, nil
+}
+
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -1796,14 +1807,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 
-			if err := validateLocalSyncFlags(local, serverSideApply, serverSideGenerate); err != nil {
-				log.Fatal(err.Error())
-			}
-
-			if shouldWarnDeprecatedLocalSync(local, serverSideGenerate) {
-				fmt.Fprint(os.Stderr, "Warning: local sync without --server-side-generate is deprecated and does not work with plugins.")
-			}
-
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer utilio.Close(conn)
@@ -1860,18 +1863,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				s, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 				errors.CheckError(err)
 				argoSettings = s
-			}
-
-			var clusterIf clusterpkg.ClusterServiceClient
-			var projIf projectpkg.ProjectServiceClient
-			if local != "" && !serverSideGenerate {
-				conn, c := acdClient.NewClusterClientOrDie()
-				defer utilio.Close(conn)
-				clusterIf = c
-
-				conn, p := acdClient.NewProjectClientOrDie()
-				defer utilio.Close(conn)
-				projIf = p
 			}
 
 			for _, appQualifiedName := range appNames {
@@ -1945,32 +1936,43 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					log.Fatalf("No matching app resources found for resource filter: %v", strings.Join(resources, ", "))
 				}
 
+				var getLocalTargetManifests manifestProvider
+				excludeSecret := false
+				var localTargetManifests []*unstructured.Unstructured
 				var localObjsStrings []string
+
+				// If the user wants to use local manifests as the target, then we provide a mechanism to render
+				// these either clientside or serverside
 				if local != "" {
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
 					if serverSideGenerate {
-						client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
-						errors.CheckError(err)
-
-						err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
-						errors.CheckError(err)
-
-						targetManifests, err := client.CloseAndRecv()
-						errors.CheckError(err)
-
-						localObjsStrings = targetManifests.Manifests
+						getLocalTargetManifests = newLocalServerSideProvider(appIf, appName, appNs, local, localIncludes)
 					} else {
-						cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-						errors.CheckError(err)
+						if shouldWarnDeprecatedLocalSync(local, serverSideGenerate) {
+							fmt.Fprint(os.Stderr, "Warning: local sync without --server-side-generate is deprecated and does not work with plugins.")
+						}
 
-						proj, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: app.Spec.Project})
-						errors.CheckError(err)
+						conn, clusterIf := acdClient.NewClusterClientOrDie()
+						defer utilio.Close(conn)
 
-						localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
+						proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+						getLocalTargetManifests = newLocalClientSideProvider(clusterIf, argoSettings, app, proj.Project, local, localRepoRoot)
+						//
+						// Local diff does not support to hide the configurable annotations in the secrets.
+						// To not have constant partial diffs, we exclude secrets from the diff.
+						excludeSecret = true
 					}
+
+					// Get target manifests
+					localTargetManifests, err = getLocalTargetManifests(ctx)
+					errors.CheckError(err)
+
+					// Since the ApplicationSyncRequest RPC works with []string, we need to convert back to that format
+					localObjsStrings, err = unstructuredToManifests(localTargetManifests)
+					errors.CheckError(err)
 				}
 
 				syncOptionsFactory := func() *application.SyncOptions {
@@ -2042,7 +2044,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, resources, argoSettings, localObjsStrings, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+					foundDiffs = findAndPrintDiff(ctx, app, resources, argoSettings, localTargetManifests, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB, excludeSecret)
 					if !foundDiffs {
 						fmt.Print("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
@@ -2129,13 +2131,6 @@ func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationSer
 		}
 	}
 	return appNames, nil
-}
-
-func validateLocalSyncFlags(local string, serverSideApply bool, serverSideGenerate bool) error {
-	if local != "" && serverSideApply && !serverSideGenerate {
-		return stderrors.New("--server-side with --local requires --server-side-generate")
-	}
-	return nil
 }
 
 func shouldWarnDeprecatedLocalSync(local string, serverSideGenerate bool) bool {
