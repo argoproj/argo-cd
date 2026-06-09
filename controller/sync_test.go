@@ -399,8 +399,9 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, "2.0", iksmVersion)
 	})
 	t.Run("will not copy live status into the apply target", func(t *testing.T) {
-		// given: status is an ignored field (the default ignoreResourceStatusField
-		// behavior) and the live resource has an in-flight operationState.
+		// given: status is configured as an ignored field (equivalent to the
+		// default ignoreResourceStatusField=crd behavior) and the live resource
+		// has an in-flight operationState.
 		ignore := v1alpha1.ResourceIgnoreDifferences{
 			Group:        "*",
 			Kind:         "*",
