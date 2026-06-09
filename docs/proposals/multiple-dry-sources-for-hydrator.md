@@ -151,7 +151,12 @@ spec:
 * `Ref` — a reference key enabling cross-source Helm value file references (e.g. `$ref-name/path/to/values.yaml`)
 * `Name` — display name for the UI
 
-**Status types** — `HydrateOperation` and `SuccessfulHydrateOperation` gain a `DrySHAs []string` field alongside the existing singular `DrySHA`. `SourceHydratorStatus` gains `LastComparedDryRevisions []string` alongside the existing `LastComparedDryRevision`. Singular fields continue to be populated (first entry or composite hash) for backward compatibility.
+**Status types** — following the existing `Revision`/`Revisions` pattern on `SyncOperation`, the hydration status types gain parallel plural fields:
+
+* `HydrateOperation` and `SuccessfulHydrateOperation` gain `DryRevisions []string` alongside the existing `DrySHA`. Each entry is the resolved revision for the corresponding dry source — a git SHA, Helm chart version, or OCI digest depending on source type. The existing `DrySHA` field carries the first source's resolved revision for backward compatibility (matching how `SyncOperation.Revision` holds the first source's revision).
+* `SourceHydratorStatus` gains `LastComparedDryRevisions []string` alongside the existing `LastComparedDryRevision`.
+
+Per-source detail beyond the revision string (author, commands, etc.) is handled by the list-based `hydrator.metadata` file (see Commit Server Changes below).
 
 **`SyncSource.RepoURL`** already exists as an optional field. No changes needed.
 
@@ -186,7 +191,7 @@ When any dry source has a new revision, the full set is re-hydrated:
 
 2. `getManifests()` fetches and renders manifests from all dry sources. Each dry source is rendered independently via a separate `GenerateManifest()` call (one per source). Dry sources with a `ref` field are resolved into a `RefTargetRevisionMapping` and passed to the rendering call, enabling Helm value file references like `$ref-name/path/to/values.yaml`. All manifest objects are appended into a single `PathDetails` in source order (same append semantics as `sources` in the sync path). If two dry sources produce resources with the same GVK+namespace+name, both are included — conflict detection is handled at sync time, not hydration time.
 
-3. `hydrate()` resolves static SHAs for all dry sources from the first app, then renders remaining apps pinned to those same SHAs. Individual SHAs are stored in `DrySHAs` as an ordered vector (one per `drySources` entry, by array index). De-duplication compares this vector element-by-element against `LastSuccessfulOperation.DrySHAs`. A composite SHA (deterministic SHA-256 hash of all individual SHAs in order) is computed for the commit note and `hydrator.metadata` file.
+3. `hydrate()` resolves static revisions for all dry sources from the first app, then renders remaining apps pinned to those same revisions. The resolved revisions are stored in `DryRevisions` (one per source, by array index). De-duplication compares this vector element-by-element against `LastSuccessfulOperation.DryRevisions`. `DrySHA` is set to the first source's revision for backward compatibility. Each source's full metadata (author, commands, etc.) is written to the `hydrator.metadata` file (see Commit Server Changes).
 
 4. All paths are committed in a single commit to the sync target branch.
 
@@ -198,21 +203,51 @@ The current queue key groups apps by `{SourceRepoURL, SourceTargetRevision, Dest
 
 The `Dependencies` interface methods `GetRepoObjs` and `EvaluateAppRevisionsChanges` are updated to accept slices (`sources []ApplicationSource`, `revisions []string`) instead of single values. `GetRepoObjs` already wraps the single dry source into a slice internally — this change makes the slice the public API and removes the `len(resp) != 1` assertion. `EvaluateAppRevisionsChanges` return type changes from `(bool, string, error)` to `(bool, []string, error)` to return all resolved revisions.
 
-This cascades through `newRevisionHasChanges()` (now evaluates all dry sources), `appNeedsHydration()` (receives `[]string` resolved revisions), and `ProcessAppHydrateQueueItem()` (persists `LastComparedDryRevisions` alongside `LastComparedDryRevision`).
+This cascades through `newRevisionHasChanges()` (now evaluates all dry sources), `appNeedsHydration()` (receives `[]string` resolved revisions), and `ProcessAppHydrateQueueItem()` (persists all resolved revisions in `LastComparedDryRevisions` and the first in `LastComparedDryRevision` for backward compat).
 
 #### Commit Server Changes
 
-`CommitHydratedManifestsRequest` in `commit.proto` gains `repeated string dryShas` and `repeated string repoURLs` fields alongside the existing singular `drySha`. The `HydratorCommitMetadata` struct in `util/hydrator/hydrator.go` is extended with `DrySHAs` and `RepoURLs` fields. `GetCommitMetadata()` is updated to accept slices and populate both singular (first entry) and plural fields.
+The current `hydrator.metadata` file is a flat object with fields (`repoURL`, `drySha`, `author`, `subject`, `date`, `commands`) that all relate to a single git source. This schema doesn't extend cleanly to multiple sources because:
 
-The `hydrator.metadata` file and git commit note (`refs/notes/hydrator.metadata`) are extended with `dryShas` and `repoURLs` arrays. The existing singular `drySha` and `repoURL` fields are preserved with the composite hash and first source's URL respectively, ensuring backward compatibility with external consumers.
+* Not every source type has a "SHA" — git sources resolve to commit SHAs, Helm chart repos have versions, OCI registries have digests.
+* The commit metadata fields (`author`, `subject`, `date`) are specific to a single git commit and have no meaning for non-git sources.
+
+To address this, the `hydrator.metadata` schema is replaced with a **list of per-source objects**. Each object carries only the fields relevant to its source type:
+
+```json
+{
+  "sources": [
+    {
+      "repoURL": "us-docker.pkg.dev/mycompany/helm-charts",
+      "chart": "my-app",
+      "revision": "0.2.2",
+      "commands": ["helm template ..."]
+    },
+    {
+      "repoURL": "https://github.com/mycompany/infra.git",
+      "revision": "bb2222",
+      "author": "Jane Doe",
+      "date": "2026-06-11T10:00:00Z",
+      "subject": "Update prod values",
+      "commands": []
+    }
+  ]
+}
+```
+
+The git commit note (`refs/notes/hydrator.metadata`) uses the same list schema. For single-source apps, the list has one entry — functionally identical to the current flat object, just wrapped in `{"sources": [...]}`.
+
+`CommitHydratedManifestsRequest` in `commit.proto` is updated to carry per-source metadata as a repeated message field (field number 11+, since the highest existing field is 10). The `HydratorCommitMetadata` struct in `util/hydrator/hydrator.go` is refactored to represent a list of source metadata entries, with `GetCommitMetadata()` accepting a slice of sources and returning a slice of per-source metadata. The `WriteForPaths()` function in `hydratorhelper.go` is updated to accept the sources list instead of scalar `repoUrl` and `drySha` parameters.
+
+The README template (configurable via `argocd-cm`) currently references `.RepoURL`, `.DrySHA`, and `.Commands` directly from a flat metadata object. With the list-based schema, the template is updated to iterate over `.Sources` or use the first source's fields. The default template is updated accordingly.
 
 #### GitOps Promoter Compatibility
 
-The [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) reads the `hydrator.metadata` file and git notes to track promotion lineage. It uses `HydratorMetadata.DrySha` to determine which dry commit produced a given hydrated branch.
+The [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) reads the `hydrator.metadata` file and git notes to track promotion lineage. It currently expects a flat object with a top-level `drySha` field.
 
-With multiple dry sources, the composite `DrySha` remains a unique identifier of the complete dry state — if any source changes, the composite changes. The promoter can continue using `DrySha` for lineage tracking without modification. The `DryShas` array provides optional granularity for display (e.g. showing which individual sources were promoted).
+With the list-based schema, the promoter's `HydratorMetadata` struct needs to be updated to read `sources[]` and extract per-source revisions. For lineage tracking, the promoter can compute a composite revision (hash of all per-source revisions) or track individual source revisions — depending on what granularity is needed for promotion rules.
 
-The `HydratorMetadata` struct in the promoter (`api/v1alpha1/changetransferpolicy_types.go`) would need a `DryShas []string` field added to consume the new array, but this is additive and does not break existing behavior.
+This is a breaking change for the promoter's metadata parsing, but the promoter is maintained by the same team (@crenshaw-dev, @zachaller) and can be updated in coordination with them.
 
 ### Security Considerations
 
@@ -226,8 +261,7 @@ The `HydratorMetadata` struct in the promoter (`api/v1alpha1/changetransferpolic
 |------|------------|
 | Increased hydration latency with many dry sources | Manifest generation for different dry sources can be parallelized (the existing `errgroup` pattern in `hydrate()` already does this for multiple apps). |
 | Queue key change causes brief re-hydration during rolling upgrade | The queue key is internal and self-healing — the next `ProcessAppHydrateQueueItem` call re-enqueues with the new key format. Hydration is idempotent. |
-| Composite DrySHA in commit notes is less human-readable | Individual per-source SHAs are preserved in `DrySHAs` status fields for auditability. The composite SHA is only used for the commit note dedup mechanism. |
-| `DrySHA` → `DrySHAs` upgrade path during rolling update | De-duplication logic falls back to comparing singular `DrySHA` against `DrySHAs[0]` when `DrySHAs` is empty, ensuring the transition is seamless. |
+| `hydrator.metadata` schema change breaks existing consumers | The hydrator is still beta. The GitOps Promoter is maintained by the same team and can be updated in coordination. Single-source apps produce a one-element list, making migration straightforward. |
 
 ### Upgrade / Downgrade Strategy
 
@@ -235,14 +269,16 @@ The `HydratorMetadata` struct in the promoter (`api/v1alpha1/changetransferpolic
 
 * Existing applications using `drySource` (singular) continue to work unchanged. All new fields are `omitempty`.
 * The `GetDrySources()` helper transparently wraps a singular `drySource` into a single-element slice, so all internal code paths work with both forms.
-* `DrySHA` (singular) continues to be populated alongside `DrySHAs` (plural) for backward compatibility with any external tooling reading Application status.
+* `DrySHA` carries the first source's resolved revision. `DryRevisions` carries all per-source revisions. For single-source apps, both contain the same value as before.
+* The `hydrator.metadata` file changes from a flat object to `{"sources": [...]}`. Single-source apps produce a one-element list. External consumers (GitOps Promoter) need to be updated to read the new schema.
 * The `HydrationQueueKey` format change is internal. On upgrade, in-flight queue items using the old key format are simply not matched — the next reconciliation loop re-enqueues with the new format. No data loss occurs because hydration is idempotent.
 
 **Downgrade:**
 
 * If a user downgrades after creating applications with `drySources`, the older Argo CD version will ignore the unknown `drySources` field (standard Kubernetes behavior for unknown fields in CRDs).
 * The `drySource` (singular) field will be empty for these apps, so the older version will fail validation with "drySource.repoURL is required". Users must convert their apps back to `drySource` before downgrading.
-* Status fields `DrySHAs` and `LastComparedDryRevisions` are ignored by older versions — the singular `DrySHA` and `LastComparedDryRevision` fields remain populated and functional.
+* Status fields `DryRevisions` and `LastComparedDryRevisions` are ignored by older versions — the singular `DrySHA` and `LastComparedDryRevision` fields remain populated and functional.
+* The `hydrator.metadata` schema change is not backward compatible — older versions expect a flat object. The GitOps Promoter must be updated to the new schema before or alongside the Argo CD upgrade.
 
 ## Drawbacks
 

@@ -91,19 +91,19 @@ All TypeScript interfaces are updated to mirror the Go API changes from the pare
 
 * `DrySource` — add optional `chart`, `ref`, and `name` fields
 * `SourceHydrator` — `drySource` becomes optional, add `drySources?: DrySource[]`
-* `HydrateOperation` / `SuccessfulHydrateOperation` — add `drySHAs?: string[]`
-* `SourceHydratorStatus` — add `lastComparedDryRevisions?: string[]`
+* `HydrateOperation` / `SuccessfulHydrateOperation` — add `dryRevisions?: string[]` alongside existing `drySHA`. Each entry is the resolved revision for the corresponding dry source (git SHA, chart version, or OCI digest). Follows the `Revision`/`Revisions` pattern from `SyncOperation`.
+* `SourceHydratorStatus` — add `lastComparedDryRevisions?: string[]`.
 
 #### 2. Utility Function Changes (`utils.tsx`)
 
 * **`getAppDrySource(app)`** — updated to check `drySources` first and return the first entry when set. Falls back to `drySource` (singular). Both paths return all fields including `chart`, `ref`, `name`, and tool-specific configs.
 * **New: `getAppDrySources(app)`** — returns all dry sources as `ApplicationSource[]`, with the same fallback to wrapping the singular `drySource` in a single-element array.
 * **`getHydratorSyncSourceRepoURL(sourceHydrator)`** — updated fallback chain: `syncSource.repoURL` → `drySources[0].repoURL` → `drySource.repoURL`.
-* **`hydrationStatusMessage(app)`** — updated to show multiple dry SHAs when available, displaying source name or index next to each SHA for disambiguation.
+* **`hydrationStatusMessage(app)`** — updated to show per-source revisions from `dryRevisions` when available, displaying source name or repo URL next to each revision. Handles heterogeneous revision types (git SHA, chart version, OCI digest).
 
 #### 3. Display Component Changes
 
-**`application-hydrate-operation-state.tsx`** — updated to iterate over `drySHAs` when present, rendering a revision link per source with the source name or repo URL as label. Falls back to the singular `drySHA` for backward compatibility.
+**`application-hydrate-operation-state.tsx`** — updated to iterate over `dryRevisions` when present, rendering a revision link per source with the source name or repo URL as label. Falls back to the singular `drySHA` for backward compatibility with apps that haven't been re-hydrated.
 
 **`application-status-panel.tsx`** — the `hydrationStatusMessage()` utility fix handles this. No direct component changes needed.
 
