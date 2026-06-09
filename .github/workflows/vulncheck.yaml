@@ -1,0 +1,41 @@
+name: govulncheck
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 8 * * 1' # Run weekly on Monday at 08:00 UTC to catch newly disclosed CVEs
+
+env:
+  # Golang version to use across CI steps
+  # renovate: datasource=golang-version packageName=golang
+  GOLANG_VERSION: '1.26.0'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+jobs:
+  vulncheck:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write # Required for uploading SARIF results
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+        continue-on-error: true # Just upload the reports
+        with:
+          go-version-input: ${{ env.GOLANG_VERSION }}
+          go-package: ./...
+          repo-checkout: false
+          output-format: sarif
+          output-file: govulncheck.sarif
+
+      - name: Upload SARIF report to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        if: always() # upload even if govulncheck finds vulnerabilities
+        with:
+          sarif_file: govulncheck.sarif
+          category: govulncheck
