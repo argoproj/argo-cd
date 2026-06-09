@@ -19,73 +19,91 @@ var tags = []string{
 }
 
 func TestTags_MaxVersion(t *testing.T) {
+	t.Parallel()
 	t.Run("Exact", func(t *testing.T) {
+		t.Parallel()
 		version, err := MaxVersion("0.5.3", tags)
 		require.NoError(t, err)
 		assert.Equal(t, "0.5.3", version)
 	})
 	t.Run("Exact nonsemver", func(t *testing.T) {
+		t.Parallel()
 		version, err := MaxVersion("2024.03-LTS-RC19", tags)
 		require.NoError(t, err)
 		assert.Equal(t, "2024.03-LTS-RC19", version)
 	})
 	t.Run("Exact missing", func(t *testing.T) {
 		// Passing an exact version which is not in the list of tags still returns that version
+		t.Parallel()
 		version, err := MaxVersion("99.99", []string{})
 		require.NoError(t, err)
 		assert.Equal(t, "99.99", version)
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		version, err := MaxVersion("> 0.5.3", tags)
 		require.NoError(t, err)
 		assert.Equal(t, "0.7.2", version)
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		version, err := MaxVersion("> 0.0.0", tags)
 		require.NoError(t, err)
 		assert.Equal(t, "0.7.2", version)
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		version, err := MaxVersion(">0.5.0,<0.7.0", tags)
 		require.NoError(t, err)
 		assert.Equal(t, "0.5.4", version)
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		version, err := MaxVersion("0.7.*", tags)
 		require.NoError(t, err)
 		assert.Equal(t, "0.7.2", version)
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		version, err := MaxVersion("*", tags)
 		require.NoError(t, err)
 		assert.Equal(t, "0.7.2", version)
 	})
 	t.Run("Constraint missing", func(t *testing.T) {
+		t.Parallel()
 		_, err := MaxVersion("0.7.*", []string{})
 		require.Error(t, err)
 	})
 }
 
 func TestTags_IsConstraint(t *testing.T) {
+	t.Parallel()
 	t.Run("Exact", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, IsConstraint("0.5.3"))
 	})
 	t.Run("Exact nonsemver", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, IsConstraint("2024.03-LTS-RC19"))
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, IsConstraint("= 0.5.3"))
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, IsConstraint("> 0.5.3"))
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, IsConstraint(">0.5.0,<0.7.0"))
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, IsConstraint("0.7.*"))
 	})
 	t.Run("Constraint", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, IsConstraint("*"))
 	})
 }

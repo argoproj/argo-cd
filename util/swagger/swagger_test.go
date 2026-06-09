@@ -13,6 +13,7 @@ import (
 )
 
 func TestSwaggerUI(t *testing.T) {
+	t.Parallel()
 	lc := &net.ListenConfig{}
 	serve := func(c chan<- string) {
 		// listen on first available dynamic (unprivileged) port

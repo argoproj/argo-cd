@@ -34,6 +34,7 @@ func getObj(t *testing.T, path string) *unstructured.Unstructured {
 }
 
 func TestLuaHealthScript(t *testing.T) {
+	t.Parallel()
 	err := filepath.Walk("../../resource_customizations", func(path string, _ os.FileInfo, err error) error {
 		if !strings.Contains(path, "health.lua") {
 			return nil
@@ -48,6 +49,7 @@ func TestLuaHealthScript(t *testing.T) {
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
 			t.Run(filepath.Join(strings.TrimPrefix(dir, "../../resource_customizations/"), test.InputPath), func(t *testing.T) {
+				t.Parallel()
 				vm := VM{
 					UseOpenLibs: true,
 				}

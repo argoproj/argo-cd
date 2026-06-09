@@ -18,6 +18,7 @@ func Test_cmd_redactor(t *testing.T) {
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
+	t.Parallel()
 	cmd, err := NewCmdWithVersion(".", false, "", "")
 	require.NoError(t, err)
 	s, _, err := cmd.template("testdata/redis", &TemplateOpts{
@@ -28,6 +29,7 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 }
 
 func TestCmd_template_noApiVersionsInError(t *testing.T) {
+	t.Parallel()
 	cmd, err := NewCmdWithVersion(".", false, "", "")
 	require.NoError(t, err)
 	_, _, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
@@ -40,12 +42,14 @@ func TestCmd_template_noApiVersionsInError(t *testing.T) {
 }
 
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
+	t.Parallel()
 	_, err := NewCmd(".", "abcd", "", "")
 	log.Println(err)
 	assert.EqualError(t, err, "helm version 'abcd' is not supported")
 }
 
 func TestNewCmd_withProxy(t *testing.T) {
+	t.Parallel()
 	cmd, err := NewCmd(".", "", "https://proxy:8888", ".argoproj.io")
 	require.NoError(t, err)
 	assert.Equal(t, "https://proxy:8888", cmd.proxy)
@@ -53,6 +57,7 @@ func TestNewCmd_withProxy(t *testing.T) {
 }
 
 func TestRegistryLogin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		repo        string
@@ -132,6 +137,7 @@ func TestRegistryLogin(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
 				if tc.execErr != nil {
 					return "", tc.execErr
@@ -241,6 +247,7 @@ func TestDependencyBuild(t *testing.T) {
 }
 
 func TestRegistryLogout(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		repo        string
@@ -262,6 +269,7 @@ func TestRegistryLogout(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
 				if tc.execErr != nil {
 					return "", tc.execErr

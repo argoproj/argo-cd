@@ -713,6 +713,7 @@ func Test_GetWebURLRegex(t *testing.T) {
 	}
 
 	t.Run("bad URL should error", func(t *testing.T) {
+		t.Parallel()
 		_, err := GetWebURLRegex("%%")
 		require.Error(t, err)
 	})
@@ -752,6 +753,7 @@ func Test_GetAPIURLRegex(t *testing.T) {
 	}
 
 	t.Run("bad URL should error", func(t *testing.T) {
+		t.Parallel()
 		_, err := GetAPIURLRegex("%%")
 		require.Error(t, err)
 	})

@@ -13,6 +13,7 @@ import (
 )
 
 func TestBuildAppDependencyList(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -744,6 +745,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			appDependencyList, appStepMap := buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
@@ -752,6 +754,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 }
 
 func TestGetAppsToSync(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -1162,6 +1165,7 @@ func TestGetAppsToSync(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			appsToSync := getAppsToSync(cc.appSet, cc.appDependencyList, cc.currentApps)
 			assert.Equal(t, cc.expectedMap, appsToSync, "expected map did not match actual")
 		})
@@ -1169,6 +1173,7 @@ func TestGetAppsToSync(t *testing.T) {
 }
 
 func TestIsRollingSyncStrategy(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		appset   *v1alpha1.ApplicationSet
@@ -1221,6 +1226,7 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsRollingSyncStrategy(tt.appset)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -1228,6 +1234,7 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 }
 
 func TestSyncApplication(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    v1alpha1.Application
@@ -1309,6 +1316,7 @@ func TestSyncApplication(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := syncApplication(tt.input, tt.prune)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -1316,6 +1324,7 @@ func TestSyncApplication(t *testing.T) {
 }
 
 func TestIsRollingSyncDeletionReversed(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		appset   *v1alpha1.ApplicationSet
@@ -1416,6 +1425,7 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsDeletionOrderReversed(tt.appset)
 			assert.Equal(t, tt.expected, result)
 		})

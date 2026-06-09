@@ -194,6 +194,7 @@ type IndividualActionTest struct {
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
+	t.Parallel()
 	err := filepath.Walk("../../resource_customizations", func(path string, _ os.FileInfo, err error) error {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
@@ -209,6 +210,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			test := resourceTest.DiscoveryTests[i]
 			testName := "discovery/" + test.InputPath
 			t.Run(testName, func(t *testing.T) {
+				t.Parallel()
 				vm := VM{
 					UseOpenLibs: true,
 				}
@@ -227,6 +229,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			testName := fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath)
 
 			t.Run(testName, func(t *testing.T) {
+				t.Parallel()
 				vm := VM{
 					// Uncomment the following line if you need to use lua libraries debugging
 					// purposes. Otherwise, leave this false to ensure tests reflect the same
