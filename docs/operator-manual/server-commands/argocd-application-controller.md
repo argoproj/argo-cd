@@ -57,7 +57,7 @@ argocd-application-controller [flags]
       --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy
       --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379). 
-      --redis-azure-client-id string                              Optional override for the Microsoft Entra ID application/client ID used to acquire Redis access tokens. Defaults to the AZURE_CLIENT_ID injected by the workload-identity webhook. Only honoured when --redis-credentials-provider=azure.
+      --redis-azure-client-id string                              Microsoft Entra ID application/client ID used to acquire Redis access tokens. When unset, falls back to azidentity.DefaultAzureCredential (which honours the AZURE_CLIENT_ID env var injected by the workload-identity admission webhook). Only honoured when --redis-credentials-provider=azure.
       --redis-azure-scope string                                  OAuth scope to request when acquiring Microsoft Entra ID tokens for Redis. Override only when targeting a non-public Azure cloud (e.g. Azure Government). Only honoured when --redis-credentials-provider=azure. (default "https://redis.azure.com/.default")
       --redis-ca-certificate string                               Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                           Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
