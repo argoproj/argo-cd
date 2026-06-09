@@ -340,35 +340,31 @@ type manifestKey struct {
 	SourceIntegrity     *appv1.SourceIntegrity
 }
 
-type ManifestKeyRequest interface {
-	GetNamespace() string
-	GetTrackingMethod() string
-	GetAppLabelKey() string
-	GetAppName() string
-	GetInstallationID() string
-	GetSourceIntegrity() *appv1.SourceIntegrity
-	GetRefSources() map[string]*appv1.RefTarget
-}
-
 func NewManifestKey(
 	revision string,
 	appSource *appv1.ApplicationSource,
-	req ManifestKeyRequest,
+	refSources map[string]*appv1.RefTarget,
+	namespace string,
+	trackingMethod string,
+	appLabelKey string,
+	appName string,
+	installationID string,
+	sourceIntegrity *appv1.SourceIntegrity,
 	clusterInfo ClusterRuntimeInfo,
 	refSourceCommitSHAs ResolvedRevisions,
 ) manifestKey {
 	return manifestKey{
 		Revision:            revision,
 		AppSource:           appSource,
-		RefSources:          req.GetRefSources(),
+		RefSources:          refSources,
 		ClusterInfo:         clusterInfo,
-		Namespace:           req.GetNamespace(),
-		TrackingMethod:      req.GetTrackingMethod(),
-		AppLabelKey:         req.GetAppLabelKey(),
-		AppName:             req.GetAppName(),
+		Namespace:           namespace,
+		TrackingMethod:      trackingMethod,
+		AppLabelKey:         appLabelKey,
+		AppName:             appName,
 		RefSourceCommitSHAs: refSourceCommitSHAs,
-		InstallationID:      req.GetInstallationID(),
-		SourceIntegrity:     req.GetSourceIntegrity(),
+		InstallationID:      installationID,
+		SourceIntegrity:     sourceIntegrity,
 	}
 }
 

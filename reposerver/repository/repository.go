@@ -935,7 +935,10 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			refSourceCommitSHAs[normalizedURL] = repoRef.commitSHA
 		}
 	}
-	manifestKey := cache.NewManifestKey(revision, appSourceCopy, q, q, refSourceCommitSHAs)
+	manifestKey := cache.NewManifestKey(revision, appSourceCopy, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), q, refSourceCommitSHAs,
+	)
+
 	if err != nil {
 		logCtx := log.WithFields(log.Fields{
 			"application":  q.AppName,
@@ -1007,7 +1010,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
-	cacheKey := cache.NewManifestKey(revision, q.ApplicationSource, q, q, refSourceCommitSHAs)
+	cacheKey := cache.NewManifestKey(revision, q.ApplicationSource, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), q, refSourceCommitSHAs,
+	)
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey)
 
 	res := cache.CachedManifestResponse{}
@@ -3510,8 +3515,12 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
 	err := s.cache.SetNewRevisionManifests(
-		cache.NewManifestKey(oldRev, request.ApplicationSource, request, request, oldRepoRefs),
-		cache.NewManifestKey(newRev, request.ApplicationSource, request, request, newRepoRefs),
+		cache.NewManifestKey(oldRev, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(),
+			request.GetTrackingMethod(), request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(),
+			request.GetSourceIntegrity(), request, oldRepoRefs),
+		cache.NewManifestKey(newRev, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(),
+			request.GetTrackingMethod(), request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(),
+			request.GetSourceIntegrity(), request, newRepoRefs),
 	)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
