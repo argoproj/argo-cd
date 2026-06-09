@@ -999,7 +999,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                     <div className='argo-table-list__head'>
                                         <div className='row'>
                                             <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                            <div className='columns small-3'>Credentials</div>
+                                            <div className='columns small-3'>CREDENTIALS</div>
                                         </div>
                                     </div>
                                     {creds.map(repo => (
@@ -1122,7 +1122,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
                                                 <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                                <div className='columns small-3'>Credentials</div>
+                                                <div className='columns small-3'>CREDENTIALS</div>
                                             </div>
                                         </div>
                                         {creds.map(repo => (
