@@ -527,6 +527,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error validating destination: %w", err)
 	}
 
+	//project, err := argo.GetAppProject(context.Background(), app, nil, a.ns, &a.settingsSrc, a.db)
 	var clusterInfo v1alpha1.ClusterInfo
 	err = a.serverCache.GetClusterInfo(destCluster.Server, &clusterInfo)
 	if err != nil {
@@ -545,17 +546,19 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
 
-	oldManifestKey := cache.ManifestKey{
-		Revision:       change.shaBefore,
-		AppSource:      &source,
-		RefSources:     refSources,
-		ClusterInfo:    &clusterInfo,
-		Namespace:      app.Spec.Destination.Namespace,
-		TrackingMethod: trackingMethod,
-		AppLabelKey:    appInstanceLabelKey,
-		AppName:        app.Name,
-		InstallationID: installationID,
-	}
+	oldManifestKey := cache.NewManifestKey(
+		change.shaBefore,
+		&source,
+		refSources,
+		app.Spec.Destination.Namespace,
+		trackingMethod,
+		appInstanceLabelKey,
+		app.Name,
+		installationID,
+		nil,
+		&clusterInfo,
+		nil,
+	)
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", oldManifestKey)
 
 	newManifestKey := oldManifestKey
