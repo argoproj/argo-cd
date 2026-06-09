@@ -2,7 +2,7 @@
 
 ## Parameters
 
-The Google Chat notification service send message notifications to a google chat webhook. This service uses the following settings:
+The Google Chat notification service sends message notifications to a Google Chat webhook. This service uses the following settings:
 
 * `webhooks` - a map of the form `webhookName: webhookUrl`
 
@@ -85,7 +85,7 @@ The card message can be written in JSON too.
 
 ## Chat Threads
 
-It is possible send both simple text and card messages in a chat thread by specifying a unique key for the thread. The thread key can be defined as follows:
+It is possible to send both simple text and card messages in a chat thread by specifying a unique key for the thread. The thread key can be defined as follows:
 
 ```yaml
 template.app-sync-succeeded: |

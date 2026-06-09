@@ -56,7 +56,7 @@ argocd admin notifications template get app-sync-succeeded -o=yaml
 
 ## argocd admin notifications template notify
 
-Generates notification using the specified template and send it to specified recipients
+Generates notification using the specified template and sends it to specified recipients
 
 ```
 argocd admin notifications template notify NAME RESOURCE_NAME [flags]
