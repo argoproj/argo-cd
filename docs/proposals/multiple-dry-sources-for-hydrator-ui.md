@@ -91,8 +91,8 @@ All TypeScript interfaces are updated to mirror the Go API changes from the pare
 
 * `DrySource` — add optional `chart`, `ref`, and `name` fields
 * `SourceHydrator` — `drySource` becomes optional, add `drySources?: DrySource[]`
-* `HydrateOperation` / `SuccessfulHydrateOperation` — add `dryRevisions?: string[]` alongside existing `drySHA`. Each entry is the resolved revision for the corresponding dry source (git SHA, chart version, or OCI digest). Follows the `Revision`/`Revisions` pattern from `SyncOperation`.
-* `SourceHydratorStatus` — add `lastComparedDryRevisions?: string[]`.
+* `HydrateOperation` / `SuccessfulHydrateOperation` — `drySHA` replaced by `dryRevision: string` (singular, for `drySource`) and `dryRevisions: string[]` (plural, for `drySources`). Matches the `revision`/`revisions` pattern on `SyncOperation`.
+* `SourceHydratorStatus` — `lastComparedDryRevision` remains, `lastComparedDryRevisions: string[]` added for plural.
 
 #### 2. Utility Function Changes (`utils.tsx`)
 
@@ -103,7 +103,7 @@ All TypeScript interfaces are updated to mirror the Go API changes from the pare
 
 #### 3. Display Component Changes
 
-**`application-hydrate-operation-state.tsx`** — updated to iterate over `dryRevisions` when present, rendering a revision link per source with the source name or repo URL as label. Falls back to the singular `drySHA` for backward compatibility with apps that haven't been re-hydrated.
+**`application-hydrate-operation-state.tsx`** — updated to iterate over `dryRevisions`, rendering a revision link per source with the source name or repo URL as label.
 
 **`application-status-panel.tsx`** — the `hydrationStatusMessage()` utility fix handles this. No direct component changes needed.
 
@@ -141,7 +141,7 @@ No new security concerns. The UI changes are purely presentational and use exist
 
 **Upgrade**: The UI gracefully handles both forms. When the backend returns `drySources`, the UI renders the list. When it returns `drySource`, the UI renders the single-source view. No user action required.
 
-**Downgrade**: If the UI is downgraded before the backend, the old UI ignores unknown fields (`drySources`, `drySHAs`, etc.) and renders using `drySource` / `drySHA` — which the backend continues to populate for backward compatibility.
+**Downgrade**: The hydrator is beta. If the UI is downgraded before the backend, the old UI will not recognize `drySources` or `dryRevisions` and will fail to render hydrator status for multi-source apps. Single-source `drySource` apps are unaffected.
 
 ## Drawbacks
 

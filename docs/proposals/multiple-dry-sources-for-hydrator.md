@@ -28,6 +28,7 @@ Related Issues:
 ## Open Questions
 
 * How should the commit message template handle multiple dry source repos? This proposal uses the first dry source's commit metadata, but a more descriptive format may be preferred.
+* The current `HydrationQueueKey` uses plain struct equality (`!=`) with string fields. With multiple dry sources, the key needs to represent a variable-length source list in a comparable form. Options include a serialized string, a hash, or switching to `reflect.DeepEqual` for key comparison. The right approach depends on performance tradeoffs with large app lists.
 
 ## Summary
 
@@ -51,13 +52,16 @@ The `sources` (plural) field on `ApplicationSpec` already solves this problem fo
 
 3. **Follow the established `source`/`sources` pattern** — the API design, precedence logic, helper methods, and validation mirror the existing `ApplicationSpec.Source`/`Sources` pattern to minimize surprise for users and maintainers.
 
-4. **Maintain full backward compatibility** — existing applications using `drySource` (singular) continue to work with zero changes.
+4. **Backward compatibility for `drySource` (singular)** — existing applications using `drySource` (singular) continue to work. The `GetDrySources()` helper wraps it transparently.
 
 ### Non-Goals
 
 * **Partial hydration** — when any dry source changes, all sources are re-rendered and committed together. Incremental/partial hydration of individual sources is not a goal.
 * **Per-source sync paths** — all dry sources are merged into a single manifest set committed to one `syncSource` path. Routing individual dry sources to different sync paths or branches is not supported.
+* **Backward compatibility for hydrator status fields and metadata schema** — the hydrator is beta. `DrySHA` is replaced by `DryRevision`/`DryRevisions` (matching the `Revision`/`Revisions` convention on `SyncOperation`). The `hydrator.metadata` file schema changes from a flat object to a list. These are breaking changes.
 * **UI changes** — all UI updates (models, utility functions, display components, create/edit panels) are out of scope and will be covered in a separate proposal.
+
+> **Note**: Helm/OCI chart support and cross-source `$ref` value file references are explicitly **in scope** as part of the `DrySource` parity goal (Goal 1). The intent is for `drySources` to be functionally identical to `sources` — anything you can do with an `ApplicationSource` entry in `sources`, you can do with a `DrySource` entry in `drySources`.
 
 ## Proposal
 
@@ -151,10 +155,10 @@ spec:
 * `Ref` — a reference key enabling cross-source Helm value file references (e.g. `$ref-name/path/to/values.yaml`)
 * `Name` — display name for the UI
 
-**Status types** — following the existing `Revision`/`Revisions` pattern on `SyncOperation`, the hydration status types gain parallel plural fields:
+**Status types** — `SyncOperation` tracks revisions with both `Revision string` (singular, legacy) and `Revisions []string` (plural, for multi-source). The singular field exists only because it predates multi-source support. Since the hydrator is beta, we skip the legacy singular field and go straight to a slice:
 
-* `HydrateOperation` and `SuccessfulHydrateOperation` gain `DryRevisions []string` alongside the existing `DrySHA`. Each entry is the resolved revision for the corresponding dry source — a git SHA, Helm chart version, or OCI digest depending on source type. The existing `DrySHA` field carries the first source's resolved revision for backward compatibility (matching how `SyncOperation.Revision` holds the first source's revision).
-* `SourceHydratorStatus` gains `LastComparedDryRevisions []string` alongside the existing `LastComparedDryRevision`.
+* `HydrateOperation` and `SuccessfulHydrateOperation`: `DrySHA string` is replaced by `DryRevision string` (singular, for `drySource`) and `DryRevisions []string` (plural, for `drySources`). This matches the `Revision`/`Revisions` pattern on `SyncOperation`. Each entry is the resolved revision for the corresponding dry source — a git SHA, Helm chart version, or OCI digest depending on source type. When `drySources` is used, `DryRevision` holds the first source's revision. `HydratedSHA` remains unchanged (it's a single git SHA on the hydrated branch).
+* `SourceHydratorStatus`: `LastComparedDryRevision string` remains (for `drySource`), `LastComparedDryRevisions []string` is added (for `drySources`).
 
 Per-source detail beyond the revision string (author, commands, etc.) is handled by the list-based `hydrator.metadata` file (see Commit Server Changes below).
 
@@ -178,7 +182,7 @@ New method on `DrySource`:
 #### Validation
 
 * **At least one source required**: either `drySource` must be non-nil with a non-empty `repoURL`, or `drySources` must have at least one entry. The existing `validateSourceHydrator()` check (`DrySource.RepoURL == ""` → error) must change to `DrySource == nil && len(DrySources) == 0` → error.
-* **Mutual exclusion**: setting both `drySource` (non-nil) and `drySources` (non-empty) is a validation error.
+* **Precedence**: if both `drySource` and `drySources` are set, `drySources` silently takes precedence. This matches how `source`/`sources` works on `ApplicationSpec` — no mutual exclusion error.
 * **Per-entry validation**: each entry in `drySources` must have a non-empty `repoURL`.
 * **Ref uniqueness**: `ref` keys must be unique across all dry sources and match `^[a-zA-Z0-9_-]+$` (same validation as `ApplicationSource.Ref`).
 * **Project permissions**: each dry source's RepoURL must be permitted by the Application's project. `ValidatePermissions()` must iterate over `GetDrySources()` rather than calling `GetDrySource()` once.
@@ -191,19 +195,17 @@ When any dry source has a new revision, the full set is re-hydrated:
 
 2. `getManifests()` fetches and renders manifests from all dry sources. Each dry source is rendered independently via a separate `GenerateManifest()` call (one per source). Dry sources with a `ref` field are resolved into a `RefTargetRevisionMapping` and passed to the rendering call, enabling Helm value file references like `$ref-name/path/to/values.yaml`. All manifest objects are appended into a single `PathDetails` in source order (same append semantics as `sources` in the sync path). If two dry sources produce resources with the same GVK+namespace+name, both are included — conflict detection is handled at sync time, not hydration time.
 
-3. `hydrate()` resolves static revisions for all dry sources from the first app, then renders remaining apps pinned to those same revisions. The resolved revisions are stored in `DryRevisions` (one per source, by array index). De-duplication compares this vector element-by-element against `LastSuccessfulOperation.DryRevisions`. `DrySHA` is set to the first source's revision for backward compatibility. Each source's full metadata (author, commands, etc.) is written to the `hydrator.metadata` file (see Commit Server Changes).
+3. `hydrate()` resolves static revisions for all dry sources from the first app, then renders remaining apps pinned to those same revisions. For singular `drySource`, the resolved revision is stored in `DryRevision`. For plural `drySources`, revisions are stored in `DryRevisions` (one per source, by array index). De-duplication compares against `LastSuccessfulOperation` — single string comparison for `DryRevision`, element-by-element for `DryRevisions`. Each source's full metadata (author, commands, etc.) is written to the `hydrator.metadata` file (see Commit Server Changes).
 
 4. All paths are committed in a single commit to the sync target branch.
 
 #### Hydration Queue Key
 
-The current queue key groups apps by `{SourceRepoURL, SourceTargetRevision, DestinationRepoURL, DestinationBranch}`. With multiple dry sources, `SourceRepoURL` and `SourceTargetRevision` are replaced by a `SourcesFingerprint` — a deterministic hash of all normalized dry source URLs and target revisions. The key retains `DestinationRepoURL` and `DestinationBranch`.
+The current queue key groups apps by `{SourceRepoURL, SourceTargetRevision, DestinationRepoURL, DestinationBranch}`. With multiple dry sources, the key is derived from the full `drySources` list plus the destination. Apps with the same set of dry sources (same URLs and target revisions) going to the same destination are batched together — same dedup behavior as today, extended to multiple sources.
 
 #### Changes to Controller Dependencies
 
-The `Dependencies` interface methods `GetRepoObjs` and `EvaluateAppRevisionsChanges` are updated to accept slices (`sources []ApplicationSource`, `revisions []string`) instead of single values. `GetRepoObjs` already wraps the single dry source into a slice internally — this change makes the slice the public API and removes the `len(resp) != 1` assertion. `EvaluateAppRevisionsChanges` return type changes from `(bool, string, error)` to `(bool, []string, error)` to return all resolved revisions.
-
-This cascades through `newRevisionHasChanges()` (now evaluates all dry sources), `appNeedsHydration()` (receives `[]string` resolved revisions), and `ProcessAppHydrateQueueItem()` (persists all resolved revisions in `LastComparedDryRevisions` and the first in `LastComparedDryRevision` for backward compat).
+The `Dependencies` interface methods `GetRepoObjs` and `EvaluateAppRevisionsChanges` remain single-source — they continue to accept one `ApplicationSource` and one `revision string`. The hydrator owns the multi-source orchestration: `getManifests()` iterates over `GetDrySources()`, calling `GetRepoObjs` once per dry source, then merges the results. Similarly, `newRevisionHasChanges()` calls `EvaluateAppRevisionsChanges` per source and returns true if any source has changes. Error collection and manifest merging happen in the hydrator, not in the dependencies layer.
 
 #### Commit Server Changes
 
@@ -262,23 +264,24 @@ This is a breaking change for the promoter's metadata parsing, but the promoter 
 | Increased hydration latency with many dry sources | Manifest generation for different dry sources can be parallelized (the existing `errgroup` pattern in `hydrate()` already does this for multiple apps). |
 | Queue key change causes brief re-hydration during rolling upgrade | The queue key is internal and self-healing — the next `ProcessAppHydrateQueueItem` call re-enqueues with the new key format. Hydration is idempotent. |
 | `hydrator.metadata` schema change breaks existing consumers | The hydrator is still beta. The GitOps Promoter is maintained by the same team and can be updated in coordination. Single-source apps produce a one-element list, making migration straightforward. |
+| Custom commit message templates break silently | Users who customized the hydrator commit message template in `argocd-cm` reference `.RepoURL`, `.DrySHA`, and `.Commands` as top-level fields. These change with the list-based schema. The upgrade docs should call out that custom templates need updating. |
 
 ### Upgrade / Downgrade Strategy
 
 **Upgrade:**
 
-* Existing applications using `drySource` (singular) continue to work unchanged. All new fields are `omitempty`.
-* The `GetDrySources()` helper transparently wraps a singular `drySource` into a single-element slice, so all internal code paths work with both forms.
-* `DrySHA` carries the first source's resolved revision. `DryRevisions` carries all per-source revisions. For single-source apps, both contain the same value as before.
-* The `hydrator.metadata` file changes from a flat object to `{"sources": [...]}`. Single-source apps produce a one-element list. External consumers (GitOps Promoter) need to be updated to read the new schema.
-* The `HydrationQueueKey` format change is internal. On upgrade, in-flight queue items using the old key format are simply not matched — the next reconciliation loop re-enqueues with the new format. No data loss occurs because hydration is idempotent.
+`drySources` is a new feature — there are no existing users to migrate. For existing `drySource` (singular) apps:
+
+* `drySource` continues to work unchanged. `GetDrySources()` wraps it into a single-element slice transparently.
+* `DrySHA` is replaced by `DryRevision` (same value, just renamed to match the `Revision` convention). On first reconciliation after upgrade, existing apps will have an empty `DryRevision` and trigger a one-time re-hydration (idempotent, self-healing).
+* The `hydrator.metadata` file changes from a flat object to `{"sources": [...]}` with a single entry. External consumers (GitOps Promoter) must be updated to read the new schema.
 
 **Downgrade:**
 
-* If a user downgrades after creating applications with `drySources`, the older Argo CD version will ignore the unknown `drySources` field (standard Kubernetes behavior for unknown fields in CRDs).
-* The `drySource` (singular) field will be empty for these apps, so the older version will fail validation with "drySource.repoURL is required". Users must convert their apps back to `drySource` before downgrading.
-* Status fields `DryRevisions` and `LastComparedDryRevisions` are ignored by older versions — the singular `DrySHA` and `LastComparedDryRevision` fields remain populated and functional.
-* The `hydrator.metadata` schema change is not backward compatible — older versions expect a flat object. The GitOps Promoter must be updated to the new schema before or alongside the Argo CD upgrade.
+The hydrator is beta. Downgrading is not expected to be seamless:
+
+* `DryRevision`/`DryRevisions` replace `DrySHA`. Older versions will see an empty `DrySHA` and trigger re-hydration (self-healing).
+* The `hydrator.metadata` schema is not backward compatible. The GitOps Promoter must be updated before or alongside the Argo CD upgrade.
 
 ## Drawbacks
 
