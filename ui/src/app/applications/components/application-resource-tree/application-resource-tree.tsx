@@ -1272,16 +1272,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         let allChildNodes: ResourceTreeNode[] = [];
         nodesHavingChildren.set(appNode.uid, 1);
         if (props.getNodeExpansion(appNode.uid)) {
-            nodes.forEach(node => {   
+            nodes.forEach(node => {
                 allChildNodes = [];
                 const isManagedResource = managedKeys.has(nodeKey(node));
-                const hasManagedParent = (node.parentRefs || []).some(parent =>
-                    managedKeys.has(nodeKey(parent))
-                );
+                const hasManagedParent = (node.parentRefs || []).some(parent => managedKeys.has(nodeKey(parent)));
 
-                const shouldRenderAsRoot =
-                    (node.parentRefs || []).length === 0 ||
-                    (isManagedResource && !hasManagedParent);
+                const shouldRenderAsRoot = (node.parentRefs || []).length === 0 || (isManagedResource && !hasManagedParent);
 
                 if (shouldRenderAsRoot) {
                     roots.push(node);

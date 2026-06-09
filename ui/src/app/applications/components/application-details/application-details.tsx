@@ -861,13 +861,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     nodes.forEach(node => {
                                         const isManagedResource = managedKeys.has(AppUtils.nodeKey(node));
 
-                                        const hasManagedParent = (node.parentRefs || []).some(parent =>
-                                            managedKeys.has(AppUtils.nodeKey(parent))
-                                        );
+                                        const hasManagedParent = (node.parentRefs || []).some(parent => managedKeys.has(AppUtils.nodeKey(parent)));
 
-                                        const shouldRenderAsRoot =
-                                            (node.parentRefs || []).length === 0 ||
-                                            (isManagedResource && !hasManagedParent);
+                                        const shouldRenderAsRoot = (node.parentRefs || []).length === 0 || (isManagedResource && !hasManagedParent);
 
                                         if (!shouldRenderAsRoot) {
                                             node.parentRefs.forEach(parent => {
