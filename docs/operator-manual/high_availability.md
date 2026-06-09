@@ -347,6 +347,14 @@ get no benefit from using these annotations.
 Similarly, applications referencing an external Helm values file will not get the benefits of this feature when an
 unrelated change happens in the external source.
 
+> [!NOTE]
+> The Git-history comparison described above is skipped for repositories configured with shallow cloning (`depth` greater
+> than `0`). In that case, Argo CD may not have enough history to compare the previous synced revision with the new
+> revision, so it treats the application as potentially changed and proceeds with normal refresh and manifest generation.
+> This does not affect webhook payload filtering, which uses the changed files reported by the webhook event. The
+> annotation can also still be used to calculate a common root path and reduce the repository content sent to a Config
+> Management Plugin sidecar when `--plugin-use-manifest-generate-paths` is enabled.
+
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
 > [!NOTE]
@@ -624,6 +632,35 @@ $ kubectl port-forward svc/argocd-metrics 8082:8082
 $ go tool pprof http://localhost:8082/debug/pprof/heap
 ```
 
+## Mitigating OOMKilled Events from Memory Spikes
+
+To mitigate `OOMKilled` events caused by sudden memory spikes without over-provisioning resources, you can configure the `GOMEMLIMIT` environment variable on the relevant Argo CD containers (supported in Argo CD versions >= 2.7.0).
+
+Setting `GOMEMLIMIT` to **80%–90%** of your container's total memory limit forces the Go runtime to trigger garbage collection before the Kubernetes hard limit is reached. For more detail, see the [Go GC Guide](https://go.dev/doc/gc-guide#Memory_limit) and the [Environment variables](https://pkg.go.dev/runtime#hdr-Environment_Variables) reference.
+
+```yaml
+containers:
+  - name: argocd-application-controller
+    resources:
+      limits:
+        memory: "2Gi"
+    env:
+      - name: GOMEMLIMIT
+        value: "1800MiB"  # ~90% of the 2Gi memory limit above; GOMEMLIMIT uses MiB/GiB units
+```
+
+### Known Use Cases
+
+* Application controller cold-start memory spike
+* Expensive per-request memory spikes in argocd-server
+
+### Trade-Offs & Tuning
+
+> [!WARNING]
+> Setting `GOMEMLIMIT` too close to the application's actual working set can cause **GC thrashing**. The Go runtime will spend excessive CPU cycles continuously attempting to reclaim memory, significantly degrading application performance.
+
+If you observe sustained high CPU utilization alongside frequent GC activity or ongoing `OOMKilled` events, increase the container's total memory limit and recalculate `GOMEMLIMIT` proportionally to give the runtime more breathing room.
+
 ## Shallow Clone
 
 Repositories with large histories or large files in past revisions can be slow to clone and update. To speed up the clone process, you can use the `depth: "1"` repository option:
@@ -649,3 +686,9 @@ type: Opaque
 > You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.
+
+> [!NOTE]
+> Shallow cloning disables the non-webhook Git-history comparison optimization provided by the
+> `argocd.argoproj.io/manifest-generate-paths` annotation. If you rely on that annotation to avoid unnecessary refreshes
+> without webhooks, use a full clone (`depth: "0"` or omit `depth`) for that repository. Webhook payload filtering and
+> Config Management Plugin sidecar path narrowing can still use the annotation with shallow clones.

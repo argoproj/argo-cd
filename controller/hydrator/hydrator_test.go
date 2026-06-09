@@ -905,6 +905,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
 	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
 	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
 	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
@@ -951,6 +952,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredential
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
 	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/hydrated-repo", "test-project").Return(nil, nil).Once()
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
 	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
 	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
@@ -1129,10 +1131,12 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	})
 	d.EXPECT().GetWriteCredentials(mock.Anything, readRepo.Repo, proj.Name).Return(writeRepo, nil)
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil)
 	d.EXPECT().GetCommitAuthorName().Return("", nil)
 	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated123"}, nil).Run(func(_ context.Context, in *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
 		assert.Equal(t, "commit message", in.CommitMessage)
+		assert.Equal(t, "readme message", in.ReadmeMessage)
 		assert.Equal(t, "hydrated", in.SyncBranch)
 		assert.Equal(t, "hydrated-next", in.TargetBranch)
 		assert.Equal(t, "sha123", in.DrySha)
@@ -1338,6 +1342,7 @@ func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil)
 	d.EXPECT().GetCommitAuthorName().Return("", nil)
 	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(nil, errors.New("commit error"))
@@ -1406,6 +1411,106 @@ func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", rev)
 	assert.NotNil(t, pathDetails)
+}
+
+func TestHydrator_getManifests_UnsignedCommit_IsRejected(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+
+	app := newTestApp("test-app")
+	proj := newTestProject()
+	proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://example.com/repo"}},
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+					Keys: []string{"4AEE18F83AFDEB23"},
+				},
+			}},
+		},
+	}
+
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).
+		Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{
+			Revision:              "sha123",
+			SourceIntegrityResult: nil,
+		}, nil)
+
+	_, _, err := h.getManifests(t.Context(), app, "sha123", proj)
+	require.Error(t, err, "hydrator must reject unsigned commit when SourceIntegrity requires GPG verification")
+	assert.Contains(t, err.Error(), "source integrity verification required but not performed")
+}
+
+func TestHydrator_getManifests_VerificationFailed_IsRejected(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+
+	app := newTestApp("test-app")
+	proj := newTestProject()
+	proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://example.com/repo"}},
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+					Keys: []string{"4AEE18F83AFDEB23"},
+				},
+			}},
+		},
+	}
+
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).
+		Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{
+			Revision: "sha123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{
+				Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "gpg",
+					Problems: []string{"signature not trusted"},
+				}},
+			},
+		}, nil)
+
+	_, _, err := h.getManifests(t.Context(), app, "sha123", proj)
+	require.Error(t, err, "hydrator must reject commits with failed integrity checks")
+	assert.Contains(t, err.Error(), "signature not trusted")
+}
+
+func TestHydrator_getManifests_VerificationPassed_IsAllowed(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+
+	app := newTestApp("test-app")
+	proj := newTestProject()
+	proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://example.com/repo"}},
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+					Keys: []string{"4AEE18F83AFDEB23"},
+				},
+			}},
+		},
+	}
+
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).
+		Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{
+			Revision: "sha123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{
+				Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "gpg",
+					Problems: nil,
+				}},
+			},
+		}, nil)
+
+	revision, _, err := h.getManifests(t.Context(), app, "sha123", proj)
+	require.NoError(t, err, "hydrator must allow commits whose integrity checks pass")
+	assert.Equal(t, "sha123", revision)
 }
 
 func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {

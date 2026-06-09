@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -79,6 +80,10 @@ type fakeData struct {
 	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
 	resolveRevisionResponses        []*apiclient.ResolveRevisionResponse
 	additionalObjs                  []runtime.Object
+	// onGenerateManifest, if set, is invoked with the ManifestRequest each
+	// time GenerateManifest is called. Useful for asserting fields that the
+	// controller derives, like SourceIntegrity.
+	onGenerateManifest func(req *apiclient.ManifestRequest)
 }
 
 type MockKubectl struct {
@@ -112,19 +117,25 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	// Mock out call to GenerateManifest
 	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
 
+	captureRun := func(_ context.Context, req *apiclient.ManifestRequest, _ ...grpc.CallOption) {
+		if data.onGenerateManifest != nil {
+			data.onGenerateManifest(req)
+		}
+	}
+
 	if len(data.manifestResponses) > 0 {
 		for _, response := range data.manifestResponses {
 			if repoErr != nil {
-				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(response, repoErr).Once()
+				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Run(captureRun).Return(response, repoErr).Once()
 			} else {
-				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(response, nil).Once()
+				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Run(captureRun).Return(response, nil).Once()
 			}
 		}
 	} else {
 		if repoErr != nil {
-			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, repoErr).Once()
+			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Run(captureRun).Return(data.manifestResponse, repoErr).Once()
 		} else if data.manifestResponse != nil {
-			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
+			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Run(captureRun).Return(data.manifestResponse, nil).Once()
 		}
 	}
 

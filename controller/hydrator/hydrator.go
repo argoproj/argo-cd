@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 // RepoGetter is an interface that defines methods for getting repository objects. It's a subset of the DB interface to
@@ -73,6 +74,9 @@ type Dependencies interface {
 
 	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
 	GetHydratorCommitMessageTemplate() (string, error)
+
+	// GetHydratorReadmeMessageTemplate gets the configured template for rendering README messages.
+	GetHydratorReadmeMessageTemplate() (string, error)
 
 	// GetCommitAuthorName gets the configured commit author name from argocd-cm ConfigMap.
 	GetCommitAuthorName() (string, error)
@@ -466,6 +470,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}
 
+	// get the readme message template
+	readmeTemplate, err := h.dependencies.GetHydratorReadmeMessageTemplate()
+	if err != nil {
+		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
+	}
+
 	// get commit author configuration from argocd-cm
 	authorName, err := h.dependencies.GetCommitAuthorName()
 	if err != nil {
@@ -484,6 +494,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		CommitMessage:     commitMessage,
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
+		ReadmeMessage:     readmeTemplate,
 		AuthorName:        authorName,
 		AuthorEmail:       authorEmail,
 	}
@@ -510,10 +521,18 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 		targetRevision = drySource.TargetRevision
 	}
 
-	// TODO: enable signature verification
 	objs, resp, err := h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
+	}
+
+	if si := project.EffectiveSourceIntegrity(); sourceintegrity.HasCriteria(si, drySource) {
+		if resp.SourceIntegrityResult == nil {
+			return "", nil, fmt.Errorf("source integrity verification required but not performed for app %q dry revision %q", app.QualifiedName(), resp.Revision)
+		}
+		if err := resp.SourceIntegrityResult.AsError(); err != nil {
+			return "", nil, fmt.Errorf("source integrity verification failed for app %q dry revision %q: %w", app.QualifiedName(), resp.Revision, err)
+		}
 	}
 
 	// Set up a ManifestsRequest
