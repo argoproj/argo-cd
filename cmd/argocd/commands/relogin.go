@@ -48,15 +48,17 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			var tokenString string
 			var refreshToken string
 			reloginOpts := argocdclient.ClientOptions{
-				ConfigPath:        "",
-				ServerAddr:        configCtx.Server.Server,
-				Insecure:          configCtx.Server.Insecure,
-				ClientCertFile:    clientOpts.ClientCertFile,
-				ClientCertKeyFile: clientOpts.ClientCertKeyFile,
-				GRPCWeb:           clientOpts.GRPCWeb,
-				GRPCWebRootPath:   clientOpts.GRPCWebRootPath,
-				PlainText:         configCtx.Server.PlainText,
-				Headers:           clientOpts.Headers,
+				ConfigPath:           "",
+				ServerAddr:           configCtx.Server.Server,
+				Insecure:             configCtx.Server.Insecure,
+				ClientCertFile:       clientOpts.ClientCertFile,
+				ClientCertKeyFile:    clientOpts.ClientCertKeyFile,
+				GRPCWeb:              clientOpts.GRPCWeb,
+				GRPCWebRootPath:      clientOpts.GRPCWebRootPath,
+				PlainText:            configCtx.Server.PlainText,
+				PortForward:          configCtx.Server.PortForward,
+				PortForwardNamespace: configCtx.Server.PortForwardNamespace,
+				Headers:              clientOpts.Headers,
 			}
 			acdClient := headless.NewClientOrDie(&reloginOpts, c)
 			claims, err := configCtx.User.Claims()
