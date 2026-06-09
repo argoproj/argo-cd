@@ -1382,6 +1382,32 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 
 If all three match, then the resource is ignored.
 
+If you use Trivy Operator and want Argo CD to ignore the reports it creates, add a `resource.exclusions` entry for the `aquasecurity.github.io` API group:
+
+```yaml
+apiVersion: v1
+data:
+  resource.exclusions: |
+    - apiGroups:
+      - aquasecurity.github.io
+      kinds:
+      - ClusterComplianceReport
+      - ClusterConfigAuditReport
+      - ClusterInfraAssessmentReport
+      - ClusterRbacAssessmentReport
+      - ClusterSbomReport
+      - ClusterVulnerabilityReport
+      - ConfigAuditReport
+      - ExposedSecretReport
+      - InfraAssessmentReport
+      - RbacAssessmentReport
+      - SbomReport
+      - VulnerabilityReport
+      clusters:
+      - "*"
+kind: ConfigMap
+```
+
 In addition to exclusions, you might configure the list of included resources using the `resource.inclusions` setting.
 By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds:
 
