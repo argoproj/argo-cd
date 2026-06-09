@@ -935,7 +935,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			refSourceCommitSHAs[normalizedURL] = repoRef.commitSHA
 		}
 	}
-	manifestKey := getManifestCacheKey(revision, appSourceCopy, q, refSourceCommitSHAs)
+	manifestKey := cache.NewManifestKey(revision, appSourceCopy, q, q, refSourceCommitSHAs)
 	if err != nil {
 		logCtx := log.WithFields(log.Fields{
 			"application":  q.AppName,
@@ -1000,22 +1000,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
 
-func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
-	return cache.ManifestKey{
-		Revision:            revision,
-		AppSource:           appSource,
-		RefSources:          q.RefSources,
-		ClusterInfo:         q,
-		Namespace:           q.Namespace,
-		TrackingMethod:      q.TrackingMethod,
-		AppLabelKey:         q.AppLabelKey,
-		AppName:             q.AppName,
-		RefSourceCommitSHAs: refSourceCommitSHAs,
-		InstallationID:      q.InstallationID,
-		SourceIntegrity:     q.SourceIntegrity,
-	}
-}
-
 // getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
 // - If the cache result is empty for the requested key
 // - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (e.g. res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
@@ -1023,7 +1007,7 @@ func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource,
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
-	cacheKey := getManifestCacheKey(revision, q.ApplicationSource, q, refSourceCommitSHAs)
+	cacheKey := cache.NewManifestKey(revision, q.ApplicationSource, q, q, refSourceCommitSHAs)
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey)
 
 	res := cache.CachedManifestResponse{}
@@ -3526,8 +3510,8 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
 	err := s.cache.SetNewRevisionManifests(
-		getManifestCacheKeyFromUpdateRevisionRequest(request, oldRev, oldRepoRefs),
-		getManifestCacheKeyFromUpdateRevisionRequest(request, newRev, newRepoRefs),
+		cache.NewManifestKey(oldRev, request.ApplicationSource, request, request, oldRepoRefs),
+		cache.NewManifestKey(newRev, request.ApplicationSource, request, request, newRepoRefs),
 	)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
@@ -3539,22 +3523,6 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 
 	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
-}
-
-func getManifestCacheKeyFromUpdateRevisionRequest(request *apiclient.UpdateRevisionForPathsRequest, revision string, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
-	return cache.ManifestKey{
-		Revision:            revision,
-		AppSource:           request.ApplicationSource,
-		RefSources:          request.RefSources,
-		ClusterInfo:         request,
-		Namespace:           request.Namespace,
-		TrackingMethod:      request.TrackingMethod,
-		AppLabelKey:         request.AppLabelKey,
-		AppName:             request.AppName,
-		RefSourceCommitSHAs: refSourceCommitSHAs,
-		InstallationID:      request.InstallationID,
-		SourceIntegrity:     request.SourceIntegrity,
-	}
 }
 
 func (s *Service) ociClientStandardOpts() []oci.ClientOpts {

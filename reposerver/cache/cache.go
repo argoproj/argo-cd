@@ -323,8 +323,8 @@ func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
 	return err
 }
 
-// ManifestKey carries all fields required to build a manifests cache key.
-type ManifestKey struct {
+// manifestKey carries all fields required to build a manifests cache key.
+type manifestKey struct {
 	Revision       string
 	AppSource      *appv1.ApplicationSource
 	RefSources     appv1.RefTargetRevisionMapping
@@ -340,7 +340,39 @@ type ManifestKey struct {
 	SourceIntegrity     *appv1.SourceIntegrity
 }
 
-func (d ManifestKey) String() string {
+type ManifestKeyRequest interface {
+	GetNamespace() string
+	GetTrackingMethod() string
+	GetAppLabelKey() string
+	GetAppName() string
+	GetInstallationID() string
+	GetSourceIntegrity() *appv1.SourceIntegrity
+	GetRefSources() map[string]*appv1.RefTarget
+}
+
+func NewManifestKey(
+	revision string,
+	appSource *appv1.ApplicationSource,
+	req ManifestKeyRequest,
+	clusterInfo ClusterRuntimeInfo,
+	refSourceCommitSHAs ResolvedRevisions,
+) manifestKey {
+	return manifestKey{
+		Revision:            revision,
+		AppSource:           appSource,
+		RefSources:          req.GetRefSources(),
+		ClusterInfo:         clusterInfo,
+		Namespace:           req.GetNamespace(),
+		TrackingMethod:      req.GetTrackingMethod(),
+		AppLabelKey:         req.GetAppLabelKey(),
+		AppName:             req.GetAppName(),
+		RefSourceCommitSHAs: refSourceCommitSHAs,
+		InstallationID:      req.GetInstallationID(),
+		SourceIntegrity:     req.GetSourceIntegrity(),
+	}
+}
+
+func (d manifestKey) String() string {
 	trackingKey := trackingKey(d.AppLabelKey, d.TrackingMethod)
 	key := fmt.Sprintf("mfst|%s|%s|%s|%s|%d|%s", trackingKey, d.AppName, d.Revision, d.Namespace, appSourceKey(d.AppSource, d.RefSources, d.RefSourceCommitSHAs)+clusterRuntimeInfoKey(d.ClusterInfo), d.SourceIntegrity.CacheKey())
 	if d.InstallationID != "" {
@@ -359,7 +391,7 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 
 // LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
 // before every manifest cache operation to help debug cache misses.
-func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey ManifestKey) {
+func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey manifestKey) {
 	if log.IsLevelEnabled(log.DebugLevel) {
 		log.WithFields(log.Fields{
 			"revision":    manifestKey.Revision,
@@ -373,11 +405,11 @@ func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey M
 	}
 }
 
-func (c *Cache) SetNewRevisionManifests(oldKey, newKey ManifestKey) error {
+func (c *Cache) SetNewRevisionManifests(oldKey, newKey manifestKey) error {
 	return c.cache.RenameItem(oldKey.String(), newKey.String(), c.repoCacheExpiration)
 }
 
-func (c *Cache) GetManifests(manifestKey ManifestKey, res *CachedManifestResponse) error {
+func (c *Cache) GetManifests(manifestKey manifestKey, res *CachedManifestResponse) error {
 	err := c.cache.GetItem(manifestKey.String(), res)
 	if err != nil {
 		return err
@@ -414,7 +446,7 @@ func (c *Cache) GetManifests(manifestKey ManifestKey, res *CachedManifestRespons
 	return nil
 }
 
-func (c *Cache) SetManifests(manifestKey ManifestKey, res *CachedManifestResponse) error {
+func (c *Cache) SetManifests(manifestKey manifestKey, res *CachedManifestResponse) error {
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
 		res = res.shallowCopy()
@@ -434,7 +466,7 @@ func (c *Cache) SetManifests(manifestKey ManifestKey, res *CachedManifestRespons
 		})
 }
 
-func (c *Cache) DeleteManifests(manifestKey ManifestKey) error {
+func (c *Cache) DeleteManifests(manifestKey manifestKey) error {
 	return c.cache.SetItem(
 		manifestKey.String(),
 		"",
