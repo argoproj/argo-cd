@@ -859,7 +859,17 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 } else {
                                     const managedKeys = isApplication ? new Set((application as appModels.Application).status.resources.map(AppUtils.nodeKey)) : new Set<string>();
                                     nodes.forEach(node => {
-                                        if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
+                                        const isManagedResource = managedKeys.has(AppUtils.nodeKey(node));
+
+                                        const hasManagedParent = (node.parentRefs || []).some(parent =>
+                                            managedKeys.has(AppUtils.nodeKey(parent))
+                                        );
+
+                                        const shouldRenderAsRoot =
+                                            (node.parentRefs || []).length === 0 ||
+                                            (isManagedResource && !hasManagedParent);
+
+                                        if (!shouldRenderAsRoot) {
                                             node.parentRefs.forEach(parent => {
                                                 const parentId = parent.uid;
                                                 if (collapsedNodesList.indexOf(parentId) < 0) {
