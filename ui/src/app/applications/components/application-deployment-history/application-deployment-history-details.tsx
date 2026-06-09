@@ -28,8 +28,6 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
     const [showParameterDetails, setShowParameterDetails] = React.useState(Boolean);
     const [showSourceDetails, setShowSourceDetails] = React.useState([]);
     const [showRollbackPreview, setShowRollbackPreview] = React.useState(false);
-    // index === 0 is the latest history entry (deployments are reversed). Hide the
-    // rollback-preview affordance there — there's nothing to roll back to.
     const isLatest = index === 0;
     const updateMap = (i: number) => {
         if (i === null || i === undefined) {
