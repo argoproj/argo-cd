@@ -2348,3 +2348,121 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestEscapeDollarSignsInMap(t *testing.T) {
+	t.Run("dollar sign in string value is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "test$test"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "test$$test", result["bindPW"])
+	})
+
+	t.Run("string with no dollar sign is unchanged", func(t *testing.T) {
+		input := map[string]any{"bindPW": "plainpassword"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "plainpassword", result["bindPW"])
+	})
+
+	t.Run("multiple dollar signs are all escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "a$b$c$d"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "a$$b$$c$$d", result["bindPW"])
+	})
+
+	t.Run("leading dollar sign is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "$startswith"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "$$startswith", result["bindPW"])
+	})
+
+	t.Run("trailing dollar sign is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "endswith$"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "endswith$$", result["bindPW"])
+	})
+
+	t.Run("value that is only a dollar sign is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "$"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "$$", result["bindPW"])
+	})
+
+	t.Run("calling with already-escaped content escapes again", func(t *testing.T) {
+		input := map[string]any{"bindPW": "test$$test"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "test$$$$test", result["bindPW"])
+	})
+
+	t.Run("non-string values are passed through unchanged", func(t *testing.T) {
+		input := map[string]any{
+			"port":          389,
+			"insecureNoSSL": true,
+		}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, 389, result["port"])
+		assert.Equal(t, true, result["insecureNoSSL"])
+	})
+
+	t.Run("nested map values are escaped", func(t *testing.T) {
+		input := map[string]any{
+			"config": map[string]any{
+				"bindPW": "test$test",
+				"host":   "ldap.example.org:389",
+			},
+		}
+		result := EscapeDollarSignsInMap(input)
+		nested := result["config"].(map[string]any)
+		assert.Equal(t, "test$$test", nested["bindPW"])
+		assert.Equal(t, "ldap.example.org:389", nested["host"])
+	})
+
+	t.Run("deeply nested map values are escaped", func(t *testing.T) {
+		input := map[string]any{
+			"connectors": map[string]any{
+				"ldap": map[string]any{
+					"config": map[string]any{
+						"bindPW": "test$test",
+					},
+				},
+			},
+		}
+		result := EscapeDollarSignsInMap(input)
+		config := result["connectors"].(map[string]any)["ldap"].(map[string]any)["config"].(map[string]any)
+		assert.Equal(t, "test$$test", config["bindPW"])
+	})
+
+	t.Run("list of maps has dollar signs escaped in each element", func(t *testing.T) {
+		input := map[string]any{
+			"connectors": []any{
+				map[string]any{"type": "ldap", "bindPW": "test$test"},
+				map[string]any{"type": "oidc", "clientSecret": "oidc$secret"},
+			},
+		}
+		result := EscapeDollarSignsInMap(input)
+		connectors := result["connectors"].([]any)
+		assert.Equal(t, "test$$test", connectors[0].(map[string]any)["bindPW"])
+		assert.Equal(t, "oidc$$secret", connectors[1].(map[string]any)["clientSecret"])
+	})
+
+	t.Run("list of strings has dollar signs escaped", func(t *testing.T) {
+		input := map[string]any{
+			"passwords": []any{"a$b", "plain", "c$d$e"},
+		}
+		result := EscapeDollarSignsInMap(input)
+		passwords := result["passwords"].([]any)
+		assert.Equal(t, "a$$b", passwords[0])
+		assert.Equal(t, "plain", passwords[1])
+		assert.Equal(t, "c$$d$$e", passwords[2])
+	})
+
+	t.Run("empty map returns empty map", func(t *testing.T) {
+		result := EscapeDollarSignsInMap(map[string]any{})
+		assert.Empty(t, result)
+	})
+
+	t.Run("input map is not mutated", func(t *testing.T) {
+		input := map[string]any{"bindPW": "test$test"}
+		original := input["bindPW"]
+		_ = EscapeDollarSignsInMap(input)
+		assert.Equal(t, original, input["bindPW"])
+	})
+}
