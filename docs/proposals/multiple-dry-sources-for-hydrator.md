@@ -59,6 +59,7 @@ The `sources` (plural) field on `ApplicationSpec` already solves this problem fo
 * **Partial hydration** — when any dry source changes, all sources are re-rendered and committed together. Incremental/partial hydration of individual sources is not a goal.
 * **Per-source sync paths** — all dry sources are merged into a single manifest set committed to one `syncSource` path. Routing individual dry sources to different sync paths or branches is not supported.
 * **Backward compatibility for hydrator status fields and metadata schema** — the hydrator is beta. `DrySHA` is replaced by `DryRevision`/`DryRevisions` (matching the `Revision`/`Revisions` convention on `SyncOperation`). The `hydrator.metadata` file schema changes from a flat object to a list. These are breaking changes.
+* **References contract for non-git sources** — today, `references` in the hydrator metadata is populated from git trailers on the dry commit. Extending this to OCI metadata or Helm chart metadata is deferred to a follow-up proposal.
 * **UI changes** — all UI updates (models, utility functions, display components, create/edit panels) are out of scope and will be covered in a separate proposal.
 
 > **Note**: Helm/OCI chart support and cross-source `$ref` value file references are explicitly **in scope** as part of the `DrySource` parity goal (Goal 1). The intent is for `drySources` to be functionally identical to `sources` — anything you can do with an `ApplicationSource` entry in `sources`, you can do with a `DrySource` entry in `drySources`.
