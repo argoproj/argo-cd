@@ -322,9 +322,7 @@ require (
 	k8s.io/streaming v0.36.1
 )
 
-
 require github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-
 
 replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
