@@ -180,6 +180,7 @@ func init() {
 	}
 	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
 	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/server")
+	settings_util.ConfigureGoClientFeatures()
 }
 
 // ArgoCDServer is the API server for Argo CD
