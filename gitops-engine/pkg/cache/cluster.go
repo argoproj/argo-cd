@@ -135,6 +135,8 @@ type ClusterInfo struct {
 	SyncError error
 	// APIResources holds list of API resources supported by the cluster
 	APIResources []kube.APIResourceInfo
+	// SyncWarnings holds warnings from the most recent sync (e.g. inaccessible namespaces)
+	SyncWarnings []string
 }
 
 // OnEventHandler is a function that handles Kubernetes event
@@ -268,9 +270,11 @@ type clusterCache struct {
 	resources map[kube.ResourceKey]*Resource
 	nsIndex   map[string]map[kube.ResourceKey]*Resource
 
-	kubectl          kube.Kubectl
-	log              logr.Logger
-	config           *rest.Config
+	kubectl kube.Kubectl
+	log     logr.Logger
+	config  *rest.Config
+	// clientset, when set, overrides the kubernetes clientset built from config (injectable for tests/SSAR).
+	clientset        kubernetes.Interface
 	namespaces       []string
 	clusterResources bool
 	settings         Settings
@@ -674,9 +678,9 @@ func (c *clusterCache) startMissingWatches() error {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	clientset, err := kubernetes.NewForConfig(c.config)
+	clientset, err := c.resolveClientset()
 	if err != nil {
-		return fmt.Errorf("failed to create clientset: %w", err)
+		return err
 	}
 	namespacedResources := make(map[schema.GroupKind]bool)
 	for i := range apis {
@@ -688,20 +692,25 @@ func (c *clusterCache) startMissingWatches() error {
 
 			err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 				resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
-				if err != nil && c.isRestrictedResource(err) {
-					keep := false
-					if c.respectRBAC == RespectRbacStrict {
-						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
-						if permErr != nil {
-							return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
-						}
-						keep = k
+				if err != nil {
+					if ns != "" {
+						return c.handleNamespacedListError(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, ns, err)
 					}
-					// if we are not allowed to list the resource, remove it from the watch list
-					if !keep {
-						delete(c.apisMeta, api.GroupKind)
-						delete(namespacedResources, api.GroupKind)
-						return nil
+					if c.isRestrictedResource(err) {
+						keep := false
+						if c.respectRBAC == RespectRbacStrict {
+							k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
+							if permErr != nil {
+								return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
+							}
+							keep = k
+						}
+						// if we are not allowed to list the resource, remove it from the watch list
+						if !keep {
+							delete(c.apisMeta, api.GroupKind)
+							delete(namespacedResources, api.GroupKind)
+							return nil
+						}
 					}
 				}
 				go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
@@ -936,6 +945,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 // processApi processes all the resources for a given API. First we construct an API client for the given API. Then we
 // call the callback. If we're managing the whole cluster, we call the callback with the client and an empty namespace.
 // If we're managing specific namespaces, we call the callback for each namespace.
+// The callback may return errSkipNamespace to skip the current namespace and continue with the next one.
 func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
 	resClient := client.Resource(api.GroupVersionResource)
 	switch {
@@ -946,6 +956,9 @@ func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResource
 	case len(c.namespaces) != 0 && api.Meta.Namespaced:
 		for _, ns := range c.namespaces {
 			err := callback(resClient.Namespace(ns), ns)
+			if errors.Is(err, errSkipNamespace) {
+				continue
+			}
 			if err != nil {
 				return err
 			}
@@ -1050,6 +1063,17 @@ func (c *clusterCache) handleNamespacedListError(ctx context.Context, reviewInte
 	return errSkipNamespace
 }
 
+func (c *clusterCache) resolveClientset() (kubernetes.Interface, error) {
+	if c.clientset != nil {
+		return c.clientset, nil
+	}
+	cs, err := kubernetes.NewForConfig(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create clientset: %w", err)
+	}
+	return cs, nil
+}
+
 // sync retrieves the current state of the cluster and stores relevant information in the clusterCache fields.
 //
 // First we get some metadata from the cluster, like the server version, OpenAPI document, and the list of all API
@@ -1077,6 +1101,7 @@ func (c *clusterCache) sync() error {
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
+	c.syncWarnings = nil
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1108,9 +1133,9 @@ func (c *clusterCache) sync() error {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := c.resolveClientset()
 	if err != nil {
-		return fmt.Errorf("failed to create clientset: %w", err)
+		return err
 	}
 
 	if c.batchEventsProcessing {
@@ -1144,6 +1169,9 @@ func (c *clusterCache) sync() error {
 				})
 			})
 			if err != nil {
+				if ns != "" {
+					return c.handleNamespacedListError(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, ns, err)
+				}
 				if c.isRestrictedResource(err) {
 					keep := false
 					if c.respectRBAC == RespectRbacStrict {
@@ -1170,6 +1198,7 @@ func (c *clusterCache) sync() error {
 			return nil
 		})
 	})
+
 	if err != nil {
 		c.log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
@@ -1723,6 +1752,9 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 	c.syncStatus.lock.Lock()
 	defer c.syncStatus.lock.Unlock()
 
+	c.syncWarningsLock.Lock()
+	warnings := append([]string(nil), c.syncWarnings...)
+	c.syncWarningsLock.Unlock()
 	return ClusterInfo{
 		APIsCount:         len(c.apisMeta),
 		K8SVersion:        c.serverVersion,
@@ -1731,6 +1763,7 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 		LastCacheSyncTime: c.syncStatus.syncTime,
 		SyncError:         c.syncStatus.syncError,
 		APIResources:      c.apiResources,
+		SyncWarnings:      warnings,
 	}
 }
 
