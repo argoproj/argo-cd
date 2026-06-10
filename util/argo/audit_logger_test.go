@@ -68,6 +68,7 @@ func captureLogEntries(run func()) string {
 }
 
 func TestNewAuditLogger(t *testing.T) {
+	t.Parallel()
 	logger := NewAuditLogger(fake.NewClientset(), _argocdNs, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 	assert.Equal(t, _argocdNs, logger.namespace)
@@ -75,6 +76,7 @@ func TestNewAuditLogger(t *testing.T) {
 }
 
 func TestLogAppProjEvent(t *testing.T) {
+	t.Parallel()
 	fakeClient := fake.NewClientset()
 	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
@@ -115,6 +117,7 @@ func TestLogAppProjEvent(t *testing.T) {
 }
 
 func TestLogAppEvent(t *testing.T) {
+	t.Parallel()
 	fakeClient := fake.NewClientset()
 	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
@@ -168,6 +171,7 @@ func TestLogAppEvent(t *testing.T) {
 }
 
 func TestLogResourceEvent(t *testing.T) {
+	t.Parallel()
 	logger := NewAuditLogger(fake.NewClientset(), _argocdNs, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
@@ -208,6 +212,7 @@ func TestLogResourceEvent(t *testing.T) {
 }
 
 func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.T) {
+	t.Parallel()
 	fakeClient := fake.NewClientset()
 	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
 
@@ -248,6 +253,7 @@ func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.
 }
 
 func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
+	t.Parallel()
 	fakeClient := fake.NewClientset()
 	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
 
@@ -281,6 +287,7 @@ func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
 }
 
 func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		resourceKind  string
@@ -315,6 +322,7 @@ func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			fakeClient := fake.NewClientset()
 			logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
 
@@ -350,6 +358,7 @@ func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
 }
 
 func TestLogResourceEvent_EmptyNamespace(t *testing.T) {
+	t.Parallel()
 	fakeClient := fake.NewClientset()
 	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
 
