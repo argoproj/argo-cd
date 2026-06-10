@@ -297,3 +297,79 @@ func TestMultiSourceAppErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 			assert.ErrorContains(t, err, "Only one of source-positions and source-names can be specified.")
 		})
 }
+
+// TestMultiSourceAppWithWorktreeSameRepoMultipleRevisions tests the scenario where
+// a multi-source application uses the same git repository with different target revisions.
+// This validates that git worktrees are properly used to checkout different revisions
+// simultaneously and that value files are correctly resolved from the appropriate worktree.
+//
+// The revisions must actually differ for this to exercise the worktree path: the reposerver
+// only creates a worktree when the ref source resolves the repository to a different commit
+// than the primary source (see needsWorktree in reposerver/repository/repository.go). If both
+// sources tracked HEAD they would resolve to the same commit and the ordinary single-checkout
+// path would handle the app, which is legal on any release and would prove nothing.
+func TestMultiSourceAppWithWorktreeSameRepoMultipleRevisions(t *testing.T) {
+	// Tags the initial commit, where multiple-source-values/values.yaml is `replicas: 3`.
+	const pinnedValuesTag = "pinned-values"
+	// Committed on top of the tag, so HEAD carries a different value than the pinned revision.
+	const headValuesFile = "replicas: 5\n"
+
+	sources := []ApplicationSource{{
+		RepoURL:        RepoURL(RepoURLTypeFile),
+		TargetRevision: pinnedValuesTag,
+		Ref:            "values",
+	}, {
+		RepoURL:        RepoURL(RepoURLTypeFile),
+		TargetRevision: "HEAD",
+		Path:           "helm-guestbook",
+		Helm: &ApplicationSourceHelm{
+			ReleaseName: "helm-guestbook",
+			ValueFiles: []string{
+				"$values/multiple-source-values/values.yaml",
+			},
+		},
+	}}
+	ctx := Given(t)
+	ctx.
+		Sources(sources).
+		When().
+		// Pin the tag to the current values, then move HEAD past it. The ref source stays on the
+		// tag while the chart source follows HEAD, so the two sources need separate checkouts of
+		// the same repository at once.
+		AddTag(pinnedValuesTag).
+		AddFile("multiple-source-values/values.yaml", headValuesFile).
+		CreateMultiSourceAppFromFile(func(_ *Application) {}).
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, ctx.GetName(), app.Name)
+			assert.Len(t, app.Spec.GetSources(), 2)
+			assert.Equal(t, ctx.DeploymentNamespace(), app.Spec.Destination.Namespace)
+		}).
+		Expect(Event(EventReasonResourceCreated, "create")).
+		And(func(_ *Application) {
+			output, err := RunCli("app", "list")
+			require.NoError(t, err)
+			assert.Contains(t, output, ctx.GetName())
+		}).
+		Expect(Success("")).
+		Given().Timeout(60).
+		When().Wait().Then().
+		Expect(Success("")).
+		And(func(app *Application) {
+			statusByName := map[string]SyncStatusCode{}
+			for _, r := range app.Status.Resources {
+				statusByName[r.Name] = r.Status
+			}
+			// The helm-guestbook should be synced with values from the ref source
+			assert.Equal(t, SyncStatusCodeSynced, statusByName["guestbook-ui"])
+
+			// Confirm the values file was read from the worktree checked out at the pinned tag.
+			// The three candidate sources of this value are distinct, so the assertion pins down
+			// which checkout was used: 3 = the pinned worktree (correct), 5 = the primary HEAD
+			// checkout (worktree ignored/misresolved), 1 = the chart's own values.yaml default
+			// (the $values ref was dropped entirely).
+			output, err := Run("", "kubectl", "get", "deployment", "guestbook-ui", "-n", ctx.DeploymentNamespace(), "-o", "jsonpath={.spec.replicas}")
+			require.NoError(t, err)
+			assert.Equal(t, "3", output, "expected 3 replicas from the values file at %q; 5 means the primary HEAD checkout was used instead of the worktree, 1 means the $values ref was not applied", pinnedValuesTag)
+		})
+}

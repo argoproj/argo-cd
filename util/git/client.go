@@ -167,6 +167,10 @@ type Client interface {
 	AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error
 	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
 	HasFileChanged(ctx context.Context, filePath string) (bool, error)
+	// CreateWorktree adds a detached git worktree at path for the given revision.
+	CreateWorktree(ctx context.Context, revision string, path string) error
+	// RemoveWorktree removes the git worktree at path.
+	RemoveWorktree(ctx context.Context, path string) error
 }
 
 type EventHandlers struct {
@@ -805,6 +809,23 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 		}
 	}
 	return "", nil
+}
+
+// CreateWorktree adds a detached git worktree at path for the given revision. The worktree shares
+// the main repository's object database.
+func (m *nativeGitClient) CreateWorktree(ctx context.Context, revision string, path string) error {
+	if out, err := m.runCmd(ctx, "worktree", "add", "--detach", path, revision); err != nil {
+		return fmt.Errorf("failed to create worktree at %s for revision %s: %s, %w", path, revision, out, err)
+	}
+	return nil
+}
+
+// RemoveWorktree removes the git worktree at path. --force handles untracked or modified files.
+func (m *nativeGitClient) RemoveWorktree(ctx context.Context, path string) error {
+	if out, err := m.runCmd(ctx, "worktree", "remove", "--force", path); err != nil {
+		return fmt.Errorf("failed to remove worktree at %s: %s, %w", path, out, err)
+	}
+	return nil
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {

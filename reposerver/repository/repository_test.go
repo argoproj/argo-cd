@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
+	argosync "github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -565,7 +567,11 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 2,
-		ExternalGets: 4,
+		// Three git-refs reads and two manifest reads. The third git-refs read resolves the ref
+		// source's revision: it used to be skipped because building the cache key rewrote
+		// TargetRevision to a resolved SHA in this very request, which is a side effect the key
+		// builder no longer has. It is a cached read - LsRemote is still never called.
+		ExternalGets: 5,
 	})
 }
 
@@ -3564,7 +3570,7 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	}
 	appPath, err := filepath.Abs("./testdata/values-files/")
 	require.NoError(t, err)
-	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths)
+	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, &q, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 5)
@@ -3676,7 +3682,10 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			},
 		},
 		{
-			name: "same_repo_diff_revision_error",
+			// A ref source pointing at the app's own repository at a different revision used to be
+			// rejected here. It is now served from a worktree, matching manifest generation, so the
+			// details pane stays usable for apps that sync fine.
+			name: "same_repo_diff_revision_uses_worktree",
 			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
 				query := queryTemplate
 				query.RefSources = map[string]*v1alpha1.RefTarget{
@@ -3693,33 +3702,87 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
+				paths.EXPECT().Add(repoURL+"@"+refSha, mock.AnythingOfType("string")).Return()
+				paths.EXPECT().Remove(repoURL + "@" + refSha).Return()
+				// Keyed by commit, not by repo URL: resolving the value file against the plain repo
+				// URL would read the primary checkout instead of the worktree. A regression there
+				// calls GetPathIfExists(repoURL), which has no expectation and fails the test.
+				paths.EXPECT().GetPathIfExists(repoURL + "@" + refSha).Return(refRoot)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
 				client.EXPECT().LsRemote(refTargetRevision2).Return(refSha, nil)
+				client.EXPECT().Root().Return(repoRoot)
+				client.EXPECT().IsRevisionPresent(mock.Anything, refSha).Return(true)
+				client.EXPECT().CreateWorktree(mock.Anything, refSha, mock.AnythingOfType("string")).Return(nil)
+				client.EXPECT().RemoveWorktree(mock.Anything, mock.AnythingOfType("string")).Return(nil)
 				return &client, nil
 			},
 
 			testResults: func(t *testing.T) {
 				t.Helper()
-				expMsg := fmt.Sprintf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q", refName, refTargetRevision2, refSha, targetRevision, sha)
-				require.Error(t, err)
-				require.ErrorContains(t, err, expMsg)
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
+				for _, v := range res.Helm.Parameters {
+					require.NotNil(t, v)
+					assert.Equal(t, v1alpha1.HelmParameter{Name: "values", Value: "yaml", ForceString: false}, *v)
+				}
 			},
 		},
 		{
-			name: "same_ref_repo_diff_revision_error",
+			// A repository with no repository secret arrives untyped, and Repository.Type documents
+			// that an empty type means git. Treating untyped as non-git skipped the ref entirely, so
+			// its value files silently resolved against the primary checkout - the wrong revision.
+			name: "untyped_repo_is_treated_as_git",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				query.Repo = &v1alpha1.Repository{Repo: repoURL} // no Type, as for an unregistered repo
+				query.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo:           v1alpha1.Repository{Repo: repoURL},
+						TargetRevision: refTargetRevision2,
+					},
+				}
+				return query
+			},
+
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
+				paths.EXPECT().Add(repoURL+"@"+refSha, mock.AnythingOfType("string")).Return()
+				paths.EXPECT().Remove(repoURL + "@" + refSha).Return()
+				paths.EXPECT().GetPathIfExists(repoURL + "@" + refSha).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().LsRemote(refTargetRevision2).Return(refSha, nil)
+				client.EXPECT().Root().Return(repoRoot)
+				client.EXPECT().IsRevisionPresent(mock.Anything, refSha).Return(true)
+				client.EXPECT().CreateWorktree(mock.Anything, refSha, mock.AnythingOfType("string")).Return(nil)
+				client.EXPECT().RemoveWorktree(mock.Anything, mock.AnythingOfType("string")).Return(nil)
+				return &client, nil
+			},
+
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
+			},
+		},
+		{
+			// Two refs to the same repository at different revisions used to be rejected. The second
+			// revision now gets a worktree alongside the first ref's checkout.
+			name: "same_ref_repo_diff_revision_uses_worktree",
 			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
 				query := queryTemplate
 				delete(query.RefSources, "$values")
-				query.RefSources["$valuesA"] = &v1alpha1.RefTarget{
+				query.RefSources[refNameA] = &v1alpha1.RefTarget{
 					Repo: v1alpha1.Repository{
 						Type: "git",
 						Repo: refRepoURL,
 					},
 					TargetRevision: refTargetRevision,
 				}
-				query.RefSources["$valuesB"] = &v1alpha1.RefTarget{
+				query.RefSources[refNameB] = &v1alpha1.RefTarget{
 					Repo: v1alpha1.Repository{
 						Type: "git",
 						Repo: refRepoURL,
@@ -3733,7 +3796,11 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
 				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
-				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				// $valuesA holds the ordinary checkout; $valuesB resolves through its worktree.
+				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
+				paths.EXPECT().Add(refRepoURL+"@"+refSha2, mock.AnythingOfType("string")).Return()
+				paths.EXPECT().Remove(refRepoURL + "@" + refSha2).Return()
+				paths.EXPECT().GetPathIfExists(refRepoURL + "@" + refSha2).Return(refRoot)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
@@ -3744,15 +3811,15 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().IsRevisionPresent(mock.Anything, refSha).Return(true)
 				client.EXPECT().IsRevisionPresent(mock.Anything, refSha2).Return(true)
 				client.EXPECT().Checkout(mock.Anything, refSha, false, true).Return("", nil)
-				client.EXPECT().Checkout(mock.Anything, refSha2, false, true).Return("", nil)
+				client.EXPECT().CreateWorktree(mock.Anything, refSha2, mock.AnythingOfType("string")).Return(nil)
+				client.EXPECT().RemoveWorktree(mock.Anything, mock.AnythingOfType("string")).Return(nil)
 				return &client, nil
 			},
 
 			testResults: func(t *testing.T) {
 				t.Helper()
-				expMsg := fmt.Sprintf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q", refNameB, refTargetRevision2, refSha2, refNameA, refTargetRevision, refSha)
-				require.Error(t, err)
-				require.ErrorContains(t, err, expMsg)
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
 			},
 		},
 		{
@@ -3861,10 +3928,12 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			query := tc.makeQuery()
 			service, _, _ := newServiceWithOpt(t, tc.mockOpts, ".")
 			service.newGitClient = tc.newGitClient
+			// Keep worktrees out of the source tree; NewService derives this from the "." root.
+			service.worktreeRootDir = t.TempDir()
 			appPath, err = filepath.Abs(repoRoot)
 			require.NoError(t, err)
 			res = apiclient.RepoAppDetailsResponse{}
-			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths)
+			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, &query, service.gitRepoPaths)
 			tc.testResults(t)
 		})
 	}
@@ -3877,7 +3946,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res.Helm.Values)
 		assert.NotEmpty(t, res.Helm.Parameters)
@@ -3886,7 +3955,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("out of bounds", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)
@@ -4125,7 +4194,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false)
+			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false, nil)
 			if !tcc.expectedErr {
 				require.NoError(t, err)
 				require.Len(t, resolvedPaths, 1)
@@ -4348,7 +4417,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			repoPath := path.Join(tempDir, "main-repo")
-			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, tt.ignoreMissingValueFiles)
+			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, tt.ignoreMissingValueFiles, nil)
 			if tt.expectedErr {
 				require.Error(t, err)
 				return
@@ -4375,7 +4444,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"envs/*.yaml", // glob - z.yaml is explicit so skipped; only a.yaml added
 				"envs/z.yaml", // explicit - placed last, highest precedence
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, false, nil,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4393,7 +4462,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/a.yaml", // explicit locks in position 0
 				"prod/*.yaml", // glob - a.yaml already seen, only b.yaml is new
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, false, nil,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4411,7 +4480,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/*.yaml", // glob - a.yaml is explicit so skipped; only b.yaml added (pos 0)
 				"prod/a.yaml", // explicit - placed here at pos 1 (highest precedence)
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, false, nil,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4429,7 +4498,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/*.yaml",    // adds a.yaml, b.yaml
 				"prod/**/*.yaml", // a.yaml, b.yaml already seen; adds nested/c.yaml, nested/d.yaml
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, false, nil,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 4)
@@ -4452,7 +4521,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/**/*.yaml",     // a.yaml, b.yaml, nested/c.yaml all explicit and skipped; nested/d.yaml added - pos 2
 				"prod/nested/c.yaml", // explicit - pos 3
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, false, nil,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 4)
@@ -4575,7 +4644,7 @@ func Test_getResolvedValueFiles_glob_symlink_escape(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(outsideDir, "secret.yaml"), []byte("password: hunter2"), 0o644))
 	require.NoError(t, os.Symlink(filepath.Join(outsideDir, "secret.yaml"), filepath.Join(repoDir, "values", "escape.yaml")))
 
-	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "resolved to outside repository root")
 }
@@ -6194,4 +6263,691 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 
 	require.Len(t, helmRepos, 1)
 	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestGenerateManifest_MultiSource_SameRepoWithDifferentRevisions(t *testing.T) {
+	// This test validates that multi-source applications can reference the same
+	// git repository with different target revisions by using git worktrees.
+	root, err := filepath.Abs("../../util/helm/testdata")
+	require.NoError(t, err)
+
+	primarySHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	refSHA := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	paths := &iomocks.TempPaths{}
+	helmClient := &helmmocks.Client{}
+	ociClient := &ocimocks.Client{}
+
+	// Create two separate git clients - one for primary, one for ref source
+	primaryGitClient := &gitmocks.Client{}
+	refGitClient := &gitmocks.Client{}
+
+	// Primary source checkout behavior
+	primaryGitClient.EXPECT().Init().Return(nil)
+	primaryGitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+	primaryGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	primaryGitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+	primaryGitClient.EXPECT().LsRemote("main").Return(primarySHA, nil)
+	primaryGitClient.EXPECT().CommitSHA(mock.Anything).Return(primarySHA, nil)
+	primaryGitClient.EXPECT().Root().Return(root)
+	primaryGitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+	primaryGitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
+
+	// Ref source behavior - uses worktree since different revision
+	refGitClient.EXPECT().Init().Return(nil)
+	refGitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+	refGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	refGitClient.EXPECT().LsRemote("v1.0.0").Return(refSHA, nil)
+	refGitClient.EXPECT().CommitSHA(mock.Anything).Return(refSHA, nil)
+	refGitClient.EXPECT().CreateWorktree(mock.Anything, refSHA, mock.AnythingOfType("string")).Return(nil)
+	refGitClient.EXPECT().RemoveWorktree(mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+	refGitClient.EXPECT().Root().Return(root)
+
+	// Track which client to return
+	callCount := 0
+
+	// Helm client setup
+	helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+		"redis": {{Version: "1.0.0"}},
+	}}, nil)
+	helmClient.EXPECT().GetTags(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// OCI client setup
+	ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+	ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+
+	// Paths mock - Add is called for both primary and worktree
+	paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+	paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+	paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+	paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	paths.EXPECT().Remove(mock.Anything).Return()
+
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, root)
+	service.newGitClient = func(_, _ string, _ git.Creds, _, _ bool, _, _ string, _ ...git.ClientOpts) (git.Client, error) {
+		callCount++
+		if callCount == 1 {
+			return primaryGitClient, nil
+		}
+		return refGitClient, nil
+	}
+	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _, _ string, _ ...helm.ClientOpts) helm.Client {
+		return helmClient
+	}
+	service.newOCIClient = func(_ string, _ oci.Creds, _, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
+		return ociClient, nil
+	}
+	service.gitRepoInitializer = func(_ string) goio.Closer {
+		return utilio.NopCloser
+	}
+	service.gitRepoPaths = paths
+
+	// Create a request with same repo but different target revisions
+	req := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{
+			Repo: "https://github.com/example/repo.git",
+		},
+		Revision: "main",
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			RepoURL:        "https://github.com/example/repo.git",
+			Path:           "./redis",
+			TargetRevision: "main",
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$values/redis/values-production.yaml"},
+			},
+		},
+		HasMultipleSources: true,
+		NoCache:            true,
+		ProjectName:        "test-project",
+		ProjectSourceRepos: []string{"*"},
+		// RefSources with same repo but different revision
+		RefSources: map[string]*v1alpha1.RefTarget{
+			"$values": {
+				TargetRevision: "v1.0.0", // Different revision than primary source
+				Repo: v1alpha1.Repository{
+					Repo: "https://github.com/example/repo.git", // Same repo as primary
+				},
+			},
+		},
+	}
+
+	// The test should succeed - worktree allows same repo with different revisions
+	_, err = service.GenerateManifest(t.Context(), req)
+	// We expect no error since worktrees should handle different revisions
+	// Note: The actual manifest generation may still fail due to missing files,
+	// but the key assertion is that we don't get the old
+	// "cannot reference the same repository multiple times when the" error
+	if err != nil {
+		assert.NotContains(t, err.Error(), "cannot reference the same repository multiple times")
+	}
+
+	// Verify that CreateWorktree was called on refGitClient
+	// RemoveWorktree is called via defer, which may happen after test assertions in some timing scenarios
+	refGitClient.AssertCalled(t, "CreateWorktree", mock.Anything, refSHA, mock.AnythingOfType("string"))
+}
+
+// TestGenerateManifest_MultiSource_WorktreeOutOfBoundsSymlinkRejected verifies that the worktree
+// path runs the out-of-bounds symlink check: a worktree containing a symlink that escapes its root
+// must cause manifest generation to fail.
+func TestGenerateManifest_MultiSource_WorktreeOutOfBoundsSymlinkRejected(t *testing.T) {
+	// Real root so the primary source's app path (./redis) resolves; the worktree itself is created
+	// under a temp dir (service.worktreeRootDir override below).
+	root, err := filepath.Abs("../../util/helm/testdata")
+	require.NoError(t, err)
+
+	primarySHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	refSHA := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	// A file outside any worktree; the malicious symlink points here.
+	outsideFile := filepath.Join(t.TempDir(), "secret.yaml")
+	require.NoError(t, os.WriteFile(outsideFile, []byte("secret: true"), 0o600))
+
+	paths := &iomocks.TempPaths{}
+	helmClient := &helmmocks.Client{}
+	ociClient := &ocimocks.Client{}
+	primaryGitClient := &gitmocks.Client{}
+	refGitClient := &gitmocks.Client{}
+
+	primaryGitClient.EXPECT().Init().Return(nil)
+	primaryGitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+	primaryGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	primaryGitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+	primaryGitClient.EXPECT().LsRemote("main").Return(primarySHA, nil)
+	primaryGitClient.EXPECT().CommitSHA(mock.Anything).Return(primarySHA, nil)
+	primaryGitClient.EXPECT().Root().Return(root)
+	primaryGitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+	primaryGitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
+
+	refGitClient.EXPECT().Init().Return(nil)
+	refGitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+	refGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	refGitClient.EXPECT().LsRemote("v1.0.0").Return(refSHA, nil)
+	refGitClient.EXPECT().CommitSHA(mock.Anything).Return(refSHA, nil)
+	refGitClient.EXPECT().Root().Return(root)
+	// Create a real worktree directory containing an out-of-bounds symlink.
+	refGitClient.EXPECT().CreateWorktree(mock.Anything, refSHA, mock.AnythingOfType("string")).RunAndReturn(func(_ context.Context, _ string, worktreePath string) error {
+		if err := os.MkdirAll(worktreePath, 0o700); err != nil {
+			return err
+		}
+		return os.Symlink(outsideFile, filepath.Join(worktreePath, "evil.yaml"))
+	})
+	refGitClient.EXPECT().RemoveWorktree(mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+
+	callCount := 0
+	helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+		"redis": {{Version: "1.0.0"}},
+	}}, nil).Maybe()
+	helmClient.EXPECT().GetTags(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
+
+	paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+	paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+	paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+	paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	paths.EXPECT().Remove(mock.Anything).Return()
+
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, root)
+	service.newGitClient = func(_, _ string, _ git.Creds, _, _ bool, _, _ string, _ ...git.ClientOpts) (git.Client, error) {
+		callCount++
+		if callCount == 1 {
+			return primaryGitClient, nil
+		}
+		return refGitClient, nil
+	}
+	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _, _ string, _ ...helm.ClientOpts) helm.Client {
+		return helmClient
+	}
+	service.newOCIClient = func(_ string, _ oci.Creds, _, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
+		return ociClient, nil
+	}
+	service.gitRepoInitializer = func(_ string) goio.Closer {
+		return utilio.NopCloser
+	}
+	service.gitRepoPaths = paths
+	// Keep worktrees under a temp dir so they are cleaned up with the test.
+	service.worktreeRootDir = t.TempDir()
+
+	req := &apiclient.ManifestRequest{
+		Repo:     &v1alpha1.Repository{Repo: "https://github.com/example/repo.git"},
+		Revision: "main",
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			RepoURL:        "https://github.com/example/repo.git",
+			Path:           "./redis",
+			TargetRevision: "main",
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$values/redis/values-production.yaml"},
+			},
+		},
+		HasMultipleSources: true,
+		NoCache:            true,
+		ProjectName:        "test-project",
+		ProjectSourceRepos: []string{"*"},
+		RefSources: map[string]*v1alpha1.RefTarget{
+			"$values": {
+				TargetRevision: "v1.0.0",
+				Repo:           v1alpha1.Repository{Repo: "https://github.com/example/repo.git"},
+			},
+		},
+	}
+
+	_, err = service.GenerateManifest(t.Context(), req)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out-of-bounds symlinks")
+}
+
+// TestCreateAndRegisterWorktree_SerializesPerRoot verifies that concurrent worktree creations
+// against the same repository root are serialized by gitWorktreeLock, preventing the git fetch /
+// worktree-add races on the shared .git directory. Run with -race for full coverage.
+func TestCreateAndRegisterWorktree_SerializesPerRoot(t *testing.T) {
+	paths := &iomocks.TempPaths{}
+	paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Root().Return("/fake/repo/root")
+	// Revision already present locally, so Fetch is skipped; the worktree-add is the critical section.
+	gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
+
+	var inFlight atomic.Int32
+	var maxInFlight atomic.Int32
+	gitClient.EXPECT().CreateWorktree(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, _ string, _ string) error {
+		cur := inFlight.Add(1)
+		for {
+			prev := maxInFlight.Load()
+			if cur <= prev || maxInFlight.CompareAndSwap(prev, cur) {
+				break
+			}
+		}
+		time.Sleep(10 * time.Millisecond) // widen the window so an unserialized race would overlap
+		inFlight.Add(-1)
+		return nil
+	})
+
+	s := &Service{
+		gitWorktreeLock: argosync.NewKeyLock(),
+		gitRepoPaths:    paths,
+		worktrees:       map[string]*worktreeRef{},
+		worktreeRootDir: t.TempDir(),
+	}
+
+	const goroutines = 8
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := range goroutines {
+		go func(i int) {
+			defer wg.Done()
+			// Distinct commit SHAs so each registers a unique worktree path, but the same root.
+			_, _, err := s.createAndRegisterWorktree(t.Context(), gitClient, "https://github.com/example/repo.git", fmt.Sprintf("%040d", i), 0)
+			assert.NoError(t, err)
+		}(i)
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), maxInFlight.Load(), "worktree operations on the same repo root must be serialized")
+}
+
+// TestCreateAndRegisterWorktree_RefCountsSharedWorktree verifies that concurrent requests (and
+// repeated refs) for the same repo+commit share a single worktree, which is created once and
+// removed only when the last user releases it — preventing duplicate worktrees and a gitRepoPaths
+// registry collision where one request deletes another's still-active registration.
+func TestCreateAndRegisterWorktree_RefCountsSharedWorktree(t *testing.T) {
+	const repoURL = "https://github.com/example/repo.git"
+	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	// createAndRegisterWorktree takes an already-normalized repo URL (as the production caller does).
+	normalizedRepoURL := git.NormalizeGitURL(repoURL)
+	key := normalizedRepoURL + "@" + sha
+
+	registered := map[string]string{}
+	var registeredMu sync.Mutex
+	paths := &iomocks.TempPaths{}
+	paths.EXPECT().Add(mock.Anything, mock.Anything).Run(func(k, v string) {
+		registeredMu.Lock()
+		registered[k] = v
+		registeredMu.Unlock()
+	}).Return()
+	paths.EXPECT().Remove(mock.Anything).Run(func(k string) {
+		registeredMu.Lock()
+		delete(registered, k)
+		registeredMu.Unlock()
+	}).Return()
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Root().Return("/fake/repo/root")
+	gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
+	var createCalls, removeCalls atomic.Int32
+	gitClient.EXPECT().CreateWorktree(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, _ string, _ string) error {
+		createCalls.Add(1)
+		return nil
+	})
+	gitClient.EXPECT().RemoveWorktree(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, _ string) error {
+		removeCalls.Add(1)
+		return nil
+	}).Maybe()
+
+	s := &Service{
+		gitWorktreeLock: argosync.NewKeyLock(),
+		gitRepoPaths:    paths,
+		worktrees:       map[string]*worktreeRef{},
+		worktreeRootDir: t.TempDir(),
+	}
+
+	const goroutines = 8
+	var wg sync.WaitGroup
+	paths1 := make([]string, goroutines)
+	cleanups := make([]*worktreeCleanup, goroutines)
+	wg.Add(goroutines)
+	for i := range goroutines {
+		go func(i int) {
+			defer wg.Done()
+			p, cleanup, err := s.createAndRegisterWorktree(t.Context(), gitClient, normalizedRepoURL, sha, 0)
+			assert.NoError(t, err)
+			paths1[i] = p
+			cleanups[i] = cleanup
+		}(i)
+	}
+	wg.Wait()
+
+	// One physical worktree created and shared by all callers.
+	assert.Equal(t, int32(1), createCalls.Load(), "same repo+commit must create exactly one worktree")
+	for i := 1; i < goroutines; i++ {
+		assert.Equal(t, paths1[0], paths1[i], "all callers must receive the same shared worktree path")
+	}
+	registeredMu.Lock()
+	assert.Equal(t, paths1[0], registered[key], "worktree path must be registered under repo@sha")
+	registeredMu.Unlock()
+
+	// Releasing all but the last reference must NOT remove the worktree.
+	for i := range goroutines - 1 {
+		cleanups[i].cleanup()
+	}
+	assert.Equal(t, int32(0), removeCalls.Load(), "worktree must stay while references remain")
+	registeredMu.Lock()
+	_, stillRegistered := registered[key]
+	registeredMu.Unlock()
+	assert.True(t, stillRegistered, "registration must persist while references remain")
+
+	// The final release removes it.
+	cleanups[goroutines-1].cleanup()
+	assert.Equal(t, int32(1), removeCalls.Load(), "worktree must be removed once after the last release")
+	registeredMu.Lock()
+	_, stillRegistered = registered[key]
+	registeredMu.Unlock()
+	assert.False(t, stillRegistered, "registration must be removed after the last release")
+}
+
+// TestGetResolvedValueFiles_GlobFromWorktreeUsesWorktreeRoot verifies that a globbed $ref value
+// file from a same-repo/different-revision source is boundary-checked against the worktree root
+// (where the files actually live), not the main checkout root. Before the fix, effectiveRoot was
+// derived from the plain repo key, so the glob matches resolved "outside repository root".
+func TestGetResolvedValueFiles_GlobFromWorktreeUsesWorktreeRoot(t *testing.T) {
+	const repoURL = "https://github.com/example/repo.git"
+	const sha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	base := t.TempDir()
+	mainDir := filepath.Join(base, "main")   // plain repo key -> main checkout (no value files)
+	worktreeDir := filepath.Join(base, "wt") // repo@sha key -> worktree with the value files
+	require.NoError(t, os.MkdirAll(mainDir, 0o755))
+	require.NoError(t, os.MkdirAll(worktreeDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(worktreeDir, "a.yaml"), []byte("a: 1"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(worktreeDir, "b.yaml"), []byte("b: 2"), 0o644))
+
+	paths := utilio.NewRandomizedTempPaths(base)
+	paths.Add(git.NormalizeGitURL(repoURL), mainDir)
+	paths.Add(git.NormalizeGitURL(repoURL)+"@"+sha, worktreeDir)
+
+	refSources := map[string]*v1alpha1.RefTarget{
+		"$values": {Repo: v1alpha1.Repository{Repo: repoURL}},
+	}
+	refSourceCommitSHAs := map[string]string{"$values": sha}
+
+	resolved, err := getResolvedValueFiles(
+		mainDir, mainDir, &v1alpha1.Env{}, []string{},
+		[]string{"$values/*.yaml"},
+		refSources, paths, false, refSourceCommitSHAs,
+	)
+	require.NoError(t, err)
+	require.Len(t, resolved, 2)
+	assert.Equal(t, filepath.Join(worktreeDir, "a.yaml"), string(resolved[0]))
+	assert.Equal(t, filepath.Join(worktreeDir, "b.yaml"), string(resolved[1]))
+}
+
+// TestInit_RemovesOrphanedWorktrees verifies that startup cleanup removes worktree working
+// directories and stale .git/worktrees admin entries left behind by a previous process (e.g. a
+// crash), which would otherwise accumulate on the repo-server volume across restarts.
+func TestInit_RemovesOrphanedWorktrees(t *testing.T) {
+	base := t.TempDir()
+	rootDir := filepath.Join(base, "_argocd-repo")
+
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	s := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{}, &git.NoopCredsStore{}, rootDir)
+
+	// Orphaned worktree working directory under the dedicated worktree root.
+	orphanWorktree := filepath.Join(s.worktreeRootDir, "argocd-worktree-orphan")
+	require.NoError(t, os.MkdirAll(orphanWorktree, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(orphanWorktree, "checkout.yaml"), []byte("x: 1"), 0o644))
+
+	// Stale worktree admin entry inside a previously cloned repo.
+	repoClone := filepath.Join(rootDir, "some-repo")
+	adminDir := filepath.Join(repoClone, ".git", "worktrees", "stale")
+	require.NoError(t, os.MkdirAll(adminDir, 0o700))
+
+	require.NoError(t, s.Init())
+
+	// The orphaned working directory is gone, but the (empty) worktree root remains.
+	_, err := os.Stat(orphanWorktree)
+	assert.True(t, os.IsNotExist(err), "orphaned worktree dir should be removed")
+	_, err = os.Stat(s.worktreeRootDir)
+	assert.NoError(t, err, "worktree root dir should be recreated")
+
+	// The stale admin entry is pruned. Init locks the clone down (0000), so restore read access first.
+	require.NoError(t, os.Chmod(repoClone, 0o700))
+	_, err = os.Stat(filepath.Join(repoClone, ".git", "worktrees"))
+	assert.True(t, os.IsNotExist(err), "stale .git/worktrees admin dir should be pruned")
+
+	// Init also locks rootDir to 0300; restore it so t.TempDir cleanup can remove the tree.
+	require.NoError(t, os.Chmod(rootDir, 0o700))
+}
+
+func TestRefRevisionKeyer(t *testing.T) {
+	const (
+		primaryURL = "https://github.com/foo/primary"
+		otherURL   = "https://github.com/foo/other"
+		shaX       = "aaaa000000000000000000000000000000000000"
+		shaY       = "bbbb111111111111111111111111111111111111"
+		shaZ       = "cccc222222222222222222222222222222222222"
+	)
+
+	type call struct {
+		repoURL      string
+		commitSHA    string
+		wantKey      string
+		wantWorktree bool
+	}
+
+	testCases := []struct {
+		name  string
+		calls []call
+	}{
+		{
+			name:  "first revision of an unrelated repo takes the plain URL",
+			calls: []call{{otherURL, shaY, otherURL, false}},
+		},
+		{
+			name:  "ref matching the primary source's commit shares its checkout",
+			calls: []call{{primaryURL, shaX, primaryURL, false}},
+		},
+		{
+			name:  "ref on the primary repo at another commit needs a worktree",
+			calls: []call{{primaryURL, shaY, primaryURL + "@" + shaY, true}},
+		},
+		{
+			name: "second revision of the same repo is keyed separately",
+			calls: []call{
+				{otherURL, shaY, otherURL, false},
+				{otherURL, shaZ, otherURL + "@" + shaZ, true},
+			},
+		},
+		{
+			// Otherwise a repeated ref would create a redundant worktree at a commit the ordinary
+			// checkout already holds.
+			name: "repeat of an already-checked-out commit reuses the plain URL",
+			calls: []call{
+				{otherURL, shaY, otherURL, false},
+				{otherURL, shaY, otherURL, false},
+			},
+		},
+		{
+			name: "three revisions of the same repo each get a key",
+			calls: []call{
+				{primaryURL, shaX, primaryURL, false},
+				{primaryURL, shaY, primaryURL + "@" + shaY, true},
+				{primaryURL, shaZ, primaryURL + "@" + shaZ, true},
+				{primaryURL, shaY, primaryURL + "@" + shaY, true},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			keyer := newRefRevisionKeyer(primaryURL, shaX)
+			for i, c := range tc.calls {
+				key, needsWorktree := keyer.key(c.repoURL, c.commitSHA)
+				assert.Equal(t, c.wantKey, key, "call %d key", i)
+				assert.Equal(t, c.wantWorktree, needsWorktree, "call %d worktree", i)
+			}
+		})
+	}
+}
+
+// Test_resolveReferencedSources_recordsEveryRevision covers the cache-invalidation half of the
+// worktree feature: the manifest cache key has to carry every referenced revision. Recording only
+// the first commit per repository (the previous behaviour) meant a commit on a second referenced
+// revision left the key unchanged.
+func Test_resolveReferencedSources_recordsEveryRevision(t *testing.T) {
+	const (
+		primaryURL = "https://github.com/foo/primary"
+		otherURL   = "https://github.com/foo/other"
+		primarySHA = "aaaa000000000000000000000000000000000000"
+		shaStable  = "bbbb111111111111111111111111111111111111"
+		shaDev     = "cccc222222222222222222222222222222222222"
+	)
+
+	// Resolves each target revision to a distinct commit, and counts lookups so we can assert
+	// repeated references to one revision are not re-resolved.
+	revisions := map[string]string{"stable": shaStable, "dev": shaDev, "main": primarySHA}
+	var lookups int
+	resolver := func(_ *v1alpha1.Repository, revision string, _ ...git.ClientOpts) (git.Client, string, error) {
+		lookups++
+		sha, ok := revisions[revision]
+		if !ok {
+			return nil, "", fmt.Errorf("unexpected revision %q", revision)
+		}
+		return nil, sha, nil
+	}
+
+	testCases := []struct {
+		name        string
+		source      *v1alpha1.ApplicationSourceHelm
+		refSources  map[string]*v1alpha1.RefTarget
+		want        map[string]string
+		wantLookups int
+	}{
+		{
+			name:   "two revisions of the same repo are both recorded",
+			source: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$a/v.yaml", "$b/v.yaml"}},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$a": {Repo: v1alpha1.Repository{Repo: otherURL}, TargetRevision: "stable"},
+				"$b": {Repo: v1alpha1.Repository{Repo: otherURL}, TargetRevision: "dev"},
+			},
+			want: map[string]string{
+				otherURL:                shaStable,
+				otherURL + "@" + shaDev: shaDev,
+			},
+			wantLookups: 2,
+		},
+		{
+			name:   "ref on the app's own repo at another revision is keyed by commit",
+			source: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$a/v.yaml"}},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$a": {Repo: v1alpha1.Repository{Repo: primaryURL}, TargetRevision: "stable"},
+			},
+			want:        map[string]string{primaryURL + "@" + shaStable: shaStable},
+			wantLookups: 1,
+		},
+		{
+			name:   "ref resolving to the primary commit keeps the plain URL key",
+			source: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$a/v.yaml"}},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$a": {Repo: v1alpha1.Repository{Repo: primaryURL}, TargetRevision: "main"},
+			},
+			want:        map[string]string{primaryURL: primarySHA},
+			wantLookups: 1,
+		},
+		{
+			name: "repeated references to one revision resolve once",
+			source: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles:     []string{"$a/v.yaml", "$a/other.yaml"},
+				FileParameters: []v1alpha1.HelmFileParameter{{Name: "p", Path: "$a/p.txt"}},
+			},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$a": {Repo: v1alpha1.Repository{Repo: otherURL}, TargetRevision: "stable"},
+			},
+			want:        map[string]string{otherURL: shaStable},
+			wantLookups: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lookups = 0
+			got, err := resolveReferencedSources(true, tc.source, tc.refSources, resolver, git.ClientOpts(nil), primaryURL, primarySHA)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantLookups, lookups, "revision resolutions")
+		})
+	}
+}
+
+// TestGenerateManifests_SameRepoTwoRevisions_CacheHit is the regression test for the manifest cache
+// key of a multi-revision app. Manifest generation records worktree-backed refs under
+// "<url>@<sha>", so the lookup side (resolveReferencedSources) has to derive the same key. When the
+// two disagreed, the entry written was never the entry read and these apps re-generated manifests
+// on every reconcile.
+func TestGenerateManifests_SameRepoTwoRevisions_CacheHit(t *testing.T) {
+	// os.MkdirTemp rather than t.TempDir(): the async goroutine in runManifestGenAsync chmods the
+	// directory to 0o000 after GenerateManifest returns, racing t.TempDir()'s cleanup.
+	dir, err := os.MkdirTemp("", "TestGenerateManifests_SameRepoTwoRevisions_CacheHit")
+	require.NoError(t, err)
+	repopath := dir + "/tmprepo"
+
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
+	service.newGitClient = git.NewClientExt
+
+	repoRemote := "file://" + repopath
+	// The pinned revision the $ref source points at.
+	pinnedRevision := initGitRepo(t, newGitRepoOptions{
+		path:       repopath,
+		createPath: true,
+		remote:     repoRemote,
+		helmChartOptions: newGitRepoHelmChartOptions{
+			chartName:   "my-chart",
+			valuesFiles: map[string]map[string]string{"test.yaml": {"testval": "pinned"}},
+		},
+	})
+	// Move HEAD on, so the primary source and the $ref source resolve to different commits and the
+	// generation path has to use a worktree.
+	require.NoError(t, os.WriteFile(filepath.Join(repopath, "test.yaml"), []byte("testval: head\n"), 0o644))
+	for _, args := range [][]string{{"add", "-A"}, {"commit", "-m", "move head"}} {
+		cmd := exec.CommandContext(t.Context(), "git", args...)
+		cmd.Dir = repopath
+		require.NoError(t, cmd.Run())
+	}
+
+	repo := &v1alpha1.Repository{Repo: repoRemote}
+	// A fresh request per call: GenerateManifests applies overrides to the ApplicationSource it is
+	// given as a documented side effect, so reusing one would change the cache key by itself.
+	newQuery := func() *apiclient.ManifestRequest {
+		return &apiclient.ManifestRequest{
+			Repo:               repo,
+			Revision:           "HEAD",
+			HasMultipleSources: true,
+			ApplicationSource: &v1alpha1.ApplicationSource{
+				RepoURL: repoRemote, Path: ".", TargetRevision: "HEAD",
+				Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$ref/test.yaml"}},
+			},
+			ProjectName:        "default",
+			ProjectSourceRepos: []string{"*"},
+			RefSources:         map[string]*v1alpha1.RefTarget{"$ref": {TargetRevision: pinnedRevision, Repo: *repo}},
+		}
+	}
+	cacheSets := func() int {
+		sets := 0
+		for _, call := range cacheMocks.mockCache.RedisClient.Calls {
+			if call.Method == "Set" {
+				sets++
+			}
+		}
+		return sets
+	}
+
+	_, err = service.GenerateManifest(t.Context(), newQuery())
+	require.NoError(t, err)
+	setsAfterFirst := cacheSets()
+
+	_, err = service.GenerateManifest(t.Context(), newQuery())
+	require.NoError(t, err)
+
+	// The second identical request must be served from the manifest cache, so it stores nothing new.
+	// A fresh Set means the lookup key did not match the key the first call stored under.
+	assert.Equal(t, setsAfterFirst, cacheSets(),
+		"second GenerateManifest should hit the manifest cache; a new cache write means the lookup and store keys diverged")
 }
