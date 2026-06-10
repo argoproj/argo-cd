@@ -382,9 +382,6 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 	Given(t).
 		When().
 		Create(appSetInvalidStepConfiguration).
-		And(func() {
-			time.Sleep(3 * time.Minute)
-		}).
 		Then().
 		Expect(ApplicationSetHasConditions(expectedConditions)).
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
