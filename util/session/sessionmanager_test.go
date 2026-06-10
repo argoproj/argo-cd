@@ -520,6 +520,102 @@ func TestGetUserIdentifier(t *testing.T) {
 	assert.Equal(t, "foo", GetUserIdentifier(loggedInContextFederated))
 }
 
+// signCompactOIDCToken creates an ArgoCD-signed compact OIDC token for use in tests.
+func signCompactOIDCToken(t *testing.T, sig []byte, claims jwt.MapClaims) string {
+	t.Helper()
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(sig)
+	require.NoError(t, err)
+	return token
+}
+
+func TestParse_CompactOIDCToken(t *testing.T) {
+	const password = "password"
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, password, true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+
+	argoSettings, err := settingsMgr.GetSettings()
+	require.NoError(t, err)
+	sig := argoSettings.ServerSignature
+
+	t.Run("compact OIDC token passes Parse without account lookup", func(t *testing.T) {
+		// The sub here is an opaque OIDC subject — not an ArgoCD account name.
+		// Without the federated_claims early-return, GetAccount would fail.
+		token := signCompactOIDCToken(t, sig, jwt.MapClaims{
+			"iss":   SessionManagerClaimsIssuer,
+			"sub":   "oidc-opaque-subject-12345",
+			"email": "alice@example.com",
+			"exp":   float64(time.Now().Add(time.Hour).Unix()),
+			"iat":   float64(time.Now().Unix()),
+			"federated_claims": map[string]any{
+				"connector_id": "https://idp.example.com",
+			},
+		})
+
+		claims, newToken, err := mgr.Parse(token)
+		require.NoError(t, err, "Parse must succeed for compact OIDC tokens")
+		assert.Empty(t, newToken)
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		require.NoError(t, err)
+		assert.Equal(t, "oidc-opaque-subject-12345", mapClaims["sub"])
+		assert.Equal(t, "alice@example.com", mapClaims["email"])
+	})
+
+	t.Run("local account token still enforces account checks", func(t *testing.T) {
+		// A local account token without federated_claims must still go through account validation.
+		token := signCompactOIDCToken(t, sig, jwt.MapClaims{
+			"iss": SessionManagerClaimsIssuer,
+			"sub": "nonexistent-local-account:login",
+			"exp": float64(time.Now().Add(time.Hour).Unix()),
+			"iat": float64(time.Now().Unix()),
+			"jti": "some-unique-id",
+		})
+
+		_, _, err := mgr.Parse(token)
+		require.Error(t, err, "Parse must fail for unknown local accounts")
+	})
+}
+
+func TestUsername_CompactOIDCToken(t *testing.T) {
+	//nolint:staticcheck
+	compactOIDCCtx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{
+		"iss":   SessionManagerClaimsIssuer,
+		"sub":   "oidc-opaque-subject",
+		"email": "alice@example.com",
+		"federated_claims": map[string]any{
+			"connector_id": "https://idp.example.com",
+		},
+	})
+
+	//nolint:staticcheck
+	compactOIDCCtxDex := context.WithValue(context.Background(), "claims", &jwt.MapClaims{
+		"iss":   SessionManagerClaimsIssuer,
+		"sub":   "Cgd1c2VyMTIzEgZnaXRodWI",
+		"email": "dexuser@example.com",
+		"federated_claims": map[string]any{
+			"connector_id": "github",
+			"user_id":      "user123",
+		},
+	})
+
+	t.Run("email used as username for compact OIDC token", func(t *testing.T) {
+		assert.Equal(t, "alice@example.com", Username(compactOIDCCtx))
+	})
+
+	t.Run("email used as username for compact Dex token", func(t *testing.T) {
+		assert.Equal(t, "dexuser@example.com", Username(compactOIDCCtxDex))
+	})
+
+	t.Run("local account token unaffected (no federated_claims)", func(t *testing.T) {
+		//nolint:staticcheck
+		localCtx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{
+			"iss": SessionManagerClaimsIssuer,
+			"sub": "admin",
+		})
+		assert.Equal(t, "admin", Username(localCtx))
+	})
+}
+
 func TestGroups(t *testing.T) {
 	assert.Empty(t, Groups(loggedOutContext, []string{"groups"}))
 	assert.Equal(t, []string{"baz"}, Groups(loggedInContext, []string{"groups"}))
