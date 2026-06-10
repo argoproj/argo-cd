@@ -1,0 +1,26 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "XPolicy is healthy"
+  inputPath: testdata/xpolicy_healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "Ancestor example-gateway: XPolicy is conflicting with other policies for this ancestor: [example-xpolicy]"
+  inputPath: testdata/xpolicy_degraded_conflicting.yaml
+- healthStatus:
+    status: Degraded
+    message: >-
+      Ancestor example-gateway: Resolving XPolicy failed:
+      Missing referenced XResource.Secret 'ca'
+      WARNING: traffic to referenced target(s) will be rejected.
+  inputPath: testdata/xpolicy_degraded_resolved_refs.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for XPolicy status"
+  inputPath: testdata/xpolicy_progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Ancestor example-gateway to update XPolicy status"
+  inputPath: testdata/xpolicy_progressing_observed_generation.yaml
+- healthStatus: {}
+  inputPath: testdata/xcustomresource_unknown.yaml

@@ -1,0 +1,27 @@
+apiVersion: microgateway.airlock.com/v1alpha1
+kind: XPolicy
+metadata:
+  name: example-xpolicy
+  namespace: default
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: example-httproute
+status:
+  ancestors:
+  - ancestorRef:
+      group: gateway.networking.k8s.io
+      kind: Gateway
+      name: example-gateway
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: >-
+        Resolving XPolicy failed:
+        Missing referenced XResource.Secret 'ca'
+        WARNING: traffic to referenced target(s) will be rejected.
+      observedGeneration: 3
+      reason: Invalid
+      status: 'False'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller
