@@ -236,3 +236,77 @@ func Test_getProjectFromRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestIsLocalAccount(t *testing.T) {
+	assert.True(t, isLocalAccount(jwt.MapClaims{"iss": localAccountIssuer}))
+	assert.False(t, isLocalAccount(jwt.MapClaims{"iss": "https://accounts.google.com"}))
+	assert.False(t, isLocalAccount(jwt.MapClaims{"iss": "sso"}))
+	assert.False(t, isLocalAccount(jwt.MapClaims{}))
+}
+
+func TestSetEnableLocalUserStrictMode(t *testing.T) {
+	rbacEnf := NewRBACPolicyEnforcer(nil, nil)
+	assert.False(t, rbacEnf.enableLocalUserStrictMode)
+	rbacEnf.SetEnableLocalUserStrictMode(true)
+	assert.True(t, rbacEnf.enableLocalUserStrictMode)
+	rbacEnf.SetEnableLocalUserStrictMode(false)
+	assert.False(t, rbacEnf.enableLocalUserStrictMode)
+}
+
+// TestEnforceLocalUserStrictMode verifies that, when strict mode is enabled, an RBAC policy bound
+// to `sally@local` only grants permissions to the local `sally` account (iss=argocd) and not to an
+// SSO user who happens to also be named `sally`. With strict mode disabled, both match the plain
+// `sally` binding (the pre-existing, ambiguous behavior).
+func TestEnforceLocalUserStrictMode(t *testing.T) {
+	newEnforcer := func(t *testing.T) (*rbac.Enforcer, *RBACPolicyEnforcer) {
+		t.Helper()
+		kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+		projLister := test.NewFakeProjLister(newFakeProj())
+		enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+		enf.EnableLog(true)
+		rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+		enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+		return enf, rbacEnf
+	}
+
+	localClaims := jwt.MapClaims{"sub": "sally", "iss": localAccountIssuer}
+	ssoClaims := jwt.MapClaims{"sub": "sally", "iss": "https://accounts.google.com"}
+
+	t.Run("strict mode: only the local account matches an @local binding", func(t *testing.T) {
+		enf, rbacEnf := newEnforcer(t)
+		rbacEnf.SetEnableLocalUserStrictMode(true)
+		_ = enf.SetBuiltinPolicy(`p, sally@local, applications, create, my-proj/*, allow`)
+
+		assert.True(t, enf.Enforce(localClaims, "applications", "create", "my-proj/my-app"),
+			"local sally should match the @local binding")
+		assert.False(t, enf.Enforce(ssoClaims, "applications", "create", "my-proj/my-app"),
+			"SSO sally must not inherit the local user's role")
+	})
+
+	t.Run("strict mode: a plain binding no longer matches the local account", func(t *testing.T) {
+		enf, rbacEnf := newEnforcer(t)
+		rbacEnf.SetEnableLocalUserStrictMode(true)
+		_ = enf.SetBuiltinPolicy(`p, sally, applications, create, my-proj/*, allow`)
+
+		assert.False(t, enf.Enforce(localClaims, "applications", "create", "my-proj/my-app"),
+			"local sally is enforced as sally@local and should not match the plain binding")
+		assert.True(t, enf.Enforce(ssoClaims, "applications", "create", "my-proj/my-app"),
+			"SSO sally is not suffixed and still matches the plain binding")
+	})
+
+	t.Run("strict mode disabled: both local and SSO match a plain binding", func(t *testing.T) {
+		enf, _ := newEnforcer(t)
+		_ = enf.SetBuiltinPolicy(`p, sally, applications, create, my-proj/*, allow`)
+
+		assert.True(t, enf.Enforce(localClaims, "applications", "create", "my-proj/my-app"))
+		assert.True(t, enf.Enforce(ssoClaims, "applications", "create", "my-proj/my-app"))
+	})
+
+	t.Run("strict mode: project tokens are left untouched", func(t *testing.T) {
+		enf, rbacEnf := newEnforcer(t)
+		rbacEnf.SetEnableLocalUserStrictMode(true)
+		claims := jwt.MapClaims{"sub": "proj:my-proj:my-role", "iat": 1234}
+		assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"),
+			"project role tokens must not be suffixed with @local")
+	})
+}

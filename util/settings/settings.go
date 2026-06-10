@@ -168,6 +168,10 @@ type ArgoCDSettings struct {
 	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
 	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
 	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
+	// RBACLocalUserStrictMode indicates whether local accounts are disambiguated from SSO users during RBAC
+	// enforcement by appending an "@local" suffix to the local account name (e.g. `sally` becomes `sally@local`).
+	// When disabled (the default), local account names are matched verbatim, which may collide with SSO scopes.
+	RBACLocalUserStrictMode bool `json:"rbacLocalUserStrictMode"`
 }
 
 type GoogleAnalytics struct {
@@ -566,6 +570,9 @@ const (
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
+	// rbacLocalUserStrictModeKey is the key to configure whether local accounts are disambiguated from SSO users
+	// during RBAC enforcement by appending an "@local" suffix to the local account name.
+	rbacLocalUserStrictModeKey = "rbac.local.user.strictmode"
 )
 
 const (
@@ -1669,6 +1676,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
 	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
 	settings.RequireOverridePrivilegeForRevisionSync = argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "true"
+	settings.RBACLocalUserStrictMode = argoCDCM.Data[rbacLocalUserStrictModeKey] == "true"
 }
 
 func getExtensionConfigs(cmData map[string]string) map[string]string {
