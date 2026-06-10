@@ -21,7 +21,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
@@ -43,6 +42,21 @@ var tlsVersionByString = map[string]uint16{
 	"1.3": tls.VersionTLS13,
 }
 
+// Configuration describes parameters for TLS configuration to be used by a repo server API client
+type Configuration struct {
+	// Whether to disable TLS for connections
+	DisableTLS bool
+	// Whether to enforce strict validation of TLS certificates
+	StrictValidation bool
+	// List of certificates to validate the peer against (if StrictCerts is true)
+	Certificates *x509.CertPool
+	// ClientCertFile is the path to the client certificate file
+	ClientCertFile string
+	// ClientCertKeyFile is the path to the client certificate key file
+	ClientCertKeyFile string
+	// ClientCertificates are the client certificates to be used for TLS
+	ClientCertificates []tls.Certificate
+}
 type CertOptions struct {
 	// Hostnames and IPs to generate a certificate for
 	Hosts []string
@@ -492,12 +506,12 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 	return tlsConfig, nil
 }
 
-func AddClientTLSFlagsToCmd(cmd *cobra.Command) func() (apiclient.TLSConfiguration, error) {
+func AddClientTLSFlagsToCmd(cmd *cobra.Command) func() (Configuration, error) {
 	return AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 }
 
-func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (apiclient.TLSConfiguration, error) {
-	var tlsConfig apiclient.TLSConfiguration
+func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (Configuration, error) {
+	var tlsConfig Configuration
 	var repoServerCACert string
 	envPrefix := ""
 
@@ -509,7 +523,7 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 	cmd.Flags().StringVar(&tlsConfig.ClientCertFile, "repo-server-client-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_PATH", ""), "Path to the client certificate file for mTLS")
 	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, "repo-server-client-cert-key", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY_PATH", ""), "Path to the client certificate key file for mTLS")
 
-	return func() (apiclient.TLSConfiguration, error) {
+	return func() (Configuration, error) {
 		config := tlsConfig
 
 		if config.ClientCertFile != "" && config.ClientCertKeyFile == "" {

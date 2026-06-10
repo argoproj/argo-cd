@@ -41,8 +41,8 @@ spec:
               path: client.crt
             - key: client.key
               path: client.key
-            - key: ca.crt
-              path: ca.crt
+            - key: server-ca.crt
+              path: server-ca.crt
       containers:
         - args:
             - /usr/local/bin/argocd-notifications
@@ -92,19 +92,19 @@ spec:
             - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH
               valueFrom:
                 configMapKeyRef:
-                  key: notificationscontroller.repo.server.ca.cert
+                  key: notificationscontroller.repo.server.ca.cert.path
                   name: argocd-cmd-params-cm
                   optional: true
             - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
               valueFrom:
                 configMapKeyRef:
-                  key: notificationscontroller.repo.server.client.cert
+                  key: notificationscontroller.repo.server.client.cert.path
                   name: argocd-cmd-params-cm
                   optional: true
             - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
               valueFrom:
                 configMapKeyRef:
-                  key: notificationscontroller.repo.server.client.cert.key
+                  key: notificationscontroller.repo.server.client.cert.key.path
                   name: argocd-cmd-params-cm
                   optional: true
           workingDir: /app

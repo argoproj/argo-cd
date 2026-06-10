@@ -31,13 +31,13 @@ their own dedicated Certificate Authority.
 
 ### Inter-Component TLS
 
-| Connection | Strict TLS Parameter | Plain Text Parameter | Default Behavior |
-|------------|---------------------|---------------------|------------------|
-| `argocd-server` → `argocd-repo-server` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
-| `argocd-server` → `argocd-dex-server` | `--dex-server-strict-tls` | `--dex-server-plaintext` | Non-validating TLS |
-| `argocd-application-controller` → `argocd-repo-server` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
-| `argocd-applicationset-controller` → `argocd-repo-server` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
-| `argocd-notifications-controller` → `argocd-repo-server` | `--argocd-repo-server-strict-tls` | `--argocd-repo-server-plaintext` | Non-validating TLS |
+| Connection | Recommended Parameter | Legacy Parameter (deprecated) | Plain Text Parameter | Default Behavior |
+|------------|----------------------|-------------------------------|---------------------|------------------|
+| `argocd-server` → `argocd-repo-server` | `--repo-server-ca-cert` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
+| `argocd-server` → `argocd-dex-server` | — | `--dex-server-strict-tls` | `--dex-server-plaintext` | Non-validating TLS |
+| `argocd-application-controller` → `argocd-repo-server` | `--repo-server-ca-cert` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
+| `argocd-applicationset-controller` → `argocd-repo-server` | `--repo-server-ca-cert` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
+| `argocd-notifications-controller` → `argocd-repo-server` | `--argocd-repo-server-ca-cert` | `--argocd-repo-server-strict-tls` | `--argocd-repo-server-plaintext` | Non-validating TLS |
 
 ### Certificate Priority (argocd-server only)
 
@@ -201,14 +201,26 @@ To change this behavior to be more secure by having these components validate th
 * Restart the `argocd-repo-server` pod(s)
 * Modify the pod startup parameters for `argocd-server`, `argocd-application-controller`,
   and `argocd-applicationset-controller` to include the
-  `--repo-server-strict-tls` parameter.
+  `--repo-server-ca-cert` parameter pointing to the CA certificate file.
 * Modify the pod startup parameters for `argocd-notifications-controller` to include the
-  `--argocd-repo-server-strict-tls` parameter
+  `--argocd-repo-server-ca-cert` parameter pointing to the CA certificate file.
 
-The `argocd-server`, `argocd-application-controller`, `argocd-notifications-controller`, 
+The `argocd-server`, `argocd-application-controller`, `argocd-notifications-controller`,
 and `argocd-applicationset-controller` workloads will now
-validate the TLS certificate of the `argocd-repo-server` by using the
-certificate stored in the `argocd-repo-server-tls` secret.
+validate the TLS certificate of the `argocd-repo-server` using the provided CA certificate.
+
+> [!NOTE]
+> **Legacy path vs. recommended path**
+>
+> `--repo-server-strict-tls` (and `--argocd-repo-server-strict-tls` for the notifications controller)
+> is the **legacy path**: when set, the component auto-discovers the repo-server certificate from
+> the `argocd-repo-server-tls` Kubernetes secret. This flag is **deprecated** and may be removed
+> in a future release.
+>
+> `--repo-server-ca-cert` (and `--argocd-repo-server-ca-cert` for the notifications controller)
+> is the **recommended explicit path**: you provide the path to a CA certificate file directly.
+> This is required for mTLS setups and gives you full control over which CA is trusted.
+> See [Mutual TLS (mTLS) for repo-server](./mtls.md) for details.
 
 > [!NOTE]
 > **Certificate expiry**

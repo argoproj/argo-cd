@@ -31868,19 +31868,19 @@ spec:
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CA_CERT_PATH
           valueFrom:
             configMapKeyRef:
-              key: applicationsetcontroller.repo.server.ca.cert
+              key: applicationsetcontroller.repo.server.ca.cert.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
           valueFrom:
             configMapKeyRef:
-              key: applicationsetcontroller.repo.server.client.cert
+              key: applicationsetcontroller.repo.server.client.cert.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
           valueFrom:
             configMapKeyRef:
-              key: applicationsetcontroller.repo.server.client.cert.key
+              key: applicationsetcontroller.repo.server.client.cert.key.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
@@ -32012,8 +32012,8 @@ spec:
             path: client.crt
           - key: client.key
             path: client.key
-          - key: ca.crt
-            path: ca.crt
+          - key: server-ca.crt
+            path: server-ca.crt
           optional: true
           secretName: argocd-repo-server-mtls
       - configMap:
@@ -32360,19 +32360,19 @@ spec:
         - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH
           valueFrom:
             configMapKeyRef:
-              key: notificationscontroller.repo.server.ca.cert
+              key: notificationscontroller.repo.server.ca.cert.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
           valueFrom:
             configMapKeyRef:
-              key: notificationscontroller.repo.server.client.cert
+              key: notificationscontroller.repo.server.client.cert.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
           valueFrom:
             configMapKeyRef:
-              key: notificationscontroller.repo.server.client.cert.key
+              key: notificationscontroller.repo.server.client.cert.key.path
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -32424,8 +32424,8 @@ spec:
             path: client.crt
           - key: client.key
             path: client.key
-          - key: ca.crt
-            path: ca.crt
+          - key: server-ca.crt
+            path: server-ca.crt
           optional: true
           secretName: argocd-repo-server-mtls
 ---
@@ -32623,6 +32623,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.tls.ciphers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.client.ca.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_CACHE_EXPIRATION
@@ -33093,19 +33099,19 @@ spec:
         - name: ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH
           valueFrom:
             configMapKeyRef:
-              key: server.repo.server.ca.cert
+              key: server.repo.server.ca.cert.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH
           valueFrom:
             configMapKeyRef:
-              key: server.repo.server.client.cert
+              key: server.repo.server.client.cert.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH
           valueFrom:
             configMapKeyRef:
-              key: server.repo.server.client.cert.key
+              key: server.repo.server.client.cert.key.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
@@ -33403,8 +33409,8 @@ spec:
             path: client.crt
           - key: client.key
             path: client.key
-          - key: ca.crt
-            path: ca.crt
+          - key: server-ca.crt
+            path: server-ca.crt
           optional: true
           secretName: argocd-repo-server-mtls
       - configMap:
@@ -33643,19 +33649,19 @@ spec:
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH
           valueFrom:
             configMapKeyRef:
-              key: controller.repo.server.ca.cert
+              key: controller.repo.server.ca.cert.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
           valueFrom:
             configMapKeyRef:
-              key: controller.repo.server.client.cert
+              key: controller.repo.server.client.cert.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
           valueFrom:
             configMapKeyRef:
-              key: controller.repo.server.client.cert.key
+              key: controller.repo.server.client.cert.key.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
@@ -33844,8 +33850,8 @@ spec:
             path: client.crt
           - key: client.key
             path: client.key
-          - key: ca.crt
-            path: ca.crt
+          - key: server-ca.crt
+            path: server-ca.crt
           optional: true
           secretName: argocd-repo-server-mtls
       - configMap:

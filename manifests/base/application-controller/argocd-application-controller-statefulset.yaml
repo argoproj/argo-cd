@@ -212,19 +212,19 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: argocd-cmd-params-cm
-              key: controller.repo.server.ca.cert
+              key: controller.repo.server.ca.cert.path
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
           valueFrom:
             configMapKeyRef:
               name: argocd-cmd-params-cm
-              key: controller.repo.server.client.cert
+              key: controller.repo.server.client.cert.path
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
           valueFrom:
             configMapKeyRef:
               name: argocd-cmd-params-cm
-              key: controller.repo.server.client.cert.key
+              key: controller.repo.server.client.cert.key.path
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
           valueFrom:
@@ -427,8 +427,8 @@ spec:
             path: client.crt
           - key: client.key
             path: client.key
-          - key: ca.crt
-            path: ca.crt
+          - key: server-ca.crt
+            path: server-ca.crt
       - name: argocd-cmd-params-cm
         configMap:
           optional: true

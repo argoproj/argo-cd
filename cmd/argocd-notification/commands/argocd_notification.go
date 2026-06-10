@@ -51,7 +51,7 @@ func NewCommand() *cobra.Command {
 		secretName                     string
 		applicationNamespaces          []string
 		selfServiceNotificationEnabled bool
-		repoServerClientTLSConfigSrc   func() (apiclient.TLSConfiguration, error)
+		repoServerClientTLSConfigSrc   func() (tls.Configuration, error)
 	)
 	command := cobra.Command{
 		Use:   common.CommandNotifications,
@@ -175,6 +175,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", common.DefaultRepoServerAddr, "Argo CD repo server address")
 	command.Flags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&argocdRepoServerStrictTLS, "argocd-repo-server-strict-tls", false, "Perform strict validation of TLS certificates when connecting to repo server")
+	errors.CheckError(command.Flags().MarkDeprecated("argocd-repo-server-strict-tls", "use --argocd-repo-server-ca-cert instead"))
 	command.Flags().StringVar(&configMapName, "config-map-name", "argocd-notifications-cm", "Set notifications ConfigMap name")
 	command.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that this controller should send notifications for")

@@ -40,23 +40,36 @@ You can override the root config path with the `ARGOCD_APP_CONFIG_PATH` environm
 
 The `argocd-server`, `argocd-application-controller`, and `argocd-applicationset-controller` must be configured with a client certificate and key to connect to a repo-server that has mTLS enabled. The certificate must be signed by the same CA configured on the repo-server.
 
+> [!NOTE]
+> **Legacy path vs. recommended path for TLS certificate validation**
+>
+> `--repo-server-strict-tls` (and `--argocd-repo-server-strict-tls` for the notifications controller)
+> is the **legacy path**: when set, the component auto-discovers the repo-server certificate from
+> the `argocd-repo-server-tls` Kubernetes secret. This flag is **deprecated** and may be removed
+> in a future release.
+>
+> `--repo-server-ca-cert` (and `--argocd-repo-server-ca-cert` for the notifications controller)
+> is the **recommended explicit path**: you provide the path to a CA certificate file directly.
+> This is required for mTLS setups and gives you full control over which CA is trusted.
+> Use `--repo-server-ca-cert` in all new deployments.
+
 ### argocd-server flags
 
 * `--repo-server-client-cert`: Path to the client certificate file.
 * `--repo-server-client-cert-key`: Path to the client certificate key file.
-* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate (optional, when using a custom CA).
+* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
 
 ### argocd-application-controller flags
 
 * `--repo-server-client-cert`: Path to the client certificate file.
 * `--repo-server-client-cert-key`: Path to the client certificate key file.
-* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate (optional, when using a custom CA).
+* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
 
 ### argocd-applicationset-controller flags
 
 * `--repo-server-client-cert`: Path to the client certificate file.
 * `--repo-server-client-cert-key`: Path to the client certificate key file.
-* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate (optional, when using a custom CA).
+* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
 
 ### Environment variables
 
@@ -86,25 +99,28 @@ The environment variables follow the component's prefix and mirror the flags:
 
 These environment variables can also be set via the `argocd-cmd-params-cm` ConfigMap, which is the recommended approach for Kubernetes deployments:
 
+#### argocd-repo-server
+* `reposerver.client.ca.path` — path to the client CA certificate file; when set, the repo-server requires all gRPC clients to present a certificate signed by this CA (enables mTLS)
+
 #### argocd-server
-* `server.repo.server.ca.cert` — path to the CA certificate for verifying the repo server's TLS certificate
-* `server.repo.server.client.cert` — path to the client certificate for mTLS
-* `server.repo.server.client.cert.key` — path to the client certificate key for mTLS
+* `server.repo.server.ca.cert.path` — path to the CA certificate for verifying the repo server's TLS certificate
+* `server.repo.server.client.cert.path` — path to the client certificate for mTLS
+* `server.repo.server.client.cert.key.path` — path to the client certificate key for mTLS
 
 #### argocd-application-controller
-* `controller.repo.server.ca.cert` — path to the CA certificate for verifying the repo server's TLS certificate
-* `controller.repo.server.client.cert` — path to the client certificate for mTLS
-* `controller.repo.server.client.cert.key` — path to the client certificate key for mTLS
+* `controller.repo.server.ca.cert.path` — path to the CA certificate for verifying the repo server's TLS certificate
+* `controller.repo.server.client.cert.path` — path to the client certificate for mTLS
+* `controller.repo.server.client.cert.key.path` — path to the client certificate key for mTLS
 
 #### argocd-applicationset-controller
-* `applicationsetcontroller.repo.server.ca.cert` — path to the CA certificate for verifying the repo server's TLS certificate
-* `applicationsetcontroller.repo.server.client.cert` — path to the client certificate for mTLS
-* `applicationsetcontroller.repo.server.client.cert.key` — path to the client certificate key for mTLS
+* `applicationsetcontroller.repo.server.ca.cert.path` — path to the CA certificate for verifying the repo server's TLS certificate
+* `applicationsetcontroller.repo.server.client.cert.path` — path to the client certificate for mTLS
+* `applicationsetcontroller.repo.server.client.cert.key.path` — path to the client certificate key for mTLS
 
 #### argocd-notifications-controller
-* `notificationscontroller.repo.server.ca.cert` — path to the CA certificate for verifying the repo server's TLS certificate
-* `notificationscontroller.repo.server.client.cert` — path to the client certificate for mTLS
-* `notificationscontroller.repo.server.client.cert.key` — path to the client certificate key for mTLS
+* `notificationscontroller.repo.server.ca.cert.path` — path to the CA certificate for verifying the repo server's TLS certificate
+* `notificationscontroller.repo.server.client.cert.path` — path to the client certificate for mTLS
+* `notificationscontroller.repo.server.client.cert.key.path` — path to the client certificate key for mTLS
 
 > [!IMPORTANT]
 > Both `--repo-server-client-cert` and `--repo-server-client-cert-key` must be provided together. If you provide one without the other, the component will fail validation at startup.
@@ -134,7 +150,7 @@ data:
   client.crt: <BASE64_CLIENT_CERT_PEM>
   client.key: <BASE64_CLIENT_KEY_PEM>
   # Optional: CA used by clients to verify the repo-server's server certificate
-  # ca.crt: <BASE64_SERVER_CA_PEM>
+  # server-ca.crt: <BASE64_SERVER_CA_PEM>
 ```
 
 ### Configuring argocd-repo-server (enable mTLS)
@@ -158,25 +174,28 @@ metadata:
   name: argocd-cmd-params-cm
   namespace: argocd
 data:
+  # For argocd-repo-server (enables mTLS — requires clients to present a cert signed by this CA):
+  reposerver.client.ca.path: "/app/config/reposerver/mtls/client-ca.crt"
+
   # For argocd-server:
-  server.repo.server.client.cert: /app/config/reposerver/mtls/client.crt
-  server.repo.server.client.cert.key: /app/config/reposerver/mtls/client.key
-  # server.repo.server.ca.cert: /app/config/reposerver/mtls/ca.crt  # optional
+  server.repo.server.client.cert.path: "/app/config/reposerver/mtls/client.crt"
+  server.repo.server.client.cert.key.path: "/app/config/reposerver/mtls/client.key"
+  # server.repo.server.ca.cert.path: /app/config/reposerver/mtls/server-ca.crt  # optional
 
   # For argocd-application-controller:
-  controller.repo.server.client.cert: /app/config/reposerver/mtls/client.crt
-  controller.repo.server.client.cert.key: /app/config/reposerver/mtls/client.key
-  # controller.repo.server.ca.cert: /app/config/reposerver/mtls/ca.crt  # optional
+  controller.repo.server.client.cert.path: "/app/config/reposerver/mtls/client.crt"
+  controller.repo.server.client.cert.key.path: "/app/config/reposerver/mtls/client.key"
+  # controller.repo.server.ca.cert.path: /app/config/reposerver/mtls/server-ca.crt  # optional
 
   # For argocd-applicationset-controller:
-  applicationsetcontroller.repo.server.client.cert: /app/config/reposerver/mtls/client.crt
-  applicationsetcontroller.repo.server.client.cert.key: /app/config/reposerver/mtls/client.key
-  # applicationsetcontroller.repo.server.ca.cert: /app/config/reposerver/mtls/ca.crt  # optional
+  applicationsetcontroller.repo.server.client.cert.path: "/app/config/reposerver/mtls/client.crt"
+  applicationsetcontroller.repo.server.client.cert.key.path: "/app/config/reposerver/mtls/client.key"
+  # applicationsetcontroller.repo.server.ca.cert.path: /app/config/reposerver/mtls/server-ca.crt  # optional
 
   # For argocd-notifications-controller:
-  notificationscontroller.repo.server.client.cert: /app/config/reposerver/mtls/client.crt
-  notificationscontroller.repo.server.client.cert.key: /app/config/reposerver/mtls/client.key
-  # notificationscontroller.repo.server.ca.cert: /app/config/reposerver/mtls/ca.crt  # optional
+  notificationscontroller.repo.server.client.cert.path: "/app/config/reposerver/mtls/client.crt"
+  notificationscontroller.repo.server.client.cert.key.path: "/app/config/reposerver/mtls/client.key"
+  # notificationscontroller.repo.server.ca.cert.path: /app/config/reposerver/mtls/server-ca.crt  # optional
 ```
 
 Alternatively, you can pass the flags directly in the container args:
@@ -189,8 +208,126 @@ args:
 - /app/config/reposerver/mtls/client.key
 # Optional: verify repo-server with a custom CA
 # - --repo-server-ca-cert
-# - /app/config/reposerver/mtls/ca.crt
+# - /app/config/reposerver/mtls/server-ca.crt
 ```
+
+## Shared vs. per-component client certificates
+
+By default, the `argocd-repo-server-mtls` Secret uses a **single shared key/cert pair** (`client.crt` / `client.key`) that is mounted into every client component (`argocd-server`, `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-notifications-controller`). All components therefore present the same client certificate to the repo-server.
+
+This is sufficient for most deployments. If you need the repo-server to distinguish which component is connecting (for example, to apply per-component authorization policies), you must issue separate certificates per component and configure each deployment to use its own cert.
+
+> [!NOTE]
+> The repo-server only verifies that the client certificate is signed by the configured client CA. It does not enforce per-component identity by default. Per-component certs are only meaningful if you add your own authorization logic on top of mTLS.
+
+### Option A — Multiple keys in one Secret
+
+Store all component certs in the single `argocd-repo-server-mtls` Secret under different key names, then customize the volume `items` projection in each deployment to expose only the relevant cert.
+
+**1. Create the Secret with per-component keys:**
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-repo-server-mtls
+  namespace: argocd
+type: Opaque
+data:
+  client-ca.crt: <BASE64_CA_PEM>
+  # argocd-server client cert
+  server-client.crt: <BASE64_SERVER_CLIENT_CERT_PEM>
+  server-client.key: <BASE64_SERVER_CLIENT_KEY_PEM>
+  # argocd-application-controller client cert
+  controller-client.crt: <BASE64_CONTROLLER_CLIENT_CERT_PEM>
+  controller-client.key: <BASE64_CONTROLLER_CLIENT_KEY_PEM>
+  # argocd-applicationset-controller client cert
+  appsetcontroller-client.crt: <BASE64_APPSET_CLIENT_CERT_PEM>
+  appsetcontroller-client.key: <BASE64_APPSET_CLIENT_KEY_PEM>
+  # argocd-notifications-controller client cert
+  notifications-client.crt: <BASE64_NOTIFICATIONS_CLIENT_CERT_PEM>
+  notifications-client.key: <BASE64_NOTIFICATIONS_CLIENT_KEY_PEM>
+```
+
+**2. Patch each deployment's volume to project only the relevant keys as `client.crt` / `client.key`:**
+
+```yaml
+# Example patch for argocd-server deployment
+volumes:
+- name: argocd-repo-server-mtls
+  secret:
+    secretName: argocd-repo-server-mtls
+    items:
+    - key: server-client.crt
+      path: client.crt
+    - key: server-client.key
+      path: client.key
+    - key: client-ca.crt
+      path: client-ca.crt
+```
+
+Repeat with the appropriate key names for each component deployment. The mount path and ConfigMap keys remain unchanged — only the Secret `items` projection differs per deployment.
+
+### Option B — One Secret per component
+
+Create a separate Secret for each component. Each Secret follows the same format as `argocd-repo-server-mtls` but contains only that component's cert.
+
+**1. Create per-component Secrets:**
+
+```yaml
+# argocd-server
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-repo-server-mtls-server
+  namespace: argocd
+type: Opaque
+data:
+  client.crt: <BASE64_SERVER_CLIENT_CERT_PEM>
+  client.key: <BASE64_SERVER_CLIENT_KEY_PEM>
+---
+# argocd-application-controller
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-repo-server-mtls-controller
+  namespace: argocd
+type: Opaque
+data:
+  client.crt: <BASE64_CONTROLLER_CLIENT_CERT_PEM>
+  client.key: <BASE64_CONTROLLER_CLIENT_KEY_PEM>
+# ... repeat for argocd-applicationset-controller and argocd-notifications-controller
+```
+
+**2. Add a separate volume and volumeMount to each deployment, pointing to its own Secret:**
+
+```yaml
+# Example patch for argocd-server deployment
+volumes:
+- name: argocd-repo-server-mtls-server
+  secret:
+    secretName: argocd-repo-server-mtls-server
+volumeMounts:
+- name: argocd-repo-server-mtls-server
+  mountPath: /app/config/reposerver/mtls
+  readOnly: true
+```
+
+Repeat with the appropriate Secret name for each component deployment. The mount path and ConfigMap keys remain unchanged.
+
+> [!IMPORTANT]
+> With Option B, the default `argocd-repo-server-mtls` volume that Argo CD auto-mounts must be removed or overridden in each patched deployment, otherwise both volumes will compete for the same mount path.
+
+## No per-component enforcement on the server side
+
+Even if you configure separate client certificates per component (using Option A or Option B above), the repo-server **does not distinguish between them**. This is a fundamental characteristic of how the server-side TLS verification works, and operators should be aware of it before investing in per-component cert issuance.
+
+The repo-server is configured with a single `--client-ca-path` flag, which points to one CA certificate file. Internally, the repository server loads that file into a single `x509.CertPool`. When a client connects, the TLS layer asks one question: **"Is this certificate signed by the configured CA?"** If yes, the connection is accepted. If no, it is rejected.
+
+There is no binding between a specific component identity and a specific certificate. The server does not inspect the certificate's Subject, SAN, or any other field to determine *which* component is connecting. Any client that holds a certificate signed by the trusted CA will pass — regardless of whether it is `argocd-server`, `argocd-application-controller`, or any other process with access to a valid cert.
+
+> [!NOTE]
+> Per-component certificates are only meaningful if you implement your own authorization logic on top of mTLS — for example, an Envoy sidecar or a custom gRPC interceptor that inspects the peer certificate's Subject/SAN and enforces component-level access policies. Out of the box, Argo CD mTLS provides **authentication** (only cert-holding clients can connect) but not **authorization** (any authenticated client can call any RPC).
 
 ## Verifying mTLS is active
 

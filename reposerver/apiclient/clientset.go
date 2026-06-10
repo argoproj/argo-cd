@@ -2,7 +2,6 @@ package apiclient
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"math"
 	"os"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	utiltls "github.com/argoproj/argo-cd/v3/util/tls"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/timeout"
@@ -27,22 +27,6 @@ import (
 // MaxGRPCMessageSize contains max grpc message size
 var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
-// TLSConfiguration describes parameters for TLS configuration to be used by a repo server API client
-type TLSConfiguration struct {
-	// Whether to disable TLS for connections
-	DisableTLS bool
-	// Whether to enforce strict validation of TLS certificates
-	StrictValidation bool
-	// List of certificates to validate the peer against (if StrictCerts is true)
-	Certificates *x509.CertPool
-	// ClientCertFile is the path to the client certificate file
-	ClientCertFile string
-	// ClientCertKeyFile is the path to the client certificate key file
-	ClientCertKeyFile string
-	// ClientCertificates are the client certificates to be used for TLS
-	ClientCertificates []tls.Certificate
-}
-
 // Clientset represents repository server api clients
 type Clientset interface {
 	NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error)
@@ -51,7 +35,7 @@ type Clientset interface {
 type clientSet struct {
 	address        string
 	timeoutSeconds int
-	tlsConfig      TLSConfiguration
+	tlsConfig      utiltls.Configuration
 }
 
 type clientCertEntry struct {
@@ -133,7 +117,7 @@ func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClien
 	return conn, NewRepoServerServiceClient(conn), nil
 }
 
-func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfiguration) (*grpc.ClientConn, error) {
+func NewConnection(address string, timeoutSeconds int, tlsConfig *utiltls.Configuration) (*grpc.ClientConn, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
@@ -168,7 +152,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 }
 
 // NewRepoServerClientset creates new instance of repo server Clientset
-func NewRepoServerClientset(address string, timeoutSeconds int, tlsConfig TLSConfiguration) Clientset {
+func NewRepoServerClientset(address string, timeoutSeconds int, tlsConfig utiltls.Configuration) Clientset {
 	return &clientSet{
 		address:        address,
 		timeoutSeconds: timeoutSeconds,
@@ -176,7 +160,7 @@ func NewRepoServerClientset(address string, timeoutSeconds int, tlsConfig TLSCon
 	}
 }
 
-func buildTLSClientConfig(tlsConfig *TLSConfiguration) (*tls.Config, error) {
+func buildTLSClientConfig(tlsConfig *utiltls.Configuration) (*tls.Config, error) {
 	tlsC := &tls.Config{}
 
 	strictValidation := tlsConfig.StrictValidation || tlsConfig.Certificates != nil

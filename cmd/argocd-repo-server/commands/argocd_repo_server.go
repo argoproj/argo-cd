@@ -293,8 +293,8 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate, disableTLS bool) *apiclient.TLSConfiguration {
-	cfg := &apiclient.TLSConfiguration{
+func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate, disableTLS bool) *tls.Configuration {
+	cfg := &tls.Configuration{
 		DisableTLS: disableTLS,
 		// InsecureSkipVerify=true: it is always a localhost connection, so no reason to re-verify the server
 		// certificate on every probe.

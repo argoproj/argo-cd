@@ -44,7 +44,7 @@ func TestNewRepoServerClient_CorrectClientReturned(t *testing.T) {
 func TestNewRepoServerClientset_InvalidInput(t *testing.T) {
 	t.Parallel()
 	// Call the function with invalid inputs
-	invalidClientset := apiclient.NewRepoServerClientset("", -1, apiclient.TLSConfiguration{})
+	invalidClientset := apiclient.NewRepoServerClientset("", -1, utilstls.Configuration{})
 
 	assert.NotNil(t, invalidClientset)
 	assert.Implements(t, (*apiclient.Clientset)(nil), invalidClientset)
@@ -53,7 +53,7 @@ func TestNewRepoServerClientset_InvalidInput(t *testing.T) {
 func TestNewRepoServerClientset_SuccessfulConnection(t *testing.T) {
 	t.Parallel()
 	// Call the function with valid inputs
-	clientset := apiclient.NewRepoServerClientset("localhost:8080", 1, apiclient.TLSConfiguration{})
+	clientset := apiclient.NewRepoServerClientset("localhost:8080", 1, utilstls.Configuration{})
 
 	assert.NotNil(t, clientset)
 	assert.Implements(t, (*apiclient.Clientset)(nil), clientset)
@@ -62,7 +62,7 @@ func TestNewRepoServerClientset_SuccessfulConnection(t *testing.T) {
 func TestNewRepoServerClientset_SuccessfulConnectionWithTLS(t *testing.T) {
 	t.Parallel()
 	// Call the function with valid inputs
-	clientset := apiclient.NewRepoServerClientset("localhost:8080", 1, apiclient.TLSConfiguration{
+	clientset := apiclient.NewRepoServerClientset("localhost:8080", 1, utilstls.Configuration{
 		DisableTLS:       false,
 		StrictValidation: true,
 		Certificates:     nil,
@@ -74,7 +74,7 @@ func TestNewRepoServerClientset_SuccessfulConnectionWithTLS(t *testing.T) {
 
 func TestNewConnection_TLSWithStrictValidation(t *testing.T) {
 	t.Parallel()
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := utilstls.Configuration{
 		DisableTLS:       false,
 		StrictValidation: true,
 		Certificates:     nil,
@@ -88,7 +88,7 @@ func TestNewConnection_TLSWithStrictValidation(t *testing.T) {
 
 func TestNewConnection_TLSWithStrictValidationAndCertificates(t *testing.T) {
 	t.Parallel()
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := utilstls.Configuration{
 		DisableTLS:       false,
 		StrictValidation: true,
 		Certificates:     nil,
@@ -103,7 +103,7 @@ func TestNewConnection_TLSWithStrictValidationAndCertificates(t *testing.T) {
 func TestNewConnection_InsecureConnection(t *testing.T) {
 	t.Parallel()
 	// Create a TLS configuration with TLS disabled
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := utilstls.Configuration{
 		DisableTLS:       true,
 		StrictValidation: false,
 		Certificates:     nil,
@@ -116,7 +116,7 @@ func TestNewConnection_InsecureConnection(t *testing.T) {
 }
 
 func TestNewConnection_InMemoryCertificates(t *testing.T) {
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := utilstls.Configuration{
 		DisableTLS:         false,
 		StrictValidation:   false,
 		ClientCertificates: []tls.Certificate{{}},
@@ -146,7 +146,7 @@ func TestNewConnection_ServesFromCacheWhenFilesUnchanged(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(tempKeyFile, keyBytes, 0o600))
 
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := utilstls.Configuration{
 		StrictValidation:  false,
 		ClientCertFile:    tempCertFile,
 		ClientCertKeyFile: tempKeyFile,
@@ -181,7 +181,7 @@ func TestNewConnection_ReloadsClientCertificateWhenFileChanges(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(tempKeyFile, keyBytes, 0o600))
 
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := utilstls.Configuration{
 		StrictValidation:  false,
 		ClientCertFile:    tempCertFile,
 		ClientCertKeyFile: tempKeyFile,
@@ -222,7 +222,7 @@ func TestNewConnection_ErrorWhenRotatedCertIsInvalid(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(tempKeyFile, keyBytes, 0o600))
 
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := utilstls.Configuration{
 		StrictValidation:  false,
 		ClientCertFile:    tempCertFile,
 		ClientCertKeyFile: tempKeyFile,
@@ -254,7 +254,7 @@ func TestNewConnection_DoesNotCacheClientCertificateLoadError(t *testing.T) {
 	tempCertFile := filepath.Join(tempDir, "client.crt")
 	tempKeyFile := filepath.Join(tempDir, "client.key")
 
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := utilstls.Configuration{
 		StrictValidation:  false,
 		ClientCertFile:    tempCertFile,
 		ClientCertKeyFile: tempKeyFile,
@@ -290,7 +290,7 @@ func TestMTLSIntegration_NoClientCert_IsRejected(t *testing.T) {
 	pool.AddCert(parsedClientCert)
 	fixture := newMTLSServer(t, pool)
 
-	conn, err := apiclient.NewConnection(fixture.addr, 5, &apiclient.TLSConfiguration{
+	conn, err := apiclient.NewConnection(fixture.addr, 5, &utilstls.Configuration{
 		StrictValidation: false,
 	})
 	require.NoError(t, err, "NewConnection is lazy — dial error surfaces on first RPC")
@@ -335,7 +335,7 @@ func TestMTLSIntegration_ValidClientCert_IsAccepted(t *testing.T) {
 	pool.AddCert(parsedClientCert)
 	fixture := newMTLSServer(t, pool)
 
-	conn, err := apiclient.NewConnection(fixture.addr, 5, &apiclient.TLSConfiguration{
+	conn, err := apiclient.NewConnection(fixture.addr, 5, &utilstls.Configuration{
 		StrictValidation:   false,
 		ClientCertificates: []tls.Certificate{*clientCert},
 	})
@@ -360,7 +360,7 @@ func TestMTLSIntegration_UntrustedClientCert_IsRejected(t *testing.T) {
 
 	untrustedCert, _ := generateClientCA(t, "untrusted-client")
 
-	conn, err := apiclient.NewConnection(fixture.addr, 5, &apiclient.TLSConfiguration{
+	conn, err := apiclient.NewConnection(fixture.addr, 5, &utilstls.Configuration{
 		StrictValidation:   false,
 		ClientCertificates: []tls.Certificate{*untrustedCert},
 	})
@@ -388,7 +388,7 @@ func TestMTLSIntegration_HealthCheckEphemeralCert_IsAccepted(t *testing.T) {
 	pool.AddCert(parsedHCCert)
 	fixture := newMTLSServer(t, pool)
 
-	conn, err := apiclient.NewConnection(fixture.addr, 5, &apiclient.TLSConfiguration{
+	conn, err := apiclient.NewConnection(fixture.addr, 5, &utilstls.Configuration{
 		StrictValidation:   false, // liveness probe skips server cert verification
 		ClientCertificates: []tls.Certificate{*hcCert},
 	})
@@ -418,7 +418,7 @@ func TestMTLSIntegration_DisableTLS_PlaintextConnection(t *testing.T) {
 	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(srv.Stop)
 
-	conn, err := apiclient.NewConnection(lis.Addr().String(), 5, &apiclient.TLSConfiguration{
+	conn, err := apiclient.NewConnection(lis.Addr().String(), 5, &utilstls.Configuration{
 		DisableTLS: true,
 	})
 	require.NoError(t, err)
@@ -457,7 +457,7 @@ func TestMTLSIntegration_StrictValidation_CertificatesPoolTakesPrecedence(t *tes
 
 	// StrictValidation=false BUT Certificates is non-nil.
 	// buildTLSClientConfig must treat this as strict=true (the fix).
-	conn, err := apiclient.NewConnection(fixture.addr, 5, &apiclient.TLSConfiguration{
+	conn, err := apiclient.NewConnection(fixture.addr, 5, &utilstls.Configuration{
 		StrictValidation:   false,        // struct field says "not strict" …
 		Certificates:       serverCAPool, // … but a pool is present, so strict wins
 		ClientCertificates: []tls.Certificate{*clientCert},
