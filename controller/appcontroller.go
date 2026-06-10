@@ -94,6 +94,10 @@ const (
 	ComparisonWithNothing CompareWith = 0
 )
 
+func init() {
+	settings_util.ConfigureGoClientFeatures()
+}
+
 func (a CompareWith) Max(b CompareWith) CompareWith {
 	return CompareWith(math.Max(float64(a), float64(b)))
 }

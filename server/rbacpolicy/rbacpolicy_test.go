@@ -14,7 +14,12 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 )
+
+func init() {
+	settings_util.ConfigureGoClientFeatures()
+}
 
 func newFakeProj() *argoappv1.AppProject {
 	jwtTokenByRole := make(map[string]argoappv1.JWTTokens)
