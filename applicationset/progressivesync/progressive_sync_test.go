@@ -831,7 +831,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			},
 			expectedValidationIssues: &ValidationIssues{
 				DuplicateAppSelections: map[string][]int{
-					"app-dev": []int{0, 1},
+					"app-dev": {0, 1},
 				},
 			},
 		},

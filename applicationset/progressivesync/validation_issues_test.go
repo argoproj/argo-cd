@@ -1,9 +1,10 @@
 package progressivesync
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"testing"
 )
 
 func TestFormatInvalidMatchExpressionMessage(t *testing.T) {
@@ -59,7 +60,7 @@ func TestFormatDuplicateAppSelectionMessage(t *testing.T) {
 			name: "application duplicated in multiple steps have DuplicateAppSelections found for RollingSync",
 			issues: ValidationIssues{
 				DuplicateAppSelections: map[string][]int{
-					"foo": []int{0, 1},
+					"foo": {0, 1},
 				},
 			},
 			expectedConditionMessage: "Applications '[foo]' are selected by multiple steps: [1,2]",
@@ -68,8 +69,8 @@ func TestFormatDuplicateAppSelectionMessage(t *testing.T) {
 			name: "multiple applications selected in multiple steps have DuplicateAppSelections found for RollingSync",
 			issues: ValidationIssues{
 				DuplicateAppSelections: map[string][]int{
-					"foo": []int{0, 1},
-					"bar": []int{1, 2},
+					"foo": {0, 1},
+					"bar": {1, 2},
 				},
 			},
 			// function sorts maps on keys to consistently test and avoid flakiness

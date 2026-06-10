@@ -53,10 +53,9 @@ func (v *ValidationIssues) formatInvalidMatchExpressionMessage() string {
 
 // formatDuplicateAppSelectionMessage formats error message for duplicate app selections
 func (v *ValidationIssues) formatDuplicateAppSelectionMessage() string {
-
 	appNames := []string{}
 	stepNums := []string{}
-	//maps are unsorted
+	// maps are unsorted
 	keys := slices.Sorted(maps.Keys(v.DuplicateAppSelections))
 	for _, key := range keys {
 		appNames = append(appNames, key)
