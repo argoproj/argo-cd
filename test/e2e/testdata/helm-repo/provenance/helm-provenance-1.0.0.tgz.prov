@@ -1,0 +1,21 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+apiVersion: v2
+name: helm-provenance
+version: 1.0.0
+description: Chart for Helm source integrity provenance e2e tests
+
+files:
+  helm-provenance-1.0.0.tgz: sha256:a7299904d85a05ce9e5ea07ec6118721a53cbca4b4bf784b0ed1dcbe3f7643bf
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCgAdFiEE6kWbSVlcvj/R+6MD1WxPylekZEQFAmml0ocACgkQ1WxPylek
+ZEQIlQf8CYOu/nEvE5s3674OlG3cEOwW/1yg1xDXRIdP8QfMr+GXGUMprR7RQ1+r
+i8wHRS8MuN67Pzum5f0BBNyfJXZ3Z47mKElsFB4D/vtr8h/O5eFfw8rZoy1oBGxO
+y8OHtP1yuaMSJ/o8fnW05ogdHX6LaexteydS7ozx8FbOev54NXqdWlMDkVIjlKII
+DQa1TrgogP/qwhFaZhZl00Co++SMEciNirhR6nEpTC7yfM3rik4dD7ycZJBRqn3c
+MrMungU9n/JeJ76eIe4mwkbZ/uhnViGUnWhXfKz6p/loisoklCV4DPjQbQTlkBTo
+Wy+E8gP2qVsd4DxH0u3l//gd1xba6Q==
+=Hd8K
+-----END PGP SIGNATURE-----

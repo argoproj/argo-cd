@@ -23,6 +23,23 @@ var index = Index{
 	},
 }
 
+func TestIndex_GetChartURLs(t *testing.T) {
+	idx := Index{
+		Entries: map[string]Entries{
+			"mychart": {{
+				Version: "1.0.0",
+				Urls:    []string{"https://primary/mychart-1.0.0.tgz", "https://backup/mychart-1.0.0.tgz"},
+			}},
+		},
+	}
+	urls, err := idx.GetChartURLs("mychart", "1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"https://primary/mychart-1.0.0.tgz", "https://backup/mychart-1.0.0.tgz"}, urls)
+
+	_, err = idx.GetChartURLs("mychart", "9.9.9")
+	require.EqualError(t, err, "chart 'mychart' version '9.9.9' not found in index")
+}
+
 func TestIndex_GetEntries(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		_, err := index.GetEntries("foo")

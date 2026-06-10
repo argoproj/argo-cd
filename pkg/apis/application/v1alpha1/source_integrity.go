@@ -5,9 +5,36 @@ import (
 	"fmt"
 )
 
+// +kubebuilder:validation:XValidation:rule="self.git != null || self.helm != null",message="sourceIntegrity must specify at least one of git or helm"
 type SourceIntegrity struct {
 	// Git - policies for git source verification
-	Git *SourceIntegrityGit `json:"git" protobuf:"bytes,1,name=git"` // A mandatory field until there are alternatives
+	Git *SourceIntegrityGit `json:"git,omitempty" protobuf:"bytes,1,name=git"`
+	// Helm - policies for Helm chart provenance verification on traditional (HTTP/HTTPS) Helm repositories
+	Helm *SourceIntegrityHelm `json:"helm,omitempty" protobuf:"bytes,2,name=helm"`
+}
+
+// SourceIntegrityHelm holds policies for Helm chart provenance verification on traditional Helm repositories.
+type SourceIntegrityHelm struct {
+	Policies []*SourceIntegrityHelmPolicy `json:"policies" protobuf:"bytes,1,name=policies"`
+}
+
+// SourceIntegrityHelmPolicy applies to Helm repos matching Repos; provenance verifies .prov signature and allowed keys.
+type SourceIntegrityHelmPolicy struct {
+	Repos      []SourceIntegrityHelmPolicyRepo      `json:"repos" protobuf:"bytes,1,name=repos"`
+	Provenance *SourceIntegrityHelmPolicyProvenance `json:"provenance" protobuf:"bytes,2,name=provenance"`
+}
+
+// SourceIntegrityHelmPolicyRepo restricts which Helm repo URLs the policy applies to (glob).
+type SourceIntegrityHelmPolicyRepo struct {
+	URL string `json:"url" protobuf:"bytes,1,name=url"`
+}
+
+// SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).
+// When a matching policy defines provenance verification, the chart must be signed
+// by one of the configured keys. An empty key list does not disable verification;
+// To disable provenance verification, omit the provenance configuration or use a non-matching repo glob.
+type SourceIntegrityHelmPolicyProvenance struct {
+	Keys []string `json:"keys" protobuf:"bytes,1,rep,name=keys"` // Allowed signer key IDs
 }
 
 type SourceIntegrityGit struct {

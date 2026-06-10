@@ -2645,9 +2645,13 @@ message SourceHydratorStatus {
   optional string lastComparedDryRevision = 3;
 }
 
+// +kubebuilder:validation:XValidation:rule="self.git != null || self.helm != null",message="sourceIntegrity must specify at least one of git or helm"
 message SourceIntegrity {
   // Git - policies for git source verification
   optional SourceIntegrityGit git = 1;
+
+  // Helm - policies for Helm chart provenance verification on traditional (HTTP/HTTPS) Helm repositories
+  optional SourceIntegrityHelm helm = 2;
 }
 
 // SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.
@@ -2696,6 +2700,31 @@ message SourceIntegrityGitPolicyGPG {
 
 message SourceIntegrityGitPolicyRepo {
   // URL specifier, glob.
+  optional string url = 1;
+}
+
+// SourceIntegrityHelm holds policies for Helm chart provenance verification on traditional Helm repositories.
+message SourceIntegrityHelm {
+  repeated SourceIntegrityHelmPolicy policies = 1;
+}
+
+// SourceIntegrityHelmPolicy applies to Helm repos matching Repos; provenance verifies .prov signature and allowed keys.
+message SourceIntegrityHelmPolicy {
+  repeated SourceIntegrityHelmPolicyRepo repos = 1;
+
+  optional SourceIntegrityHelmPolicyProvenance provenance = 2;
+}
+
+// SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).
+// When a matching policy defines provenance verification, the chart must be signed
+// by one of the configured keys. An empty key list does not disable verification;
+// To disable provenance verification, omit the provenance configuration or use a non-matching repo glob.
+message SourceIntegrityHelmPolicyProvenance {
+  repeated string keys = 1;
+}
+
+// SourceIntegrityHelmPolicyRepo restricts which Helm repo URLs the policy applies to (glob).
+message SourceIntegrityHelmPolicyRepo {
   optional string url = 1;
 }
 
