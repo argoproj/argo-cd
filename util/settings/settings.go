@@ -685,6 +685,10 @@ func (mgr *SettingsManager) GetClusterInformer() (*ClusterInformer, error) {
 	if err := mgr.ensureSynced(false); err != nil {
 		return nil, fmt.Errorf("error ensuring that the settings manager is synced: %w", err)
 	}
+	// Read clusterInformer under the lock: a concurrent ResyncInformers() can be
+	// writing this field inside initialize() while we read it here.
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.clusterInformer, nil
 }
 
