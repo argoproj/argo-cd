@@ -232,7 +232,7 @@ func AddHelmoOCICredentialsWithoutUserPass(t *testing.T) {
 	t.Helper()
 	args := []string{
 		"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
-		"--enable-oci", "--type", "helm",
+		"--enable-oci", "--type", "helm", "--insecure-oci-force-http",
 	}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
@@ -258,13 +258,14 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
-	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", "--plain-http", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
 	errors.NewHandler(t).FailOnErr(fixture.Run(
 		"",
 		"helm",
 		"push",
+		"--plain-http",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
 		"oci://"+fixture.HelmOCIRegistryURL,
 	))
@@ -281,7 +282,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
-	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", "--plain-http", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
 
@@ -290,6 +291,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"helm",
 		"registry",
 		"login",
+		"--plain-http",
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
 		"localhost:5001",
@@ -299,6 +301,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"",
 		"helm",
 		"push",
+		"--plain-http",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
 		"oci://"+fixture.HelmAuthenticatedOCIRegistryURL,
 	))

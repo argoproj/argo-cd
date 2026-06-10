@@ -17,6 +17,7 @@ jest.mock('./resource-customizations', () => ({
         '*.crossplane.io': true,
         '*.fluxcd.io': true,
         'cert-manager.io': true,
+        'nauth.io': true,
         'promoter.argoproj.io': true
     }
 }));
@@ -69,6 +70,13 @@ describe('ResourceIcon', () => {
             const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
             expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/_.fluxcd.io/icon.svg');
+        });
+
+        it('should show group-based icon for nauth.io', () => {
+            render(<ResourceIcon group='nauth.io' kind='Account' />);
+            const imgs = screen.getAllByRole('img');
+            expect(imgs.length).toBeGreaterThan(0);
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/nauth.io/icon.svg');
         });
 
         it('should show group-based icon for promoter.argoproj.io', () => {
