@@ -1239,6 +1239,18 @@ func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov
 			return true
 		}
 
+		// Detect Operation field changes (e.g., when the app controller clears a completed operation).
+		// This is important because the operation field is updated separately from the status,
+		// and without this check, the ApplicationSet controller might miss the transition.
+		if (appOld.Operation == nil) != (appNew.Operation == nil) {
+			return true
+		}
+
+		// Detect OperationState changes, including transitions from nil to non-nil (operation started)
+		// or non-nil to nil (operation state cleared).
+		if (appOld.Status.OperationState == nil) != (appNew.Status.OperationState == nil) {
+			return true
+		}
 		if appOld.Status.OperationState != nil && appNew.Status.OperationState != nil {
 			if appOld.Status.OperationState.Phase != appNew.Status.OperationState.Phase ||
 				appOld.Status.OperationState.StartedAt != appNew.Status.OperationState.StartedAt {

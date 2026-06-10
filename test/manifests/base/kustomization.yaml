@@ -6,6 +6,13 @@ resources:
 - ../../../manifests/base/config
 - ../../../manifests/cluster-rbac
 - ../../../manifests/base/notification
+- ../../../manifests/base/conversion-webhook
 
 patches:
   - path: patches.yaml
+
+# Override images for e2e testing with locally-built images
+images:
+  - name: quay.io/argoproj/argocd
+    newName: argocd-e2e
+    newTag: latest

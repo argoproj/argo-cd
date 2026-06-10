@@ -44,6 +44,7 @@ sed -i.bak -e 's#${GOBIN}/##g' ${TARGET_SCRIPT}
 . ${TARGET_SCRIPT}
 
 kube::codegen::gen_helpers pkg/apis/application/v1alpha1
+kube::codegen::gen_helpers pkg/apis/application/v1beta1
 kube::codegen::gen_client pkg/apis \
   --output-dir pkg/client \
   --output-pkg github.com/argoproj/argo-cd/v3/pkg/client \
