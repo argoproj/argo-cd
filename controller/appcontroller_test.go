@@ -1161,14 +1161,14 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			}}, nil)
 
 			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-			// fakeAppCs.Fake's RWMutex protects ReactionChain. Wrap the swap so it does not race
-			// with informer-driven Patches reading the chain via Fake.Invokes: this subtest's
-			// invalid Destination (name + server) makes the namespace indexer in
+			// The embedded testing.Fake's RWMutex protects ReactionChain. Wrap the swap so it
+			// does not race with informer-driven Patches reading the chain via Invokes: this
+			// subtest's invalid Destination (name + server) makes the namespace indexer in
 			// newApplicationInformerAndLister invoke setAppCondition → Patch concurrently.
-			fakeAppCs.Fake.Lock()
+			fakeAppCs.Lock()
 			defaultReactor := fakeAppCs.ReactionChain[0]
 			fakeAppCs.ReactionChain = nil
-			fakeAppCs.Fake.Unlock()
+			fakeAppCs.Unlock()
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
