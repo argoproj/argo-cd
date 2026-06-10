@@ -55,6 +55,7 @@ func newFakeProj() *argoappv1.AppProject {
 }
 
 func TestEnforceAllPolicies(t *testing.T) {
+	t.Parallel()
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
@@ -101,6 +102,7 @@ func TestEnforceAllPolicies(t *testing.T) {
 }
 
 func TestEnforceActionActions(t *testing.T) {
+	t.Parallel()
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
@@ -134,6 +136,7 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 }
 
 func TestInvalidatedCache(t *testing.T) {
+	t.Parallel()
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
@@ -177,6 +180,7 @@ func TestInvalidatedCache(t *testing.T) {
 }
 
 func TestGetScopes_DefaultScopes(t *testing.T) {
+	t.Parallel()
 	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
 
 	scopes := rbacEnforcer.GetScopes()
@@ -184,6 +188,7 @@ func TestGetScopes_DefaultScopes(t *testing.T) {
 }
 
 func TestGetScopes_CustomScopes(t *testing.T) {
+	t.Parallel()
 	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
 	customScopes := []string{"custom"}
 	rbacEnforcer.SetScopes(customScopes)
