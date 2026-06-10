@@ -26,6 +26,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -83,6 +84,12 @@ const (
 	defaultEventProcessingInterval = 100 * time.Millisecond
 )
 
+// errCacheInvalidatedMidSync signals that an Invalidate fired during the
+// WaitForCacheSync window inside syncInformers. EnsureSynced treats it as
+// transient and refuses to cache it, so the next call re-syncs immediately
+// rather than serving the stale error for clusterSyncRetryTimeout.
+var errCacheInvalidatedMidSync = errors.New("cluster cache invalidated during initial informer sync")
+
 const (
 	// RespectRbacDisabled default value for respectRbac
 	RespectRbacDisabled = iota
@@ -106,6 +113,22 @@ type apiMeta struct {
 	// watchCancel stops the watch of all resources for this API. This gets called when the cache is invalidated or when
 	// the watched API ceases to exist (e.g. a CRD gets deleted).
 	watchCancel context.CancelFunc
+	// informers is populated under ModeInformer and holds one SharedIndexInformer
+	// per namespace watched for this GroupKind (empty-string key for
+	// cluster-scoped watches). Nil under ModeLegacy. All informers share
+	// watchCancel's context, so a single cancel tears them all down — matching
+	// legacy semantics where one context covers every namespace-fanout watch.
+	informers map[string]sharedInformer
+}
+
+// sharedInformer couples a SharedIndexInformer with the per-entry cancel
+// function. Today every entry for a GroupKind shares the parent
+// apiMeta.watchCancel, so this cancel is effectively a duplicate — kept
+// as a field so later work can adopt per-(GK, namespace) teardown without
+// reshaping the type.
+type sharedInformer struct {
+	informer cache.SharedIndexInformer
+	cancel   context.CancelFunc
 }
 
 type eventMeta struct {
@@ -189,8 +212,12 @@ type WeightedSemaphore interface {
 
 type ListRetryFunc func(err error) bool
 
-// NewClusterCache creates new instance of cluster cache
-func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
+// NewClusterCache creates new instance of cluster cache.
+//
+// The concrete implementation is selected by SetMode; ModeLegacy (the
+// default) uses the hand-rolled list/watch loop, and ModeInformer uses
+// client-go's SharedIndexInformer (experimental — see issue #19199).
+func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) ClusterCache {
 	log := textlogger.NewLogger(textlogger.NewConfig())
 	cache := &clusterCache{
 		settings:           Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
@@ -229,6 +256,33 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 }
 
 type clusterCache struct {
+	// mode selects the implementation. See Mode constants and SetMode.
+	mode Mode
+
+	// syncMu serializes EnsureSynced calls to enforce single-flight sync.
+	// Under informer mode, sync() releases c.lock around WaitForCacheSync;
+	// without this gate a second EnsureSynced caller could acquire c.lock
+	// in that window, enter syncInformers, and cancel the first caller's
+	// informers mid-flight. Acquired before c.lock; never held by any
+	// other code path (notably NOT by Invalidate, which must be able to
+	// interrupt an in-progress sync).
+	syncMu sync.Mutex
+
+	// firstSyncCompleted is set to true after the very first syncInformers
+	// finishes successfully. Used by onInformerChange to mirror legacy
+	// semantics for OnResourceUpdated dispatch:
+	//   - first global sync (legacy: cluster.go:1171 `c.setNode(newRes)`
+	//     direct path, no dispatch): suppress OnResourceUpdated for
+	//     isInInitialList Add events, since the cache is just being
+	//     populated and subscribers expect a quiet bulk load.
+	//   - post-startup new-watch initial list (legacy: startMissingWatches
+	//     -> loadInitialState -> replaceResourceCache -> onNodeUpdated
+	//     fires OnResourceUpdated): fire normally so CRD-driven new
+	//     resource discovery triggers reconcile.
+	// Reset to false in Invalidate so the rebuild after Invalidate also
+	// gets the quiet-bulk-load semantics. Guarded by c.lock.
+	firstSyncCompleted bool
+
 	syncStatus clusterCacheSync
 
 	apisMeta              map[schema.GroupKind]*apiMeta
@@ -482,6 +536,11 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 	return resource
 }
 
+// setNode is the legacy storage write path: it writes to c.resources and
+// then updates the shared cross-GK indexes via updateIndexes. The informer
+// impl performs the equivalent c.resources write + updateIndexes call
+// inline in onInformerChange (cluster.resources is kept as a shadow of
+// the informer's store so existing read paths work unchanged).
 func (c *clusterCache) setNode(n *Resource) {
 	key := n.ResourceKey()
 
@@ -489,6 +548,20 @@ func (c *clusterCache) setNode(n *Resource) {
 	existing := c.resources[key]
 
 	c.resources[key] = n
+	c.updateIndexes(existing, n)
+}
+
+// updateIndexes maintains nsIndex, parentUIDToChildren, and inferred-parent
+// ref propagation when a Resource is added or replaced. Shared by the
+// legacy and informer impls — both need these cross-GK indexes to serve
+// IterateHierarchyV2 and OnResourceUpdated dispatch.
+//
+// existing is the previous Resource for this key, or nil on first sight.
+// The legacy caller reads it from c.resources before the write; the
+// informer caller receives it via cache.ResourceEventHandler's UpdateFunc.
+// Caller must hold c.lock.
+func (c *clusterCache) updateIndexes(existing, n *Resource) {
+	key := n.ResourceKey()
 	ns, ok := c.nsIndex[key.Namespace]
 	if !ok {
 		ns = make(map[kube.ResourceKey]*Resource)
@@ -622,6 +695,23 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	}
 	c.apisMeta = nil
 	c.namespacedResources = nil
+	// Intentionally do NOT clear c.resources / c.nsIndex / c.parentUIDToChildren
+	// here under informer mode — matching legacy semantics where those maps
+	// survive Invalidate and serve stale-but-present data until the next
+	// sync() rebuilds them. Clearing here caused a GetManagedLiveObjs
+	// regression: with c.resources empty, the fallback at L1591 issued
+	// N synchronous API GETs per app reconcile in the Invalidate ->
+	// EnsureSynced window, instead of serving from the in-memory snapshot.
+	// Safe to leave populated because:
+	//   1. syncInformers itself wipes and rebuilds these at sync start,
+	//   2. the in-lock ctx.Err() guard in onInformerChange prevents stale
+	//      pre-cancel event handlers from writing into them after their
+	//      apiMeta.watchCtx is cancelled (see informer_events.go).
+	// Reset first-sync tracking — the next syncInformers should treat its
+	// initial list as a bulk load (suppress OnResourceUpdated), matching
+	// legacy semantics where Invalidate followed by sync() loaded state
+	// via the silent setNode path.
+	c.firstSyncCompleted = false
 	c.log.Info("Invalidated cluster")
 }
 
@@ -647,8 +737,24 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	defer c.lock.Unlock()
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
+		// Under informer mode every per-(GK, namespace) informer shares
+		// the parent watchCancel — cancelling for one ns terminates them
+		// all. Purge shadow entries for every namespace this apiMeta was
+		// watching, not just the failing ns, or those other namespaces
+		// would keep stale resources forever with no informer feeding
+		// updates. Legacy mode keeps the per-ns scoping because each ns
+		// had its own retry goroutine.
+		nsToPurge := []string{ns}
+		if c.mode == ModeInformer {
+			nsToPurge = nsToPurge[:0]
+			for watchedNs := range info.informers {
+				nsToPurge = append(nsToPurge, watchedNs)
+			}
+		}
 		delete(c.apisMeta, gk)
-		c.replaceResourceCache(gk, nil, ns)
+		for _, n := range nsToPurge {
+			c.replaceResourceCache(gk, nil, n)
+		}
 		c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk))
 	}
 }
@@ -672,6 +778,15 @@ func (c *clusterCache) startMissingWatches() error {
 		api := apis[i]
 		namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		if _, ok := c.apisMeta[api.GroupKind]; !ok {
+			// Under informer mode, CRD-driven registration routes through
+			// the informer lifecycle instead of the legacy watchEvents loop.
+			// Caller holds c.lock (see handleCRDEvent).
+			if c.mode == ModeInformer {
+				if err := c.startInformersForAPILocked(context.Background(), api); err != nil {
+					return fmt.Errorf("start informers for %s: %w", api.GroupKind, err)
+				}
+				continue
+			}
 			ctx, cancel := context.WithCancel(context.Background())
 			c.apisMeta[api.GroupKind] = &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 
@@ -857,69 +972,98 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 				c.recordEvent(event.Type, obj)
 				if kube.IsCRD(obj) {
-					var resources []kube.APIResourceInfo
-					crd := apiextensionsv1.CustomResourceDefinition{}
-					err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &crd)
-					if err != nil {
-						c.log.Error(err, "Failed to extract CRD resources")
-					}
-					for _, v := range crd.Spec.Versions {
-						resources = append(resources, kube.APIResourceInfo{
-							GroupKind: schema.GroupKind{
-								Group: crd.Spec.Group, Kind: crd.Spec.Names.Kind,
-							},
-							GroupVersionResource: schema.GroupVersionResource{
-								Group: crd.Spec.Group, Version: v.Name, Resource: crd.Spec.Names.Plural,
-							},
-							Meta: metav1.APIResource{
-								Group:        crd.Spec.Group,
-								SingularName: crd.Spec.Names.Singular,
-								Namespaced:   crd.Spec.Scope == apiextensionsv1.NamespaceScoped,
-								Name:         crd.Spec.Names.Plural,
-								Kind:         crd.Spec.Names.Singular,
-								Version:      v.Name,
-								ShortNames:   crd.Spec.Names.ShortNames,
-							},
-						})
-					}
-
-					if event.Type == watch.Deleted {
-						for i := range resources {
-							c.deleteAPIResource(resources[i])
-						}
-					} else {
-						c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event", "eventType", event.Type, "groupKind", crd.GroupVersionKind().GroupKind().String())
-						// add new CRD's groupkind to c.apigroups
-						if event.Type == watch.Added {
-							for i := range resources {
-								c.appendAPIResource(resources[i])
-							}
-						}
-						err = runSynced(&c.lock, func() error {
-							return c.startMissingWatches()
-						})
-						if err != nil {
-							c.log.Error(err, "Failed to start missing watch")
-						}
-					}
-					err = runSynced(&c.lock, func() error {
-						openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
-						if err != nil {
-							return fmt.Errorf("failed to load open api schema while handling CRD change: %w", err)
-						}
-						if gvkParser != nil {
-							c.gvkParser = gvkParser
-						}
-						c.openAPISchema = openAPISchema
-						return nil
-					})
-					if err != nil {
-						c.log.Error(err, "Failed to reload open api schema")
-					}
+					c.handleCRDEvent(event.Type, obj)
 				}
 			}
 		}
 	})
+}
+
+// handleCRDEvent reacts to a CRD add/modify/delete event on the watch
+// stream. It updates c.apiResources, triggers startMissingWatches for new
+// or changed CRDs, and reloads the OpenAPI schema. Safe to call from any
+// event source — the legacy watch loop invokes it directly, and a future
+// informer-based cache will call it from its event handler.
+func (c *clusterCache) handleCRDEvent(event watch.EventType, obj *unstructured.Unstructured) {
+	resources, err := crdVersionsToAPIResources(obj)
+	if err != nil {
+		c.log.Error(err, "Failed to extract CRD resources")
+		// Fall through: startMissingWatches and the OpenAPI reload still
+		// run, matching the original inline behavior where extraction
+		// failure left resources empty but didn't short-circuit.
+	}
+
+	// Identify the CRD by the GroupKind of the resource it defines, not the
+	// apiextensions.k8s.io/CustomResourceDefinition wrapper. Falls back to
+	// the CRD's name when extraction failed and resources is empty.
+	innerGK := obj.GetName()
+	if len(resources) > 0 {
+		innerGK = resources[0].GroupKind.String()
+	}
+
+	if event == watch.Deleted {
+		for i := range resources {
+			c.deleteAPIResource(resources[i])
+		}
+	} else {
+		c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event",
+			"eventType", event, "groupKind", innerGK)
+		if event == watch.Added {
+			for i := range resources {
+				c.appendAPIResource(resources[i])
+			}
+		}
+		if err := runSynced(&c.lock, c.startMissingWatches); err != nil {
+			c.log.Error(err, "Failed to start missing watch")
+		}
+	}
+
+	if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
+		c.log.Error(err, "Failed to reload open api schema")
+	}
+}
+
+// crdVersionsToAPIResources decodes an unstructured CRD and expands its
+// spec.versions into one kube.APIResourceInfo per version.
+func crdVersionsToAPIResources(obj *unstructured.Unstructured) ([]kube.APIResourceInfo, error) {
+	var crd apiextensionsv1.CustomResourceDefinition
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &crd); err != nil {
+		return nil, fmt.Errorf("extract CRD from unstructured: %w", err)
+	}
+	resources := make([]kube.APIResourceInfo, 0, len(crd.Spec.Versions))
+	for _, v := range crd.Spec.Versions {
+		resources = append(resources, kube.APIResourceInfo{
+			GroupKind: schema.GroupKind{Group: crd.Spec.Group, Kind: crd.Spec.Names.Kind},
+			GroupVersionResource: schema.GroupVersionResource{
+				Group: crd.Spec.Group, Version: v.Name, Resource: crd.Spec.Names.Plural,
+			},
+			Meta: metav1.APIResource{
+				Group:        crd.Spec.Group,
+				SingularName: crd.Spec.Names.Singular,
+				Namespaced:   crd.Spec.Scope == apiextensionsv1.NamespaceScoped,
+				Name:         crd.Spec.Names.Plural,
+				Kind:         crd.Spec.Names.Singular,
+				Version:      v.Name,
+				ShortNames:   crd.Spec.Names.ShortNames,
+			},
+		})
+	}
+	return resources, nil
+}
+
+// reloadOpenAPISchema fetches the current OpenAPI schema and GVKParser
+// from the API server and stores them on the cache. Caller must hold
+// c.lock (use runSynced).
+func (c *clusterCache) reloadOpenAPISchema() error {
+	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
+	if err != nil {
+		return fmt.Errorf("failed to load open api schema while handling CRD change: %w", err)
+	}
+	if gvkParser != nil {
+		c.gvkParser = gvkParser
+	}
+	c.openAPISchema = openAPISchema
+	return nil
 }
 
 // processApi processes all the resources for a given API. First we construct an API client for the given API. Then we
@@ -1006,6 +1150,9 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 // When this function exits, the cluster cache is up to date, and the appropriate resources are being watched for
 // changes.
 func (c *clusterCache) sync() error {
+	if c.mode == ModeInformer {
+		return c.syncInformers()
+	}
 	c.log.Info("Start syncing cluster")
 
 	for i := range c.apisMeta {
@@ -1144,17 +1291,44 @@ func (c *clusterCache) EnsureSynced() error {
 	}
 	syncStatus.lock.Unlock() // release the lock, so that we can acquire the parent lock (see struct comment re: lock acquisition ordering)
 
+	// Single-flight: under informer mode sync() releases c.lock during
+	// WaitForCacheSync, opening a window where a second EnsureSynced caller
+	// would otherwise acquire c.lock and re-enter sync(), cancelling the
+	// first caller's informers. syncMu serialises EnsureSynced callers so
+	// the second one finds alreadySynced=true after the first finishes and
+	// short-circuits to the cached result. Acquired BEFORE c.lock to keep
+	// a consistent lock order; never held by any path other than this one.
+	c.syncMu.Lock()
+	defer c.syncMu.Unlock()
+
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	syncStatus.lock.Lock()
-	defer syncStatus.lock.Unlock()
 
 	// before doing any work, check once again now that we have the lock, to see if it got
 	// synced between the first check and now
-	if syncStatus.synced(c.clusterSyncRetryTimeout) {
-		return syncStatus.syncError
+	syncStatus.lock.Lock()
+	alreadySynced := syncStatus.synced(c.clusterSyncRetryTimeout)
+	syncErr := syncStatus.syncError
+	syncStatus.lock.Unlock()
+	if alreadySynced {
+		return syncErr
 	}
+
+	// IMPORTANT: do not hold syncStatus.lock across sync(). Under informer mode
+	// sync() -> syncInformers() releases c.lock while waiting for the initial
+	// informer sync; holding syncStatus.lock across that window deadlocks with
+	// GetClusterInfo (which takes c.lock.RLock first, then syncStatus.lock).
 	err := c.sync()
+	// errCacheInvalidatedMidSync is transient by design — Invalidate already
+	// reset syncStatus.syncTime to nil, and caching this error here would
+	// reintroduce the clusterSyncRetryTimeout suppression that the sentinel
+	// is meant to bypass. Return the error to this caller but leave
+	// syncStatus untouched so the next EnsureSynced re-syncs.
+	if errors.Is(err, errCacheInvalidatedMidSync) {
+		return err
+	}
+	syncStatus.lock.Lock()
+	defer syncStatus.lock.Unlock()
 	syncTime := time.Now()
 	syncStatus.syncTime = &syncTime
 	syncStatus.syncError = err
@@ -1614,45 +1788,60 @@ func (c *clusterCache) processEvent(key kube.ResourceKey, evMeta eventMeta) {
 
 func (c *clusterCache) onNodeUpdated(oldRes *Resource, newRes *Resource) {
 	c.setNode(newRes)
+	c.dispatchResourceUpdated(newRes, oldRes, c.nsIndex[newRes.Ref.Namespace])
+}
+
+// dispatchResourceUpdated fires all OnResourceUpdated handlers. Shared
+// helper: both legacy onNodeUpdated/onNodeRemoved and the informer event
+// handler route through here so the dispatch site is identical.
+func (c *clusterCache) dispatchResourceUpdated(newRes, oldRes *Resource, ns map[kube.ResourceKey]*Resource) {
 	for _, h := range c.getResourceUpdatedHandlers() {
-		h(newRes, oldRes, c.nsIndex[newRes.Ref.Namespace])
+		h(newRes, oldRes, ns)
 	}
+}
+
+// removeIndexes maintains nsIndex and parentUIDToChildren when a Resource
+// is removed. Shared by legacy and informer impls (the legacy caller also
+// deletes from c.resources; see onNodeRemoved). Returns the post-deletion
+// namespace map for OnResourceUpdated dispatch. Caller must hold c.lock.
+func (c *clusterCache) removeIndexes(existing *Resource) map[kube.ResourceKey]*Resource {
+	key := existing.ResourceKey()
+	ns, ok := c.nsIndex[key.Namespace]
+	if ok {
+		delete(ns, key)
+		if len(ns) == 0 {
+			delete(c.nsIndex, key.Namespace)
+		}
+		// remove ownership references from children with inferred references
+		if existing.isInferredParentOf != nil {
+			for k, v := range ns {
+				if mightHaveInferredOwner(v) && existing.isInferredParentOf(k) {
+					v.setOwnerRef(existing.toOwnerRef(), false)
+					// Update index inline when removing inferred ref
+					if existing.Ref.UID != "" {
+						c.removeFromParentUIDToChildren(existing.Ref.UID, k)
+					}
+				}
+			}
+		}
+	}
+
+	// Clean up parent-to-children index
+	for _, ownerRef := range existing.OwnerRefs {
+		if ownerRef.UID != "" {
+			c.removeFromParentUIDToChildren(ownerRef.UID, key)
+		}
+	}
+
+	return ns
 }
 
 func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 	existing, ok := c.resources[key]
 	if ok {
 		delete(c.resources, key)
-		ns, ok := c.nsIndex[key.Namespace]
-		if ok {
-			delete(ns, key)
-			if len(ns) == 0 {
-				delete(c.nsIndex, key.Namespace)
-			}
-			// remove ownership references from children with inferred references
-			if existing.isInferredParentOf != nil {
-				for k, v := range ns {
-					if mightHaveInferredOwner(v) && existing.isInferredParentOf(k) {
-						v.setOwnerRef(existing.toOwnerRef(), false)
-						// Update index inline when removing inferred ref
-						if existing.Ref.UID != "" {
-							c.removeFromParentUIDToChildren(existing.Ref.UID, k)
-						}
-					}
-				}
-			}
-		}
-
-		// Clean up parent-to-children index
-		for _, ownerRef := range existing.OwnerRefs {
-			if ownerRef.UID != "" {
-				c.removeFromParentUIDToChildren(ownerRef.UID, key)
-			}
-		}
-
-		for _, h := range c.getResourceUpdatedHandlers() {
-			h(nil, existing, ns)
-		}
+		ns := c.removeIndexes(existing)
+		c.dispatchResourceUpdated(nil, existing, ns)
 	}
 }
 

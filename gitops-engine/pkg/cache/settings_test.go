@@ -10,8 +10,15 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 )
 
+// newSettingsTestCache calls the public constructor and returns the concrete
+// legacy impl so white-box assertions on unexported settings fields work.
+// Interface-level tests should use cluster_interface_test.go helpers instead.
+func newSettingsTestCache(opts ...UpdateSettingsFunc) *clusterCache {
+	return NewClusterCache(&rest.Config{}, opts...).(*clusterCache)
+}
+
 func TestSetSettings(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}))
+	cache := newSettingsTestCache(SetKubectl(&kubetest.MockKubectlCmd{}))
 	updatedHealth := &noopSettings{}
 	updatedFilter := &noopSettings{}
 	cache.Invalidate(SetSettings(Settings{ResourceHealthOverride: updatedHealth, ResourcesFilter: updatedFilter}))
@@ -21,7 +28,7 @@ func TestSetSettings(t *testing.T) {
 }
 
 func TestSetConfig(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}))
+	cache := newSettingsTestCache(SetKubectl(&kubetest.MockKubectlCmd{}))
 	updatedConfig := &rest.Config{Host: "http://newhost"}
 	cache.Invalidate(SetConfig(updatedConfig))
 
@@ -29,7 +36,7 @@ func TestSetConfig(t *testing.T) {
 }
 
 func TestSetNamespaces(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}), SetNamespaces([]string{"default"}))
+	cache := newSettingsTestCache(SetKubectl(&kubetest.MockKubectlCmd{}), SetNamespaces([]string{"default"}))
 
 	updatedNamespaces := []string{"updated"}
 	cache.Invalidate(SetNamespaces(updatedNamespaces))
@@ -38,7 +45,7 @@ func TestSetNamespaces(t *testing.T) {
 }
 
 func TestSetResyncTimeout(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{})
+	cache := newSettingsTestCache()
 	assert.Equal(t, defaultClusterResyncTimeout, cache.syncStatus.resyncTimeout)
 
 	timeout := 1 * time.Hour
@@ -48,16 +55,16 @@ func TestSetResyncTimeout(t *testing.T) {
 }
 
 func TestSetWatchResyncTimeout(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{})
+	cache := newSettingsTestCache()
 	assert.Equal(t, defaultWatchResyncTimeout, cache.watchResyncTimeout)
 
 	timeout := 30 * time.Minute
-	cache = NewClusterCache(&rest.Config{}, SetWatchResyncTimeout(timeout))
+	cache = newSettingsTestCache(SetWatchResyncTimeout(timeout))
 	assert.Equal(t, timeout, cache.watchResyncTimeout)
 }
 
 func TestSetBatchEventsProcessing(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{})
+	cache := newSettingsTestCache()
 	assert.False(t, cache.batchEventsProcessing)
 
 	cache.Invalidate(SetBatchEventsProcessing(true))
@@ -65,7 +72,7 @@ func TestSetBatchEventsProcessing(t *testing.T) {
 }
 
 func TestSetEventsProcessingInterval(t *testing.T) {
-	cache := NewClusterCache(&rest.Config{})
+	cache := newSettingsTestCache()
 	assert.Equal(t, defaultEventProcessingInterval, cache.eventProcessingInterval)
 
 	interval := 1 * time.Second
