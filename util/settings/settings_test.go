@@ -2789,3 +2789,29 @@ func TestEscapeDollarSignsInMap(t *testing.T) {
 		assert.Equal(t, original, input["bindPW"])
 	})
 }
+
+
+func TestGetOrphanedIgnoreConfig_NoConfig(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), nil)
+	config, err := settingsManager.GetOrphanedIgnoreConfig()
+	require.NoError(t, err)
+	assert.Empty(t, config.NamePatterns)
+}
+
+func TestGetOrphanedIgnoreConfig_WithPatterns(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"resource.orphaned.ignore.namePatterns": "namePatterns:\n  - \"*-cluster-config-map\"\n  - \"*-config-map\"\n",
+	})
+	config, err := settingsManager.GetOrphanedIgnoreConfig()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"*-cluster-config-map", "*-config-map"}, config.NamePatterns)
+}
+
+func TestGetOrphanedIgnoreConfig_NoMatch(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"resource.orphaned.ignore.namePatterns": "namePatterns:\n  - \"*-cluster-config-map\"\n",
+	})
+	config, err := settingsManager.GetOrphanedIgnoreConfig()
+	require.NoError(t, err)
+	assert.NotContains(t, config.NamePatterns, "some-other-resource")
+}
