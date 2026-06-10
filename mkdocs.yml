@@ -108,6 +108,7 @@ nav:
     - Use Cases: operator-manual/applicationset/Use-Cases.md
     - Security: operator-manual/applicationset/Security.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
+    - ApplicationSet Web UI: operator-manual/applicationset/Web-UI.md
     - Generators:
       - operator-manual/applicationset/Generators.md
       - operator-manual/applicationset/Generators-List.md
@@ -203,6 +204,7 @@ nav:
   - user-guide/sync-kubectl.md
   - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
+  - Managing ApplicationSets in the Web UI: user-guide/application-set-ui.md
   - user-guide/ci_automation.md
   - user-guide/app_deletion.md
   - user-guide/best_practices.md
@@ -239,6 +241,7 @@ nav:
   - developer-guide/static-code-analysis.md
   - Extensions:
     - developer-guide/extensions/ui-extensions.md
+    - operator-manual/upgrading/ui-extensions-react-19-upgrading.md
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
   - developer-guide/tilt.md

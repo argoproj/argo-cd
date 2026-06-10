@@ -634,6 +634,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -1541,6 +1543,8 @@ spec:
                                         path:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
@@ -2451,6 +2455,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -3337,6 +3343,8 @@ spec:
                                         path:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
@@ -4250,6 +4258,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -5157,6 +5167,8 @@ spec:
                                                   path:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -6067,6 +6079,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -6953,6 +6967,8 @@ spec:
                                                   path:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -7848,6 +7864,8 @@ spec:
                                                   path:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -8971,6 +8989,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -10090,6 +10110,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -10993,6 +11015,8 @@ spec:
                                         path:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
@@ -11908,6 +11932,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -12815,6 +12841,8 @@ spec:
                                                   path:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -13725,6 +13753,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -14611,6 +14641,8 @@ spec:
                                                   path:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -15506,6 +15538,8 @@ spec:
                                                   path:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -16629,6 +16663,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -17748,6 +17784,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -18656,6 +18694,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -19549,6 +19589,8 @@ spec:
                                         path:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
@@ -20672,6 +20714,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -21791,6 +21835,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -22771,6 +22817,8 @@ spec:
                               path:
                                 minLength: 1
                                 pattern: ^.{2,}|[^./]$
+                                type: string
+                              repoURL:
                                 type: string
                               targetBranch:
                                 type: string
