@@ -10,14 +10,17 @@ on:
   issues:
     types: [opened, reopened]
   reaction: eyes
+  roles: all # ***** argo-cd specific: make sure the workflow will be executed for issue of any author *****
 
 permissions: read-all
 
 network: defaults
 
-# # This workflow runs often, so you can use a small model to keep costs down.
-# engine:
-#   model: small
+# This workflow runs often, so you can use a small model to keep costs down.
+# ***** argo-cd specific: set the engine with cheapest claude model, we can change the model and the AI type later ***** 
+engine:
+  id: claude
+  model: claude-haiku-4-5-20251001
 
 safe-outputs:
   add-labels:
@@ -33,11 +36,10 @@ safe-outputs:
 tools:
   web-fetch:
   github:
-    toolsets: [issues, labels]
+    toolsets: [issues, labels, search, repos] # ***** argo-cd specific: added search and repos so that the agent also looks at the code when triaging the issue, as the default is triaging based on the issue description, comments and labels only. This results in more tokens being used *****
     min-integrity: none # This workflow is allowed to examine and comment on any issues
 
 timeout-minutes: 10
-engine: claude
 
 source: githubnext/agentics/workflows/issue-triage.md@e15e57b40918dbca11b350c55d02ab61934afa75
 ---
