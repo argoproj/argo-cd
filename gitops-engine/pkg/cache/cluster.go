@@ -26,6 +26,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"slices"
@@ -91,6 +92,11 @@ const (
 	// RespectRbacStrict checks both api response for forbidden/unauthorized errors and SelfSubjectAccessReview
 	RespectRbacStrict
 )
+
+// errSkipNamespace is returned by a processApi callback to signal that the
+// current (GVK, namespace) pair should be skipped and iteration should
+// continue with the next namespace.
+var errSkipNamespace = errors.New("skip namespace: inaccessible (GVK, namespace) pair")
 
 // callState tracks whether action() has been called on a resource during hierarchy iteration.
 type callState int
@@ -285,6 +291,11 @@ type clusterCache struct {
 	// Using a set eliminates O(k) duplicate checking on insertions
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
+
+	// syncWarnings accumulates per-sync, operator-facing warnings (e.g. skipped inaccessible (GVK,ns) pairs).
+	// Reset at the start of each sync; written concurrently by GVK goroutines, so guarded by syncWarningsLock.
+	syncWarnings     []string
+	syncWarningsLock sync.Mutex
 }
 
 type clusterCacheSync struct {
@@ -1078,6 +1089,51 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 	// checkPermission follows the same logic of determining namespace/cluster resource as the processApi function
 	// so if neither of the cases match it means the controller will not watch for it so it is safe to return true.
 	return true, nil
+}
+
+// checkNamespacePermission runs a self subject access review for a specific (GVK, namespace) pair
+// to check if the controller has permission to list the resource in that namespace.
+func (c *clusterCache) checkNamespacePermission(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, namespace string) (bool, error) {
+	sar := &authorizationv1.SelfSubjectAccessReview{
+		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+			ResourceAttributes: &authorizationv1.ResourceAttributes{
+				Namespace: namespace,
+				Verb:      "list",
+				Group:     api.GroupVersionResource.Group,
+				Resource:  api.GroupVersionResource.Resource,
+			},
+		},
+	}
+	resp, err := reviewInterface.Create(ctx, sar, metav1.CreateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to create self subject access review: %w", err)
+	}
+	return resp != nil && resp.Status.Allowed, nil
+}
+
+func (c *clusterCache) recordSyncWarning(msg string) {
+	c.syncWarningsLock.Lock()
+	defer c.syncWarningsLock.Unlock()
+	c.syncWarnings = append(c.syncWarnings, msg)
+}
+
+// handleNamespacedListError classifies a list error for a (GVK, namespace) pair using SSAR.
+// If the error is not a 403 Forbidden, it is returned as-is.
+// If it is Forbidden and SSAR confirms no access, errSkipNamespace is returned and a warning is recorded.
+// If it is Forbidden but SSAR confirms access, the original error is returned (genuine/transient 403).
+func (c *clusterCache) handleNamespacedListError(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, namespace string, listErr error) error {
+	if !apierrors.IsForbidden(listErr) {
+		return listErr
+	}
+	allowed, err := c.checkNamespacePermission(ctx, reviewInterface, api, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to verify access to %s in namespace %q: %w", api.GroupKind, namespace, err)
+	}
+	if allowed {
+		return listErr
+	}
+	c.recordSyncWarning(fmt.Sprintf("namespace %q: cannot list %s (skipped): %v", namespace, api.GroupKind, listErr))
+	return errSkipNamespace
 }
 
 // sync retrieves the current state of the cluster and stores relevant information in the clusterCache fields.
