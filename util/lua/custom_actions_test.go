@@ -344,6 +344,7 @@ func runActionScriptTestCase(t *testing.T, tc actionScriptTestCase) {
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
+	t.Parallel()
 	discoveryCases, actionCases := collectActionTestCases(t)
 	for _, tc := range discoveryCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -384,13 +385,6 @@ func parseExpectedObjectList(t *testing.T, yamlBytes []byte) *unstructured.Unstr
 		unstructuredList.Items[0] = unstructured.Unstructured{Object: obj}
 	}
 	return unstructuredList
-}
-
-func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
-	t.Helper()
-	yamlBytes, err := os.ReadFile(path)
-	require.NoError(t, err)
-	return parseExpectedObjectList(t, yamlBytes)
 }
 
 func findFirstMatchingItem(items []unstructured.Unstructured, f func(unstructured.Unstructured) bool) *unstructured.Unstructured {

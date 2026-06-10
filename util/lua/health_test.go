@@ -36,13 +36,6 @@ func parseObj(t *testing.T, yamlBytes []byte) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: obj}
 }
 
-func getObj(t *testing.T, path string) *unstructured.Unstructured {
-	t.Helper()
-	yamlBytes, err := os.ReadFile(path)
-	require.NoError(t, err)
-	return parseObj(t, yamlBytes)
-}
-
 func collectHealthTestCases(t *testing.T) []healthTestCase {
 	t.Helper()
 	var cases []healthTestCase
@@ -81,6 +74,7 @@ func collectHealthTestCases(t *testing.T) []healthTestCase {
 }
 
 func TestLuaHealthScript(t *testing.T) {
+	t.Parallel()
 	cases := collectHealthTestCases(t)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
