@@ -34,6 +34,7 @@ func getHealthStatus(t *testing.T, yamlPath string) *HealthStatus {
 }
 
 func TestDeploymentHealth(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "../utils/kube/testdata/nginx.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/deployment-progressing.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/deployment-suspended.yaml", HealthStatusSuspended)
@@ -41,23 +42,28 @@ func TestDeploymentHealth(t *testing.T) {
 }
 
 func TestStatefulSetHealth(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/statefulset.yaml", HealthStatusHealthy)
 }
 
 func TestStatefulSetOnDeleteHealth(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/statefulset-ondelete.yaml", HealthStatusHealthy)
 }
 
 func TestDaemonSetOnDeleteHealth(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/daemonset-ondelete.yaml", HealthStatusHealthy)
 }
 
 func TestPVCHealth(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/pvc-bound.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/pvc-pending.yaml", HealthStatusProgressing)
 }
 
 func TestServiceHealth(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/svc-clusterip.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/svc-loadbalancer.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/svc-loadbalancer-unassigned.yaml", HealthStatusProgressing)
@@ -65,16 +71,19 @@ func TestServiceHealth(t *testing.T) {
 }
 
 func TestIngressHealth(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/ingress.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/ingress-unassigned.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/ingress-nonemptylist.yaml", HealthStatusHealthy)
 }
 
 func TestCRD(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, getHealthStatus(t, "./testdata/knative-service.yaml"))
 }
 
 func TestJob(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/job-running.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/job-failed.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/job-succeeded.yaml", HealthStatusHealthy)
@@ -82,6 +91,7 @@ func TestJob(t *testing.T) {
 }
 
 func TestHPA(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/hpa-v2-healthy.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v2-degraded.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/hpa-v2-progressing.yaml", HealthStatusProgressing)
@@ -94,6 +104,7 @@ func TestHPA(t *testing.T) {
 }
 
 func TestPod(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/pod-pending.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-running-not-ready.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-crashloop.yaml", HealthStatusDegraded)
@@ -108,11 +119,13 @@ func TestPod(t *testing.T) {
 }
 
 func TestApplication(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, getHealthStatus(t, "./testdata/application-healthy.yaml"))
 	assert.Nil(t, getHealthStatus(t, "./testdata/application-degraded.yaml"))
 }
 
 func TestAPIService(t *testing.T) {
+	t.Parallel()
 	assertAppHealth(t, "./testdata/apiservice-v1-true.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/apiservice-v1-false.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/apiservice-v1beta1-true.yaml", HealthStatusHealthy)
@@ -120,6 +133,7 @@ func TestAPIService(t *testing.T) {
 }
 
 func TestGetArgoWorkflowHealth(t *testing.T) {
+	t.Parallel()
 	sampleWorkflow := unstructured.Unstructured{
 		Object: map[string]any{
 			"spec": map[string]any{

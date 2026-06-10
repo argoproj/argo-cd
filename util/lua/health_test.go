@@ -22,44 +22,71 @@ type IndividualTest struct {
 	HealthStatus health.HealthStatus `yaml:"healthStatus"`
 }
 
-func getObj(t *testing.T, path string) *unstructured.Unstructured {
-	t.Helper()
-	yamlBytes, err := os.ReadFile(path)
-	require.NoError(t, err)
-	obj := make(map[string]any)
-	err = yaml.Unmarshal(yamlBytes, &obj)
-	require.NoError(t, err)
+type healthTestCase struct {
+	name     string
+	obj      *unstructured.Unstructured
+	expected health.HealthStatus
+}
 
+func parseObj(t *testing.T, yamlBytes []byte) *unstructured.Unstructured {
+	t.Helper()
+	obj := make(map[string]any)
+	err := yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
 	return &unstructured.Unstructured{Object: obj}
 }
 
-func TestLuaHealthScript(t *testing.T) {
+func collectHealthTestCases(t *testing.T) []healthTestCase {
+	t.Helper()
+	var cases []healthTestCase
 	err := filepath.Walk("../../resource_customizations", func(path string, _ os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if !strings.Contains(path, "health.lua") {
 			return nil
 		}
-		require.NoError(t, err)
 		dir := filepath.Dir(path)
-		yamlBytes, err := os.ReadFile(dir + "/health_test.yaml")
-		require.NoError(t, err)
+		yamlBytes, err := os.ReadFile(filepath.Join(dir, "health_test.yaml"))
+		if err != nil {
+			return err
+		}
 		var resourceTest TestStructure
-		err = yaml.Unmarshal(yamlBytes, &resourceTest)
-		require.NoError(t, err)
-		for i := range resourceTest.Tests {
-			test := resourceTest.Tests[i]
-			t.Run(filepath.Join(strings.TrimPrefix(dir, "../../resource_customizations/"), test.InputPath), func(t *testing.T) {
-				vm := VM{
-					UseOpenLibs: true,
-				}
-				obj := getObj(t, filepath.Join(dir, test.InputPath))
-				script, _, err := vm.GetHealthScript(obj)
-				require.NoError(t, err)
-				result, err := vm.ExecuteHealthLua(obj, script)
-				require.NoError(t, err)
-				assert.Equal(t, &test.HealthStatus, result)
+		if err := yaml.Unmarshal(yamlBytes, &resourceTest); err != nil {
+			return err
+		}
+		resourcePrefix := strings.TrimPrefix(dir, "../../resource_customizations/")
+		for _, test := range resourceTest.Tests {
+			inputBytes, err := os.ReadFile(filepath.Join(dir, test.InputPath))
+			if err != nil {
+				return err
+			}
+			cases = append(cases, healthTestCase{
+				name:     filepath.Join(resourcePrefix, test.InputPath),
+				obj:      parseObj(t, inputBytes),
+				expected: test.HealthStatus,
 			})
 		}
 		return nil
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	return cases
+}
+
+func TestLuaHealthScript(t *testing.T) {
+	t.Parallel()
+	cases := collectHealthTestCases(t)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			vm := VM{
+				UseOpenLibs: true,
+			}
+			script, _, err := vm.GetHealthScript(tc.obj)
+			require.NoError(t, err)
+			result, err := vm.ExecuteHealthLua(tc.obj, script)
+			require.NoError(t, err)
+			assert.Equal(t, &tc.expected, result)
+		})
+	}
 }
