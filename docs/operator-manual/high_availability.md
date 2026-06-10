@@ -103,6 +103,10 @@ get the actual cluster state.
   `timeout.reconciliation.jitter` setting in the `argocd-cm` ConfigMap. The value of the fields is
   a [duration string](https://pkg.go.dev/time#ParseDuration) e.g `60s`, `1m` or `1h`.
 
+  > [!NOTE]
+  > Restart the application-server `StatefulSet` to apply this change. You can do so by running
+  > `kubectl rollout restart -n argocd statefulset argocd-application-controller`
+
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
   controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller`
   `StatefulSet`
