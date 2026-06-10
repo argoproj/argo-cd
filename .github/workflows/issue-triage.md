@@ -41,6 +41,11 @@ tools:
 
 timeout-minutes: 10
 
+# ***** argo-cd specific: to prevent someone from spamming new issues and burning our API credit *****
+user-rate-limit:
+  max-runs-per-window: 3
+  window: 60
+
 source: githubnext/agentics/workflows/issue-triage.md@e15e57b40918dbca11b350c55d02ab61934afa75
 ---
 
