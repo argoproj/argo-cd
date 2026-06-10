@@ -55,7 +55,7 @@ data:
   # Path to the client certificate file for mTLS connections to repo server
   controller.repo.server.client.cert.path: ""
   # Path to the client certificate key file for mTLS connections to repo server
-  controller.repo.server.client.cert.key.path: "": ""
+  controller.repo.server.client.cert.key.path: ""
   # Number of application status processors (default 20)
   controller.status.processors: "20"
   # Number of application operation processors (default 10)
