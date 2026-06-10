@@ -23,7 +23,7 @@ The following metrics are available:
  Labels:
 
 * `name` - trigger name 
-* `triggered` - flag that indicates if trigger condition returned true of false
+* `triggered` - flag that indicates if trigger condition returned true or false
 
 ## Examples
 
