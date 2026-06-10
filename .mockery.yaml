@@ -3,29 +3,53 @@ filename: '{{.InterfaceName}}.go'
 include-auto-generated: true # Needed since mockery 3.6.1
 packages:
   github.com/argoproj/argo-cd/v3/applicationset/generators:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Generator: {}
   github.com/argoproj/argo-cd/v3/applicationset/services:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Repos: {}
   github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       AWSCodeCommitClient: {}
       AWSTaggingClient: {}
       AzureDevOpsClientFactory: {}
   github.com/argoproj/argo-cd/v3/applicationset/utils:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Renderer: {}
   github.com/argoproj/argo-cd/v3/commitserver/apiclient:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       CommitServiceClient: {}
   github.com/argoproj/argo-cd/v3/commitserver/commit:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       RepoClientFactory: {}
   github.com/argoproj/argo-cd/v3/controller/cache:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       LiveStateCache: {}
   github.com/argoproj/argo-cd/v3/controller/hydrator:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Dependencies: {}
       RepoGetter: {}
@@ -33,20 +57,35 @@ packages:
     interfaces:
       ApplicationServiceClient: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       ClusterServiceClient: {}
       ClusterServiceServer: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/project:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       ProjectServiceClient: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/session:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       SessionServiceClient: {}
       SessionServiceServer: {}
   github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       AppProjectInterface: {}
   github.com/argoproj/argo-cd/v3/reposerver/apiclient:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       RepoServerServiceClient: {}
       RepoServerService_GenerateManifestWithFilesClient: {}
@@ -54,6 +93,9 @@ packages:
     interfaces:
       Broadcaster: {}
   github.com/argoproj/argo-cd/v3/server/extension:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       ApplicationGetter: {}
       ExtensionMetricsRegistry: {}
@@ -62,27 +104,55 @@ packages:
       SettingsGetter: {}
       UserGetter: {}
   github.com/argoproj/argo-cd/v3/util/db:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       ArgoDB: {}
       RepoCredsDB: {}
   github.com/argoproj/argo-cd/v3/util/git:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Client: {}
   github.com/argoproj/argo-cd/v3/util/helm:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Client: {}
   github.com/argoproj/argo-cd/v3/util/io:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       TempPaths: {}
   github.com/argoproj/argo-cd/v3/util/notification/argocd:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Service: {}
   github.com/argoproj/argo-cd/v3/util/oci:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Client: {}
   github.com/argoproj/argo-cd/v3/util/workloadidentity:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       TokenProvider: {}
+  k8s.io/client-go/kubernetes/typed/core/v1:
+    config:
+      dir: util/workloadidentity/v2/mocks
+      template: matryer
+      template-data: {}
+    interfaces:
+      ServiceAccountInterface: {}
   github.com/argoproj/argo-cd/gitops-engine/pkg/cache:
     interfaces:
       ClusterCache: {}
@@ -97,9 +167,9 @@ packages:
   github.com/microsoft/azure-devops-go-api/azuredevops/v7/git:
     config:
       dir: applicationset/services/scm_provider/azure_devops/git/mocks
+      template-data:
+        unroll-variadic: true
     interfaces:
       Client: {}
 pkgname: mocks
 structname: '{{.InterfaceName}}'
-template-data:
-  unroll-variadic: true

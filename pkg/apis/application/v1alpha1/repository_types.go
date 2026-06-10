@@ -136,6 +136,39 @@ type Repository struct {
 	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty" protobuf:"bytes,31,opt,name=azureServicePrincipalTenantId"`
 	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
 	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty" protobuf:"bytes,32,opt,name=azureActiveDirectoryEndpoint"`
+	// WorkloadIdentityProvider specifies the provider for workload identity ("aws", "gcp", "azure", "k8s").
+	// When set, the app-controller resolves credentials before passing the repository to the repo-server.
+	// For IRSA, GCP, Azure, and K8s, resolution reads the project-specific service account
+	// (argocd-project-<projectName>) for provider annotations. EKS Pod Identity uses the pod's own
+	// IAM identity and injects an argocd-project session tag on a self-assume, so no per-project
+	// service account is required.
+	WorkloadIdentityProvider string `json:"workloadIdentityProvider,omitempty" protobuf:"bytes,33,opt,name=workloadIdentityProvider"`
+	// WorkloadIdentityTokenURL optionally specifies a custom token endpoint URL (e.g., for GovCloud/sovereign clouds)
+	WorkloadIdentityTokenURL string `json:"workloadIdentityTokenURL,omitempty" protobuf:"bytes,34,opt,name=workloadIdentityTokenURL"`
+	// WorkloadIdentityAudience optionally specifies a custom audience for the K8s JWT token
+	WorkloadIdentityAudience string `json:"workloadIdentityAudience,omitempty" protobuf:"bytes,35,opt,name=workloadIdentityAudience"`
+	// WorkloadIdentityUsername optionally specifies a username for credentials (e.g., Quay robot account "org+robot")
+	// Default: "$oauthtoken"
+	WorkloadIdentityUsername string `json:"workloadIdentityUsername,omitempty" protobuf:"bytes,36,opt,name=workloadIdentityUsername"`
+	// WorkloadIdentityAuthHost optionally overrides the registry host for auth requests.
+	// Use when the auth endpoint is on a different host than the registry (e.g., octo-sts.dev for ghcr.io)
+	WorkloadIdentityAuthHost string `json:"workloadIdentityAuthHost,omitempty" protobuf:"bytes,37,opt,name=workloadIdentityAuthHost"`
+	// WorkloadIdentityMethod specifies the HTTP method for http authenticator (GET or POST, default: GET)
+	WorkloadIdentityMethod string `json:"workloadIdentityMethod,omitempty" protobuf:"bytes,38,opt,name=workloadIdentityMethod"`
+	// WorkloadIdentityPathTemplate specifies the URL path template for http authenticator
+	// Uses Go template syntax with Sprig functions. Variables: {{ .token }}, {{ .registry }}, {{ .repo }}, plus custom params
+	WorkloadIdentityPathTemplate string `json:"workloadIdentityPathTemplate,omitempty" protobuf:"bytes,39,opt,name=workloadIdentityPathTemplate"`
+	// WorkloadIdentityBodyTemplate specifies the request body template for http authenticator (POST requests)
+	// Auto-detects content-type: JSON if starts with '{' or '[', otherwise form-urlencoded
+	WorkloadIdentityBodyTemplate string `json:"workloadIdentityBodyTemplate,omitempty" protobuf:"bytes,40,opt,name=workloadIdentityBodyTemplate"`
+	// WorkloadIdentityAuthType specifies how to send the identity token for http authenticator
+	// ("bearer" = Authorization header, "basic" = Basic auth with Username, "none" = only in template)
+	WorkloadIdentityAuthType string `json:"workloadIdentityAuthType,omitempty" protobuf:"bytes,41,opt,name=workloadIdentityAuthType"`
+	// WorkloadIdentityParams specifies custom parameters for template substitution in http authenticator
+	WorkloadIdentityParams map[string]string `json:"workloadIdentityParams,omitempty" protobuf:"bytes,42,rep,name=workloadIdentityParams"`
+	// WorkloadIdentityResponseTokenField specifies which JSON field to extract from auth response
+	// Default: tries "access_token", then "token", then "refresh_token"
+	WorkloadIdentityResponseTokenField string `json:"workloadIdentityResponseTokenField,omitempty" protobuf:"bytes,43,opt,name=workloadIdentityResponseTokenField"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -150,7 +183,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.AzureServicePrincipalClientSecret != ""
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.AzureServicePrincipalClientSecret != "" || repo.WorkloadIdentityProvider != ""
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
