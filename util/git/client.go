@@ -565,6 +565,16 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 	return m.runCredentialedCmd(ctx, args...)
 }
 
+var lockFileErrRe = regexp.MustCompile(`Unable to create '([^']+\.lock)': File exists`)
+
+func extractLockFilePath(err error) string {
+	m := lockFileErrRe.FindStringSubmatch(err.Error())
+	if len(m) < 2 {
+		return ""
+	}
+	return m[1]
+}
+
 // IsRevisionPresent checks to see if the given revision already exists locally.
 func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	if revision == "" {
@@ -588,6 +598,14 @@ func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	ctx := context.Background()
 
 	err := m.fetch(ctx, revision, depth)
+	if err != nil {
+		if lockPath := extractLockFilePath(err); lockPath != "" {
+			log.Infof("Removing stale git lock file %s and retrying fetch for %s", lockPath, m.repoURL)
+			if removeErr := os.Remove(lockPath); removeErr == nil {
+				err = m.fetch(ctx, revision, depth)
+			}
+		}
+	}
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
