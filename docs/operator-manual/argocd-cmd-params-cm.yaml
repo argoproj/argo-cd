@@ -54,6 +54,8 @@ data:
   controller.status.processors: "20"
   # Number of application operation processors (default 10)
   controller.operation.processors: "10"
+  # Number of manifest hydration processors (default 5). Only relevant when the Source Hydrator is enabled.
+  controller.hydration.processors: "5"
   # Set the logging format. One of: json|text (default "json")
   controller.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
