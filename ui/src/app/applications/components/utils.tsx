@@ -1826,12 +1826,6 @@ export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appMode
         return 'Progressing';
     }
 
-    // Check if rollout progressing failed
-    const progressingConditionError = conditions.find(c => c.type === 'RolloutProgressing' && c.status === 'False' && c.reason === 'ApplicationSetRolloutError');
-    if (progressingConditionError) {
-        return 'Degraded';
-    }
-
     // Check if resources are up to date (healthy state)
     const upToDateCondition = conditions.find(c => c.type === 'ResourcesUpToDate' && c.status === 'True');
     if (upToDateCondition) {

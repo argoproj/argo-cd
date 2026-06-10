@@ -764,36 +764,6 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
-			name: "validationIssue no steps defined when strategy is rollingSync",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "no-steps",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app-dev",
-						Labels: map[string]string{
-							"env": "dev",
-						},
-					},
-				},
-			},
-			expectedList:    [][]string{},
-			expectedStepMap: map[string]int{},
-			expectedValidationIssues: &ValidationIssues{
-				NoSteps: "No steps defined for rollout",
-			},
-		},
-		{
 			name: "app selected in multiple steps is captured as validation issue",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -860,12 +830,8 @@ func TestBuildAppDependencyList(t *testing.T) {
 				"app-qa":  1,
 			},
 			expectedValidationIssues: &ValidationIssues{
-				DuplicateAppSelections: []DuplicateAppSelection{
-					{
-						AppName: "app-dev",
-						Step1:   0,
-						Step2:   1,
-					},
+				DuplicateAppSelections: map[string][]int{
+					"app-dev": []int{0, 1},
 				},
 			},
 		},
@@ -943,55 +909,6 @@ func TestBuildAppDependencyList(t *testing.T) {
 			assert.Equal(t, cc.expectedValidationIssues, validationIssues, "expected validationIssues did not match actual")
 		})
 	}
-}
-
-func TestGetProgressingCondition(t *testing.T) {
-	t.Run("test Progressing condition reason and messages when validationIssues found for RollingSync", func(t *testing.T) {
-		progressiveSyncManager := &Manager{
-			validationIssues: &ValidationIssues{
-				NoSteps: "No steps defined for rollout",
-			},
-		}
-		appset := v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "name",
-				Namespace: "argocd",
-			},
-			Spec: v1alpha1.ApplicationSetSpec{
-				Strategy: &v1alpha1.ApplicationSetStrategy{
-					Type:        "RollingSync",
-					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
-				},
-			},
-			Status: v1alpha1.ApplicationSetStatus{
-				ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
-				Conditions: []v1alpha1.ApplicationSetCondition{
-					{
-						Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-						Message: "Completed",
-						Reason:  "test",
-						Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-					},
-					{
-						Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-						Message: "Completed",
-						Reason:  "test",
-						Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-					},
-					{
-						Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-						Message: "Completed",
-						Reason:  "test",
-						Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-					},
-				},
-			},
-		}
-		progressingCondition := progressiveSyncManager.getProgressingCondition(&appset)
-		assert.NotEmpty(t, progressingCondition)
-		assert.Equal(t, v1alpha1.ApplicationSetReasonApplicationSetRolloutError, progressingCondition.Reason)
-		assert.Equal(t, "No steps defined for rollout", progressingCondition.Message)
-	})
 }
 
 func TestGetAppsToSync(t *testing.T) {

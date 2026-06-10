@@ -255,6 +255,19 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
 		} else if progressivesync.IsRollingSyncStrategy(&applicationSetInfo) {
+			// before starting progressive sync, checks if steps
+			if progressivesync.IsStepsEmpty(&applicationSetInfo) {
+				_ = r.setApplicationSetStatusCondition(ctx,
+					&applicationSetInfo,
+					argov1alpha1.ApplicationSetCondition{
+						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message: "No steps defined for rollout",
+						Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutError,
+						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					}, parametersGenerated,
+				)
+				return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
+			}
 			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)

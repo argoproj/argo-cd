@@ -185,7 +185,15 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 
 			for _, matchExpression := range step.MatchExpressions {
 				if val, ok := app.Labels[matchExpression.Key]; ok {
-					valueMatched := labelMatchedExpression(logCtx, val, matchExpression, i, issues)
+					valueMatched, operatorErr := labelMatchedExpression(val, matchExpression)
+					if operatorErr != nil {
+						issues.InvalidMatchExpressions = append(issues.InvalidMatchExpressions, InvalidMatchExpression{
+							StepIndex: i,
+							Operator:  matchExpression.Operator,
+						})
+						selected = false
+						break
+					}
 
 					if !valueMatched { // none of the matchExpression values was a match with the Application's labels
 						selected = false
@@ -202,18 +210,17 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 				if val, ok := appStepMap[app.Name]; ok {
 					logCtx.Warnf("AppSet '%v' has a invalid matchExpression that selects Application '%v' label twice, in steps %v and %v", applicationSet.Name, app.Name, val+1, i+1)
 					// Collect duplicate selection issue
-					issues.DuplicateAppSelections = append(issues.DuplicateAppSelections, DuplicateAppSelection{
-						AppName: app.Name,
-						Step1:   val,
-						Step2:   i,
-					})
+					if issues.DuplicateAppSelections == nil {
+						issues.DuplicateAppSelections = map[string][]int{}
+					}
+					if _, found := issues.DuplicateAppSelections[app.Name]; !found {
+						issues.DuplicateAppSelections[app.Name] = []int{appStepMap[app.Name]}
+					}
+					issues.DuplicateAppSelections[app.Name] = append(issues.DuplicateAppSelections[app.Name], i)
 				} else {
 					appStepMap[app.Name] = i
 				}
 			}
-		}
-		if len(steps) == 0 {
-			issues.NoSteps = "No steps defined for rollout"
 		}
 	}
 
@@ -227,16 +234,9 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 	return appDependencyList, appStepMap, issues
 }
 
-func labelMatchedExpression(logCtx *log.Entry, val string, matchExpression argov1alpha1.ApplicationMatchExpression, stepIndex int, issues *ValidationIssues) bool {
+func labelMatchedExpression(val string, matchExpression argov1alpha1.ApplicationMatchExpression) (bool, error) {
 	if matchExpression.Operator != "In" && matchExpression.Operator != "NotIn" {
-		logCtx.Errorf("skipping AppSet rollingUpdate step Application selection, invalid matchExpression operator provided: %q ", matchExpression.Operator)
-
-		// Collect validation issue
-		issues.InvalidMatchExpressions = append(issues.InvalidMatchExpressions, InvalidMatchExpression{
-			StepIndex: stepIndex,
-			Operator:  matchExpression.Operator,
-		})
-		return false
+		return false, fmt.Errorf("skipping AppSet rollingUpdate step Application selection, invalid matchExpression operator provided: %q ", matchExpression.Operator)
 	}
 
 	// if operator == In, default to false
@@ -246,9 +246,9 @@ func labelMatchedExpression(logCtx *log.Entry, val string, matchExpression argov
 	if slices.Contains(matchExpression.Values, val) {
 		// first "In" match returns true
 		// first "NotIn" match returns false
-		return matchExpression.Operator == "In"
+		return matchExpression.Operator == "In", nil
 	}
-	return valueMatched
+	return valueMatched, nil
 }
 
 func getAppStep(appName string, appStepMap map[string]int) int {
@@ -459,6 +459,10 @@ func IsRollingSyncStrategy(appset *argov1alpha1.ApplicationSet) bool {
 	return appset.Spec.Strategy != nil && appset.Spec.Strategy.Type == "RollingSync" && appset.Spec.Strategy.RollingSync != nil
 }
 
+func IsStepsEmpty(appset *argov1alpha1.ApplicationSet) bool {
+	return len(appset.Spec.Strategy.RollingSync.Steps) == 0
+}
+
 func RollingSyncStrategyEnabled(appset *argov1alpha1.ApplicationSet) bool {
 	// ProgressiveSync is enabled if the strategy is set to `RollingSync` + steps slice is not empty
 	return IsRollingSyncStrategy(appset) && len(appset.Spec.Strategy.RollingSync.Steps) > 0
@@ -623,23 +627,10 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 	var rolloutReason string
 	var rolloutMessage string
 
-	switch {
-	case m.validationIssues.NoSteps != "":
-		rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutError
-		rolloutMessage = m.validationIssues.NoSteps
-	case m.validationIssues != nil && len(m.validationIssues.InvalidMatchExpressions) > 0:
+	if m.validationIssues.HasIssues() {
 		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-		rolloutMessage = m.validationIssues.formatInvalidMatchExpressionMessage()
-	case m.validationIssues != nil && len(m.validationIssues.DuplicateAppSelections) > 0:
-		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-		rolloutMessage = m.validationIssues.formatDuplicateAppSelectionMessage()
-	case m.validationIssues != nil && len(m.validationIssues.InvalidMaxUpdates) > 0:
-		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-		rolloutMessage = m.validationIssues.formatInvalidMaxUpdateMessage()
-	case m.validationIssues != nil && len(m.validationIssues.EmptySteps) > 0:
-		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-		rolloutMessage = m.validationIssues.formatEmptyStepsMessage()
-	default:
+		rolloutMessage = m.validationIssues.getConditionMessage()
+	} else {
 		rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete
 		rolloutMessage = "ApplicationSet Rollout has completed"
 	}

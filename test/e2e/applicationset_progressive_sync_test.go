@@ -356,9 +356,9 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 	expectedConditions := []v1alpha1.ApplicationSetCondition{
 		{
 			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: "All applications have been generated successfully",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: "No steps defined for rollout",
+			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutError,
 		},
 		{
 			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
@@ -371,12 +371,6 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
 			Message: "All applications have been generated successfully",
 			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: "No steps defined for rollout",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutError,
 		},
 	}
 

@@ -2,6 +2,8 @@ package progressivesync
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -11,9 +13,8 @@ import (
 // ValidationIssues holds all validation problems detected during progressive sync
 type ValidationIssues struct {
 	InvalidMatchExpressions []InvalidMatchExpression
-	DuplicateAppSelections  []DuplicateAppSelection
+	DuplicateAppSelections  map[string][]int
 	EmptySteps              []int // step indices (0-based) with no matching apps
-	NoSteps                 string
 	InvalidMaxUpdates       []InvalidMaxUpdate
 }
 
@@ -21,13 +22,6 @@ type ValidationIssues struct {
 type InvalidMatchExpression struct {
 	StepIndex int    // 0-based step index
 	Operator  string // the invalid operator value
-}
-
-// DuplicateAppSelection represents an application selected by multiple steps
-type DuplicateAppSelection struct {
-	AppName string
-	Step1   int // 0-based
-	Step2   int // 0-based
 }
 
 // InvalidMaxUpdate represents a step with an invalid maxUpdate value
@@ -42,52 +36,74 @@ func (v *ValidationIssues) HasIssues() bool {
 	return len(v.InvalidMatchExpressions) > 0 ||
 		len(v.DuplicateAppSelections) > 0 ||
 		len(v.EmptySteps) > 0 ||
-		v.NoSteps != "" ||
 		len(v.InvalidMaxUpdates) > 0
 }
 
 // formatInvalidMatchExpressionMessage formats error message for invalid match expressions
 func (v *ValidationIssues) formatInvalidMatchExpressionMessage() string {
 	count := len(v.InvalidMatchExpressions)
-	if count == 1 {
-		issue := v.InvalidMatchExpressions[0]
-		return fmt.Sprintf("Step %d has invalid matchExpression operator '%s' (must be 'In' or 'NotIn')",
-			issue.StepIndex+1, issue.Operator)
+	stepNums := make([]string, count)
+	invalidOperators := make([]string, count)
+	for i, invalidMatch := range v.InvalidMatchExpressions {
+		stepNums[i] += strconv.Itoa(invalidMatch.StepIndex + 1)
+		invalidOperators[i] = invalidMatch.Operator
 	}
-	return fmt.Sprintf("Found %d steps with invalid matchExpression operators (must be 'In' or 'NotIn')", count)
+	return fmt.Sprintf("Steps %s have invalid matchExpression operators: %s. Supported Operators are 'In' and 'NotIn'", strings.Join(stepNums, ", "), strings.Join(invalidOperators, ", "))
 }
 
 // formatDuplicateAppSelectionMessage formats error message for duplicate app selections
 func (v *ValidationIssues) formatDuplicateAppSelectionMessage() string {
-	count := len(v.DuplicateAppSelections)
-	if count == 1 {
-		issue := v.DuplicateAppSelections[0]
-		return fmt.Sprintf("Application '%s' is selected by multiple steps (%d and %d)",
-			issue.AppName, issue.Step1+1, issue.Step2+1)
+
+	appNames := []string{}
+	stepNums := []string{}
+	//maps are unsorted
+	keys := slices.Sorted(maps.Keys(v.DuplicateAppSelections))
+	for _, key := range keys {
+		appNames = append(appNames, key)
+		steps := v.DuplicateAppSelections[key]
+		stepNumsString := make([]string, len(steps))
+		for i, step := range steps {
+			stepNumsString[i] = strconv.Itoa(step + 1)
+		}
+		stepNums = append(stepNums, strings.Join(stepNumsString, ","))
 	}
-	return fmt.Sprintf("Found %d applications selected by multiple steps", count)
+	return fmt.Sprintf("Applications '%v' are selected by multiple steps: %v", appNames, stepNums)
 }
 
 // formatInvalidMaxUpdateMessage formats error message for invalid maxUpdate values
 func (v *ValidationIssues) formatInvalidMaxUpdateMessage() string {
 	count := len(v.InvalidMaxUpdates)
-	if count == 1 {
-		issue := v.InvalidMaxUpdates[0]
-		return fmt.Sprintf("Step %d has invalid maxUpdate value '%v': %s",
-			issue.StepIndex+1, issue.MaxUpdate, issue.Error)
+	stepNums := make([]string, count)
+	values := make([]string, count)
+	for i, invalidMaxUpdate := range v.InvalidMaxUpdates {
+		stepNums[i] = strconv.Itoa(invalidMaxUpdate.StepIndex + 1)
+		values[i] = invalidMaxUpdate.MaxUpdate.String()
 	}
-	return fmt.Sprintf("Found %d steps with invalid maxUpdate values", count)
+	return fmt.Sprintf("Steps %v have invalid maxUpdate values %v", strings.Join(stepNums, ", "), strings.Join(values, ", "))
 }
 
 // formatEmptyStepsMessage formats warning message for empty steps
 func (v *ValidationIssues) formatEmptyStepsMessage() string {
 	count := len(v.EmptySteps)
-	if count == 1 {
-		return fmt.Sprintf("Step %d has no applications matching its criteria", v.EmptySteps[0]+1)
-	}
-	stepNums := make([]string, len(v.EmptySteps))
+	stepNums := make([]string, count)
 	for i, step := range v.EmptySteps {
 		stepNums[i] = strconv.Itoa(step + 1)
 	}
-	return fmt.Sprintf("Steps %s have no applications matching their criteria", strings.Join(stepNums, ", "))
+	return fmt.Sprintf("Steps %v have no applications matching their criteria", stepNums)
+}
+
+// getConditionMessage formats condition message for the first validation Issue found. If appset has multiple vaildation issues, condition message only reports one of highest priority
+func (v *ValidationIssues) getConditionMessage() string {
+	var rolloutMessage string
+	switch {
+	case len(v.InvalidMatchExpressions) > 0:
+		rolloutMessage = v.formatInvalidMatchExpressionMessage()
+	case len(v.DuplicateAppSelections) > 0:
+		rolloutMessage = v.formatDuplicateAppSelectionMessage()
+	case len(v.InvalidMaxUpdates) > 0:
+		rolloutMessage = v.formatInvalidMaxUpdateMessage()
+	case len(v.EmptySteps) > 0:
+		rolloutMessage = v.formatEmptyStepsMessage()
+	}
+	return rolloutMessage
 }
