@@ -290,8 +290,8 @@ func NewAWSProvider(repo *v1alpha1.Repository, k8s *K8sProvider) *AWSProvider {
 
 // GetToken exchanges a K8s JWT for AWS credentials.
 // If Pod Identity is available (webhook-injected env var present), the SDK's default
-// credential chain resolves to Pod Identity creds and we chain AssumeRole on top to
-// inject the argocd-project session tag. Otherwise we fall back to IRSA.
+// credential chain resolves to Pod Identity creds, and we chain AssumeRole on top to
+// inject the argocd-project session tag. Otherwise, we fall back to IRSA.
 func (p *AWSProvider) GetToken(ctx context.Context, audience string, tokenURL string) (*repository.Token, error) {
 	// ECR region is derived from the repository URL — this is the region the ECR
 	// authenticator needs for GetAuthorizationToken, independent of where STS runs.
@@ -299,14 +299,14 @@ func (p *AWSProvider) GetToken(ctx context.Context, audience string, tokenURL st
 
 	if os.Getenv(EnvPodIdentityAgentURI) != "" {
 		token, err := p.getTokenViaPodIdentity(ctx, ecrRegion)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"serviceAccount": p.k8s.SAName(),
-				"error":          err.Error(),
-			}).Warn("AWS Pod Identity: failed, falling back to IRSA")
-		} else {
+		if err == nil {
 			return token, nil
 		}
+
+		log.WithFields(log.Fields{
+			"serviceAccount": p.k8s.SAName(),
+			"error":          err.Error(),
+		}).Warn("AWS Pod Identity: failed, falling back to IRSA")
 	}
 
 	return p.getTokenViaIRSA(ctx, audience, tokenURL, ecrRegion)

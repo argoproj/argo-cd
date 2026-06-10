@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var _ Authenticator = (*PassthroughAuthenticator)(nil)
+
 func TestPassthroughAuthenticator_Authenticate_WithConfigUsername(t *testing.T) {
 	a := NewPassthroughAuthenticator()
 
@@ -161,8 +163,4 @@ func TestPassthroughAuthenticator_Authenticate_EmptyToken(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, creds)
 	assert.Contains(t, err.Error(), "empty bearer token")
-}
-
-func TestPassthroughAuthenticator_ImplementsInterface(t *testing.T) {
-	var _ Authenticator = (*PassthroughAuthenticator)(nil)
 }

@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	typedCoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/repository"
 )
@@ -26,8 +26,8 @@ import (
 type K8sProvider struct {
 	saName          string
 	namespace       string
-	serviceAccounts v1.ServiceAccountInterface
-	pods            v1.PodInterface
+	serviceAccounts typedCoreV1.ServiceAccountInterface
+	pods            typedCoreV1.PodInterface
 	cachedSA        *corev1.ServiceAccount
 }
 

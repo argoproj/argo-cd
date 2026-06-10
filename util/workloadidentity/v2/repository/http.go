@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,11 +59,12 @@ func init() {
 //	authType: none
 //	responseTokenField: refresh_token
 //
-//	# JFrog OIDC token exchange
+//	# JFrog OIDC token exchange (response returns both access_token and username)
 //	method: POST
 //	pathTemplate: "/access/api/v1/oidc/token"
 //	bodyTemplate: '{"grant_type":"urn:ietf:params:oauth:grant-type:token-exchange","subject_token":"{{ .token }}","provider_name":"{{ .provider }}"}'
 //	authType: none
+//	responseUsernameField: username
 //	params:
 //	  provider: "my-oidc-provider"
 type HTTPTemplateAuthenticator struct {
@@ -99,9 +101,7 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 		"repo":     repoPath,
 	}
 	// Add custom params
-	for k, v := range config.Params {
-		vars[k] = v
-	}
+	maps.Copy(vars, config.Params)
 
 	// Determine scheme
 	scheme := "https"
@@ -207,8 +207,16 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 		return nil, fmt.Errorf("failed to extract token from response: %w", err)
 	}
 
-	// Determine username for credentials
+	// Determine username for credentials. When the exchange response carries a
+	// username (e.g. JFrog's OIDC token exchange), it takes precedence over the
+	// statically configured username.
 	username := config.Username
+	if config.ResponseUsernameField != "" {
+		username, err = extractStringField(respBody, config.ResponseUsernameField)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract username from response: %w", err)
+		}
+	}
 
 	log.WithFields(log.Fields{
 		"registry": registry,
@@ -246,21 +254,37 @@ func substituteTemplate(tmplStr string, vars map[string]string) (string, error) 
 
 // extractTokenFromResponse extracts the token from a JSON response
 func extractTokenFromResponse(body []byte, fieldName string) (string, error) {
-	var data map[string]interface{}
+	// If a specific field is requested, use only that field.
+	if fieldName != "" {
+		return extractStringField(body, fieldName)
+	}
+
+	// Otherwise fall back to the standard token fields, in order of preference.
+	var data map[string]any
 	if err := json.Unmarshal(body, &data); err != nil {
 		return "", fmt.Errorf("failed to parse JSON response: %w", err)
 	}
-
-	// If specific field requested, use it
-	if fieldName != "" {
-		if val, ok := data[fieldName]; ok {
-			if strVal, ok := val.(string); ok && strVal != "" {
-				return strVal, nil
-			}
+	for _, field := range []string{"access_token", "token", "refresh_token"} {
+		if strVal, ok := data[field].(string); ok && strVal != "" {
+			return strVal, nil
 		}
 	}
 
-	return "", fmt.Errorf("field '%q' not found or empty in response", fieldName)
+	return "", errors.New("no token field found in response (tried access_token, token, refresh_token)")
+}
+
+// extractStringField parses a JSON object body and returns the named string
+// field. It errors if the body is not valid JSON, or the field is absent,
+// non-string, or empty.
+func extractStringField(body []byte, fieldName string) (string, error) {
+	var data map[string]any
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+	if strVal, ok := data[fieldName].(string); ok && strVal != "" {
+		return strVal, nil
+	}
+	return "", fmt.Errorf("field %q not found or empty in response", fieldName)
 }
 
 // parseRepoURL parses a repository URL and extracts the registry host and path.

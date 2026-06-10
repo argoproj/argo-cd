@@ -169,6 +169,10 @@ type Repository struct {
 	// WorkloadIdentityResponseTokenField specifies which JSON field to extract from auth response
 	// Default: tries "access_token", then "token", then "refresh_token"
 	WorkloadIdentityResponseTokenField string `json:"workloadIdentityResponseTokenField,omitempty" protobuf:"bytes,43,opt,name=workloadIdentityResponseTokenField"`
+	// WorkloadIdentityResponseUsernameField specifies which JSON field to extract the username from in the auth response.
+	// Some token exchange endpoints return the username to use alongside the token (e.g. JFrog's OIDC token exchange
+	// returns a "username" field). When set, the value from the response takes precedence over WorkloadIdentityUsername.
+	WorkloadIdentityResponseUsernameField string `json:"workloadIdentityResponseUsernameField,omitempty" protobuf:"bytes,44,opt,name=workloadIdentityResponseUsernameField"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
