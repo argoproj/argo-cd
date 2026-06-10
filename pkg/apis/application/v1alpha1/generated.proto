@@ -389,6 +389,11 @@ message ApplicationSetStatus {
 
   // Health contains information about the applicationset's current health status based on the applicationset conditions
   optional HealthStatus health = 5;
+
+  // ObservedGeneration reflects the generation most recently observed by the controller.
+  // It allows consumers to determine if the status reflects the latest spec change.
+  // If ObservedGeneration is less than metadata.generation, the controller has not yet reconciled the latest spec.
+  optional int64 observedGeneration = 6;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.

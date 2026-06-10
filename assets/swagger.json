@@ -7491,6 +7491,11 @@
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
+        "observedGeneration": {
+          "description": "ObservedGeneration reflects the generation most recently observed by the controller.\nIt allows consumers to determine if the status reflects the latest spec change.\nIf ObservedGeneration is less than metadata.generation, the controller has not yet reconciled the latest spec.",
+          "type": "integer",
+          "format": "int64"
+        },
         "resources": {
           "description": "Resources is a list of Applications resources managed by this application set.",
           "type": "array",

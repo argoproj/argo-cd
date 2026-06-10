@@ -522,6 +522,8 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 		}
 
 		updatedAppset.Status.SetConditions(newConditions, evaluatedTypes)
+		// Set observedGeneration to track which generation was reconciled
+		updatedAppset.Status.ObservedGeneration = updatedAppset.Generation
 
 		// Update the newly fetched object with new set of conditions
 		err := r.Client.Status().Update(ctx, updatedAppset)
@@ -1013,6 +1015,8 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 			}
 
 			updatedAppset.Status.ApplicationStatus = appset.Status.ApplicationStatus
+			// Set observedGeneration to track which generation was reconciled
+			updatedAppset.Status.ObservedGeneration = updatedAppset.Generation
 
 			// Update the newly fetched object with new set of ApplicationStatus
 			err := r.Client.Status().Update(ctx, updatedAppset)
@@ -1060,6 +1064,8 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 
 		updatedAppset.Status.Resources = appset.Status.Resources
 		updatedAppset.Status.ResourcesCount = resourcesCount
+		// Set observedGeneration to track which generation was reconciled
+		updatedAppset.Status.ObservedGeneration = updatedAppset.Generation
 
 		// Update the newly fetched object with new status resources
 		err := r.Client.Status().Update(ctx, updatedAppset)
@@ -1138,6 +1144,8 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			}
 
 			updatedAppset.Status.ApplicationStatus = applicationSet.Status.ApplicationStatus
+			// Set observedGeneration to track which generation was reconciled
+			updatedAppset.Status.ObservedGeneration = updatedAppset.Generation
 
 			// Update the newly fetched object with new set of ApplicationStatus
 			err := r.Client.Status().Update(ctx, updatedAppset)
