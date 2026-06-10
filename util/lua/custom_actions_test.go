@@ -193,165 +193,204 @@ type IndividualActionTest struct {
 	Parameters           map[string]string `yaml:"parameters"`
 }
 
-func TestLuaResourceActionsScript(t *testing.T) {
-	t.Parallel()
+type discoveryActionTestCase struct {
+	name     string
+	obj      *unstructured.Unstructured
+	expected []appsv1.ResourceAction
+}
+
+type actionScriptTestCase struct {
+	name                 string
+	action               string
+	sourceObj            *unstructured.Unstructured
+	parameters           map[string]string
+	expectedErrorMessage string
+	expectedObjects      *unstructured.UnstructuredList
+}
+
+func collectActionTestCases(t *testing.T) (discoveryCases []discoveryActionTestCase, actionCases []actionScriptTestCase) {
+	t.Helper()
 	err := filepath.Walk("../../resource_customizations", func(path string, _ os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
 		}
-		require.NoError(t, err)
 		dir := filepath.Dir(path)
 		yamlBytes, err := os.ReadFile(filepath.Join(dir, "action_test.yaml"))
-		require.NoError(t, err)
+		if err != nil {
+			return err
+		}
 		var resourceTest ActionTestStructure
-		err = yaml.Unmarshal(yamlBytes, &resourceTest)
-		require.NoError(t, err)
-		for i := range resourceTest.DiscoveryTests {
-			test := resourceTest.DiscoveryTests[i]
-			testName := "discovery/" + test.InputPath
-			t.Run(testName, func(t *testing.T) {
-				t.Parallel()
-				vm := VM{
-					UseOpenLibs: true,
-				}
-				obj := getObj(t, filepath.Join(dir, test.InputPath))
-				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
-				require.NoError(t, err)
-				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
-				require.NoError(t, err)
-				for i := range result {
-					assert.Contains(t, test.Result, result[i])
-				}
+		if err := yaml.Unmarshal(yamlBytes, &resourceTest); err != nil {
+			return err
+		}
+		for _, test := range resourceTest.DiscoveryTests {
+			inputBytes, err := os.ReadFile(filepath.Join(dir, test.InputPath))
+			if err != nil {
+				return err
+			}
+			discoveryCases = append(discoveryCases, discoveryActionTestCase{
+				name:     "discovery/" + test.InputPath,
+				obj:      parseObj(t, inputBytes),
+				expected: test.Result,
 			})
 		}
-		for i := range resourceTest.ActionTests {
-			test := resourceTest.ActionTests[i]
-			testName := fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath)
-
-			t.Run(testName, func(t *testing.T) {
-				t.Parallel()
-				vm := VM{
-					// Uncomment the following line if you need to use lua libraries debugging
-					// purposes. Otherwise, leave this false to ensure tests reflect the same
-					// privileges that API server has.
-					// UseOpenLibs: true,
+		for _, test := range resourceTest.ActionTests {
+			inputBytes, err := os.ReadFile(filepath.Join(dir, test.InputPath))
+			if err != nil {
+				return err
+			}
+			tc := actionScriptTestCase{
+				name:                 fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath),
+				action:               test.Action,
+				sourceObj:            parseObj(t, inputBytes),
+				parameters:           test.Parameters,
+				expectedErrorMessage: test.ExpectedErrorMessage,
+			}
+			if test.ExpectedOutputPath != "" {
+				expectedBytes, err := os.ReadFile(filepath.Join(dir, test.ExpectedOutputPath))
+				if err != nil {
+					return err
 				}
-				sourceObj := getObj(t, filepath.Join(dir, test.InputPath))
-				action, err := vm.GetResourceAction(sourceObj, test.Action)
-
-				require.NoError(t, err)
-
-				// Log the action Lua script
-				t.Logf("Action Lua script: %s", action.ActionLua)
-
-				// Parse action parameters
-				var params []*applicationpkg.ResourceActionParameters
-				if test.Parameters != nil {
-					for k, v := range test.Parameters {
-						params = append(params, &applicationpkg.ResourceActionParameters{
-							Name:  &k,
-							Value: &v,
-						})
-					}
-				}
-
-				if len(params) > 0 {
-					// Log the parameters
-					t.Logf("Parameters: %+v", params)
-				}
-
-				require.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
-
-				// Handle expected errors
-				if test.ExpectedErrorMessage != "" {
-					assert.EqualError(t, err, test.ExpectedErrorMessage)
-					return
-				}
-
-				require.NoError(t, err)
-
-				// Treat the Lua expected output as a list
-				expectedObjects := getExpectedObjectList(t, filepath.Join(dir, test.ExpectedOutputPath))
-
-				for _, impactedResource := range impactedResources {
-					result := impactedResource.UnstructuredObj
-
-					// The expected output is a list of objects
-					// Find the actual impacted resource in the expected output
-					expectedObj := findFirstMatchingItem(expectedObjects.Items, func(u unstructured.Unstructured) bool {
-						// Some resources' name is derived from the source object name, so the returned name is not actually equal to the testdata output name
-						// Considering the resource found in the testdata output if its name starts with source object name
-						// TODO: maybe this should use a normalizer function instead of hard-coding the resource specifics here
-						if (result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob") || (result.GetKind() == "Workflow" && (sourceObj.GetKind() == "CronWorkflow" || sourceObj.GetKind() == "WorkflowTemplate")) {
-							return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
-						}
-						return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
-					})
-
-					assert.NotNil(t, expectedObj)
-
-					switch impactedResource.K8SOperation {
-					// No default case since a not supported operation would have failed upon unmarshaling earlier
-					case PatchOperation:
-						// Patching is only allowed for the source resource, so the GVK + name + ns must be the same as the impacted resource
-						assert.Equal(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
-						assert.Equal(t, sourceObj.GetName(), result.GetName())
-						assert.Equal(t, sourceObj.GetNamespace(), result.GetNamespace())
-					case CreateOperation:
-						switch result.GetKind() {
-						case "Job", "Workflow":
-							// The name of the created resource is derived from the source object name, so the returned name is not actually equal to the testdata output name
-							result.SetName(expectedObj.GetName())
-						}
-					}
-
-					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
-					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
-					require.NoError(t, err)
-					if diffResult.Modified {
-						t.Error("Output does not match input:")
-						err = cli.PrintDiff(test.Action, expectedObj, result)
-						require.NoError(t, err)
-					}
-				}
-			})
+				tc.expectedObjects = parseExpectedObjectList(t, expectedBytes)
+			}
+			actionCases = append(actionCases, tc)
 		}
-
 		return nil
 	})
 	require.NoError(t, err)
+	return discoveryCases, actionCases
+}
+
+func runDiscoveryActionTestCase(t *testing.T, tc discoveryActionTestCase) {
+	t.Helper()
+	vm := VM{
+		UseOpenLibs: true,
+	}
+	discoveryLua, err := vm.GetResourceActionDiscovery(tc.obj)
+	require.NoError(t, err)
+	result, err := vm.ExecuteResourceActionDiscovery(tc.obj, discoveryLua)
+	require.NoError(t, err)
+	for i := range result {
+		assert.Contains(t, tc.expected, result[i])
+	}
+}
+
+func runActionScriptTestCase(t *testing.T, tc actionScriptTestCase) {
+	t.Helper()
+	vm := VM{
+		// Uncomment the following line if you need to use lua libraries debugging
+		// purposes. Otherwise, leave this false to ensure tests reflect the same
+		// privileges that API server has.
+		// UseOpenLibs: true,
+	}
+	action, err := vm.GetResourceAction(tc.sourceObj, tc.action)
+	require.NoError(t, err)
+
+	t.Logf("Action Lua script: %s", action.ActionLua)
+
+	var params []*applicationpkg.ResourceActionParameters
+	if tc.parameters != nil {
+		for k, v := range tc.parameters {
+			params = append(params, &applicationpkg.ResourceActionParameters{
+				Name:  &k,
+				Value: &v,
+			})
+		}
+	}
+	if len(params) > 0 {
+		t.Logf("Parameters: %+v", params)
+	}
+
+	impactedResources, err := vm.ExecuteResourceAction(tc.sourceObj, action.ActionLua, params)
+	if tc.expectedErrorMessage != "" {
+		assert.EqualError(t, err, tc.expectedErrorMessage)
+		return
+	}
+	require.NoError(t, err)
+
+	for _, impactedResource := range impactedResources {
+		result := impactedResource.UnstructuredObj
+		expectedObj := findFirstMatchingItem(tc.expectedObjects.Items, func(u unstructured.Unstructured) bool {
+			if (result.GetKind() == "Job" && tc.sourceObj.GetKind() == "CronJob") || (result.GetKind() == "Workflow" && (tc.sourceObj.GetKind() == "CronWorkflow" || tc.sourceObj.GetKind() == "WorkflowTemplate")) {
+				return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), tc.sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
+			}
+			return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
+		})
+		assert.NotNil(t, expectedObj)
+
+		switch impactedResource.K8SOperation {
+		case PatchOperation:
+			assert.Equal(t, tc.sourceObj.GroupVersionKind(), result.GroupVersionKind())
+			assert.Equal(t, tc.sourceObj.GetName(), result.GetName())
+			assert.Equal(t, tc.sourceObj.GetNamespace(), result.GetNamespace())
+		case CreateOperation:
+			switch result.GetKind() {
+			case "Job", "Workflow":
+				result.SetName(expectedObj.GetName())
+			}
+		}
+
+		diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
+		require.NoError(t, err)
+		if diffResult.Modified {
+			t.Error("Output does not match input:")
+			err = cli.PrintDiff(tc.action, expectedObj, result)
+			require.NoError(t, err)
+		}
+	}
+}
+
+func TestLuaResourceActionsScript(t *testing.T) {
+	discoveryCases, actionCases := collectActionTestCases(t)
+	for _, tc := range discoveryCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			runDiscoveryActionTestCase(t, tc)
+		})
+	}
+
+	for _, tc := range actionCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			runActionScriptTestCase(t, tc)
+		})
+	}
 }
 
 // Handling backward compatibility.
 // The old-style actions return a single object in the expected output from testdata, so will wrap them in a list
-func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
+func parseExpectedObjectList(t *testing.T, yamlBytes []byte) *unstructured.UnstructuredList {
 	t.Helper()
-	yamlBytes, err := os.ReadFile(path)
-	require.NoError(t, err)
 	unstructuredList := &unstructured.UnstructuredList{}
 	yamlString := bytes.NewBuffer(yamlBytes).String()
 	if yamlString[0] == '-' {
-		// The string represents a new-style action array output, where each member is a wrapper around a k8s unstructured resource
 		objList := make([]map[string]any, 5)
-		err = yaml.Unmarshal(yamlBytes, &objList)
+		err := yaml.Unmarshal(yamlBytes, &objList)
 		require.NoError(t, err)
 		unstructuredList.Items = make([]unstructured.Unstructured, len(objList))
-		// Append each map in objList to the Items field of the new object
 		for i, obj := range objList {
 			unstructuredObj, ok := obj["unstructuredObj"].(map[string]any)
 			assert.True(t, ok, "Wrong type of unstructuredObj")
 			unstructuredList.Items[i] = unstructured.Unstructured{Object: unstructuredObj}
 		}
 	} else {
-		// The string represents an old-style action object output, which is a k8s unstructured resource
 		obj := make(map[string]any)
-		err = yaml.Unmarshal(yamlBytes, &obj)
+		err := yaml.Unmarshal(yamlBytes, &obj)
 		require.NoError(t, err)
 		unstructuredList.Items = make([]unstructured.Unstructured, 1)
 		unstructuredList.Items[0] = unstructured.Unstructured{Object: obj}
 	}
 	return unstructuredList
+}
+
+func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
+	t.Helper()
+	yamlBytes, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return parseExpectedObjectList(t, yamlBytes)
 }
 
 func findFirstMatchingItem(items []unstructured.Unstructured, f func(unstructured.Unstructured) bool) *unstructured.Unstructured {
