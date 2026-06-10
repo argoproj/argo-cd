@@ -225,7 +225,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 
 	for _, data := range testData {
 		t.Run(data.name, func(t *testing.T) {
-		t.Parallel()
+			t.Parallel()
 			proj := AppProject{
 				Spec: AppProjectSpec{
 					Destinations: data.projDest,
@@ -1126,7 +1126,7 @@ func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
 	for _, tc := range cases {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
-		t.Parallel()
+			t.Parallel()
 			kv := tcc.source.GetKubeVersionOrDefault(defaultKV)
 			assert.Equal(t, tcc.expect, kv)
 		})
@@ -1176,7 +1176,7 @@ func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
 	for _, tc := range cases {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
-		t.Parallel()
+			t.Parallel()
 			kv := tcc.source.GetAPIVersionsOrDefault(defaultAPIVersions)
 			assert.Equal(t, tcc.expect, kv)
 		})
@@ -1226,7 +1226,7 @@ func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
 	for _, tc := range cases {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
-		t.Parallel()
+			t.Parallel()
 			kv := tcc.source.GetNamespaceOrDefault(defaultNS)
 			assert.Equal(t, tcc.expect, kv)
 		})
