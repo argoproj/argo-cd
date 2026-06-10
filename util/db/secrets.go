@@ -82,6 +82,37 @@ func updateSecretString(secret *corev1.Secret, key, value string) {
 	}
 }
 
+// secretToStringMap reads all secret keys with the given prefix and returns them as a map.
+// For example, with prefix "params.", keys "params.foo" and "params.bar" become {"foo": "...", "bar": "..."}.
+func secretToStringMap(secret *corev1.Secret, prefix string) map[string]string {
+	result := make(map[string]string)
+	for key, value := range secret.Data {
+		if strings.HasPrefix(key, prefix) {
+			mapKey := strings.TrimPrefix(key, prefix)
+			result[mapKey] = string(value)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// updateSecretStringMap writes a map to the secret with prefixed keys.
+// For example, with prefix "params.", map {"foo": "bar"} becomes key "params.foo" = "bar".
+func updateSecretStringMap(secret *corev1.Secret, prefix string, values map[string]string) {
+	// First, remove any existing keys with this prefix
+	for key := range secret.Data {
+		if strings.HasPrefix(key, prefix) {
+			delete(secret.Data, key)
+		}
+	}
+	// Then add the new values
+	for k, v := range values {
+		secret.Data[prefix+k] = []byte(v)
+	}
+}
+
 func (db *db) createSecret(ctx context.Context, secret *corev1.Secret) (*corev1.Secret, error) {
 	return db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, secret, metav1.CreateOptions{})
 }

@@ -3580,6 +3580,13 @@ func (in Repositories) DeepCopy() Repositories {
 func (in *Repository) DeepCopyInto(out *Repository) {
 	*out = *in
 	in.ConnectionState.DeepCopyInto(&out.ConnectionState)
+	if in.WorkloadIdentityParams != nil {
+		in, out := &in.WorkloadIdentityParams, &out.WorkloadIdentityParams
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

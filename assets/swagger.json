@@ -9848,6 +9848,53 @@
         "webhookManifestCacheWarmDisabled": {
           "description": "WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.\nWhen set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache\noperations for unaffected ones. Recommended for large monorepos with plain YAML manifests.",
           "type": "boolean"
+        },
+        "workloadIdentityAudience": {
+          "type": "string",
+          "title": "WorkloadIdentityAudience optionally specifies a custom audience for the K8s JWT token"
+        },
+        "workloadIdentityAuthHost": {
+          "type": "string",
+          "title": "WorkloadIdentityAuthHost optionally overrides the registry host for auth requests.\nUse when the auth endpoint is on a different host than the registry (e.g., octo-sts.dev for ghcr.io)"
+        },
+        "workloadIdentityAuthType": {
+          "type": "string",
+          "title": "WorkloadIdentityAuthType specifies how to send the identity token for http authenticator\n(\"bearer\" = Authorization header, \"basic\" = Basic auth with Username, \"none\" = only in template)"
+        },
+        "workloadIdentityBodyTemplate": {
+          "type": "string",
+          "title": "WorkloadIdentityBodyTemplate specifies the request body template for http authenticator (POST requests)\nAuto-detects content-type: JSON if starts with '{' or '[', otherwise form-urlencoded"
+        },
+        "workloadIdentityMethod": {
+          "type": "string",
+          "title": "WorkloadIdentityMethod specifies the HTTP method for http authenticator (GET or POST, default: GET)"
+        },
+        "workloadIdentityParams": {
+          "type": "object",
+          "title": "WorkloadIdentityParams specifies custom parameters for template substitution in http authenticator",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "workloadIdentityPathTemplate": {
+          "type": "string",
+          "title": "WorkloadIdentityPathTemplate specifies the URL path template for http authenticator\nUses Go template syntax with Sprig functions. Variables: {{ .token }}, {{ .registry }}, {{ .repo }}, plus custom params"
+        },
+        "workloadIdentityProvider": {
+          "description": "WorkloadIdentityProvider specifies the provider for workload identity (\"aws\", \"gcp\", \"azure\", \"k8s\").\nWhen set, the app-controller resolves credentials before passing the repository to the repo-server.\nFor IRSA, GCP, Azure, and K8s, resolution reads the project-specific service account\n(argocd-project-<projectName>) for provider annotations. EKS Pod Identity uses the pod's own\nIAM identity and injects an argocd-project session tag on a self-assume, so no per-project\nservice account is required.",
+          "type": "string"
+        },
+        "workloadIdentityResponseTokenField": {
+          "type": "string",
+          "title": "WorkloadIdentityResponseTokenField specifies which JSON field to extract from auth response\nDefault: tries \"access_token\", then \"token\", then \"refresh_token\""
+        },
+        "workloadIdentityTokenURL": {
+          "type": "string",
+          "title": "WorkloadIdentityTokenURL optionally specifies a custom token endpoint URL (e.g., for GovCloud/sovereign clouds)"
+        },
+        "workloadIdentityUsername": {
+          "type": "string",
+          "title": "WorkloadIdentityUsername optionally specifies a username for credentials (e.g., Quay robot account \"org+robot\")\nDefault: \"$oauthtoken\""
         }
       }
     },

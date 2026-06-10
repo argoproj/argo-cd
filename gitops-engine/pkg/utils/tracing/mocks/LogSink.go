@@ -89,10 +89,12 @@ func (_c *LogSink_Enabled_Call) RunAndReturn(run func(level int) bool) *LogSink_
 
 // Error provides a mock function for the type LogSink
 func (_mock *LogSink) Error(err error, msg string, keysAndValues ...any) {
-	var _ca []any
-	_ca = append(_ca, err, msg)
-	_ca = append(_ca, keysAndValues...)
-	_mock.Called(_ca...)
+	if len(keysAndValues) > 0 {
+		_mock.Called(err, msg, keysAndValues)
+	} else {
+		_mock.Called(err, msg)
+	}
+
 	return
 }
 
@@ -121,11 +123,9 @@ func (_c *LogSink_Error_Call) Run(run func(err error, msg string, keysAndValues 
 			arg1 = args[1].(string)
 		}
 		var arg2 []any
-		variadicArgs := make([]any, len(args)-2)
-		for i, a := range args[2:] {
-			if a != nil {
-				variadicArgs[i] = a.(any)
-			}
+		var variadicArgs []any
+		if len(args) > 2 {
+			variadicArgs = args[2].([]any)
 		}
 		arg2 = variadicArgs
 		run(
@@ -149,10 +149,12 @@ func (_c *LogSink_Error_Call) RunAndReturn(run func(err error, msg string, keysA
 
 // Info provides a mock function for the type LogSink
 func (_mock *LogSink) Info(level int, msg string, keysAndValues ...any) {
-	var _ca []any
-	_ca = append(_ca, level, msg)
-	_ca = append(_ca, keysAndValues...)
-	_mock.Called(_ca...)
+	if len(keysAndValues) > 0 {
+		_mock.Called(level, msg, keysAndValues)
+	} else {
+		_mock.Called(level, msg)
+	}
+
 	return
 }
 
@@ -181,11 +183,9 @@ func (_c *LogSink_Info_Call) Run(run func(level int, msg string, keysAndValues .
 			arg1 = args[1].(string)
 		}
 		var arg2 []any
-		variadicArgs := make([]any, len(args)-2)
-		for i, a := range args[2:] {
-			if a != nil {
-				variadicArgs[i] = a.(any)
-			}
+		var variadicArgs []any
+		if len(args) > 2 {
+			variadicArgs = args[2].([]any)
 		}
 		arg2 = variadicArgs
 		run(
@@ -302,9 +302,13 @@ func (_c *LogSink_WithName_Call) RunAndReturn(run func(name string) logr.LogSink
 
 // WithValues provides a mock function for the type LogSink
 func (_mock *LogSink) WithValues(keysAndValues ...any) logr.LogSink {
-	var _ca []any
-	_ca = append(_ca, keysAndValues...)
-	ret := _mock.Called(_ca...)
+	var tmpRet mock.Arguments
+	if len(keysAndValues) > 0 {
+		tmpRet = _mock.Called(keysAndValues)
+	} else {
+		tmpRet = _mock.Called()
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for WithValues")
@@ -336,11 +340,9 @@ func (_e *LogSink_Expecter) WithValues(keysAndValues ...any) *LogSink_WithValues
 func (_c *LogSink_WithValues_Call) Run(run func(keysAndValues ...any)) *LogSink_WithValues_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 []any
-		variadicArgs := make([]any, len(args)-0)
-		for i, a := range args[0:] {
-			if a != nil {
-				variadicArgs[i] = a.(any)
-			}
+		var variadicArgs []any
+		if len(args) > 0 {
+			variadicArgs = args[0].([]any)
 		}
 		arg0 = variadicArgs
 		run(
