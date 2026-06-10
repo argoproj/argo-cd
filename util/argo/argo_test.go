@@ -833,6 +833,80 @@ func TestFilterByPath(t *testing.T) {
 	})
 }
 
+func TestFilterByFiles(t *testing.T) {
+	// app1: path=example/apps/foo/chart, annotation=".;.."  → resolves to [example/apps/foo/chart, example/apps/foo]
+	app1 := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				argoappv1.AnnotationKeyManifestGeneratePaths: ".;..",
+			},
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/apps/foo/chart"},
+		},
+	}
+	// app2: path=example/apps/foo, annotation="."  → resolves to [example/apps/foo]
+	app2 := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				argoappv1.AnnotationKeyManifestGeneratePaths: ".",
+			},
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/apps/foo"},
+		},
+	}
+	// app3: path=example/other, no annotation → falls back to source path
+	app3 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/other"},
+		},
+	}
+	// app4: path=example/other, annotation="."  → resolves to [example/other]
+	app4 := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				argoappv1.AnnotationKeyManifestGeneratePaths: ".",
+			},
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/other"},
+		},
+	}
+	apps := []argoappv1.Application{app1, app2, app3, app4}
+
+	t.Run("Empty file list returns all apps", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{})
+		assert.Len(t, res, 4)
+	})
+
+	t.Run("File under annotated parent path matches app1 and app2", func(t *testing.T) {
+		// example/apps/foo/base.yaml is under example/apps/foo/chart/.. (app1) and example/apps/foo (app2)
+		res := FilterByFiles(apps, []string{"example/apps/foo/base.yaml"})
+		names := make([]string, 0)
+		for _, a := range res {
+			names = append(names, a.Spec.GetSource().Path)
+		}
+		assert.Contains(t, names, "example/apps/foo/chart")
+		assert.Contains(t, names, "example/apps/foo")
+	})
+
+	t.Run("File under other path matches app3 and app4", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"example/other/manifest.yaml"})
+		names := make([]string, 0)
+		for _, a := range res {
+			names = append(names, a.Spec.GetSource().Path)
+		}
+		assert.Contains(t, names, "example/other")
+		assert.Len(t, res, 2) // app3 and app4
+	})
+
+	t.Run("Unrelated file matches nothing", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"totally/unrelated/file.yaml"})
+		assert.Empty(t, res)
+	})
+}
+
 func TestValidatePermissions(t *testing.T) {
 	t.Parallel()
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
