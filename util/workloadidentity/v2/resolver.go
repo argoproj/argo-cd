@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/identity"
@@ -22,7 +22,7 @@ const (
 
 // Resolver resolves workload identity credentials from Kubernetes service accounts
 type Resolver struct {
-	serviceAccounts v1.ServiceAccountInterface
+	serviceAccounts corev1.ServiceAccountInterface
 }
 
 // NewResolver creates a new workload identity resolver
@@ -48,7 +48,7 @@ func NewIdentityProvider(repository *v1alpha1.Repository, clientset kubernetes.I
 	case "aws":
 		return identity.NewAWSProvider(repository, k8sProvider), nil
 	case "gcp":
-		return identity.NewGCPProvider(repository.Repo, k8sProvider), nil
+		return identity.NewGCPProvider(k8sProvider), nil
 	case "azure":
 		return identity.NewAzureProvider(repository, k8sProvider), nil
 	default:
@@ -114,15 +114,16 @@ func (r *Resolver) ResolveCredentials(ctx context.Context, idProvider identity.P
 
 	log.WithField("repoURL", repo.Repo).Info("authenticating to repository")
 	creds, err := repoAuth.Authenticate(ctx, idToken, repo.Repo, &repository.Config{
-		Username:           repo.WorkloadIdentityUsername,
-		Insecure:           repo.Insecure,
-		AuthHost:           repo.WorkloadIdentityAuthHost,
-		Method:             repo.WorkloadIdentityMethod,
-		PathTemplate:       repo.WorkloadIdentityPathTemplate,
-		BodyTemplate:       repo.WorkloadIdentityBodyTemplate,
-		AuthType:           repo.WorkloadIdentityAuthType,
-		Params:             repo.WorkloadIdentityParams,
-		ResponseTokenField: repo.WorkloadIdentityResponseTokenField,
+		Username:              repo.WorkloadIdentityUsername,
+		Insecure:              repo.Insecure,
+		AuthHost:              repo.WorkloadIdentityAuthHost,
+		Method:                repo.WorkloadIdentityMethod,
+		PathTemplate:          repo.WorkloadIdentityPathTemplate,
+		BodyTemplate:          repo.WorkloadIdentityBodyTemplate,
+		AuthType:              repo.WorkloadIdentityAuthType,
+		Params:                repo.WorkloadIdentityParams,
+		ResponseTokenField:    repo.WorkloadIdentityResponseTokenField,
+		ResponseUsernameField: repo.WorkloadIdentityResponseUsernameField,
 	})
 	if err != nil {
 		return nil, err

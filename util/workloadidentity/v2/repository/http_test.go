@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var _ Authenticator = (*HTTPTemplateAuthenticator)(nil)
 
 func TestHTTPTemplateAuthenticator_OctoSTS_Style(t *testing.T) {
 	// Simulates octo-sts: GET with Bearer auth, returns access_token
@@ -27,9 +28,9 @@ func TestHTTPTemplateAuthenticator_OctoSTS_Style(t *testing.T) {
 		assert.Equal(t, "argocd", r.URL.Query().Get("identity"))
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 			"access_token": "github-installation-token",
-		})
+		}))
 	}))
 	defer server.Close()
 
@@ -53,7 +54,7 @@ func TestHTTPTemplateAuthenticator_OctoSTS_Style(t *testing.T) {
 		Insecure: true,
 	}
 
-	creds, err := a.Authenticate(context.Background(), token, "oci://"+host+"/myorg/myrepo", config)
+	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myorg/myrepo", config)
 
 	require.NoError(t, err)
 	require.NotNil(t, creds)
@@ -82,9 +83,9 @@ func TestHTTPTemplateAuthenticator_ACR_Style(t *testing.T) {
 		assert.Equal(t, "azure-access-token", r.Form.Get("access_token"))
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 			"refresh_token": "acr-refresh-token",
-		})
+		}))
 	}))
 	defer server.Close()
 
@@ -106,7 +107,7 @@ func TestHTTPTemplateAuthenticator_ACR_Style(t *testing.T) {
 		Insecure:           true,
 	}
 
-	creds, err := a.Authenticate(context.Background(), token, "oci://"+host+"/myrepo", config)
+	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myrepo", config)
 
 	require.NoError(t, err)
 	require.NotNil(t, creds)
@@ -133,10 +134,13 @@ func TestHTTPTemplateAuthenticator_JFrog_Style(t *testing.T) {
 		assert.Equal(t, "k8s-jwt-token", body["subject_token"])
 		assert.Equal(t, "my-oidc-provider", body["provider_name"])
 
+		// JFrog returns both the access token and the username to use with it.
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 			"access_token": "jfrog-access-token",
-		})
+			"username":     "my-user@example.com",
+			"token_type":   "Bearer",
+		}))
 	}))
 	defer server.Close()
 
@@ -149,22 +153,52 @@ func TestHTTPTemplateAuthenticator_JFrog_Style(t *testing.T) {
 	}
 
 	config := &Config{
-		Method:       "POST",
-		PathTemplate: "/access/api/v1/oidc/token",
-		BodyTemplate: `{"grant_type":"urn:ietf:params:oauth:grant-type:token-exchange","subject_token_type":"urn:ietf:params:oauth:token-type:id_token","subject_token":"{{ .token }}","provider_name":"{{ .provider }}"}`,
-		AuthType:     "none",
+		Method:                "POST",
+		PathTemplate:          "/access/api/v1/oidc/token",
+		BodyTemplate:          `{"grant_type":"urn:ietf:params:oauth:grant-type:token-exchange","subject_token_type":"urn:ietf:params:oauth:token-type:id_token","subject_token":"{{ .token }}","provider_name":"{{ .provider }}"}`,
+		AuthType:              "none",
+		ResponseUsernameField: "username",
 		Params: map[string]string{
 			"provider": "my-oidc-provider",
 		},
 		Insecure: true,
 	}
 
-	creds, err := a.Authenticate(context.Background(), token, "oci://"+host+"/myrepo", config)
+	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myrepo", config)
 
 	require.NoError(t, err)
 	require.NotNil(t, creds)
-	assert.Equal(t, "$oauthtoken", creds.Username) // default
+	assert.Equal(t, "my-user@example.com", creds.Username) // taken from response
 	assert.Equal(t, "jfrog-access-token", creds.Password)
+}
+
+func TestHTTPTemplateAuthenticator_ResponseUsernameFieldMissing(t *testing.T) {
+	// When ResponseUsernameField is configured but absent from the response,
+	// authentication fails rather than silently returning an empty username.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
+			"access_token": "some-token",
+		}))
+	}))
+	defer server.Close()
+
+	host := server.URL[7:] // strip "http://"
+
+	a := NewHTTPTemplateAuthenticator()
+	token := &Token{Type: TokenTypeBearer, Token: "k8s-jwt-token"}
+
+	config := &Config{
+		Method:                "POST",
+		PathTemplate:          "/access/api/v1/oidc/token",
+		AuthType:              "none",
+		ResponseUsernameField: "username",
+		Insecure:              true,
+	}
+
+	_, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myrepo", config)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to extract username from response")
 }
 
 func TestHTTPTemplateAuthenticator_Quay_Style(t *testing.T) {
@@ -184,9 +218,9 @@ func TestHTTPTemplateAuthenticator_Quay_Style(t *testing.T) {
 		assert.Equal(t, "repository:myorg/myrepo:pull", r.URL.Query().Get("scope"))
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 			"token": "quay-registry-token",
-		})
+		}))
 	}))
 	defer server.Close()
 
@@ -210,7 +244,7 @@ func TestHTTPTemplateAuthenticator_Quay_Style(t *testing.T) {
 		Insecure: true,
 	}
 
-	creds, err := a.Authenticate(context.Background(), token, "oci://"+host+"/myorg/myrepo", config)
+	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myorg/myrepo", config)
 
 	require.NoError(t, err)
 	require.NotNil(t, creds)
@@ -228,9 +262,9 @@ func TestHTTPTemplateAuthenticator_AuthHostOverride(t *testing.T) {
 		assert.Equal(t, "myorg/myrepo", r.URL.Query().Get("scope"))
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 			"access_token": "github-installation-token",
-		})
+		}))
 	}))
 	defer server.Close()
 
@@ -256,7 +290,7 @@ func TestHTTPTemplateAuthenticator_AuthHostOverride(t *testing.T) {
 	}
 
 	// Repo URL points to ghcr.io, but auth request goes to authHost (test server)
-	creds, err := a.Authenticate(context.Background(), token, "oci://ghcr.io/myorg/myrepo", config)
+	creds, err := a.Authenticate(t.Context(), token, "oci://ghcr.io/myorg/myrepo", config)
 
 	require.NoError(t, err)
 	require.NotNil(t, creds)
@@ -270,9 +304,9 @@ func TestHTTPTemplateAuthenticator_DefaultMethod(t *testing.T) {
 		assert.Equal(t, http.MethodGet, r.Method)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 			"access_token": "test-token",
-		})
+		}))
 	}))
 	defer server.Close()
 
@@ -287,7 +321,7 @@ func TestHTTPTemplateAuthenticator_DefaultMethod(t *testing.T) {
 		Insecure: true,
 	}
 
-	creds, err := a.Authenticate(context.Background(), token, "oci://"+host+"/repo", config)
+	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/repo", config)
 
 	require.NoError(t, err)
 	assert.Equal(t, "test-token", creds.Password)
@@ -301,7 +335,7 @@ func TestHTTPTemplateAuthenticator_MissingPathTemplate(t *testing.T) {
 		// PathTemplate not set
 	}
 
-	_, err := a.Authenticate(context.Background(), token, "oci://registry.example.com/repo", config)
+	_, err := a.Authenticate(t.Context(), token, "oci://registry.example.com/repo", config)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pathTemplate is required")
@@ -318,7 +352,7 @@ func TestHTTPTemplateAuthenticator_WrongTokenType(t *testing.T) {
 		PathTemplate: "/auth",
 	}
 
-	_, err := a.Authenticate(context.Background(), token, "oci://registry.example.com/repo", config)
+	_, err := a.Authenticate(t.Context(), token, "oci://registry.example.com/repo", config)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires a bearer token")
@@ -334,16 +368,16 @@ func TestHTTPTemplateAuthenticator_BasicAuthWithoutUsername(t *testing.T) {
 		// Username not set
 	}
 
-	_, err := a.Authenticate(context.Background(), token, "oci://registry.example.com/repo", config)
+	_, err := a.Authenticate(t.Context(), token, "oci://registry.example.com/repo", config)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "username is required for basic auth")
 }
 
 func TestHTTPTemplateAuthenticator_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "invalid token"}`))
+		_, _ = w.Write([]byte(`{"error": "invalid token"}`))
 	}))
 	defer server.Close()
 
@@ -357,18 +391,18 @@ func TestHTTPTemplateAuthenticator_ServerError(t *testing.T) {
 		Insecure:     true,
 	}
 
-	_, err := a.Authenticate(context.Background(), token, "oci://"+host+"/repo", config)
+	_, err := a.Authenticate(t.Context(), token, "oci://"+host+"/repo", config)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "401")
 }
 
 func TestHTTPTemplateAuthenticator_NoTokenInResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{
 			"error": "something went wrong",
-		})
+		}))
 	}))
 	defer server.Close()
 
@@ -382,7 +416,7 @@ func TestHTTPTemplateAuthenticator_NoTokenInResponse(t *testing.T) {
 		Insecure:     true,
 	}
 
-	_, err := a.Authenticate(context.Background(), token, "oci://"+host+"/repo", config)
+	_, err := a.Authenticate(t.Context(), token, "oci://"+host+"/repo", config)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no token field found")
@@ -552,8 +586,4 @@ func TestExtractTokenFromResponse(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestHTTPTemplateAuthenticator_ImplementsInterface(t *testing.T) {
-	var _ Authenticator = (*HTTPTemplateAuthenticator)(nil)
 }

@@ -87,15 +87,13 @@ func (_c *ClusterCache_EnsureSynced_Call) RunAndReturn(run func() error) *Cluste
 
 // FindResources provides a mock function for the type ClusterCache
 func (_mock *ClusterCache) FindResources(namespace string, predicates ...func(r *cache.Resource) bool) map[kube.ResourceKey]*cache.Resource {
-	// func(r *cache.Resource) bool
-	_va := make([]interface{}, len(predicates))
-	for _i := range predicates {
-		_va[_i] = predicates[_i]
+	var tmpRet mock.Arguments
+	if len(predicates) > 0 {
+		tmpRet = _mock.Called(namespace, predicates)
+	} else {
+		tmpRet = _mock.Called(namespace)
 	}
-	var _ca []interface{}
-	_ca = append(_ca, namespace)
-	_ca = append(_ca, _va...)
-	ret := _mock.Called(_ca...)
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for FindResources")
@@ -132,11 +130,9 @@ func (_c *ClusterCache_FindResources_Call) Run(run func(namespace string, predic
 			arg0 = args[0].(string)
 		}
 		var arg1 []func(r *cache.Resource) bool
-		variadicArgs := make([]func(r *cache.Resource) bool, len(args)-1)
-		for i, a := range args[1:] {
-			if a != nil {
-				variadicArgs[i] = a.(func(r *cache.Resource) bool)
-			}
+		var variadicArgs []func(r *cache.Resource) bool
+		if len(args) > 1 {
+			variadicArgs = args[1].([]func(r *cache.Resource) bool)
 		}
 		arg1 = variadicArgs
 		run(
@@ -453,14 +449,12 @@ func (_c *ClusterCache_GetServerVersion_Call) RunAndReturn(run func() string) *C
 
 // Invalidate provides a mock function for the type ClusterCache
 func (_mock *ClusterCache) Invalidate(opts ...cache.UpdateSettingsFunc) {
-	// cache.UpdateSettingsFunc
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
+	if len(opts) > 0 {
+		_mock.Called(opts)
+	} else {
+		_mock.Called()
 	}
-	var _ca []interface{}
-	_ca = append(_ca, _va...)
-	_mock.Called(_ca...)
+
 	return
 }
 
@@ -479,11 +473,9 @@ func (_e *ClusterCache_Expecter) Invalidate(opts ...interface{}) *ClusterCache_I
 func (_c *ClusterCache_Invalidate_Call) Run(run func(opts ...cache.UpdateSettingsFunc)) *ClusterCache_Invalidate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 []cache.UpdateSettingsFunc
-		variadicArgs := make([]cache.UpdateSettingsFunc, len(args)-0)
-		for i, a := range args[0:] {
-			if a != nil {
-				variadicArgs[i] = a.(cache.UpdateSettingsFunc)
-			}
+		var variadicArgs []cache.UpdateSettingsFunc
+		if len(args) > 0 {
+			variadicArgs = args[0].([]cache.UpdateSettingsFunc)
 		}
 		arg0 = variadicArgs
 		run(

@@ -95,8 +95,7 @@ const (
 
 // GCPProvider exchanges K8s JWTs for GCP access tokens via Workload Identity Federation
 type GCPProvider struct {
-	repoURL string
-	k8s     *K8sProvider
+	k8s *K8sProvider
 }
 
 func (p *GCPProvider) DefaultRepositoryAuthenticator() repository.Authenticator {
@@ -104,10 +103,9 @@ func (p *GCPProvider) DefaultRepositoryAuthenticator() repository.Authenticator 
 }
 
 // NewGCPProvider creates a new GCP identity provider
-func NewGCPProvider(repoURL string, k8s *K8sProvider) *GCPProvider {
+func NewGCPProvider(k8s *K8sProvider) *GCPProvider {
 	return &GCPProvider{
-		repoURL: repoURL,
-		k8s:     k8s,
+		k8s: k8s,
 	}
 }
 
@@ -149,7 +147,7 @@ func (p *GCPProvider) GetToken(ctx context.Context, audience string, tokenURL st
 // resolveGCPViaMetadata uses the GKE metadata server to get a token, then impersonates the target SA
 func (p *GCPProvider) resolveGCPViaMetadata(ctx context.Context, targetSA string) (string, error) {
 	// Get token from metadata server (this is the pod's own GCP identity)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, GCPMetadataTokenURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, GCPMetadataTokenURL, http.NoBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to create metadata request: %w", err)
 	}
@@ -254,7 +252,7 @@ func (p *GCPProvider) exchangeTokenWithSTS(ctx context.Context, k8sToken, audien
 func (p *GCPProvider) impersonateServiceAccount(ctx context.Context, federatedToken, serviceAccountEmail string) (string, error) {
 	impersonateURL := fmt.Sprintf(DefaultGCPIAMCredentialsURL, serviceAccountEmail)
 
-	requestBody := map[string]interface{}{
+	requestBody := map[string]any{
 		"scope": []string{"https://www.googleapis.com/auth/cloud-platform"},
 	}
 	bodyBytes, err := json.Marshal(requestBody)

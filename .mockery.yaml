@@ -146,6 +146,18 @@ packages:
         unroll-variadic: true
     interfaces:
       TokenProvider: {}
+  github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/identity:
+    config:
+      template-data:
+        unroll-variadic: true
+    interfaces:
+      Provider: {}
+  github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/repository:
+    config:
+      template-data:
+        unroll-variadic: true
+    interfaces:
+      Authenticator: {}
   k8s.io/client-go/kubernetes/typed/core/v1:
     config:
       dir: util/workloadidentity/v2/mocks
@@ -162,6 +174,8 @@ packages:
   github.com/go-logr/logr:
     config:
       dir: gitops-engine/pkg/utils/tracing/mocks
+      template-data:
+        unroll-variadic: true
     interfaces:
       LogSink: {}
   github.com/microsoft/azure-devops-go-api/azuredevops/v7/git:

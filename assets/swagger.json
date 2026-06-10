@@ -9865,6 +9865,10 @@
           "type": "string",
           "title": "WorkloadIdentityResponseTokenField specifies which JSON field to extract from auth response\nDefault: tries \"access_token\", then \"token\", then \"refresh_token\""
         },
+        "workloadIdentityResponseUsernameField": {
+          "description": "WorkloadIdentityResponseUsernameField specifies which JSON field to extract the username from in the auth response.\nSome token exchange endpoints return the username to use alongside the token (e.g. JFrog's OIDC token exchange\nreturns a \"username\" field). When set, the value from the response takes precedence over WorkloadIdentityUsername.",
+          "type": "string"
+        },
         "workloadIdentityTokenURL": {
           "type": "string",
           "title": "WorkloadIdentityTokenURL optionally specifies a custom token endpoint URL (e.g., for GovCloud/sovereign clouds)"

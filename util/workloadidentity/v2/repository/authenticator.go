@@ -51,6 +51,13 @@ type Config struct {
 	// ResponseTokenField is the JSON field containing the token in the response
 	// Default: tries "access_token", then "token", then "refresh_token"
 	ResponseTokenField string
+
+	// ResponseUsernameField is the JSON field containing the username in the
+	// response. Some token exchange endpoints return the username to use
+	// alongside the token (e.g. JFrog's OIDC token exchange returns a
+	// "username" field). When set, the value from the response takes
+	// precedence over Username; when empty, Username is used as-is.
+	ResponseUsernameField string
 }
 
 // Authenticator converts identity tokens to registry credentials

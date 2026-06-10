@@ -6,13 +6,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/identity/mocks"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/repository"
+	repomocks "github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/repository/mocks"
 )
 
 func TestGetServiceAccountName(t *testing.T) {
@@ -208,35 +211,6 @@ func TestNewAuthenticator(t *testing.T) {
 	}
 }
 
-// mockProvider is a test mock for identity.Provider
-type mockProvider struct {
-	getTokenFunc                      func(ctx context.Context, audience, tokenURL string) (*repository.Token, error)
-	defaultRepositoryAuthenticatorVal repository.Authenticator
-}
-
-func (m *mockProvider) GetToken(ctx context.Context, audience, tokenURL string) (*repository.Token, error) {
-	if m.getTokenFunc != nil {
-		return m.getTokenFunc(ctx, audience, tokenURL)
-	}
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockProvider) DefaultRepositoryAuthenticator() repository.Authenticator {
-	return m.defaultRepositoryAuthenticatorVal
-}
-
-// mockAuthenticator is a test mock for repository.Authenticator
-type mockAuthenticator struct {
-	authenticateFunc func(ctx context.Context, token *repository.Token, repoURL string, config *repository.Config) (*repository.Credentials, error)
-}
-
-func (m *mockAuthenticator) Authenticate(ctx context.Context, token *repository.Token, repoURL string, config *repository.Config) (*repository.Credentials, error) {
-	if m.authenticateFunc != nil {
-		return m.authenticateFunc(ctx, token, repoURL, config)
-	}
-	return nil, errors.New("not implemented")
-}
-
 func TestResolveCredentials_NilProvider(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	resolver := NewResolver(clientset, "argocd")
@@ -256,7 +230,7 @@ func TestResolveCredentials_NilAuthenticator(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	resolver := NewResolver(clientset, "argocd")
 
-	provider := &mockProvider{}
+	provider := mocks.NewProvider(t)
 	repo := &v1alpha1.Repository{
 		Repo:                     "https://example.com",
 		Project:                  "default",
@@ -271,7 +245,7 @@ func TestResolveCredentials_NilRepo(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	resolver := NewResolver(clientset, "argocd")
 
-	provider := &mockProvider{}
+	provider := mocks.NewProvider(t)
 	repoAuth := repository.NewHTTPTemplateAuthenticator()
 	_, err := resolver.ResolveCredentials(context.Background(), provider, repoAuth, nil)
 	require.Error(t, err)
@@ -282,11 +256,9 @@ func TestResolveCredentials_ProviderTokenError(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	resolver := NewResolver(clientset, "argocd")
 
-	provider := &mockProvider{
-		getTokenFunc: func(ctx context.Context, audience, tokenURL string) (*repository.Token, error) {
-			return nil, errors.New("token request denied")
-		},
-	}
+	provider := mocks.NewProvider(t)
+	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("token request denied"))
 
 	repo := &v1alpha1.Repository{
 		Repo:                     "https://example.com",
@@ -305,20 +277,16 @@ func TestResolveCredentials_AuthenticatorError(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	resolver := NewResolver(clientset, "argocd")
 
-	provider := &mockProvider{
-		getTokenFunc: func(ctx context.Context, audience, tokenURL string) (*repository.Token, error) {
-			return &repository.Token{
-				Type:  repository.TokenTypeBearer,
-				Token: "test-token",
-			}, nil
-		},
-	}
+	provider := mocks.NewProvider(t)
+	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
+		Return(&repository.Token{
+			Type:  repository.TokenTypeBearer,
+			Token: "test-token",
+		}, nil)
 
-	repoAuth := &mockAuthenticator{
-		authenticateFunc: func(ctx context.Context, token *repository.Token, repoURL string, config *repository.Config) (*repository.Credentials, error) {
-			return nil, errors.New("authentication failed")
-		},
-	}
+	repoAuth := repomocks.NewAuthenticator(t)
+	repoAuth.EXPECT().Authenticate(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("authentication failed"))
 
 	repo := &v1alpha1.Repository{
 		Repo:                     "https://example.com",
@@ -335,23 +303,19 @@ func TestResolveCredentials_Success(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	resolver := NewResolver(clientset, "argocd")
 
-	provider := &mockProvider{
-		getTokenFunc: func(ctx context.Context, audience, tokenURL string) (*repository.Token, error) {
-			return &repository.Token{
-				Type:  repository.TokenTypeBearer,
-				Token: "test-token",
-			}, nil
-		},
-	}
+	provider := mocks.NewProvider(t)
+	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
+		Return(&repository.Token{
+			Type:  repository.TokenTypeBearer,
+			Token: "test-token",
+		}, nil)
 
-	repoAuth := &mockAuthenticator{
-		authenticateFunc: func(ctx context.Context, token *repository.Token, repoURL string, config *repository.Config) (*repository.Credentials, error) {
-			return &repository.Credentials{
-				Username: "user",
-				Password: "pass",
-			}, nil
-		},
-	}
+	repoAuth := repomocks.NewAuthenticator(t)
+	repoAuth.EXPECT().Authenticate(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&repository.Credentials{
+			Username: "user",
+			Password: "pass",
+		}, nil)
 
 	repo := &v1alpha1.Repository{
 		Repo:                     "https://example.com",
@@ -369,22 +333,20 @@ func TestResolveCredentials_PassesConfigToAuthenticator(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	resolver := NewResolver(clientset, "argocd")
 
-	provider := &mockProvider{
-		getTokenFunc: func(ctx context.Context, audience, tokenURL string) (*repository.Token, error) {
-			return &repository.Token{
-				Type:  repository.TokenTypeBearer,
-				Token: "test-token",
-			}, nil
-		},
-	}
+	provider := mocks.NewProvider(t)
+	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
+		Return(&repository.Token{
+			Type:  repository.TokenTypeBearer,
+			Token: "test-token",
+		}, nil)
 
 	var capturedConfig *repository.Config
-	repoAuth := &mockAuthenticator{
-		authenticateFunc: func(ctx context.Context, token *repository.Token, repoURL string, config *repository.Config) (*repository.Credentials, error) {
+	repoAuth := repomocks.NewAuthenticator(t)
+	repoAuth.EXPECT().Authenticate(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(_ context.Context, _ *repository.Token, _ string, config *repository.Config) {
 			capturedConfig = config
-			return &repository.Credentials{Username: "user", Password: "pass"}, nil
-		},
-	}
+		}).
+		Return(&repository.Credentials{Username: "user", Password: "pass"}, nil)
 
 	repo := &v1alpha1.Repository{
 		Repo:                               "https://example.com",
@@ -421,22 +383,20 @@ func TestResolveCredentials_PassesAudienceAndTokenURL(t *testing.T) {
 	resolver := NewResolver(clientset, "argocd")
 
 	var capturedAudience, capturedTokenURL string
-	provider := &mockProvider{
-		getTokenFunc: func(ctx context.Context, audience, tokenURL string) (*repository.Token, error) {
+	provider := mocks.NewProvider(t)
+	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
+		Run(func(_ context.Context, audience string, tokenURL string) {
 			capturedAudience = audience
 			capturedTokenURL = tokenURL
-			return &repository.Token{
-				Type:  repository.TokenTypeBearer,
-				Token: "test-token",
-			}, nil
-		},
-	}
+		}).
+		Return(&repository.Token{
+			Type:  repository.TokenTypeBearer,
+			Token: "test-token",
+		}, nil)
 
-	repoAuth := &mockAuthenticator{
-		authenticateFunc: func(ctx context.Context, token *repository.Token, repoURL string, config *repository.Config) (*repository.Credentials, error) {
-			return &repository.Credentials{Username: "user", Password: "pass"}, nil
-		},
-	}
+	repoAuth := repomocks.NewAuthenticator(t)
+	repoAuth.EXPECT().Authenticate(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&repository.Credentials{Username: "user", Password: "pass"}, nil)
 
 	repo := &v1alpha1.Repository{
 		Repo:                     "https://example.com",

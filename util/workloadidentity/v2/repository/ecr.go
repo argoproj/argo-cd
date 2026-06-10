@@ -24,7 +24,7 @@ func NewECRAuthenticator() *ECRAuthenticator {
 }
 
 // Authenticate exchanges AWS credentials for ECR credentials
-func (a *ECRAuthenticator) Authenticate(ctx context.Context, token *Token, repoURL string, cfg *Config) (*Credentials, error) {
+func (a *ECRAuthenticator) Authenticate(ctx context.Context, token *Token, _ string, _ *Config) (*Credentials, error) {
 	if token.Type != TokenTypeAWS {
 		return nil, fmt.Errorf("ecr authenticator requires AWS credentials, got %s", token.Type)
 	}

@@ -87,8 +87,8 @@ func updateSecretString(secret *corev1.Secret, key, value string) {
 func secretToStringMap(secret *corev1.Secret, prefix string) map[string]string {
 	result := make(map[string]string)
 	for key, value := range secret.Data {
-		if strings.HasPrefix(key, prefix) {
-			mapKey := strings.TrimPrefix(key, prefix)
+		if after, ok := strings.CutPrefix(key, prefix); ok {
+			mapKey := after
 			result[mapKey] = string(value)
 		}
 	}

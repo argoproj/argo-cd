@@ -23,7 +23,7 @@ func NewPassthroughAuthenticator() *PassthroughAuthenticator {
 }
 
 // Authenticate returns credentials using the token as password
-func (a *PassthroughAuthenticator) Authenticate(ctx context.Context, token *Token, repoURL string, config *Config) (*Credentials, error) {
+func (a *PassthroughAuthenticator) Authenticate(_ context.Context, token *Token, _ string, config *Config) (*Credentials, error) {
 	if token.Type != TokenTypeBearer {
 		return nil, fmt.Errorf("passthrough authenticator requires a bearer token, got %s", token.Type)
 	}
