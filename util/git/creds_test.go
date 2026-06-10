@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -600,6 +601,35 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(98765), actualId)
 	})
+
+	t.Run("returns correct installation ID when app is installed on multiple orgs", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/app/installations") {
+				w.WriteHeader(http.StatusOK)
+				//nolint:errcheck
+				json.NewEncoder(w).Encode([]map[string]any{
+					{"id": 11111, "account": map[string]any{"login": "org-alpha"}},
+					{"id": 22222, "account": map[string]any{"login": "target-org"}},
+					{"id": 33333, "account": map[string]any{"login": "org-gamma"}},
+				})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			for _, org := range []string{"org-alpha", "target-org", "org-gamma"} {
+				githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", org, domain, 12345))
+			}
+		})
+
+		ctx := context.Background()
+		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "target-org")
+		require.NoError(t, err)
+		assert.Equal(t, int64(22222), actualId, "should return the installation ID for the requested org, not the last one in the list")
+	})
 }
 
 func TestExtractOrgFromRepoURL(t *testing.T) {
@@ -1014,4 +1044,69 @@ func githubTokenResponse(token string) string {
 		"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 	})
 	return string(b)
+}
+
+//go:embed testdata/gcpExternalAccountKey.json
+var gcpExternalAccountKeyJSON string
+
+//go:embed testdata/gcpImpersonatedServiceAccountKey.json
+var gcpImpersonatedServiceAccountKeyJSON string
+
+//go:embed testdata/gcpAuthorizedUser.json
+var gcpAuthorizedUserJSON string
+
+func TestCredentialTypeFromJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected google.CredentialsType
+	}{
+		{
+			name:     "service_account maps to google.ServiceAccount",
+			input:    gcpServiceAccountKeyJSON,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "external_account maps to google.ExternalAccount",
+			input:    gcpExternalAccountKeyJSON,
+			expected: google.ExternalAccount,
+		},
+		{
+			name:     "impersonated_service_account maps to google.ImpersonatedServiceAccount",
+			input:    gcpImpersonatedServiceAccountKeyJSON,
+			expected: google.ImpersonatedServiceAccount,
+		},
+		{
+			name:     "authorized_user maps to google.UserCredentials",
+			input:    gcpAuthorizedUserJSON,
+			expected: google.AuthorizedUser,
+		},
+		{
+			name:     "unknown type defaults to google.ServiceAccount",
+			input:    `{"type": "some_future_unknown_type"}`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "missing type field defaults to google.ServiceAccount",
+			input:    `{"project_id": "my-project"}`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "invalid JSON defaults to google.ServiceAccount",
+			input:    `{not valid json`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "empty string defaults to google.ServiceAccount",
+			input:    ``,
+			expected: google.ServiceAccount,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := credentialTypeFromJSON([]byte(tt.input))
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
 }

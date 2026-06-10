@@ -10,7 +10,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -35,7 +35,7 @@ func init() {
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client) (bool, error) { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client, rawReadmeTemplate string) (bool, error) { //nolint:revive //FIXME(var-naming)
 	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
@@ -96,15 +96,12 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 
 		// Write README
-		err = writeReadme(root, hydratePath, hydratorMetadata)
+		err = writeReadme(root, hydratePath, hydratorMetadata, rawReadmeTemplate)
 		if err != nil {
 			return false, fmt.Errorf("failed to write readme: %w", err)
 		}
 	}
 	// if no manifest changes then skip commit
-	if !atleastOneManifestChanged {
-		return false, nil
-	}
 	return atleastOneManifestChanged, nil
 }
 
@@ -128,8 +125,8 @@ func writeMetadata(root *os.Root, dirPath string, metadata hydrator.HydratorComm
 }
 
 // writeReadme writes the readme to the README.md file.
-func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata) error {
-	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(manifestHydrationReadmeTemplate)
+func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata, rawReadmeTemplate string) error {
+	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(rawReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)
 	}
@@ -140,11 +137,13 @@ func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommit
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create README file: %w", err)
 	}
+	defer func() {
+		err := readmeFile.Close()
+		if err != nil {
+			log.WithError(err).Error("failed to close README file")
+		}
+	}()
 	err = readmeTemplate.Execute(readmeFile, metadata)
-	closeErr := readmeFile.Close()
-	if closeErr != nil {
-		log.WithError(closeErr).Error("failed to close README file")
-	}
 	if err != nil {
 		return fmt.Errorf("failed to execute readme template: %w", err)
 	}

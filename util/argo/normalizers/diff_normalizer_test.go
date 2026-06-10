@@ -293,3 +293,25 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	})
 	assert.Contains(t, out, "fromjson cannot be applied")
 }
+
+func TestNormalizeFailureLogIncludesResourceContext(t *testing.T) {
+	// When a normalization patch fails with a non-silenced error, the log entry
+	// must identify which resource was being normalized so operators can act on it.
+	// Regression test for https://github.com/argoproj/argo-cd/issues/14148.
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Kind:              "ConfigMap",
+		JQPathExpressions: []string{`.nothing) | .data["config.yaml"] |= (fromjson | del(.auth) | tojson`},
+	}}, nil, IgnoreNormalizerOpts{})
+	require.NoError(t, err)
+
+	configMap := test.NewConfigMap()
+
+	out := test.CaptureLogEntries(func() {
+		err = normalizer.Normalize(configMap)
+		require.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "Failed to apply normalization patch")
+	assert.Contains(t, out, "kind=ConfigMap")
+	assert.Contains(t, out, "name=my-configmap")
+}

@@ -1,9 +1,8 @@
 import * as React from 'react';
 import {DataLoader, Page} from '../../shared/components';
 import {Consumer} from '../../shared/context';
-import {combineLatest} from 'rxjs';
 import {services} from '../../shared/services';
-import {map} from 'rxjs/operators';
+import {VersionMessage} from '../../shared/models';
 import classNames from 'classnames';
 
 require('./help.scss');
@@ -11,16 +10,25 @@ require('./help.scss');
 export const Help = () => {
     return (
         <DataLoader
-            load={() =>
-                combineLatest([services.authService.settings()]).pipe(
-                    map(items => {
-                        return {
-                            binaryUrls: items[0].help.binaryUrls || {}
-                        };
-                    })
-                )
-            }>
-            {({binaryUrls}: {binaryUrls: Record<string, string>}) => {
+            load={async () => {
+                // Return a Promise (not an Observable): DataLoader's observable branch has a
+                // completion race that, under React's batched updates, clobbers the loaded value
+                // with `undefined` when every source completes (as these promise-backed ones do).
+                const [settings, version] = await Promise.all([
+                    services.authService.settings(),
+                    // Best-effort, informative only: the download link below is arch-agnostic, so the
+                    // arch is just label text.
+                    services.version.version().catch(() => ({Platform: ''}) as VersionMessage)
+                ]);
+                return {
+                    binaryUrls: settings.help.binaryUrls || {},
+                    // Platform is "<os>/<arch>" (e.g. "linux/amd64"); may be empty.
+                    hostArch: (version.Platform || '').split('/')[1] || ''
+                };
+            }}>
+            {(settings?: {binaryUrls: Record<string, string>; hostArch: string}) => {
+                const binaryUrls = settings?.binaryUrls || {};
+                const hostArch = settings?.hostArch || '';
                 return (
                     <Consumer>
                         {() => (
@@ -37,8 +45,12 @@ export const Help = () => {
                                     <div className='columns large-4 small-6'>
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
-                                            <a href={`download/argocd-linux-${process.env.HOST_ARCH}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                <i className='fab fa-linux' /> Linux ({process.env.HOST_ARCH})
+                                            {/* Arch-agnostic link: targets the suffix-less /argocd-linux route, which every
+                                                server serves from its own embedded binary regardless of the server's architecture.
+                                                This keeps the UI bundle architecture-independent (no arch baked in) and avoids
+                                                404s on mixed-arch clusters. The arch label is informational only, shown when known. */}
+                                            <a href='download/argocd-linux' className='user-info-panel-buttons argo-button argo-button--base'>
+                                                <i className='fab fa-linux' /> Linux{hostArch && ` (${hostArch})`}
                                             </a>
                                             &nbsp;
                                             {Object.keys(binaryUrls || {}).map(binaryName => {

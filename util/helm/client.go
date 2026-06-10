@@ -88,6 +88,13 @@ func WithUserAgent(userAgent string) ClientOpts {
 	}
 }
 
+// WithPlainHTTP configures the client to use plain HTTP instead of HTTPS for OCI registry operations.
+func WithPlainHTTP() ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.plainHTTP = true
+	}
+}
+
 func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
 	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, opts...)
 }
@@ -116,6 +123,7 @@ type nativeHelmChart struct {
 	creds           Creds
 	repoLock        sync.KeyLock
 	enableOci       bool
+	plainHTTP       bool
 	indexCache      indexCache
 	proxy           string
 	noProxy         string
@@ -217,7 +225,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 				return "", nil, fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if helmPassword != "" && c.creds.GetUsername() != "" {
-				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
+				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
 				if err != nil {
 					_ = os.RemoveAll(tempDir)
 					return "", nil, fmt.Errorf("error logging into OCI registry: %w", err)
@@ -229,7 +237,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 			}
 
 			// 'helm pull' ensures that chart is downloaded into temp directory
-			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds)
+			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds, c.plainHTTP)
 			if err != nil {
 				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error pulling OCI chart: %w", err)
@@ -328,7 +336,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 		return false, fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
 	if c.creds.GetUsername() != "" && helmPassword != "" {
-		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
+		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
 		if err != nil {
 			return false, fmt.Errorf("error logging into OCI registry: %w", err)
 		}
@@ -373,6 +381,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 		Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 		TLSClientConfig:   tlsConf,
 		DisableKeepAlives: true,
+		ForceAttemptHTTP2: true,
 	}
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
@@ -482,6 +491,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize repository: %w", err)
 		}
+		repo.PlainHTTP = c.plainHTTP
 		tlsConf, err := newTLSConfig(c.creds)
 		if err != nil {
 			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
@@ -492,6 +502,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
+			ForceAttemptHTTP2: true,
 		}
 
 		// Wrap transport to add User-Agent header to all requests

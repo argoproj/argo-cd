@@ -1,12 +1,14 @@
-import {Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import {NotificationType, Tooltip} from 'argo-ui';
+import classNames from 'classnames';
 import * as React from 'react';
 import {Cluster} from '../../../shared/components';
 import {ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
+import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
+import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
+import {isValidManagedByURL} from '../../../shared/utils';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 
@@ -30,6 +32,8 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const healthStatus = app.status.health.status;
+    const managedByURL = getManagedByURL(app);
+    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -43,6 +47,18 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
 
     const handleExternalLinkClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (managedByURLInvalid) {
+            ctx.notifications.show({
+                content: (
+                    <div>
+                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
+                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
+                    </div>
+                ),
+                type: NotificationType.Warning
+            });
+            return;
+        }
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
@@ -63,13 +79,25 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>
                             </Tooltip>
+                            <NoticeIcon annotations={app.metadata.annotations} />
                         </div>
                         <div className={app.status.summary?.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                             <div className='applications-list__external-link'>
                                 <ApplicationURLs urls={app.status.summary?.externalURLs} />
-                                <button onClick={handleExternalLinkClick} title={getManagedByURL(app) ? `Managed by: ${getManagedByURL(app)}` : 'Open application'}>
-                                    <i className='fa fa-external-link-alt' />
-                                </button>
+                                {managedByURLInvalid ? (
+                                    <button
+                                        type='button'
+                                        className='managed-by-url-invalid'
+                                        onClick={handleExternalLinkClick}
+                                        style={{cursor: 'not-allowed'}}
+                                        title={MANAGED_BY_URL_INVALID_TEXT}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                ) : (
+                                    <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                )}
                                 <button
                                     title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
                                     className='large-text-height'

@@ -1,7 +1,9 @@
 package helm
 
 import (
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,7 +27,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false, false)
 	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
@@ -58,7 +60,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -84,7 +86,7 @@ func TestHelmGetParams(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
@@ -97,7 +99,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -112,7 +114,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
 	require.NoError(t, err)
@@ -126,7 +128,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
@@ -144,7 +146,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	require.NoError(t, err)
@@ -206,7 +208,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
-	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{})
@@ -221,7 +223,7 @@ func TestAPIVersions(t *testing.T) {
 }
 
 func TestKubeVersionWithSymbol(t *testing.T) {
-	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{KubeVersion: "1.30.11+IKS"})
@@ -244,7 +246,7 @@ func TestKubeVersionWithSymbol(t *testing.T) {
 }
 
 func TestSkipCrds(t *testing.T) {
-	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipCrds: false})
@@ -261,7 +263,7 @@ func TestSkipCrds(t *testing.T) {
 }
 
 func TestSkipTests(t *testing.T) {
-	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipTests: false})
@@ -275,4 +277,65 @@ func TestSkipTests(t *testing.T) {
 	objs, err = template(h, &TemplateOpts{SkipTests: true})
 	require.NoError(t, err)
 	require.Empty(t, objs)
+}
+
+func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
+	// dependency build has no per-repo --plain-http; if ANY dependency repo is
+	// plain-http, the whole build must use --plain-http (see helm.DependencyBuild).
+	tests := []struct {
+		name            string
+		depInsecureHTTP []bool // one entry per dependency repo
+		expectPlainHTTP bool
+	}{
+		{
+			name:            "single https dep — no plain-http",
+			depInsecureHTTP: []bool{false},
+			expectPlainHTTP: false,
+		},
+		{
+			name:            "single plain-http dep — plain-http",
+			depInsecureHTTP: []bool{true},
+			expectPlainHTTP: true,
+		},
+		{
+			name:            "mixed deps — any plain-http dep forces plain-http for the whole build",
+			depInsecureHTTP: []bool{false, true},
+			expectPlainHTTP: true,
+		},
+		{
+			name:            "all https deps — no plain-http",
+			depInsecureHTTP: []bool{false, false},
+			expectPlainHTTP: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedArgs []string
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+				capturedArgs = cmd.Args
+				return "", nil
+			})
+			require.NoError(t, err)
+
+			repos := make([]HelmRepository, len(tc.depInsecureHTTP))
+			for i, forceHTTP := range tc.depInsecureHTTP {
+				repos[i] = HelmRepository{
+					Repo:                 "oci://localhost:5000/myrepo",
+					EnableOci:            true,
+					InsecureOCIForceHttp: forceHTTP,
+					Creds:                HelmCreds{},
+				}
+			}
+
+			h := &helm{
+				cmd:   *c,
+				repos: repos,
+			}
+
+			err = h.DependencyBuild()
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectPlainHTTP, slices.Contains(capturedArgs, "--plain-http"))
+		})
+	}
 }

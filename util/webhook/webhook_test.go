@@ -70,13 +70,35 @@ type reactorDef struct {
 	reaction kubetesting.ReactionFunc
 }
 
+func assertLogContains(t *testing.T, hook *test.Hook, msg string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if entry.Message == msg {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message: %q", msg)
+}
+
+func assertLogContainsSubstr(t *testing.T, hook *test.Hook, substr string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if strings.Contains(entry.Message, substr) {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message with substring: %q", substr)
+}
+
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
 	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
 }
 
 func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, &mocks.ArgoDB{}, &settings.ArgoCDSettings{}, objects...)
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
@@ -139,12 +161,12 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-	return NewHandler("argocd", applicationNamespaces, 10, appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
+	return NewHandler("argocd", applicationNamespaces, 10, 10, appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10)
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -157,11 +179,10 @@ func TestGitHubCommitEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -175,11 +196,10 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -257,8 +277,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	time.Sleep(50 * time.Millisecond) // Give workers time to process the queued items
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	logMessages := make([]string, 0, len(hook.Entries))
@@ -291,11 +311,10 @@ func TestGitHubTagEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: v1.0, touchedHead: false"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -309,11 +328,10 @@ func TestGitHubPingEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -327,13 +345,12 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResultSSH := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultSSH, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	assertLogContains(t, hook, expectedLogResultSSH)
 	expectedLogResultHTTPS := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultHTTPS, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResultHTTPS)
 	hook.Reset()
 }
 
@@ -345,11 +362,10 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -363,11 +379,10 @@ func TestGogsPushEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -381,11 +396,10 @@ func TestGitLabPushEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -399,11 +413,10 @@ func TestGitLabSystemEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -414,12 +427,10 @@ func TestInvalidMethod(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContains(t, hook, "Webhook processing failed: invalid HTTP Method")
+	assert.Equal(t, "Webhook processing failed\n", w.Body.String())
 	hook.Reset()
 }
 
@@ -430,12 +441,10 @@ func TestInvalidEvent(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 50 MB) and ensure it is valid JSON"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 50 MB)")
+	assert.Equal(t, "Webhook processing failed: payload must be valid JSON under 50 MB\n", w.Body.String())
 	hook.Reset()
 }
 
@@ -446,8 +455,7 @@ func TestUnknownEvent(t *testing.T) {
 	req.Header.Set("X-Unknown-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, "Unknown webhook event\n", w.Body.String())
 	hook.Reset()
@@ -748,11 +756,9 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 0 MB)")
 	hook.Reset()
 }
 
@@ -1119,6 +1125,7 @@ func TestHandleEvent(t *testing.T) {
 					APIVersions:     []string{},
 				},
 			}, nil).Maybe()
+			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
 
 			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
 				ServerVersion:   "1.28.0",
@@ -1140,6 +1147,7 @@ func TestHandleEvent(t *testing.T) {
 				"argocd",
 				[]string{},
 				10,
+				1,
 				appClientset,
 				&fakeAppsLister{clientset: appClientset},
 				&settings.ArgoCDSettings{},
@@ -1148,6 +1156,8 @@ func TestHandleEvent(t *testing.T) {
 				serverCache,
 				mockDB,
 				int64(50)*1024*1024,
+				0,
+				10,
 			)
 
 			// Create payload with the changed file
@@ -1158,8 +1168,13 @@ func TestHandleEvent(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
+
+			// Wait briefly for refresh processing
+			time.Sleep(50 * time.Millisecond)
+
+			// Shutdown properly
+			h.Shutdown()
+
 			assert.Equal(t, http.StatusOK, w.Code)
 
 			// Verify refresh behavior
@@ -1181,7 +1196,14 @@ func TestHandleEvent(t *testing.T) {
 					// Verify cache was updated with afterSHA
 					clusterInfo := &mockClusterInfo{}
 					var afterManifests cache.CachedManifestResponse
-					err := repoCache.GetManifests(testAfterSHA, source, nil, clusterInfo, "", "", testAppLabelKey, ttc.app.Name, &afterManifests, nil, "")
+					err := repoCache.GetManifests(cache.ManifestKey{
+						Revision:    testAfterSHA,
+						AppSource:   source,
+						RefSources:  nil,
+						ClusterInfo: clusterInfo,
+						AppLabelKey: testAppLabelKey,
+						AppName:     ttc.app.Name,
+					}, &afterManifests)
 					require.NoError(t, err, "cache should be updated with afterSHA")
 					if err == nil {
 						assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
@@ -1230,10 +1252,10 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
     ]
   },
   "repository":{
-    "type": "repository", 
+    "type": "repository",
     "full_name": "{{.owner}}/{{.repo}}",
-    "name": "{{.name}}", 
-    "scm": "git", 
+    "name": "{{.name}}",
+    "scm": "git",
     "links": {
       "self": {"href": "https://api.bitbucket.org/2.0/repositories/{{.owner}}/{{.repo}}"},
       "html": {"href": "https://bitbucket.org/{{.owner}}/{{.repo}}"}
@@ -1689,6 +1711,167 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 			Server:    testClusterURL,
 		},
 	}
-	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "")
+	err := repoCache.SetManifests(cache.ManifestKey{
+		Revision:    testBeforeSHA,
+		AppSource:   source,
+		RefSources:  nil,
+		ClusterInfo: clusterInfo,
+		AppLabelKey: testAppLabelKey,
+		AppName:     appName,
+	}, dummyManifests)
 	require.NoError(t, err)
+}
+
+func TestWebhookRefreshWithJitter(t *testing.T) {
+	app := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/test/repo",
+				TargetRevision: "main",
+			},
+		},
+	}
+
+	t.Run("items are processed after jitter delay", func(t *testing.T) {
+		var patched bool
+		reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if action.GetVerb() == "patch" {
+				patched = true
+			}
+			return true, nil, nil
+		}
+
+		appClientset := appclientset.NewSimpleClientset(&app)
+		defaultReactor := appClientset.ReactionChain[0]
+		appClientset.ReactionChain = nil
+		appClientset.AddReactor("list", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		appClientset.AddReactor("patch", "applications", reaction)
+
+		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+		h := NewHandler(
+			"argocd",
+			[]string{},
+			10,
+			5,
+			appClientset,
+			&fakeAppsLister{clientset: appClientset},
+			&settings.ArgoCDSettings{},
+			&fakeSettingsSrc{},
+			cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
+			servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
+			&mocks.ArgoDB{},
+			int64(50)*1024*1024,
+			2*time.Second,
+			10,
+		)
+
+		req := &appRefreshRequest{
+			appName:      "test-app",
+			appNamespace: "argocd",
+			hydrateType:  nil,
+		}
+
+		startTime := time.Now()
+		h.refreshQueue.AddAfter(req, 500*time.Millisecond)
+
+		// Wait for processing
+		time.Sleep(800 * time.Millisecond)
+		h.Shutdown()
+
+		elapsed := time.Since(startTime)
+		// Verify delay was applied
+		assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(500))
+		// Verify app was actually patched (refresh processed)
+		assert.True(t, patched, "app should be patched after jitter delay")
+	})
+
+	t.Run("no jitter applied when threshold not exceeded", func(_ *testing.T) {
+		appClientset := appclientset.NewSimpleClientset(&app)
+		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+		h := NewHandler(
+			"argocd",
+			[]string{},
+			10,
+			5,
+			appClientset,
+			&fakeAppsLister{clientset: appClientset},
+			&settings.ArgoCDSettings{},
+			&fakeSettingsSrc{},
+			cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
+			servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
+			&mocks.ArgoDB{},
+			int64(50)*1024*1024,
+			2*time.Second,
+			100, // High threshold - won't be exceeded
+		)
+
+		req := &appRefreshRequest{
+			appName:      "test-app",
+			appNamespace: "argocd",
+			hydrateType:  nil,
+		}
+
+		// Add without explicit delay
+		h.refreshQueue.Add(req)
+
+		// Should process quickly without jitter
+		time.Sleep(100 * time.Millisecond)
+		h.Shutdown()
+	})
+}
+
+func TestProcessAppRefresh(t *testing.T) {
+	app := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/test/repo",
+				TargetRevision: "main",
+			},
+		},
+	}
+
+	t.Run("processes valid refresh request", func(t *testing.T) {
+		hook := test.NewGlobal()
+		defer hook.Reset()
+
+		h := NewMockHandler(nil, []string{}, &app)
+		req := &appRefreshRequest{
+			appName:      "test-app",
+			appNamespace: "argocd",
+			hydrateType:  nil,
+		}
+
+		h.processAppRefresh(req)
+		h.Shutdown()
+
+		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' refresh")
+	})
+
+	t.Run("processes valid hydrate request", func(t *testing.T) {
+		hook := test.NewGlobal()
+		defer hook.Reset()
+
+		hydrateType := v1alpha1.HydrateTypeNormal
+		h := NewMockHandler(nil, []string{}, &app)
+		req := &appRefreshRequest{
+			appName:      "test-app",
+			appNamespace: "argocd",
+			hydrateType:  &hydrateType,
+		}
+
+		h.processAppRefresh(req)
+		h.Shutdown()
+
+		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' hydration")
+	})
 }

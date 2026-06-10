@@ -199,7 +199,7 @@ The example below will expose the Argo CD Application labels `team-name` and `en
 In this case, the metric would look like:
 
 ```
-# TYPE argocd_app_labels gauge
+# TYPE argocd_cluster_labels gauge
 argocd_cluster_labels{label_environment="dev",label_team_name="team1",name="cluster1",server="server1"} 1
 argocd_cluster_labels{label_environment="staging",label_team_name="team2",name="cluster2",server="server2"} 1
 argocd_cluster_labels{label_environment="production",label_team_name="team3",name="cluster3",server="server3"} 1
@@ -263,6 +263,7 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 | `argocd_redis_request_duration_seconds`  | histogram  | Redis requests duration seconds.                                          |
 | `argocd_redis_request_total`             |  counter   | Number of Kubernetes requests executed during application reconciliation. |
 | `argocd_repo_pending_request_total`      |   gauge    | Number of pending requests requiring repository lock                      |
+| `argocd_repo_parallelism_wait_duration_seconds` | histogram  | Time spent waiting for the repo-server manifest generation parallelism semaphore (`--parallelismlimit`). Observed on every acquire attempt, including those that fail (e.g. context canceled). |
 | `argocd_oci_request_total`               |  counter   | Number of OCI requests performed by repo server                           |
 | `argocd_oci_request_duration_seconds`    | histogram  | Duration of OCI requests performed by the repo server.                      |
 | `argocd_oci_test_repo_fail_total`        |  counter   | Number of OCI test repo requests failures by repo server                  |
@@ -289,6 +290,8 @@ Scraped at the `argocd-commit-server:8087/metrics` endpoint.
 
 If using Prometheus Operator, the following ServiceMonitor example manifests can be used.
 Add a namespace where Argo CD is installed and change `metadata.labels.release` to the name of label selected by your Prometheus.
+
+For a [high availability](high_availability.md) setup where the application controller runs multiple replicas, a `ServiceMonitor` works as expected because endpoint discovery scrapes every controller pod. Other scrapers that are not based on Prometheus Operator (such as Telegraf or Grafana Agent) should use Kubernetes pod or endpoint discovery rather than a ClusterIP target, as scraping the ClusterIP collects metrics from only one replica per request.
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1

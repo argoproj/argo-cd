@@ -2,6 +2,9 @@ package git
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +20,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -121,25 +125,30 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial commit", "-a")
 	require.NoError(t, err)
 
-	atag := client.IsAnnotatedTag("master")
+	err = runCmd(ctx, client.Root(), "git", "tag", "annot-tag", "-a", "-m", "Create annotated tag")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, client.Root(), "git", "tag", "light-tag")
+	require.NoError(t, err)
+
+	atag := client.IsAnnotatedTag("HEAD")
 	assert.False(t, atag)
 
-	err = runCmd(ctx, client.Root(), "git", "tag", "some-tag", "-a", "-m", "Create annotated tag")
+	atag = client.IsAnnotatedTag("master")
+	assert.False(t, atag)
+
+	atag = client.IsAnnotatedTag("blorp")
+	assert.False(t, atag)
+
+	sha, err := client.CommitSHA()
 	require.NoError(t, err)
-	atag = client.IsAnnotatedTag("some-tag")
+	atag = client.IsAnnotatedTag(sha)
+	assert.False(t, atag)
+
+	atag = client.IsAnnotatedTag("annot-tag")
 	assert.True(t, atag)
 
-	// Tag effectually points to HEAD, so it's considered the same
-	atag = client.IsAnnotatedTag("HEAD")
-	assert.True(t, atag)
-
-	err = runCmd(ctx, client.Root(), "git", "rm", "README")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "remove README", "-a")
-	require.NoError(t, err)
-
-	// We moved on, so tag doesn't point to HEAD anymore
-	atag = client.IsAnnotatedTag("HEAD")
+	atag = client.IsAnnotatedTag("light-tag")
 	assert.False(t, atag)
 }
 
@@ -697,6 +706,11 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		currentCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 		require.NotEqual(t, baseCommitHash, currentCommitHash)
 
+		gitCurrentCommitMessage, err := outputCmd(ctx, tempDir, "git", "log", "--format=%B", "-n", "1", "HEAD")
+		require.NoError(t, err)
+		currentCommitMessage := strings.TrimSpace(string(gitCurrentCommitMessage))
+		require.Contains(t, currentCommitMessage, expectedBranch)
+
 		// get commit count on current branch, verify 1 -> orphan
 		gitCommitCount, err := outputCmd(ctx, tempDir, "git", "rev-list", "--count", actualBranch)
 		require.NoError(t, err)
@@ -919,6 +933,154 @@ func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	require.NoError(t, err)
 	_, ok := auth.(*githttp.TokenAuth)
 	require.Truef(t, ok, "expected TokenAuth but got %T", auth)
+}
+
+// Test_newAuth_SSH_HostKeyAlgorithms verifies that for SSH creds with a known
+// host key, newAuth populates HostKeyAlgorithms on both PublicKeysWithOptions
+// and the embedded gitssh.PublicKeys.HostKeyCallbackHelper. The latter is
+// required because go-git's SetHostKeyCallback overwrites the resolved
+// ssh.ClientConfig.HostKeyAlgorithms with the embedded helper's value, so if
+// the helper field is empty the algorithms get clobbered (go-git/go-git#1551).
+func Test_newAuth_SSH_HostKeyAlgorithms(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBlock, err := ssh.MarshalPrivateKey(priv, "")
+	require.NoError(t, err)
+	privPEM := pem.EncodeToMemory(pemBlock)
+
+	sshPub, err := ssh.NewPublicKey(pub)
+	require.NoError(t, err)
+	authorizedKey := ssh.MarshalAuthorizedKey(sshPub)
+
+	tmpDir := t.TempDir()
+	knownHostsPath := filepath.Join(tmpDir, "ssh_known_hosts")
+	knownHostsLine := "example.com " + strings.TrimSpace(string(authorizedKey))
+	require.NoError(t, os.WriteFile(knownHostsPath, []byte(knownHostsLine+"\n"), 0o600))
+
+	t.Setenv("ARGOCD_SSH_DATA_PATH", tmpDir)
+
+	auth, err := newAuth("git@example.com:org/repo.git", SSHCreds{sshPrivateKey: string(privPEM)})
+	require.NoError(t, err)
+
+	pk, ok := auth.(*PublicKeysWithOptions)
+	require.Truef(t, ok, "expected *PublicKeysWithOptions but got %T", auth)
+
+	require.NotEmpty(t, pk.HostKeyAlgorithms, "wrapper HostKeyAlgorithms should be populated from known_hosts")
+	assert.Contains(t, pk.HostKeyAlgorithms, ssh.KeyAlgoED25519)
+	assert.Equal(t, pk.HostKeyAlgorithms, pk.PublicKeys.HostKeyAlgorithms,
+		"embedded helper HostKeyAlgorithms must mirror the wrapper field, otherwise go-git's SetHostKeyCallback clobbers the ClientConfig value")
+
+	cfg, err := pk.ClientConfig()
+	require.NoError(t, err)
+	assert.Equal(t, pk.HostKeyAlgorithms, cfg.HostKeyAlgorithms,
+		"resolved ssh.ClientConfig must carry the configured HostKeyAlgorithms")
+}
+
+func Test_newAuth_SSH_InsecureSkipsKnownHosts(t *testing.T) {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	pemBlock, err := ssh.MarshalPrivateKey(priv, "")
+	require.NoError(t, err)
+	privPEM := pem.EncodeToMemory(pemBlock)
+
+	auth, err := newAuth("git@example.com:org/repo.git", SSHCreds{sshPrivateKey: string(privPEM), insecure: true})
+	require.NoError(t, err)
+
+	pk, ok := auth.(*PublicKeysWithOptions)
+	require.Truef(t, ok, "expected *PublicKeysWithOptions but got %T", auth)
+	assert.Empty(t, pk.HostKeyAlgorithms)
+	assert.Empty(t, pk.PublicKeys.HostKeyAlgorithms)
+	assert.NotNil(t, pk.HostKeyCallback, "insecure mode should still install an InsecureIgnoreHostKey callback")
+}
+
+// Test_newAuth_SSH_HostNotInKnownHosts verifies that when the target host is
+// not represented in ssh_known_hosts we still return a usable AuthMethod with
+// a HostKeyCallback wired up, and HostKeyAlgorithms is left empty (so go-git
+// falls back to its default algorithm list rather than advertising algorithms
+// that belong to an unrelated host).
+func Test_newAuth_SSH_HostNotInKnownHosts(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBlock, err := ssh.MarshalPrivateKey(priv, "")
+	require.NoError(t, err)
+	privPEM := pem.EncodeToMemory(pemBlock)
+
+	sshPub, err := ssh.NewPublicKey(pub)
+	require.NoError(t, err)
+	authorizedKey := ssh.MarshalAuthorizedKey(sshPub)
+
+	tmpDir := t.TempDir()
+	knownHostsPath := filepath.Join(tmpDir, "ssh_known_hosts")
+	// Populate ssh_known_hosts with a different host than the one we query.
+	knownHostsLine := "other.example.com " + strings.TrimSpace(string(authorizedKey))
+	require.NoError(t, os.WriteFile(knownHostsPath, []byte(knownHostsLine+"\n"), 0o600))
+
+	t.Setenv("ARGOCD_SSH_DATA_PATH", tmpDir)
+
+	auth, err := newAuth("git@example.com:org/repo.git", SSHCreds{sshPrivateKey: string(privPEM)})
+	require.NoError(t, err)
+
+	pk, ok := auth.(*PublicKeysWithOptions)
+	require.Truef(t, ok, "expected *PublicKeysWithOptions but got %T", auth)
+	assert.NotNil(t, pk.HostKeyCallback, "callback should still be wired even when target host is absent from known_hosts")
+	assert.Empty(t, pk.HostKeyAlgorithms, "no algorithms should be advertised when the target host is not in known_hosts")
+	assert.Empty(t, pk.PublicKeys.HostKeyAlgorithms)
+}
+
+// Test_newAuth_SSH_MalformedPrivateKey verifies that an unparseable SSH
+// private key surfaces as an error from newAuth rather than a partially
+// constructed AuthMethod.
+func Test_newAuth_SSH_MalformedPrivateKey(t *testing.T) {
+	// Make sure the known_hosts lookup succeeds so the error originates from
+	// ParsePrivateKey, not from the known_hosts setup.
+	tmpDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "ssh_known_hosts"), nil, 0o600))
+	t.Setenv("ARGOCD_SSH_DATA_PATH", tmpDir)
+
+	auth, err := newAuth("git@example.com:org/repo.git", SSHCreds{sshPrivateKey: "not a valid PEM-encoded private key"})
+	require.Error(t, err)
+	assert.Nil(t, auth)
+}
+
+// Test_newAuth_SSH_KnownHostsUnreadable verifies that when the known_hosts
+// file cannot be read (here: it does not exist) we surface an error from the
+// SSHCreds path rather than returning an AuthMethod with no host-key
+// verification configured.
+func Test_newAuth_SSH_KnownHostsUnreadable(t *testing.T) {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	pemBlock, err := ssh.MarshalPrivateKey(priv, "")
+	require.NoError(t, err)
+	privPEM := pem.EncodeToMemory(pemBlock)
+
+	// Point ARGOCD_SSH_DATA_PATH at a directory that does not contain an
+	// ssh_known_hosts file. skeema/knownhosts NewDB returns an error when
+	// the file is missing.
+	t.Setenv("ARGOCD_SSH_DATA_PATH", t.TempDir())
+
+	auth, err := newAuth("git@example.com:org/repo.git", SSHCreds{sshPrivateKey: string(privPEM)})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "could not set up SSH known hosts callback")
+	assert.Nil(t, auth)
+}
+
+// Test_newAuth_SSH_NoCreds_AgentUnavailable verifies that when no Argo CD
+// credentials are configured for an SSH URL and ssh-agent is unreachable, we
+// return (nil, nil) rather than an error — matching the pre-bump fallback
+// behavior where go-git's DefaultAuthBuilder would have been used.
+func Test_newAuth_SSH_NoCreds_AgentUnavailable(t *testing.T) {
+	tmpDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "ssh_known_hosts"), nil, 0o600))
+	t.Setenv("ARGOCD_SSH_DATA_PATH", tmpDir)
+	// Force ssh-agent setup to fail by pointing SSH_AUTH_SOCK at a path that
+	// cannot be dialed.
+	t.Setenv("SSH_AUTH_SOCK", filepath.Join(tmpDir, "nonexistent-agent.sock"))
+
+	auth, err := newAuth("git@example.com:org/repo.git", nil)
+	require.NoError(t, err, "missing ssh-agent should not bubble up as an error from newAuth")
+	assert.Nil(t, auth, "with no agent reachable, newAuth should fall through to go-git's DefaultAuthBuilder by returning nil")
 }
 
 func TestNewAuth(t *testing.T) {
@@ -1457,4 +1619,42 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	changed, err = client.HasFileChanged(filePath)
 	require.NoError(t, err)
 	require.True(t, changed, "expected modified file to be reported as changed")
+}
+
+func Test_LsSignatures_Error(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: %s", out)
+
+	err = runCmd(ctx, tempDir, "git", "log")
+	require.NoError(t, err)
+
+	tests := []struct {
+		revision    string
+		deep        bool
+		expectedMsg string
+	}{
+		{
+			revision:    "5555.*",
+			deep:        false,
+			expectedMsg: "version matching constraint not found",
+		},
+		{
+			revision:    "5555.*",
+			deep:        true,
+			expectedMsg: "version matching constraint not found",
+		},
+	}
+
+	for _, tt := range tests {
+		signatures, legacy, err := client.LsSignatures(tt.revision, tt.deep)
+		require.ErrorContains(t, err, tt.expectedMsg)
+		assert.Nil(t, signatures)
+		assert.Empty(t, legacy)
+	}
 }

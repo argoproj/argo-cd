@@ -237,6 +237,29 @@ func TestManagedByURLAnnotation(t *testing.T) {
 		assert.Equal(t, managedByURL, deeplinksObj[ManagedByURLKey])
 	})
 
+	t.Run("application with invalid managed-by-url annotation is omitted", func(t *testing.T) {
+		// Non http(s) protocols are invalid and should not be used in deep link generation.
+		managedByURL := "ftp://localhost:8081"
+
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-app",
+				Annotations: map[string]string{
+					v1alpha1.AnnotationKeyManagedByURL: managedByURL,
+				},
+			},
+		}
+
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+		require.NoError(t, err)
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+
+		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
+
+		_, exists := deeplinksObj[ManagedByURLKey]
+		assert.False(t, exists)
+	})
+
 	t.Run("application without managed-by-url annotation", func(t *testing.T) {
 		// Create an application without managed-by-url annotation
 		app := &v1alpha1.Application{

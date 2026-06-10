@@ -1,11 +1,11 @@
 # Application Sync using impersonation
 
 > [!WARNING]
-> **Alpha Feature (Since 2.13.0)**
+> **Beta Feature (Since v3.5.0)**
 >
-> This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) 
-> feature that allows you to control the service account used for the sync operation. The configured service account 
-> could have lesser privileges required for creating resources compared to the highly privileged access required for 
+> This is a [beta-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta)
+> feature that allows you to control the service account used for the sync operation. The configured service account
+> could have lesser privileges required for creating resources compared to the highly privileged access required for
 > the control plane operations.
 
 > [!WARNING]
@@ -20,7 +20,7 @@ By default, application syncs in Argo CD have the same privileges as the Argo CD
 Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature, as it is disabled by default.
 
 > [!NOTE]
-> This feature is considered alpha as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
+> This feature is considered beta. While the API is stable, some implementation details may change as we gather feedback from users before promoting it to stable status.
 
 ### What is Impersonation
 
@@ -28,14 +28,15 @@ Impersonation is a feature in Kubernetes and enabled in the `kubectl` CLI client
 
 Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
 
-### Feature scope 
+### Feature scope
 
-Impersonation is currently only supported for the lifecycle of objects managed by an Application directly, which includes sync operations (creation, update and pruning of resources) and deletion as part of Application finalizer logic. This *does not* includes operations triggered via ArgoCD's UI, which will still be executed with Argo CD's control-plane service account.
+Impersonation is supported for the lifecycle of objects managed by an Application directly, which includes sync operations (creation, update and pruning of resources) and deletion as part of Application finalizer logic. It is also supported for UI operations triggered by the user.
 
 ## Prerequisites
 
 In a multi-team/multi-tenant environment, a team/tenant is typically granted access to a target namespace to self-manage their kubernetes resources in a declarative way.
 A typical tenant onboarding process looks like below:
+
 1. The platform admin creates a tenant namespace and the service account to be used for creating the resources is also created in the same tenant namespace.
 2. The platform admin creates one or more Role(s) to manage kubernetes resources in the tenant namespace
 3. The platform admin creates one or more RoleBinding(s) to map the service account to the role(s) created in the previous steps.
@@ -52,14 +53,13 @@ In order for an application to use a different service account for the applicati
 
 2. The `AppProject` referenced by the `.spec.project` field of the `Application` must have the `DestinationServiceAccounts` mapping the destination server and namespace to a service account to be used for the sync operation. Please refer the steps provided in [Configuring destination service accounts](#configuring-destination-service-accounts)
 
-
 ### Enable application sync with impersonation feature
 
 In order to enable this feature, the Argo CD administrator must reconfigure the `application.sync.impersonation.enabled` settings in the `argocd-cm` ConfigMap as below:
 
 ```yaml
 data:
-  application.sync.impersonation.enabled: "true"
+  application.sync.impersonation.enabled: 'true'
 ```
 
 ### Disable application sync with impersonation feature
@@ -68,7 +68,7 @@ In order to disable this feature, the Argo CD administrator must reconfigure the
 
 ```yaml
 data:
-  application.sync.impersonation.enabled: "false"
+  application.sync.impersonation.enabled: 'false'
 ```
 
 > [!NOTE]

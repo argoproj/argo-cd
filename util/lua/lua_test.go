@@ -1009,8 +1009,8 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	params := []*applicationpkg.ResourceActionParameters{
 		{
-			Name:  func() *string { s := "replicas"; return &s }(),
-			Value: func() *string { s := "3"; return &s }(),
+			Name:  new("replicas"),
+			Value: new("3"),
 		},
 	}
 
@@ -1080,5 +1080,6 @@ func Test_getHealthScriptPaths(t *testing.T) {
 		"_.crossplane.io/_",
 		"_.upbound.io/_",
 		"grafana-org-operator.kubitus-project.gitlab.io/_",
+		"operator.victoriametrics.com/_",
 	}, paths)
 }
