@@ -2789,6 +2789,7 @@ func TestEscapeDollarSignsInMap(t *testing.T) {
 		assert.Equal(t, original, input["bindPW"])
 	})
 }
+
 func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
 	tests := []struct {
 		name          string
