@@ -35,6 +35,9 @@ import (
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	authorizationv1 "k8s.io/api/authorization/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
 func init() {
@@ -2684,6 +2687,231 @@ func BenchmarkIncrementalIndexBuild(b *testing.B) {
 					cluster.addToParentUIDToChildren(child.parentUID, child.childKey)
 				}
 			}
+		})
+	}
+}
+
+func TestCheckNamespacePermission_Denied(t *testing.T) {
+	// Arrange: fake SSAR clientset that denies the access review.
+	kubeFake := kubefake.NewSimpleClientset()
+	kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+		sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		sar.Status.Allowed = false
+		return true, sar, nil
+	})
+
+	api := kube.APIResourceInfo{
+		GroupVersionResource: schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		},
+		Meta: metav1.APIResource{Namespaced: true},
+	}
+
+	c := &clusterCache{}
+	allowed, err := c.checkNamespacePermission(context.Background(), kubeFake.AuthorizationV1().SelfSubjectAccessReviews(), api, "restricted-ns")
+
+	require.NoError(t, err)
+	assert.False(t, allowed, "SSAR denied should return allowed=false")
+}
+
+func TestHandleNamespacedListError_ClassifyForbiddenError(t *testing.T) {
+	api := kube.APIResourceInfo{
+		GroupVersionResource: schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		},
+		Meta: metav1.APIResource{Namespaced: true},
+	}
+	namespace := "target-ns"
+	forbiddenErr := apierrors.NewForbidden(
+		schema.GroupResource{Group: api.GroupVersionResource.Group, Resource: api.GroupVersionResource.Resource},
+		"",
+		fmt.Errorf("namespace %q not found", namespace),
+	)
+	genericErr := fmt.Errorf("generic connection failure")
+
+	tests := []struct {
+		name           string
+		listErr        error
+		ssarAllowed    bool
+		ssarReactorErr error
+		wantSkip       bool
+		wantOrigErr    bool
+		wantWarning    bool
+		wantSSARCall   bool
+	}{
+		{
+			name:         "forbidden + SSAR denied → errSkipNamespace + warning",
+			listErr:      forbiddenErr,
+			ssarAllowed:  false,
+			wantSkip:     true,
+			wantWarning:  true,
+			wantSSARCall: true,
+		},
+		{
+			name:         "forbidden + SSAR allowed → propagate original error, no warning",
+			listErr:      forbiddenErr,
+			ssarAllowed:  true,
+			wantOrigErr:  true,
+			wantWarning:  false,
+			wantSSARCall: true,
+		},
+		{
+			name:           "forbidden + SSAR call itself errors → propagate, no warning",
+			listErr:        forbiddenErr,
+			ssarReactorErr: fmt.Errorf("SSAR backend error"),
+			wantSkip:       false,
+			wantOrigErr:    false, // returns a wrapped SSAR error, not the original
+			wantWarning:    false,
+			wantSSARCall:   true,
+		},
+		{
+			name:         "non-forbidden error → propagate unchanged, no SSAR call, no warning",
+			listErr:      genericErr,
+			wantOrigErr:  true,
+			wantWarning:  false,
+			wantSSARCall: false,
+		},
+		{
+			name:         "NotFound error → propagate unchanged, no SSAR call, no warning",
+			listErr:      apierrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "deployments"}, "x"),
+			wantOrigErr:  true,
+			wantWarning:  false,
+			wantSSARCall: false,
+		},
+		{
+			name:         "Unauthorized error → propagate unchanged, no SSAR call, no warning",
+			listErr:      apierrors.NewUnauthorized("nope"),
+			wantOrigErr:  true,
+			wantWarning:  false,
+			wantSSARCall: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			kubeFake := kubefake.NewSimpleClientset()
+			kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+				if tc.ssarReactorErr != nil {
+					return true, nil, tc.ssarReactorErr
+				}
+				sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+				sar.Status.Allowed = tc.ssarAllowed
+				return true, sar, nil
+			})
+
+			c := &clusterCache{
+				syncWarnings: nil,
+			}
+
+			got := c.handleNamespacedListError(
+				context.Background(),
+				kubeFake.AuthorizationV1().SelfSubjectAccessReviews(),
+				api,
+				namespace,
+				tc.listErr,
+			)
+
+			if tc.wantSkip {
+				assert.ErrorIs(t, got, errSkipNamespace, "expected errSkipNamespace sentinel")
+			}
+			if tc.wantOrigErr {
+				assert.ErrorIs(t, got, tc.listErr, "expected original listErr propagated")
+			}
+			if !tc.wantSkip && !tc.wantOrigErr {
+				// SSAR error case: must return a non-nil error that is neither skip nor the original
+				require.Error(t, got)
+				assert.False(t, errors.Is(got, errSkipNamespace), "must not return skip sentinel on SSAR error")
+			}
+
+			if tc.wantWarning {
+				assert.True(t, len(c.syncWarnings) > 0, "expected a warning to be recorded")
+				assert.Contains(t, strings.Join(c.syncWarnings, " "), namespace, "warning must mention the namespace")
+			} else {
+				assert.Empty(t, c.syncWarnings, "expected no warnings recorded")
+			}
+
+			ssarCalled := false
+			for _, a := range kubeFake.Actions() {
+				if a.Matches("create", "selfsubjectaccessreviews") {
+					ssarCalled = true
+					break
+				}
+			}
+			assert.Equal(t, tc.wantSSARCall, ssarCalled, "SSAR should be consulted iff the error is Forbidden")
+		})
+	}
+}
+
+func TestCheckNamespacePermission_SSARIsGVKSpecific(t *testing.T) {
+	// Property: for ANY (api, namespace), checkNamespacePermission sends an SSAR whose
+	// ResourceAttributes carry the api's Group AND Resource, the given Namespace, and Verb "list".
+	// The cross-group resource-name collision row (apps vs extensions "deployments") ensures
+	// the implementation carries Group, not just Resource name.
+	tests := []struct {
+		name string
+		gvr  schema.GroupVersionResource
+		ns   string
+	}{
+		{
+			name: "apps/v1 deployments in ns1",
+			gvr:  schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
+			ns:   "ns1",
+		},
+		{
+			name: "extensions/v1beta1 deployments in ns1 — same resource name, different group",
+			gvr:  schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "deployments"},
+			ns:   "ns1",
+		},
+		{
+			name: "core v1 pods in ns2",
+			gvr:  schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+			ns:   "ns2",
+		},
+		{
+			name: "example.com/v1 widgets in ns3 (CRD-like)",
+			gvr:  schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"},
+			ns:   "ns3",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange: reactor captures the ResourceAttributes and approves the review.
+			kubeFake := kubefake.NewSimpleClientset()
+			var captured *authorizationv1.ResourceAttributes
+			kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+				sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+				captured = sar.Spec.ResourceAttributes
+				sar.Status.Allowed = true
+				return true, sar, nil
+			})
+
+			api := kube.APIResourceInfo{
+				GroupVersionResource: tc.gvr,
+				Meta:                 metav1.APIResource{Namespaced: true},
+			}
+
+			c := &clusterCache{}
+
+			// Act
+			_, err := c.checkNamespacePermission(
+				context.Background(),
+				kubeFake.AuthorizationV1().SelfSubjectAccessReviews(),
+				api,
+				tc.ns,
+			)
+
+			// Assert
+			require.NoError(t, err)
+			require.NotNil(t, captured, "SSAR must have been sent")
+			assert.Equal(t, tc.gvr.Group, captured.Group, "SSAR must carry the api's Group")
+			assert.Equal(t, tc.gvr.Resource, captured.Resource, "SSAR must carry the api's Resource")
+			assert.Equal(t, tc.ns, captured.Namespace, "SSAR must carry the given Namespace")
+			assert.Equal(t, "list", captured.Verb, "SSAR Verb must be \"list\"")
 		})
 	}
 }
