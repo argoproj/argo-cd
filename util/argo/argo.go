@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -178,13 +179,37 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 }
 
 // FilterByPath returns an application
-func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
-	if path == "" {
+func FilterByPath(apps []argoappv1.Application, appPath string) []argoappv1.Application {
+	if appPath == "" {
 		return apps
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().Path == path {
+		if apps[i].Spec.GetSource().Path == appPath {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
+// FilterByFiles returns applications that are affected by the given list of changed files.
+// For each application, it computes the refresh paths (source path + annotation paths) and
+// checks whether any of the provided files falls under those paths.
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+	items := []argoappv1.Application{}
+	for i := range apps {
+		app := &apps[i]
+		source := app.Spec.GetSource()
+		refreshPaths := path.GetSourceRefreshPaths(app, source)
+		// If no annotation, fall back to the source path itself so that any
+		// file under that directory triggers a match.
+		if len(refreshPaths) == 0 {
+			refreshPaths = []string{source.Path}
+		}
+		if path.AppFilesHaveChanged(refreshPaths, files) {
 			items = append(items, apps[i])
 		}
 	}
