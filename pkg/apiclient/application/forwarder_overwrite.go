@@ -28,6 +28,7 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	"metadata.labels":            func(app *v1alpha1.Application) any { return app.Labels },
 	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
 	"metadata.deletionTimestamp": func(app *v1alpha1.Application) any { return app.DeletionTimestamp },
+	"spec":                       func(app *v1alpha1.Application) any { return app.Spec },
 	"spec.destination":           func(app *v1alpha1.Application) any { return app.Spec.Destination },
 	"spec.project":               func(app *v1alpha1.Application) any { return app.Spec.Project },
 	"spec.source":                func(app *v1alpha1.Application) any { return app.Spec.Source },
@@ -51,6 +52,12 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 		}
 		return nil
 	},
+	"status.resources": func(app *v1alpha1.Application) any {
+		if len(app.Status.Resources) > 0 {
+			return app.Status.Resources
+		}
+		return nil
+	},
 	"operation.sync": func(app *v1alpha1.Application) any {
 		if app.Operation != nil {
 			return app.Operation.Sync
@@ -60,6 +67,12 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	"status.operationState.phase": func(app *v1alpha1.Application) any {
 		if app.Status.OperationState != nil {
 			return app.Status.OperationState.Phase
+		}
+		return nil
+	},
+	"status.operationState.operation.sync": func(app *v1alpha1.Application) any {
+		if app.Status.OperationState != nil {
+			return app.Status.OperationState.SyncResult
 		}
 		return nil
 	},
