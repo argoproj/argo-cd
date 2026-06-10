@@ -17,9 +17,6 @@ export PATH="${DIST_DIR}:${PATH}"
 if test "${ARGOCD_TEST_PARALLELISM:-}" != ""; then
 	TEST_FLAGS="$TEST_FLAGS -p $ARGOCD_TEST_PARALLELISM"
 fi
-if test "${ARGOCD_TEST_PARALLEL:-}" != ""; then
-	TEST_FLAGS="$TEST_FLAGS -parallel $ARGOCD_TEST_PARALLEL"
-fi
 if test "${ARGOCD_TEST_VERBOSE:-}" != ""; then
 	TEST_FLAGS="$TEST_FLAGS -v"
 fi
