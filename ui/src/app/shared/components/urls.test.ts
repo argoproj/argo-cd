@@ -51,6 +51,53 @@ test('bitbucket.org', () => {
     );
 });
 
+// for self-hosted Bitbucket Server installations
+// Clone URLs use /scm/ prefix; browse URLs use /users/ or /projects/ prefix.
+test('bitbucket server (self-hosted, personal repo, HTTPS)', () => {
+    expect(repoUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git')).toBe(
+        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo',
+    );
+    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git', 'abc1234', false)).toBe(
+        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo/commits/abc1234',
+    );
+    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git', 'main', false)).toBe(
+        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo/browse?at=refs%2Fheads%2Fmain',
+    );
+    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git', '', false)).toBe(
+        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo/browse',
+    );
+    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git', 'HEAD', false)).toBe(
+        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo/browse',
+    );
+});
+
+test('bitbucket server (self-hosted, project repo, HTTPS)', () => {
+    expect(repoUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git')).toBe(
+        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo',
+    );
+    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git', 'abc1234', false)).toBe(
+        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo/commits/abc1234',
+    );
+    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git', 'main', false)).toBe(
+        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo/browse?at=refs%2Fheads%2Fmain',
+    );
+    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git', '', false)).toBe(
+        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo/browse',
+    );
+    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git', 'HEAD', false)).toBe(
+        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo/browse',
+    );
+});
+
+test('bitbucket server (self-hosted, SSH)', () => {
+    expect(repoUrl('git@bitbucket.gob.amadeus.net:scm/~paraj5/helm-repo.git')).toBe(
+        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo',
+    );
+    expect(repoUrl('git@bitbucket.gob.amadeus.net:scm/MYPROJECT/helm-repo.git')).toBe(
+        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo',
+    );
+});
+
 test('empty url', () => {
     expect(repoUrl('')).toBe(null);
 });
