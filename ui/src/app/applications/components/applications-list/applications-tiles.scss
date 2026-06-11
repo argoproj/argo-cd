@@ -52,41 +52,7 @@
     }
 }
 
-.applications-list__external-link {
-    align-items: center;
-    display: flex;
-    
-    button {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        margin: 0;
-        color: inherit;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        
-        &:hover {
-            color: $argo-color-teal-5;
-        }
-
-        &.managed-by-url-invalid {
-            color: #f4c030;
-
-            &:hover {
-                color: #f4c030;
-            }
-        }
-        
-        i {
-            font-size: 14px;
-        }
-    }
-}
-
-/* Table / name column external-link (not under .applications-list__external-link) */
-.applications-list__table-row button.managed-by-url-invalid {
+.applications-list__icon-action.managed-by-url-invalid {
     color: #f4c030;
 
     &:hover {
