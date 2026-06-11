@@ -552,7 +552,7 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		t.Setenv("ARGOCD_REPO_SERVER_CA_CERT_PATH", "test-ca-cert")
 		AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
-		caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
+		caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
 		require.NoError(t, err)
 		assert.Equal(t, "test-ca-cert", caCert)
 	})
@@ -562,7 +562,7 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		t.Setenv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH", "test-ca-cert-prefixed")
 		AddClientTLSFlagsToCmdWithPrefix(cmd, "APPLICATION_CONTROLLER")
 
-		caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
+		caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
 		require.NoError(t, err)
 		assert.Equal(t, "test-ca-cert-prefixed", caCert)
 	})
@@ -570,9 +570,9 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 	t.Run("mTLS client certificate is configured only by explicit flags", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		err := cmd.Flags().Set("repo-server-client-cert", "test-client-cert")
+		err := cmd.Flags().Set("repo-server-client-cert-path", "test-client-cert")
 		require.NoError(t, err)
-		err = cmd.Flags().Set("repo-server-client-cert-key", "test-client-cert-key")
+		err = cmd.Flags().Set("repo-server-client-cert-key-path", "test-client-cert-key")
 		require.NoError(t, err)
 
 		config, err := configSrc()
@@ -585,21 +585,21 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 	t.Run("Error when only client cert is specified without key", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		err := cmd.Flags().Set("repo-server-client-cert", "test-client-cert")
+		err := cmd.Flags().Set("repo-server-client-cert-path", "test-client-cert")
 		require.NoError(t, err)
 
 		_, err = configSrc()
-		require.ErrorContains(t, err, "--repo-server-client-cert-key is required when --repo-server-client-cert is specified")
+		require.ErrorContains(t, err, "--repo-server-client-cert-key-path is required when --repo-server-client-cert-path is specified")
 	})
 
 	t.Run("Error when only client cert key is specified without cert", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		err := cmd.Flags().Set("repo-server-client-cert-key", "test-client-cert-key")
+		err := cmd.Flags().Set("repo-server-client-cert-key-path", "test-client-cert-key")
 		require.NoError(t, err)
 
 		_, err = configSrc()
-		require.ErrorContains(t, err, "--repo-server-client-cert is required when --repo-server-client-cert-key is specified")
+		require.ErrorContains(t, err, "--repo-server-client-cert-path is required when --repo-server-client-cert-key-path is specified")
 	})
 
 	t.Run("No mTLS client certificate by default", func(t *testing.T) {
@@ -618,7 +618,7 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
 		certFile := path.Join("testdata", "single.pem")
-		err := cmd.Flags().Set("repo-server-ca-cert", certFile)
+		err := cmd.Flags().Set("repo-server-ca-cert-path", certFile)
 		require.NoError(t, err)
 
 		configWithCA, err := configSrc()
@@ -626,7 +626,7 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		assert.True(t, configWithCA.StrictValidation)
 		assert.NotNil(t, configWithCA.Certificates)
 
-		err = cmd.Flags().Set("repo-server-ca-cert", "")
+		err = cmd.Flags().Set("repo-server-ca-cert-path", "")
 		require.NoError(t, err)
 
 		configWithoutCA, err := configSrc()
@@ -755,7 +755,7 @@ func TestAddClientTLSFlagsToCmdWithPrefix_CACertSetsStrictValidation(t *testing.
 	cmd := &cobra.Command{}
 	src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
-	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", "testdata/single.pem"))
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", "testdata/single.pem"))
 
 	cfg, err := src()
 	require.NoError(t, err)
@@ -810,7 +810,7 @@ func TestStrictValidationOverride_ORSemantics(t *testing.T) {
 			src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
 			if tc.setCACert {
-				require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", "testdata/single.pem"))
+				require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", "testdata/single.pem"))
 			}
 
 			// Step 1: get config from the new flag helper (Layer 1).
@@ -833,7 +833,7 @@ func TestStrictValidationOverride_ORSemantics(t *testing.T) {
 func TestStrictValidationOverride_OldAssignmentSemantics_DocumentsBug(t *testing.T) {
 	cmd := &cobra.Command{}
 	src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", "testdata/single.pem"))
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", "testdata/single.pem"))
 
 	cfg, err := src()
 	require.NoError(t, err)
@@ -854,21 +854,21 @@ func TestClientCertFlags_BothRequiredOrNeither(t *testing.T) {
 	t.Run("cert without key returns error", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		require.NoError(t, cmd.Flags().Set("repo-server-client-cert", "some/cert.crt"))
+		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-path", "some/cert.crt"))
 
 		_, err := src()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--repo-server-client-cert-key is required")
+		assert.Contains(t, err.Error(), "--repo-server-client-cert-key-path is required")
 	})
 
 	t.Run("key without cert returns error", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-key", "some/key.key"))
+		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-key-path", "some/key.key"))
 
 		_, err := src()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--repo-server-client-cert is required")
+		assert.Contains(t, err.Error(), "--repo-server-client-cert-path is required")
 	})
 
 	t.Run("neither cert nor key is valid", func(t *testing.T) {

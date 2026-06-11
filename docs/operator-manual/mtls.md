@@ -48,28 +48,28 @@ The `argocd-server`, `argocd-application-controller`, and `argocd-applicationset
 > the `argocd-repo-server-tls` Kubernetes secret. This flag is **deprecated** and may be removed
 > in a future release.
 >
-> `--repo-server-ca-cert` (and `--argocd-repo-server-ca-cert` for the notifications controller)
+> `--repo-server-ca-cert-path` (and `--argocd-repo-server-ca-cert-path` for the notifications controller)
 > is the **recommended explicit path**: you provide the path to a CA certificate file directly.
 > This is required for mTLS setups and gives you full control over which CA is trusted.
-> Use `--repo-server-ca-cert` in all new deployments.
+> Use `--repo-server-ca-cert-path` in all new deployments.
 
 ### argocd-server flags
 
-* `--repo-server-client-cert`: Path to the client certificate file.
-* `--repo-server-client-cert-key`: Path to the client certificate key file.
-* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
+* `--repo-server-client-cert-path`: Path to the client certificate file.
+* `--repo-server-client-cert-key-path`: Path to the client certificate key file.
+* `--repo-server-ca-cert-path`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
 
 ### argocd-application-controller flags
 
-* `--repo-server-client-cert`: Path to the client certificate file.
-* `--repo-server-client-cert-key`: Path to the client certificate key file.
-* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
+* `--repo-server-client-cert-path`: Path to the client certificate file.
+* `--repo-server-client-cert-key-path`: Path to the client certificate key file.
+* `--repo-server-ca-cert-path`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
 
 ### argocd-applicationset-controller flags
 
-* `--repo-server-client-cert`: Path to the client certificate file.
-* `--repo-server-client-cert-key`: Path to the client certificate key file.
-* `--repo-server-ca-cert`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
+* `--repo-server-client-cert-path`: Path to the client certificate file.
+* `--repo-server-client-cert-key-path`: Path to the client certificate key file.
+* `--repo-server-ca-cert-path`: Path to the CA certificate used to verify the repo-server's server certificate. This is the **recommended explicit path** for TLS validation and is required for mTLS setups.
 
 ### Environment variables
 
@@ -123,7 +123,7 @@ These environment variables can also be set via the `argocd-cmd-params-cm` Confi
 * `notificationscontroller.repo.server.client.cert.key.path` — path to the client certificate key for mTLS
 
 > [!IMPORTANT]
-> Both `--repo-server-client-cert` and `--repo-server-client-cert-key` must be provided together. If you provide one without the other, the component will fail validation at startup.
+> Both `--repo-server-client-cert-path` and `--repo-server-client-cert-key-path` must be provided together. If you provide one without the other, the component will fail validation at startup.
 
 ## Deployment using Kubernetes Secrets
 
@@ -202,12 +202,12 @@ Alternatively, you can pass the flags directly in the container args:
 
 ```yaml
 args:
-- --repo-server-client-cert
+- --repo-server-client-cert-path
 - /app/config/reposerver/mtls/client.crt
-- --repo-server-client-cert-key
+- --repo-server-client-cert-key-path
 - /app/config/reposerver/mtls/client.key
 # Optional: verify repo-server with a custom CA
-# - --repo-server-ca-cert
+# - --repo-server-ca-cert-path
 # - /app/config/reposerver/mtls/server-ca.crt
 ```
 
@@ -344,7 +344,7 @@ After deploying:
 
 - Error: `--client-ca-path cannot be used when --disable-tls is enabled`
   - Remove `--disable-tls` (or unset `ARGOCD_REPO_SERVER_DISABLE_TLS`) when enabling mTLS.
-- One of `--repo-server-client-cert` / `--repo-server-client-cert-key` missing
+- One of `--repo-server-client-cert-path` / `--repo-server-client-cert-key-path` missing
   - Provide both flags (or the corresponding environment variables) together.
 - Custom CA for repo-server server certificate
-  - Provide `--repo-server-ca-cert` on clients so they can verify the repo-server's server certificate.
+  - Provide `--repo-server-ca-cert-path` on clients so they can verify the repo-server's server certificate.

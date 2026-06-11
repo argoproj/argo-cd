@@ -12,9 +12,9 @@ func TestNewCommand_RegistersMTLSFlags(t *testing.T) {
 	cmd := NewCommand()
 
 	for _, flagName := range []string{
-		"repo-server-ca-cert",
-		"repo-server-client-cert",
-		"repo-server-client-cert-key",
+		"repo-server-ca-cert-path",
+		"repo-server-client-cert-path",
+		"repo-server-client-cert-key-path",
 	} {
 		assert.NotNilf(t, cmd.Flags().Lookup(flagName),
 			"expected flag %q to be registered on argocd-server command", flagName)
@@ -24,17 +24,17 @@ func TestNewCommand_RegistersMTLSFlags(t *testing.T) {
 func TestNewCommand_MTLSFlagDefaults(t *testing.T) {
 	cmd := NewCommand()
 
-	caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
+	caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
 	require.NoError(t, err)
-	assert.Empty(t, caCert, "repo-server-ca-cert default must be empty")
+	assert.Empty(t, caCert, "repo-server-ca-cert-path default must be empty")
 
-	clientCert, err := cmd.Flags().GetString("repo-server-client-cert")
+	clientCert, err := cmd.Flags().GetString("repo-server-client-cert-path")
 	require.NoError(t, err)
-	assert.Empty(t, clientCert, "repo-server-client-cert default must be empty")
+	assert.Empty(t, clientCert, "repo-server-client-cert-path default must be empty")
 
-	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-key")
+	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-key-path")
 	require.NoError(t, err)
-	assert.Empty(t, clientCertKey, "repo-server-client-cert-key default must be empty")
+	assert.Empty(t, clientCertKey, "repo-server-client-cert-key-path default must be empty")
 }
 
 func TestNewCommand_MTLSEnvVarPrefix(t *testing.T) {
@@ -45,15 +45,15 @@ func TestNewCommand_MTLSEnvVarPrefix(t *testing.T) {
 	// NewCommand reads env vars at flag-definition time.
 	cmd := NewCommand()
 
-	caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
+	caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
 	require.NoError(t, err)
 	assert.Equal(t, "/etc/certs/ca.crt", caCert)
 
-	clientCert, err := cmd.Flags().GetString("repo-server-client-cert")
+	clientCert, err := cmd.Flags().GetString("repo-server-client-cert-path")
 	require.NoError(t, err)
 	assert.Equal(t, "/etc/certs/client.crt", clientCert)
 
-	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-key")
+	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-path-key")
 	require.NoError(t, err)
 	assert.Equal(t, "/etc/certs/client.key", clientCertKey)
 }
@@ -63,28 +63,28 @@ func TestNewCommand_MTLSEnvVarNotOverriddenByOtherComponents(t *testing.T) {
 
 	cmd := NewCommand()
 
-	caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
+	caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
 	require.NoError(t, err)
 	assert.Empty(t, caCert,
-		"APPLICATION_CONTROLLER env var must not affect argocd-server's repo-server-ca-cert flag")
+		"APPLICATION_CONTROLLER env var must not affect argocd-server's repo-server-ca-cert-path flag")
 }
 
 func TestNewCommand_MTLSFlagsCanBeSetExplicitly(t *testing.T) {
 	cmd := NewCommand()
 
-	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", "/runtime/ca.crt"))
-	require.NoError(t, cmd.Flags().Set("repo-server-client-cert", "/runtime/client.crt"))
-	require.NoError(t, cmd.Flags().Set("repo-server-client-cert-key", "/runtime/client.key"))
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", "/runtime/ca.crt"))
+	require.NoError(t, cmd.Flags().Set("repo-server-client-cert-path", "/runtime/client.crt"))
+	require.NoError(t, cmd.Flags().Set("repo-server-client-cert-path-key", "/runtime/client.key"))
 
-	caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
+	caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
 	require.NoError(t, err)
 	assert.Equal(t, "/runtime/ca.crt", caCert)
 
-	clientCert, err := cmd.Flags().GetString("repo-server-client-cert")
+	clientCert, err := cmd.Flags().GetString("repo-server-client-cert-path")
 	require.NoError(t, err)
 	assert.Equal(t, "/runtime/client.crt", clientCert)
 
-	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-key")
+	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-path-key")
 	require.NoError(t, err)
 	assert.Equal(t, "/runtime/client.key", clientCertKey)
 }
@@ -94,11 +94,11 @@ func TestNewCommand_RepoServerCACertTakesPrecedenceOverEmbeddedCert(t *testing.T
 
 	cmd := NewCommand()
 
-	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert", caCertPath))
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", caCertPath))
 	require.NoError(t, cmd.Flags().Set("repo-server-strict-tls", "true"))
-	tlsConfigSrcFlag := cmd.Flags().Lookup("repo-server-ca-cert")
+	tlsConfigSrcFlag := cmd.Flags().Lookup("repo-server-ca-cert-path")
 	require.NotNil(t, tlsConfigSrcFlag,
-		"--repo-server-ca-cert must be registered; if missing the wiring in NewCommand() is broken")
+		"--repo-server-ca-cert-path must be registered; if missing the wiring in NewCommand() is broken")
 
 	assert.Equal(t, caCertPath, tlsConfigSrcFlag.Value.String())
 }
@@ -106,10 +106,10 @@ func TestNewCommand_RepoServerCACertTakesPrecedenceOverEmbeddedCert(t *testing.T
 func TestNewCommand_StrictTLSWithoutCACertGuardIsAbsent(t *testing.T) {
 	cmd := NewCommand()
 
-	caCertFlag := cmd.Flags().Lookup("repo-server-ca-cert")
+	caCertFlag := cmd.Flags().Lookup("repo-server-ca-cert-path")
 	require.NotNil(t, caCertFlag)
 	assert.Empty(t, caCertFlag.Value.String(),
-		"repo-server-ca-cert must default to empty so the embedded-cert block is not bypassed")
+		"repo-server-ca-cert-path must default to empty so the embedded-cert block is not bypassed")
 
 	require.NoError(t, cmd.Flags().Set("repo-server-strict-tls", "true"))
 
@@ -122,9 +122,9 @@ func TestNewCommand_CACertFlagRegistrationAndDefault(t *testing.T) {
 	cmd := NewCommand()
 
 	for _, flagName := range []string{
-		"repo-server-ca-cert",
-		"repo-server-client-cert",
-		"repo-server-client-cert-key",
+		"repo-server-ca-cert-path",
+		"repo-server-client-cert-path",
+		"repo-server-client-cert-path-key",
 	} {
 		f := cmd.Flags().Lookup(flagName)
 		require.NotNilf(t, f, "flag %q must be registered on argocd-server", flagName)
