@@ -602,35 +602,37 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		assert.Equal(t, "test-client-cert-key", config.ClientCertKeyFile)
 	})
 
-	t.Run("Error when only client cert is specified without key", func(t *testing.T) {
+	t.Run("Error when client cert is explicitly cleared but key is still set", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		err := cmd.Flags().Set("repo-server-client-cert-path", "test-client-cert")
-		require.NoError(t, err)
-
-		_, err = configSrc()
-		require.ErrorContains(t, err, "--repo-server-client-cert-key-path is required when --repo-server-client-cert-path is specified")
-	})
-
-	t.Run("Error when only client cert key is specified without cert", func(t *testing.T) {
-		cmd := &cobra.Command{}
-		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		err := cmd.Flags().Set("repo-server-client-cert-key-path", "test-client-cert-key")
+		// Explicitly override cert to empty while key retains its default
+		err := cmd.Flags().Set("repo-server-client-cert-path", "")
 		require.NoError(t, err)
 
 		_, err = configSrc()
 		require.ErrorContains(t, err, "--repo-server-client-cert-path is required when --repo-server-client-cert-key-path is specified")
 	})
 
-	t.Run("No mTLS client certificate by default", func(t *testing.T) {
+	t.Run("Error when client cert key is explicitly cleared but cert is still set", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		// Explicitly override key to empty while cert retains its default
+		err := cmd.Flags().Set("repo-server-client-cert-key-path", "")
+		require.NoError(t, err)
+
+		_, err = configSrc()
+		require.ErrorContains(t, err, "--repo-server-client-cert-key-path is required when --repo-server-client-cert-path is specified")
+	})
+
+	t.Run("Default mTLS client cert paths point to auto-mounted Secret", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
 		config, err := configSrc()
 		require.NoError(t, err)
 		assert.Empty(t, config.ClientCertificates)
-		assert.Empty(t, config.ClientCertFile)
-		assert.Empty(t, config.ClientCertKeyFile)
+		assert.Equal(t, "/app/config/reposerver/mtls/client.crt", config.ClientCertFile)
+		assert.Equal(t, "/app/config/reposerver/mtls/client.key", config.ClientCertKeyFile)
 	})
 
 	t.Run("Repeated invocations do not leak strict validation state", func(t *testing.T) {
@@ -871,33 +873,35 @@ func TestStrictValidationOverride_OldAssignmentSemantics_DocumentsBug(t *testing
 }
 
 func TestClientCertFlags_BothRequiredOrNeither(t *testing.T) {
-	t.Run("cert without key returns error", func(t *testing.T) {
+	t.Run("cert explicitly cleared while key retains default returns error", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-path", "some/cert.crt"))
-
-		_, err := src()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--repo-server-client-cert-key-path is required")
-	})
-
-	t.Run("key without cert returns error", func(t *testing.T) {
-		cmd := &cobra.Command{}
-		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
-		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-key-path", "some/key.key"))
+		// Clear cert so that key (default) is set but cert is empty
+		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-path", ""))
 
 		_, err := src()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "--repo-server-client-cert-path is required")
 	})
 
-	t.Run("neither cert nor key is valid", func(t *testing.T) {
+	t.Run("key explicitly cleared while cert retains default returns error", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		// Clear key so that cert (default) is set but key is empty
+		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-key-path", ""))
+
+		_, err := src()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--repo-server-client-cert-key-path is required")
+	})
+
+	t.Run("default cert and key paths point to auto-mounted Secret", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
 		cfg, err := src()
 		require.NoError(t, err)
-		assert.Empty(t, cfg.ClientCertFile)
-		assert.Empty(t, cfg.ClientCertKeyFile)
+		assert.Equal(t, "/app/config/reposerver/mtls/client.crt", cfg.ClientCertFile)
+		assert.Equal(t, "/app/config/reposerver/mtls/client.key", cfg.ClientCertKeyFile)
 	})
 }

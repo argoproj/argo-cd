@@ -520,8 +520,8 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 	}
 
 	cmd.Flags().StringVar(&repoServerCACert, "repo-server-ca-cert-path", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CA_CERT_PATH", ""), "Path to the repo-server CA certificate file")
-	cmd.Flags().StringVar(&tlsConfig.ClientCertFile, "repo-server-client-cert-path", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_PATH", ""), "Path to the client certificate file for mTLS")
-	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, "repo-server-client-cert-key-path", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY_PATH", ""), "Path to the client certificate key file for mTLS")
+	cmd.Flags().StringVar(&tlsConfig.ClientCertFile, "repo-server-client-cert-path", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_PATH", "/app/config/reposerver/mtls/client.crt"), "Path to the client certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist.")
+	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, "repo-server-client-cert-key-path", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY_PATH", "/app/config/reposerver/mtls/client.key"), "Path to the client certificate key file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist.")
 
 	return func() (Configuration, error) {
 		config := tlsConfig
