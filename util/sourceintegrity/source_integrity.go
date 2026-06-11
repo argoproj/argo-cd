@@ -186,18 +186,18 @@ func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []
 			}
 		}
 
-		// Do not report the same key twice unless:
-		// - the revision is unsigned (unsigned commits can have different authors, so they are all worth reporting)
-		// - the revision is a tag (tags are signed separately from commits)
-		if signatureInfo.SignatureKeyID != "" && git.IsCommitSHA(signatureInfo.Revision) {
-			if _, exists := reportedKeys[signatureInfo.SignatureKeyID]; exists {
-				continue
-			}
-			reportedKeys[signatureInfo.SignatureKeyID] = nil
-		}
-
 		problem := gpgProblemMessage(g, signatureInfo)
 		if problem != "" {
+			// Do not report the same key twice unless:
+			// - the revision is unsigned (unsigned commits can have different authors, so they are all worth reporting)
+			// - the revision is a tag (tags are signed separately from commits)
+			if signatureInfo.SignatureKeyID != "" && git.IsCommitSHA(signatureInfo.Revision) {
+				if _, exists := reportedKeys[signatureInfo.SignatureKeyID]; exists {
+					continue
+				}
+				reportedKeys[signatureInfo.SignatureKeyID] = nil
+			}
+
 			problems = append(problems, problem)
 
 			// Report at most 10 problems

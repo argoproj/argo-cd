@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="71 known vulnerabilities found in 200 vulnerable dependency paths.">
+  <meta name="description" content="72 known vulnerabilities found in 213 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 31st 2026, 12:53:16 am (UTC+00:00)</p>
+                <p class="timestamp">June 7th 2026, 12:55:33 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,9 +506,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>71</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>200 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2413</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>72</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>213 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2414</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -516,6 +516,91 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Improper Authentication</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--critical">
+                        <span class="label__text">critical severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest <span class="list-paths__item__arrow">›</span> /usr/local/bin/git-lfs
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/idna
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                go-distribution@command-line-arguments@* and golang.org/x/net/idna@v0.38.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        go-distribution@command-line-arguments@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/idna@v0.38.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/idna@v0.52.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Authentication via the <code>ToASCII</code> and <code>ToUnicode</code> functions. An attacker can bypass hostname validation by submitting Punycode-encoded labels that decode to ASCII-only labels, potentially leading to privilege escalation in applications that rely on these functions for security checks.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/idna</code> to version 0.54.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/8c4c965e028475082408749b50ed7a686df0d265">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5026">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/767220">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/78760">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETIDNA-17116876">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Infinite loop</h2>
             <div class="card__section">
@@ -6724,6 +6809,7 @@
         <li><a href="https://github.com/libexpat/libexpat/issues/1076">https://github.com/libexpat/libexpat/issues/1076</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/12/02/1">http://www.openwall.com/lists/oss-security/2025/12/02/1</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-082556.html">https://cert-portal.siemens.com/productcert/html/ssa-082556.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
         </ul>
         
               <hr/>
@@ -6734,7 +6820,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Heap-based Buffer Overflow</h2>
+            <h2 class="card__title">Incorrect Resource Transfer Between Spheres</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -6758,12 +6844,12 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            xz-utils/liblzma5
+                            systemd/libsystemd0
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and xz-utils/liblzma5@5.8.1-1build2
+                                docker-image|quay.io/argoproj/argocd@latest and systemd/libsystemd0@257.9-0ubuntu2.4
         
                     </li>
                 </ul>
@@ -6778,7 +6864,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        xz-utils/liblzma5@5.8.1-1build2
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
                                         
                                 </span>
         
@@ -6787,9 +6873,53 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        dpkg@1.22.21ubuntu3.2
+                                        apt@3.1.6ubuntu2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        xz-utils/liblzma5@5.8.1-1build2
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        procps/libproc2-0@2:4.0.4-8ubuntu3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        procps@2:4.0.4-8ubuntu3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux@2.41-4ubuntu4.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/bsdutils@1:2.41-4ubuntu4.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
                                         
                                 </span>
         
@@ -6802,7 +6932,104 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt/libapt-pkg7.0@3.1.6ubuntu2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        xz-utils/liblzma5@5.8.1-1build2
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils-from/coreutils@9.5-1ubuntu2+0.0.0~ubuntu24
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils-from/coreutils-from-uutils@0.0.0~ubuntu24
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils/gnu-coreutils@9.5-1ubuntu4.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.1.6ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.152ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.17.4-2ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.7.0-5ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.1.6ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.152ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.17.4-2ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.7.0-5ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.7.0-5ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libudev1@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux@2.41-4ubuntu4.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libudev1@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.1.6ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg7.0@3.1.6ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libudev1@257.9-0ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:10.0p1-5ubuntu5.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.16.0-2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libudev1@257.9-0ubuntu2.4
                                         
                                 </span>
         
@@ -6814,24 +7041,22 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>xz-utils</code> package and not the <code>xz-utils</code> package as distributed by <code>Ubuntu</code>.</em>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>systemd</code> package and not the <code>systemd</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
-        <p>XZ Utils provide a general-purpose data-compression library plus command-line tools. Prior to version 5.8.3, if lzma_index_decoder() was used to decode an Index that contained no Records, the resulting lzma_index was left in a state where where a subsequent lzma_index_append() would allocate too little memory, and a buffer overflow would occur. This issue has been patched in version 5.8.3.</p>
+        <p>In systemd 259, systemd-journald can send ANSI escape sequences to the terminals of arbitrary users when a &#34;logger -p emerg&#34; command is executed, if ForwardToWall=yes is set.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>xz-utils</code>.</p>
+        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>systemd</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-34743">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-34743</a></li>
-        <li><a href="https://github.com/tukaani-project/xz/commit/c8c22869e780ff57c96b46939c3d79ff99395f87">https://github.com/tukaani-project/xz/commit/c8c22869e780ff57c96b46939c3d79ff99395f87</a></li>
-        <li><a href="https://github.com/tukaani-project/xz/releases/tag/v5.8.3">https://github.com/tukaani-project/xz/releases/tag/v5.8.3</a></li>
-        <li><a href="https://github.com/tukaani-project/xz/security/advisories/GHSA-x872-m794-cxhv">https://github.com/tukaani-project/xz/security/advisories/GHSA-x872-m794-cxhv</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/31/13">http://www.openwall.com/lists/oss-security/2026/03/31/13</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-40228">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-40228</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2026/04/08/1">https://www.openwall.com/lists/oss-security/2026/04/08/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/05/05/1">http://www.openwall.com/lists/oss-security/2026/05/05/1</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-XZUTILS-15918346">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-SYSTEMD-16062271">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

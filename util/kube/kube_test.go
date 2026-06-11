@@ -56,6 +56,7 @@ spec:
 `
 
 func TestSetLabels(t *testing.T) {
+	t.Parallel()
 	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
 		var obj unstructured.Unstructured
 		err := yaml.Unmarshal([]byte(yamlStr), &obj)
@@ -86,6 +87,7 @@ func TestSetLabels(t *testing.T) {
 }
 
 func TestSetLegacyLabels(t *testing.T) {
+	t.Parallel()
 	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
 		var obj unstructured.Unstructured
 		err := yaml.Unmarshal([]byte(yamlStr), &obj)
@@ -110,6 +112,7 @@ func TestSetLegacyLabels(t *testing.T) {
 }
 
 func TestSetLegacyJobLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/job.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -136,6 +139,7 @@ func TestSetLegacyJobLabel(t *testing.T) {
 }
 
 func TestSetSvcLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -158,6 +162,7 @@ func TestSetSvcLabel(t *testing.T) {
 }
 
 func TestIsValidResourceName(t *testing.T) {
+	t.Parallel()
 	assert.True(t, IsValidResourceName("guestbook-ui"))
 	assert.True(t, IsValidResourceName("guestbook-ui1"))
 	assert.False(t, IsValidResourceName("Guestbook-ui"))
@@ -165,6 +170,7 @@ func TestIsValidResourceName(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotation(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -187,6 +193,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -197,6 +204,7 @@ func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 }
 
 func TestGetAppInstanceAnnotation(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -211,6 +219,7 @@ func TestGetAppInstanceAnnotation(t *testing.T) {
 }
 
 func TestGetAppInstanceAnnotationWithInvalidData(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -222,6 +231,7 @@ func TestGetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 }
 
 func TestGetAppInstanceLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -235,6 +245,7 @@ func TestGetAppInstanceLabel(t *testing.T) {
 }
 
 func TestGetAppInstanceLabelWithInvalidData(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -245,6 +256,7 @@ func TestGetAppInstanceLabelWithInvalidData(t *testing.T) {
 }
 
 func TestRemoveLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -259,6 +271,7 @@ func TestRemoveLabel(t *testing.T) {
 }
 
 func TestRemoveLabelWithInvalidData(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured

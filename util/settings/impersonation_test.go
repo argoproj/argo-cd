@@ -11,7 +11,9 @@ import (
 )
 
 func TestDeriveServiceAccountToImpersonate(t *testing.T) {
+	t.Parallel()
 	t.Run("MatchingServerAndNamespace", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -35,6 +37,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("MatchingWithGlobPatterns", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -58,6 +61,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("MatchingWithNamespacedServiceAccount", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -81,6 +85,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("FallbackToAppNamespaceWhenDestEmpty", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -107,6 +112,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("NoMatchingEntry", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -130,6 +136,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("EmptyDestinationServiceAccounts", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{},
@@ -151,6 +158,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("InvalidServiceAccountChars", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -174,6 +182,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("BlankServiceAccount", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -197,6 +206,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("InvalidServerGlobPattern", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -220,6 +230,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("InvalidNamespaceGlobPattern", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -243,6 +254,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("FirstMatchWins", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{

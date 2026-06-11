@@ -43,9 +43,11 @@ func newTestKubectlResourceOperations(t *testing.T) (*kubectlResourceOperations,
 }
 
 func TestAuthReconcileWithMissingNamespace(t *testing.T) {
+	t.Parallel()
 	namespace := "test-ns"
 
 	t.Run("Namespaced resources", func(t *testing.T) {
+		t.Parallel()
 		k, _ := newTestKubectlResourceOperations(t)
 
 		role := testingutils.NewRole()
@@ -64,6 +66,7 @@ func TestAuthReconcileWithMissingNamespace(t *testing.T) {
 	})
 
 	t.Run("Cluster-scoped resources", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("AuthReconcile", mock.Anything).Return(nil).Twice()
 
@@ -82,12 +85,14 @@ func TestAuthReconcileWithMissingNamespace(t *testing.T) {
 }
 
 func TestAuthReconcileUsage(t *testing.T) {
+	t.Parallel()
 	// This test verifies that the rbacReconcile logic is correctly applied based on the operation type
 	// and server-side apply setting.
 
 	role := testingutils.NewRole()
 
 	t.Run("CreateResource should not call auth reconcile", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -97,6 +102,7 @@ func TestAuthReconcileUsage(t *testing.T) {
 	})
 
 	t.Run("ReplaceResource should not call auth reconcile", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("Replace", mock.Anything, mock.Anything).Return(nil)
 
@@ -106,6 +112,7 @@ func TestAuthReconcileUsage(t *testing.T) {
 	})
 
 	t.Run("ApplyResource should not call auth reconcile on server-side apply", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("Apply", mock.Anything).Return(nil)
 
@@ -116,6 +123,7 @@ func TestAuthReconcileUsage(t *testing.T) {
 	})
 
 	t.Run("ApplyResource should call auth reconcile on client-side apply", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("Apply", mock.Anything).Return(nil)
 		cmdMocks.On("AuthReconcile", mock.Anything).Return(nil)
@@ -127,9 +135,11 @@ func TestAuthReconcileUsage(t *testing.T) {
 }
 
 func TestOutputModeLog(t *testing.T) {
+	t.Parallel()
 	// Test normal flow operations with outputModeLog
 
 	t.Run("CreateResource with outputModeLog", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -139,6 +149,7 @@ func TestOutputModeLog(t *testing.T) {
 	})
 
 	t.Run("ReplaceResource with outputModeLog", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("Replace", mock.Anything, mock.Anything).Return(nil)
 
@@ -148,6 +159,7 @@ func TestOutputModeLog(t *testing.T) {
 	})
 
 	t.Run("ApplyResource with outputModeLog and client-side apply", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("Apply", mock.Anything).Return(nil)
 
@@ -157,6 +169,7 @@ func TestOutputModeLog(t *testing.T) {
 	})
 
 	t.Run("ApplyResource with outputModeLog and server-side apply", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		cmdMocks.On("Apply", mock.Anything).Return(nil)
 
@@ -167,9 +180,11 @@ func TestOutputModeLog(t *testing.T) {
 }
 
 func TestOutputModeJSON(t *testing.T) {
+	t.Parallel()
 	// Test JSON output mode operations
 
 	t.Run("CreateResource with outputModeJSON should fail", func(t *testing.T) {
+		t.Parallel()
 		k, _ := newTestKubectlResourceOperations(t)
 		k.outputMode = outputModeJSON
 
@@ -180,6 +195,7 @@ func TestOutputModeJSON(t *testing.T) {
 	})
 
 	t.Run("ReplaceResource with outputModeJSON should fail", func(t *testing.T) {
+		t.Parallel()
 		k, _ := newTestKubectlResourceOperations(t)
 		k.outputMode = outputModeJSON
 
@@ -190,6 +206,7 @@ func TestOutputModeJSON(t *testing.T) {
 	})
 
 	t.Run("ApplyResource with outputModeJSON without Dry run", func(t *testing.T) {
+		t.Parallel()
 		k, _ := newTestKubectlResourceOperations(t)
 		k.outputMode = outputModeJSON
 
@@ -200,6 +217,7 @@ func TestOutputModeJSON(t *testing.T) {
 	})
 
 	t.Run("ApplyResource with outputModeJSON requires DryRunServer", func(t *testing.T) {
+		t.Parallel()
 		k, _ := newTestKubectlResourceOperations(t)
 		k.outputMode = outputModeJSON
 
@@ -210,6 +228,7 @@ func TestOutputModeJSON(t *testing.T) {
 	})
 
 	t.Run("ApplyResource with outputModeJSON requires server-side apply", func(t *testing.T) {
+		t.Parallel()
 		k, _ := newTestKubectlResourceOperations(t)
 		k.outputMode = outputModeJSON
 
@@ -220,6 +239,7 @@ func TestOutputModeJSON(t *testing.T) {
 	})
 
 	t.Run("ApplyResource with outputModeJSON return object", func(t *testing.T) {
+		t.Parallel()
 		obj := testingutils.NewPod()
 		jsonObj, err := json.Marshal(obj)
 		require.NoError(t, err)
@@ -238,6 +258,7 @@ func TestOutputModeJSON(t *testing.T) {
 	})
 
 	t.Run("ApplyResource with outputModeJSON with object and stderr returns object", func(t *testing.T) {
+		t.Parallel()
 		obj := testingutils.NewPod()
 		jsonObj, err := json.Marshal(obj)
 		require.NoError(t, err)
@@ -260,6 +281,7 @@ func TestOutputModeJSON(t *testing.T) {
 	})
 
 	t.Run("ApplyResource with outputModeJSON without object with a stderr returns error", func(t *testing.T) {
+		t.Parallel()
 		obj := testingutils.NewPod()
 
 		k, cmdMocks := newTestKubectlResourceOperations(t)
@@ -278,8 +300,10 @@ func TestOutputModeJSON(t *testing.T) {
 }
 
 func TestApplyOptionsConfiguration(t *testing.T) {
+	t.Parallel()
 	// Test that newApplyOptions correctly configures all ApplyOptions fields
 	t.Run("general options are correctly set", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name     string
 			strategy cmdutil.DryRunStrategy
@@ -291,6 +315,7 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				k, cmdMocks := newTestKubectlResourceOperations(t)
 
 				var capturedOpts *apply.ApplyOptions
@@ -313,6 +338,7 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 	})
 
 	t.Run("serverSideApply=true sets ServerSideApply=true and ForceConflicts=true", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name          string
 			strategy      cmdutil.DryRunStrategy
@@ -325,6 +351,7 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				k, cmdMocks := newTestKubectlResourceOperations(t)
 
 				var capturedOpts *apply.ApplyOptions
@@ -351,6 +378,7 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 	})
 
 	t.Run("force=true sets DeleteOptions.ForceDeletion", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name     string
 			strategy cmdutil.DryRunStrategy
@@ -362,6 +390,7 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				k, cmdMocks := newTestKubectlResourceOperations(t)
 
 				var capturedOpts *apply.ApplyOptions
@@ -379,6 +408,7 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 	})
 
 	t.Run("outputModeJSON returns JSONPrinter", func(t *testing.T) {
+		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
 		k.outputMode = outputModeJSON
 
@@ -406,9 +436,11 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 }
 
 func TestCreateOptionsConfiguration(t *testing.T) {
+	t.Parallel()
 	// Test that newCreateOptions correctly configures all CreateOptions fields
 
 	t.Run("general options are correctly set", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name     string
 			strategy cmdutil.DryRunStrategy
@@ -420,6 +452,7 @@ func TestCreateOptionsConfiguration(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				k, cmdMocks := newTestKubectlResourceOperations(t)
 
 				var capturedOpts *create.CreateOptions
@@ -440,9 +473,11 @@ func TestCreateOptionsConfiguration(t *testing.T) {
 }
 
 func TestReplaceOptionsConfiguration(t *testing.T) {
+	t.Parallel()
 	// Test that newReplaceOptions correctly configures all ReplaceOptions fields
 
 	t.Run("general options are correctly set", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name     string
 			strategy cmdutil.DryRunStrategy
@@ -454,6 +489,7 @@ func TestReplaceOptionsConfiguration(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				k, cmdMocks := newTestKubectlResourceOperations(t)
 
 				var capturedOpts *replace.ReplaceOptions
@@ -476,6 +512,7 @@ func TestReplaceOptionsConfiguration(t *testing.T) {
 	})
 
 	t.Run("force=true sets DeleteOptions.ForceDeletion correctly", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name     string
 			strategy cmdutil.DryRunStrategy
@@ -488,6 +525,7 @@ func TestReplaceOptionsConfiguration(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				k, cmdMocks := newTestKubectlResourceOperations(t)
 
 				var capturedOpts *replace.ReplaceOptions

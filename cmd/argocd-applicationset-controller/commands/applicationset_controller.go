@@ -251,9 +251,11 @@ func NewCommand() *cobra.Command {
 					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
 				})
 			appsetReconciler := &controllers.ApplicationSetReconciler{
-				Generators:                   topLevelGenerators,
-				Client:                       cacheSyncClient,
-				Scheme:                       mgr.GetScheme(),
+				Generators: topLevelGenerators,
+				Client:     cacheSyncClient,
+				Scheme:     mgr.GetScheme(),
+				// FIXME: record.EventRecorder -> events.EventRecorder
+				// nolint:staticcheck
 				Recorder:                     mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:                     &utils.Render{},
 				Policy:                       policyObj,

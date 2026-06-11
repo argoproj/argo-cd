@@ -220,7 +220,7 @@ export class ViewPreferencesService {
         if (preferencesStr) {
             try {
                 preferences = JSON.parse(preferencesStr);
-            } catch (e) {
+            } catch {
                 preferences = DEFAULT_PREFERENCES;
             }
             if (!preferences.version || preferences.version < minVer) {

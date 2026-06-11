@@ -28,12 +28,12 @@ export function isValidURL(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:' && parsedUrl.protocol !== 'vbscript:';
-    } catch (TypeError) {
+    } catch {
         try {
             // Try parsing as a relative URL.
             const parsedUrl = new URL(url, window.location.origin);
             return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:' && parsedUrl.protocol !== 'vbscript:';
-        } catch (TypeError) {
+        } catch {
             return false;
         }
     }
@@ -45,7 +45,7 @@ export function isValidManagedByURL(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
-    } catch (err) {
+    } catch {
         return false;
     }
 }
