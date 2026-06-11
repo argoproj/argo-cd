@@ -260,23 +260,22 @@ func TestNewConnection_DoesNotCacheClientCertificateLoadError(t *testing.T) {
 		ClientCertKeyFile: tempKeyFile,
 	}
 
-	_, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
-	require.Error(t, err)
+	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err, "missing cert file must not cause an error — mTLS is skipped gracefully")
+	assert.NotNil(t, conn)
 
 	certFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt")
 	keyFile := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.key")
 
 	certBytes, err := os.ReadFile(certFile)
 	require.NoError(t, err)
-	err = os.WriteFile(tempCertFile, certBytes, 0o600)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempCertFile, certBytes, 0o600))
 
 	keyBytes, err := os.ReadFile(keyFile)
 	require.NoError(t, err)
-	err = os.WriteFile(tempKeyFile, keyBytes, 0o600)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempKeyFile, keyBytes, 0o600))
 
-	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	conn, err = apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 	require.NoError(t, err)
 	assert.NotNil(t, conn)
 }
@@ -469,6 +468,78 @@ func TestMTLSIntegration_StrictValidation_CertificatesPoolTakesPrecedence(t *tes
 	require.NoError(t, err,
 		"when Certificates pool is set, server cert must be verified and the "+
 			"connection must succeed when the pool contains the server's CA")
+}
+
+func TestNewConnection_ClientCertFileDoesNotExist_SkipsMTLS(t *testing.T) {
+	t.Cleanup(apiclient.ResetClientCertCache)
+	apiclient.ResetClientCertCache()
+
+	tlsConfig := utilstls.Configuration{
+		StrictValidation:  false,
+		ClientCertFile:    "/nonexistent/path/client.crt",
+		ClientCertKeyFile: "/nonexistent/path/client.key",
+	}
+
+	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+}
+
+func TestNewConnection_ClientCertFileStatNonErrNotExist_ReturnsError(t *testing.T) {
+	t.Cleanup(apiclient.ResetClientCertCache)
+	apiclient.ResetClientCertCache()
+
+	dir := t.TempDir()
+	require.NoError(t, os.Chmod(dir, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	tlsConfig := utilstls.Configuration{
+		StrictValidation:  false,
+		ClientCertFile:    filepath.Join(dir, "client.crt"),
+		ClientCertKeyFile: filepath.Join(dir, "client.key"),
+	}
+
+	_, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not stat client cert file")
+}
+
+func TestNewConnection_ClientCertCallbackReturnsEmptyCertWhenFileDisappears(t *testing.T) {
+	t.Cleanup(apiclient.ResetClientCertCache)
+	apiclient.ResetClientCertCache()
+
+	srcCert := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt")
+	srcKey := filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.key")
+
+	dir := t.TempDir()
+	tempCert := filepath.Join(dir, "client.crt")
+	tempKey := filepath.Join(dir, "client.key")
+
+	certBytes, err := os.ReadFile(srcCert)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempCert, certBytes, 0o600))
+
+	keyBytes, err := os.ReadFile(srcKey)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tempKey, keyBytes, 0o600))
+
+	tlsConfig := utilstls.Configuration{
+		StrictValidation:  false,
+		ClientCertFile:    tempCert,
+		ClientCertKeyFile: tempKey,
+	}
+
+	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+
+	require.NoError(t, os.Remove(tempCert))
+	require.NoError(t, os.Remove(tempKey))
+
+	apiclient.ResetClientCertCache()
+	conn, err = apiclient.NewConnection("example.com:443", 10, &tlsConfig)
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
 }
 
 func extractServerCert(t *testing.T, addr string, clientCert *tls.Certificate) (*tls.Certificate, error) {

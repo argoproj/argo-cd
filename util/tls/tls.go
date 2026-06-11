@@ -488,10 +488,10 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 
 	if clientCAPath != "" {
-		if _, statErr := os.Stat(clientCAPath); statErr != nil {
-			if errors.Is(statErr, os.ErrNotExist) {
-				return nil, fmt.Errorf("client CA file does not exist: %s", clientCAPath)
-			}
+		if _, statErr := os.Stat(clientCAPath); os.IsNotExist(statErr) {
+			// client CA file is not present = mTLS not enabled, continue without ClientAuth
+			return tlsConfig, nil
+		} else if statErr != nil {
 			return nil, fmt.Errorf("could not stat client CA file %s: %w", clientCAPath, statErr)
 		}
 		pool, err := LoadX509CertPool(clientCAPath)

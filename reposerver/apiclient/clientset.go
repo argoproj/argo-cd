@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -174,16 +175,32 @@ func buildTLSClientConfig(tlsConfig *utiltls.Configuration) (*tls.Config, error)
 		certFile := tlsConfig.ClientCertFile
 		keyFile := tlsConfig.ClientCertKeyFile
 
-		if _, err := getClientCertFromCache(certFile, keyFile); err != nil {
-			return nil, fmt.Errorf("failed to load initial client certificate: %w", err)
-		}
-
-		tlsC.GetClientCertificate = func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			cert, err := getClientCertFromCache(certFile, keyFile)
-			if err != nil {
-				return nil, err
+		// Check whether the cert files actually exist before installing the callback. If they don't, mTLS is skipped.
+		if _, err := os.Stat(certFile); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("could not stat client cert file %s: %w", certFile, err)
 			}
-			return &cert, nil
+			log.Debugf("Client cert file %s does not exist — skipping mTLS client certificate", certFile)
+		} else {
+			// File exists: do an eager load to catch configuration errors at startup.
+			if _, err := getClientCertFromCache(certFile, keyFile); err != nil {
+				return nil, fmt.Errorf("failed to load initial client certificate: %w", err)
+			}
+
+			tlsC.GetClientCertificate = func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+				if _, statErr := os.Stat(certFile); statErr != nil {
+					if errors.Is(statErr, os.ErrNotExist) {
+						log.Debugf("Client cert file %s no longer exists — skipping mTLS client certificate", certFile)
+						return new(tls.Certificate), nil
+					}
+					return nil, fmt.Errorf("could not stat client cert file %s: %w", certFile, statErr)
+				}
+				cert, err := getClientCertFromCache(certFile, keyFile)
+				if err != nil {
+					return nil, err
+				}
+				return &cert, nil
+			}
 		}
 	} else if len(tlsConfig.ClientCertificates) > 0 {
 		tlsC.Certificates = tlsConfig.ClientCertificates

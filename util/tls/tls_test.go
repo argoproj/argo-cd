@@ -450,6 +450,26 @@ func TestCreateServerTLSConfig(t *testing.T) {
 		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
 		assert.Nil(t, tlsc.ClientCAs)
 	})
+
+	t.Run("ClientCA path specified but file does not exist — mTLS skipped", func(t *testing.T) {
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost"}, "testdata/nonexistent_ca.crt")
+		require.NoError(t, err)
+		assert.NotNil(t, tlsc)
+		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
+		assert.Nil(t, tlsc.ClientCAs)
+	})
+
+	t.Run("ClientCA path specified but stat returns non-ErrNotExist error", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.Chmod(dir, 0o000))
+		t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+		caPath := path.Join(dir, "ca.crt")
+
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost"}, caPath)
+		require.Error(t, err)
+		assert.Nil(t, tlsc)
+		assert.Contains(t, err.Error(), "could not stat client CA file")
+	})
 }
 
 // getCert does the same thing as tls.AppendCertsFromPEM, but throws an error if something goes wrong.
