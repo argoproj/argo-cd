@@ -4,6 +4,7 @@ import {ViewPreferences} from '../../services';
 import {useTheme} from '../../utils';
 
 require('./layout.scss');
+require('../../dark-mode-overrides.scss');
 
 export interface LayoutProps {
     navItems: Array<{path: string; iconClassName: string; title: string}>;
@@ -12,7 +13,19 @@ export interface LayoutProps {
     pref: ViewPreferences;
 }
 
-const getBGColor = (theme: string): string => (theme === 'light' ? '#dee6eb' : '#100f0f');
+const LIGHT_BG = '#dee6eb';
+const DARK_BG = '#141a20';
+
+export const useBodyTheme = (themePref: string) => {
+    const [theme] = useTheme({theme: themePref});
+    React.useEffect(() => {
+        if (theme) {
+            document.body.style.background = theme === 'light' ? LIGHT_BG : DARK_BG;
+            document.body.classList.toggle('dark-theme', theme === 'dark');
+        }
+    }, [theme]);
+    return theme;
+};
 
 export const ThemeWrapper = (props: {children: React.ReactNode; theme: string}) => {
     const [systemTheme] = useTheme({
@@ -22,12 +35,7 @@ export const ThemeWrapper = (props: {children: React.ReactNode; theme: string}) 
 };
 
 export const Layout = (props: LayoutProps) => {
-    const [theme] = useTheme({theme: props.pref.theme});
-    React.useEffect(() => {
-        if (theme) {
-            document.body.style.background = getBGColor(theme);
-        }
-    }, [theme]);
+    const theme = useBodyTheme(props.pref.theme);
 
     return (
         <div className={`theme-${theme}`}>
