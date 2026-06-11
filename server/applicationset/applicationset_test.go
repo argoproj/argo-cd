@@ -832,11 +832,12 @@ func TestListResourceEvents(t *testing.T) {
 
 		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
 		require.NoError(t, err)
-		assert.NotEmpty(t, res.Items)
 		assert.Len(t, res.Items, 2)
 
-		// Verify the returned events have the expected content
-		eventNames := []string{res.Items[0].Name, res.Items[1].Name}
+		eventNames := make([]string, 0, len(res.Items))
+		for _, item := range res.Items {
+			eventNames = append(eventNames, item.Metadata.Name)
+		}
 		assert.Contains(t, eventNames, "appset1-event-1")
 		assert.Contains(t, eventNames, "appset1-event-2")
 	})

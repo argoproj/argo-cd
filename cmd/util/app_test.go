@@ -493,6 +493,7 @@ spec:
         - values.yaml`
 
 func TestReadAppsFromURI(t *testing.T) {
+	t.Parallel()
 	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
@@ -514,6 +515,7 @@ func TestReadAppsFromURI(t *testing.T) {
 }
 
 func TestConstructAppFromStdin(t *testing.T) {
+	t.Parallel()
 	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
@@ -543,6 +545,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 }
 
 func TestConstructBasedOnName(t *testing.T) {
+	t.Parallel()
 	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
 
 	require.NoError(t, err)
@@ -551,7 +554,9 @@ func TestConstructBasedOnName(t *testing.T) {
 }
 
 func TestFilterResources(t *testing.T) {
+	t.Parallel()
 	t.Run("Filter by ns", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -567,6 +572,7 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter by kind", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -582,6 +588,7 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter by name", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -597,6 +604,7 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter no result", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -612,6 +620,7 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter multiple results", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",

@@ -41,6 +41,7 @@ func TestOCIWithOCIHelmRegistryDependencies(t *testing.T) {
 		PushImageToOCIRegistry("testdata/helm-oci-with-dependencies", "1.0.0").
 		OCIRegistry(fixture.OCIHostURL).
 		OCIRepoAdded("helm-oci-with-dependencies", "helm-oci-with-dependencies").
+		OCIRepoAdded("helm-values", "myrepo").
 		OCIRegistryPath("helm-oci-with-dependencies").
 		Revision("1.0.0").
 		Path(".").
