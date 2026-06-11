@@ -138,6 +138,7 @@ type ArgoCDSettings struct {
 	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Position of UI Banner
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"` //nolint:revive //FIXME(var-naming)
+	// UiLoginButtonText is an optional override for the SSO login button label
 	UiLoginButtonText string `json:"uiLoginButtonText,omitempty"` //nolint:revive //FIXME(var-naming)
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
