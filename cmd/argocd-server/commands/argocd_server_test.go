@@ -30,11 +30,11 @@ func TestNewCommand_MTLSFlagDefaults(t *testing.T) {
 
 	clientCert, err := cmd.Flags().GetString("repo-server-client-cert-path")
 	require.NoError(t, err)
-	assert.Empty(t, clientCert, "repo-server-client-cert-path default must be empty")
+	assert.Equal(t, "/app/config/reposerver/mtls/client.crt", clientCert, "repo-server-client-cert-path must default to the auto-mounted Secret path")
 
 	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-key-path")
 	require.NoError(t, err)
-	assert.Empty(t, clientCertKey, "repo-server-client-cert-key-path default must be empty")
+	assert.Equal(t, "/app/config/reposerver/mtls/client.key", clientCertKey, "repo-server-client-cert-key-path must default to the auto-mounted Secret path")
 }
 
 func TestNewCommand_MTLSEnvVarPrefix(t *testing.T) {
@@ -121,13 +121,17 @@ func TestNewCommand_StrictTLSWithoutCACertGuardIsAbsent(t *testing.T) {
 func TestNewCommand_CACertFlagRegistrationAndDefault(t *testing.T) {
 	cmd := NewCommand()
 
-	for _, flagName := range []string{
-		"repo-server-ca-cert-path",
-		"repo-server-client-cert-path",
-		"repo-server-client-cert-key-path",
-	} {
-		f := cmd.Flags().Lookup(flagName)
-		require.NotNilf(t, f, "flag %q must be registered on argocd-server", flagName)
-		assert.Emptyf(t, f.DefValue, "flag %q must default to empty string", flagName)
-	}
+	f := cmd.Flags().Lookup("repo-server-ca-cert-path")
+	require.NotNil(t, f, "flag \"repo-server-ca-cert-path\" must be registered on argocd-server")
+	assert.Empty(t, f.DefValue, "flag \"repo-server-ca-cert-path\" must default to empty string")
+
+	clientCertFlag := cmd.Flags().Lookup("repo-server-client-cert-path")
+	require.NotNil(t, clientCertFlag, "flag \"repo-server-client-cert-path\" must be registered on argocd-server")
+	assert.Equal(t, "/app/config/reposerver/mtls/client.crt", clientCertFlag.DefValue,
+		"flag \"repo-server-client-cert-path\" must default to the auto-mounted Secret path")
+
+	clientCertKeyFlag := cmd.Flags().Lookup("repo-server-client-cert-key-path")
+	require.NotNil(t, clientCertKeyFlag, "flag \"repo-server-client-cert-key-path\" must be registered on argocd-server")
+	assert.Equal(t, "/app/config/reposerver/mtls/client.key", clientCertKeyFlag.DefValue,
+		"flag \"repo-server-client-cert-key-path\" must default to the auto-mounted Secret path")
 }

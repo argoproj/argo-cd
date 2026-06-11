@@ -30,8 +30,8 @@ argocd admin notifications [flags]
       --password string                           Password for basic authentication to the API server
       --proxy-url string                          If provided, this URL will be used to connect via proxy
       --repo-server-ca-cert-path string           Path to the repo-server CA certificate file
-      --repo-server-client-cert-key-path string   Path to the client certificate key file for mTLS
-      --repo-server-client-cert-path string       Path to the client certificate file for mTLS
+      --repo-server-client-cert-key-path string   Path to the client certificate key file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.key")
+      --repo-server-client-cert-path string       Path to the client certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.crt")
       --request-timeout string                    The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --secret string                             argocd-notifications-secret.yaml file path. Use empty secret if provided value is ':empty'
       --server string                             The address and port of the Kubernetes API server

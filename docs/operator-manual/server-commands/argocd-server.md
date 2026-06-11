@@ -86,8 +86,8 @@ argocd-server [flags]
       --repo-cache-expiration duration                  Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
       --repo-server string                              Repo server address (default "argocd-repo-server:8081")
       --repo-server-ca-cert-path string                 Path to the repo-server CA certificate file
-      --repo-server-client-cert-key-path string         Path to the client certificate key file for mTLS
-      --repo-server-client-cert-path string             Path to the client certificate file for mTLS
+      --repo-server-client-cert-key-path string         Path to the client certificate key file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.key")
+      --repo-server-client-cert-path string             Path to the client certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.crt")
       --repo-server-default-cache-expiration duration   Cache expiration default (default 24h0m0s)
       --repo-server-plaintext                           Use a plaintext client (non-TLS) to connect to repository server
       --repo-server-redis string                        Redis server hostname and port (e.g. argocd-redis:6379). 
