@@ -50,7 +50,7 @@ data:
   controller.repo.server.plaintext: "false"
   # Whether to use strict validation of the TLS cert presented by the repo server
   controller.repo.server.strict.tls: "false"
-  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  # Path to the CA certificate file for verifying the repo server's TLS certificate 
   controller.repo.server.ca.cert.path: ""
   # Path to the client certificate file for mTLS connections to repo server
   controller.repo.server.client.cert.path: ""
