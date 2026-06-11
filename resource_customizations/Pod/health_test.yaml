@@ -1,0 +1,41 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/pod-pending.yaml
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/pod-running-not-ready.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Back-off 40s restarting failed container=main pod=my-pod_argocd(63674389-f613-11e8-a057-fe5f49266390)"
+    inputPath: testdata/pod-crashloop.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'Back-off pulling image "gcr.io/heptio-images/ks-guestbook-demo:0.3"'
+    inputPath: testdata/pod-imagepullbackoff.yaml
+  - healthStatus:
+      status: Degraded
+      message: ""
+    inputPath: testdata/pod-error.yaml
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/pod-running-restart-always.yaml
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/pod-running-restart-never.yaml
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/pod-running-restart-onfailure.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'container "main" failed with exit code 1'
+    inputPath: testdata/pod-failed.yaml
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/pod-succeeded.yaml

@@ -1,0 +1,5 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/ingress-unassigned.yaml

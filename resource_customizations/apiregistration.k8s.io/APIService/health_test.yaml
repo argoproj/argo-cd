@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Passed: all checks passed"
+    inputPath: testdata/apiservice-v1-true.yaml
+  - healthStatus:
+      status: Progressing
+      message: 'MissingEndpoints: endpoints for service/cert-manager-webhook in "external-dns" have no addresses'
+    inputPath: testdata/apiservice-v1-false.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Passed: all checks passed"
+    inputPath: testdata/apiservice-v1beta1-true.yaml
+  - healthStatus:
+      status: Progressing
+      message: 'MissingEndpoints: endpoints for service/cert-manager-webhook in "external-dns" have no addresses'
+    inputPath: testdata/apiservice-v1beta1-false.yaml

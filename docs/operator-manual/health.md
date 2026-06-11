@@ -1,30 +1,18 @@
 # Resource Health
 
 ## Overview
-Argo CD provides built-in health assessment for several standard Kubernetes types, which is then
-surfaced to the overall Application health status as a whole. The following checks are made for
-specific types of Kubernetes resources:
 
-### Deployment, ReplicaSet, StatefulSet, DaemonSet
-* Observed generation is equal to desired generation.
-* Number of **updated** replicas equals the number of desired replicas.
+Argo CD provides built-in health assessment for many standard Kubernetes types and CRDs using
+[Lua](https://www.lua.org/) scripts contributed under the [`resource_customizations`](https://github.com/argoproj/argo-cd/tree/master/resource_customizations)
+directory. Health results are surfaced to the overall Application health status as a whole.
 
-### Service
-* If service type is of type `LoadBalancer`, the `status.loadBalancer.ingress` list is non-empty,
-with at least one value for `hostname` or `IP`.
+Built-in health checks are available for standard Kubernetes resources such as `Deployment`, `ReplicaSet`,
+`StatefulSet`, `DaemonSet`, `Pod`, `Service`, `PersistentVolumeClaim`, `Job`, `CronJob`, `Ingress`,
+`HorizontalPodAutoscaler`, `APIService`, and `Workflow`, as well as many third-party CRDs. Each script
+evaluates the resource's `status` (and sometimes `spec`) fields and returns a health status.
 
-### Ingress
-* The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
-
-### CronJob
-* If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
-* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
-
-### Job
-* If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
-
-### PersistentVolumeClaim
-* The `status.phase` is `Bound`
+You can override any built-in health check by configuring a custom script in the `argocd-cm` ConfigMap.
+See [Custom Health Checks](#custom-health-checks) below.
 
 ### Argocd App
 
@@ -64,6 +52,7 @@ data:
 
 Argo CD supports custom health checks written in [Lua](https://www.lua.org/). This is useful if you:
 
+* Need to override a built-in health check for a standard Kubernetes resource.
 * Are affected by known issues where your `Ingress` or `StatefulSet` resources are stuck in `Progressing` state because of bug in your resource controller.
 * Have a custom resource for which Argo CD does not have a built-in health check.
 
@@ -229,31 +218,6 @@ only treat a path as a wildcard if it contains a `_` character, but this may cha
 >
 > Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
 > duplicate the relevant parts in resource-specific scripts.
-
-## Overriding Go-Based Health Checks
-
-Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/argo-cd/tree/master/gitops-engine/pkg/health) 
-because Lua support was introduced later. Also, the logic of health checks for some resources were too complex, so it 
-was easier to implement it in Go.
-
-It is possible to override health checks for built-in resource. Argo will prefer the configured health check over the
-Go-based built-in check.
-
-The following resources have Go-based health checks:
-
-* PersistentVolumeClaim
-* Pod
-* Service
-* apiregistration.k8s.io/APIService
-* apps/DaemonSet
-* apps/Deployment
-* apps/ReplicaSet
-* apps/StatefulSet
-* argoproj.io/Workflow
-* autoscaling/HorizontalPodAutoscaler
-* batch/Job
-* extensions/Ingress
-* networking.k8s.io/Ingress
 
 ## Health Checks
 

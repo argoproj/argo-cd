@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/nginx.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for rollout to finish: 1 old replicas are pending termination..."
+    inputPath: testdata/deployment-progressing.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Deployment is paused"
+    inputPath: testdata/deployment-suspended.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'Deployment "guestbook-ui" exceeded its progress deadline'
+    inputPath: testdata/deployment-degraded.yaml

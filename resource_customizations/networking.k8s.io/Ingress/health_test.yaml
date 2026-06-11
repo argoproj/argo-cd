@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/ingress.yaml
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/ingress-unassigned.yaml
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/ingress-nonemptylist.yaml

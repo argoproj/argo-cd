@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: guestbook-ui
+  generation: 2
+spec:
+  replicas: 1
+status:
+  observedGeneration: 2
+  availableReplicas: 1
+  replicas: 1

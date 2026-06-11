@@ -1,0 +1,5 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/healthy.yaml

@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: This node is running
+    inputPath: testdata/running.yaml
+  - healthStatus:
+      status: Healthy
+      message: This node is has succeeded
+    inputPath: testdata/succeeded.yaml
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/pending.yaml

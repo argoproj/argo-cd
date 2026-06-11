@@ -4,10 +4,8 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 // Represents resource health status
@@ -88,65 +86,5 @@ func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOver
 			return health, nil
 		}
 	}
-
-	if healthCheck := GetHealthCheckFunc(obj.GroupVersionKind()); healthCheck != nil {
-		if health, err = healthCheck(obj); err != nil {
-			health = &HealthStatus{
-				Status:  HealthStatusUnknown,
-				Message: err.Error(),
-			}
-		}
-	}
 	return health, err
-}
-
-// GetHealthCheckFunc returns built-in health check function or nil if health check is not supported
-func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unstructured) (*HealthStatus, error) {
-	switch gvk.Group {
-	case "apps":
-		switch gvk.Kind {
-		case kube.DeploymentKind:
-			return getDeploymentHealth
-		case kube.StatefulSetKind:
-			return getStatefulSetHealth
-		case kube.ReplicaSetKind:
-			return getReplicaSetHealth
-		case kube.DaemonSetKind:
-			return getDaemonSetHealth
-		}
-	case "extensions":
-		if gvk.Kind == kube.IngressKind {
-			return getIngressHealth
-		}
-	case "argoproj.io":
-		if gvk.Kind == "Workflow" {
-			return getArgoWorkflowHealth
-		}
-	case "apiregistration.k8s.io":
-		if gvk.Kind == kube.APIServiceKind {
-			return getAPIServiceHealth
-		}
-	case "networking.k8s.io":
-		if gvk.Kind == kube.IngressKind {
-			return getIngressHealth
-		}
-	case "":
-		switch gvk.Kind {
-		case kube.ServiceKind:
-			return getServiceHealth
-		case kube.PersistentVolumeClaimKind:
-			return getPVCHealth
-		case kube.PodKind:
-			return getPodHealth
-		}
-	case "batch":
-		if gvk.Kind == kube.JobKind {
-			return getJobHealth
-		}
-	case "autoscaling":
-		if gvk.Kind == kube.HorizontalPodAutoscalerKind {
-			return getHPAHealth
-		}
-	}
-	return nil
 }

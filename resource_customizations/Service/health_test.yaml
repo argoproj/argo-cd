@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/svc-clusterip.yaml
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/svc-loadbalancer.yaml
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/svc-loadbalancer-unassigned.yaml
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/svc-loadbalancer-nonemptylist.yaml

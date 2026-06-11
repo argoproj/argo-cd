@@ -195,8 +195,6 @@ k8s.io/controller-manager v0.36.1 h1:d1ifPnAe3FFSnnvcDQiM93bGroFT1lF72GEBKsl+cbg
 k8s.io/controller-manager v0.36.1/go.mod h1:jeJUuFlgbgohGJWrm59Wdlgo3WqxssWXgD2sU6HG/Vo=
 k8s.io/klog/v2 v2.140.0 h1:Tf+J3AH7xnUzZyVVXhTgGhEKnFqye14aadWv7bzXdzc=
 k8s.io/klog/v2 v2.140.0/go.mod h1:o+/RWfJ6PwpnFn7OyAG3QnO47BFsymfEfrz6XyYSSp0=
-k8s.io/kube-aggregator v0.36.1 h1:IzNeRsJcTtgsiCyTgCR1pSwWCrXC1QZQWMTcBw18cFQ=
-k8s.io/kube-aggregator v0.36.1/go.mod h1:ROrIm5irUhVUJsKVCgBAAcXpK5IiqpdCn0Ka7LYMGs4=
 k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a h1:xCeOEAOoGYl2jnJoHkC3hkbPJgdATINPMAxaynU2Ovg=
 k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a/go.mod h1:uGBT7iTA6c6MvqUvSXIaYZo9ukscABYi2btjhvgKGZ0=
 k8s.io/kubectl v0.36.1 h1:96HqS9twIdHM0MlJLTwbo14b9kUKPkOzZ4tlRDLv4qI=

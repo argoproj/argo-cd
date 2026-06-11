@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/job-running.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Job has reached the specified backoff limit"
+    inputPath: testdata/job-failed.yaml
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/job-succeeded.yaml
+  - healthStatus:
+      status: Suspended
+      message: ""
+    inputPath: testdata/job-suspended.yaml

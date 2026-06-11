@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "statefulset has 1 ready pods"
+    inputPath: testdata/statefulset.yaml
+  - healthStatus:
+      status: Healthy
+      message: "statefulset has 1 ready pods"
+    inputPath: testdata/statefulset-ondelete.yaml

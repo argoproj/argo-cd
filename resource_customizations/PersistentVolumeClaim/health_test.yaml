@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/pvc-bound.yaml
+  - healthStatus:
+      status: Progressing
+      message: ""
+    inputPath: testdata/pvc-pending.yaml

@@ -98,6 +98,8 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	}
 	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, SafeOsLoader)
+	// preload JSON library for health scripts that need to parse JSON annotations (e.g. HPA v1)
+	l.PreloadModule("json", luajson.Loader)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()

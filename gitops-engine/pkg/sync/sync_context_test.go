@@ -424,7 +424,12 @@ func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultList()))
+			syncCtx := newTestSyncCtx(nil,
+				WithResourceModificationChecker(true, diffResultList()),
+				WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+					"pod-1": health.HealthStatusProgressing,
+				})),
+			)
 			syncCtx.resources = tt.resourcesStart
 
 			fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())

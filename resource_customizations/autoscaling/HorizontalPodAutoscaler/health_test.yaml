@@ -1,0 +1,37 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "recommended size matches current size"
+    inputPath: testdata/hpa-v2-healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'the HPA controller was unable to get the target''s current scale: deployments/scale.apps "sandbox-test-app-8" not found'
+    inputPath: testdata/hpa-v2-degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting to Autoscale"
+    inputPath: testdata/hpa-v2-progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: "the HPA controller was unable to get the target's current scale"
+    inputPath: testdata/hpa-v1-degraded.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'the HPA was unable to compute the replica count: unable to get metric tomcat_sessions_active_current_sessions: Service on namespace sample-service/unable to fetch metrics from custom metrics API: the server could not find the metric tomcat_sessions_active_current_sessions for services'
+    inputPath: testdata/hpa-v1-degraded-failedgetobjectmetric.yaml
+  - healthStatus:
+      status: Healthy
+      message: "recent recommendations were higher than current one, applying the highest recent recommendation"
+    inputPath: testdata/hpa-v1-healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "recommended size matches current size"
+    inputPath: testdata/hpa-v1-healthy-toofew.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting to Autoscale"
+    inputPath: testdata/hpa-v1-progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting to Autoscale"
+    inputPath: testdata/hpa-v1-progressing-with-no-annotations.yaml
