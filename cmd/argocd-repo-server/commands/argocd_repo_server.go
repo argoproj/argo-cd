@@ -143,11 +143,6 @@ func NewCommand() *cobra.Command {
 			if disableTLS && clientCAPath != "" {
 				return stderrors.New("--client-ca-path cannot be used when --disable-tls is enabled")
 			}
-			if !disableTLS && clientCAPath != "" {
-				if _, err := os.Stat(clientCAPath); err != nil {
-					return fmt.Errorf("client CA path does not exist or is not readable: %w", err)
-				}
-			}
 
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,

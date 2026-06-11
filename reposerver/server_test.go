@@ -129,8 +129,15 @@ func TestNewServer_MTLS_EachStartupGeneratesDistinctCert(t *testing.T) {
 }
 
 func TestNewServer_MTLS_InvalidCAPath(t *testing.T) {
-	_, err := newTestServer(t, "/nonexistent/path/ca.crt", false)
-	assert.ErrorContains(t, err, "client CA file does not exist: /nonexistent/path/ca.crt")
+	srv, err := newTestServer(t, "/nonexistent/path/ca.crt", false)
+	require.NoError(t, err)
+	require.NotNil(t, srv)
+
+	tlsCfg := srv.GetTLSConfig()
+	require.NotNil(t, tlsCfg, "TLS config must still be non-nil (server TLS is active, just no mTLS)")
+	assert.Nil(t, tlsCfg.ClientCAs, "ClientCAs must be nil when the CA file does not exist")
+	assert.NotEqual(t, tls.RequireAndVerifyClientCert, tlsCfg.ClientAuth, "ClientAuth must not require client certs when CA file is absent")
+	assert.Nil(t, srv.GetHealthCheckClientCert(), "no health-check cert should be generated when mTLS is skipped")
 }
 
 func TestNewServer_MTLS_InvalidCACertContent(t *testing.T) {

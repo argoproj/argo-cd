@@ -65,13 +65,10 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		// When mTLS is active the server will reject any connection that does not present a valid client cert.
 		// The liveness probe connects to localhost, so we generate a dedicated ephemeral cert and register it with the
 		// server's ClientCAs pool.
-		if clientCAPath != "" {
+		if clientCAPath != "" && tlsConfig.ClientCAs != nil {
 			hcCert, err := tlsutil.GenerateHealthCheckClientCert()
 			if err != nil {
 				return nil, fmt.Errorf("error generating health-check client certificate: %w", err)
-			}
-			if tlsConfig.ClientCAs == nil {
-				tlsConfig.ClientCAs = x509.NewCertPool()
 			}
 			parsedCert, err := x509.ParseCertificate(hcCert.Certificate[0])
 			if err != nil {
