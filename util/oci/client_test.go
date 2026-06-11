@@ -818,7 +818,9 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 }
 
 func TestNewClientUsesHTTP2(t *testing.T) {
+	t.Parallel()
 	t.Run("should negotiate HTTP/2 when TLS is configured", func(t *testing.T) {
+		t.Parallel()
 		var requestProtos []string
 		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestProtos = append(requestProtos, r.Proto)

@@ -11,19 +11,23 @@ import (
 )
 
 func TestK8sEventListToAPIEventList(t *testing.T) {
+	t.Parallel()
 	t.Run("nil EventList returns empty list", func(t *testing.T) {
+		t.Parallel()
 		result := K8sEventListToAPIEventList(nil)
 		require.NotNil(t, result)
 		assert.Empty(t, result.Items)
 	})
 
 	t.Run("empty EventList returns empty items", func(t *testing.T) {
+		t.Parallel()
 		result := K8sEventListToAPIEventList(&corev1.EventList{Items: []corev1.Event{}})
 		require.NotNil(t, result)
 		assert.Empty(t, result.Items)
 	})
 
 	t.Run("EventList with events converts each field", func(t *testing.T) {
+		t.Parallel()
 		eventTime := metav1.NewTime(time.Now())
 		input := &corev1.EventList{
 			ListMeta: metav1.ListMeta{ResourceVersion: "12345"},
@@ -75,6 +79,7 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 	})
 
 	t.Run("EventList metadata is preserved", func(t *testing.T) {
+		t.Parallel()
 		input := &corev1.EventList{
 			ListMeta: metav1.ListMeta{
 				ResourceVersion: "67890",
@@ -90,6 +95,7 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 	})
 
 	t.Run("optional pointer fields are converted", func(t *testing.T) {
+		t.Parallel()
 		input := &corev1.EventList{
 			Items: []corev1.Event{
 				{

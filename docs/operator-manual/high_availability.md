@@ -85,6 +85,12 @@ get the actual cluster state.
   processors if your Argo CD instance manages too many applications.
   For 1000 applications, we use 50 for `--status-processors` and 25 for `--operation-processors`
 
+* when the [Source Hydrator](../user-guide/source-hydrator.md) is enabled, the controller hydrates manifests using a
+  separate queue whose concurrency is controlled by the `--hydration-processors` flag (5 by default). The hydration
+  queue is keyed by source repo, target revision, and destination branch, so the same key is never hydrated by more
+  than one processor at a time; increasing the count only parallelizes hydration across distinct keys. Increase it if a
+  single controller hydrates many independent repositories or branches and hydration becomes a bottleneck.
+
 * The manifest generation typically takes the most time during reconciliation. The duration of manifest generation is
   limited to make sure the controller refresh queue does not overflow.
   The app reconciliation fails with `Context deadline exceeded` error if the manifest generation is taking too much
@@ -509,6 +515,45 @@ jitter is 1 minute, then the actual timeout will be between 5 and 6 minutes.
 To configure the jitter you can set the following environment variables:
 
 * `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 60.
+
+### Webhook Reconciliation Jitter
+
+When a webhook event arrives (e.g. after a bulk merge to a monorepo), Argo CD may simultaneously enqueue refreshes for
+a large number of applications, causing a spike in load on the repo-server. To spread these refreshes out over time you
+can configure a random jitter that is applied before each webhook-triggered refresh is processed.
+
+The following `argocd-cm` ConfigMap keys control this behaviour:
+
+* `webhook.refresh.jitter` – The maximum duration of the random delay added before each webhook-triggered
+  application refresh. For example, if set to `60s`, each refresh will wait between 0 and 60 seconds before being
+  processed. Disabled when the value is `0` (default).
+* `webhook.refresh.jitter.threshold` – The minimum number of applications that must be affected by a single
+  webhook event before jitter is applied. This prevents unnecessary delays for small events. For example, if set to
+  `10` (the default), jitter is only applied when more than 10 applications are affected.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # Apply up to 60s of jitter when more than 10 applications are affected
+  webhook.refresh.jitter: "60s"
+  webhook.refresh.jitter.threshold: "10"
+```
+
+You can also tune the number of concurrent workers that process the refresh queue using the
+`server.webhook.refresh.workers` key in `argocd-cmd-params-cm` (default: `20`). Under high webhook load it may be
+beneficial to raise this value alongside the jitter settings to drain the queue faster once the jitter delay expires.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  server.webhook.refresh.workers: "40"
+```
 
 ## Rate Limiting Application Reconciliations
 

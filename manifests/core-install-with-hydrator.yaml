@@ -6132,6 +6132,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  isAppOfApps:
+                    description: IsAppOfApps holds true if the application has any
+                      application for child resource.
+                    type: boolean
                 type: object
               sync:
                 description: Sync contains information about the application's current
@@ -32261,6 +32265,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.operation.processors
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.hydration.processors
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT
