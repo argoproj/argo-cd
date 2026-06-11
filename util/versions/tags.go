@@ -60,7 +60,6 @@ func MaxVersion(revision string, tags []string, tagPrefix string) (string, error
 	}
 
 	constraints, err := semver.NewConstraint(revision)
-
 	if err != nil {
 		if tagPrefix != "" {
 			return "", fmt.Errorf("tagPrefix %q requires targetRevision to be a semver constraint, but %q is not a valid constraint", tagPrefix, revision)
@@ -68,7 +67,7 @@ func MaxVersion(revision string, tags []string, tagPrefix string) (string, error
 		log.Debugf("Revision '%s' is not a valid semver constraint, resolving via basic string equality.", revision)
 		// If this is also an invalid constraint, we just iterate over available tags to determine if it is valid/invalid.
 		if slices.Contains(strippedTags, revision) {
-			return tagPrefix + revision, nil
+			return revision, nil
 		}
 		return "", fmt.Errorf("failed to determine semver constraint: %w", err)
 	}
