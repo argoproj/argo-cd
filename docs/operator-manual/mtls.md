@@ -62,8 +62,6 @@ The repo-server's server certificate and key are read from:
 * `/app/config/reposerver/tls/tls.crt`
 * `/app/config/reposerver/tls/tls.key`
 
-You can override the root config path with the `ARGOCD_APP_CONFIG_PATH` environment variable if you use a non-default layout.
-
 ## Configuring clients
 
 The `argocd-server`, `argocd-application-controller`, and `argocd-applicationset-controller` must be configured with a client certificate and key to connect to a repo-server that has mTLS enabled. The certificate must be signed by the same CA configured on the repo-server.

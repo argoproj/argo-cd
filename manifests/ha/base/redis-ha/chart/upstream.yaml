@@ -13,6 +13,7 @@ metadata:
     app: argocd-redis-ha
 secrets:
 - name: argocd-redis
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
 apiVersion: v1
@@ -25,6 +26,7 @@ metadata:
     release: argocd
     chart: redis-ha-4.35.10
     app: argocd-redis-ha
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
 apiVersion: v1
@@ -781,7 +783,7 @@ data:
     # Additional configuration
     global
       maxconn 4096
-    
+
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -846,6 +848,7 @@ data:
       done
       echo "Failover successful"
     fi
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-health-configmap.yaml
 apiVersion: v1
@@ -921,6 +924,7 @@ data:
       exit 1
     fi
     echo "response=$response"
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-role.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -940,6 +944,7 @@ rules:
     - endpoints
   verbs:
     - get
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-role.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -960,6 +965,7 @@ rules:
     - endpoints
   verbs:
     - get
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-rolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -979,6 +985,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: argocd-redis-ha
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-rolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -999,6 +1006,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: argocd-redis-ha-haproxy
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-announce-service.yaml
 apiVersion: v1
@@ -1086,6 +1094,7 @@ spec:
     release: argocd
     app: redis-ha
     "statefulset.kubernetes.io/pod-name": argocd-redis-ha-server-2
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-service.yaml
 apiVersion: v1
@@ -1114,6 +1123,7 @@ spec:
   selector:
     release: argocd
     app: redis-ha
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-service.yaml
 apiVersion: v1
@@ -1142,6 +1152,7 @@ spec:
   selector:
     release: argocd
     app: redis-ha-haproxy
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-deployment.yaml
 kind: Deployment
@@ -1179,7 +1190,7 @@ spec:
         checksum/config: cda181423e5fd3b17fbdaa2433890ba317affcdb717c9c12ec3ded1fd6875177
     spec:
       # Needed when using unmodified rbac-setup.yml
-      
+
       serviceAccountName: argocd-redis-ha-haproxy
       securityContext:
         fsGroup: 99
@@ -1279,6 +1290,7 @@ spec:
       - name: data
         emptyDir:
           {}
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-statefulset.yaml
 apiVersion: apps/v1
@@ -1333,7 +1345,7 @@ spec:
       - name: config-init
         image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
-        resources: 
+        resources:
           {}
         command:
         - sh
@@ -1520,7 +1532,7 @@ spec:
       - name: split-brain-fix
         image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
-        livenessProbe: 
+        livenessProbe:
           exec:
             command:
             - cat
@@ -1530,7 +1542,7 @@ spec:
           periodSeconds: 15
           successThreshold: 1
           timeoutSeconds: 15
-        readinessProbe: 
+        readinessProbe:
           exec:
             command:
             - sh
@@ -1541,7 +1553,7 @@ spec:
           periodSeconds: 15
           successThreshold: 1
           timeoutSeconds: 15
-        resources: 
+        resources:
           {}
         command:
           - sh
