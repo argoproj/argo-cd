@@ -15,6 +15,8 @@ import (
 var (
 	envServerApplicationID = "AAD_SERVER_APPLICATION_ID"
 	envEnvironmentName     = "AAD_ENVIRONMENT_NAME"
+	envIsPoPTokenEnabled   = "AAD_IS_POP_TOKEN_ENABLED"
+	envPoPTokenClaims      = "AAD_POP_TOKEN_CLAIMS"
 )
 
 const (
@@ -36,6 +38,15 @@ func newAzureCommand() *cobra.Command {
 			}
 			if v, ok := os.LookupEnv(envEnvironmentName); ok {
 				o.Environment = v
+			}
+			// Configure POP token support for SPN login method
+			if o.LoginMethod == token.ServicePrincipalLogin {
+				if v, ok := os.LookupEnv(envIsPoPTokenEnabled); ok && v == "true" {
+					o.IsPoPTokenEnabled = true
+					if popClaims, ok := os.LookupEnv(envPoPTokenClaims); ok {
+						o.PoPTokenClaims = popClaims
+					}
+				}
 			}
 			tp, err := token.GetTokenProvider(o)
 			errors.CheckError(err)
