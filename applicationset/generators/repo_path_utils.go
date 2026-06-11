@@ -54,7 +54,6 @@ type repoSource interface {
 
 // repoSourceCallParams bundles parameters for generateRepoSourceDirectoryParams and generateRepoSourceFileParams.
 type repoSourceCallParams struct {
-	ctx               context.Context
 	src               repoSource
 	kind              repoSourceKind
 	spec              repoSourceSpec
@@ -271,7 +270,6 @@ func generateRepoSourceParams(ctx context.Context, src repoSource, kind repoSour
 	}
 
 	params := repoSourceCallParams{
-		ctx:               ctx,
 		src:               src,
 		kind:              kind,
 		spec:              spec,
@@ -285,9 +283,9 @@ func generateRepoSourceParams(ctx context.Context, src repoSource, kind repoSour
 	var res []map[string]any
 	switch {
 	case len(spec.Directories) != 0:
-		res, err = generateRepoSourceDirectoryParams(params)
+		res, err = generateRepoSourceDirectoryParams(ctx, params)
 	case len(spec.Files) != 0:
-		res, err = generateRepoSourceFileParams(params)
+		res, err = generateRepoSourceFileParams(ctx, params)
 	default:
 		return nil, ErrEmptyAppSetGenerator
 	}
@@ -299,8 +297,8 @@ func generateRepoSourceParams(ctx context.Context, src repoSource, kind repoSour
 }
 
 // generateRepoSourceDirectoryParams lists directories from src, applies path filters, and returns parameter maps.
-func generateRepoSourceDirectoryParams(params repoSourceCallParams) ([]map[string]any, error) {
-	allPaths, err := params.src.listDirectories(params.ctx, params.spec.URL, params.spec.Revision, params.project, params.noRevisionCache, params.sourceIntegrity)
+func generateRepoSourceDirectoryParams(ctx context.Context, params repoSourceCallParams) ([]map[string]any, error) {
+	allPaths, err := params.src.listDirectories(ctx, params.spec.URL, params.spec.Revision, params.project, params.noRevisionCache, params.sourceIntegrity)
 	if err != nil {
 		return nil, fmt.Errorf("error getting directories from %s: %w", params.kind, err)
 	}
@@ -324,7 +322,7 @@ func generateRepoSourceDirectoryParams(params repoSourceCallParams) ([]map[strin
 }
 
 // generateRepoSourceFileParams fetches files from src and parses each as YAML/JSON to produce parameter maps.
-func generateRepoSourceFileParams(params repoSourceCallParams) ([]map[string]any, error) {
+func generateRepoSourceFileParams(ctx context.Context, params repoSourceCallParams) ([]map[string]any, error) {
 	fileContentMap := make(map[string][]byte)
 	var includePatterns []string
 	var excludePatterns []string
@@ -338,7 +336,7 @@ func generateRepoSourceFileParams(params repoSourceCallParams) ([]map[string]any
 	}
 
 	for _, includePattern := range includePatterns {
-		retrievedFiles, err := params.src.getFiles(params.ctx, params.spec.URL, params.spec.Revision, params.project, includePattern, params.noRevisionCache, params.sourceIntegrity)
+		retrievedFiles, err := params.src.getFiles(ctx, params.spec.URL, params.spec.Revision, params.project, includePattern, params.noRevisionCache, params.sourceIntegrity)
 		if err != nil {
 			return nil, err
 		}
@@ -346,7 +344,7 @@ func generateRepoSourceFileParams(params repoSourceCallParams) ([]map[string]any
 	}
 
 	for _, excludePattern := range excludePatterns {
-		matchingFiles, err := params.src.getFiles(params.ctx, params.spec.URL, params.spec.Revision, params.project, excludePattern, params.noRevisionCache, params.sourceIntegrity)
+		matchingFiles, err := params.src.getFiles(ctx, params.spec.URL, params.spec.Revision, params.project, excludePattern, params.noRevisionCache, params.sourceIntegrity)
 		if err != nil {
 			return nil, err
 		}
