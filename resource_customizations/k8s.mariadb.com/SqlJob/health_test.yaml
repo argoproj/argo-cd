@@ -7,3 +7,7 @@ tests:
     status: Degraded
     message: "JobFailed Failed"
   inputPath: testdata/sqljobs-failed.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

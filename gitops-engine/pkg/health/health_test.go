@@ -5,7 +5,6 @@ Package provides functionality that allows assessing the health state of a Kuber
 package health
 
 import (
-	"errors"
 	"os"
 	"testing"
 
@@ -172,106 +171,86 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	assert.Empty(t, health.Message)
 }
 
-type funcHealthOverride func(*unstructured.Unstructured) (*HealthStatus, error)
+func TestPendingDeletionHealth(t *testing.T) {
+	t.Run("not terminating", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.SetName("pod")
+		assert.Nil(t, pendingDeletionHealth(&obj))
+	})
 
-func (f funcHealthOverride) GetResourceHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
-	return f(obj)
-}
-
-func TestGetResourceHealthPendingDeletion(t *testing.T) {
-	t.Run("baseline without Lua", func(t *testing.T) {
+	t.Run("terminating without finalizers", func(t *testing.T) {
 		h := getHealthStatus(t, "./testdata/pod-deletion.yaml")
 		assert.Equal(t, HealthStatusProgressing, h.Status)
 		assert.Equal(t, "Pending deletion", h.Message)
 	})
 
-	t.Run("Lua detail prefixed and status forced to progressing", func(t *testing.T) {
+	t.Run("terminating with finalizers", func(t *testing.T) {
 		obj := unstructured.Unstructured{}
 		obj.Object = map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
 			"metadata": map[string]any{
 				"name":              "pod",
-				"namespace":       "ns",
+				"namespace":         "ns",
 				"deletionTimestamp": "2024-01-01T00:00:00Z",
+				"finalizers":        []any{"example.com/finalizer"},
 			},
 		}
-		override := funcHealthOverride(func(_ *unstructured.Unstructured) (*HealthStatus, error) {
-			return &HealthStatus{Status: HealthStatusHealthy, Message: "waiting on foo"}, nil
-		})
-		h, err := GetResourceHealth(&obj, override)
-		require.NoError(t, err)
+		h := pendingDeletionHealth(&obj)
+		require.NotNil(t, h)
 		assert.Equal(t, HealthStatusProgressing, h.Status)
-		assert.Equal(t, "Pending deletion: waiting on foo", h.Message)
+		assert.Equal(t, "Pending deletion; blocked by finalizers: example.com/finalizer", h.Message)
 	})
 
-	t.Run("Lua empty message uses baseline only", func(t *testing.T) {
+	t.Run("hook finalizer skips pending deletion", func(t *testing.T) {
 		obj := unstructured.Unstructured{}
 		obj.Object = map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
 			"metadata": map[string]any{
 				"name":              "pod",
-				"namespace":       "ns",
+				"namespace":         "ns",
 				"deletionTimestamp": "2024-01-01T00:00:00Z",
+				"finalizers":        []any{"argocd.argoproj.io/hook-finalizer"},
 			},
 		}
-		override := funcHealthOverride(func(_ *unstructured.Unstructured) (*HealthStatus, error) {
-			return &HealthStatus{Status: HealthStatusHealthy, Message: ""}, nil
-		})
-		h, err := GetResourceHealth(&obj, override)
-		require.NoError(t, err)
+		assert.Nil(t, pendingDeletionHealth(&obj))
+	})
+}
+
+func TestGetResourceHealthPendingDeletion(t *testing.T) {
+	t.Run("built-in check handles terminating pod", func(t *testing.T) {
+		h := getHealthStatus(t, "./testdata/pod-deletion.yaml")
+		assert.Equal(t, HealthStatusProgressing, h.Status)
 		assert.Equal(t, "Pending deletion", h.Message)
 	})
 
-	t.Run("Lua error when not deleting is returned", func(t *testing.T) {
+	t.Run("no health check uses default pending deletion", func(t *testing.T) {
 		obj := unstructured.Unstructured{}
 		obj.Object = map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Pod",
+			"apiVersion": "widgets.example.com/v1",
+			"kind":       "Widget",
 			"metadata": map[string]any{
-				"name":      "pod",
-				"namespace": "ns",
-			},
-		}
-		override := funcHealthOverride(func(_ *unstructured.Unstructured) (*HealthStatus, error) {
-			return nil, errors.New("lua failed")
-		})
-		h, err := GetResourceHealth(&obj, override)
-		require.Error(t, err)
-		require.NotNil(t, h)
-		assert.Equal(t, HealthStatusUnknown, h.Status)
-		assert.Contains(t, h.Message, "lua failed")
-	})
-
-	t.Run("Lua error while deleting includes error in message", func(t *testing.T) {
-		obj := unstructured.Unstructured{}
-		obj.Object = map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Pod",
-			"metadata": map[string]any{
-				"name":              "pod",
-				"namespace":       "ns",
+				"name":              "widget",
+				"namespace":         "ns",
 				"deletionTimestamp": "2024-01-01T00:00:00Z",
 			},
 		}
-		override := funcHealthOverride(func(_ *unstructured.Unstructured) (*HealthStatus, error) {
-			return nil, errors.New("lua execution failed")
-		})
-		h, err := GetResourceHealth(&obj, override)
+		h, err := GetResourceHealth(&obj, nil)
 		require.NoError(t, err)
+		require.NotNil(t, h)
 		assert.Equal(t, HealthStatusProgressing, h.Status)
-		assert.Equal(t, "Pending deletion. Error from health check: lua execution failed", h.Message)
+		assert.Equal(t, "Pending deletion", h.Message)
 	})
 
-	t.Run("terminating resource ignores built-in healthy", func(t *testing.T) {
+	t.Run("terminating ingress ignores healthy status", func(t *testing.T) {
 		obj := unstructured.Unstructured{}
 		obj.Object = map[string]any{
 			"apiVersion": "networking.k8s.io/v1",
 			"kind":       "Ingress",
 			"metadata": map[string]any{
 				"name":              "ing",
-				"namespace":       "ns",
+				"namespace":         "ns",
 				"deletionTimestamp": "2024-01-01T00:00:00Z",
 			},
 			"status": map[string]any{
@@ -282,6 +261,7 @@ func TestGetResourceHealthPendingDeletion(t *testing.T) {
 		}
 		h, err := GetResourceHealth(&obj, nil)
 		require.NoError(t, err)
+		require.NotNil(t, h)
 		assert.Equal(t, HealthStatusProgressing, h.Status)
 		assert.Equal(t, "Pending deletion", h.Message)
 	})

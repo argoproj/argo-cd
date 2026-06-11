@@ -22,4 +22,8 @@ tests:
 - healthStatus:
     status: Healthy
     message: "Initialized --- Installation successful."
-  inputPath: testdata/initialized.yaml  
+  inputPath: testdata/initialized.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

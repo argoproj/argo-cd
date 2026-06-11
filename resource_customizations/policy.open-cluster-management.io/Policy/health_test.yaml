@@ -31,3 +31,7 @@ tests:
       status: Healthy
       message: No clusters match this policy
     inputPath: testdata/healthy_with_placement_empty_compliant.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

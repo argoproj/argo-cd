@@ -19,3 +19,7 @@ tests:
     status: Healthy
     message: "Kafka Brokers, CruiseControl and cluster are in Healthy State."
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

@@ -12,3 +12,7 @@ tests:
     message: "update failed: cannot update DBInstance in AWS: InvalidParameterValue:
       Invalid DB Instance class: db.t4g.foobar\n\tstatus code: 400, request id: "
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

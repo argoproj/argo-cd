@@ -11,3 +11,7 @@ tests:
     status: Healthy
     message: "Reconcile completed successfully"
   inputPath: testdata/available.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

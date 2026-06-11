@@ -27,3 +27,7 @@ tests:
     status: Healthy
     message: "SparkApplication is Running"
   inputPath: testdata/healthy_dynamic_alloc_without_spec_config.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

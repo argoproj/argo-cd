@@ -2,10 +2,6 @@ apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaBridge
 metadata:
   creationTimestamp: "2020-02-13T14:03:15Z"
-  deletionGracePeriodSeconds: 0
-  deletionTimestamp: "2020-05-28T10:29:44Z"
-  finalizers:
-  - foregroundDeletion
   generation: 25
   labels:
     app.kubernetes.io/instance: kafka-bridge
@@ -21,7 +17,7 @@ spec:
       secretName: kafka-bridge
     type: scram-sha-512
     username: kafka-bridge
-  bootstrapServers: 'kafka-bootstrap:9095'
+  bootstrapServers: kafka-bootstrap:9095
   enableMetrics: true
   http:
     port: 8080
@@ -39,15 +35,14 @@ spec:
   replicas: 1
   tls:
     trustedCertificates:
-      - certificate: ca.crt
-        secretName: kafka-cluster-cluster-ca-cert
+    - certificate: ca.crt
+      secretName: kafka-cluster-cluster-ca-cert
 status:
   conditions:
-    - lastTransitionTime: '2024-05-15T09:34:44.930056634Z'
-      status: 'True'
-      type: Ready
-  labelSelector: >-
-    strimzi.io/cluster=kafka-bridge,strimzi.io/name=kafka-bridge-bridge,strimzi.io/kind=KafkaBridge
+  - lastTransitionTime: "2024-05-15T09:34:44.930056634Z"
+    status: "True"
+    type: Ready
+  labelSelector: strimzi.io/cluster=kafka-bridge,strimzi.io/name=kafka-bridge-bridge,strimzi.io/kind=KafkaBridge
   observedGeneration: 14
   replicas: 1
-  url: 'http://kafka-bridge-bridge-service.strimzi.svc:8080'
+  url: http://kafka-bridge-bridge-service.strimzi.svc:8080
