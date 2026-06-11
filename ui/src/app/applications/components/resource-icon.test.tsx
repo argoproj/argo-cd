@@ -18,6 +18,7 @@ jest.mock('./resource-customizations', () => ({
         '*.fluxcd.io': true,
         'cert-manager.io': true,
         'nauth.io': true,
+        '*.promoter.argoproj.io': true,
         'promoter.argoproj.io': true
     }
 }));
@@ -84,6 +85,13 @@ describe('ResourceIcon', () => {
             const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
             expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/promoter.argoproj.io/icon.svg');
+        });
+
+        it('should show group-based icon for view.promoter.argoproj.io', () => {
+            render(<ResourceIcon group='view.promoter.argoproj.io' kind='PromotionStrategyDetails' />);
+            const imgs = screen.getAllByRole('img');
+            expect(imgs.length).toBeGreaterThan(0);
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/_.promoter.argoproj.io/icon.svg');
         });
     });
 
