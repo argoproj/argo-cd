@@ -295,12 +295,12 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 				newPolicy.Repos = append(newPolicy.Repos, v1alpha1.SourceIntegrityGitPolicyRepo{URL: url})
 			}
 			for _, key := range gpgKeys {
-				_, err := sourceintegrity.KeyID(key)
+				key, err := sourceintegrity.KeyID(key)
 				if err != nil {
 					return fmt.Errorf("invalid GPG key ID '%s': %w", key, err)
 				}
+				newPolicy.GPG.Keys = append(newPolicy.GPG.Keys, key)
 			}
-			newPolicy.GPG.Keys = gpgKeys
 
 			closer, gpgKeyClient := newGpgKeyClient(clientOpts, c)
 			defer utilio.Close(closer)
@@ -459,30 +459,36 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				return errors.New("gpg-mode must be set")
 			}
 
-			// Reset keys
+			// Reset keys to a new set
 			if len(gpgKeys) > 0 {
-				for _, key := range gpgKeys {
-					_, err := sourceintegrity.KeyID(key)
+				policy.GPG.Keys = make([]string, len(gpgKeys))
+				for i, key := range gpgKeys {
+					key, err := sourceintegrity.KeyID(key)
 					if err != nil {
 						return fmt.Errorf("invalid GPG key ID '%s': %w", key, err)
 					}
+					policy.GPG.Keys[i] = key
 				}
-				policy.GPG.Keys = gpgKeys
 			}
 			for _, key := range deleteGPGKeys {
-				for i := 0; i < len(policy.GPG.Keys); i++ {
-					if policy.GPG.Keys[i] == key {
-						policy.GPG.Keys = append(policy.GPG.Keys[:i], policy.GPG.Keys[i+1:]...)
-						i--
-					}
-				}
-			}
-			for _, key := range addGPGKeys {
-				_, err := sourceintegrity.KeyID(key)
+				key, err := sourceintegrity.KeyID(key)
 				if err != nil {
 					return fmt.Errorf("invalid GPG key ID '%s': %w", key, err)
 				}
-				found := slices.Contains(policy.GPG.Keys, key)
+				policy.GPG.Keys = slices.DeleteFunc(policy.GPG.Keys, func(k string) bool {
+					k, err := sourceintegrity.KeyID(k)
+					return err == nil && k == key
+				})
+			}
+			for _, key := range addGPGKeys {
+				key, err := sourceintegrity.KeyID(key)
+				if err != nil {
+					return fmt.Errorf("invalid GPG key ID '%s': %w", key, err)
+				}
+				found := slices.ContainsFunc(policy.GPG.Keys, func(k string) bool {
+					k, err := sourceintegrity.KeyID(k)
+					return err == nil && k == key
+				})
 				if !found {
 					policy.GPG.Keys = append(policy.GPG.Keys, key)
 				}
