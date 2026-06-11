@@ -86,23 +86,23 @@ func TestTags_IsConstraint(t *testing.T) {
 		t.Parallel()
 		assert.False(t, IsConstraint("2024.03-LTS-RC19"))
 	})
-	t.Run("Constraint", func(t *testing.T) {
+	t.Run("EqualConstraint", func(t *testing.T) {
 		t.Parallel()
 		assert.True(t, IsConstraint("= 0.5.3"))
 	})
-	t.Run("Constraint", func(t *testing.T) {
+	t.Run("GreaterThanConstraint", func(t *testing.T) {
 		t.Parallel()
 		assert.True(t, IsConstraint("> 0.5.3"))
 	})
-	t.Run("Constraint", func(t *testing.T) {
+	t.Run("RangeConstraint", func(t *testing.T) {
 		t.Parallel()
 		assert.True(t, IsConstraint(">0.5.0,<0.7.0"))
 	})
-	t.Run("Constraint", func(t *testing.T) {
+	t.Run("WildcardPatchConstraint", func(t *testing.T) {
 		t.Parallel()
 		assert.True(t, IsConstraint("0.7.*"))
 	})
-	t.Run("Constraint", func(t *testing.T) {
+	t.Run("WildcardAllConstraint", func(t *testing.T) {
 		t.Parallel()
 		assert.True(t, IsConstraint("*"))
 	})
