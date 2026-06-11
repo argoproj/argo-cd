@@ -259,7 +259,7 @@ data:
   # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
   reposerver.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
   # Path to the client CA certificate file for mTLS. if the file is not found or empty, mTLS is disabled.
-  reposerver.client.ca.path: "/app/config/reposerver/mtls/client-ca.crt"
+  reposerver.client.ca.path: ""
   # Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
   reposerver.repo.cache.expiration: "24h0m0s"
   # Cache expiration default (default 24h0m0s)
