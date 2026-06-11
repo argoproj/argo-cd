@@ -53,7 +53,7 @@ func TestNewCommand_MTLSEnvVarPrefix(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "/etc/certs/client.crt", clientCert)
 
-	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-path-key")
+	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-key-path")
 	require.NoError(t, err)
 	assert.Equal(t, "/etc/certs/client.key", clientCertKey)
 }
@@ -74,7 +74,7 @@ func TestNewCommand_MTLSFlagsCanBeSetExplicitly(t *testing.T) {
 
 	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", "/runtime/ca.crt"))
 	require.NoError(t, cmd.Flags().Set("repo-server-client-cert-path", "/runtime/client.crt"))
-	require.NoError(t, cmd.Flags().Set("repo-server-client-cert-path-key", "/runtime/client.key"))
+	require.NoError(t, cmd.Flags().Set("repo-server-client-cert-key-path", "/runtime/client.key"))
 
 	caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
 	require.NoError(t, err)
@@ -84,7 +84,7 @@ func TestNewCommand_MTLSFlagsCanBeSetExplicitly(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "/runtime/client.crt", clientCert)
 
-	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-path-key")
+	clientCertKey, err := cmd.Flags().GetString("repo-server-client-cert-key-path")
 	require.NoError(t, err)
 	assert.Equal(t, "/runtime/client.key", clientCertKey)
 }
@@ -124,7 +124,7 @@ func TestNewCommand_CACertFlagRegistrationAndDefault(t *testing.T) {
 	for _, flagName := range []string{
 		"repo-server-ca-cert-path",
 		"repo-server-client-cert-path",
-		"repo-server-client-cert-path-key",
+		"repo-server-client-cert-key-path",
 	} {
 		f := cmd.Flags().Lookup(flagName)
 		require.NotNilf(t, f, "flag %q must be registered on argocd-server", flagName)
