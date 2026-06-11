@@ -26,6 +26,29 @@ with at least one value for `hostname` or `IP`.
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
+### Pod
+* A Pod with a `restartPolicy` of `Always` is considered "Healthy" once it is ready, and "Degraded" if a container is in an error state (e.g. `CrashLoopBackOff`, `ImagePullBackOff`) or has terminated.
+* A Pod with a `restartPolicy` of `Never` or `OnFailure` is expected to run to completion, like a Job. It is considered "Progressing" while it is running and only becomes "Healthy" once it has succeeded. This is intended behavior, since such Pods are commonly used as resource hooks and must finish before an application is considered "Healthy".
+
+This assessment is wrong for long-running Pods that are created with a `restartPolicy` of `Never` or `OnFailure` by an operator and are never expected to terminate. Such Pods would keep the application in a "Progressing" state forever. To have them assessed like long-running Pods instead, set the following annotation on the Pod:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/ignore-restart-policy: "true"
+```
+
+> [!NOTE]
+> The annotation only changes how the health of a running Pod is assessed: the Pod is still marked
+> "Degraded" if it fails. If you instead want to exclude a Pod from the application health entirely,
+> use the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation described
+> [below](#ignoring-child-resource-health-check-in-applications).
+
+> [!WARNING]
+> The annotation has no effect on Pods that are used as [resource hooks](../user-guide/sync-waves.md).
+> Hook completion is derived from resource health, so honoring the annotation would mark the hook
+> successful while the Pod is still running.
+
 ### Argocd App
 
 The health assessment of `argoproj.io/Application` CRD has been removed in argocd 1.8 (see [#3781](https://github.com/argoproj/argo-cd/issues/3781) for more information).
