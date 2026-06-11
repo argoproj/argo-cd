@@ -777,7 +777,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source:  &v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -5571,6 +5571,7 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				tt.appset,
 				tt.applications,
 				tt.desiredApplications,
+				0,
 			)
 
 			require.NoError(t, err)

@@ -107,6 +107,7 @@ type ApplicationSetReconciler struct {
 	ClusterInformer              *settings.ClusterInformer
 	ConcurrentApplicationUpdates int
 	ProgressiveSyncManager       *progressivesync.Manager
+	RefreshGracePeriodSeconds    int
 }
 
 var _ progressivesync.Dependencies = (*ApplicationSetReconciler)(nil)
@@ -253,7 +254,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
 		} else if progressivesync.IsRollingSyncStrategy(&applicationSetInfo) {
-			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
+			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}

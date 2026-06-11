@@ -1973,7 +1973,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 				AppClientset: appclientSet,
 			}
 
-			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, tt.updatedAppStatus)
+			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, tt.updatedAppStatus, 0)
 
 			if tt.expectError {
 				assert.Error(t, err)
