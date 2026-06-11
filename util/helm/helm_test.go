@@ -27,6 +27,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
+	t.Parallel()
 	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false, false)
 	require.NoError(t, err)
 	opts := TemplateOpts{
@@ -57,6 +58,7 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
+	t.Parallel()
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
@@ -83,6 +85,7 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
+	t.Parallel()
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
@@ -96,6 +99,7 @@ func TestHelmGetParams(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
+	t.Parallel()
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
@@ -111,6 +115,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
+	t.Parallel()
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
@@ -128,6 +133,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
+	t.Parallel()
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
@@ -146,6 +152,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
+	t.Parallel()
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
@@ -163,6 +170,7 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 }
 
 func TestHelmArgCleaner(t *testing.T) {
+	t.Parallel()
 	for input, expected := range map[string]string{
 		`val`:        `val`,
 		`bar`:        `bar`,
@@ -178,6 +186,7 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
+	t.Parallel()
 	ver, err := Version()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
@@ -208,6 +217,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
+	t.Parallel()
 	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
@@ -223,6 +233,7 @@ func TestAPIVersions(t *testing.T) {
 }
 
 func TestKubeVersionWithSymbol(t *testing.T) {
+	t.Parallel()
 	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
@@ -246,6 +257,7 @@ func TestKubeVersionWithSymbol(t *testing.T) {
 }
 
 func TestSkipCrds(t *testing.T) {
+	t.Parallel()
 	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
@@ -263,6 +275,7 @@ func TestSkipCrds(t *testing.T) {
 }
 
 func TestSkipTests(t *testing.T) {
+	t.Parallel()
 	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 

@@ -36,6 +36,7 @@ import (
 )
 
 func TestRefreshApp(t *testing.T) {
+	t.Parallel()
 	var testApp argoappv1.Application
 	testApp.Name = "test-app"
 	testApp.Namespace = "default"
@@ -51,6 +52,7 @@ func TestRefreshApp(t *testing.T) {
 }
 
 func TestGetAppProjectWithNoProjDefined(t *testing.T) {
+	t.Parallel()
 	projName := "default"
 	namespace := "default"
 
@@ -88,6 +90,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 }
 
 func TestIncludeResource(t *testing.T) {
+	t.Parallel()
 	// Resource filters format - GROUP:KIND:NAMESPACE/NAME or GROUP:KIND:NAME
 	var (
 		blankValues = argoappv1.SyncOperationResource{Group: "", Kind: "", Name: "", Namespace: "", Exclude: false}
@@ -238,6 +241,7 @@ func TestIncludeResource(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {
+			t.Parallel()
 			isResourceIncluded := IncludeResource(test.name, test.namespace, test.gvk, test.syncOperationResource)
 			assert.Equal(t, test.expectedResult, isResourceIncluded)
 		})
@@ -245,6 +249,7 @@ func TestIncludeResource(t *testing.T) {
 }
 
 func TestContainsSyncResource(t *testing.T) {
+	t.Parallel()
 	var (
 		blankUnstructured unstructured.Unstructured
 		blankResource     argoappv1.SyncOperationResource
@@ -268,6 +273,7 @@ func TestContainsSyncResource(t *testing.T) {
 
 // TestNilOutZerValueAppSources verifies we will nil out app source specs when they are their zero-value
 func TestNilOutZerValueAppSources(t *testing.T) {
+	t.Parallel()
 	var spec *argoappv1.ApplicationSpec
 	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}})
 	assert.NotNil(t, spec.GetSource().Kustomize)
@@ -293,6 +299,7 @@ func TestNilOutZerValueAppSources(t *testing.T) {
 }
 
 func TestValidatePermissionsEmptyDestination(t *testing.T) {
+	t.Parallel()
 	conditions, err := ValidatePermissions(t.Context(), &argoappv1.ApplicationSpec{
 		Source: &argoappv1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd", Path: "."},
 	}, &argoappv1.AppProject{
@@ -306,6 +313,7 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 }
 
 func TestValidateChartWithoutRevision(t *testing.T) {
+	t.Parallel()
 	appSpec := &argoappv1.ApplicationSpec{
 		Source: &argoappv1.ApplicationSource{RepoURL: "https://charts.helm.sh/incubator/", Chart: "myChart", TargetRevision: ""},
 		Destination: argoappv1.ApplicationDestination{
@@ -330,6 +338,7 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 }
 
 func TestAPIResourcesToStrings(t *testing.T) {
+	t.Parallel()
 	resources := []kube.APIResourceInfo{{
 		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta1"},
 		GroupKind:            schema.GroupKind{Kind: "Deployment"},
@@ -349,6 +358,7 @@ func TestAPIResourcesToStrings(t *testing.T) {
 }
 
 func TestValidateRepo(t *testing.T) {
+	t.Parallel()
 	repoPath, err := filepath.Abs("./../..")
 	require.NoError(t, err)
 
@@ -458,6 +468,7 @@ func TestValidateRepo(t *testing.T) {
 }
 
 func TestValidateRepo_SourceHydrator(t *testing.T) {
+	t.Parallel()
 	repoPath, err := filepath.Abs("./../..")
 	require.NoError(t, err)
 
@@ -547,6 +558,7 @@ func TestValidateRepo_SourceHydrator(t *testing.T) {
 }
 
 func TestFormatAppConditions(t *testing.T) {
+	t.Parallel()
 	conditions := []argoappv1.ApplicationCondition{
 		{
 			Type:    EventReasonOperationCompleted,
@@ -559,24 +571,28 @@ func TestFormatAppConditions(t *testing.T) {
 	}
 
 	t.Run("Single Condition", func(t *testing.T) {
+		t.Parallel()
 		res := FormatAppConditions(conditions[0:1])
 		assert.NotEmpty(t, res)
 		assert.Equal(t, EventReasonOperationCompleted+": Foo", res)
 	})
 
 	t.Run("Multiple Conditions", func(t *testing.T) {
+		t.Parallel()
 		res := FormatAppConditions(conditions)
 		assert.NotEmpty(t, res)
 		assert.Equal(t, fmt.Sprintf("%s: Foo;%s: Bar", EventReasonOperationCompleted, EventReasonResourceCreated), res)
 	})
 
 	t.Run("Empty Conditions", func(t *testing.T) {
+		t.Parallel()
 		res := FormatAppConditions([]argoappv1.ApplicationCondition{})
 		assert.Empty(t, res)
 	})
 }
 
 func TestFilterByProjects(t *testing.T) {
+	t.Parallel()
 	apps := []argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -591,27 +607,32 @@ func TestFilterByProjects(t *testing.T) {
 	}
 
 	t.Run("No apps in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjects(apps, []string{"foobarproj"})
 		assert.Empty(t, res)
 	})
 
 	t.Run("Single app in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjects(apps, []string{"fooproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Single app in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjects(apps, []string{"fooproj", "foobarproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjects(apps, []string{"fooproj", "barproj"})
 		assert.Len(t, res, 2)
 	})
 }
 
 func TestFilterByProjectsP(t *testing.T) {
+	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -626,27 +647,32 @@ func TestFilterByProjectsP(t *testing.T) {
 	}
 
 	t.Run("No apps in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjectsP(apps, []string{"foobarproj"})
 		assert.Empty(t, res)
 	})
 
 	t.Run("Single app in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjectsP(apps, []string{"fooproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Single app in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjectsP(apps, []string{"fooproj", "foobarproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjectsP(apps, []string{"fooproj", "barproj"})
 		assert.Len(t, res, 2)
 	})
 }
 
 func TestFilterAppSetsByProjects(t *testing.T) {
+	t.Parallel()
 	appsets := []argoappv1.ApplicationSet{
 		{
 			Spec: argoappv1.ApplicationSetSpec{
@@ -669,27 +695,32 @@ func TestFilterAppSetsByProjects(t *testing.T) {
 	}
 
 	t.Run("No apps in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterAppSetsByProjects(appsets, []string{"foobarproj"})
 		assert.Empty(t, res)
 	})
 
 	t.Run("Single app in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterAppSetsByProjects(appsets, []string{"fooproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Single app in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "foobarproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "barproj"})
 		assert.Len(t, res, 2)
 	})
 }
 
 func TestFilterByRepo(t *testing.T) {
+	t.Parallel()
 	apps := []argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -708,22 +739,26 @@ func TestFilterByRepo(t *testing.T) {
 	}
 
 	t.Run("Empty filter", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepo(apps, "")
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepo(apps, "git@github.com:owner/repo.git")
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Empty(t, res)
 	})
 }
 
 func TestFilterByRepoP(t *testing.T) {
+	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -742,22 +777,26 @@ func TestFilterByRepoP(t *testing.T) {
 	}
 
 	t.Run("Empty filter", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepoP(apps, "")
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepoP(apps, "git@github.com:owner/repo.git")
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepoP(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Empty(t, res)
 	})
 }
 
 func TestFilterByPath(t *testing.T) {
+	t.Parallel()
 	apps := []argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -776,23 +815,28 @@ func TestFilterByPath(t *testing.T) {
 	}
 
 	t.Run("Empty filter", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByPath(apps, "")
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Found one match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByPath(apps, "example/app/foo")
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No match found", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByPath(apps, "example/app/non-existent")
 		assert.Empty(t, res)
 	})
 }
 
 func TestValidatePermissions(t *testing.T) {
+	t.Parallel()
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL: "",
@@ -808,6 +852,7 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("Incomplete Path/Chart combo result in condition", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL: "http://some/where",
@@ -825,6 +870,7 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("Helm chart requires targetRevision", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL: "http://some/where",
@@ -842,6 +888,7 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("Application source is not permitted in project", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -875,6 +922,7 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("Application destination is not permitted in project", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -908,6 +956,7 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("Destination cluster does not exist", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -940,6 +989,7 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("Destination cluster name does not exist", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -972,6 +1022,7 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("Cannot get cluster info from DB", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -1004,6 +1055,7 @@ func TestValidatePermissions(t *testing.T) {
 	})
 
 	t.Run("Destination cluster name resolves to valid server", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -1041,7 +1093,9 @@ func TestValidatePermissions(t *testing.T) {
 }
 
 func TestValidatePermissions_SourceHydratorSyncSourceRepo(t *testing.T) {
+	t.Parallel()
 	t.Run("Sync source repo not permitted in project", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			SourceHydrator: &argoappv1.SourceHydrator{
 				DrySource: argoappv1.DrySource{
@@ -1081,6 +1135,7 @@ func TestValidatePermissions_SourceHydratorSyncSourceRepo(t *testing.T) {
 	})
 
 	t.Run("HydrateTo requires targetBranch", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			SourceHydrator: &argoappv1.SourceHydrator{
 				DrySource: argoappv1.DrySource{
@@ -1106,7 +1161,9 @@ func TestValidatePermissions_SourceHydratorSyncSourceRepo(t *testing.T) {
 }
 
 func TestSetAppOperations(t *testing.T) {
+	t.Parallel()
 	t.Run("Application not existing", func(t *testing.T) {
+		t.Parallel()
 		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.Error(t, err)
@@ -1114,6 +1171,7 @@ func TestSetAppOperations(t *testing.T) {
 	})
 
 	t.Run("Operation already in progress", func(t *testing.T) {
+		t.Parallel()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -1128,6 +1186,7 @@ func TestSetAppOperations(t *testing.T) {
 	})
 
 	t.Run("Operation unspecified", func(t *testing.T) {
+		t.Parallel()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -1141,6 +1200,7 @@ func TestSetAppOperations(t *testing.T) {
 	})
 
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -1155,7 +1215,9 @@ func TestSetAppOperations(t *testing.T) {
 }
 
 func TestGetDestinationCluster(t *testing.T) {
+	t.Parallel()
 	t.Run("Validate destination with server url", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Namespace: "default",
@@ -1172,6 +1234,7 @@ func TestGetDestinationCluster(t *testing.T) {
 	})
 
 	t.Run("Validate destination with server name", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Name: "minikube",
 		}
@@ -1186,6 +1249,7 @@ func TestGetDestinationCluster(t *testing.T) {
 	})
 
 	t.Run("Error when having both server url and name", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Name:      "minikube",
@@ -1197,6 +1261,7 @@ func TestGetDestinationCluster(t *testing.T) {
 	})
 
 	t.Run("GetClusterServersByName fails", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Name: "minikube",
 		}
@@ -1209,6 +1274,7 @@ func TestGetDestinationCluster(t *testing.T) {
 	})
 
 	t.Run("Destination cluster does not exist", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Name: "minikube",
 		}
@@ -1221,6 +1287,7 @@ func TestGetDestinationCluster(t *testing.T) {
 	})
 
 	t.Run("Validate too many clusters with the same name", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Name: "dind",
 		}
@@ -1234,6 +1301,7 @@ func TestGetDestinationCluster(t *testing.T) {
 }
 
 func TestFilterByName(t *testing.T) {
+	t.Parallel()
 	apps := []argoappv1.Application{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1254,18 +1322,21 @@ func TestFilterByName(t *testing.T) {
 	}
 
 	t.Run("Name is empty string", func(t *testing.T) {
+		t.Parallel()
 		res, err := FilterByName(apps, "")
 		require.NoError(t, err)
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Single app by name", func(t *testing.T) {
+		t.Parallel()
 		res, err := FilterByName(apps, "foo")
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No such app", func(t *testing.T) {
+		t.Parallel()
 		res, err := FilterByName(apps, "foobar")
 		require.Error(t, err)
 		assert.Empty(t, res)
@@ -1273,6 +1344,7 @@ func TestFilterByName(t *testing.T) {
 }
 
 func TestFilterByNameP(t *testing.T) {
+	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1293,22 +1365,26 @@ func TestFilterByNameP(t *testing.T) {
 	}
 
 	t.Run("Name is empty string", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByNameP(apps, "")
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Single app by name", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByNameP(apps, "foo")
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No such app", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByNameP(apps, "foobar")
 		assert.Empty(t, res)
 	})
 }
 
 func TestFilterByCluster(t *testing.T) {
+	t.Parallel()
 	apps := []argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -1355,6 +1431,7 @@ func TestFilterByCluster(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res := FilterByCluster(apps, tt.cluster)
 			assert.Len(t, res, tt.expected)
 		})
@@ -1362,7 +1439,9 @@ func TestFilterByCluster(t *testing.T) {
 }
 
 func TestGetGlobalProjects(t *testing.T) {
+	t.Parallel()
 	t.Run("Multiple global projects", func(t *testing.T) {
+		t.Parallel()
 		namespace := "default"
 
 		cm := corev1.ConfigMap{
@@ -1577,6 +1656,7 @@ func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
 }
 
 func Test_ParseAppQualifiedName(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name       string
 		input      string
@@ -1593,6 +1673,7 @@ func Test_ParseAppQualifiedName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			appName, appNs := ParseFromQualifiedName(tt.input, tt.implicitNs)
 			assert.Equal(t, tt.appName, appName)
 			assert.Equal(t, tt.appNs, appNs)
@@ -1601,6 +1682,7 @@ func Test_ParseAppQualifiedName(t *testing.T) {
 }
 
 func Test_ParseAppInstanceName(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name       string
 		input      string
@@ -1617,6 +1699,7 @@ func Test_ParseAppInstanceName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			appName, appNs := ParseInstanceName(tt.input, tt.implicitNs)
 			assert.Equal(t, tt.appName, appName)
 			assert.Equal(t, tt.appNs, appNs)
@@ -1625,6 +1708,7 @@ func Test_ParseAppInstanceName(t *testing.T) {
 }
 
 func Test_AppInstanceName(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name         string
 		appName      string
@@ -1640,6 +1724,7 @@ func Test_AppInstanceName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := AppInstanceName(tt.appName, tt.appNamespace, tt.defaultNs)
 			assert.Equal(t, tt.result, result)
 		})
@@ -1647,6 +1732,7 @@ func Test_AppInstanceName(t *testing.T) {
 }
 
 func Test_AppInstanceNameFromQualified(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name      string
 		appName   string
@@ -1661,6 +1747,7 @@ func Test_AppInstanceNameFromQualified(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := InstanceNameFromQualified(tt.appName, tt.defaultNs)
 			assert.Equal(t, tt.result, result)
 		})
@@ -1668,6 +1755,7 @@ func Test_AppInstanceNameFromQualified(t *testing.T) {
 }
 
 func Test_GetRefSources(t *testing.T) {
+	t.Parallel()
 	repoPath, err := filepath.Abs("./../..")
 	require.NoError(t, err)
 
@@ -1680,6 +1768,7 @@ func Test_GetRefSources(t *testing.T) {
 	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
 
 	t.Run("target ref exists", func(t *testing.T) {
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://" + repoPath, Ref: "source-1_2"},
 			{RepoURL: "file://" + repoPath},
@@ -1700,6 +1789,7 @@ func Test_GetRefSources(t *testing.T) {
 	})
 
 	t.Run("target ref does not exist", func(t *testing.T) {
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 			{RepoURL: "file://" + repoPath},
@@ -1714,6 +1804,7 @@ func Test_GetRefSources(t *testing.T) {
 	})
 
 	t.Run("invalid ref", func(t *testing.T) {
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "%invalid-name%"},
 			{RepoURL: "file://" + repoPath},
@@ -1728,6 +1819,7 @@ func Test_GetRefSources(t *testing.T) {
 	})
 
 	t.Run("duplicate ref keys", func(t *testing.T) {
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
@@ -1742,6 +1834,7 @@ func Test_GetRefSources(t *testing.T) {
 	})
 
 	t.Run("single source with ref populates refSources", func(t *testing.T) {
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://" + repoPath, TargetRevision: "HEAD", Ref: "gitops"},
 		})
@@ -1762,7 +1855,9 @@ func Test_GetRefSources(t *testing.T) {
 }
 
 func TestValidatePermissionsMultipleSources(t *testing.T) {
+	t.Parallel()
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Sources: argoappv1.ApplicationSources{
 				{RepoURL: ""},
@@ -1779,6 +1874,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 	})
 
 	t.Run("Incomplete Path/Chart/Ref combo result in condition", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Sources: argoappv1.ApplicationSources{
 				{
@@ -1799,6 +1895,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 	})
 
 	t.Run("One of the Application sources is not permitted in project", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Sources: argoappv1.ApplicationSources{
 				{
@@ -1834,6 +1931,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 	})
 
 	t.Run("Source with a Ref field and missing Path/Chart field", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Sources: argoappv1.ApplicationSources{
 				{
@@ -1873,6 +1971,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 }
 
 func TestAugmentSyncMsg(t *testing.T) {
+	t.Parallel()
 	mockAPIResourcesFn := func() ([]kube.APIResourceInfo, error) {
 		return []kube.APIResourceInfo{
 			{
@@ -1988,6 +2087,7 @@ func TestAugmentSyncMsg(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.res.Message = tt.msg
 			msg, err := AugmentSyncMsg(tt.res, tt.mockFn)
 			if tt.errMsg != "" {
@@ -2001,6 +2101,7 @@ func TestAugmentSyncMsg(t *testing.T) {
 }
 
 func TestGetAppEventLabels(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                string
 		cmInEventLabelKeys  string
@@ -2062,6 +2163,7 @@ func TestGetAppEventLabels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cm := corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-cm",
@@ -2112,6 +2214,7 @@ func TestGetAppEventLabels(t *testing.T) {
 }
 
 func TestValidateManagedByURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		app        *argoappv1.Application
@@ -2265,6 +2368,7 @@ func TestValidateManagedByURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			conditions := ValidateManagedByURL(tt.app)
 
 			if tt.wantErr {
@@ -2279,6 +2383,7 @@ func TestValidateManagedByURL(t *testing.T) {
 }
 
 func Test_GetSyncedRefSources(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		refSources      argoappv1.RefTargetRevisionMapping
@@ -2383,6 +2488,7 @@ func Test_GetSyncedRefSources(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			syncedRefSources := GetSyncedRefSources(tt.refSources, tt.sources, tt.syncedRevisions)
 			assert.Equal(t, tt.result, syncedRefSources)
 		})

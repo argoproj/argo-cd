@@ -1199,8 +1199,6 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name   string
 		source v1alpha1.ApplicationSource
@@ -1214,8 +1212,6 @@ func Test_unset_nothingToUnset(t *testing.T) {
 		testCaseCopy := testCase
 
 		t.Run(testCaseCopy.name, func(t *testing.T) {
-			t.Parallel()
-
 			updated, nothingToUnset := unset(&testCaseCopy.source, unsetOpts{})
 			assert.False(t, updated)
 			assert.True(t, nothingToUnset)
@@ -1862,10 +1858,11 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	}
 	watch = getWatchOpts(watch)
 
-	output, err := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
-		return nil
-	},
+	output, err := captureOutput(
+		func() error {
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+			return nil
+		},
 	)
 	require.NoError(t, err)
 	assert.True(t, json.Valid([]byte(output)))

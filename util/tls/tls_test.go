@@ -122,6 +122,7 @@ func decodePem(certInput string) (*tls.Certificate, error) {
 }
 
 func TestEncodeX509KeyPairString(t *testing.T) {
+	t.Parallel()
 	certChain, err := decodePem(chain)
 	require.NoError(t, err)
 	cert, _ := EncodeX509KeyPairString(*certChain)
@@ -130,7 +131,9 @@ func TestEncodeX509KeyPairString(t *testing.T) {
 }
 
 func TestGetTLSVersionByString(t *testing.T) {
+	t.Parallel()
 	t.Run("Valid versions", func(t *testing.T) {
+		t.Parallel()
 		for k, v := range tlsVersionByString {
 			r, err := getTLSVersionByString(k)
 			require.NoError(t, err)
@@ -139,11 +142,13 @@ func TestGetTLSVersionByString(t *testing.T) {
 	})
 
 	t.Run("Invalid versions", func(t *testing.T) {
+		t.Parallel()
 		_, err := getTLSVersionByString("1.4")
 		require.Error(t, err)
 	})
 
 	t.Run("Empty versions", func(t *testing.T) {
+		t.Parallel()
 		r, err := getTLSVersionByString("")
 		require.NoError(t, err)
 		assert.Equal(t, uint16(0), r)
@@ -176,7 +181,9 @@ func TestGetTLSCipherSuitesByString(t *testing.T) {
 }
 
 func TestTLSVersionToString(t *testing.T) {
+	t.Parallel()
 	t.Run("Test known versions", func(t *testing.T) {
+		t.Parallel()
 		versions := make([]uint16, 0)
 		for _, v := range tlsVersionByString {
 			versions = append(versions, v)
@@ -185,6 +192,7 @@ func TestTLSVersionToString(t *testing.T) {
 		assert.Len(t, s, len(versions))
 	})
 	t.Run("Test unknown version", func(t *testing.T) {
+		t.Parallel()
 		s := tlsVersionsToStr([]uint16{999})
 		assert.Len(t, s, 1)
 		assert.Equal(t, "unknown", s[0])
@@ -192,19 +200,23 @@ func TestTLSVersionToString(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
+	t.Parallel()
 	t.Run("Invalid: No hosts specified", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{}, Organization: "Acme", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
 		assert.ErrorContains(t, err, "hosts not supplied")
 	})
 
 	t.Run("Invalid: No organization specified", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
 		assert.ErrorContains(t, err, "organization not supplied")
 	})
 
 	t.Run("Invalid: Unsupported curve specified", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: "Curve?", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
 		assert.ErrorContains(t, err, "unrecognized elliptic curve")
@@ -212,6 +224,7 @@ func TestGenerate(t *testing.T) {
 
 	for _, curve := range []string{"P224", "P256", "P384", "P521"} {
 		t.Run("Create certificate with curve "+curve, func(t *testing.T) {
+			t.Parallel()
 			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: curve}
 			_, _, err := generate(opts)
 			require.NoError(t, err)
@@ -219,6 +232,7 @@ func TestGenerate(t *testing.T) {
 	}
 
 	t.Run("Create certificate with default options", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		certBytes, privKey, err := generate(opts)
 		require.NoError(t, err)
@@ -233,6 +247,7 @@ func TestGenerate(t *testing.T) {
 	})
 
 	t.Run("Create certificate with IP ", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{"localhost", "127.0.0.1"}, Organization: "Acme"}
 		certBytes, privKey, err := generate(opts)
 		require.NoError(t, err)
@@ -248,6 +263,7 @@ func TestGenerate(t *testing.T) {
 	})
 
 	t.Run("Create certificate with specific validity timeframe", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: time.Now().Add(1 * time.Hour)}
 		certBytes, privKey, err := generate(opts)
 		require.NoError(t, err)
@@ -260,6 +276,7 @@ func TestGenerate(t *testing.T) {
 
 	for _, year := range []int{1, 2, 3, 10} {
 		t.Run(fmt.Sprintf("Create certificate with specified ValidFor %d year", year), func(t *testing.T) {
+			t.Parallel()
 			validFrom, validFor := time.Now(), 365*24*time.Hour*time.Duration(year)
 			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: validFrom, ValidFor: validFor}
 			certBytes, privKey, err := generate(opts)
@@ -275,7 +292,9 @@ func TestGenerate(t *testing.T) {
 }
 
 func TestGeneratePEM(t *testing.T) {
+	t.Parallel()
 	t.Run("Invalid - PEM creation failure", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: nil, Organization: "Acme"}
 		cert, key, err := generatePEM(opts)
 		require.Error(t, err)
@@ -284,6 +303,7 @@ func TestGeneratePEM(t *testing.T) {
 	})
 
 	t.Run("Create PEM from certficate options", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		cert, key, err := generatePEM(opts)
 		require.NoError(t, err)
@@ -292,6 +312,7 @@ func TestGeneratePEM(t *testing.T) {
 	})
 
 	t.Run("Create X509KeyPair", func(t *testing.T) {
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		cert, err := GenerateX509KeyPair(opts)
 		require.NoError(t, err)
@@ -300,7 +321,9 @@ func TestGeneratePEM(t *testing.T) {
 }
 
 func TestGetTLSConfigCustomizer(t *testing.T) {
+	t.Parallel()
 	t.Run("Valid TLS customization", func(t *testing.T) {
+		t.Parallel()
 		cfunc, err := getTLSConfigCustomizer(DefaultTLSMinVersion, DefaultTLSMaxVersion, DefaultTLSCipherSuite)
 		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
@@ -311,6 +334,7 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 	})
 
 	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with default ciphers", func(t *testing.T) {
+		t.Parallel()
 		cfunc, err := getTLSConfigCustomizer("1.3", "1.3", DefaultTLSCipherSuite)
 		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
@@ -322,6 +346,7 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 	})
 
 	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with custom ciphers", func(t *testing.T) {
+		t.Parallel()
 		cfunc, err := getTLSConfigCustomizer("1.3", "1.3", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
 		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
@@ -333,24 +358,28 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 	})
 
 	t.Run("Invalid TLS customization - Min version higher than max version", func(t *testing.T) {
+		t.Parallel()
 		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", DefaultTLSCipherSuite)
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Invalid min version given", func(t *testing.T) {
+		t.Parallel()
 		cfunc, err := getTLSConfigCustomizer("2.0", "1.2", DefaultTLSCipherSuite)
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Invalid max version given", func(t *testing.T) {
+		t.Parallel()
 		cfunc, err := getTLSConfigCustomizer("1.2", "2.0", DefaultTLSCipherSuite)
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Unknown cipher suite given", func(t *testing.T) {
+		t.Parallel()
 		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:invalid")
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
@@ -358,12 +387,15 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 }
 
 func TestBestEffortSystemCertPool(t *testing.T) {
+	t.Parallel()
 	pool := BestEffortSystemCertPool()
 	assert.NotNil(t, pool)
 }
 
 func TestCreateServerTLSConfig(t *testing.T) {
+	t.Parallel()
 	t.Run("Configuration from a valid key/cert pair", func(t *testing.T) {
+		t.Parallel()
 		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost", "argocd-repo-server"})
 		require.NoError(t, err)
 		assert.Len(t, tlsc.Certificates, 1)
@@ -373,6 +405,7 @@ func TestCreateServerTLSConfig(t *testing.T) {
 	})
 
 	t.Run("Self-signed creation due to non-existing cert", func(t *testing.T) {
+		t.Parallel()
 		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", []string{"localhost", "argocd-repo-server"})
 		require.NoError(t, err)
 		assert.Len(t, tlsc.Certificates, 1)
@@ -382,12 +415,14 @@ func TestCreateServerTLSConfig(t *testing.T) {
 	})
 
 	t.Run("Self-signed creation fails due to hosts being nil", func(t *testing.T) {
+		t.Parallel()
 		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", nil)
 		require.Error(t, err)
 		assert.Nil(t, tlsc)
 	})
 
 	t.Run("Self-signed creation fails due to invalid certificates", func(t *testing.T) {
+		t.Parallel()
 		tlsc, err := CreateServerTLSConfig("testdata/empty_tls.crt", "testdata/empty_tls.key", nil)
 		require.Error(t, err)
 		assert.Nil(t, tlsc)
@@ -421,7 +456,9 @@ func getCertFromFile(path string) (*x509.Certificate, error) {
 }
 
 func TestLoadX509CertPool(t *testing.T) {
+	t.Parallel()
 	t.Run("Successfully load single cert", func(t *testing.T) {
+		t.Parallel()
 		p, err := LoadX509CertPool("testdata/valid_tls.crt")
 		require.NoError(t, err)
 		require.NotNil(t, p)
@@ -434,6 +471,7 @@ func TestLoadX509CertPool(t *testing.T) {
 		assert.True(t, groundTruthPool.Equal(p))
 	})
 	t.Run("Successfully load single existing cert from multiple list", func(t *testing.T) {
+		t.Parallel()
 		p, err := LoadX509CertPool("testdata/invalid_tls.crt", "testdata/valid_tls.crt")
 		require.NoError(t, err)
 		require.NotNil(t, p)
@@ -446,6 +484,7 @@ func TestLoadX509CertPool(t *testing.T) {
 		assert.True(t, groundTruthPool.Equal(p))
 	})
 	t.Run("Only non-existing certs in list", func(t *testing.T) {
+		t.Parallel()
 		p, err := LoadX509CertPool("testdata/invalid_tls.crt", "testdata/valid_tls2.crt")
 		require.NoError(t, err)
 		require.NotNil(t, p)
@@ -455,6 +494,7 @@ func TestLoadX509CertPool(t *testing.T) {
 		assert.True(t, groundTruthPool.Equal(p))
 	})
 	t.Run("Invalid cert in requested cert list", func(t *testing.T) {
+		t.Parallel()
 		p, err := LoadX509CertPool("testdata/empty_tls.crt", "testdata/valid_tls2.crt")
 		require.Error(t, err)
 		require.Nil(t, p)
@@ -462,7 +502,9 @@ func TestLoadX509CertPool(t *testing.T) {
 }
 
 func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
+	t.Parallel()
 	t.Run("Nil RSA private key", func(t *testing.T) {
+		t.Parallel()
 		cert := tls.Certificate{
 			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
 			PrivateKey:  (*rsa.PrivateKey)(nil),
@@ -474,6 +516,7 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 
 	t.Run("RSA private key that fails validation", func(t *testing.T) {
 		// Create an RSA key with invalid parameters that will fail Validate()
+		t.Parallel()
 		invalidKey := &rsa.PrivateKey{
 			PublicKey: rsa.PublicKey{
 				N: big.NewInt(1), // Too small modulus, will fail validation
@@ -491,6 +534,7 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 	})
 
 	t.Run("RSA private key with inconsistent parameters", func(t *testing.T) {
+		t.Parallel()
 		invalidKey := &rsa.PrivateKey{
 			PublicKey: rsa.PublicKey{
 				N: big.NewInt(35),
@@ -509,6 +553,7 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 
 	t.Run("Unsupported private key type", func(t *testing.T) {
 		// Use a type that's not *rsa.PrivateKey or *ecdsa.PrivateKey
+		t.Parallel()
 		cert := tls.Certificate{
 			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
 			PrivateKey:  "not a private key",    // Unsupported type
@@ -520,6 +565,7 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 
 	t.Run("Valid RSA private key should work", func(t *testing.T) {
 		// Generate a valid RSA key for testing
+		t.Parallel()
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Test"}
 		validCert, err := GenerateX509KeyPair(opts)
 		require.NoError(t, err)

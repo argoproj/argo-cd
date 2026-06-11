@@ -62,6 +62,94 @@ func _createEmptyGitRepo(ctx context.Context) (string, error) {
 	return tempDir, err
 }
 
+func Test_nativeGitClient_cleanupOrphanedTempPackfiles(t *testing.T) {
+	root := t.TempDir()
+	packDir := filepath.Join(root, ".git", "objects", "pack")
+	require.NoError(t, os.MkdirAll(packDir, 0o755))
+	// gitCleanupGracePeriod defaults to 2 * 90s = 3m, so an hour-old file is
+	// safely stale and a just-written one is safely fresh.
+	old := time.Now().Add(-time.Hour)
+
+	// Stale temp files git's index-pack can strand when a fetch is killed before
+	// it finalizes the pack. All must be removed once past the grace window.
+	stale := []string{"tmp_pack_deadbeef", "tmp_idx_deadbeef", "tmp_rev_deadbeef", "tmp_mtimes_deadbeef"}
+	for _, name := range stale {
+		p := filepath.Join(packDir, name)
+		require.NoError(t, os.WriteFile(p, []byte("partial data"), 0o644))
+		require.NoError(t, os.Chtimes(p, old, old))
+	}
+
+	// A temp file still within the grace window may belong to a concurrent fetch
+	// (for example another replica) and must be preserved.
+	fresh := filepath.Join(packDir, "tmp_pack_inflight")
+	require.NoError(t, os.WriteFile(fresh, []byte("in-progress"), 0o644))
+
+	// Finalized pack files (even when old) and a push-path quarantine directory
+	// must be kept.
+	keep := []string{
+		"pack-0123456789abcdef0123456789abcdef01234567.pack",
+		"pack-0123456789abcdef0123456789abcdef01234567.idx",
+		"pack-0123456789abcdef0123456789abcdef01234567.rev",
+	}
+	for _, name := range keep {
+		p := filepath.Join(packDir, name)
+		require.NoError(t, os.WriteFile(p, []byte("real data"), 0o644))
+		require.NoError(t, os.Chtimes(p, old, old))
+	}
+	quarantine := filepath.Join(packDir, "tmp_objdir-incoming")
+	require.NoError(t, os.MkdirAll(quarantine, 0o755))
+	require.NoError(t, os.Chtimes(quarantine, old, old))
+
+	client := &nativeGitClient{root: root, repoURL: "https://example.com/repo.git"}
+	client.cleanupOrphanedTempPackfiles()
+
+	for _, name := range stale {
+		assert.NoFileExists(t, filepath.Join(packDir, name), "stale temp file %s should be removed", name)
+	}
+	assert.FileExists(t, fresh, "temp file within the grace window must be preserved")
+	for _, name := range keep {
+		assert.FileExists(t, filepath.Join(packDir, name), "finalized file %s must be preserved", name)
+	}
+	assert.DirExists(t, quarantine, "push-path quarantine directory must not be touched")
+}
+
+func Test_nativeGitClient_cleanupOrphanedTempPackfiles_noPackDir(t *testing.T) {
+	// A repository whose pack directory does not exist yet must not panic or error.
+	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
+	assert.NotPanics(t, client.cleanupOrphanedTempPackfiles)
+}
+
+func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
+	ctx := t.Context()
+	root := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, root, "git", "init"))
+	// Point origin at a non-existent path so the fetch fails deterministically.
+	badRemote := filepath.Join(root, "does-not-exist")
+	require.NoError(t, runCmd(ctx, root, "git", "remote", "add", "origin", "file://"+badRemote))
+
+	// A real index-pack killed mid-stream cannot be reproduced deterministically
+	// in a unit test, so stand in for the stranded files with synthetic temp
+	// pack/index files, aged past the grace window, and assert the failed fetch
+	// removes them.
+	packDir := filepath.Join(root, ".git", "objects", "pack")
+	require.NoError(t, os.MkdirAll(packDir, 0o755))
+	old := time.Now().Add(-time.Hour)
+	orphanPack := filepath.Join(packDir, "tmp_pack_orphan")
+	orphanIdx := filepath.Join(packDir, "tmp_idx_orphan")
+	for _, p := range []string{orphanPack, orphanIdx} {
+		require.NoError(t, os.WriteFile(p, []byte("partial data"), 0o644))
+		require.NoError(t, os.Chtimes(p, old, old))
+	}
+
+	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
+
+	err := client.Fetch("", 0)
+	require.Error(t, err, "fetch against a missing remote must fail")
+	assert.NoFileExists(t, orphanPack, "orphaned temp pack should be cleaned up after a failed fetch")
+	assert.NoFileExists(t, orphanIdx, "orphaned temp index should be cleaned up after a failed fetch")
+}
+
 func Test_nativeGitClient_Fetch(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo(t.Context())
 	require.NoError(t, err)
