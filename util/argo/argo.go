@@ -205,6 +205,11 @@ func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.App
 		app := &apps[i]
 		matched := false
 		for _, source := range app.Spec.GetSources() {
+			// Skip Helm chart sources (no path) to avoid matching every file
+			// when AppFilesHaveChanged is called with an empty refreshPaths slice.
+			if source.Path == "" {
+				continue
+			}
 			refreshPaths := path.GetSourceRefreshPaths(app, source)
 			// If no annotation, fall back to the source path itself so that any
 			// file under that directory triggers a match.
