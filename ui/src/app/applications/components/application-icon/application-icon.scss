@@ -1,0 +1,20 @@
+.application-icon {
+    object-fit: contain;
+    display: inline-block;
+    vertical-align: middle;
+
+    &--small {
+        width: 24px;
+        height: 24px;
+    }
+
+    &--medium {
+        width: 32px;
+        height: 32px;
+    }
+
+    &--large {
+        width: 48px;
+        height: 48px;
+    }
+}
