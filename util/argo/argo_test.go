@@ -905,6 +905,62 @@ func TestFilterByFiles(t *testing.T) {
 		res := FilterByFiles(apps, []string{"totally/unrelated/file.yaml"})
 		assert.Empty(t, res)
 	})
+
+	t.Run("Multi-source app matches if any source path matches", func(t *testing.T) {
+		multiSourceApp := argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Sources: argoappv1.ApplicationSources{
+					{Path: "services/backend"},
+					{Path: "services/frontend"},
+				},
+			},
+		}
+		res := FilterByFiles([]argoappv1.Application{multiSourceApp}, []string{"services/frontend/index.js"})
+		assert.Len(t, res, 1)
+
+		res = FilterByFiles([]argoappv1.Application{multiSourceApp}, []string{"totally/unrelated/file.yaml"})
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByPathAndFiles(t *testing.T) {
+	app1 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "services/backend"},
+		},
+	}
+	app2 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "services/frontend"},
+		},
+	}
+	app3 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "infra/terraform"},
+		},
+	}
+	apps := []argoappv1.Application{app1, app2, app3}
+
+	t.Run("--path and --file combined narrow results to intersection", func(t *testing.T) {
+		// --path services/backend keeps app1; --file services/backend/main.go also matches app1
+		res := FilterByPath(apps, "services/backend")
+		res = FilterByFiles(res, []string{"services/backend/main.go"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "services/backend", res[0].Spec.GetSource().Path)
+	})
+
+	t.Run("--path and --file with no intersection returns empty", func(t *testing.T) {
+		// --path services/frontend keeps app2; --file services/backend/main.go does not match app2
+		res := FilterByPath(apps, "services/frontend")
+		res = FilterByFiles(res, []string{"services/backend/main.go"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("--file only without --path returns all matching apps", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"services/frontend/index.js"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "services/frontend", res[0].Spec.GetSource().Path)
+	})
 }
 
 func TestValidatePermissions(t *testing.T) {

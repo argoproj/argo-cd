@@ -193,8 +193,9 @@ func FilterByPath(apps []argoappv1.Application, appPath string) []argoappv1.Appl
 }
 
 // FilterByFiles returns applications that are affected by the given list of changed files.
-// For each application, it computes the refresh paths (source path + annotation paths) and
-// checks whether any of the provided files falls under those paths.
+// For each application, it computes the refresh paths (source path + annotation paths) across
+// all sources (including multi-source apps) and checks whether any of the provided files
+// falls under those paths.
 func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
 	if len(files) == 0 {
 		return apps
@@ -202,14 +203,20 @@ func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.App
 	items := []argoappv1.Application{}
 	for i := range apps {
 		app := &apps[i]
-		source := app.Spec.GetSource()
-		refreshPaths := path.GetSourceRefreshPaths(app, source)
-		// If no annotation, fall back to the source path itself so that any
-		// file under that directory triggers a match.
-		if len(refreshPaths) == 0 {
-			refreshPaths = []string{source.Path}
+		matched := false
+		for _, source := range app.Spec.GetSources() {
+			refreshPaths := path.GetSourceRefreshPaths(app, source)
+			// If no annotation, fall back to the source path itself so that any
+			// file under that directory triggers a match.
+			if len(refreshPaths) == 0 {
+				refreshPaths = []string{source.Path}
+			}
+			if path.AppFilesHaveChanged(refreshPaths, files) {
+				matched = true
+				break
+			}
 		}
-		if path.AppFilesHaveChanged(refreshPaths, files) {
+		if matched {
 			items = append(items, apps[i])
 		}
 	}
