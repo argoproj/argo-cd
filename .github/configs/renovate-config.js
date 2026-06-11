@@ -13,5 +13,8 @@ module.exports = {
         "github>argoproj/argo-cd//renovate-presets/devtool.json5",
         "github>argoproj/argo-cd//renovate-presets/docs.json5",
         "group:aws-sdk-go-v2Monorepo"
+    ],
+    ignoreDeps: [
+        'github.com/argoproj/argo-cd/gitops-engine'
     ]
 }

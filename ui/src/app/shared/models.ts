@@ -272,6 +272,7 @@ export interface DrySource {
 export interface SyncSource {
     targetBranch: string;
     path: string;
+    repoURL?: string;
 }
 
 export interface HydrateTo {
@@ -523,6 +524,7 @@ export interface ApplicationCondition {
 export interface ApplicationSummary {
     externalURLs?: string[];
     images?: string[];
+    isAppOfApps?: boolean;
 }
 
 export interface ApplicationStatus {
