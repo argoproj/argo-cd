@@ -921,6 +921,20 @@ func TestFilterByFiles(t *testing.T) {
 		res = FilterByFiles([]argoappv1.Application{multiSourceApp}, []string{"totally/unrelated/file.yaml"})
 		assert.Empty(t, res)
 	})
+
+	t.Run("Helm chart source with no path is skipped and does not match every file", func(t *testing.T) {
+		helmApp := argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					RepoURL: "https://charts.example.com",
+					Chart:   "my-chart",
+					// Path is intentionally empty — Helm chart source
+				},
+			},
+		}
+		res := FilterByFiles([]argoappv1.Application{helmApp}, []string{"any/file.yaml"})
+		assert.Empty(t, res)
+	})
 }
 
 func TestFilterByPathAndFiles(t *testing.T) {
