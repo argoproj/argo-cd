@@ -154,7 +154,6 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 			}
 			return healthStatus, nil
 		default:
-			// Tables with non-JSON-serializable keys fail the same luajson.Encode step the old path used first.
 			if _, err := luajson.Encode(returnValue); err != nil {
 				return nil, err
 			}
