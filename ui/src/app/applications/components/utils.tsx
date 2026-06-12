@@ -959,6 +959,9 @@ export function syncStatusMessage(app: appModels.Application) {
     const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
     let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
+    if (source?.tagPrefix) {
+        message = source.tagPrefix + message;
+    }
     const suffix = revision && source ? getSyncRevisionLabelSuffix(source.repoURL, source.targetRevision, revision, source.chart) : '';
 
     if (suffix) {

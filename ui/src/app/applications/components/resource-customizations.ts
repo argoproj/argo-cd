@@ -7,6 +7,7 @@ export const resourceIconGroups = {
     '*.crossplane.io': true,
     '*.fluxcd.io': true,
     '*.knative.dev': true,
+    '*.promoter.argoproj.io': true,
     'cassandra.rook.io': true,
     'cert-manager.io': true,
     'core.spinkube.dev': true,

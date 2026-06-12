@@ -3235,6 +3235,7 @@ spec:
             configMapKeyRef:
               key: server.glob.cache.size
               name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS
           valueFrom:
             configMapKeyRef:
