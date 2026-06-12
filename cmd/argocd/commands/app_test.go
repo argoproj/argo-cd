@@ -1739,6 +1739,13 @@ func TestCheckResourceStatus(t *testing.T) {
 		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
+	t.Run("Health check passes when resource has no health status", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    true,
+		}, "", string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		assert.True(t, res)
+	})
 	t.Run("Synced passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
