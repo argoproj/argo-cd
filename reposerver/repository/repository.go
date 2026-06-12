@@ -3659,6 +3659,15 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 
 		fileInfo, err := root.Stat(relativePath)
 		if err != nil {
+			if _, ok := errors.AsType[*fs.PathError](err); ok {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               repo.Repo,
+					"digest":             digest,
+					"path":               relativePath,
+				}).Warnf("skipping OCI file that does not resolve within the artifact root: %v", err)
+				continue
+			}
 			return nil, status.Errorf(codes.Internal, "unable to stat file %s: %v", filePath, err)
 		}
 		if fileInfo.IsDir() {
