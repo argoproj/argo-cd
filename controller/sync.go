@@ -240,19 +240,18 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		clientSideApplyManager = managerValue
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(destCluster)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
-		return
-	}
-
 	reconciliationResult := compareResult.reconciliationResult
 
 	// if RespectIgnoreDifferences is enabled, it should normalize the target
 	// resources which in this case applies the live values in the configured
 	// ignore differences fields.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
+		openAPISchema, err := m.getOpenAPISchema(destCluster)
+		if err != nil {
+			state.Phase = common.OperationError
+			state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
+			return
+		}
 		patchedTargets, err := normalizeTargetResources(openAPISchema, compareResult)
 		if err != nil {
 			state.Phase = common.OperationError
