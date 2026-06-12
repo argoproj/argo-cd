@@ -871,7 +871,6 @@ const (
 	ApplicationSetReasonErrorOccurred                    = "ErrorOccurred"
 	ApplicationSetReasonApplicationSetUpToDate           = "ApplicationSetUpToDate"
 	ApplicationSetReasonParametersGenerated              = "ParametersGenerated"
-	ApplicationSetReasonApplicationGenerated             = "ApplicationGeneratedSuccessfully"
 	ApplicationSetReasonUpdateApplicationError           = "UpdateApplicationError"
 	ApplicationSetReasonApplicationParamsGenerationError = "ApplicationGenerationFromParamsError"
 	ApplicationSetReasonRenderTemplateParamsError        = "RenderTemplateParamsError"
@@ -881,7 +880,8 @@ const (
 	ApplicationSetReasonApplicationValidationError       = "ApplicationValidationError"
 	ApplicationSetReasonApplicationSetModified           = "ApplicationSetModified"
 	ApplicationSetReasonApplicationSetRolloutComplete    = "ApplicationSetRolloutComplete"
-	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
+	ApplicationSetReasonApplicationSetRolloutError       = "ApplicationSetRolloutError"
+	ApplicationSetReasonInvalidRolloutConfig             = "ApplicationSetInvalidRolloutConfig"
 )
 
 // Represents resource health status
