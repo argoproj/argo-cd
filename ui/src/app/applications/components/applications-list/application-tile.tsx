@@ -21,9 +21,10 @@ export interface ApplicationTileProps {
     syncApplication: (appName: string, appNamespace: string) => void;
     refreshApplication: (appName: string, appNamespace: string) => void;
     deleteApplication: (appName: string, appNamespace: string) => void;
+    showDiff: (app: models.Application) => void;
 }
 
-export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication}: ApplicationTileProps) => {
+export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication, showDiff}: ApplicationTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
 
@@ -261,6 +262,22 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 <i className='fa fa-sync' /> Sync
                             </a>
                             &nbsp;
+                            {app.status.sync.status !== models.SyncStatuses.Synced && (
+                                <>
+                                    <Tooltip className='custom-tooltip' content={'Diff'}>
+                                        <a
+                                            className='argo-button argo-button--base'
+                                            qe-id='applications-tiles-button-diff'
+                                            onClick={e => {
+                                                e.stopPropagation();
+                                                showDiff(app);
+                                            }}>
+                                            <i className='fa fa-file-medical' /> <span className='show-for-xxlarge'>Diff</span>
+                                        </a>
+                                    </Tooltip>
+                                    &nbsp;
+                                </>
+                            )}
                             <Tooltip className='custom-tooltip' content={'Refresh'}>
                                 <a
                                     className='argo-button argo-button--base'
