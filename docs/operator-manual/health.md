@@ -155,6 +155,22 @@ The custom health check might return one of the following health statuses:
 
 By default, health typically returns a `Progressing` status.
 
+### Terminating resources
+
+When a resource is being deleted, Kubernetes sets `metadata.deletionTimestamp`. Health checks should handle
+this explicitly near the top of the script so operators see meaningful deletion progress (for example, which
+finalizers remain and what they protect).
+
+Bundled Argo CD health checks include a default deletion branch that reports `Progressing` with message
+`Pending deletion`, listing any remaining finalizers when present. You can customize this block in contributed
+checks—for example, mapping well-known finalizers to short explanations of who clears them.
+
+Resources with no health check still report `Progressing` / `Pending deletion` via a built-in default.
+
+If you use custom Lua health checks configured in `argocd-cm`, add a deletion branch if your script otherwise
+evaluates only `status` fields. See the [v3.5 to 3.6 upgrade guide](upgrading/3.5-3.6.md) for an example snippet
+and CLI commands to simulate behavior before and after upgrading.
+
 > [!NOTE]
 > As a security measure, access to the standard Lua libraries will be disabled by default.
 > Admins can control access by setting `resource.customizations.useOpenLibs.<group>_<kind>`.

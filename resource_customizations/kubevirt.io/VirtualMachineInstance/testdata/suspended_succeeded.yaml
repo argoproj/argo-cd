@@ -5,10 +5,6 @@ metadata:
     kubevirt.io/latest-observed-api-version: v1
     kubevirt.io/storage-observed-api-version: v1alpha3
   creationTimestamp: "2021-09-14T22:27:08Z"
-  deletionGracePeriodSeconds: 0
-  deletionTimestamp: "2021-09-14T23:07:57Z"
-  finalizers:
-  - foregroundDeleteVirtualMachine
   generation: 11
   labels:
     kubevirt.io/domain: testvm

@@ -1,45 +1,62 @@
-tests:
-- healthStatus:
-    status: Progressing
+Tests:
+- HealthStatus:
     message: Initializing change transfer policy
-  inputPath: testdata/no-status.yaml
-- healthStatus:
     status: Progressing
-    message: "Change transfer policy is being deleted. changetransferpolicy.promoter.argoproj.io/finalizer: Waiting to clear related PullRequest finalizers and finish cleanup before this policy is removed. Risk if removed manually: The 'changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer' finalizer may not be cleaned up from PullRequests owned by this ChangeTransferPolicy."
-  inputPath: testdata/deleting.yaml
-- healthStatus:
+  InputPath: testdata/no-status.yaml
+- HealthStatus:
+    message: 'Change transfer policy is being deleted. changetransferpolicy.promoter.argoproj.io/finalizer:
+      Waiting to clear related PullRequest finalizers and finish cleanup before this
+      policy is removed. Risk if removed manually: The ''changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer''
+      finalizer may not be cleaned up from PullRequests owned by this ChangeTransferPolicy.'
     status: Progressing
+  InputPath: testdata/deleting.yaml
+- HealthStatus:
     message: Waiting for change transfer policy spec update to be observed
-  inputPath: testdata/observed-generation-outdated.yaml
-- healthStatus:
-    status: Degraded
-    message: "Change transfer policy reconciliation failed: Something went wrong"
-  inputPath: testdata/reconcile-error.yaml
-- healthStatus:
     status: Progressing
+  InputPath: testdata/observed-generation-outdated.yaml
+- HealthStatus:
+    message: 'Change transfer policy reconciliation failed: Something went wrong'
+    status: Degraded
+  InputPath: testdata/reconcile-error.yaml
+- HealthStatus:
     message: Change transfer policy is not ready yet
-  inputPath: testdata/no-ready-condition.yaml
-- healthStatus:
     status: Progressing
+  InputPath: testdata/no-ready-condition.yaml
+- HealthStatus:
     message: The active commit DRY SHA is missing or empty.
-  inputPath: testdata/active-dry-sha-missing.yaml
-- healthStatus:
     status: Progressing
+  InputPath: testdata/active-dry-sha-missing.yaml
+- HealthStatus:
     message: The proposed commit DRY SHA is missing or empty.
-  inputPath: testdata/proposed-dry-sha-missing.yaml
-- healthStatus:
     status: Progressing
-    message: "Promotion in progress from 'abc1234' to 'def5678': 1 pending, 0 successful, 1 failed. Pending commit statuses: test-pending. Failed commit statuses: test-failed. "
-  inputPath: testdata/progressing-failed-pending.yaml
-- healthStatus:
+  InputPath: testdata/proposed-dry-sha-missing.yaml
+- HealthStatus:
+    message: 'Promotion in progress from ''abc1234'' to ''def5678'': 1 pending, 0
+      successful, 1 failed. Pending commit statuses: test-pending. Failed commit statuses:
+      test-failed. '
+    status: Progressing
+  InputPath: testdata/progressing-failed-pending.yaml
+- HealthStatus:
+    message: Environment is up-to-date on commit abc1234.
     status: Healthy
-    message: "Environment is up-to-date on commit abc1234."
-  inputPath: testdata/all-healthy.yaml
-- healthStatus:
+  InputPath: testdata/all-healthy.yaml
+- HealthStatus:
+    message: 'Environment is up-to-date, but there are non-successful active commit
+      statuses: 1 pending, 0 successful, 0 failed. Pending commit statuses: argocd-health. '
     status: Healthy
-    message: "Environment is up-to-date, but there are non-successful active commit statuses: 1 pending, 0 successful, 0 failed. Pending commit statuses: argocd-health. "
-  inputPath: testdata/non-successful-environments.yaml
-- healthStatus:
+  InputPath: testdata/non-successful-environments.yaml
+- HealthStatus:
+    message: 'Change transfer policy reconciliation failed (PullRequestNotReady):
+      PullRequest "deployment-environments-qal-usw2-next-environments-qal-usw2-7a8e7b70"
+      is not Ready because "ReconciliationError": Reconciliation failed: failed to
+      merge pull request: failed to merge pull request: failed to merge pull request:
+      PUT https://github.example.com/api/v3/repos/org/deployment/pulls/3/merge: 405
+      At least 2 approving reviews are required by reviewers with write access. Required
+      status check "continuous-integration/jenkins/pr-head" is expected. You''re not
+      authorized to push to this branch.'
     status: Degraded
-    message: "Change transfer policy reconciliation failed (PullRequestNotReady): PullRequest \"deployment-environments-qal-usw2-next-environments-qal-usw2-7a8e7b70\" is not Ready because \"ReconciliationError\": Reconciliation failed: failed to merge pull request: failed to merge pull request: failed to merge pull request: PUT https://github.example.com/api/v3/repos/org/deployment/pulls/3/merge: 405 At least 2 approving reviews are required by reviewers with write access. Required status check \"continuous-integration/jenkins/pr-head\" is expected. You're not authorized to push to this branch."
-  inputPath: testdata/missing-sha-and-not-ready.yaml
+  InputPath: testdata/missing-sha-and-not-ready.yaml
+- HealthStatus:
+    message: Change transfer policy is being deleted.
+    status: Progressing
+  InputPath: testdata/terminating.yaml

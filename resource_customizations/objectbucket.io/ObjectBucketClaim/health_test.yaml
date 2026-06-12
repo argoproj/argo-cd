@@ -11,3 +11,7 @@ tests:
     status: Degraded
     message: "Object bucket claim phase is Failed"
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

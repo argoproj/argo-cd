@@ -11,3 +11,7 @@ tests:
       status: Degraded
       message: 'Connector has failed tasks'
     inputPath: testdata/connector-task-failure.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

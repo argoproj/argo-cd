@@ -19,3 +19,7 @@ tests:
       status: Progressing
       message: ApplicationSet is performing rollout of step 1
     inputPath: testdata/progressiveSyncApplicationSet.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

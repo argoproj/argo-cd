@@ -14,4 +14,8 @@ tests:
 - healthStatus:
     status: Progressing
     message: "Waiting for status to be available"
-  inputPath: testdata/no-status.yaml 
+  inputPath: testdata/no-status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

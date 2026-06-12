@@ -14,3 +14,7 @@ tests:
 
       - grafana-operator/grafana: Get "https://dashboards.grafana.com/api/search?limit=1000&page=1&type=dash-db": net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

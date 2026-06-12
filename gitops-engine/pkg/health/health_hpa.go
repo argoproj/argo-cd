@@ -25,6 +25,9 @@ type hpaCondition struct {
 }
 
 func getHPAHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
+	if h := pendingDeletionHealth(obj); h != nil {
+		return h, nil
+	}
 	gvk := obj.GroupVersionKind()
 	failedConversionMsg := "failed to convert unstructured HPA to typed: %v"
 

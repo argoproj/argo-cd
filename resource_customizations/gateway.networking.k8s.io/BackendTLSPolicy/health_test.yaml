@@ -19,3 +19,7 @@ tests:
     status: Progressing
     message: "Waiting for Ancestor example-gateway to update BackendTLSPolicy status"
   inputPath: testdata/progressing_observed_generation.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

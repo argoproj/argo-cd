@@ -7,3 +7,7 @@ tests:
     status: Healthy
     message: "Policy is ready"
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

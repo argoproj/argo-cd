@@ -19,3 +19,7 @@ tests:
     status: "Suspended"
     message: "VMI was paused by user"
   inputPath: testdata/suspended_paused.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

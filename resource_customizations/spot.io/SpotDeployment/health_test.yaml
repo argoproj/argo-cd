@@ -10,3 +10,7 @@ tests:
     status: Degraded
     message: "The Rollout \"basic\" is invalid: spec.strategy.strategy: Required value: Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'"
   inputPath: testdata/invalid_spec_spotdeployment.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

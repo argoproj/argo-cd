@@ -15,3 +15,7 @@ tests:
       status: Unknown
       message: "Component state: Unknown"
     inputPath: testdata/unknown.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

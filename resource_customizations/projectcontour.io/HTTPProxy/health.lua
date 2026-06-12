@@ -1,3 +1,15 @@
+-- Surface deletion progress while the resource is terminating. You can customize this
+-- block, e.g. map known finalizers in obj.metadata.finalizers to clearer messages.
+if obj.metadata ~= nil and obj.metadata.deletionTimestamp ~= nil then
+  local deletionHs = {}
+  deletionHs.status = "Progressing"
+  deletionHs.message = "Pending deletion"
+  if obj.metadata.finalizers ~= nil and #obj.metadata.finalizers > 0 then
+    deletionHs.message = "Pending deletion; blocked by finalizers: " .. table.concat(obj.metadata.finalizers, ", ")
+  end
+  return deletionHs
+end
+
 -- Status reporting information detailed here
 -- https://projectcontour.io/docs/main/config/fundamentals/#status-reporting
 -- More HTTPProxy status conditions api information here: https://projectcontour.io/docs/v1.9.0/api/#projectcontour.io/v1.HTTPProxyStatus
