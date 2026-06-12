@@ -2279,6 +2279,12 @@ spec:
               key: server.glob.cache.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS
+          valueFrom:
+            configMapKeyRef:
+              key: server.webhook.refresh.workers
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
           valueFrom:
             configMapKeyRef:
@@ -2503,6 +2509,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.operation.processors
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.hydration.processors
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT

@@ -7,6 +7,7 @@ import (
 )
 
 func TestIsExcludedResource(t *testing.T) {
+	t.Parallel()
 	settings := &ResourcesFilter{}
 	assert.True(t, settings.IsExcludedResource("events.k8s.io", "", ""))
 	assert.True(t, settings.IsExcludedResource("metrics.k8s.io", "", ""))
@@ -14,6 +15,7 @@ func TestIsExcludedResource(t *testing.T) {
 }
 
 func TestResourceInclusions(t *testing.T) {
+	t.Parallel()
 	filter := ResourcesFilter{
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}}},
 	}
@@ -23,6 +25,7 @@ func TestResourceInclusions(t *testing.T) {
 }
 
 func TestResourceInclusionsExclusionNonMutex(t *testing.T) {
+	t.Parallel()
 	filter := ResourcesFilter{
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}}},
 		ResourceExclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Kinds: []string{"blacklisted-kind"}}},
@@ -51,6 +54,7 @@ func TestResourceInclusionsExclusionNonMutex(t *testing.T) {
 }
 
 func TestResourceInclusionsExclusionMultiCluster(t *testing.T) {
+	t.Parallel()
 	filter := ResourcesFilter{
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Clusters: []string{"cluster-one"}}},
 		ResourceExclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Clusters: []string{"cluster-two"}}},
