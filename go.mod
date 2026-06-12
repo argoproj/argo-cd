@@ -26,7 +26,7 @@ require (
 	github.com/aws/smithy-go v1.27.2
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
-	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/casbin/casbin/v2 v2.135.0
 	github.com/casbin/govaluate v1.10.0
 	github.com/cenkalti/backoff/v5 v5.0.3
@@ -215,7 +215,6 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
-	github.com/google/go-github/v84 v84.0.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
@@ -322,7 +321,10 @@ require (
 	k8s.io/streaming v0.36.1
 )
 
-require github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+require (
+	github.com/google/go-github/v88 v88.0.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+)
 
 replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
