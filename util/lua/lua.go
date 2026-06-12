@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -128,6 +127,33 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	return l, err
 }
 
+// parseHealthStatusFromLuaTable reads a health script return value from a Lua table.
+// Health scripts return a small fixed-shape object ({status, message}). The first key's
+// type mirrors how gopher-json classifies the table when encoded to JSON: nil (empty) or
+// number (array) become a JSON array, which decodes to an empty HealthStatus; a string key
+// is an object with status and message fields.
+func parseHealthStatusFromLuaTable(tbl *lua.LTable) (*health.HealthStatus, error) {
+	firstKey, _ := tbl.Next(lua.LNil)
+	switch firstKey.Type() {
+	case lua.LTNil, lua.LTNumber:
+		return &health.HealthStatus{}, nil
+	case lua.LTString:
+		healthStatus := &health.HealthStatus{
+			Status:  health.HealthStatusCode(lua.LVAsString(tbl.RawGetString("status"))),
+			Message: lua.LVAsString(tbl.RawGetString("message")),
+		}
+		if !isValidHealthStatusCode(healthStatus.Status) {
+			return &health.HealthStatus{
+				Status:  health.HealthStatusUnknown,
+				Message: invalidHealthStatus,
+			}, nil
+		}
+		return healthStatus, nil
+	default:
+		return nil, fmt.Errorf(incorrectReturnType, "table", firstKey.Type().String())
+	}
+}
+
 // ExecuteHealthLua runs the lua script to generate the health status of a resource
 func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*health.HealthStatus, error) {
 	l, err := vm.runLua(obj, script)
@@ -136,28 +162,7 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
-		jsonBytes, err := luajson.Encode(returnValue)
-		if err != nil {
-			return nil, err
-		}
-		healthStatus := &health.HealthStatus{}
-		err = json.Unmarshal(jsonBytes, healthStatus)
-		if err != nil {
-			// Validate if the error is caused by an empty object
-			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeFor[*health.HealthStatus]()}
-			if errors.As(err, &typeError) {
-				return &health.HealthStatus{}, nil
-			}
-			return nil, err
-		}
-		if !isValidHealthStatusCode(healthStatus.Status) {
-			return &health.HealthStatus{
-				Status:  health.HealthStatusUnknown,
-				Message: invalidHealthStatus,
-			}, nil
-		}
-
-		return healthStatus, nil
+		return parseHealthStatusFromLuaTable(returnValue.(*lua.LTable))
 	} else if returnValue.Type() == lua.LTNil {
 		return &health.HealthStatus{}, nil
 	}
