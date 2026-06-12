@@ -2,7 +2,7 @@ import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
 import {Cluster} from '../../../shared/components';
-import {ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
@@ -11,6 +11,7 @@ import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedBy
 import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
+import {CellLink} from './cell-link';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 
@@ -25,12 +26,16 @@ export interface ApplicationTableRowProps {
 }
 
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = app.status.health.status;
     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const source = getAppDefaultSource(app);
     const managedByURL = getManagedByURL(app);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+
+    const view = pref.appDetails.view;
+    const appLink = AppUtils.getAppListLink(ctx, app, view);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -59,15 +64,23 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+            ctx.navigation.goto(appLink.path, {view});
         }
     };
 
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div
-                className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
-                onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
+            <div className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}>
+                {/* The overlay anchor is the row's accessible link: a real link in tab order with an
+                    aria-label so screen readers announce the application name once per row. It sits
+                    behind the row's interactive children (lifted via z-index in the SCSS) so the
+                    visible buttons, dropdowns, status icons, etc. still receive their own clicks. */}
+                <a
+                    className='applications-list__table-row__overlay-link'
+                    href={appLink.href}
+                    onClick={appLink.onClick}
+                    aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                />
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
                     <div className='row'>
@@ -109,7 +122,9 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                         </Moment>
                                     </>
                                 }>
-                                <span>{app.metadata.name}</span>
+                                <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
+                                    {app.metadata.name}
+                                </a>
                             </Tooltip>
                             <button
                                 type='button'
@@ -123,38 +138,47 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     </div>
                 </div>
 
-                {/* Second column: Source and Destination */}
+                {/* Second column: Source and Destination — wrapped in CellLink so each cell
+                    behaves as a real link (middle-click / right-click / status-bar URL preview).
+                    Keyboard users tab to the overlay anchor instead (CellLink uses tabIndex=-1). */}
                 <div className='columns small-6'>
                     <div className='row'>
                         <div className='show-for-xxlarge columns small-2'>Source:</div>
                         <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
-                            <div className='applications-table-source__link'>
+                            <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>
                                 <ApplicationsSource source={source} />
-                            </div>
-                            <div className='applications-table-source__labels'>
+                            </CellLink>
+                            <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__labels'>
                                 <ApplicationsLabels app={app} />
-                            </div>
+                            </CellLink>
                         </div>
                     </div>
                     <div className='row'>
                         <div className='show-for-xxlarge columns small-2'>Destination:</div>
                         <div className='columns small-12 xxlarge-10'>
-                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                            <CellLink href={appLink.href} onClick={appLink.onClick}>
+                                <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                            </CellLink>
                         </div>
                     </div>
                 </div>
 
                 {/* Third column: Status and Actions */}
                 <div className='columns small-2'>
-                    <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                    {app.status.sourceHydrator?.currentOperation && (
-                        <>
-                            <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
-                            <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
-                        </>
-                    )}
-                    <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                    <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                    {/* Status text/icons wrapped in CellLink so clicking the cell navigates (the icons
+                        carry a `title` and would otherwise sit above the overlay as click dead-zones).
+                        The `…` DropDownMenu below stays OUTSIDE — a <button> nested in an <a> is invalid. */}
+                    <CellLink href={appLink.href} onClick={appLink.onClick}>
+                        <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                        {app.status.sourceHydrator?.currentOperation && (
+                            <>
+                                <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                            </>
+                        )}
+                        <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
+                        <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                    </CellLink>
                     <DropDownMenu
                         anchor={() => (
                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
