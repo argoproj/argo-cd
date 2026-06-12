@@ -39,6 +39,7 @@ type WebhookHandler struct {
 	github         *github.Webhook
 	gitlab         *gitlab.Webhook
 	azuredevops    *azuredevops.Webhook
+	ghcr           *webhook.GHCRParser
 	client         client.Client
 	generators     map[string]generators.Generator
 	queue          chan any
@@ -72,6 +73,11 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
+type ociGeneratorInfo struct {
+	RegistryURL string
+	Tag         string
+}
+
 func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
@@ -95,6 +101,7 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 		github:      githubHandler,
 		gitlab:      gitlabHandler,
 		azuredevops: azuredevopsHandler,
+		ghcr:        webhook.NewGHCRParser(argocdSettings.GetWebhookGitHubSecret()),
 		client:      client,
 		generators:  generators,
 		queue:       make(chan any, payloadQueueSize),
@@ -123,7 +130,8 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 func (h *WebhookHandler) HandleEvent(payload any) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
-	if gitGenInfo == nil && prGenInfo == nil {
+	ociGenInfo := getOciGeneratorInfo(payload)
+	if gitGenInfo == nil && prGenInfo == nil && ociGenInfo == nil {
 		return
 	}
 
@@ -141,8 +149,9 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(gen.Plugin) ||
-				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
+				shouldRefreshOciGenerator(gen.Oci, ociGenInfo) ||
+				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo, ociGenInfo) ||
+				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo, ociGenInfo)
 			if shouldRefresh {
 				break
 			}
@@ -163,6 +172,8 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	switch {
+	case h.ghcr.CanHandle(r):
+		payload, err = h.ghcr.Parse(r)
 	case r.Header.Get("X-GitHub-Event") != "":
 		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
@@ -182,6 +193,13 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusMethodNotAllowed
 		}
 		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
+		return
+	}
+
+	// Parser claimed the request but produced no payload (e.g. GHCR event that
+	// was intentionally skipped). Acknowledge with 200 and skip the queue.
+	if payload == nil {
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -286,6 +304,20 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 	return &info
 }
 
+func getOciGeneratorInfo(payload any) *ociGeneratorInfo {
+	event, ok := payload.(*webhook.RegistryEvent)
+	if ok && event != nil {
+		repoURL := event.OCIRepoURL()
+		normalized := webhook.NormalizeOCI(repoURL)
+		log.Infof("Received registry webhook event repo: %s, tag: %s", repoURL, event.Tag)
+		return &ociGeneratorInfo{
+			RegistryURL: normalized,
+			Tag:         event.Tag,
+		}
+	}
+	return nil
+}
+
 // githubAllowedPullRequestActions is a list of github actions that allow refresh
 var githubAllowedPullRequestActions = []string{
 	"opened",
@@ -329,6 +361,23 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 
 func shouldRefreshPluginGenerator(gen *v1alpha1.PluginGenerator) bool {
 	return gen != nil
+}
+
+func shouldRefreshOciGenerator(gen *v1alpha1.OciGenerator, info *ociGeneratorInfo) bool {
+	if gen == nil || info == nil {
+		return false
+	}
+
+	normalizedGenURL := webhook.NormalizeOCI(gen.RepoURL)
+	if normalizedGenURL != info.RegistryURL {
+		return false
+	}
+
+	if !webhook.CompareRevisions(info.Tag, gen.Revision) {
+		return false
+	}
+
+	return true
 }
 
 func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
@@ -413,7 +462,7 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	return false
 }
 
-func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo, ociGenInfo *ociGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
@@ -425,9 +474,10 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 
 	g0 := gen.Generators[0]
 
-	// Check first child generator for Git or Pull Request Generator
+	// Check first child generator for Git, Pull Request, or OCI Generator
 	if shouldRefreshGitGenerator(g0.Git, gitGenInfo) ||
-		shouldRefreshPRGenerator(g0.PullRequest, prGenInfo) {
+		shouldRefreshPRGenerator(g0.PullRequest, prGenInfo) ||
+		shouldRefreshOciGenerator(g0.Oci, ociGenInfo) {
 		return true
 	}
 
@@ -442,7 +492,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		}
 		if nestedMatrix != nil {
 			matrixGenerator0 = nestedMatrix.ToMatrixGenerator()
-			if h.shouldRefreshMatrixGenerator(matrixGenerator0, appSet, gitGenInfo, prGenInfo) {
+			if h.shouldRefreshMatrixGenerator(matrixGenerator0, appSet, gitGenInfo, prGenInfo, ociGenInfo) {
 				return true
 			}
 		}
@@ -459,7 +509,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		}
 		if nestedMerge != nil {
 			mergeGenerator0 = nestedMerge.ToMergeGenerator()
-			if h.shouldRefreshMergeGenerator(mergeGenerator0, appSet, gitGenInfo, prGenInfo) {
+			if h.shouldRefreshMergeGenerator(mergeGenerator0, appSet, gitGenInfo, prGenInfo, ociGenInfo) {
 				return true
 			}
 		}
@@ -474,6 +524,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		ClusterDecisionResource: g0.ClusterDecisionResource,
 		PullRequest:             g0.PullRequest,
 		Plugin:                  g0.Plugin,
+		Oci:                     g0.Oci,
 		Matrix:                  matrixGenerator0,
 		Merge:                   mergeGenerator0,
 	}
@@ -529,6 +580,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		ClusterDecisionResource: g1.ClusterDecisionResource,
 		PullRequest:             g1.PullRequest,
 		Plugin:                  g1.Plugin,
+		Oci:                     g1.Oci,
 		Matrix:                  matrixGenerator1,
 		Merge:                   mergeGenerator1,
 	}
@@ -547,8 +599,9 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 			if shouldRefreshGitGenerator(interpolatedGenerator.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(interpolatedGenerator.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(interpolatedGenerator.Plugin) ||
-				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
+				shouldRefreshOciGenerator(interpolatedGenerator.Oci, ociGenInfo) ||
+				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo, ociGenInfo) ||
+				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo, ociGenInfo) {
 				return true
 			}
 		}
@@ -558,19 +611,21 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	return shouldRefreshGitGenerator(requestedGenerator1.Git, gitGenInfo) ||
 		shouldRefreshPRGenerator(requestedGenerator1.PullRequest, prGenInfo) ||
 		shouldRefreshPluginGenerator(requestedGenerator1.Plugin) ||
-		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
-		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
+		shouldRefreshOciGenerator(requestedGenerator1.Oci, ociGenInfo) ||
+		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo, ociGenInfo) ||
+		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo, ociGenInfo)
 }
 
-func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo, ociGenInfo *ociGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
 
 	for _, g := range gen.Generators {
-		// Check Git or Pull Request generator
+		// Check Git, Pull Request, or OCI generator
 		if shouldRefreshGitGenerator(g.Git, gitGenInfo) ||
-			shouldRefreshPRGenerator(g.PullRequest, prGenInfo) {
+			shouldRefreshPRGenerator(g.PullRequest, prGenInfo) ||
+			shouldRefreshOciGenerator(g.Oci, ociGenInfo) {
 			return true
 		}
 
@@ -583,7 +638,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 				return false
 			}
 			if nestedMatrix != nil {
-				if h.shouldRefreshMatrixGenerator(nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo) {
+				if h.shouldRefreshMatrixGenerator(nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo, ociGenInfo) {
 					return true
 				}
 			}
@@ -598,7 +653,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 				return false
 			}
 			if nestedMerge != nil {
-				if h.shouldRefreshMergeGenerator(nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo) {
+				if h.shouldRefreshMergeGenerator(nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo, ociGenInfo) {
 					return true
 				}
 			}

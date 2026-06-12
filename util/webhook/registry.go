@@ -54,7 +54,7 @@ var ErrHMACVerificationFailed = errors.New("HMAC verification failed")
 // handler configuration.
 func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 	repoURL := event.OCIRepoURL()
-	normalizedRepoURL := normalizeOCI(repoURL)
+	normalizedRepoURL := NormalizeOCI(repoURL)
 	revision := event.Tag
 
 	log.WithFields(log.Fields{
@@ -88,14 +88,14 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 		}
 
 		for _, source := range sources {
-			if normalizeOCI(source.RepoURL) != normalizedRepoURL {
+			if NormalizeOCI(source.RepoURL) != normalizedRepoURL {
 				log.WithFields(log.Fields{
 					"sourceRepoURL": source.RepoURL,
 					"eventRepoURL":  repoURL,
 				}).Debug("Skipping app: OCI repository URLs do not match")
 				continue
 			}
-			if !compareRevisions(revision, source.TargetRevision) {
+			if !CompareRevisions(revision, source.TargetRevision) {
 				log.WithFields(log.Fields{
 					"revision":       revision,
 					"targetRevision": source.TargetRevision,
@@ -125,12 +125,12 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 	}
 }
 
-// normalizeOCI normalizes an OCI repository URL for comparison.
+// NormalizeOCI normalizes an OCI repository URL for comparison.
 //
 // It removes the oci:// prefix, converts to lowercase, and removes any
 // trailing slash to ensure consistent matching between webhook events
 // and Application source URLs.
-func normalizeOCI(url string) string {
+func NormalizeOCI(url string) string {
 	url = strings.TrimPrefix(url, "oci://")
 	url = strings.TrimSuffix(url, "/")
 	return strings.ToLower(url)
