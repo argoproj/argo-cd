@@ -86,6 +86,7 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectRemoveSourceNamespace(clientOpts))
 	command.AddCommand(NewProjectAddDestinationServiceAccountCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveDestinationServiceAccountCommand(clientOpts))
+	command.AddCommand(NewProjectSourceIntegrityCommand(clientOpts))
 	return command
 }
 
