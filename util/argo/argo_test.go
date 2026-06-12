@@ -755,6 +755,22 @@ func TestFilterByRepo(t *testing.T) {
 		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Empty(t, res)
 	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{RepoURL: "git@github.com:owner/first.git"},
+						{RepoURL: "git@github.com:owner/second.git"},
+					},
+				},
+			},
+		}
+		res := FilterByRepo(multiSourceApp, "git@github.com:owner/second.git")
+		assert.Len(t, res, 1)
+	})
 }
 
 func TestFilterByRepoP(t *testing.T) {
@@ -793,6 +809,22 @@ func TestFilterByRepoP(t *testing.T) {
 		res := FilterByRepoP(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Empty(t, res)
 	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []*argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{RepoURL: "git@github.com:owner/first.git"},
+						{RepoURL: "git@github.com:owner/second.git"},
+					},
+				},
+			},
+		}
+		res := FilterByRepoP(multiSourceApp, "git@github.com:owner/second.git")
+		assert.Len(t, res, 1)
+	})
 }
 
 func TestFilterByPath(t *testing.T) {
@@ -830,6 +862,22 @@ func TestFilterByPath(t *testing.T) {
 		t.Parallel()
 		res := FilterByPath(apps, "example/app/non-existent")
 		assert.Empty(t, res)
+	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{Path: "example/app/first"},
+						{Path: "example/app/second"},
+					},
+				},
+			},
+		}
+		res := FilterByPath(multiSourceApp, "example/app/second")
+		assert.Len(t, res, 1)
 	})
 }
 
