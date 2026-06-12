@@ -631,3 +631,11 @@ func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *
 	a.verifyAction()
 	return a
 }
+
+func (a *Actions) RefreshApp(appNames []string) *Actions {
+	a.context.T().Helper()
+	for _, appName := range appNames {
+		a.runCli("app", "get", appName, "--refresh")
+	}
+	return a
+}

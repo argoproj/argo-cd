@@ -69,8 +69,6 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
-	ReverseDeletionOrder              = "Reverse"
-	AllAtOnceDeletionOrder            = "AllAtOnce"
 	revisionAndSpecChangedMsg         = "Application has pending changes (revision and spec differ), setting status to Waiting"
 	revisionChangedMsg                = "Application has pending changes, setting status to Waiting"
 	specChangedMsg                    = "Application has pending changes (spec differs), setting status to Waiting"
@@ -109,6 +107,7 @@ type ApplicationSetReconciler struct {
 	ClusterInformer              *settings.ClusterInformer
 	ConcurrentApplicationUpdates int
 	ProgressiveSyncManager       *progressivesync.Manager
+	RefreshGracePeriodSeconds    int
 }
 
 var _ progressivesync.Dependencies = (*ApplicationSetReconciler)(nil)
@@ -255,7 +254,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
 		} else if progressivesync.IsRollingSyncStrategy(&applicationSetInfo) {
-			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
+			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
