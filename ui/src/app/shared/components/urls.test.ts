@@ -1,6 +1,6 @@
 import {repoUrl, revisionUrl} from './urls';
 
-function testExample(http: string, ssl: string, revision: string, expectedRepoUrl: string, expectedRevisionUrl: string) {
+function testExample(http: string, ssl: string, revision: string, expectedRepoUrl: string, expectedRevisionUrl: string, expectedRevisionForPathUrl: string) {
     expect(repoUrl(http)).toBe(expectedRepoUrl);
     expect(repoUrl(ssl)).toBe(expectedRepoUrl);
     expect(revisionUrl(http, revision)).toBe(expectedRevisionUrl);
@@ -8,6 +8,8 @@ function testExample(http: string, ssl: string, revision: string, expectedRepoUr
     expect(repoUrl(http)).toBe(expectedRepoUrl);
     expect(revisionUrl(http, revision)).toBe(expectedRevisionUrl);
     expect(revisionUrl(ssl, revision)).toBe(expectedRevisionUrl);
+    expect(revisionUrl(http, revision, true)).toBe(expectedRevisionForPathUrl);
+    expect(revisionUrl(ssl, revision, true)).toBe(expectedRevisionForPathUrl);
 }
 
 test('github.com', () => {
@@ -17,6 +19,7 @@ test('github.com', () => {
         '024dee09f543ce7bb5af7ca50260504d89dfda94',
         'https://github.com/argoproj/argo-cd',
         'https://github.com/argoproj/argo-cd/commit/024dee09f543ce7bb5af7ca50260504d89dfda94',
+        'https://github.com/argoproj/argo-cd/tree/024dee09f543ce7bb5af7ca50260504d89dfda94',
     );
 });
 
@@ -28,6 +31,7 @@ test('github.my-enterprise.com', () => {
         'a06f2be80a4da89abb8ced904beab75b3ec6db0e',
         'https://github.my-enterprise.com/my-org/my-repo',
         'https://github.my-enterprise.com/my-org/my-repo/commit/a06f2be80a4da89abb8ced904beab75b3ec6db0e',
+        'https://github.my-enterprise.com/my-org/my-repo/tree/a06f2be80a4da89abb8ced904beab75b3ec6db0e',
     );
 });
 
@@ -38,6 +42,7 @@ test('gitlab.com', () => {
         'b1fe9426ead684d7af16958920968342ee295c1f',
         'https://gitlab.com/alex_collins/private-repo',
         'https://gitlab.com/alex_collins/private-repo/-/commit/b1fe9426ead684d7af16958920968342ee295c1f',
+        'https://gitlab.com/alex_collins/private-repo/-/tree/b1fe9426ead684d7af16958920968342ee295c1f',
     );
 });
 
@@ -48,6 +53,7 @@ test('bitbucket.org', () => {
         '38fb93957deb45ff546af13399a92ac0d568c350',
         'https://bitbucket.org/alexcollinsinuit/test-repo',
         'https://bitbucket.org/alexcollinsinuit/test-repo/commits/38fb93957deb45ff546af13399a92ac0d568c350',
+        'https://bitbucket.org/alexcollinsinuit/test-repo/src/38fb93957deb45ff546af13399a92ac0d568c350',
     );
 });
 
