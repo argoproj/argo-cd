@@ -3,8 +3,6 @@ import {resourceIcons} from './resources';
 import {resourceIconGroups as resourceCustomizations} from './resource-customizations';
 import * as minimatch from 'minimatch';
 
-import './resource-icon.scss';
-
 const RESOURCE_ICON_WIDTH = '40px';
 const RESOURCE_ICON_HEIGHT = '32px';
 
