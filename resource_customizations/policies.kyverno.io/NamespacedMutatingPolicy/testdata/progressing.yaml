@@ -1,0 +1,6 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: NamespacedMutatingPolicy
+metadata:
+  name: sample-namespaced-mutating-policy
+  namespace: test-namespace
+spec: {}
