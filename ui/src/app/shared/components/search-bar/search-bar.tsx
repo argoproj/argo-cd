@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Autocomplete, AutocompleteApi} from 'argo-ui';
+import {Autocomplete} from 'argo-ui';
 import {Key, KeybindingContext} from 'argo-ui/v2';
 
 import './search-bar.scss';
@@ -22,7 +22,6 @@ interface SearchBarProps {
 export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholder = 'Search...', disableKeyboardShortcuts = false, autocomplete}) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const searchBarRef = React.useRef<HTMLDivElement>(null);
-    const autocompleteApiRef = React.useRef<AutocompleteApi | null>(null);
     const {useKeybinding} = React.useContext(KeybindingContext);
     const [isFocused, setFocus] = React.useState(false);
     const [localValue, setLocalValue] = React.useState(value);
@@ -31,39 +30,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
     React.useEffect(() => {
         setLocalValue(value);
     }, [value]);
-
-    // Refresh autocomplete dropdown position when layout changes
-    React.useEffect(() => {
-        if (!autocomplete) {
-            return;
-        }
-
-        const refreshPosition = () => {
-            autocompleteApiRef.current?.refresh();
-        };
-
-        let resizeObserver: ResizeObserver | null = null;
-        let cleanupRegistered = false;
-
-        // Use requestAnimationFrame to ensure Autocomplete wrapper is rendered
-        const rafId = requestAnimationFrame(() => {
-            const wrapper = searchBarRef.current?.closest('.search-bar__wrapper') as HTMLElement;
-            if (wrapper) {
-                resizeObserver = new ResizeObserver(refreshPosition);
-                resizeObserver.observe(wrapper);
-                window.addEventListener('resize', refreshPosition);
-                cleanupRegistered = true;
-            }
-        });
-
-        return () => {
-            cancelAnimationFrame(rafId);
-            if (cleanupRegistered) {
-                resizeObserver?.disconnect();
-                window.removeEventListener('resize', refreshPosition);
-            }
-        };
-    }, [autocomplete]);
 
     const handleChange = (newValue: string) => {
         setLocalValue(newValue);
@@ -118,20 +84,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
 
         return (
             <Autocomplete
-                autoCompleteRef={api => (autocompleteApiRef.current = api)}
                 filterSuggestions={autocomplete.filterSuggestions ?? true}
                 renderInput={inputProps => (
                     <div className='search-bar__input' ref={searchBarRef}>
                         <i className='fa fa-search' style={{marginRight: '9px', cursor: 'pointer'}} onClick={focusInput} />
                         <input
                             {...inputProps}
-                            ref={(node: HTMLInputElement | null) => {
-                                // Merge refs: set both our ref and Autocomplete's ref
-                                inputRef.current = node;
-                                if (typeof inputProps.ref === 'function') {
-                                    inputProps.ref(node);
-                                }
-                            }}
                             onFocus={e => {
                                 setFocus(true);
                                 e.target.select();

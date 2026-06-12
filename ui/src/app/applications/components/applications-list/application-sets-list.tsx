@@ -1,11 +1,11 @@
-import {Autocomplete, MockupList, Tooltip} from 'argo-ui';
+import {MockupList, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {DataLoader, EmptyState, Page, Paginate} from '../../../shared/components';
+import {DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, AppSetsListPreferences, HealthStatusBarPreferences, services, ViewPreferences} from '../../../shared/services';
@@ -138,86 +138,31 @@ function filterApplicationSets(
 }
 
 const ApplicationSetsSearchBar = (props: {content: string; ctx: ContextApis; appSets: models.ApplicationSet[]}) => {
-    const searchBar = React.useRef<HTMLDivElement>(null);
-    const {useKeybinding} = React.useContext(KeybindingContext);
-    const [isFocused, setFocus] = React.useState(false);
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    useKeybinding({
-        keys: Key.SLASH,
-        action: () => {
-            if (searchBar.current) {
-                searchBar.current.querySelector('input').focus();
-                setFocus(true);
-                return true;
-            }
-            return false;
-        }
-    });
-
-    useKeybinding({
-        keys: Key.ESCAPE,
-        action: () => {
-            if (searchBar.current && isFocused) {
-                searchBar.current.querySelector('input').blur();
-                setFocus(false);
-                return true;
-            }
-            return false;
-        }
-    });
-
     return (
-        <Autocomplete
-            filterSuggestions={true}
-            renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
-                    <i
-                        className='fa fa-search'
-                        style={{marginRight: '9px', cursor: 'pointer'}}
-                        onClick={() => {
-                            if (searchBar.current) {
-                                searchBar.current.querySelector('input').focus();
-                            }
-                        }}
-                    />
-                    <input
-                        {...inputProps}
-                        onFocus={e => {
-                            e.target.select();
-                            if (inputProps.onFocus) {
-                                inputProps.onFocus(e);
-                            }
-                        }}
-                        style={{fontSize: '14px'}}
-                        className='argo-field'
-                        placeholder='Search application sets...'
-                    />
-                    <div className='keyboard-hint'>/</div>
-                    {props.content && (
-                        <i className='fa fa-times' onClick={() => props.ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
-                    )}
-                </div>
-            )}
-            wrapperProps={{className: 'applications-list__search-wrapper'}}
-            renderItem={item => (
-                <React.Fragment>
-                    <i className='icon argo-icon-applicationset resource-icon__font-icon applications-list__search-resource-icon' />
-                    <span>{item.label}</span>
-                </React.Fragment>
-            )}
-            onSelect={val => {
-                const selectedAppSet = props.appSets?.find(appSet => {
-                    const qualifiedName = AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
-                    return qualifiedName === val;
-                });
-                if (selectedAppSet) {
-                    props.ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedAppSet)}`);
-                }
-            }}
-            onChange={e => props.ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+        <SearchBar
             value={props.content || ''}
-            items={props.appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
+            onChange={value => props.ctx.navigation.goto('.', {search: value}, {replace: true})}
+            placeholder='Search application sets...'
+            autocomplete={{
+                items: props.appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
+                filterSuggestions: true,
+                onSelect: val => {
+                    const selectedAppSet = props.appSets?.find(appSet => {
+                        const qualifiedName = AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
+                        return qualifiedName === val;
+                    });
+                    if (selectedAppSet) {
+                        props.ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedAppSet)}`);
+                    }
+                },
+                renderItem: item => (
+                    <React.Fragment>
+                        <i className='icon argo-icon-applicationset' /> {item.label}
+                    </React.Fragment>
+                )
+            }}
         />
     );
 };
