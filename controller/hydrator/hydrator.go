@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 // RepoGetter is an interface that defines methods for getting repository objects. It's a subset of the DB interface to
@@ -74,6 +75,9 @@ type Dependencies interface {
 	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
 	GetHydratorCommitMessageTemplate() (string, error)
 
+	// GetHydratorReadmeMessageTemplate gets the configured template for rendering README messages.
+	GetHydratorReadmeMessageTemplate() (string, error)
+
 	// GetCommitAuthorName gets the configured commit author name from argocd-cm ConfigMap.
 	GetCommitAuthorName() (string, error)
 
@@ -104,12 +108,19 @@ func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, 
 	}
 }
 
-// ProcessAppHydrateQueueItem processes an application hydrate queue item. It checks if the application needs hydration
-// and if so, it updates the application's status to indicate that hydration is in progress. It then adds the
-// hydration queue item to the queue for further processing.
+// ProcessAppHydrateQueueItem processes an application hydrate queue item. It checks whether the
+// application needs hydration and, if so, enqueues the deduped hydration key.
 //
-// It's likely that multiple applications will trigger hydration at the same time. The hydration queue key is meant to
-// dedupe these requests.
+// The per-app status update that marks the application as Hydrating is deliberately NOT done here.
+// It is performed by ProcessHydrationQueueItem, which gathers every application sharing the
+// hydration key and updates them together. Because the hydration workqueue dedups by key and never
+// hands the same key to two workers concurrently, ProcessHydrationQueueItem holds exclusive
+// ownership of the entire app group when it runs — there is no possibility of a worker observing a
+// partial view of the group, so the status update is safe under parallel hydration workers
+// (https://github.com/argoproj/argo-cd/issues/27926).
+//
+// It's likely that multiple applications will trigger hydration at the same time. The hydration
+// queue key is meant to dedupe these requests.
 func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	app := origApp.DeepCopy()
 	if app.Spec.SourceHydrator == nil {
@@ -126,19 +137,17 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
 		logCtx.WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
 	}
-	if needsHydration {
-		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
-			StartedAt:      metav1.Now(),
-			FinishedAt:     nil,
-			Phase:          appv1.HydrateOperationPhaseHydrating,
-			SourceHydrator: *app.Spec.SourceHydrator,
-		}
-	}
 
 	// Always persist to consume the hydrate annotation, even if hydration is not needed.
 	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 
-	needsRefresh := app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
+	// needsRefresh re-enqueues the hydration key for an app that was marked Hydrating on an earlier
+	// pass but whose StartedAt has aged past statusRefreshTimeout (typically because the hydration
+	// worker crashed or fell behind). CurrentOperation can be nil here for an app that has never
+	// been hydrated, so the nil guard is required now that we no longer set CurrentOperation above.
+	needsRefresh := app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating &&
+		metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
 	if needsHydration || needsRefresh {
 		logCtx.WithField("reason", reason).Info("Hydrating app")
 		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
@@ -161,9 +170,17 @@ func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 }
 
 // ProcessHydrationQueueItem processes a hydration queue item. It retrieves the relevant applications for the given
-// hydration key, hydrates their latest commit, and updates their status accordingly. If the hydration fails, it marks
-// the operation as failed and logs the error. If successful, it updates the operation to indicate that hydration was
-// successful and requests a refresh of the applications to pick up the new hydrated commit.
+// hydration key, marks every app in the group as Hydrating, generates and commits their manifests, and updates each
+// app's status accordingly. If the hydration fails, it marks the operation as failed and logs the error. If successful,
+// it updates the operation to indicate that hydration was successful and requests a refresh of the applications to pick
+// up the new hydrated commit.
+//
+// The hydration workqueue is a rate-limiting queue keyed by hydration key, which guarantees the same key is never
+// handed to two workers at once. So at the start of this function we hold exclusive ownership over the entire app
+// group sharing this key. That ownership is what makes the per-app status updates safe even when multiple hydration
+// workers are running in parallel (https://github.com/argoproj/argo-cd/issues/27926): there is no possibility of a
+// worker observing a partial view of the group, so we can mark every app Hydrating up front and keep their statuses in
+// lockstep with the single commit produced by hydrate().
 func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKey) {
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
@@ -183,20 +200,11 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	}
 	logCtx.WithField("appCount", len(apps))
 
-	// FIXME: we might end up in a race condition here where an HydrationQueueItem is processed
-	// before all applications had their CurrentOperation set by ProcessAppHydrateQueueItem.
-	// This would cause this method to update "old" CurrentOperation.
-	// It should only start hydration if all apps are in the HydrateOperationPhaseHydrating phase.
-	raceDetected := false
-	for _, app := range apps {
-		if app.Status.SourceHydrator.CurrentOperation == nil || app.Status.SourceHydrator.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrating {
-			raceDetected = true
-			break
-		}
-	}
-	if raceDetected {
-		logCtx.Warn("race condition detected: not all apps are in HydrateOperationPhaseHydrating phase")
-	}
+	// Atomically mark every app in this group as Hydrating before doing any work. The workqueue's
+	// per-key dedup means no other worker can be touching this group concurrently, so it is safe to
+	// do the status writes here rather than in ProcessAppHydrateQueueItem
+	// (https://github.com/argoproj/argo-cd/issues/27926).
+	h.markAppsHydrating(apps)
 
 	// validate all the applications to make sure they are all correctly configured.
 	// All applications sharing the same hydration key must succeed for the hydration to be processed.
@@ -234,7 +242,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		genericError := genericHydrationError(appErrors)
 		for _, app := range apps {
 			if drySHA != "" {
-				// If we have a drySHA, we can set it on the app status
+				// markAppsHydrating ran before hydrate(), so CurrentOperation is always populated here.
 				app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
 				app.Status.SourceHydrator.LastComparedDryRevision = drySHA
 			}
@@ -279,13 +287,39 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	}
 }
 
-// setAppHydratorError updates the CurrentOperation with the error information.
-func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
-	// if the operation is not in progress, we do not update the status
-	if app.Status.SourceHydrator.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrating {
-		return
+// markAppsHydrating stamps every app in the group with a Hydrating CurrentOperation and persists
+// the change. It is called from ProcessHydrationQueueItem, where the hydration workqueue's per-key
+// dedup gives the caller exclusive ownership of the app group — there is no possibility of another
+// worker mutating these apps' hydration phase concurrently
+// (https://github.com/argoproj/argo-cd/issues/27926).
+//
+// Apps already in the Hydrating phase are left alone. That happens on a needsRefresh re-entry
+// (statusRefreshTimeout elapsed while the previous attempt was in-flight) and also on the very
+// first re-entry for a brand-new run where ProcessAppHydrateQueueItem fires twice before the
+// hydration worker picks the key up. Preserving the original StartedAt keeps the operation's
+// elapsed time meaningful for observers, and avoids needlessly thrashing the persisted status.
+func (h *Hydrator) markAppsHydrating(apps []*appv1.Application) {
+	now := metav1.Now()
+	for _, app := range apps {
+		if app.Status.SourceHydrator.CurrentOperation != nil &&
+			app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating {
+			continue
+		}
+		origApp := app.DeepCopy()
+		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
+			StartedAt:      now,
+			FinishedAt:     nil,
+			Phase:          appv1.HydrateOperationPhaseHydrating,
+			SourceHydrator: *app.Spec.SourceHydrator,
+		}
+		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 	}
+}
 
+// setAppHydratorError updates the CurrentOperation with the error information. It is only called
+// from ProcessHydrationQueueItem after markAppsHydrating has ensured every app has a Hydrating
+// CurrentOperation, so no nil guard is needed here.
+func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	origApp := app.DeepCopy()
 	app.Status.SourceHydrator.CurrentOperation.Phase = appv1.HydrateOperationPhaseFailed
 	failedAt := metav1.Now()
@@ -414,7 +448,10 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 
 	for _, app := range apps[1:] {
 		eg.Go(func() error {
-			_, pathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
+			// Use goroutine-local variables here. Assigning to the function-scoped pathDetails/err
+			// from multiple errgroup goroutines is a data race (and can append the wrong path under
+			// the mutex). See https://github.com/argoproj/argo-cd/issues/27926.
+			_, pathDetails, err := h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
@@ -466,6 +503,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}
 
+	// get the readme message template
+	readmeTemplate, err := h.dependencies.GetHydratorReadmeMessageTemplate()
+	if err != nil {
+		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
+	}
+
 	// get commit author configuration from argocd-cm
 	authorName, err := h.dependencies.GetCommitAuthorName()
 	if err != nil {
@@ -484,6 +527,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		CommitMessage:     commitMessage,
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
+		ReadmeMessage:     readmeTemplate,
 		AuthorName:        authorName,
 		AuthorEmail:       authorEmail,
 	}
@@ -510,10 +554,18 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 		targetRevision = drySource.TargetRevision
 	}
 
-	// TODO: enable signature verification
 	objs, resp, err := h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
+	}
+
+	if si := project.EffectiveSourceIntegrity(); sourceintegrity.HasCriteria(si, drySource) {
+		if resp.SourceIntegrityResult == nil {
+			return "", nil, fmt.Errorf("source integrity verification required but not performed for app %q dry revision %q", app.QualifiedName(), resp.Revision)
+		}
+		if err := resp.SourceIntegrityResult.AsError(); err != nil {
+			return "", nil, fmt.Errorf("source integrity verification failed for app %q dry revision %q: %w", app.QualifiedName(), resp.Revision, err)
+		}
 	}
 
 	// Set up a ManifestsRequest

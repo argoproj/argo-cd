@@ -21,6 +21,7 @@ import (
 )
 
 func TestUserAgent(t *testing.T) {
+	t.Parallel()
 	// !race:
 	// A data race in go-client's `shared_informer.go`, between `sharedProcessor.run(...)` and itself. Based on
 	// the data race, it APPEARS to be intentional, but in any case it's nothing we are doing in Argo CD

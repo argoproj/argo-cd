@@ -429,7 +429,24 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			lookupPatchMeta = &meta
 		}
 
-		livePatch, err := getMergePatch(normalized.Lives[idx], live, lookupPatchMeta)
+		// RespectIgnoreDifferences preserves ignored fields by copying their live
+		// values into the target that is applied during sync. `status` must be
+		// excluded from that copy: it is owned by the resource's own controller,
+		// never by the sync. Merging live `status` into the apply makes the sync
+		// field manager (ArgoCDSSAManager, "argocd-controller") a co-owner of
+		// `status` under server-side apply. For resources without a /status
+		// subresource (e.g. argoproj.io/Application) this freezes a stale
+		// status.operationState.phase that the controller can no longer correct.
+		liveForPatch, normalizedLiveForPatch := live, normalized.Lives[idx]
+		liveForPatch = liveForPatch.DeepCopy()
+		unstructured.RemoveNestedField(liveForPatch.Object, "status")
+
+		if normalizedLiveForPatch != nil {
+			normalizedLiveForPatch = normalizedLiveForPatch.DeepCopy()
+			unstructured.RemoveNestedField(normalizedLiveForPatch.Object, "status")
+		}
+
+		livePatch, err := getMergePatch(normalizedLiveForPatch, liveForPatch, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}

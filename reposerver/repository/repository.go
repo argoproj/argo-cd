@@ -360,7 +360,7 @@ func (s *Service) runRepoOperation(
 	case source.IsHelm():
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 	default:
-		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts)
+		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts, git.WithTagPrefix(source.TagPrefix))
 	}
 
 	if err != nil {
@@ -1140,6 +1140,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				repo.TLSClientCertData = repositoryCredential.TLSClientCertData
 				repo.TLSClientCertKey = repositoryCredential.TLSClientCertKey
 				repo.UseAzureWorkloadIdentity = repositoryCredential.UseAzureWorkloadIdentity
+				repo.InsecureOCIForceHttp = repositoryCredential.InsecureOCIForceHttp
 			} else if repo.EnableOCI {
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
@@ -1154,12 +1155,13 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 						repo.Password = cred.Password
 						repo.UseAzureWorkloadIdentity = cred.UseAzureWorkloadIdentity
 						repo.EnableOCI = true
+						repo.InsecureOCIForceHttp = cred.InsecureOCIForceHttp
 						break
 					}
 				}
 			}
 		}
-		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
+		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI || repo.Type == "oci", InsecureOCIForceHttp: repo.InsecureOCIForceHttp})
 	}
 	return repos, nil
 }
@@ -2879,7 +2881,11 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
+	opts := []helm.ClientOpts{helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)}
+	if repo.InsecureOCIForceHttp {
+		opts = append(opts, helm.WithPlainHTTP())
+	}
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, opts...)
 
 	// Note: This check runs the risk of returning a version which is not found in the helm registry.
 	if versions.IsVersion(revision) {
@@ -2905,7 +2911,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 		tags = entries.Tags()
 	}
 
-	maxV, err := versions.MaxVersion(revision, tags)
+	maxV, err := versions.MaxVersion(revision, tags, "")
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision: %w", err)
 	}
@@ -3084,7 +3090,11 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				if !helm.IsHelmOciRepo(repo.Repo) {
 					return errors.New("OCI Helm repository URL should include hostname and port only")
 				}
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).TestHelmOCI()
+				clientOpts := []helm.ClientOpts{}
+				if repo.InsecureOCIForceHttp {
+					clientOpts = append(clientOpts, helm.WithPlainHTTP())
+				}
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).TestHelmOCI()
 				return err
 			}
 			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
@@ -3131,7 +3141,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	}
-	_, revision, err := s.newClientResolveRevision(repo, ambiguousRevision, git.WithCache(s.cache, !q.NoRevisionCache))
+	_, revision, err := s.newClientResolveRevision(repo, ambiguousRevision, git.WithCache(s.cache, !q.NoRevisionCache), git.WithTagPrefix(source.TagPrefix))
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}

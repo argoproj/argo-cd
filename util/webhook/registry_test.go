@@ -21,6 +21,7 @@ import (
 )
 
 func TestNormalizeOCI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		url      string
@@ -35,6 +36,7 @@ func TestNormalizeOCI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := normalizeOCI(tt.url)
 			assert.Equal(t, tt.expected, got)
 		})
@@ -42,6 +44,7 @@ func TestNormalizeOCI(t *testing.T) {
 }
 
 func TestGHCRHandlerCanHandle(t *testing.T) {
+	t.Parallel()
 	h := newGHCRParser("")
 
 	tests := []struct {
@@ -57,6 +60,7 @@ func TestGHCRHandlerCanHandle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 			req.Header.Set("X-GitHub-Event", tt.event)
 			assert.Equal(t, tt.expected, h.CanHandle(req))
@@ -75,8 +79,7 @@ func TestRegistryPackageEvent(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assertLogContains(t, hook, "Received registry webhook event")
@@ -189,6 +192,7 @@ func TestHandleRegistryEvent_RevisionMismatch(t *testing.T) {
 }
 
 func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {
+	t.Parallel()
 	patched := []string{}
 
 	reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
