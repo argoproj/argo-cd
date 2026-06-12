@@ -831,6 +831,112 @@ func TestFilterByPath(t *testing.T) {
 		res := FilterByPath(apps, "example/app/non-existent")
 		assert.Empty(t, res)
 	})
+
+	t.Run("Multi-source app with matching source", func(t *testing.T) {
+		multiSource := []argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{Path: "apps/frontend"},
+						{Path: "apps/backend"},
+					},
+				},
+			},
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{Path: "apps/infra"},
+					},
+				},
+			},
+		}
+		res := FilterByPath(multiSource, "apps/backend")
+		assert.Len(t, res, 1)
+	})
+}
+
+func TestFilterByFiles(t *testing.T) {
+	appWithPath := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{
+				Path: "apps/myapp",
+			},
+		},
+	}
+	appWithAnnotation := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				argoappv1.AnnotationKeyManifestGeneratePaths: ".",
+			},
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{
+				Path: "apps/annotated",
+			},
+		},
+	}
+	appUnrelated := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{
+				Path: "apps/other",
+			},
+		},
+	}
+	appHelmChart := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{
+				RepoURL: "https://charts.example.com",
+				Chart:   "my-chart",
+			},
+		},
+	}
+	appMultiSource := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Sources: argoappv1.ApplicationSources{
+				{Path: "apps/frontend"},
+				{Path: "apps/backend"},
+			},
+		},
+	}
+
+	t.Run("Empty files list returns all apps", func(t *testing.T) {
+		all := []argoappv1.Application{appWithPath, appUnrelated, appHelmChart}
+		res := FilterByFiles(all, []string{})
+		assert.Len(t, res, 3)
+	})
+
+	t.Run("Matches app with matching path", func(t *testing.T) {
+		all := []argoappv1.Application{appWithPath, appUnrelated}
+		res := FilterByFiles(all, []string{"apps/myapp/deployment.yaml"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, appWithPath, res[0])
+	})
+
+	t.Run("Matches app with manifest-generate-paths annotation", func(t *testing.T) {
+		all := []argoappv1.Application{appWithAnnotation, appUnrelated}
+		res := FilterByFiles(all, []string{"apps/annotated/values.yaml"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, appWithAnnotation, res[0])
+	})
+
+	t.Run("Does not match unrelated app", func(t *testing.T) {
+		all := []argoappv1.Application{appUnrelated}
+		res := FilterByFiles(all, []string{"apps/myapp/deployment.yaml"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Multi-source app matched by one matching source", func(t *testing.T) {
+		all := []argoappv1.Application{appMultiSource, appUnrelated}
+		res := FilterByFiles(all, []string{"apps/backend/service.yaml"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, appMultiSource, res[0])
+	})
+
+	t.Run("Helm chart app with empty path and no annotation is not matched", func(t *testing.T) {
+		all := []argoappv1.Application{appHelmChart}
+		res := FilterByFiles(all, []string{"apps/myapp/deployment.yaml"})
+		assert.Empty(t, res)
+	})
 }
 
 func TestValidatePermissions(t *testing.T) {
