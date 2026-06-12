@@ -19,7 +19,7 @@ data:
   # Redis database
   redis.db:
 
-  # Enables the alpha "manifest hydrator" feature. (default "false")
+  # Enables the beta "manifest hydrator" feature. (default "false")
   hydrator.enabled: "false"
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
