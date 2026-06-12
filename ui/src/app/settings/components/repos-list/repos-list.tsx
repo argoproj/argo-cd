@@ -1081,11 +1081,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                     <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
                                         {authSettings?.hydratorEnabled && (
                                             <div className='white-box'>
-                                                <p>SAVE AS WRITE CREDENTIAL (ALPHA)</p>
+                                                <p>SAVE AS WRITE CREDENTIAL (BETA)</p>
                                                 <p>
-                                                    The Source Hydrator is an Alpha feature which enables Applications to push hydrated manifests to git before syncing. To use
-                                                    Source Hydrator for a repository, you must save two credentials: a read credential for pulling manifests and a write credential
-                                                    for pushing hydrated manifests. If you add a write credential for a repository, then{' '}
+                                                    The Source Hydrator is a Beta feature which enables Applications to push hydrated manifests to git before syncing. To use Source
+                                                    Hydrator for a repository, you must save two credentials: a read credential for pulling manifests and a write credential for
+                                                    pushing hydrated manifests. If you add a write credential for a repository, then{' '}
                                                     <strong>any Application that can sync from the repo can also push hydrated manifests to that repo.</strong> Do not use this
                                                     feature until you've read its documentation and understand the security implications.
                                                 </p>

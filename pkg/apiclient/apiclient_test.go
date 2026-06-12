@@ -51,6 +51,7 @@ func Test_parseGRPCHeaders(t *testing.T) {
 }
 
 func TestExecuteRequest_ClosesBodyOnHTTPError(t *testing.T) {
+	t.Parallel()
 	bodyClosed := &atomic.Bool{}
 
 	// Create a test server that returns HTTP 500 error
@@ -92,6 +93,7 @@ func TestExecuteRequest_ClosesBodyOnHTTPError(t *testing.T) {
 }
 
 func TestExecuteRequest_ClosesBodyOnGRPCError(t *testing.T) {
+	t.Parallel()
 	bodyClosed := &atomic.Bool{}
 
 	// Create a test server that returns HTTP 200 but with gRPC error status
@@ -135,6 +137,7 @@ func TestExecuteRequest_ClosesBodyOnGRPCError(t *testing.T) {
 }
 
 func TestExecuteRequest_ConcurrentErrorRequests_NoConnectionLeak(t *testing.T) {
+	t.Parallel()
 	// This test simulates the scenario from the test script:
 	// Multiple concurrent requests that fail should all close their response bodies
 
@@ -201,6 +204,7 @@ func TestExecuteRequest_ConcurrentErrorRequests_NoConnectionLeak(t *testing.T) {
 }
 
 func TestExecuteRequest_SuccessDoesNotCloseBodyPrematurely(t *testing.T) {
+	t.Parallel()
 	// Verify that successful requests do NOT close the body in executeRequest
 	// (caller is responsible for closing in success case)
 

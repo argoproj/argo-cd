@@ -12,6 +12,7 @@ import (
 )
 
 func TestParseLogsStream_Successful(t *testing.T) {
+	t.Parallel()
 	r := io.NopCloser(strings.NewReader(`2021-02-09T22:13:45.916570818Z hello
 2021-02-09T22:13:45.916570818Z world`))
 
@@ -36,6 +37,7 @@ func TestParseLogsStream_Successful(t *testing.T) {
 }
 
 func TestParseLogsStream_ParsingError(t *testing.T) {
+	t.Parallel()
 	r := io.NopCloser(strings.NewReader(`hello world`))
 
 	res := make(chan logEntry)
@@ -54,6 +56,7 @@ func TestParseLogsStream_ParsingError(t *testing.T) {
 }
 
 func TestMergeLogStreams(t *testing.T) {
+	t.Parallel()
 	first := make(chan logEntry)
 	go func() {
 		parseLogsStream(context.Background(), "first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1
@@ -110,6 +113,7 @@ func TestMergeLogStreams_RaceCondition(_ *testing.T) {
 // TestMergeLogStreams_ContextCancellation verifies that cancelling the context causes mergeLogStreams
 // to close the merged channel promptly, allowing all internal goroutines to exit without leaking.
 func TestMergeLogStreams_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// unbuffered pipe: write end will block until someone reads

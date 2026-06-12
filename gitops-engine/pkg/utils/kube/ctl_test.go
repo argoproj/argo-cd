@@ -23,11 +23,13 @@ import (
 var _ Kubectl = &KubectlCmd{}
 
 func TestConvertToVersion(t *testing.T) {
+	t.Parallel()
 	kubectl := KubectlCmd{
 		Log:    textlogger.NewLogger(textlogger.NewConfig()),
 		Tracer: tracing.NopTracer{},
 	}
 	t.Run("AppsDeployment", func(t *testing.T) {
+		t.Parallel()
 		newObj, err := kubectl.ConvertToVersion(testingutils.UnstructuredFromFile("testdata/appsdeployment.yaml"), "apps", "v1")
 		if assert.NoError(t, err) {
 			gvk := newObj.GroupVersionKind()
@@ -36,10 +38,12 @@ func TestConvertToVersion(t *testing.T) {
 		}
 	})
 	t.Run("CustomResource", func(t *testing.T) {
+		t.Parallel()
 		_, err := kubectl.ConvertToVersion(testingutils.UnstructuredFromFile("testdata/cr.yaml"), "argoproj.io", "v1")
 		assert.Error(t, err)
 	})
 	t.Run("ExtensionsDeployment", func(t *testing.T) {
+		t.Parallel()
 		obj := testingutils.UnstructuredFromFile("testdata/nginx.yaml")
 
 		// convert an extensions/v1beta1 object into itself
@@ -67,6 +71,7 @@ func TestConvertToVersion(t *testing.T) {
 		}
 	})
 	t.Run("newGVKParser gracefully handles duplicate GVKs", func(t *testing.T) {
+		t.Parallel()
 		client := &fakeOpenAPIClient{}
 		_, err := kubectl.newGVKParser(client)
 		require.NoError(t, err)
@@ -74,7 +79,9 @@ func TestConvertToVersion(t *testing.T) {
 }
 
 func TestGetServerVersion(t *testing.T) {
+	t.Parallel()
 	t.Run("returns full semantic version with patch", func(t *testing.T) {
+		t.Parallel()
 		fakeServer := fakeHTTPServer(version.Info{
 			Major:      "1",
 			Minor:      "34",
@@ -93,6 +100,7 @@ func TestGetServerVersion(t *testing.T) {
 	})
 
 	t.Run("do not preserver build metadata", func(t *testing.T) {
+		t.Parallel()
 		fakeServer := fakeHTTPServer(version.Info{
 			Major:      "1",
 			Minor:      "30",
@@ -111,6 +119,7 @@ func TestGetServerVersion(t *testing.T) {
 	})
 
 	t.Run("handles error from discovery client", func(t *testing.T) {
+		t.Parallel()
 		fakeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
@@ -124,6 +133,7 @@ func TestGetServerVersion(t *testing.T) {
 	})
 
 	t.Run("handles minor version with plus suffix", func(t *testing.T) {
+		t.Parallel()
 		fakeServer := fakeHTTPServer(version.Info{
 			Major:      "1",
 			Minor:      "30+",

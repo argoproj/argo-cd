@@ -11,6 +11,7 @@ import (
 )
 
 func TestNewRepoServerClient_CorrectClientReturned(t *testing.T) {
+	t.Parallel()
 	mockClientset := &mocks.Clientset{
 		RepoServerServiceClient: &mocks.RepoServerServiceClient{},
 	}
@@ -24,6 +25,7 @@ func TestNewRepoServerClient_CorrectClientReturned(t *testing.T) {
 }
 
 func TestNewRepoServerClientset_InvalidInput(t *testing.T) {
+	t.Parallel()
 	// Call the function with invalid inputs
 	invalidClientset := apiclient.NewRepoServerClientset("", -1, apiclient.TLSConfiguration{})
 
@@ -32,6 +34,7 @@ func TestNewRepoServerClientset_InvalidInput(t *testing.T) {
 }
 
 func TestNewRepoServerClientset_SuccessfulConnection(t *testing.T) {
+	t.Parallel()
 	// Call the function with valid inputs
 	clientset := apiclient.NewRepoServerClientset("localhost:8080", 1, apiclient.TLSConfiguration{})
 
@@ -40,6 +43,7 @@ func TestNewRepoServerClientset_SuccessfulConnection(t *testing.T) {
 }
 
 func TestNewRepoServerClientset_SuccessfulConnectionWithTLS(t *testing.T) {
+	t.Parallel()
 	// Call the function with valid inputs
 	clientset := apiclient.NewRepoServerClientset("localhost:8080", 1, apiclient.TLSConfiguration{
 		DisableTLS:       false,
@@ -52,6 +56,7 @@ func TestNewRepoServerClientset_SuccessfulConnectionWithTLS(t *testing.T) {
 }
 
 func TestNewConnection_TLSWithStrictValidation(t *testing.T) {
+	t.Parallel()
 	tlsConfig := apiclient.TLSConfiguration{
 		DisableTLS:       false,
 		StrictValidation: true,
@@ -65,6 +70,7 @@ func TestNewConnection_TLSWithStrictValidation(t *testing.T) {
 }
 
 func TestNewConnection_TLSWithStrictValidationAndCertificates(t *testing.T) {
+	t.Parallel()
 	tlsConfig := apiclient.TLSConfiguration{
 		DisableTLS:       false,
 		StrictValidation: true,
@@ -78,6 +84,7 @@ func TestNewConnection_TLSWithStrictValidationAndCertificates(t *testing.T) {
 }
 
 func TestNewConnection_InsecureConnection(t *testing.T) {
+	t.Parallel()
 	// Create a TLS configuration with TLS disabled
 	tlsConfig := apiclient.TLSConfiguration{
 		DisableTLS:       true,

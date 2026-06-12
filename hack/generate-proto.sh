@@ -63,6 +63,7 @@ rm -rf "${GOPATH}/src/k8s.io/api" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "$
 rm -rf "${GOPATH}/src/k8s.io/apiextensions-apiserver" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apiextensions-apiserver" "${GOPATH}/src/k8s.io"
 
 go-to-protobuf \
+    --drop-gogo-go=false \
     --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
     --packages="$(
         IFS=,
