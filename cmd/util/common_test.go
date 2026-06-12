@@ -7,6 +7,7 @@ import (
 )
 
 func TestValidateBearerTokenAndPasswordCombo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		bearerToken string
@@ -43,6 +44,7 @@ func TestValidateBearerTokenAndPasswordCombo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateBearerTokenAndPasswordCombo(tt.bearerToken, tt.password)
 			if tt.expectError {
 				require.ErrorContains(t, err, tt.errorMsg)
@@ -54,6 +56,7 @@ func TestValidateBearerTokenAndPasswordCombo(t *testing.T) {
 }
 
 func TestValidateBearerTokenForGitOnly(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		bearerToken string
@@ -97,6 +100,7 @@ func TestValidateBearerTokenForGitOnly(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateBearerTokenForGitOnly(tt.bearerToken, tt.repoType)
 			if tt.expectError {
 				require.ErrorContains(t, err, tt.errorMsg)
@@ -108,6 +112,7 @@ func TestValidateBearerTokenForGitOnly(t *testing.T) {
 }
 
 func TestValidateBearerTokenForHTTPSRepoOnly(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		bearerToken string
@@ -144,6 +149,7 @@ func TestValidateBearerTokenForHTTPSRepoOnly(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateBearerTokenForHTTPSRepoOnly(tt.bearerToken, tt.isHTTPS)
 			if tt.expectError {
 				require.ErrorContains(t, err, tt.errorMsg)

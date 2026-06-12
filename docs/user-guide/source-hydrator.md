@@ -1,6 +1,10 @@
 # Source Hydrator
 
-**Current feature state**: Alpha
+> [!WARNING]
+> **Beta Feature (Since v3.5.0)**
+>
+> This is a [beta-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta)
+> feature that pushes hydrated manifests to git before syncing them to the cluster.
 
 Tools like Helm and Kustomize allow users to express their Kubernetes manifests in a more concise and reusable way
 (keeping it DRY - Don't Repeat Yourself). However, these tools can obscure the actual Kubernetes manifests that are

@@ -3,6 +3,7 @@ package hydrator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -599,11 +600,11 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_NoCurrentOperation(t *testin
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
 
 	require.NotNil(t, persistedStatus)
-	assert.NotNil(t, persistedStatus.CurrentOperation.StartedAt)
-	assert.Nil(t, persistedStatus.CurrentOperation.FinishedAt)
-	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrating, persistedStatus.CurrentOperation.Phase)
-	assert.Equal(t, *app.Spec.SourceHydrator, persistedStatus.CurrentOperation.SourceHydrator)
-	// LastComparedDryRevision is not set because we returned early
+	// ProcessAppHydrateQueueItem no longer marks the app Hydrating — that work moved to
+	// ProcessHydrationQueueItem so it can happen atomically across the whole app group
+	// (https://github.com/argoproj/argo-cd/issues/27926). All we persist here is the consumed
+	// hydrate annotation; CurrentOperation stays nil until the hydration worker picks the key up.
+	assert.Nil(t, persistedStatus.CurrentOperation)
 	assert.Empty(t, persistedStatus.LastComparedDryRevision)
 }
 
@@ -711,10 +712,13 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_RevisionChanges(t *testing.T
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
 
 	require.NotNil(t, persistedStatus)
-	assert.NotNil(t, persistedStatus.CurrentOperation.StartedAt)
-	assert.Nil(t, persistedStatus.CurrentOperation.FinishedAt)
-	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrating, persistedStatus.CurrentOperation.Phase)
-	assert.Equal(t, *app.Spec.SourceHydrator, persistedStatus.CurrentOperation.SourceHydrator)
+	// ProcessAppHydrateQueueItem no longer overwrites CurrentOperation with a Hydrating stamp;
+	// that move lives on ProcessHydrationQueueItem now (#27926). We persist the freshly resolved
+	// LastComparedDryRevision and leave the prior Hydrated CurrentOperation intact until the
+	// hydration worker takes the key.
+	require.NotNil(t, persistedStatus.CurrentOperation)
+	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrated, persistedStatus.CurrentOperation.Phase)
+	assert.Equal(t, "old-sha", persistedStatus.CurrentOperation.DrySHA)
 	assert.Equal(t, "new-sha", persistedStatus.LastComparedDryRevision)
 }
 
@@ -1671,4 +1675,218 @@ func Test_newRevisionHasChanges(t *testing.T) {
 			}
 		})
 	}
+}
+
+// --- Concurrency tests for the manifest hydration queue (https://github.com/argoproj/argo-cd/issues/27926) ---
+//
+// ProcessHydrationQueueItem owns the per-app status updates for the entire app group sharing a hydration
+// key. The hydration workqueue dedups on the key, so no two workers ever process the same group at once.
+// The tests below pin down that contract: every app in the group must be marked Hydrating before any work
+// runs, then marked Hydrated (or Failed) as a single batch by the same worker.
+
+// expectSuccessfulHydratePipeline wires up the happy-path mocks for hydrate() so the tests can focus on
+// how ProcessHydrationQueueItem stamps Hydrating/Hydrated status on each app. getRepoObjsCalls is the
+// number of apps whose manifests are generated (one GetRepoObjs call per app).
+func expectSuccessfulHydratePipeline(d *mocks.Dependencies, r *mocks.RepoGetter, rc *reposervermocks.RepoServerServiceClient, cc *commitservermocks.CommitServiceClient, getRepoObjsCalls int) {
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, &repoclient.ManifestResponse{Revision: "abc123"}, nil).Times(getRepoObjsCalls)
+	r.EXPECT().GetRepository(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
+	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).
+		Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
+}
+
+// TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated verifies the core contract of the new
+// design (https://github.com/argoproj/argo-cd/issues/27926): when ProcessHydrationQueueItem picks up a key
+// it marks every app in the group Hydrating up front, runs the single commit, then marks every app
+// Hydrated. Apps without a prior CurrentOperation - the case that used to be the parallel-worker race
+// window - get the same treatment as apps already Hydrating.
+func TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+
+	// One app already Hydrating from a prior pass; one app brand-new with nil CurrentOperation.
+	hydrating := setTestAppPhase(newTestApp("hydrating-app"), v1alpha1.HydrateOperationPhaseHydrating)
+	hydrating.Spec.SourceHydrator.SyncSource.Path = "hydrating"
+	fresh := newTestApp("fresh-app")
+	fresh.Spec.SourceHydrator.SyncSource.Path = "fresh"
+	require.Nil(t, fresh.Status.SourceHydrator.CurrentOperation, "precondition: fresh app starts with nil CurrentOperation")
+
+	hydrationKey := getHydrationQueueKey(hydrating)
+	require.Equal(t, hydrationKey, getHydrationQueueKey(fresh), "both apps must share the hydration key")
+
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*hydrating, *fresh}}, nil)
+	expectSuccessfulHydratePipeline(d, r, rc, cc, 2)
+
+	// Capture every persisted status update in order so we can verify the markAppsHydrating → Hydrated
+	// sequence per app. We encode (name, phase) as "name:phase" so the linter can see the values are
+	// actually consumed by the equality assertions below.
+	var events []string
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, s *v1alpha1.SourceHydratorStatus) {
+		phase := v1alpha1.HydrateOperationPhase("nil")
+		if s.CurrentOperation != nil {
+			phase = s.CurrentOperation.Phase
+		}
+		events = append(events, fmt.Sprintf("%s:%s", orig.Name, phase))
+	}).Return()
+	d.EXPECT().RequestAppRefresh(mock.Anything, mock.Anything).Return(nil).Times(2)
+
+	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
+
+	require.NotPanics(t, func() {
+		h.ProcessHydrationQueueItem(hydrationKey)
+	})
+
+	// The hydrating-app was already Hydrating, so markAppsHydrating must skip it (no first event); only
+	// the final Hydrated stamp lands. The fresh-app gets two persists: Hydrating up front, then Hydrated.
+	require.Len(t, events, 3, "expected fresh-app to be persisted Hydrating then Hydrated, plus hydrating-app's Hydrated stamp")
+	assert.Equal(t, "fresh-app:Hydrating", events[0])
+	assert.ElementsMatch(t,
+		[]string{"hydrating-app:Hydrated", "fresh-app:Hydrated"},
+		events[1:],
+	)
+}
+
+// TestProcessHydrationQueueItem_MarksHydratingBeforeValidation locks the ordering: markAppsHydrating runs
+// before validation, so even when validation fails for every app the persisted Hydrating stamp is still
+// observable (followed immediately by the Failed stamp). This is the contract that lets us stop guarding
+// CurrentOperation deref in the failure paths.
+func TestProcessHydrationQueueItem_MarksHydratingBeforeValidation(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+
+	app := newTestApp("fresh-app")
+	require.Nil(t, app.Status.SourceHydrator.CurrentOperation)
+	hydrationKey := getHydrationQueueKey(app)
+
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
+	// Validation fails for every app in the group, so hydrate() is never called - but markAppsHydrating
+	// has already persisted the Hydrating stamp before validateApplications runs.
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(nil, errors.New("project-not-found")).Once()
+
+	var phases []v1alpha1.HydrateOperationPhase
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, s *v1alpha1.SourceHydratorStatus) {
+		require.NotNil(t, s.CurrentOperation, "every persist after markAppsHydrating must have a populated CurrentOperation")
+		phases = append(phases, s.CurrentOperation.Phase)
+	}).Return().Times(2)
+
+	h := &Hydrator{dependencies: d}
+	require.NotPanics(t, func() {
+		h.ProcessHydrationQueueItem(hydrationKey)
+	})
+
+	require.Equal(t,
+		[]v1alpha1.HydrateOperationPhase{v1alpha1.HydrateOperationPhaseHydrating, v1alpha1.HydrateOperationPhaseFailed},
+		phases,
+		"expected the Hydrating stamp to land before the Failed stamp",
+	)
+}
+
+// TestProcessHydrationQueueItem_CommitsCompletePathSet keeps the regression guard for partial hydration:
+// the single dry-SHA commit must contain every app's path. The commit server records a git note per dry
+// SHA and short-circuits later commits for the same dry SHA before writing manifests
+// (commitserver/commit/commit.go, IsHydrated), so a partial first commit would silently lose paths.
+func TestProcessHydrationQueueItem_CommitsCompletePathSet(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+
+	ready := setTestAppPhase(newTestApp("ready-app"), v1alpha1.HydrateOperationPhaseHydrating)
+	ready.Spec.SourceHydrator.SyncSource.Path = "ready"
+	fresh := newTestApp("fresh-app")
+	fresh.Spec.SourceHydrator.SyncSource.Path = "fresh"
+
+	hydrationKey := getHydrationQueueKey(ready)
+	require.Equal(t, hydrationKey, getHydrationQueueKey(fresh), "both apps must share the hydration key")
+
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*ready, *fresh}}, nil)
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, &repoclient.ManifestResponse{Revision: "abc123"}, nil).Times(2)
+	r.EXPECT().GetRepository(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
+	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
+
+	var committedPaths []string
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, in *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
+			for _, p := range in.Paths {
+				committedPaths = append(committedPaths, p.Path)
+			}
+		}).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
+
+	// fresh-app: Hydrating then Hydrated (2). ready-app: only the final Hydrated stamp (1).
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return().Times(3)
+	d.EXPECT().RequestAppRefresh(mock.Anything, mock.Anything).Return(nil).Times(2)
+
+	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
+
+	h.ProcessHydrationQueueItem(hydrationKey)
+
+	assert.ElementsMatch(t, []string{"ready", "fresh"}, committedPaths)
+}
+
+// TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted exercises the new design at scale: many apps
+// sharing a single key, an arbitrary mix of pre-existing phases (Hydrating, Hydrated, nil). Every app
+// must end up persisted as Hydrated and every app must request a refresh. See #27926.
+func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
+	t.Parallel()
+
+	const totalApps = 20
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+
+	items := make([]v1alpha1.Application, 0, totalApps)
+	for i := range totalApps {
+		app := newTestApp(fmt.Sprintf("app-%d", i))
+		// Distinct destination paths so validateApplications does not flag duplicates.
+		app.Spec.SourceHydrator.SyncSource.Path = fmt.Sprintf("app-%d", i)
+		switch i % 3 {
+		case 0:
+			// Leave CurrentOperation nil - first-time hydration.
+		case 1:
+			app = setTestAppPhase(app, v1alpha1.HydrateOperationPhaseHydrating)
+		case 2:
+			app = setTestAppPhase(app, v1alpha1.HydrateOperationPhaseHydrated)
+		}
+		items = append(items, *app)
+	}
+
+	hydrationKey := getHydrationQueueKey(&items[0])
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: items}, nil)
+	expectSuccessfulHydratePipeline(d, r, rc, cc, totalApps)
+
+	hydrated := map[string]bool{}
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, s *v1alpha1.SourceHydratorStatus) {
+		if s.CurrentOperation != nil && s.CurrentOperation.Phase == v1alpha1.HydrateOperationPhaseHydrated {
+			hydrated[orig.Name] = true
+		}
+	}).Return()
+	d.EXPECT().RequestAppRefresh(mock.Anything, mock.Anything).Return(nil).Times(totalApps)
+
+	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
+
+	require.NotPanics(t, func() {
+		h.ProcessHydrationQueueItem(hydrationKey)
+	})
+
+	require.Len(t, hydrated, totalApps, "every app in the group must end up persisted as Hydrated")
 }
