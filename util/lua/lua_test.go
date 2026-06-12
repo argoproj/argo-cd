@@ -135,12 +135,7 @@ func TestExecuteHealthLuaMalformedTableJSONDecodeError(t *testing.T) {
 	_, err := vm.ExecuteHealthLua(testObj, malformedHealthTableReturn)
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "expect table output from Lua script")
-
-	L := lua.NewState()
-	defer L.Close()
-	require.NoError(t, L.DoString(malformedHealthTableReturn))
-	_, expectedErr := healthStatusFromJSONTable(L.Get(-1))
-	assert.Equal(t, expectedErr, err)
+	assert.Contains(t, err.Error(), "cannot encode mixed or invalid key types")
 }
 
 const invalidHealthStatusStatus = `local healthStatus = {}
