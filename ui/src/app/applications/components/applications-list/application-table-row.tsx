@@ -2,7 +2,7 @@ import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
 import {Cluster} from '../../../shared/components';
-import {ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
@@ -25,6 +25,8 @@ export interface ApplicationTableRowProps {
 }
 
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
+    const appDisplayName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = app.status.health.status;
     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
@@ -102,14 +104,14 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                             <Tooltip
                                 content={
                                     <>
-                                        {app.metadata.name}
+                                        {appDisplayName}
                                         <br />
                                         <Moment fromNow={true} ago={true}>
                                             {app.metadata.creationTimestamp}
                                         </Moment>
                                     </>
                                 }>
-                                <span>{app.metadata.name}</span>
+                                <span>{appDisplayName}</span>
                             </Tooltip>
                             <button
                                 type='button'
