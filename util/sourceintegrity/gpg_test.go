@@ -23,6 +23,7 @@ const (
 var syncTestSources = map[string]string{
 	"F7842A5CEAA9C0B1": "testdata/janedoe.asc",
 	"FDC79815400D88A9": "testdata/johndoe.asc",
+	"B6CB0E2A5167FEF3": "testdata/johndoe-ecc.asc",
 	"4AEE18F83AFDEB23": "testdata/github.asc",
 }
 
@@ -418,7 +419,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 
 		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Len(t, newKeys, 3)
+		assert.Len(t, newKeys, 4)
 		assert.Empty(t, removed)
 
 		installed, err := GetInstalledPGPKeys(newKeys)
