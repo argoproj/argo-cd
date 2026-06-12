@@ -119,7 +119,62 @@
         }
         line-height: normal;
 
-        // Autocomplete positions the menu from the <input>; align to the full search bar instead.
+        // The visual pill rendered by Autocomplete's renderInput: search icon, input, hint, clear.
+        .applications-list__search {
+            @include themify($themes) {
+                background-color: themed('light-argo-gray-2');
+                border: 1px solid themed('border');
+            }
+            border-radius: 7px;
+            position: relative;
+            padding: 0 10px;
+            height: 33px;
+            display: flex;
+            align-items: center;
+            transition: width 200ms;
+            @include breakpoint(large up) {
+                flex-shrink: 1;
+                width: 300px;
+            }
+            i {
+                font-size: 12px;
+                color: $argo-color-gray-6;
+            }
+            .keyboard-hint {
+                border: 1px solid $argo-color-gray-5;
+                color: $argo-color-gray-7;
+                border-radius: 3px;
+                padding: 0 7px;
+                font-size: 12px;
+                font-weight: 600;
+                flex-shrink: 0;
+                text-align: center;
+            }
+            &:focus-within {
+                border: 1px solid $argo-color-teal-5;
+                @include breakpoint(large up) {
+                    width: 500px;
+                }
+                i {
+                    color: $argo-color-gray-7;
+                }
+                .keyboard-hint {
+                    display: none;
+                }
+            }
+            .argo-field {
+                border: none;
+                font-weight: 500;
+                &::placeholder {
+                    color: $argo-color-gray-6;
+                }
+            }
+        }
+
+        // argo-ui's Autocomplete positions the menu with inline styles (position: fixed + JS-measured
+        // top/left/width from the input's bounding rect). We re-anchor it to this wrapper instead so it
+        // spans the full search bar and tracks the focus-expand width animation for free. !important is
+        // required because inline styles can only be overridden with !important.
         .autocomplete__menu {
             position: absolute !important;
             top: 100% !important;
@@ -135,69 +190,15 @@
             font-size: 14px;
             color: $argo-color-gray-6;
             line-height: normal;
-        }
-    }
 
-    &__search-resource-icon {
-        font-size: 14px;
-        line-height: 14px;
-        width: 14px;
-        height: 14px;
-        vertical-align: middle;
-        flex-shrink: 0;
-    }
-
-    &__search {
-        @include themify($themes) {
-            background-color: themed('light-argo-gray-2');
-            border: 1px solid themed('border');
-        }
-        border-radius: 7px;
-        position: relative;
-        padding: 0 10px;
-        height: 33px;
-        display: flex;
-        align-items: center;
-        transition: width 200ms;
-        @include breakpoint(large up) {
-            flex-shrink: 1;
-            width: 300px;
-        }
-        i {
-            font-size: 12px;
-            color: $argo-color-gray-6;
-        }
-        .keyboard-hint {
-            border: 1px solid $argo-color-gray-5;
-            color: $argo-color-gray-7;
-            border-radius: 3px;
-            padding: 0 7px;
-            font-size: 12px;
-            font-weight: 600;
-            flex-shrink: 0;
-            text-align: center;
-        }
-        .select {
-            width: 100%;
-            border-radius: $border-radius;
-        }
-        &:focus-within {
-            border: 1px solid $argo-color-teal-5;
-            @include breakpoint(large up) {
-                width: 500px;
-            }
-            i {
-                color: $argo-color-gray-7;
-            }
-            .keyboard-hint {
-                display: none;
-            }
-        }
-        .argo-field {
-            border: none;
-            font-weight: 500;
-            &::placeholder {
-                color: $argo-color-gray-6;
+            // Resource-type glyph shown at the start of each suggestion row.
+            .applications-list__search-resource-icon {
+                font-size: 14px;
+                line-height: 14px;
+                width: 14px;
+                height: 14px;
+                vertical-align: middle;
+                flex-shrink: 0;
             }
         }
     }
