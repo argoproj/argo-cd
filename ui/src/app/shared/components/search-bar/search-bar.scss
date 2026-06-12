@@ -32,6 +32,13 @@
             font-size: 14px;
             color: $argo-color-gray-6;
             line-height: normal;
+
+            // Font-icon glyphs (e.g. `icon argo-icon-application`) inherit the global
+            // `.icon { font-size: 2em }` rule, which renders them at 28px. Constrain them
+            // to match the row text size.
+            i.icon {
+                font-size: 14px;
+            }
         }
     }
 
