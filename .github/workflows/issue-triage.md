@@ -10,17 +10,20 @@ on:
   issues:
     types: [opened, reopened]
   reaction: eyes
-  roles: all # ***** argo-cd specific: make sure the workflow will be executed for issue of any author *****
+  roles: all # ***** argo-cd specific: make sure the workflow will be executed for issue of any author, as by default it gets executed only for issue authors who are maintainers of the repo *****
 
-permissions: read-all
+permissions:
+   # ***** argo-cd specific: instead of the default read-all, which does not include copilot, giving explicit permissions so that copilot can be invoked without a COPILOT_GITHUB_TOKEN secret
+   # https://github.github.com/gh-aw/reference/auth/
+   # *****
+  issues: read
+  contents: read
+  copilot-requests: write
 
 network: defaults
 
 # This workflow runs often, so you can use a small model to keep costs down.
-# ***** argo-cd specific: set the engine with cheapest claude model, we can change the model and the AI type later ***** 
-engine:
-  id: claude
-  model: claude-haiku-4-5-20251001
+engine: copilot
 
 safe-outputs:
   add-labels:
