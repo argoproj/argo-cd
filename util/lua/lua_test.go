@@ -126,6 +126,23 @@ func TestFailLuaReturnNonTable(t *testing.T) {
 	assert.Equal(t, fmt.Errorf(incorrectReturnType, "table", "number"), err)
 }
 
+const malformedHealthTableReturn = `local h = {}; h[true] = "x"; return h`
+
+func TestExecuteHealthLuaMalformedTableJSONDecodeError(t *testing.T) {
+	t.Parallel()
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	_, err := vm.ExecuteHealthLua(testObj, malformedHealthTableReturn)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "expect table output from Lua script")
+
+	L := lua.NewState()
+	defer L.Close()
+	require.NoError(t, L.DoString(malformedHealthTableReturn))
+	_, expectedErr := healthStatusFromJSONTable(L.Get(-1))
+	assert.Equal(t, expectedErr, err)
+}
+
 const invalidHealthStatusStatus = `local healthStatus = {}
 healthStatus.status = "test"
 return healthStatus

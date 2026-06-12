@@ -154,12 +154,35 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 			}
 			return healthStatus, nil
 		default:
-			return nil, fmt.Errorf(incorrectReturnType, "table", firstKey.Type().String())
+			return healthStatusFromJSONTable(returnValue)
 		}
 	} else if returnValue.Type() == lua.LTNil {
 		return &health.HealthStatus{}, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+func healthStatusFromJSONTable(returnValue lua.LValue) (*health.HealthStatus, error) {
+	jsonBytes, err := luajson.Encode(returnValue)
+	if err != nil {
+		return nil, err
+	}
+	healthStatus := &health.HealthStatus{}
+	err = json.Unmarshal(jsonBytes, healthStatus)
+	if err != nil {
+		var typeError *json.UnmarshalTypeError
+		if errors.As(err, &typeError) && typeError.Value == "array" {
+			return &health.HealthStatus{}, nil
+		}
+		return nil, err
+	}
+	if !isValidHealthStatusCode(healthStatus.Status) {
+		return &health.HealthStatus{
+			Status:  health.HealthStatusUnknown,
+			Message: invalidHealthStatus,
+		}, nil
+	}
+	return healthStatus, nil
 }
 
 // GetHealthScript attempts to read lua script from config and then filesystem for that resource. If none exists, return
