@@ -1,7 +1,11 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: 'Waiting for clusters'
+    message: 'Waiting for Cluster'
+  inputPath: testdata/empty.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for Cluster'
   inputPath: testdata/progressing_provisioning.yaml
 - healthStatus:
     status: Degraded
@@ -19,3 +23,16 @@ tests:
     status: Degraded
     message: 'Post "https://tvc01.foo.bar/sdk": host "tvc01.foo.bar:443" thumbprint does not match "0A:21:BD:FC:71:40:BD:96"'
   inputPath: testdata/error_provisioned.yaml
+- healthStatus:
+    status: Progressing
+    message: 'MachineDeployment(s) cluster-qf-mathieu-md-0-45wmj rollout and upgrade to version v1.34.2 on hold. Control plane is upgrading to version v1.34.2'
+  inputPath: testdata/rolling_out_and_updating.yaml
+- healthStatus:
+    status: Progressing
+    message: |-
+      * MachineDeployment cluster-foo-md-0-7dhjv:
+        * Rolling out 2 not up-to-date replicas
+          * Version v1.33.5, v1.33.6 required
+          * KubeadmConfig is not up-to-date
+          * Metal3Machine is not up-to-date
+  inputPath: testdata/rolling_out.yaml
