@@ -85,6 +85,7 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
+		{lua.StringLibName, lua.OpenString},
 		// load our 'safe' version of the OS library
 		{lua.OsLibName, OpenSafeOs},
 	} {
