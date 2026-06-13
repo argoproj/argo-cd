@@ -70,7 +70,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -151,7 +151,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -228,7 +228,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -309,7 +309,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -394,7 +394,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -470,7 +470,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
