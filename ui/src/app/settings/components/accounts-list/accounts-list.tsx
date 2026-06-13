@@ -1,16 +1,39 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 
 import {DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
 import {FlexTopBar} from '../../../shared/components';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
+import {AccountsFilter, AccountsListPreferences, getAccountFilterResults, filterAccounts} from './accounts-filter';
 
 export const AccountsList = () => {
     const ctx = React.useContext(Context);
     const query = useQuery();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
+    const sidebarTarget = useSidebarTarget();
+
+    const [filterPref, setFilterPref] = React.useState<AccountsListPreferences>({
+        statusFilter: query.getAll('status') || [],
+        capabilitiesFilter: query.getAll('capabilities') || []
+    });
+
+    const updateFilterPref = (newPref: AccountsListPreferences) => {
+        setFilterPref(newPref);
+        ctx.navigation.goto(
+            '.',
+            {
+                status: newPref.statusFilter.length > 0 ? newPref.statusFilter : null,
+                capabilities: newPref.capabilitiesFilter.length > 0 ? newPref.capabilitiesFilter : null,
+                search: searchText || null
+            },
+            {replace: true}
+        );
+        setPage(0);
+    };
 
     return (
         <Page title='Accounts' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts'}]}}>
@@ -21,7 +44,15 @@ export const AccountsList = () => {
                         <SearchBar
                             value={searchText}
                             onChange={value => {
-                                ctx.navigation.goto('.', {search: value || null}, {replace: true});
+                                ctx.navigation.goto(
+                                    '.',
+                                    {
+                                        status: filterPref.statusFilter.length > 0 ? filterPref.statusFilter : null,
+                                        capabilities: filterPref.capabilitiesFilter.length > 0 ? filterPref.capabilitiesFilter : null,
+                                        search: value || null
+                                    },
+                                    {replace: true}
+                                );
                                 setPage(0);
                             }}
                             placeholder='Search accounts...'
@@ -32,7 +63,10 @@ export const AccountsList = () => {
             <div className='argo-container'>
                 <DataLoader load={() => services.accounts.list()}>
                     {accounts => {
-                        const filteredAccounts = accounts.filter(
+                        const accountsWithFilter = getAccountFilterResults(accounts, filterPref);
+                        const filteredByFilter = filterAccounts(accountsWithFilter);
+
+                        const filteredAccounts = filteredByFilter.filter(
                             account =>
                                 searchText === '' ||
                                 account.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -41,6 +75,8 @@ export const AccountsList = () => {
 
                         return (
                             <>
+                                {sidebarTarget &&
+                                    ReactDOM.createPortal(<AccountsFilter accounts={accountsWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget.current)}
                                 {filteredAccounts.length > 0 ? (
                                     <Paginate page={page} data={filteredAccounts} onPageChange={setPage} preferencesKey='accounts-list'>
                                         {accountsToDisplay => (

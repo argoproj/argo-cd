@@ -1,5 +1,6 @@
 import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {Form, FormApi, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
@@ -9,6 +10,8 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
 import {FlexTopBar} from '../../../shared/components';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
+import {GpgKeysFilter, GpgKeysListPreferences, getGpgKeyFilterResults, filterGpgKeys} from './gpgkeys-filter';
 
 require('./gpgkeys-list.scss');
 
@@ -21,9 +24,27 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     const query = useQuery();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
+    const sidebarTarget = useSidebarTarget();
 
     const formApi = React.useRef<FormApi | null>(null);
     const loader = React.useRef<DataLoader | null>(null);
+
+    const [filterPref, setFilterPref] = React.useState<GpgKeysListPreferences>({
+        keyTypeFilter: query.getAll('keyType') || []
+    });
+
+    const updateFilterPref = (newPref: GpgKeysListPreferences) => {
+        setFilterPref(newPref);
+        ctx.navigation.goto(
+            '.',
+            {
+                keyType: newPref.keyTypeFilter.length > 0 ? newPref.keyTypeFilter : null,
+                search: searchText || null
+            },
+            {replace: true}
+        );
+        setPage(0);
+    };
 
     const clearForms = () => {
         formApi.current?.resetAll();
@@ -104,7 +125,14 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                         <SearchBar
                             value={searchText}
                             onChange={value => {
-                                ctx.navigation.goto('.', {search: value || null}, {replace: true});
+                                ctx.navigation.goto(
+                                    '.',
+                                    {
+                                        keyType: filterPref.keyTypeFilter.length > 0 ? filterPref.keyTypeFilter : null,
+                                        search: value || null
+                                    },
+                                    {replace: true}
+                                );
                                 setPage(0);
                             }}
                             placeholder='Search GPG keys...'
@@ -120,7 +148,10 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                             loader.current = ref;
                         }}>
                         {(gpgkeys: models.GnuPGPublicKey[]) => {
-                            const filteredGpgKeys = gpgkeys.filter(
+                            const gpgkeysWithFilter = getGpgKeyFilterResults(gpgkeys, filterPref);
+                            const filteredByFilter = filterGpgKeys(gpgkeysWithFilter);
+
+                            const filteredGpgKeys = filteredByFilter.filter(
                                 gpgkey =>
                                     searchText === '' ||
                                     gpgkey.keyID.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -130,6 +161,8 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
 
                             return (
                                 <>
+                                    {sidebarTarget &&
+                                        ReactDOM.createPortal(<GpgKeysFilter gpgkeys={gpgkeysWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget.current)}
                                     {filteredGpgKeys.length > 0 ? (
                                         <Paginate page={page} data={filteredGpgKeys} onPageChange={setPage} preferencesKey='gpgkeys-list'>
                                             {gpgkeysToDisplay => (

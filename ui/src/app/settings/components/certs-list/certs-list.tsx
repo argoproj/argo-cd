@@ -1,5 +1,6 @@
 import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {Form, FormApi, Text, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
@@ -9,6 +10,8 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
 import {FlexTopBar} from '../../../shared/components';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
+import {CertsFilter, CertsListPreferences, getCertFilterResults, filterCerts} from './certs-filter';
 
 require('./certs-list.scss');
 
@@ -27,10 +30,28 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
     const query = useQuery();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
+    const sidebarTarget = useSidebarTarget();
 
     const formApiTLS = React.useRef<FormApi | null>(null);
     const formApiSSH = React.useRef<FormApi | null>(null);
     const loader = React.useRef<DataLoader | null>(null);
+
+    const [filterPref, setFilterPref] = React.useState<CertsListPreferences>({
+        certTypeFilter: query.getAll('certType') || []
+    });
+
+    const updateFilterPref = (newPref: CertsListPreferences) => {
+        setFilterPref(newPref);
+        ctx.navigation.goto(
+            '.',
+            {
+                certType: newPref.certTypeFilter.length > 0 ? newPref.certTypeFilter : null,
+                search: searchText || null
+            },
+            {replace: true}
+        );
+        setPage(0);
+    };
 
     const clearForms = () => {
         formApiSSH.current.resetAll();
@@ -150,7 +171,14 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                         <SearchBar
                             value={searchText}
                             onChange={value => {
-                                ctx.navigation.goto('.', {search: value || null}, {replace: true});
+                                ctx.navigation.goto(
+                                    '.',
+                                    {
+                                        certType: filterPref.certTypeFilter.length > 0 ? filterPref.certTypeFilter : null,
+                                        search: value || null
+                                    },
+                                    {replace: true}
+                                );
                                 setPage(0);
                             }}
                             placeholder='Search certificates...'
@@ -166,7 +194,10 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                             loader.current = ref;
                         }}>
                         {(certs: models.RepoCert[]) => {
-                            const filteredCerts = certs.filter(
+                            const certsWithFilter = getCertFilterResults(certs, filterPref);
+                            const filteredByFilter = filterCerts(certsWithFilter);
+
+                            const filteredCerts = filteredByFilter.filter(
                                 cert =>
                                     searchText === '' ||
                                     cert.serverName.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -177,6 +208,8 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
 
                             return (
                                 <>
+                                    {sidebarTarget &&
+                                        ReactDOM.createPortal(<CertsFilter certs={certsWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget.current)}
                                     {filteredCerts.length > 0 ? (
                                         <Paginate page={page} data={filteredCerts} onPageChange={setPage} preferencesKey='certs-list'>
                                             {certsToDisplay => (
