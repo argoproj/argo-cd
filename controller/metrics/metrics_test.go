@@ -643,6 +643,13 @@ func TestSyncWindowMetric(t *testing.T) {
 	denyNonMatching := func() *argoappv1.SyncWindow {
 		return &argoappv1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "24h", Applications: []string{"some-other-app"}}
 	}
+	// allowInactiveMatching is an allow window that matches the application
+	// but is never active: Duration "0s" makes SyncWindow.active() report
+	// false at every wall-clock time, since schedule.Next(currentTime) is
+	// always strictly after currentTime.
+	allowInactiveMatching := func() *argoappv1.SyncWindow {
+		return &argoappv1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "0s", Applications: []string{"*"}}
+	}
 	newProject := func(windows ...*argoappv1.SyncWindow) *argoappv1.AppProject {
 		return &argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "important-project", Namespace: "argocd"},
@@ -653,9 +660,14 @@ func TestSyncWindowMetric(t *testing.T) {
 	const helpAndType = `
 # HELP argocd_app_sync_window Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per window_kind ("allow", "deny"); 1 means at least one matching window of that kind is currently active.
 # TYPE argocd_app_sync_window gauge
+# HELP argocd_app_sync_blocked Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected (an active deny window applies, or only allow windows are configured and none is active). Reports 0 when no sync windows are configured, distinguishing that case from "allow=0, deny=0" caused by inactive allow windows.
+# TYPE argocd_app_sync_blocked gauge
 `
 	gauge := func(kind string, value int) string {
 		return fmt.Sprintf(`argocd_app_sync_window{name="my-app",namespace="argocd",project="important-project",window_kind=%q} %d`+"\n", kind, value)
+	}
+	blockedGauge := func(value int) string {
+		return fmt.Sprintf(`argocd_app_sync_blocked{name="my-app",namespace="argocd",project="important-project"} %d`+"\n", value)
 	}
 
 	cases := []struct {
@@ -664,46 +676,53 @@ func TestSyncWindowMetric(t *testing.T) {
 		expectedResponse string
 	}{
 		{
-			description: "active deny window emits deny=1, allow=0",
+			description: "active deny window emits deny=1, allow=0, blocked=1",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(denyAlwaysOn()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 1),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 1) + blockedGauge(1),
 		},
 		{
-			description: "active allow window emits allow=1, deny=0",
+			description: "active allow window emits allow=1, deny=0, blocked=0",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(allowAlwaysOn()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 0),
+			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 0) + blockedGauge(0),
 		},
 		{
-			description: "active allow + deny windows emit both as 1",
+			description: "active allow + deny windows emit both as 1 and blocked=1 (deny wins)",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(allowAlwaysOn(), denyAlwaysOn()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 1),
+			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 1) + blockedGauge(1),
 		},
 		{
-			description: "window that does not match the application emits 0/0",
+			description: "window that does not match the application emits 0/0 and blocked=0",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(denyNonMatching()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0),
 		},
 		{
-			description: "project with no windows emits 0/0",
+			description: "project with no windows emits 0/0 and blocked=0",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0),
 		},
 		{
-			description: "getAppProject error still emits 0/0",
+			description: "inactive but matching allow window emits 0/0 and blocked=1 (disambiguates from \"no windows configured\")",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(allowInactiveMatching()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1),
+		},
+		{
+			description: "getAppProject error still emits 0/0 and blocked=0",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return nil, errors.New("project not found")
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0),
 		},
 	}
 
