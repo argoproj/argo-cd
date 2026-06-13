@@ -245,6 +245,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	clusterCacheMock := &mocks.ClusterCache{}
 	clusterCacheMock.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
 	clusterCacheMock.EXPECT().GetGVKParser().Return(nil)
+	clusterCacheMock.EXPECT().GetOpenAPISchema().Return(nil).Maybe()
 
 	mockStateCache := &mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = mockStateCache
@@ -3188,6 +3189,35 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	assert.Equal(t, CompareWithLatestForceResolve, level)
 }
 
+func TestProcessRequestedAppOperation_Successful_RespectIgnoreDifferences(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
+			SyncOptions: v1alpha1.SyncOptions{"RespectIgnoreDifferences=true"},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{{
+			Manifests: []string{},
+		}},
+	}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
+}
+
 func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "default"
@@ -4090,4 +4120,18 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		assert.True(t, hasOther, "other annotations should be preserved")
 		assert.Equal(t, "other-value", otherValue)
 	})
+}
+
+func TestGetOpenAPISchema_ClusterCacheError(t *testing.T) {
+	mockStateCache := &mockstatecache.LiveStateCache{}
+	mockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(nil, errors.New("cluster not found"))
+
+	m := &appStateManager{
+		liveStateCache: mockStateCache,
+	}
+
+	cluster := &v1alpha1.Cluster{Server: "https://localhost:6443"}
+	_, err := m.getOpenAPISchema(cluster)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cluster not found")
 }
