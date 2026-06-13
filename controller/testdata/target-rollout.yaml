@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: demo-rollout
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo
+  template:
+    metadata:
+      labels:
+        app: demo
+    spec:
+      containers:
+        - name: demo
+          image: nginx:1.19
+          env:
+            - name: ENV_VAR_1
+              value: value-1-updated
+            - name: ENV_VAR_2
+              value: value-2
+          ports:
+            - containerPort: 80
