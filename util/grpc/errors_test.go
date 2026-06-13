@@ -15,6 +15,7 @@ import (
 )
 
 func Test_gitErrToGRPC(t *testing.T) {
+	t.Parallel()
 	var ok bool
 	require.NoError(t, gitErrToGRPC(nil))
 
@@ -40,6 +41,7 @@ func Test_gitErrToGRPC(t *testing.T) {
 }
 
 func Test_kubeErrToGRPC(t *testing.T) {
+	t.Parallel()
 	type testCase struct {
 		name               string
 		givenErrFn         func() error
@@ -143,6 +145,7 @@ func Test_kubeErrToGRPC(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			// when
+			t.Parallel()
 			err := kubeErrToGRPC(c.givenErrFn())
 
 			// then

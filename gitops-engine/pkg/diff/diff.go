@@ -189,15 +189,27 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+
+	Normalize(live, opts...)
+	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+
+	if isCoreSecret(config) {
+		// Mask Secret data symmetrically before comparison.
+		// Equal values get equal placeholders, different values get different placeholders.
+		predictedLive, live, err = HideSecretData(predictedLive, live, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error hiding secret data for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
+		}
+	}
 
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
 
-	Normalize(live, opts...)
-	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
 	liveBytes, err := json.Marshal(live)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling live resource %s/%s: %w", config.GetKind(), config.GetName(), err)
@@ -278,13 +290,13 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
 	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
 
-	// After applying the predicted live to live state, this would cause any removed fields to be restored.
-	// We need to re-remove these from predicted live.
-	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
-
 	if err != nil {
 		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
+
+	// After applying the predicted live to live state, this would cause any removed fields to be restored.
+	// We need to re-remove these from predicted live.
+	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
 
 	plu := typedPredictedLive.AsValue().Unstructured()
 	pl, ok := plu.(map[string]any)
@@ -355,6 +367,15 @@ func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error
 		return nil, fmt.Errorf("unmarshal error: %w", err)
 	}
 	return &unstructured.Unstructured{Object: res}, nil
+}
+
+// isCoreSecret reports whether obj is a core/v1 Secret (Group="" and Kind="Secret").
+func isCoreSecret(obj *unstructured.Unstructured) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GroupVersionKind()
+	return gvk.Group == "" && gvk.Kind == "Secret"
 }
 
 // StructuredMergeDiff will calculate the diff using the structured-merge-diff

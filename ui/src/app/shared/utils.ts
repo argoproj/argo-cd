@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'react';
 import type {CSSProperties} from 'react';
-import {Cluster} from './models';
+import {AuthSettings, Cluster, UserInfo} from './models';
 
 export function hashCode(str: string) {
     let hash = 0;
@@ -28,12 +28,12 @@ export function isValidURL(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:' && parsedUrl.protocol !== 'vbscript:';
-    } catch (TypeError) {
+    } catch {
         try {
             // Try parsing as a relative URL.
             const parsedUrl = new URL(url, window.location.origin);
             return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:' && parsedUrl.protocol !== 'vbscript:';
-        } catch (TypeError) {
+        } catch {
             return false;
         }
     }
@@ -45,7 +45,7 @@ export function isValidManagedByURL(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
-    } catch (err) {
+    } catch {
         return false;
     }
 }
@@ -145,3 +145,16 @@ export const formatClusterQueryParam = (cluster: Cluster) => {
     }
     return `${cluster.name} (${cluster.server})`;
 };
+
+/**
+ * Checks if SSO is configured for authentication usage.
+ * @param userInfo - User information from the session
+ * @param authSettings - Authentication settings from the server
+ * @returns true if SSO should be used, otherwise false
+ */
+export function isSSOConfigured(userInfo: UserInfo | null | undefined, authSettings: AuthSettings): boolean {
+    const isExternalIssuer = userInfo?.iss && userInfo.iss !== 'argocd';
+    const hasDexConnectors = (authSettings.dexConfig?.connectors?.length ?? 0) > 0;
+    const hasOidcConfig = !!authSettings.oidcConfig;
+    return isExternalIssuer && (hasDexConnectors || hasOidcConfig);
+}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -76,7 +78,12 @@ type fakeData struct {
 	applicationNamespaces           []string
 	updateRevisionForPathsResponse  *apiclient.UpdateRevisionForPathsResponse
 	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
+	resolveRevisionResponses        []*apiclient.ResolveRevisionResponse
 	additionalObjs                  []runtime.Object
+	// onGenerateManifest, if set, is invoked with the ManifestRequest each
+	// time GenerateManifest is called. Useful for asserting fields that the
+	// controller derives, like SourceIntegrity.
+	onGenerateManifest func(req *apiclient.ManifestRequest)
 }
 
 type MockKubectl struct {
@@ -110,19 +117,25 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	// Mock out call to GenerateManifest
 	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
 
+	captureRun := func(_ context.Context, req *apiclient.ManifestRequest, _ ...grpc.CallOption) {
+		if data.onGenerateManifest != nil {
+			data.onGenerateManifest(req)
+		}
+	}
+
 	if len(data.manifestResponses) > 0 {
 		for _, response := range data.manifestResponses {
 			if repoErr != nil {
-				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(response, repoErr).Once()
+				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Run(captureRun).Return(response, repoErr).Once()
 			} else {
-				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(response, nil).Once()
+				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Run(captureRun).Return(response, nil).Once()
 			}
 		}
 	} else {
 		if repoErr != nil {
-			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, repoErr).Once()
-		} else {
-			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
+			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Run(captureRun).Return(data.manifestResponse, repoErr).Once()
+		} else if data.manifestResponse != nil {
+			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Run(captureRun).Return(data.manifestResponse, nil).Once()
 		}
 	}
 
@@ -137,8 +150,18 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	} else {
 		if revisionPathsErr != nil {
 			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
-		} else {
+		} else if data.updateRevisionForPathsResponse != nil {
 			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		}
+	}
+
+	if len(data.resolveRevisionResponses) > 0 {
+		for _, response := range data.resolveRevisionResponses {
+			if repoErr != nil {
+				mockRepoClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(response, repoErr)
+			} else {
+				mockRepoClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(response, nil)
+			}
 		}
 	}
 
@@ -221,7 +244,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	defer cancelApp()
 	clusterCacheMock := &mocks.ClusterCache{}
 	clusterCacheMock.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
-	clusterCacheMock.EXPECT().GetOpenAPISchema().Return(nil)
 	clusterCacheMock.EXPECT().GetGVKParser().Return(nil)
 
 	mockStateCache := &mockstatecache.LiveStateCache{}
@@ -1139,8 +1161,14 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			}}, nil)
 
 			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			// The embedded testing.Fake's RWMutex protects ReactionChain. Wrap the swap so it
+			// does not race with informer-driven Patches reading the chain via Invokes: this
+			// subtest's invalid Destination (name + server) makes the namespace indexer in
+			// newApplicationInformerAndLister invoke setAppCondition → Patch concurrently.
+			fakeAppCs.Lock()
 			defaultReactor := fakeAppCs.ReactionChain[0]
 			fakeAppCs.ReactionChain = nil
+			fakeAppCs.Unlock()
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
@@ -1198,6 +1226,58 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.Equal(t, "pre-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
 	})
 
+	t.Run("PreDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
+		// Regression test for https://github.com/argoproj/argo-cd/issues/27527.
+		// When the app name (or instance name) exceeds Kubernetes' 63-character
+		// label limit, the pre-delete hook must still be created with a
+		// truncated app instance label so the API server doesn't reject it.
+		app := newFakeApp()
+		// 70-character name (7 over the 63-char label limit)
+		app.Name = "this-application-name-is-deliberately-seventy-characters-long-12345678"
+		app.SetPreDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(context.Background(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePreDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			// Force the tracking method that writes the app instance label so
+			// we can assert truncation actually ran (the default tracking method
+			// is annotation-only, which would skip the label entirely).
+			configMapData: map[string]string{
+				"application.resourceTrackingMethod": "annotation+label",
+			},
+		}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		// pre-delete hook is created and its instance label is truncated to
+		// the 63-character limit
+		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
+		createdHook := ctrl.kubectl.(*MockKubectl).CreatedResources[0]
+		require.Equal(t, "pre-delete-hook", createdHook.GetName())
+		labelVal := createdHook.GetLabels()[common.LabelKeyAppInstance]
+		assert.LessOrEqual(t, len(labelVal), 63, "instance label must fit within Kubernetes' 63-character limit")
+		assert.NotEmpty(t, labelVal)
+		// The label value must be the truncated form of the app name (not the
+		// untouched 70-char name), proving the truncation actually ran.
+		assert.NotEqual(t, app.Name, labelVal)
+		assert.True(t, strings.HasPrefix(app.Name, labelVal),
+			"truncated label must be a prefix of the original app name, got %q", labelVal)
+	})
+
 	t.Run("PostDelete_HookIsCreated", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetPostDeleteFinalizer()
@@ -1230,6 +1310,51 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// post-delete hook is created
 		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
+	})
+
+	t.Run("PostDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
+		// Post-delete counterpart of PreDelete_HookIsCreatedForLongAppName; see
+		// that test for the rationale.
+		app := newFakeApp()
+		app.Name = "this-application-name-is-deliberately-seventy-characters-long-12345678"
+		app.SetPostDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePostDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.resourceTrackingMethod": "annotation+label",
+			},
+		}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		assert.False(t, patched, "finalizer must not be removed while hook is still pending")
+		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
+		createdHook := ctrl.kubectl.(*MockKubectl).CreatedResources[0]
+		require.Equal(t, "post-delete-hook", createdHook.GetName())
+		labelVal := createdHook.GetLabels()[common.LabelKeyAppInstance]
+		assert.LessOrEqual(t, len(labelVal), 63, "instance label must fit within Kubernetes' 63-character limit")
+		assert.NotEmpty(t, labelVal)
+		assert.NotEqual(t, app.Name, labelVal)
+		assert.True(t, strings.HasPrefix(app.Name, labelVal),
+			"truncated label must be a prefix of the original app name, got %q", labelVal)
 	})
 
 	t.Run("PreDelete_HookIsExecuted", func(t *testing.T) {
@@ -1716,9 +1841,8 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 func TestSetOperationStateLogRetries(t *testing.T) {
 	hook := utilTest.LogHook{}
 	logrus.AddHook(&hook)
-	t.Cleanup(func() {
-		logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
-	})
+	t.Cleanup(hook.CleanupHook)
+
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
@@ -2337,6 +2461,363 @@ func TestProjectErrorToCondition(t *testing.T) {
 	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 }
 
+// Regression test: the NamespaceIndex indexer must not call setAppCondition
+// when the project informer has not synced yet. Before the fix, both
+// appInformer and projInformer started concurrently in Run(). During the
+// app informer's initial List the indexer called getAppProj(), found the
+// proj cache empty, and PATCHed an InvalidSpecError that permanently
+// blocked auto-sync.
+func TestNamespaceIndexerDoesNotSetConditions(t *testing.T) {
+	var clust corev1.Secret
+	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
+	require.NoError(t, err)
+
+	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
+	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
+		Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).
+		Return(nil, nil).Maybe()
+	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
+	mockCommitClientset := &mockcommitclient.Clientset{}
+
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
+		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+	}
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+	}
+	kubeClient := fake.NewClientset(&clust, &secret, &cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	_ = settingsMgr.ResyncInformers()
+
+	app := newFakeApp()
+	ctrl, err := NewApplicationController(
+		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		appclientset.NewSimpleClientset(app),
+		mockRepoClientset, mockCommitClientset,
+		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
+		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		common.DefaultPortArgoCDMetrics, 0,
+		[]string{}, []string{}, []string{},
+		0, true, nil, nil, nil, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+	)
+	require.NoError(t, err)
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
+
+	// projInformer is NOT started — simulates the startup race where
+	// appInformer fires its indexer before projInformer has synced.
+	require.False(t, ctrl.projInformer.HasSynced())
+
+	// Adding the app to the indexer store triggers the NamespaceIndex function.
+	require.NoError(t, ctrl.appInformer.GetIndexer().Add(app))
+
+	for _, c := range app.Status.Conditions {
+		assert.NotEqual(t, v1alpha1.ApplicationConditionInvalidSpecError, c.Type,
+			"indexer must not set InvalidSpecError when projInformer has not synced")
+	}
+}
+
+func TestNamespaceIndexerSetsConditionOnInvalidDestination(t *testing.T) {
+	var clust corev1.Secret
+	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
+	require.NoError(t, err)
+
+	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
+	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
+		Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).
+		Return(nil, nil).Maybe()
+	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
+	mockCommitClientset := &mockcommitclient.Clientset{}
+
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
+		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+	}
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+	}
+	kubeClient := fake.NewClientset(&clust, &secret, &cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	_ = settingsMgr.ResyncInformers()
+
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	app := newFakeApp()
+	app.Spec.Destination.Server = "https://does-not-exist:6443"
+
+	ctrl, err := NewApplicationController(
+		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		appclientset.NewSimpleClientset(app, proj),
+		mockRepoClientset, mockCommitClientset,
+		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
+		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		common.DefaultPortArgoCDMetrics, 0,
+		[]string{}, []string{}, []string{},
+		0, true, nil, nil, nil, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+	)
+	require.NoError(t, err)
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
+
+	// Start projInformer so the project is in the cache and HasSynced() is true.
+	cancelProj := test.StartInformer(ctrl.projInformer)
+	defer cancelProj()
+
+	require.True(t, ctrl.projInformer.HasSynced())
+
+	// Adding the app triggers the NamespaceIndex indexer.
+	// getAppProj succeeds (project exists), but GetDestinationCluster fails
+	// because the destination server does not match any known cluster.
+	require.NoError(t, ctrl.appInformer.GetIndexer().Add(app))
+
+	var found bool
+	for _, c := range app.Status.Conditions {
+		if c.Type == v1alpha1.ApplicationConditionInvalidSpecError {
+			found = true
+			assert.Contains(t, c.Message, "does-not-exist")
+		}
+	}
+	assert.True(t, found, "indexer must set InvalidSpecError when destination cluster is not found")
+}
+
+// verify that running the real informer loop
+// during the startup race doesn't cause InvalidSpecError patches
+func TestNamespaceIndexerDoesNotPatchDuringStartupRace(t *testing.T) {
+	var clust corev1.Secret
+	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
+	require.NoError(t, err)
+
+	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
+	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
+		Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).
+		Return(nil, nil).Maybe()
+	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
+	mockCommitClientset := &mockcommitclient.Clientset{}
+
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
+		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+	}
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+	}
+	kubeClient := fake.NewClientset(&clust, &secret, &cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	_ = settingsMgr.ResyncInformers()
+
+	app := newFakeApp()
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+	appCs := appclientset.NewSimpleClientset(app, proj)
+	ctrl, err := NewApplicationController(
+		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		appCs,
+		mockRepoClientset, mockCommitClientset,
+		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
+		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		common.DefaultPortArgoCDMetrics, 0,
+		[]string{}, []string{}, []string{},
+		0, true, nil, nil, nil, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+	)
+	require.NoError(t, err)
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
+
+	// Drive the real informer Run() loop. projInformer stays unstarted so
+	// HasSynced() is false during the appInformer's initial List, exactly
+	// as in the production race.
+	cancelApp := test.StartInformer(ctrl.appInformer)
+	defer cancelApp()
+
+	require.False(t, ctrl.projInformer.HasSynced())
+
+	for _, action := range appCs.Actions() {
+		if action.GetVerb() != "patch" || action.GetResource().Resource != "applications" {
+			continue
+		}
+		pa, ok := action.(kubetesting.PatchAction)
+		require.True(t, ok)
+		assert.NotContains(t, string(pa.GetPatch()), string(v1alpha1.ApplicationConditionInvalidSpecError),
+			"indexer must not PATCH InvalidSpecError when projInformer has not synced")
+	}
+
+	got, err := appCs.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	for _, c := range got.Status.Conditions {
+		assert.NotEqual(t, v1alpha1.ApplicationConditionInvalidSpecError, c.Type,
+			"persisted app must not carry InvalidSpecError after startup race")
+	}
+}
+
+func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
+	var clust corev1.Secret
+	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
+	require.NoError(t, err)
+
+	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
+	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
+		Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).
+		Return(nil, nil).Maybe()
+	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
+	mockCommitClientset := &mockcommitclient.Clientset{}
+
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
+		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+	}
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+	}
+	kubeClient := fake.NewClientset(&clust, &secret, &cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	_ = settingsMgr.ResyncInformers()
+
+	app := newFakeApp()
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			OrphanedResources: &v1alpha1.OrphanedResourcesMonitorSettings{},
+		},
+	}
+	ctrl, err := NewApplicationController(
+		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		appclientset.NewSimpleClientset(app, proj),
+		mockRepoClientset, mockCommitClientset,
+		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
+		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		common.DefaultPortArgoCDMetrics, 0,
+		[]string{}, []string{}, []string{},
+		0, true, nil, nil, nil, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+	)
+	require.NoError(t, err)
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
+
+	// projInformer is NOT started — simulates the startup race.
+	require.False(t, ctrl.projInformer.HasSynced())
+
+	require.NoError(t, ctrl.appInformer.GetIndexer().Add(app))
+
+	keys, err := ctrl.appInformer.GetIndexer().IndexKeys(orphanedIndex, test.FakeDestNamespace)
+	require.NoError(t, err)
+	assert.Empty(t, keys,
+		"orphanedIndex must not index apps when projInformer has not synced")
+}
+
+func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing.T) {
+	var clust corev1.Secret
+	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
+	require.NoError(t, err)
+
+	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
+	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
+		Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).
+		Return(nil, nil).Maybe()
+	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
+	mockCommitClientset := &mockcommitclient.Clientset{}
+
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
+		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+	}
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+	}
+	kubeClient := fake.NewClientset(&clust, &secret, &cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	_ = settingsMgr.ResyncInformers()
+
+	app := newFakeApp()
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			OrphanedResources: &v1alpha1.OrphanedResourcesMonitorSettings{},
+		},
+	}
+	ctrl, err := NewApplicationController(
+		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		appclientset.NewSimpleClientset(app, proj),
+		mockRepoClientset, mockCommitClientset,
+		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
+		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		common.DefaultPortArgoCDMetrics, 0,
+		[]string{}, []string{}, []string{},
+		0, true, nil, nil, nil, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+	)
+	require.NoError(t, err)
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
+
+	// Start projInformer so the project is cached and HasSynced() is true.
+	cancelProj := test.StartInformer(ctrl.projInformer)
+	defer cancelProj()
+
+	require.True(t, ctrl.projInformer.HasSynced())
+
+	require.NoError(t, ctrl.appInformer.GetIndexer().Add(app))
+
+	keys, err := ctrl.appInformer.GetIndexer().IndexKeys(orphanedIndex, test.FakeDestNamespace)
+	require.NoError(t, err)
+	assert.Len(t, keys, 1,
+		"orphanedIndex must return destination namespace when project has OrphanedResources")
+}
+
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	app := newFakeApp()
 	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
@@ -2817,6 +3298,179 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 			assert.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)
 		})
 	}
+}
+
+func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T) {
+	app := newFakeApp()
+	app.Status.Health.Status = health.HealthStatusHealthy
+	app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		return defaultReactor.React(action)
+	})
+
+	var patchCalls int
+	var capturedPatches [][]byte
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		patchCalls++
+		patchAction := action.(kubetesting.PatchAction)
+		capturedPatches = append(capturedPatches, patchAction.GetPatch())
+		if patchCalls == 1 {
+			return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	newStatus := app.Status.DeepCopy()
+	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+	newStatus.Resources = []v1alpha1.ResourceStatus{
+		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
+	}
+
+	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+
+	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
+
+	var fallback map[string]any
+	require.NoError(t, json.Unmarshal(capturedPatches[1], &fallback))
+
+	status, ok := fallback["status"].(map[string]any)
+	require.True(t, ok, "fallback patch should contain status")
+
+	_, hasResources := status["resources"]
+	assert.False(t, hasResources, "fallback patch should NOT contain status.resources")
+
+	conditions, ok := status["conditions"].([]any)
+	require.True(t, ok, "fallback patch should contain status.conditions")
+	require.Len(t, conditions, 1)
+	cond := conditions[0].(map[string]any)
+	assert.Equal(t, v1alpha1.ApplicationConditionUnknownError, cond["type"])
+	assert.Contains(t, cond["message"], "exceeds the Kubernetes resource size limit")
+}
+
+func TestApplicationController_PersistAppStatus_NonSizeLimitErrorNoFallback(t *testing.T) {
+	app := newFakeApp()
+	app.Status.Health.Status = health.HealthStatusHealthy
+	app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		return defaultReactor.React(action)
+	})
+
+	var patchCalls int
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		patchCalls++
+		return true, nil, errors.New("boom")
+	})
+
+	newStatus := app.Status.DeepCopy()
+	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+
+	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+
+	assert.Equal(t, 1, patchCalls, "non-size-limit errors should NOT trigger fallback patch")
+}
+
+func TestApplicationController_PersistAppStatus_FallbackMessageContainsUserGuidance(t *testing.T) {
+	app := newFakeApp()
+	app.Status.Health.Status = health.HealthStatusHealthy
+	app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		return defaultReactor.React(action)
+	})
+
+	var patchCalls int
+	var capturedPatches [][]byte
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		patchCalls++
+		patchAction := action.(kubetesting.PatchAction)
+		capturedPatches = append(capturedPatches, patchAction.GetPatch())
+		if patchCalls == 1 {
+			return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	newStatus := app.Status.DeepCopy()
+	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+	newStatus.Resources = []v1alpha1.ResourceStatus{
+		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
+	}
+
+	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+
+	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
+
+	var fallback map[string]any
+	require.NoError(t, json.Unmarshal(capturedPatches[1], &fallback))
+
+	status := fallback["status"].(map[string]any)
+	conditions := status["conditions"].([]any)
+	require.Len(t, conditions, 1)
+	message, ok := conditions[0].(map[string]any)["message"].(string)
+	require.True(t, ok, "fallback condition should have a string message")
+
+	// The fallback message must tell the user what happened, that the displayed
+	// status may be stale, and give them actionable remediation steps. These
+	// substrings are asserted explicitly so the user-facing guidance cannot
+	// regress silently.
+	assert.Contains(t, message, "exceeds the Kubernetes resource size limit")
+	assert.Contains(t, message, "could not be persisted")
+	assert.Contains(t, message, "displayed status may be stale")
+	assert.Contains(t, message, "Reduce the number of managed resources")
+	assert.Contains(t, message, "ApplyOutOfSyncOnly=true")
+	assert.Contains(t, message, "spec.revisionHistoryLimit")
+	assert.Contains(t, message, "split the Application")
+}
+
+func TestApplicationController_PersistAppStatus_FallbackPatchAlsoFails(t *testing.T) {
+	app := newFakeApp()
+	app.Status.Health.Status = health.HealthStatusHealthy
+	app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		return defaultReactor.React(action)
+	})
+
+	var patchCalls int
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		patchCalls++
+		if patchCalls == 1 {
+			return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
+		}
+		return true, nil, errors.New("fallback patch failed")
+	})
+
+	newStatus := app.Status.DeepCopy()
+	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+	newStatus.Resources = []v1alpha1.ResourceStatus{
+		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
+	}
+
+	// Must not panic or block when the fallback patch also fails — the error
+	// should be logged and persistAppStatus should return normally.
+	assert.NotPanics(t, func() {
+		ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+	})
+
+	assert.Equal(t, 2, patchCalls, "fallback patch should be attempted exactly once after initial size-limit failure")
 }
 
 func TestGetAppHosts(t *testing.T) {

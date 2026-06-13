@@ -70,6 +70,7 @@ func NewCommand() *cobra.Command {
 		syncTimeout                      int
 		statusProcessors                 int
 		operationProcessors              int
+		hydrationProcessors              int
 		glogLevel                        int
 		metricsPort                      int
 		metricsCacheExpiration           time.Duration
@@ -93,7 +94,8 @@ func NewCommand() *cobra.Command {
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
 
 		// argocd k8s event logging flag
-		enableK8sEvent  []string
+		enableK8sEvent []string
+		// feature flag that enables the manifest hydrator controller
 		hydratorEnabled bool
 	)
 	command := cobra.Command{
@@ -242,7 +244,7 @@ func NewCommand() *cobra.Command {
 				cancel()
 			}()
 
-			go appController.Run(ctx, statusProcessors, operationProcessors)
+			go appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
 
 			<-ctx.Done()
 
@@ -262,6 +264,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&commitServerAddress, "commit-server", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER", common.DefaultCommitServerAddr), "Commit server address.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS", 20, 0, math.MaxInt32), "Number of application status processors")
 	command.Flags().IntVar(&operationProcessors, "operation-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_OPERATION_PROCESSORS", 10, 0, math.MaxInt32), "Number of application operation processors")
+	command.Flags().IntVar(&hydrationProcessors, "hydration-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS", 5, 1, math.MaxInt32), "Number of manifest hydration processors (only relevant when the Source Hydrator is enabled)")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")

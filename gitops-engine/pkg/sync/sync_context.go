@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/openapi"
+	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -236,7 +236,6 @@ func NewSyncContext(
 	rawConfig *rest.Config,
 	kubectl kubeutil.Kubectl,
 	namespace string,
-	openAPISchema openapi.Resources,
 	opts ...SyncOpt,
 ) (SyncContext, func(), error) {
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
@@ -251,7 +250,7 @@ func NewSyncContext(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create extensions client: %w", err)
 	}
-	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig, openAPISchema)
+	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to manage resources: %w", err)
 	}
@@ -481,7 +480,24 @@ func (sc *syncContext) Sync() {
 	sc.log.WithValues("skipHooks", sc.skipHooks, "started", sc.started()).Info("Syncing")
 	tasks, ok := sc.getSyncTasks()
 	if !ok {
-		sc.setOperationPhase(common.OperationFailed, "one or more synchronization tasks are not valid")
+		// Collect distinct error messages from failed resource results so that the
+		// operation phase message surfaces the actual root cause (e.g. cluster API
+		// server unreachable) rather than only the generic "not valid" message.
+		seen := make(map[string]bool)
+
+		var errMessages []string
+		for _, res := range sc.syncRes {
+			if res.Status == common.ResultCodeSyncFailed && res.Message != "" && !seen[res.Message] {
+				seen[res.Message] = true
+				errMessages = append(errMessages, res.Message)
+			}
+		}
+		msg := "one or more synchronization tasks are not valid"
+		if len(errMessages) > 0 {
+			sort.Strings(errMessages)
+			msg = fmt.Sprintf("%s: %s", msg, strings.Join(errMessages, "; "))
+		}
+		sc.setOperationPhase(common.OperationFailed, msg)
 		return
 	}
 
@@ -1024,6 +1040,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	isRetryable := apierrors.IsUnauthorized
 
 	serverResCache := make(map[schema.GroupVersionKind]*metav1.APIResource)
+	serverResErrCache := make(map[schema.GroupVersionKind]error)
 
 	// check permissions
 	for _, task := range tasks {
@@ -1033,6 +1050,8 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		if val, ok := serverResCache[task.groupVersionKind()]; ok {
 			serverRes = val
 			err = nil
+		} else if cachedErr, ok := serverResErrCache[task.groupVersionKind()]; ok {
+			err = cachedErr
 		} else {
 			err = retry.OnError(retry.DefaultRetry, isRetryable, func() error {
 				serverRes, err = kubeutil.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind(), "get")
@@ -1041,6 +1060,8 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			})
 			if serverRes != nil {
 				serverResCache[task.groupVersionKind()] = serverRes
+			} else if err != nil {
+				serverResErrCache[task.groupVersionKind()] = err
 			}
 		}
 
@@ -1368,19 +1389,45 @@ func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstruct
 
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
 	dryRunStrategy := cmdutil.DryRunNone
-	if dryRun {
-		// irrespective of the dry run mode set in the sync context, always run
-		// in client dry run mode as the goal is to validate only the
-		// yaml correctness of the rendered manifests.
-		// running dry-run in server mode breaks the auto create namespace feature
-		// https://github.com/argoproj/argo-cd/issues/13874
-		dryRunStrategy = cmdutil.DryRunClient
-	}
+	// Temporarily commented out DryRunClient selection, it is currently broken in client-go 1.36,
+	// see https://github.com/kubernetes/kubernetes/issues/139538
+	//
+	// if dryRun {
+	// 	// irrespective of the dry run mode set in the sync context, always run
+	// 	// in client dry run mode as the goal is to validate only the
+	// 	// yaml correctness of the rendered manifests.
+	// 	// running dry-run in server mode breaks the auto create namespace feature
+	// 	// https://github.com/argoproj/argo-cd/issues/13874
+	// 	dryRunStrategy = cmdutil.DryRunClient
+	// }
 
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionReplace))
 	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionForce))
+
+	if dryRun {
+		// workaround for the go-client bug,
+		if t.liveObj == nil {
+			// this case not affected by the k8s bug
+			dryRunStrategy = cmdutil.DryRunClient
+		} else {
+			_, err := scheme.Scheme.New(t.groupVersionKind())
+			if err == nil {
+				// client dry-run works for object in the scheme (internal k8s objects)
+				dryRunStrategy = cmdutil.DryRunClient
+			} else {
+				// server-side  dry-run won't work with force or replace options
+				if shouldReplace || force {
+					// faking dry-run success, if something is wrong
+					// with the manifest, so be it, it will fail on real apply
+					return common.ResultCodeSynced, message
+				}
+				// using server-side dry run instead of client-side
+				dryRunStrategy = cmdutil.DryRunServer
+			}
+		}
+	}
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
 
 	// Check if we need to perform client-side apply migration for server-side apply
