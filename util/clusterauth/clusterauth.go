@@ -3,6 +3,8 @@ package clusterauth
 import (
 	"context"
 	"fmt"
+	authenticationv1 "k8s.io/api/authentication/v1"
+	"k8s.io/utils/ptr"
 	"strings"
 	"time"
 
@@ -46,6 +48,51 @@ var ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
 		Resources: []string{"*"},
 		Verbs:     []string{"*"},
 	},
+}
+
+// RequestServiceAccountToken requests a token for a service account with a specified expiration duration
+func RequestServiceAccountToken(clientset kubernetes.Interface, namespace, saName, audience string, expiration time.Duration) (string, error) {
+	expSec := int64(expiration.Seconds())
+	aud := "https://kubernetes.default.svc"
+	if audience != "" {
+		aud = audience
+	}
+	tokenRequest := &authenticationv1.TokenRequest{
+		Spec: authenticationv1.TokenRequestSpec{
+			// Audiences is intentionally restricted to a single value.
+			// Although Kubernetes supports multiple audiences, allowing more than one
+			// would widen the scope of this token and increase its blast radius if leaked.
+			// A single explicit audience aligns with least-privilege principles and
+			// Argo CD's use of service account tokens as cluster credentials.
+			Audiences:         []string{aud},
+			ExpirationSeconds: ptr.To(expSec),
+		},
+	}
+
+	response, err := clientset.CoreV1().ServiceAccounts(namespace).CreateToken(context.TODO(), saName, tokenRequest, metav1.CreateOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to create token for service account %q in namespace %q: %w", saName, namespace, err)
+	}
+	if len(response.Status.Token) == 0 {
+		return "", fmt.Errorf("received empty token for service account %q in namespace %q", saName, namespace)
+	}
+	claims, err := ParseServiceAccountToken(response.Status.Token)
+	if err != nil {
+		return "", fmt.Errorf("error parsing service account token: %w", err)
+	}
+
+	if claims.IssuedAt == nil || claims.ExpiresAt == nil {
+		return "", fmt.Errorf("token is missing iat/exp claims")
+	}
+
+	ttl := time.Until(claims.ExpiresAt.Time)
+
+	fmt.Printf(
+		"ServiceAccount token TTL: %s (expires at %s)\n",
+		ttl.Round(time.Second),
+		claims.ExpiresAt.Time.UTC().Format(time.RFC3339),
+	)
+	return response.Status.Token, nil
 }
 
 // CreateServiceAccount creates a service account in a given namespace
@@ -176,7 +223,10 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
+// Token issuance mechanism is selected explicitly.
+// By default Argo CD uses long-lived service account tokens for backward compatibility.
+// The TokenRequest API is opt-in and issues short-lived tokens with a single audience.
+func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, useTokenRequest bool, audience string, bearerTokenTimeout time.Duration) (string, error) {
 	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
 		return "", err
@@ -212,6 +262,16 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 				return "", err
 			}
 		}
+	}
+
+	if useTokenRequest {
+		return RequestServiceAccountToken(
+			clientset,
+			ns,
+			ArgoCDManagerServiceAccount,
+			audience,
+			bearerTokenTimeout,
+		)
 	}
 
 	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount, bearerTokenTimeout)
