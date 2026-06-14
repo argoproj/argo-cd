@@ -15,6 +15,13 @@
 kubectl create namespace argocd
 kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
+### Verify Installation
+
+Wait for all Argo CD pods to become ready:
+
+```bash
+kubectl get pods -n argocd
+
 
 This will create a new `argocd` namespace where all Argo CD services and application resources will reside. It will also install Argo CD by applying the official manifests from the stable branch. Using a pinned version (like `v3.2.0`) is recommended for production.
 
