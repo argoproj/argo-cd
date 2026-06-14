@@ -159,7 +159,7 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 
 		return healthStatus, nil
 	} else if returnValue.Type() == lua.LTNil {
-		return &health.HealthStatus{}, nil
+		return nil, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
