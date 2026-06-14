@@ -1,0 +1,1240 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: 'app-of-apps:argoproj.io/Application:argocd/argo-workflows'
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"argoproj.io/v1alpha1","kind":"Application","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"app-of-apps:argoproj.io/Application:argocd/argo-workflows"},"name":"argo-workflows","namespace":"argocd"},"spec":{"destination":{"name":"in-cluster","namespace":"argo-workflows"},"project":"default","revisionHistoryLimit":1,"source":{"chart":"argo-workflows","helm":{"valuesObject":{"controller":{"podSecurityContext":{"runAsGroup":1000,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"}},"resources":{"requests":{"cpu":"12m","memory":"70M"}},"volumeMounts":[{"mountPath":"/tmp","name":"tmp"}],"volumes":[{"emptyDir":{},"name":"tmp"}]},"crds":{"keep":false},"executor":{"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"runAsGroup":1000,"runAsNonRoot":true,"runAsUser":1000}},"server":{"extraArgs":["--auth-mode=server"],"ingress":{"annotations":{"cert-manager.io/cluster-issuer":"letsencrypt-dns01-issuer"},"enabled":true,"hosts":["argo-workflows.hankeln.work"],"ingressClassName":"nginx","tls":[{"hosts":["argo-workflows.hankeln.work"],"secretName":"argo-workflows-cert"}]},"podSecurityContext":{"runAsGroup":1000,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"}},"resources":{"requests":{"cpu":"12m","memory":"50M"}},"securityContext":{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,"runAsNonRoot":true}},"workflow":{"serviceAccount":{"create":true}}}},"repoURL":"https://argoproj.github.io/argo-helm","targetRevision":"0.45.27"},"syncPolicy":{"automated":{"allowEmpty":true,"prune":true}}}}
+  creationTimestamp: '2025-11-14T12:35:57Z'
+  generation: 56
+  managedFields:
+    - apiVersion: argoproj.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:argocd.argoproj.io/tracking-id': {}
+            'f:kubectl.kubernetes.io/last-applied-configuration': {}
+        'f:spec':
+          .: {}
+          'f:destination':
+            .: {}
+            'f:name': {}
+            'f:namespace': {}
+          'f:project': {}
+          'f:revisionHistoryLimit': {}
+          'f:source':
+            .: {}
+            'f:chart': {}
+            'f:helm':
+              .: {}
+              'f:valuesObject':
+                .: {}
+                'f:controller':
+                  .: {}
+                  'f:podSecurityContext':
+                    .: {}
+                    'f:runAsGroup': {}
+                    'f:runAsUser': {}
+                    'f:seccompProfile':
+                      .: {}
+                      'f:type': {}
+                  'f:resources':
+                    .: {}
+                    'f:requests':
+                      .: {}
+                      'f:cpu': {}
+                      'f:memory': {}
+                  'f:volumeMounts': {}
+                  'f:volumes': {}
+                'f:crds':
+                  .: {}
+                  'f:keep': {}
+                'f:executor':
+                  .: {}
+                  'f:securityContext':
+                    .: {}
+                    'f:allowPrivilegeEscalation': {}
+                    'f:capabilities':
+                      .: {}
+                      'f:drop': {}
+                    'f:runAsGroup': {}
+                    'f:runAsNonRoot': {}
+                    'f:runAsUser': {}
+                'f:server':
+                  .: {}
+                  'f:extraArgs': {}
+                  'f:ingress':
+                    .: {}
+                    'f:annotations':
+                      .: {}
+                      'f:cert-manager.io/cluster-issuer': {}
+                    'f:enabled': {}
+                    'f:hosts': {}
+                    'f:ingressClassName': {}
+                    'f:tls': {}
+                  'f:podSecurityContext':
+                    .: {}
+                    'f:runAsGroup': {}
+                    'f:runAsUser': {}
+                    'f:seccompProfile':
+                      .: {}
+                      'f:type': {}
+                  'f:resources':
+                    .: {}
+                    'f:requests':
+                      .: {}
+                      'f:cpu': {}
+                      'f:memory': {}
+                  'f:securityContext':
+                    .: {}
+                    'f:allowPrivilegeEscalation': {}
+                    'f:readOnlyRootFilesystem': {}
+                    'f:runAsNonRoot': {}
+                'f:workflow':
+                  .: {}
+                  'f:serviceAccount':
+                    .: {}
+                    'f:create': {}
+            'f:repoURL': {}
+            'f:targetRevision': {}
+          'f:syncPolicy':
+            .: {}
+            'f:automated':
+              .: {}
+              'f:allowEmpty': {}
+              'f:prune': {}
+      manager: argocd-controller
+      operation: Update
+      time: '2025-11-14T12:35:57Z'
+    - apiVersion: argoproj.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          .: {}
+          'f:controllerNamespace': {}
+          'f:health':
+            .: {}
+            'f:lastTransitionTime': {}
+            'f:status': {}
+          'f:history': {}
+          'f:operationState':
+            .: {}
+            'f:finishedAt': {}
+            'f:message': {}
+            'f:operation':
+              .: {}
+              'f:initiatedBy':
+                .: {}
+                'f:automated': {}
+              'f:retry':
+                .: {}
+                'f:limit': {}
+              'f:sync':
+                .: {}
+                'f:prune': {}
+                'f:revision': {}
+                'f:source':
+                  .: {}
+                  'f:chart': {}
+                  'f:helm':
+                    .: {}
+                    'f:valuesObject':
+                      .: {}
+                      'f:controller':
+                        .: {}
+                        'f:podSecurityContext':
+                          .: {}
+                          'f:runAsGroup': {}
+                          'f:runAsUser': {}
+                          'f:seccompProfile':
+                            .: {}
+                            'f:type': {}
+                        'f:resources':
+                          .: {}
+                          'f:requests':
+                            .: {}
+                            'f:cpu': {}
+                            'f:memory': {}
+                        'f:volumeMounts': {}
+                        'f:volumes': {}
+                      'f:crds':
+                        .: {}
+                        'f:keep': {}
+                      'f:executor':
+                        .: {}
+                        'f:securityContext':
+                          .: {}
+                          'f:allowPrivilegeEscalation': {}
+                          'f:capabilities':
+                            .: {}
+                            'f:drop': {}
+                          'f:runAsGroup': {}
+                          'f:runAsNonRoot': {}
+                          'f:runAsUser': {}
+                      'f:server':
+                        .: {}
+                        'f:extraArgs': {}
+                        'f:ingress':
+                          .: {}
+                          'f:annotations':
+                            .: {}
+                            'f:cert-manager.io/cluster-issuer': {}
+                          'f:enabled': {}
+                          'f:hosts': {}
+                          'f:ingressClassName': {}
+                          'f:tls': {}
+                        'f:podSecurityContext':
+                          .: {}
+                          'f:runAsGroup': {}
+                          'f:runAsUser': {}
+                          'f:seccompProfile':
+                            .: {}
+                            'f:type': {}
+                        'f:resources':
+                          .: {}
+                          'f:requests':
+                            .: {}
+                            'f:cpu': {}
+                            'f:memory': {}
+                        'f:securityContext':
+                          .: {}
+                          'f:allowPrivilegeEscalation': {}
+                          'f:readOnlyRootFilesystem': {}
+                          'f:runAsNonRoot': {}
+                      'f:workflow':
+                        .: {}
+                        'f:serviceAccount':
+                          .: {}
+                          'f:create': {}
+                  'f:repoURL': {}
+                  'f:targetRevision': {}
+            'f:phase': {}
+            'f:startedAt': {}
+            'f:syncResult':
+              .: {}
+              'f:resources': {}
+              'f:revision': {}
+              'f:source':
+                .: {}
+                'f:chart': {}
+                'f:helm':
+                  .: {}
+                  'f:valuesObject':
+                    .: {}
+                    'f:controller':
+                      .: {}
+                      'f:podSecurityContext':
+                        .: {}
+                        'f:runAsGroup': {}
+                        'f:runAsUser': {}
+                        'f:seccompProfile':
+                          .: {}
+                          'f:type': {}
+                      'f:resources':
+                        .: {}
+                        'f:requests':
+                          .: {}
+                          'f:cpu': {}
+                          'f:memory': {}
+                      'f:volumeMounts': {}
+                      'f:volumes': {}
+                    'f:crds':
+                      .: {}
+                      'f:keep': {}
+                    'f:executor':
+                      .: {}
+                      'f:securityContext':
+                        .: {}
+                        'f:allowPrivilegeEscalation': {}
+                        'f:capabilities':
+                          .: {}
+                          'f:drop': {}
+                        'f:runAsGroup': {}
+                        'f:runAsNonRoot': {}
+                        'f:runAsUser': {}
+                    'f:server':
+                      .: {}
+                      'f:extraArgs': {}
+                      'f:ingress':
+                        .: {}
+                        'f:annotations':
+                          .: {}
+                          'f:cert-manager.io/cluster-issuer': {}
+                        'f:enabled': {}
+                        'f:hosts': {}
+                        'f:ingressClassName': {}
+                        'f:tls': {}
+                      'f:podSecurityContext':
+                        .: {}
+                        'f:runAsGroup': {}
+                        'f:runAsUser': {}
+                        'f:seccompProfile':
+                          .: {}
+                          'f:type': {}
+                      'f:resources':
+                        .: {}
+                        'f:requests':
+                          .: {}
+                          'f:cpu': {}
+                          'f:memory': {}
+                      'f:securityContext':
+                        .: {}
+                        'f:allowPrivilegeEscalation': {}
+                        'f:readOnlyRootFilesystem': {}
+                        'f:runAsNonRoot': {}
+                    'f:workflow':
+                      .: {}
+                      'f:serviceAccount':
+                        .: {}
+                        'f:create': {}
+                'f:repoURL': {}
+                'f:targetRevision': {}
+          'f:reconciledAt': {}
+          'f:resourceHealthSource': {}
+          'f:resources': {}
+          'f:sourceHydrator': {}
+          'f:sourceType': {}
+          'f:summary':
+            .: {}
+            'f:externalURLs': {}
+            'f:images': {}
+          'f:sync':
+            .: {}
+            'f:comparedTo':
+              .: {}
+              'f:destination':
+                .: {}
+                'f:name': {}
+                'f:namespace': {}
+              'f:source':
+                .: {}
+                'f:chart': {}
+                'f:helm':
+                  .: {}
+                  'f:valuesObject':
+                    .: {}
+                    'f:controller':
+                      .: {}
+                      'f:podSecurityContext':
+                        .: {}
+                        'f:runAsGroup': {}
+                        'f:runAsUser': {}
+                        'f:seccompProfile':
+                          .: {}
+                          'f:type': {}
+                      'f:resources':
+                        .: {}
+                        'f:requests':
+                          .: {}
+                          'f:cpu': {}
+                          'f:memory': {}
+                      'f:volumeMounts': {}
+                      'f:volumes': {}
+                    'f:crds':
+                      .: {}
+                      'f:keep': {}
+                    'f:executor':
+                      .: {}
+                      'f:securityContext':
+                        .: {}
+                        'f:allowPrivilegeEscalation': {}
+                        'f:capabilities':
+                          .: {}
+                          'f:drop': {}
+                        'f:runAsGroup': {}
+                        'f:runAsNonRoot': {}
+                        'f:runAsUser': {}
+                    'f:server':
+                      .: {}
+                      'f:extraArgs': {}
+                      'f:ingress':
+                        .: {}
+                        'f:annotations':
+                          .: {}
+                          'f:cert-manager.io/cluster-issuer': {}
+                        'f:enabled': {}
+                        'f:hosts': {}
+                        'f:ingressClassName': {}
+                        'f:tls': {}
+                      'f:podSecurityContext':
+                        .: {}
+                        'f:runAsGroup': {}
+                        'f:runAsUser': {}
+                        'f:seccompProfile':
+                          .: {}
+                          'f:type': {}
+                      'f:resources':
+                        .: {}
+                        'f:requests':
+                          .: {}
+                          'f:cpu': {}
+                          'f:memory': {}
+                      'f:securityContext':
+                        .: {}
+                        'f:allowPrivilegeEscalation': {}
+                        'f:readOnlyRootFilesystem': {}
+                        'f:runAsNonRoot': {}
+                    'f:workflow':
+                      .: {}
+                      'f:serviceAccount':
+                        .: {}
+                        'f:create': {}
+                'f:repoURL': {}
+                'f:targetRevision': {}
+            'f:revision': {}
+            'f:status': {}
+      manager: argocd-application-controller
+      operation: Update
+      time: '2025-11-14T16:33:21Z'
+  name: argo-workflows
+  namespace: argocd
+  resourceVersion: '3000237'
+  uid: c3ec7180-99b0-431a-adda-63c5eddcde3a
+spec:
+  destination:
+    name: in-cluster
+    namespace: argo-workflows
+  project: default
+  revisionHistoryLimit: 1
+  source:
+    chart: argo-workflows
+    helm:
+      valuesObject:
+        controller:
+          podSecurityContext:
+            runAsGroup: 1000
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 12m
+              memory: 70M
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+          volumes:
+            - emptyDir: {}
+              name: tmp
+        crds:
+          keep: false
+        executor:
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+        server:
+          extraArgs:
+            - '--auth-mode=server'
+          ingress:
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-dns01-issuer
+            enabled: true
+            hosts:
+              - argo-workflows.hankeln.work
+            ingressClassName: nginx
+            tls:
+              - hosts:
+                  - argo-workflows.hankeln.work
+                secretName: argo-workflows-cert
+          podSecurityContext:
+            runAsGroup: 1000
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 12m
+              memory: 50M
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+        workflow:
+          serviceAccount:
+            create: true
+    repoURL: 'https://argoproj.github.io/argo-helm'
+    targetRevision: 0.45.27
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+status:
+  controllerNamespace: argocd
+  health:
+    lastTransitionTime: '2025-11-14T12:35:59Z'
+    status: Progressing
+  history:
+    - deployStartedAt: '2025-11-14T12:35:57Z'
+      deployedAt: '2025-11-14T12:35:58Z'
+      id: 0
+      initiatedBy:
+        automated: true
+      revision: 0.45.27
+      source:
+        chart: argo-workflows
+        helm:
+          valuesObject:
+            controller:
+              podSecurityContext:
+                runAsGroup: 1000
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 12m
+                  memory: 70M
+              volumeMounts:
+                - mountPath: /tmp
+                  name: tmp
+              volumes:
+                - emptyDir: {}
+                  name: tmp
+            crds:
+              keep: false
+            executor:
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsGroup: 1000
+                runAsNonRoot: true
+                runAsUser: 1000
+            server:
+              extraArgs:
+                - '--auth-mode=server'
+              ingress:
+                annotations:
+                  cert-manager.io/cluster-issuer: letsencrypt-dns01-issuer
+                enabled: true
+                hosts:
+                  - argo-workflows.hankeln.work
+                ingressClassName: nginx
+                tls:
+                  - hosts:
+                      - argo-workflows.hankeln.work
+                    secretName: argo-workflows-cert
+              podSecurityContext:
+                runAsGroup: 1000
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 12m
+                  memory: 50M
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+            workflow:
+              serviceAccount:
+                create: true
+        repoURL: 'https://argoproj.github.io/argo-helm'
+        targetRevision: 0.45.27
+  operationState:
+    finishedAt: '2025-11-14T12:35:58Z'
+    message: successfully synced (all tasks run)
+    operation:
+      initiatedBy:
+        automated: true
+      retry:
+        limit: 5
+      sync:
+        prune: true
+        revision: 0.45.27
+        source:
+          chart: argo-workflows
+          helm:
+            valuesObject:
+              controller:
+                podSecurityContext:
+                  runAsGroup: 1000
+                  runAsUser: 1000
+                  seccompProfile:
+                    type: RuntimeDefault
+                resources:
+                  requests:
+                    cpu: 12m
+                    memory: 70M
+                volumeMounts:
+                  - mountPath: /tmp
+                    name: tmp
+                volumes:
+                  - emptyDir: {}
+                    name: tmp
+              crds:
+                keep: false
+              executor:
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                      - ALL
+                  runAsGroup: 1000
+                  runAsNonRoot: true
+                  runAsUser: 1000
+              server:
+                extraArgs:
+                  - '--auth-mode=server'
+                ingress:
+                  annotations:
+                    cert-manager.io/cluster-issuer: letsencrypt-dns01-issuer
+                  enabled: true
+                  hosts:
+                    - argo-workflows.hankeln.work
+                  ingressClassName: nginx
+                  tls:
+                    - hosts:
+                        - argo-workflows.hankeln.work
+                      secretName: argo-workflows-cert
+                podSecurityContext:
+                  runAsGroup: 1000
+                  runAsUser: 1000
+                  seccompProfile:
+                    type: RuntimeDefault
+                resources:
+                  requests:
+                    cpu: 12m
+                    memory: 50M
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
+              workflow:
+                serviceAccount:
+                  create: true
+          repoURL: 'https://argoproj.github.io/argo-helm'
+          targetRevision: 0.45.27
+    phase: Succeeded
+    startedAt: '2025-11-14T12:35:57Z'
+    syncResult:
+      resources:
+        - group: ''
+          hookPhase: Running
+          kind: ServiceAccount
+          message: serviceaccount/argo-workflow created
+          name: argo-workflow
+          namespace: default
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: ''
+          hookPhase: Running
+          kind: ServiceAccount
+          message: serviceaccount/argo-workflow created
+          name: argo-workflow
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: ''
+          hookPhase: Running
+          kind: ServiceAccount
+          message: serviceaccount/argo-workflows-server created
+          name: argo-workflows-server
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: ''
+          hookPhase: Running
+          kind: ServiceAccount
+          message: serviceaccount/argo-workflows-workflow-controller created
+          name: argo-workflows-workflow-controller
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: ''
+          hookPhase: Running
+          kind: ConfigMap
+          message: configmap/argo-workflows-workflow-controller-configmap created
+          name: argo-workflows-workflow-controller-configmap
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apiextensions.k8s.io
+          hookPhase: Running
+          kind: CustomResourceDefinition
+          message: >-
+            customresourcedefinition.apiextensions.k8s.io/cronworkflows.argoproj.io
+            configured
+          name: cronworkflows.argoproj.io
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apiextensions.k8s.io
+          hookPhase: Running
+          kind: CustomResourceDefinition
+          message: >-
+            customresourcedefinition.apiextensions.k8s.io/workflows.argoproj.io
+            configured
+          name: workflows.argoproj.io
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apiextensions.k8s.io
+          hookPhase: Running
+          kind: CustomResourceDefinition
+          message: >-
+            customresourcedefinition.apiextensions.k8s.io/workflowtasksets.argoproj.io
+            configured
+          name: workflowtasksets.argoproj.io
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apiextensions.k8s.io
+          hookPhase: Running
+          kind: CustomResourceDefinition
+          message: >-
+            customresourcedefinition.apiextensions.k8s.io/clusterworkflowtemplates.argoproj.io
+            configured
+          name: clusterworkflowtemplates.argoproj.io
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apiextensions.k8s.io
+          hookPhase: Running
+          kind: CustomResourceDefinition
+          message: >-
+            customresourcedefinition.apiextensions.k8s.io/workflowtemplates.argoproj.io
+            configured
+          name: workflowtemplates.argoproj.io
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apiextensions.k8s.io
+          hookPhase: Running
+          kind: CustomResourceDefinition
+          message: >-
+            customresourcedefinition.apiextensions.k8s.io/workfloweventbindings.argoproj.io
+            configured
+          name: workfloweventbindings.argoproj.io
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apiextensions.k8s.io
+          hookPhase: Running
+          kind: CustomResourceDefinition
+          message: >-
+            customresourcedefinition.apiextensions.k8s.io/workflowtaskresults.argoproj.io
+            configured
+          name: workflowtaskresults.argoproj.io
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apiextensions.k8s.io
+          hookPhase: Running
+          kind: CustomResourceDefinition
+          message: >-
+            customresourcedefinition.apiextensions.k8s.io/workflowartifactgctasks.argoproj.io
+            configured
+          name: workflowartifactgctasks.argoproj.io
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRole
+          message: "clusterrole.rbac.authorization.k8s.io/argo-workflows-workflow-controller-cluster-template reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[get list watch] APIGroups:[argoproj.io] Resources:[clusterworkflowtemplates clusterworkflowtemplates/finalizers] ResourceNames:[] NonResourceURLs:[]}. clusterrole.rbac.authorization.k8s.io/argo-workflows-workflow-controller-cluster-template configured. Warning: resource clusterroles/argo-workflows-workflow-controller-cluster-template is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-workflow-controller-cluster-template
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRole
+          message: "clusterrole.rbac.authorization.k8s.io/argo-workflows-admin reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[create delete deletecollection get list patch update watch] APIGroups:[argoproj.io] Resources:[workflows workflows/finalizers workfloweventbindings workfloweventbindings/finalizers workflowtemplates workflowtemplates/finalizers cronworkflows cronworkflows/finalizers clusterworkflowtemplates clusterworkflowtemplates/finalizers workflowtasksets workflowtasksets/finalizers workflowtaskresults workflowtaskresults/finalizers workflowartifactgctasks workflowartifactgctasks/finalizers] ResourceNames:[] NonResourceURLs:[]}. clusterrole.rbac.authorization.k8s.io/argo-workflows-admin configured. Warning: resource clusterroles/argo-workflows-admin is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-admin
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRole
+          message: "clusterrole.rbac.authorization.k8s.io/argo-workflows-server reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[get watch list] APIGroups:[] Resources:[configmaps events] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get list watch delete] APIGroups:[] Resources:[pods] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get list] APIGroups:[] Resources:[pods/log] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get] APIGroups:[] Resources:[secrets] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[watch create patch] APIGroups:[] Resources:[events] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[create get list watch update patch delete] APIGroups:[argoproj.io] Resources:[eventsources sensors workflows workfloweventbindings workflowtemplates cronworkflows] ResourceNames:[] NonResourceURLs:[]}. clusterrole.rbac.authorization.k8s.io/argo-workflows-server configured. Warning: resource clusterroles/argo-workflows-server is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-server
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRole
+          message: "clusterrole.rbac.authorization.k8s.io/argo-workflows-server-cluster-template reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[get list watch create update patch delete] APIGroups:[argoproj.io] Resources:[clusterworkflowtemplates] ResourceNames:[] NonResourceURLs:[]}. clusterrole.rbac.authorization.k8s.io/argo-workflows-server-cluster-template configured. Warning: resource clusterroles/argo-workflows-server-cluster-template is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-server-cluster-template
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRole
+          message: "clusterrole.rbac.authorization.k8s.io/argo-workflows-workflow-controller reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[create get list watch update patch delete] APIGroups:[] Resources:[pods] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[create] APIGroups:[] Resources:[pods/exec] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get watch list] APIGroups:[] Resources:[configmaps namespaces] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[create update delete get] APIGroups:[] Resources:[persistentvolumeclaims persistentvolumeclaims/finalizers] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get list watch update patch delete create] APIGroups:[argoproj.io] Resources:[workflows workflows/finalizers workflowtasksets workflowtasksets/finalizers workflowtasksets/status workflowartifactgctasks] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get list watch] APIGroups:[argoproj.io] Resources:[workflowtemplates workflowtemplates/finalizers] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[list watch deletecollection] APIGroups:[argoproj.io] Resources:[workflowtaskresults workflowtaskresults/finalizers] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get list watch update patch delete] APIGroups:[argoproj.io] Resources:[cronworkflows cronworkflows/finalizers] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[create patch] APIGroups:[] Resources:[events] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get list] APIGroups:[] Resources:[serviceaccounts] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[create get delete] APIGroups:[policy] Resources:[poddisruptionbudgets] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[create] APIGroups:[coordination.k8s.io] Resources:[leases] ResourceNames:[] NonResourceURLs:[]}\n\t\t{Verbs:[get watch update patch delete] APIGroups:[coordination.k8s.io] Resources:[leases] ResourceNames:[workflow-controller workflow-controller-lease] NonResourceURLs:[]}\n\t\t{Verbs:[get] APIGroups:[] Resources:[secrets] ResourceNames:[argo-workflows-agent-ca-certificates] NonResourceURLs:[]}. clusterrole.rbac.authorization.k8s.io/argo-workflows-workflow-controller configured. Warning: resource clusterroles/argo-workflows-workflow-controller is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-workflow-controller
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRole
+          message: "clusterrole.rbac.authorization.k8s.io/argo-workflows-edit reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[create delete deletecollection get list patch update watch] APIGroups:[argoproj.io] Resources:[workflows workflows/finalizers workfloweventbindings workfloweventbindings/finalizers workflowtemplates workflowtemplates/finalizers cronworkflows cronworkflows/finalizers clusterworkflowtemplates clusterworkflowtemplates/finalizers workflowtasksets workflowtasksets/finalizers workflowtaskresults workflowtaskresults/finalizers workflowartifactgctasks workflowartifactgctasks/finalizers] ResourceNames:[] NonResourceURLs:[]}. clusterrole.rbac.authorization.k8s.io/argo-workflows-edit configured. Warning: resource clusterroles/argo-workflows-edit is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-edit
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRole
+          message: "clusterrole.rbac.authorization.k8s.io/argo-workflows-view reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[get list watch] APIGroups:[argoproj.io] Resources:[workflows workflows/finalizers workfloweventbindings workfloweventbindings/finalizers workflowtemplates workflowtemplates/finalizers cronworkflows cronworkflows/finalizers clusterworkflowtemplates clusterworkflowtemplates/finalizers workflowtasksets workflowtasksets/finalizers workflowtaskresults workflowtaskresults/finalizers workflowartifactgctasks workflowartifactgctasks/finalizers] ResourceNames:[] NonResourceURLs:[]}. clusterrole.rbac.authorization.k8s.io/argo-workflows-view configured. Warning: resource clusterroles/argo-workflows-view is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-view
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRoleBinding
+          message: "clusterrolebinding.rbac.authorization.k8s.io/argo-workflows-workflow-controller reconciled. reconciliation required create\n\tmissing subjects added:\n\t\t{Kind:ServiceAccount APIGroup: Name:argo-workflows-workflow-controller Namespace:argo-workflows}. clusterrolebinding.rbac.authorization.k8s.io/argo-workflows-workflow-controller configured. Warning: resource clusterrolebindings/argo-workflows-workflow-controller is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-workflow-controller
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRoleBinding
+          message: "clusterrolebinding.rbac.authorization.k8s.io/argo-workflows-workflow-controller-cluster-template reconciled. reconciliation required create\n\tmissing subjects added:\n\t\t{Kind:ServiceAccount APIGroup: Name:argo-workflows-workflow-controller Namespace:argo-workflows}. clusterrolebinding.rbac.authorization.k8s.io/argo-workflows-workflow-controller-cluster-template configured. Warning: resource clusterrolebindings/argo-workflows-workflow-controller-cluster-template is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-workflow-controller-cluster-template
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRoleBinding
+          message: "clusterrolebinding.rbac.authorization.k8s.io/argo-workflows-server-cluster-template reconciled. reconciliation required create\n\tmissing subjects added:\n\t\t{Kind:ServiceAccount APIGroup: Name:argo-workflows-server Namespace:argo-workflows}. clusterrolebinding.rbac.authorization.k8s.io/argo-workflows-server-cluster-template configured. Warning: resource clusterrolebindings/argo-workflows-server-cluster-template is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-server-cluster-template
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: ClusterRoleBinding
+          message: "clusterrolebinding.rbac.authorization.k8s.io/argo-workflows-server reconciled. reconciliation required create\n\tmissing subjects added:\n\t\t{Kind:ServiceAccount APIGroup: Name:argo-workflows-server Namespace:argo-workflows}. clusterrolebinding.rbac.authorization.k8s.io/argo-workflows-server configured. Warning: resource clusterrolebindings/argo-workflows-server is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-server
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: Role
+          message: "role.rbac.authorization.k8s.io/argo-workflows-workflow reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[create patch] APIGroups:[argoproj.io] Resources:[workflowtaskresults] ResourceNames:[] NonResourceURLs:[]}. role.rbac.authorization.k8s.io/argo-workflows-workflow configured. Warning: resource roles/argo-workflows-workflow is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-workflow
+          namespace: default
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: Role
+          message: "role.rbac.authorization.k8s.io/argo-workflows-workflow reconciled. reconciliation required create\n\tmissing rules added:\n\t\t{Verbs:[create patch] APIGroups:[argoproj.io] Resources:[workflowtaskresults] ResourceNames:[] NonResourceURLs:[]}. role.rbac.authorization.k8s.io/argo-workflows-workflow configured. Warning: resource roles/argo-workflows-workflow is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-workflow
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: RoleBinding
+          message: "rolebinding.rbac.authorization.k8s.io/argo-workflows-workflow reconciled. reconciliation required create\n\tmissing subjects added:\n\t\t{Kind:ServiceAccount APIGroup: Name:argo-workflow Namespace:default}. rolebinding.rbac.authorization.k8s.io/argo-workflows-workflow configured. Warning: resource rolebindings/argo-workflows-workflow is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-workflow
+          namespace: default
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: rbac.authorization.k8s.io
+          hookPhase: Running
+          kind: RoleBinding
+          message: "rolebinding.rbac.authorization.k8s.io/argo-workflows-workflow reconciled. reconciliation required create\n\tmissing subjects added:\n\t\t{Kind:ServiceAccount APIGroup: Name:argo-workflow Namespace:argo-workflows}. rolebinding.rbac.authorization.k8s.io/argo-workflows-workflow configured. Warning: resource rolebindings/argo-workflows-workflow is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by  apply.  apply should only be used on resources created declaratively by either  create --save-config or  apply. The missing annotation will be patched automatically."
+          name: argo-workflows-workflow
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: ''
+          hookPhase: Running
+          kind: Service
+          message: service/argo-workflows-server created
+          name: argo-workflows-server
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apps
+          hookPhase: Running
+          images:
+            - 'quay.io/argoproj/workflow-controller:v3.7.3'
+          kind: Deployment
+          message: deployment.apps/argo-workflows-workflow-controller created
+          name: argo-workflows-workflow-controller
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apps
+          hookPhase: Running
+          images:
+            - 'quay.io/argoproj/argocli:v3.7.3'
+          kind: Deployment
+          message: deployment.apps/argo-workflows-server created
+          name: argo-workflows-server
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: networking.k8s.io
+          hookPhase: Running
+          kind: Ingress
+          message: ingress.networking.k8s.io/argo-workflows-server created
+          name: argo-workflows-server
+          namespace: argo-workflows
+          status: Synced
+          syncPhase: Sync
+          version: v1
+      revision: 0.45.27
+      source:
+        chart: argo-workflows
+        helm:
+          valuesObject:
+            controller:
+              podSecurityContext:
+                runAsGroup: 1000
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 12m
+                  memory: 70M
+              volumeMounts:
+                - mountPath: /tmp
+                  name: tmp
+              volumes:
+                - emptyDir: {}
+                  name: tmp
+            crds:
+              keep: false
+            executor:
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsGroup: 1000
+                runAsNonRoot: true
+                runAsUser: 1000
+            server:
+              extraArgs:
+                - '--auth-mode=server'
+              ingress:
+                annotations:
+                  cert-manager.io/cluster-issuer: letsencrypt-dns01-issuer
+                enabled: true
+                hosts:
+                  - argo-workflows.hankeln.work
+                ingressClassName: nginx
+                tls:
+                  - hosts:
+                      - argo-workflows.hankeln.work
+                    secretName: argo-workflows-cert
+              podSecurityContext:
+                runAsGroup: 1000
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 12m
+                  memory: 50M
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+            workflow:
+              serviceAccount:
+                create: true
+        repoURL: 'https://argoproj.github.io/argo-helm'
+        targetRevision: 0.45.27
+  reconciledAt: '2025-11-14T16:33:19Z'
+  resourceHealthSource: appTree
+  resources:
+    - kind: ConfigMap
+      name: argo-workflows-workflow-controller-configmap
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - kind: Service
+      name: argo-workflows-server
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - kind: ServiceAccount
+      name: argo-workflow
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - kind: ServiceAccount
+      name: argo-workflows-server
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - kind: ServiceAccount
+      name: argo-workflows-workflow-controller
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - kind: ServiceAccount
+      name: argo-workflow
+      namespace: default
+      status: Synced
+      version: v1
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: clusterworkflowtemplates.argoproj.io
+      status: Synced
+      version: v1
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: cronworkflows.argoproj.io
+      status: Synced
+      version: v1
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: workflowartifactgctasks.argoproj.io
+      status: Synced
+      version: v1
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: workfloweventbindings.argoproj.io
+      status: Synced
+      version: v1
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: workflows.argoproj.io
+      status: Synced
+      version: v1
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: workflowtaskresults.argoproj.io
+      status: Synced
+      version: v1
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: workflowtasksets.argoproj.io
+      status: Synced
+      version: v1
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: workflowtemplates.argoproj.io
+      status: Synced
+      version: v1
+    - group: apps
+      kind: Deployment
+      name: argo-workflows-server
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - group: apps
+      kind: Deployment
+      name: argo-workflows-workflow-controller
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - group: networking.k8s.io
+      kind: Ingress
+      name: argo-workflows-server
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: argo-workflows-admin
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: argo-workflows-edit
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: argo-workflows-server
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: argo-workflows-server-cluster-template
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: argo-workflows-view
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: argo-workflows-workflow-controller
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: argo-workflows-workflow-controller-cluster-template
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+      name: argo-workflows-server
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+      name: argo-workflows-server-cluster-template
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+      name: argo-workflows-workflow-controller
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+      name: argo-workflows-workflow-controller-cluster-template
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: Role
+      name: argo-workflows-workflow
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: Role
+      name: argo-workflows-workflow
+      namespace: default
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+      name: argo-workflows-workflow
+      namespace: argo-workflows
+      status: Synced
+      version: v1
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+      name: argo-workflows-workflow
+      namespace: default
+      status: Synced
+      version: v1
+  sourceHydrator: {}
+  sourceType: Helm
+  summary:
+    externalURLs:
+      - 'https://argo-workflows.hankeln.work/'
+    images:
+      - 'quay.io/argoproj/argocli:v3.7.3'
+      - 'quay.io/argoproj/workflow-controller:v3.7.3'
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: argo-workflows
+      source:
+        chart: argo-workflows
+        helm:
+          valuesObject:
+            controller:
+              podSecurityContext:
+                runAsGroup: 1000
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 12m
+                  memory: 70M
+              volumeMounts:
+                - mountPath: /tmp
+                  name: tmp
+              volumes:
+                - emptyDir: {}
+                  name: tmp
+            crds:
+              keep: false
+            executor:
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsGroup: 1000
+                runAsNonRoot: true
+                runAsUser: 1000
+            server:
+              extraArgs:
+                - '--auth-mode=server'
+              ingress:
+                annotations:
+                  cert-manager.io/cluster-issuer: letsencrypt-dns01-issuer
+                enabled: true
+                hosts:
+                  - argo-workflows.hankeln.work
+                ingressClassName: nginx
+                tls:
+                  - hosts:
+                      - argo-workflows.hankeln.work
+                    secretName: argo-workflows-cert
+              podSecurityContext:
+                runAsGroup: 1000
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 12m
+                  memory: 50M
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+            workflow:
+              serviceAccount:
+                create: true
+        repoURL: 'https://argoproj.github.io/argo-helm'
+        targetRevision: 0.45.27
+    revision: 0.45.27
+    status: Synced

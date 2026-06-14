@@ -44,4 +44,10 @@ var (
 
 	//go:embed live-rollout.yaml
 	LiveRolloutYaml string
+
+	//go:embed live-child-application.yaml
+	LiveChildApplicationYaml string
+
+	//go:embed target-child-application.yaml
+	TargetChildApplicationYaml string
 )

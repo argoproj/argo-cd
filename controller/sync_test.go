@@ -904,6 +904,60 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		mainImage := dig(mainContainer, "image").(string)
 		assert.Equal(t, "main-container:v1", mainImage)
 	})
+
+	t.Run("app-of-apps-child-application-chart-version-update-panic", func(t *testing.T) {
+		// Reproduces the panic from https://github.com/blakepettersson/broken-app-of-apps
+		// An app-of-apps with RespectIgnoreDifferences=true managing a child Application
+		// panics on a Helm chart version update when the Application CRD schema has array
+		// fields with incomplete strategic merge directives.
+		doc := loadCRDSchema(t, "testdata/schemas/application-openapi-v2.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "argoproj.io",
+				Kind:              "Application",
+				JQPathExpressions: []string{".spec.syncPolicy.automated"},
+			},
+		}
+
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+
+		live := test.YamlToUnstructured(testdata.LiveChildApplicationYaml)
+		target := test.YamlToUnstructured(testdata.TargetChildApplicationYaml)
+
+		cr := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+
+		// Should NOT panic — before the fix this panicked with:
+		// "runtime error: invalid memory address or nil pointer dereference"
+		// at k8s.io/apimachinery/pkg/util/strategicpatch.handleSliceDiff:306
+		patchedTargets, err := normalizeTargetResources(oapiResources, cr)
+		if err != nil {
+			t.Logf("Got error (non-panic): %v", err)
+		} else {
+			require.Len(t, patchedTargets, 1)
+			patched := patchedTargets[0]
+			require.NotNil(t, patched)
+
+			targetRevision, ok, nestedErr := unstructured.NestedString(patched.Object, "spec", "source", "targetRevision")
+			require.NoError(t, nestedErr)
+			require.True(t, ok)
+			assert.Equal(t, "0.45.28", targetRevision)
+		}
+	})
 }
 
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
