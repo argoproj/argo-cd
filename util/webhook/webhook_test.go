@@ -650,6 +650,26 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 	}
 }
 
+func Test_affectedRevisionInfo_bitbucketserverSkipsMalformedCloneEntry(t *testing.T) {
+	t.Parallel()
+
+	h := NewMockHandler(nil, []string{})
+	webURLs, revision, _, touchedHead, _ := h.affectedRevisionInfo(bitbucketserver.RepositoryReferenceChangedPayload{
+		Changes: []bitbucketserver.RepositoryChange{
+			{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/some-ref"}},
+		},
+		Repository: bitbucketserver.Repository{Links: map[string]any{"clone": []any{
+			"boom",
+			map[string]any{"name": "http", "href": "https://bitbucket.example/repo"},
+			map[string]any{"name": "ssh", "href": "ssh://git@bitbucket.example/repo"},
+		}}},
+	})
+
+	require.Equal(t, "some-ref", revision)
+	require.True(t, touchedHead)
+	require.Equal(t, []string{"https://bitbucket.example/repo", "ssh://git@bitbucket.example/repo"}, webURLs)
+}
+
 func Test_GetWebURLRegex(t *testing.T) {
 	t.Parallel()
 
@@ -1491,24 +1511,32 @@ func TestFetchDiffStatBitbucketClient(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo/diffstat/abcdef..ghijkl",
 		getDiffstatResponderFn())
+	httpmock.RegisterResponder("GET",
+		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo/diffstat/badpath..ghijkl",
+		getDiffstatResponderFnWithPath([]string{}))
 	client, err := bb.NewOAuthbearerToken("")
 	require.NoError(t, err)
 	tt := []struct {
-		name                string
-		owner               string
-		repo                string
-		spec                string
-		expectedLen         int
-		expectedFileChanged string
-		expectedErrString   string
+		name                 string
+		owner                string
+		repo                 string
+		spec                 string
+		expectedChangedFiles []string
+		expectedErrString    string
 	}{
 		{
-			name:                "valid repo and spec",
-			owner:               "test-owner",
-			repo:                "test-repo",
-			spec:                "abcdef..ghijkl",
-			expectedLen:         1,
-			expectedFileChanged: "guestbook/guestbook-ui-deployment.yaml",
+			name:                 "valid repo and spec",
+			owner:                "test-owner",
+			repo:                 "test-repo",
+			spec:                 "abcdef..ghijkl",
+			expectedChangedFiles: []string{"guestbook/guestbook-ui-deployment.yaml"},
+		},
+		{
+			name:                 "non-string diffstat path",
+			owner:                "test-owner",
+			repo:                 "test-repo",
+			spec:                 "badpath..ghijkl",
+			expectedChangedFiles: []string{},
 		},
 		{
 			name:              "invalid spec",
@@ -1524,9 +1552,7 @@ func TestFetchDiffStatBitbucketClient(t *testing.T) {
 			changedFiles, err := fetchDiffStatFromBitbucket(t.Context(), client, test.owner, test.repo, test.spec)
 			if test.expectedErrString == "" {
 				require.NoError(t, err)
-				require.NotNil(t, changedFiles)
-				require.Len(t, changedFiles, test.expectedLen)
-				require.Equal(t, test.expectedFileChanged, changedFiles[0])
+				require.Equal(t, test.expectedChangedFiles, changedFiles)
 			} else {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), test.expectedErrString)
@@ -1615,6 +1641,10 @@ func getRepositoryResponderFn() func(req *http.Request) (*http.Response, error) 
 
 // getDiffstatResponderFn return a httpmock responder function to mock a diffstat api call to bitbucket server
 func getDiffstatResponderFn() func(req *http.Request) (*http.Response, error) {
+	return getDiffstatResponderFnWithPath("guestbook/guestbook-ui-deployment.yaml")
+}
+
+func getDiffstatResponderFnWithPath(pathValue any) func(req *http.Request) (*http.Response, error) {
 	return func(_ *http.Request) (*http.Response, error) {
 		// sample response : https://api.bitbucket.org/2.0/repositories/anandjoseph/argocd-examples-pub/diffstat/3a53cee247fc820fbae0a9cf463a6f4a18369f90..3d0965f36fcc07e88130b2d5c917a37c2876c484
 		diffStatRes := &bb.DiffStatRes{
@@ -1628,7 +1658,7 @@ func getDiffstatResponderFn() func(req *http.Request) (*http.Response, error) {
 					LinedAdded:   20,
 					LinesRemoved: 0,
 					New: map[string]any{
-						"path":         "guestbook/guestbook-ui-deployment.yaml",
+						"path":         pathValue,
 						"type":         "commit_file",
 						"escaped_path": "guestbook/guestbook-ui-deployment.yaml",
 						"links": map[string]any{
