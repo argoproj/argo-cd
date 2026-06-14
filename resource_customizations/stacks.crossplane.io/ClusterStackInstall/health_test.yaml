@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for stack to be installed
+  inputPath: testdata/wait_stack.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Resource is being created'
+  inputPath: testdata/being_created_stack.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Resource is available for use'
+  inputPath: testdata/installed_stack.yaml

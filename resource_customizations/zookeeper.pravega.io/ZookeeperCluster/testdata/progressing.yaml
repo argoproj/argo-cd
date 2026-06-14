@@ -1,0 +1,21 @@
+apiVersion: zookeeper.pravega.io/v1beta1
+kind: ZookeeperCluster
+metadata:
+  generation: 3
+  labels:
+    argocd.argoproj.io/instance: test-cluster-zookeeper
+  name: test-cluster-zookeeper
+  namespace: zookeeper
+  resourceVersion: "265193"
+  selfLink: /apis/zookeeper.pravega.io/v1beta1/namespaces/zookeeper/zookeeperclusters/test-cluster-zookeeper
+  uid: eae42b94-b8ee-4fd7-9d92-30c9a30a4d5a
+spec: {}
+status:
+  externalClientEndpoint: N/A
+  internalClientEndpoint: 10.101.203.230:2181
+  members:
+    ready:
+    - test-cluster-zookeeper-0
+    unready: null
+  readyReplicas: 0
+  replicas: 1

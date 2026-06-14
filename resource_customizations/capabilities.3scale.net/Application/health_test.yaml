@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "3scale Application is ready"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Failed to synchronize application with 3scale API"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Suspended
+      message: "3scale Application is suspended"
+    inputPath: testdata/suspended.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale Application status..."
+    inputPath: testdata/progressing.yaml

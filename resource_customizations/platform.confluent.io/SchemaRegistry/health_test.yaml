@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: SchemaRegistry provisioning
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: SchemaRegistry running
+    inputPath: testdata/healthy.yaml

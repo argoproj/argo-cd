@@ -1,0 +1,7 @@
+#!/bin/sh
+
+echo "Hello from argocd_my-plugin"
+
+if [ "$#" -gt 0 ]; then
+    echo "Arguments received: $@"
+fi

@@ -1,0 +1,3 @@
+- {op: remove, path: /spec/selector/app}
+- {op: remove, path: /spec/selector/release}
+- {op: add, path: /spec/selector/app.kubernetes.io~1name, value: argocd-redis-ha-haproxy}

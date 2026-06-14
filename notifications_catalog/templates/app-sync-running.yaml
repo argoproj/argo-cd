@@ -1,0 +1,72 @@
+message: |
+    The sync operation of application {{.app.metadata.name}} has started at {{.app.status.operationState.startedAt}}.
+    Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+email:
+    subject: "Start syncing application {{.app.metadata.name}}."
+slack:
+    attachments: |
+        [{
+          "title": "{{ .app.metadata.name}}",
+          "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "color": "#0DADEA",
+          "fields": [
+          {
+            "title": "Sync Status",
+            "value": "{{.app.status.sync.status}}",
+            "short": true
+          },
+          {
+            "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+            "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+            "short": true
+          }
+          {{range $index, $c := .app.status.conditions}}
+          ,
+          {
+            "title": "{{$c.type}}",
+            "value": "{{$c.message}}",
+            "short": true
+          }
+          {{end}}
+          ]
+        }]
+teams:
+    title: "Start syncing application {{.app.metadata.name}}."
+    facts: |
+        [{
+          "name": "Sync Status",
+          "value": "{{.app.status.sync.status}}"
+        },
+        {
+          "name": "Started at",
+          "value": "{{.app.status.operationState.startedAt}}"
+        },
+        {
+          "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+          "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
+        }
+        {{range $index, $c := .app.status.conditions}}
+          ,
+          {
+            "name": "{{$c.type}}",
+            "value": "{{$c.message}}"
+          }
+        {{end}}
+        ]
+    potentialAction: |
+        [{
+          "@type":"OpenUri",
+          "name":"Open Operation",
+          "targets":[{
+            "os":"default",
+            "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+          }]
+        },
+        {
+          "@type":"OpenUri",
+          "name":"Open Repository",
+          "targets":[{
+            "os":"default",
+            "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
+          }]
+        }]

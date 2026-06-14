@@ -1,0 +1,166 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  annotations:
+    cnpg.io/hibernation: "on"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"postgresql.cnpg.io/v1","kind":"Cluster","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"cloudnative-pg-clusters"},"name":"cluster-example","namespace":"cnpg-samples"},"spec":{"imageName":"ghcr.io/cloudnative-pg/postgresql:13","instances":3,"storage":{"size":"1Gi"}}}
+  creationTimestamp: "2025-05-03T19:20:53Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: cloudnative-pg-clusters
+  name: cluster-example
+  namespace: cnpg-samples
+  resourceVersion: "21135385"
+  uid: 994785d4-9a89-4b12-bfb6-b02f7a8b5402
+spec:
+  affinity:
+    podAntiAffinityType: preferred
+  bootstrap:
+    initdb:
+      database: app
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
+      owner: app
+  enablePDB: true
+  enableSuperuserAccess: false
+  failoverDelay: 0
+  imageName: ghcr.io/cloudnative-pg/postgresql:13
+  instances: 3
+  logLevel: info
+  maxSyncReplicas: 0
+  minSyncReplicas: 0
+  monitoring:
+    customQueriesConfigMap:
+      - key: queries
+        name: cnpg-default-monitoring
+    disableDefaultQueries: false
+    enablePodMonitor: false
+  postgresGID: 26
+  postgresUID: 26
+  postgresql:
+    parameters:
+      archive_mode: "on"
+      archive_timeout: 5min
+      dynamic_shared_memory_type: posix
+      full_page_writes: "on"
+      log_destination: csvlog
+      log_directory: /controller/log
+      log_filename: postgres
+      log_rotation_age: "0"
+      log_rotation_size: "0"
+      log_truncate_on_rotation: "false"
+      logging_collector: "on"
+      max_parallel_workers: "32"
+      max_replication_slots: "32"
+      max_worker_processes: "32"
+      shared_memory_type: mmap
+      shared_preload_libraries: ""
+      ssl_max_protocol_version: TLSv1.3
+      ssl_min_protocol_version: TLSv1.3
+      wal_keep_size: 512MB
+      wal_level: logical
+      wal_log_hints: "on"
+      wal_receiver_timeout: 5s
+      wal_sender_timeout: 5s
+    syncReplicaElectionConstraint:
+      enabled: false
+  primaryUpdateMethod: restart
+  primaryUpdateStrategy: unsupervised
+  replicationSlots:
+    highAvailability:
+      enabled: true
+      slotPrefix: _cnpg_
+    synchronizeReplicas:
+      enabled: true
+    updateInterval: 30
+  resources: {}
+  smartShutdownTimeout: 180
+  startDelay: 3600
+  stopDelay: 1800
+  storage:
+    resizeInUseVolumes: true
+    size: 1Gi
+  switchoverDelay: 3600
+status:
+  availableArchitectures:
+    - goArch: amd64
+      hash: 0a8f22a9c14805f67b92f6994d6487da7570929108443d1a70a66b8d47a51b2f
+    - goArch: arm64
+      hash: c8318d0576271cba8bdb120a6500f273038035a9bf97e36c9a367ea0ae3590c0
+  certificates:
+    clientCASecret: cluster-example-ca
+    expirations:
+      cluster-example-ca: 2025-08-01 19:15:53 +0000 UTC
+      cluster-example-replication: 2025-08-01 19:15:54 +0000 UTC
+      cluster-example-server: 2025-08-01 19:15:53 +0000 UTC
+    replicationTLSSecret: cluster-example-replication
+    serverAltDNSNames:
+      - cluster-example-rw
+      - cluster-example-rw.cnpg-samples
+      - cluster-example-rw.cnpg-samples.svc
+      - cluster-example-rw.cnpg-samples.svc.cluster.local
+      - cluster-example-r
+      - cluster-example-r.cnpg-samples
+      - cluster-example-r.cnpg-samples.svc
+      - cluster-example-r.cnpg-samples.svc.cluster.local
+      - cluster-example-ro
+      - cluster-example-ro.cnpg-samples
+      - cluster-example-ro.cnpg-samples.svc
+      - cluster-example-ro.cnpg-samples.svc.cluster.local
+    serverCASecret: cluster-example-ca
+    serverTLSSecret: cluster-example-server
+  cloudNativePGCommitHash: c56e00d4
+  cloudNativePGOperatorHash: c8318d0576271cba8bdb120a6500f273038035a9bf97e36c9a367ea0ae3590c0
+  conditions:
+    - lastTransitionTime: "2025-05-03T19:41:11Z"
+      message: Cluster is Ready
+      reason: ClusterIsReady
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2025-05-03T19:40:28Z"
+      message: Continuous archiving is working
+      reason: ContinuousArchivingSuccess
+      status: "True"
+      type: ContinuousArchiving
+    - lastTransitionTime: "2025-05-03T19:53:47Z"
+      message: Cluster has been hibernated
+      reason: Hibernated
+      status: "True"
+      type: cnpg.io/hibernation
+  configMapResourceVersion:
+    metrics:
+      cnpg-default-monitoring: "21125563"
+  currentPrimary: cluster-example-1
+  currentPrimaryTimestamp: "2025-05-03T19:40:28.384836Z"
+  danglingPVC:
+    - cluster-example-1
+    - cluster-example-2
+    - cluster-example-3
+  image: ghcr.io/cloudnative-pg/postgresql:13
+  instanceNames:
+    - cluster-example-1
+    - cluster-example-2
+    - cluster-example-3
+  instances: 3
+  latestGeneratedNode: 3
+  managedRolesStatus: {}
+  phase: Cluster in healthy state
+  poolerIntegrations:
+    pgBouncerIntegration: {}
+  pvcCount: 3
+  readService: cluster-example-r
+  secretsResourceVersion:
+    applicationSecretVersion: "21125529"
+    clientCaSecretVersion: "21125524"
+    replicationSecretVersion: "21125528"
+    serverCaSecretVersion: "21125524"
+    serverSecretVersion: "21125527"
+  switchReplicaClusterStatus: {}
+  targetPrimary: cluster-example-1
+  targetPrimaryTimestamp: "2025-05-03T19:40:24.717007Z"
+  timelineID: 5
+  topology:
+    successfullyExtracted: true
+  writeService: cluster-example-rw

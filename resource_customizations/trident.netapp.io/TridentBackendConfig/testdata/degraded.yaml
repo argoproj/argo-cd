@@ -1,0 +1,95 @@
+apiVersion: trident.netapp.io/v1
+kind: TridentBackendConfig
+metadata:
+  annotations:
+  creationTimestamp: '2021-06-24T11:36:17Z'
+  finalizers:
+    - trident.netapp.io
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: trident-config
+  managedFields:
+    - apiVersion: trident.netapp.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:kubectl.kubernetes.io/last-applied-configuration': {}
+          'f:labels':
+            .: {}
+            'f:app.kubernetes.io/instance': {}
+        'f:spec':
+          .: {}
+          'f:backendName': {}
+          'f:credentials':
+            .: {}
+            'f:name': {}
+          'f:dataLIF': {}
+          'f:defaults':
+            .: {}
+            'f:exportPolicy': {}
+            'f:snapshotPolicy': {}
+            'f:snapshotReserve': {}
+            'f:spaceReserve': {}
+          'f:deletionPolicy': {}
+          'f:limitVolumeSize': {}
+          'f:managementLIF': {}
+          'f:nfsMountOptions': {}
+          'f:storageDriverName': {}
+          'f:storagePrefix': {}
+          'f:svm': {}
+          'f:version': {}
+      manager: argocd-application-controller
+      operation: Update
+      time: '2021-06-24T11:36:17Z'
+    - apiVersion: trident.netapp.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:finalizers':
+            .: {}
+            'v:"trident.netapp.io"': {}
+        'f:status':
+          .: {}
+          'f:backendInfo':
+            .: {}
+            'f:backendName': {}
+            'f:backendUUID': {}
+          'f:deletionPolicy': {}
+          'f:lastOperationStatus': {}
+          'f:message': {}
+          'f:phase': {}
+      manager: trident_orchestrator
+      operation: Update
+      time: '2021-06-24T11:36:17Z'
+  name: backend-tbc-ontap-nas
+  namespace: trident
+  resourceVersion: '3430134'
+  uid: a5714401-d4f4-480d-a317-d85c630afe55
+spec:
+  backendName: tbc-ontap-nas
+  credentials:
+    name: backend-ontap-nas-secret-smv10
+  dataLIF: 1.1.1.1
+  defaults:
+    exportPolicy: ep_000
+    snapshotPolicy: default
+    snapshotReserve: '10'
+    spaceReserve: volume
+  deletionPolicy: retain
+  limitVolumeSize: 100Gi
+  managementLIF: 1.1.1.1
+  nfsMountOptions: nfsvers=4
+  storageDriverName: ontap-nas
+  storagePrefix: trident-play01
+  svm: svm-play01
+  version: 1
+status:
+  backendInfo:
+    backendName: ''
+    backendUUID: ''
+  deletionPolicy: retain
+  lastOperationStatus: Failed
+  message: 'Failed to create backend: backend tbc-ontap-nas already exists'
+  phase: ''

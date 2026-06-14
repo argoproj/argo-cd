@@ -1,0 +1,27 @@
+apiVersion: iammanager.keikoproj.io/v1alpha1
+kind: Iamrole
+metadata:
+  finalizers:
+    - iamrole.finalizers.iammanager.keikoproj.io
+  name: iamrole
+  namespace: default
+spec:
+  PolicyDocument:
+    Statement:
+      - Action:
+          - 'ec2:*'
+        Effect: Deny
+        Resource:
+          - '*'
+      - Action:
+          - 'iam:*'
+        Effect: Deny
+        Resource:
+          - '*'
+status:
+  lastUpdatedTimestamp: '2023-10-10T20:36:23Z'
+  retryCount: 0
+  roleARN: 'arn:aws:iam::111111111111:role/k8s-test'
+  roleID: ABCDEFGHIJKLMNOPQRSTU
+  roleName: k8s-test
+  state: Ready

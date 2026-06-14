@@ -1,0 +1,55 @@
+{
+    "aggregationRule": {
+        "clusterRoleSelectors": [
+            {
+                "matchLabels": {
+                    "rbac.example.com/aggregate-to-test": "true"
+                }
+            }
+        ]
+    },
+    "apiVersion": "rbac.authorization.k8s.io/v1",
+    "kind": "ClusterRole",
+    "metadata": {
+        "annotations": {
+            "kubectl.kubernetes.io/last-applied-configuration": "{\"aggregationRule\":{\"clusterRoleSelectors\":[{\"matchLabels\":{\"rbac.example.com/aggregate-to-test\":\"true\"}}]},\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRole\",\"metadata\":{\"annotations\":{},\"labels\":{\"app.kubernetes.io/instance\":\"clusterroles\"},\"name\":\"test-clusterrole\"},\"rules\":[{\"apiGroups\":[\"\"],\"resources\":[\"deployments\"],\"verbs\":[\"get\",\"list\"]}]}\n"
+        },
+        "creationTimestamp": "2020-02-02T17:18:54Z",
+        "labels": {
+            "app.kubernetes.io/instance": "clusterroles"
+        },
+        "name": "test-clusterrole",
+        "resourceVersion": "5108751",
+        "selfLink": "/apis/rbac.authorization.k8s.io/v1/clusterroles/test-clusterrole",
+        "uid": "418e7818-ec49-49f6-ada0-d1fccf679bf6"
+    },
+    "rules": [
+        {
+            "apiGroups": [
+                ""
+            ],
+            "resources": [
+                "services",
+                "endpoints"
+            ],
+            "verbs": [
+                "get",
+                "list",
+                "watch"
+            ]
+        },
+        {
+            "apiGroups": [
+                ""
+            ],
+            "resources": [
+                "pods"
+            ],
+            "verbs": [
+                "get",
+                "list",
+                "watch"
+            ]
+        }
+    ]
+}

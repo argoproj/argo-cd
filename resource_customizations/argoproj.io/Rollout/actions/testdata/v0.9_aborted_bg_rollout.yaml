@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "2"
+  creationTimestamp: "2020-11-13T08:37:51Z"
+  generation: 3
+  name: bluegreen
+  namespace: argocd-e2e
+  resourceVersion: "202207"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/argocd-e2e/rollouts/bluegreen
+  uid: 39d30e1e-5e0e-460a-a217-fa21215f1d1f
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bluegreen
+  strategy:
+    blueGreen:
+      activeService: bluegreen
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 10
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: bluegreen
+    spec:
+      containers:
+      - image: nginx:1.18-alpine
+        name: bluegreen
+        resources:
+          requests:
+            cpu: 1m
+            memory: 16Mi
+status:
+  HPAReplicas: 3
+  abort: true
+  abortedAt: "2020-11-13T08:38:19Z"
+  availableReplicas: 3
+  blueGreen:
+    activeSelector: 54bd6f9c67
+  canary: {}
+  conditions:
+  - lastTransitionTime: "2020-11-13T08:37:53Z"
+    lastUpdateTime: "2020-11-13T08:37:53Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2020-11-13T08:38:19Z"
+    lastUpdateTime: "2020-11-13T08:38:19Z"
+    message: Rollout is aborted
+    reason: RolloutAborted
+    status: "False"
+    type: Progressing
+  currentPodHash: 5b6f6b55c4
+  observedGeneration: "abc123"
+  readyReplicas: 3
+  replicas: 6
+  selector: app=bluegreen,rollouts-pod-template-hash=54bd6f9c67
+  stableRS: 54bd6f9c67
+  updatedReplicas: 3

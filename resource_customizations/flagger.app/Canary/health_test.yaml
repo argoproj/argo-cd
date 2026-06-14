@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Progressing --- Canary Weight: 10 % --- New revision detected, progressing canary analysis."
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Finalising --- Canary analysis completed, routing all traffic to primary."
+  inputPath: testdata/finalising.yaml
+- healthStatus:
+    status: Progressing
+    message: "Promoting --- Canary analysis completed, starting primary rolling update."
+  inputPath: testdata/promoting.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed --- Canary analysis failed, Deployment scaled to zero."
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "Succeeded --- Canary analysis completed successfully, promotion finished."
+  inputPath: testdata/succeeded.yaml  
+- healthStatus:
+    status: Healthy
+    message: "Initialized --- Installation successful."
+  inputPath: testdata/initialized.yaml  

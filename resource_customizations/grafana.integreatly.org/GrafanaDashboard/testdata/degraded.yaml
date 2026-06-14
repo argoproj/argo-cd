@@ -1,0 +1,42 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/installation-id: argocd.com
+    argocd.argoproj.io/tracking-id: >-
+      foo:grafana.integreatly.org/GrafanaDashboard:grafana-operator/degraded
+  creationTimestamp: '2025-03-21T20:19:50Z'
+  finalizers:
+    - operator.grafana.com/finalizer
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: foo
+  name: degraded
+  namespace: grafana-operator
+  resourceVersion: '185954752'
+  uid: a7d497f7-5a8d-450b-8b44-50d5f50ce72e
+spec:
+  allowCrossNamespaceImport: false
+  folderRef: barfolder
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  json: |
+    {
+    }
+  resyncPeriod: 10m0s
+status:
+  conditions:
+    - lastTransitionTime: '2025-03-21T20:20:21Z'
+      message: >-
+        Dashboard failed to be applied for 1 out of 1 instances. Errors:
+
+        - grafana-operator/grafana: Get
+        "https://dashboards.grafana.com/api/search?limit=1000&page=1&type=dash-db":
+        net/http: request canceled while waiting for connection (Client.Timeout
+        exceeded while awaiting headers)
+      observedGeneration: 1
+      reason: ApplyFailed
+      status: 'False'
+      type: DashboardSynchronized
+  lastResync: '2025-03-26T15:02:40Z'

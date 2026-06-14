@@ -1,0 +1,7 @@
+apiVersion: argoproj.io/v1alpha2
+kind: Fake
+metadata:
+  name: fake-crd-instance
+spec:
+  cpu: 2000m
+  memory: 32Mi

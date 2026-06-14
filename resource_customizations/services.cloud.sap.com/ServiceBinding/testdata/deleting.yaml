@@ -1,0 +1,49 @@
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  annotations:
+  creationTimestamp: '2025-08-14T00:38:55Z'
+  generation: 1
+  name: new-binding
+  namespace: sap
+  resourceVersion: '1'
+  deletionTimestamp: "2025-10-10T10:00:00Z"
+  uid: 9c7cad9e-11e2-473f-8061-475a727b9069
+spec:
+  credentialsRotationPolicy:
+    enabled: true
+    rotatedBindingTTL: 20h
+    rotationFrequency: 20h
+  externalName: new-binding
+  secretName: new-binding
+  secretTemplate: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      labels:
+        reloader: enabled
+  serviceInstanceName: instance-name
+  serviceInstanceNamespace: sap
+  userInfo:
+    groups:
+    - group1
+    uid: faa21265-03b1-42c2-9f50-90893470e7c3
+    username: user-name
+status:
+  bindingID: 1603017e-f77b-4de4-b5f4-5fd275797f2d
+  conditions:
+  - lastTransitionTime: '2025-08-14T00:38:55Z'
+    message: ServiceBinding provisioned successfully
+    observedGeneration: 1
+    reason: Created
+    status: 'True'
+    type: Succeeded
+  - lastTransitionTime: '2025-08-14T00:38:55Z'
+    message: ServiceBinding provisioned successfully
+    observedGeneration: 1
+    reason: Provisioned
+    status: 'True'
+    type: Ready
+  instanceID: 0ef2bec2-c0e2-443c-a865-0ebcecc00aca
+  ready: 'True'
+  subaccountID: e4316201-dcaa-436b-8069-fa366a56c6b3

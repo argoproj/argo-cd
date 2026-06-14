@@ -1,0 +1,4 @@
+- when: app.status.health.status == 'Degraded'
+  description: Application has degraded
+  send: [app-health-degraded]
+  oncePer: app.status.operationState?.syncResult?.revision

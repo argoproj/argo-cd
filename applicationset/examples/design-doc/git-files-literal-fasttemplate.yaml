@@ -1,0 +1,68 @@
+# This example demonstrates a git file generator which produces its items based on one or
+# more files referenced in a git repo. The referenced files would contain a json/yaml list of
+# arbitrary structured objects. Each item of the list would become a set of parameters to a
+# generated application.
+#
+# Suppose the following git directory structure:
+#  
+# cluster-deployments
+# ├── apps
+# │   └── guestbook
+# │       ├── v1.0
+# │       │   └── install.yaml
+# │       └── v2.0
+# │           └── install.yaml
+# └── config
+#     └── clusters.json
+#
+# In this example, the `clusters.json` file is json list of structured data:
+# [
+#     {
+#         "account": "123456",
+#         "asset_id": "11223344",
+#         "cluster": {
+#             "owner": "Jesse_Suen@intuit.com",
+#             "name": "engineering-dev",
+#             "address": "http://1.2.3.4"
+#         },
+#         "appVersions": {
+#             "prometheus-operator": "v0.38",
+#             "guestbook": "v2.0"
+#         }
+#     },
+#     {
+#         "account": "456789",
+#         "asset_id": "55667788",
+#         "cluster": {
+#             "owner": "Alexander_Matyushentsev@intuit.com",
+#             "name": "engineering-prod",
+#             "address": "http://2.4.6.8"
+#         },
+#         "appVersions": {
+#             "prometheus-operator": "v0.38",
+#             "guestbook": "v1.0"
+#         }
+#     }
+# ]
+#
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/infra-team/cluster-deployments.git
+      files:
+      - path: config/clusters.json
+  template:
+    metadata:
+      name: '{{cluster.name}}-guestbook'
+    spec:
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+        path: apps/guestbook/{{appVersions.guestbook}}
+      destination:
+        server: http://kubernetes.default.svc
+        namespace: guestbook

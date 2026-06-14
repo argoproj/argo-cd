@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: 'Initializing cluster resource set'
+  inputPath: testdata/progressing_resourceapplied.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Failed to apply resources'
+  inputPath: testdata/degraded_resourceapplied.yaml
+- healthStatus:
+    status: Healthy
+    message: 'cluster resource set is applied'
+  inputPath: testdata/healthy_resourceapplied.yaml

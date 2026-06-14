@@ -1,0 +1,21 @@
+apiVersion: coralogix.com/v1alpha1
+kind: RecordingRuleGroupSet
+metadata:
+  name: rules
+spec:
+  groups:
+    - name: k8s_rules
+      rules:
+        - expr: >-
+            sum(rate(container_cpu_usage_seconds_total{job="kubelet",
+            metrics_path="/metrics/cadvisor", image!="", container!="POD"}[5m]))
+            by (namespace)
+          record: 'namespace:container_cpu_usage_seconds_total:sum_rate'
+status:
+  conditions:
+    - lastTransitionTime: '2025-05-27T08:49:26Z'
+      message: Remote resource synced
+      observedGeneration: 3
+      reason: RemoteSyncedSuccessfully
+      status: 'True'
+      type: RemoteSynced

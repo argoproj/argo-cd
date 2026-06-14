@@ -1,0 +1,54 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  annotations:
+  creationTimestamp: "2021-07-16T00:41:10Z"
+  labels:
+    app.kubernetes.io/instance: testv
+  name: testvm
+  namespace: testvm
+spec:
+  running: true
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        kubevirt.io/domain: testvm
+        kubevirt.io/size: small
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+          interfaces:
+          - masquerade: {}
+            name: default
+        machine:
+          type: pc-q35-rhel8.4.0
+        resources:
+          requests:
+            memory: 64M
+      networks:
+      - name: default
+        pod: {}
+      volumes:
+      - containerDisk:
+          image: quay.io/kubevirt/cirros-container-disk-demo
+        name: containerdisk
+      - cloudInitNoCloud:
+          userDataBase64: SGkuXG4=
+        name: cloudinitdisk
+status:
+  volumeSnapshotStatuses:
+  - enabled: false
+    name: containerdisk
+    reason: Volume type has no StorageClass defined
+  - enabled: false
+    name: cloudinitdisk
+    reason: Volume type has no StorageClass defined
+

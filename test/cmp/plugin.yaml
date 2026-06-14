@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: cmp-plugin
+spec:
+  version: v1.0
+  init:
+    command: [env]
+  generate:
+    command: [sh, -c, 'kustomize build']
+  discover:
+    find:
+      glob: "**/kustomization.yaml"
+  parameters:
+    static:
+      - name: string-param
+        string: value
+      - name: array-param
+        collectionType: array
+        array:
+          - value1
+          - value2
+      - name: map-param
+        collectionType: map
+        map:
+          key: value
+          key2: value2

@@ -1,0 +1,54 @@
+apiVersion: iam.aws.crossplane.io/v1beta1
+kind: Role
+metadata:
+  name: example
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    assumeRolePolicyDocument: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "",
+                "Effect": "Allow",
+                "Principal": {
+                    "Federated": "arn:aws:iam::123:oidc-provider/oidc.eks.eu-north-1.amazonaws.com/id/123ABC"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                    "StringEquals": {
+                        "oidc.eks.eu-north-1.amazonaws.com/id/123ABC:sub": "system:serviceaccount:ABC:example",
+                        "oidc.eks.eu-north-1.amazonaws.com/id/123ABC:aud": "sts.amazonaws.com"
+                    }
+                }
+            }
+        ]
+      }
+    description: example
+    maxSessionDuration: 3600
+    path: /
+    tags:
+    - key: crossplane-kind
+      value: role.iam.aws.crossplane.io
+    - key: crossplane-name
+      value: example
+    - key: crossplane-providerconfig
+      value: provider-aws
+  providerConfigRef:
+    name: provider-aws1
+status:
+  atProvider:
+    arn: arn:aws:iam::123:role/examples-s31
+    roleID: ABC123
+  conditions:
+  - lastTransitionTime: "2024-07-11T13:51:47Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-11T13:54:11Z"
+    message: 'connect failed: cannot get referenced Provider: ProviderConfig.aws.crossplane.io
+      "provider-aws1" not found'
+    reason: ReconcileError
+    status: "False"
+    type: Synced

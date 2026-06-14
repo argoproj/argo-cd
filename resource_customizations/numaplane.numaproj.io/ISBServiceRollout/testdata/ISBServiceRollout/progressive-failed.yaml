@@ -1,0 +1,60 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: ISBServiceRollout
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"numaplane.numaproj.io/v1alpha1","kind":"ISBServiceRollout","metadata":{"annotations":{},"labels":{"argocd.argoproj.io/instance":"demo-app"},"name":"my-isbsvc","namespace":"example-namespace"},"spec":{"interStepBufferService":{"spec":{"jetstream":{"persistence":{"volumeSize":"1Gi"},"version":"2.10.3"}}}}}
+  creationTimestamp: "2025-01-26T05:38:04Z"
+  finalizers:
+  - numaplane.numaproj.io/numaplane-controller
+  generation: 4
+  labels:
+    argocd.argoproj.io/instance: demo-app
+  name: my-isbsvc
+  namespace: example-namespace
+  resourceVersion: "664511"
+  uid: c45f8283-f799-45a3-8058-ac462756e654
+spec:
+  interStepBufferService:
+    metadata: {}
+    spec:
+      jetstream:
+        persistence:
+          volumeSize: 1Gi
+        version: 2.10.3
+status:
+  conditions:
+  - lastTransitionTime: "2025-01-26T05:38:04Z"
+    message: Successful
+    observedGeneration: 4
+    reason: Successful
+    status: "True"
+    type: ChildResourceDeployed
+  - lastTransitionTime: "2025-01-26T05:39:04Z"
+    message: Successful
+    observedGeneration: 4
+    reason: Successful
+    status: "True"
+    type: ChildResourcesHealthy
+  - lastTransitionTime: "2025-01-26T05:38:04Z"
+    message: no need for pause
+    observedGeneration: 4
+    reason: NoPause
+    status: "False"
+    type: PausingPipelines
+  - lastTransitionTime: "2025-01-26T05:48:44Z"
+    message: New Child Object example-namespace/my-isbsvc-2 Failed
+    observedGeneration: 4
+    reason: Failed
+    status: "False"
+    type: ProgressiveUpgradeSucceeded
+  message: Deployed
+  nameCount: 3
+  observedGeneration: 4
+  pauseRequestStatus: {}
+  phase: Deployed
+  progressiveStatus:
+    upgradingChildStatus:
+      assessmentResult: Success
+      name: my-isbsvc-2
+      nextAssessmentTime: "2025-01-26T05:48:05Z"

@@ -1,0 +1,96 @@
+apiVersion: cassandra.rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook-cassandra
+  namespace: rook-cassandra
+spec:
+  version: 3.11.6
+  repository: my-private-repo.io/cassandra
+  mode: cassandra
+  # A key/value list of annotations
+  annotations:
+  #  key: value
+  datacenter:
+    name: us-east-1
+    racks:
+      - name: us-east-1a
+        members: 3
+        storage:
+          volumeClaimTemplates:
+            - metadata:
+                name: rook-cassandra-data
+              spec:
+                storageClassName: my-storage-class
+                resources:
+                  requests:
+                    storage: 200Gi
+        resources:
+          requests:
+            cpu: 8
+            memory: 32Gi
+          limits:
+            cpu: 8
+            memory: 32Gi
+      - name: us-east-1b
+        members: 3
+        storage:
+          volumeClaimTemplates:
+            - metadata:
+                name: rook-cassandra-data
+              spec:
+                storageClassName: my-storage-class
+                resources:
+                  requests:
+                    storage: 200Gi
+        resources:
+          requests:
+            cpu: 8
+            memory: 32Gi
+          limits:
+            cpu: 8
+            memory: 32Gi
+      - name: us-east-1c
+        members: 3
+        storage:
+          volumeClaimTemplates:
+            - metadata:
+                name: rook-cassandra-data
+              spec:
+                storageClassName: my-storage-class
+                resources:
+                  requests:
+                    storage: 200Gi
+        resources:
+          requests:
+            cpu: 8
+            memory: 32Gi
+          limits:
+            cpu: 8
+            memory: 32Gi
+        # A key/value list of annotations
+        annotations:
+        #  key: value
+        placement:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                      - us-east-1
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - us-east-1a
+status:
+  racks:
+    us-east-1a:
+      members: 3
+      readyMembers: 1
+    us-east-1b:
+      members: 3
+      readyMembers: 0
+    us-east-1c:
+      members: 3
+      readyMembers: 3

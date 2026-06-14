@@ -1,0 +1,18 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: test-scaledjob
+spec:
+  jobTargetRef:
+    template:
+      spec:
+        containers:
+          - name: test
+            image: test:latest
+  triggers:
+    - metadata:
+        host: amqp://localhost:5672/vhost
+        mode: QueueLength
+        queueName: hello
+        value: '1'
+      type: rabbitmq

@@ -1,0 +1,8 @@
+# This manifest will fail to sync because the spec is invalid. This manifest is useful for testing
+# auto-sync and ensuring sure it does not fall into a sync loop.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: failure-during-sync
+  labels:
+    my-label: has-inva/id-character!

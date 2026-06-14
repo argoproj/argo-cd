@@ -1,0 +1,5 @@
+message: &message Application {{.app.metadata.name}} has been created.
+email:
+    subject: *message
+teams:
+    title: *message

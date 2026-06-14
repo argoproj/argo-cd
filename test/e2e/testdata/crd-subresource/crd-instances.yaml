@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: StatusSubResource
+metadata:
+  name: status-subresource
+spec:
+  foo: bar
+---
+apiVersion: argoproj.io/v1alpha1
+kind: NonStatusSubResource
+metadata:
+  name: non-status-subresource
+spec:
+  foo: bar

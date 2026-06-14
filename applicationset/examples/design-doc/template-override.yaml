@@ -1,0 +1,50 @@
+# App templates can also be defined as part of the generator's template stanza. Sometimes it is
+# useful to do this in order to override the spec.template stanza, and when simple string
+# parameterization are insufficient. In the below examples, the generators[].XXX.template is 
+# a partial definition, which overrides/patch the default template.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - list:
+      elements:
+        - cluster: engineering-dev
+          url: https://1.2.3.4
+      template:
+        metadata: {}
+        spec:
+          project: "project"
+          source:
+            repoURL: https://github.com/infra-team/cluster-deployments.git
+            path: '{{.cluster}}-override'
+          destination: {}
+
+  - list:
+      elements:
+        - cluster: engineering-prod
+          url: https://1.2.3.4
+      template:
+        metadata: {}
+        spec:
+          project: "project2"
+          source:
+            repoURL: https://github.com/infra-team/cluster-deployments.git
+            path: '{{.cluster}}-override2'
+          destination: {}
+
+  template:
+    metadata:
+      name: '{{.cluster}}-guestbook'
+    spec:
+      project: "project"
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+        path: guestbook/{{.cluster}}
+      destination:
+        server: '{{.url}}'
+        namespace: guestbook

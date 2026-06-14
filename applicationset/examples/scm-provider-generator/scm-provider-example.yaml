@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - scmProvider:
+      github:
+        organization: argoproj
+      cloneProtocol: https
+      filters:
+      - repositoryMatch: example-apps
+  template:
+    metadata:
+      name: '{{ .repository }}-guestbook'
+    spec:
+      project: "default"
+      source:
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
+        path: guestbook
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: guestbook

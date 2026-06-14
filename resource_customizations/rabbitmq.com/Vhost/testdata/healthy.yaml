@@ -1,0 +1,19 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: Vhost
+metadata:
+  generation: 1
+  name: example-rabbit
+  namespace: example-rabbit
+spec:
+  defaultQueueType: quorum
+  name: example-rabbit
+  rabbitmqClusterReference:
+    name: example-rabbit
+    namespace: example-rabbit
+status:
+  conditions:
+    - lastTransitionTime: 2025-02-24T17:51:10Z
+      reason: SuccessfulCreateOrUpdate
+      status: "True"
+      type: Ready
+  observedGeneration: 1
