@@ -317,6 +317,11 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             />
                         </div>
                     )}
+                {application.status.reconciledAt && (
+                    <div className='application-status-panel__item-name'>
+                        Last refreshed <Timestamp date={application.status.reconciledAt} />
+                    </div>
+                )}
             </div>
             {appOperationState && (
                 <div className='application-status-panel__item'>

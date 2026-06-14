@@ -531,6 +531,7 @@ export interface ApplicationSummary {
 
 export interface ApplicationStatus {
     observedAt: models.Time;
+    reconciledAt?: models.Time;
     resources: ResourceStatus[];
     sync: SyncStatus;
     conditions?: ApplicationCondition[];
