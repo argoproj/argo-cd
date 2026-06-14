@@ -1,7 +1,7 @@
 /* eslint-disable no-prototype-builtins */
 import {AutocompleteField, Checkbox, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
-import {FormApi, Text} from 'react-form';
+import {FormApi, Text} from 'argo-ui';
 import {
     ClipboardText,
     Cluster,
@@ -20,10 +20,21 @@ import {BadgePanel} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {isValidURL} from '../../../shared/utils';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, appRBACName} from '../utils';
+import {
+    ComparisonStatusIcon,
+    HealthStatusIcon,
+    syncStatusMessage,
+    urlPattern,
+    formatCreationTimestamp,
+    getAppDefaultSource,
+    getAppSpecDefaultSource,
+    getHydratorSyncSourceRepoURL,
+    appRBACName
+} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -272,6 +283,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <div className='application-summary__links-rows'>
                     {urls
                         .map(item => item.split('|'))
+                        // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
+                        // vbscript:) to prevent XSS via attacker-controlled
+                        // link.argocd.argoproj.io/* annotations on managed resources.
+                        .filter(parts => isValidURL(parts.length > 1 ? parts[1] : parts[0]))
                         .map((parts, i) => (
                             <div className='application-summary__links-row'>
                                 <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
@@ -395,6 +410,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
               ]
             : [
                   {
+                      title: 'TAG PREFIX',
+                      view: source.tagPrefix ? <span>{source.tagPrefix}</span> : null,
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.tagPrefix' component={Text} />
+                  },
+                  {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
                       edit: (formApi: FormApi) => (
@@ -452,27 +472,36 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     const syncSourceItems: EditablePanelItem[] = [
         {
+            title: 'REPO URL (OPTIONAL)',
+            hint: 'Git repo for hydrated manifests. Defaults to the dry source repo when unset.',
+            view: <Repo url={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.repoURL' component={Text} />
+        },
+        {
             title: 'TARGET BRANCH',
             hint: 'Branch where hydrated manifests are written and synced from.',
-            view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
-            edit: (formApi: FormApi) => (
-                <RevisionFormField
-                    helpIconTop={'0'}
-                    hideLabel={true}
-                    formApi={formApi}
-                    fieldValue='spec.sourceHydrator.syncSource.targetBranch'
-                    repoURL={source.repoURL}
-                    repoType='git'
-                    revisionType='Branches'
-                />
-            )
+            view: <Revision repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
+            edit: (formApi: FormApi) => {
+                const spec = formApi.getFormState().values.spec as models.ApplicationSpec;
+                return (
+                    <RevisionFormField
+                        helpIconTop={'0'}
+                        hideLabel={true}
+                        formApi={formApi}
+                        fieldValue='spec.sourceHydrator.syncSource.targetBranch'
+                        repoURL={getHydratorSyncSourceRepoURL(spec.sourceHydrator)}
+                        repoType='git'
+                        revisionType='Branches'
+                    />
+                );
+            }
         },
         {
             title: 'PATH',
             hint: 'Output directory for hydrated manifests; must be a non-root path.',
             view: (
                 <Revision
-                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
                     revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
                     path={app.spec.sourceHydrator?.syncSource?.path}
                     isForPath={true}>
@@ -489,24 +518,27 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             hint: 'Optional staging branch to write hydrated output before syncing.',
             view: (
                 <Revision
-                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
                     revision={
                         app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
                         (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
                     }
                 />
             ),
-            edit: (formApi: FormApi) => (
-                <RevisionFormField
-                    helpIconTop={'0'}
-                    hideLabel={true}
-                    formApi={formApi}
-                    fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
-                    repoURL={source.repoURL}
-                    repoType='git'
-                    revisionType='Branches'
-                />
-            )
+            edit: (formApi: FormApi) => {
+                const spec = formApi.getFormState().values.spec as models.ApplicationSpec;
+                return (
+                    <RevisionFormField
+                        helpIconTop={'0'}
+                        hideLabel={true}
+                        formApi={formApi}
+                        fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
+                        repoURL={getHydratorSyncSourceRepoURL(spec.sourceHydrator)}
+                        repoType='git'
+                        revisionType='Branches'
+                    />
+                );
+            }
         }
     ];
 

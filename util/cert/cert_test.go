@@ -205,6 +205,7 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 `
 
 func TestTLSCertificateValidPEMValidCert(t *testing.T) {
+	t.Parallel()
 	// Valid PEM data, single certificate, expect array of length 1
 	certificates, err := ParseTLSCertificatesFromData(TestTLSValidSingleCert)
 	require.NoError(t, err)
@@ -216,6 +217,7 @@ func TestTLSCertificateValidPEMValidCert(t *testing.T) {
 }
 
 func TestTLSCertificateValidPEMInvalidCert(t *testing.T) {
+	t.Parallel()
 	// Valid PEM data, but invalid certificate
 	certificates, err := ParseTLSCertificatesFromData(TestTLSInvalidSingleCert)
 	require.NoError(t, err)
@@ -226,6 +228,7 @@ func TestTLSCertificateValidPEMInvalidCert(t *testing.T) {
 }
 
 func TestTLSCertificateInvalidPEM(t *testing.T) {
+	t.Parallel()
 	// Invalid PEM data, expect array of length 0
 	certificates, err := ParseTLSCertificatesFromData(TestTLSInvalidPEMData)
 	require.NoError(t, err)
@@ -233,6 +236,7 @@ func TestTLSCertificateInvalidPEM(t *testing.T) {
 }
 
 func TestTLSCertificateValidPEMValidCertMulti(t *testing.T) {
+	t.Parallel()
 	// Valid PEM data, two certificates, expect array of length 2
 	certificates, err := ParseTLSCertificatesFromData(TestTLSValidMultiCert)
 	require.NoError(t, err)
@@ -247,6 +251,7 @@ func TestTLSCertificateValidPEMValidCertMulti(t *testing.T) {
 }
 
 func TestTLSCertificateValidPEMValidCertFromFile(t *testing.T) {
+	t.Parallel()
 	// Valid PEM data, single certificate from file, expect array of length 1
 	certificates, err := ParseTLSCertificatesFromPath("../../test/certificates/cert1.pem")
 	require.NoError(t, err)
@@ -258,6 +263,7 @@ func TestTLSCertificateValidPEMValidCertFromFile(t *testing.T) {
 }
 
 func TestTLSCertPool(t *testing.T) {
+	t.Parallel()
 	certificates, err := ParseTLSCertificatesFromData(TestTLSValidMultiCert)
 	require.NoError(t, err)
 	assert.Len(t, certificates, 2)
@@ -266,12 +272,14 @@ func TestTLSCertPool(t *testing.T) {
 }
 
 func TestTLSCertificateCertFromNonExistingFile(t *testing.T) {
+	t.Parallel()
 	// Non-existing file, expect err
 	_, err := ParseTLSCertificatesFromPath("../../test/certificates/cert_nonexisting.pem")
 	require.Error(t, err)
 }
 
 func TestSSHKnownHostsDataParseData(t *testing.T) {
+	t.Parallel()
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromData(TestValidSSHKnownHostsData)
 	require.NoError(t, err)
@@ -279,6 +287,7 @@ func TestSSHKnownHostsDataParseData(t *testing.T) {
 }
 
 func TestSSHKnownHostsDataParseFile(t *testing.T) {
+	t.Parallel()
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts")
 	require.NoError(t, err)
@@ -286,6 +295,7 @@ func TestSSHKnownHostsDataParseFile(t *testing.T) {
 }
 
 func TestSSHKnownHostsDataParseNonExistingFile(t *testing.T) {
+	t.Parallel()
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts_invalid")
 	require.Error(t, err)
@@ -293,6 +303,7 @@ func TestSSHKnownHostsDataParseNonExistingFile(t *testing.T) {
 }
 
 func TestSSHKnownHostsDataTokenize(t *testing.T) {
+	t.Parallel()
 	// All entries should parse to valid SSH public keys
 	// All entries should be tokenizable, and tokens should be feedable to decoder
 	entries, err := ParseSSHKnownHostsFromData(TestValidSSHKnownHostsData)
@@ -310,6 +321,7 @@ func TestSSHKnownHostsDataTokenize(t *testing.T) {
 }
 
 func TestMatchHostName(t *testing.T) {
+	t.Parallel()
 	matchHostName := "foo.example.com"
 	assert.True(t, MatchHostName(matchHostName, "*"))
 	assert.True(t, MatchHostName(matchHostName, "*.example.com"))
@@ -323,6 +335,7 @@ func TestMatchHostName(t *testing.T) {
 }
 
 func TestSSHFingerprintSHA256(t *testing.T) {
+	t.Parallel()
 	// actual SHA256 fingerprints for keys defined above
 	fingerprints := [...]string{
 		"46OSHA1Rmj8E8ERTC6xkNcmGOw9oFxYr0WF6zWW8l1E",
@@ -345,6 +358,7 @@ func TestSSHFingerprintSHA256(t *testing.T) {
 }
 
 func TestSSHFingerPrintSHA256FromString(t *testing.T) {
+	t.Parallel()
 	// actual SHA256 fingerprints for keys defined above
 	fingerprints := [...]string{
 		"46OSHA1Rmj8E8ERTC6xkNcmGOw9oFxYr0WF6zWW8l1E",
@@ -365,6 +379,7 @@ func TestSSHFingerPrintSHA256FromString(t *testing.T) {
 }
 
 func TestServerNameWithoutPort(t *testing.T) {
+	t.Parallel()
 	hostNames := map[string]string{
 		"localhost":            "localhost",
 		"localhost:9443":       "localhost",
@@ -380,6 +395,7 @@ func TestServerNameWithoutPort(t *testing.T) {
 }
 
 func TestValidHostnames(t *testing.T) {
+	t.Parallel()
 	hostNames := map[string]bool{
 		"localhost":                          true,
 		"localhost.localdomain":              true,
@@ -400,12 +416,14 @@ func TestValidHostnames(t *testing.T) {
 
 	for hostName, valid := range hostNames {
 		t.Run("Test validity for hostname "+hostName, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, valid, IsValidHostname(hostName, false))
 		})
 	}
 }
 
 func TestValidFQDNs(t *testing.T) {
+	t.Parallel()
 	hostNames := map[string]bool{
 		"localhost":                          false,
 		"localhost.localdomain":              false,
@@ -428,6 +446,7 @@ func TestValidFQDNs(t *testing.T) {
 }
 
 func TestEscapeBracketPattern(t *testing.T) {
+	t.Parallel()
 	// input: expected output
 	patternList := map[string]string{
 		"foo.bar":         "foo.bar",
@@ -548,6 +567,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 }
 
 func TestTLSCertificateLimit(t *testing.T) {
+	t.Parallel()
 	var data strings.Builder
 	// Append one more than the max allowed
 	for range CertificateMaxEntriesPerStream + 1 {
@@ -559,6 +579,7 @@ func TestTLSCertificateLimit(t *testing.T) {
 }
 
 func TestSSHKnownHostsLimit(t *testing.T) {
+	t.Parallel()
 	var data strings.Builder
 	entry := "github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=\n"
 	// Append one more than the max allowed

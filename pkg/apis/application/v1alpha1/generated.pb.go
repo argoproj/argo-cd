@@ -4381,10 +4381,206 @@ func (m *SourceHydratorStatus) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SourceHydratorStatus proto.InternalMessageInfo
 
+func (m *SourceIntegrity) Reset()      { *m = SourceIntegrity{} }
+func (*SourceIntegrity) ProtoMessage() {}
+func (*SourceIntegrity) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{155}
+}
+func (m *SourceIntegrity) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SourceIntegrity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *SourceIntegrity) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SourceIntegrity.Merge(m, src)
+}
+func (m *SourceIntegrity) XXX_Size() int {
+	return m.Size()
+}
+func (m *SourceIntegrity) XXX_DiscardUnknown() {
+	xxx_messageInfo_SourceIntegrity.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SourceIntegrity proto.InternalMessageInfo
+
+func (m *SourceIntegrityCheckResult) Reset()      { *m = SourceIntegrityCheckResult{} }
+func (*SourceIntegrityCheckResult) ProtoMessage() {}
+func (*SourceIntegrityCheckResult) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{156}
+}
+func (m *SourceIntegrityCheckResult) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SourceIntegrityCheckResult) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *SourceIntegrityCheckResult) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SourceIntegrityCheckResult.Merge(m, src)
+}
+func (m *SourceIntegrityCheckResult) XXX_Size() int {
+	return m.Size()
+}
+func (m *SourceIntegrityCheckResult) XXX_DiscardUnknown() {
+	xxx_messageInfo_SourceIntegrityCheckResult.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SourceIntegrityCheckResult proto.InternalMessageInfo
+
+func (m *SourceIntegrityCheckResultItem) Reset()      { *m = SourceIntegrityCheckResultItem{} }
+func (*SourceIntegrityCheckResultItem) ProtoMessage() {}
+func (*SourceIntegrityCheckResultItem) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{157}
+}
+func (m *SourceIntegrityCheckResultItem) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SourceIntegrityCheckResultItem) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *SourceIntegrityCheckResultItem) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SourceIntegrityCheckResultItem.Merge(m, src)
+}
+func (m *SourceIntegrityCheckResultItem) XXX_Size() int {
+	return m.Size()
+}
+func (m *SourceIntegrityCheckResultItem) XXX_DiscardUnknown() {
+	xxx_messageInfo_SourceIntegrityCheckResultItem.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SourceIntegrityCheckResultItem proto.InternalMessageInfo
+
+func (m *SourceIntegrityGit) Reset()      { *m = SourceIntegrityGit{} }
+func (*SourceIntegrityGit) ProtoMessage() {}
+func (*SourceIntegrityGit) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{158}
+}
+func (m *SourceIntegrityGit) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SourceIntegrityGit) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *SourceIntegrityGit) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SourceIntegrityGit.Merge(m, src)
+}
+func (m *SourceIntegrityGit) XXX_Size() int {
+	return m.Size()
+}
+func (m *SourceIntegrityGit) XXX_DiscardUnknown() {
+	xxx_messageInfo_SourceIntegrityGit.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SourceIntegrityGit proto.InternalMessageInfo
+
+func (m *SourceIntegrityGitPolicy) Reset()      { *m = SourceIntegrityGitPolicy{} }
+func (*SourceIntegrityGitPolicy) ProtoMessage() {}
+func (*SourceIntegrityGitPolicy) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{159}
+}
+func (m *SourceIntegrityGitPolicy) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SourceIntegrityGitPolicy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *SourceIntegrityGitPolicy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SourceIntegrityGitPolicy.Merge(m, src)
+}
+func (m *SourceIntegrityGitPolicy) XXX_Size() int {
+	return m.Size()
+}
+func (m *SourceIntegrityGitPolicy) XXX_DiscardUnknown() {
+	xxx_messageInfo_SourceIntegrityGitPolicy.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SourceIntegrityGitPolicy proto.InternalMessageInfo
+
+func (m *SourceIntegrityGitPolicyGPG) Reset()      { *m = SourceIntegrityGitPolicyGPG{} }
+func (*SourceIntegrityGitPolicyGPG) ProtoMessage() {}
+func (*SourceIntegrityGitPolicyGPG) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{160}
+}
+func (m *SourceIntegrityGitPolicyGPG) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SourceIntegrityGitPolicyGPG) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *SourceIntegrityGitPolicyGPG) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SourceIntegrityGitPolicyGPG.Merge(m, src)
+}
+func (m *SourceIntegrityGitPolicyGPG) XXX_Size() int {
+	return m.Size()
+}
+func (m *SourceIntegrityGitPolicyGPG) XXX_DiscardUnknown() {
+	xxx_messageInfo_SourceIntegrityGitPolicyGPG.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SourceIntegrityGitPolicyGPG proto.InternalMessageInfo
+
+func (m *SourceIntegrityGitPolicyRepo) Reset()      { *m = SourceIntegrityGitPolicyRepo{} }
+func (*SourceIntegrityGitPolicyRepo) ProtoMessage() {}
+func (*SourceIntegrityGitPolicyRepo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{161}
+}
+func (m *SourceIntegrityGitPolicyRepo) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SourceIntegrityGitPolicyRepo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *SourceIntegrityGitPolicyRepo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SourceIntegrityGitPolicyRepo.Merge(m, src)
+}
+func (m *SourceIntegrityGitPolicyRepo) XXX_Size() int {
+	return m.Size()
+}
+func (m *SourceIntegrityGitPolicyRepo) XXX_DiscardUnknown() {
+	xxx_messageInfo_SourceIntegrityGitPolicyRepo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SourceIntegrityGitPolicyRepo proto.InternalMessageInfo
+
 func (m *SuccessfulHydrateOperation) Reset()      { *m = SuccessfulHydrateOperation{} }
 func (*SuccessfulHydrateOperation) ProtoMessage() {}
 func (*SuccessfulHydrateOperation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{155}
+	return fileDescriptor_c078c3c476799f44, []int{162}
 }
 func (m *SuccessfulHydrateOperation) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4412,7 +4608,7 @@ var xxx_messageInfo_SuccessfulHydrateOperation proto.InternalMessageInfo
 func (m *SyncOperation) Reset()      { *m = SyncOperation{} }
 func (*SyncOperation) ProtoMessage() {}
 func (*SyncOperation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{156}
+	return fileDescriptor_c078c3c476799f44, []int{163}
 }
 func (m *SyncOperation) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4440,7 +4636,7 @@ var xxx_messageInfo_SyncOperation proto.InternalMessageInfo
 func (m *SyncOperationResource) Reset()      { *m = SyncOperationResource{} }
 func (*SyncOperationResource) ProtoMessage() {}
 func (*SyncOperationResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{157}
+	return fileDescriptor_c078c3c476799f44, []int{164}
 }
 func (m *SyncOperationResource) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4468,7 +4664,7 @@ var xxx_messageInfo_SyncOperationResource proto.InternalMessageInfo
 func (m *SyncOperationResult) Reset()      { *m = SyncOperationResult{} }
 func (*SyncOperationResult) ProtoMessage() {}
 func (*SyncOperationResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{158}
+	return fileDescriptor_c078c3c476799f44, []int{165}
 }
 func (m *SyncOperationResult) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4496,7 +4692,7 @@ var xxx_messageInfo_SyncOperationResult proto.InternalMessageInfo
 func (m *SyncPolicy) Reset()      { *m = SyncPolicy{} }
 func (*SyncPolicy) ProtoMessage() {}
 func (*SyncPolicy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{159}
+	return fileDescriptor_c078c3c476799f44, []int{166}
 }
 func (m *SyncPolicy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4524,7 +4720,7 @@ var xxx_messageInfo_SyncPolicy proto.InternalMessageInfo
 func (m *SyncPolicyAutomated) Reset()      { *m = SyncPolicyAutomated{} }
 func (*SyncPolicyAutomated) ProtoMessage() {}
 func (*SyncPolicyAutomated) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{160}
+	return fileDescriptor_c078c3c476799f44, []int{167}
 }
 func (m *SyncPolicyAutomated) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4552,7 +4748,7 @@ var xxx_messageInfo_SyncPolicyAutomated proto.InternalMessageInfo
 func (m *SyncSource) Reset()      { *m = SyncSource{} }
 func (*SyncSource) ProtoMessage() {}
 func (*SyncSource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{161}
+	return fileDescriptor_c078c3c476799f44, []int{168}
 }
 func (m *SyncSource) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4580,7 +4776,7 @@ var xxx_messageInfo_SyncSource proto.InternalMessageInfo
 func (m *SyncStatus) Reset()      { *m = SyncStatus{} }
 func (*SyncStatus) ProtoMessage() {}
 func (*SyncStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{162}
+	return fileDescriptor_c078c3c476799f44, []int{169}
 }
 func (m *SyncStatus) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4608,7 +4804,7 @@ var xxx_messageInfo_SyncStatus proto.InternalMessageInfo
 func (m *SyncStrategy) Reset()      { *m = SyncStrategy{} }
 func (*SyncStrategy) ProtoMessage() {}
 func (*SyncStrategy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{163}
+	return fileDescriptor_c078c3c476799f44, []int{170}
 }
 func (m *SyncStrategy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4636,7 +4832,7 @@ var xxx_messageInfo_SyncStrategy proto.InternalMessageInfo
 func (m *SyncStrategyApply) Reset()      { *m = SyncStrategyApply{} }
 func (*SyncStrategyApply) ProtoMessage() {}
 func (*SyncStrategyApply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{164}
+	return fileDescriptor_c078c3c476799f44, []int{171}
 }
 func (m *SyncStrategyApply) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4664,7 +4860,7 @@ var xxx_messageInfo_SyncStrategyApply proto.InternalMessageInfo
 func (m *SyncStrategyHook) Reset()      { *m = SyncStrategyHook{} }
 func (*SyncStrategyHook) ProtoMessage() {}
 func (*SyncStrategyHook) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{165}
+	return fileDescriptor_c078c3c476799f44, []int{172}
 }
 func (m *SyncStrategyHook) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4692,7 +4888,7 @@ var xxx_messageInfo_SyncStrategyHook proto.InternalMessageInfo
 func (m *SyncWindow) Reset()      { *m = SyncWindow{} }
 func (*SyncWindow) ProtoMessage() {}
 func (*SyncWindow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{166}
+	return fileDescriptor_c078c3c476799f44, []int{173}
 }
 func (m *SyncWindow) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4720,7 +4916,7 @@ var xxx_messageInfo_SyncWindow proto.InternalMessageInfo
 func (m *TLSClientConfig) Reset()      { *m = TLSClientConfig{} }
 func (*TLSClientConfig) ProtoMessage() {}
 func (*TLSClientConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{167}
+	return fileDescriptor_c078c3c476799f44, []int{174}
 }
 func (m *TLSClientConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4748,7 +4944,7 @@ var xxx_messageInfo_TLSClientConfig proto.InternalMessageInfo
 func (m *TagFilter) Reset()      { *m = TagFilter{} }
 func (*TagFilter) ProtoMessage() {}
 func (*TagFilter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{168}
+	return fileDescriptor_c078c3c476799f44, []int{175}
 }
 func (m *TagFilter) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4951,6 +5147,13 @@ func init() {
 	proto.RegisterType((*SignatureKey)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SignatureKey")
 	proto.RegisterType((*SourceHydrator)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceHydrator")
 	proto.RegisterType((*SourceHydratorStatus)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceHydratorStatus")
+	proto.RegisterType((*SourceIntegrity)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity")
+	proto.RegisterType((*SourceIntegrityCheckResult)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityCheckResult")
+	proto.RegisterType((*SourceIntegrityCheckResultItem)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityCheckResultItem")
+	proto.RegisterType((*SourceIntegrityGit)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGit")
+	proto.RegisterType((*SourceIntegrityGitPolicy)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGitPolicy")
+	proto.RegisterType((*SourceIntegrityGitPolicyGPG)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGitPolicyGPG")
+	proto.RegisterType((*SourceIntegrityGitPolicyRepo)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGitPolicyRepo")
 	proto.RegisterType((*SuccessfulHydrateOperation)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SuccessfulHydrateOperation")
 	proto.RegisterType((*SyncOperation)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncOperation")
 	proto.RegisterType((*SyncOperationResource)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncOperationResource")
@@ -5976,6 +6179,18 @@ func (m *AppProjectSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.SourceIntegrity != nil {
+		{
+			size, err := m.SourceIntegrity.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x7a
+	}
 	if len(m.DestinationServiceAccounts) > 0 {
 		for iNdEx := len(m.DestinationServiceAccounts) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -7790,6 +8005,11 @@ func (m *ApplicationSource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.TagPrefix)
+	copy(dAtA[i:], m.TagPrefix)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.TagPrefix)))
+	i--
+	dAtA[i] = 0x7a
 	i -= len(m.Name)
 	copy(dAtA[i:], m.Name)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
@@ -8754,6 +8974,14 @@ func (m *ApplicationSummary) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i--
+	if m.IsAppOfApps {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x18
 	if len(m.Images) > 0 {
 		for iNdEx := len(m.Images) - 1; iNdEx >= 0; iNdEx-- {
 			i -= len(m.Images[iNdEx])
@@ -10132,6 +10360,26 @@ func (m *ExecProviderConfig) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.Config != nil {
+		{
+			size, err := m.Config.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x3a
+	}
+	i--
+	if m.ProvideClusterInfo {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x30
 	i -= len(m.InstallHint)
 	copy(dAtA[i:], m.InstallHint)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.InstallHint)))
@@ -14629,6 +14877,18 @@ func (m *RevisionMetadata) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.SourceIntegrityResult != nil {
+		{
+			size, err := m.SourceIntegrityResult.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x3a
+	}
 	if len(m.References) > 0 {
 		for iNdEx := len(m.References) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -15570,6 +15830,11 @@ func (m *SourceHydratorStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.LastComparedDryRevision)
+	copy(dAtA[i:], m.LastComparedDryRevision)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.LastComparedDryRevision)))
+	i--
+	dAtA[i] = 0x1a
 	if m.CurrentOperation != nil {
 		{
 			size, err := m.CurrentOperation.MarshalToSizedBuffer(dAtA[:i])
@@ -15594,6 +15859,266 @@ func (m *SourceHydratorStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0xa
 	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SourceIntegrity) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SourceIntegrity) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SourceIntegrity) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Git != nil {
+		{
+			size, err := m.Git.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SourceIntegrityCheckResult) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SourceIntegrityCheckResult) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SourceIntegrityCheckResult) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Checks) > 0 {
+		for iNdEx := len(m.Checks) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Checks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SourceIntegrityCheckResultItem) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SourceIntegrityCheckResultItem) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SourceIntegrityCheckResultItem) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Problems) > 0 {
+		for iNdEx := len(m.Problems) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Problems[iNdEx])
+			copy(dAtA[i:], m.Problems[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Problems[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *SourceIntegrityGit) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SourceIntegrityGit) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SourceIntegrityGit) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Policies) > 0 {
+		for iNdEx := len(m.Policies) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Policies[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SourceIntegrityGitPolicy) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SourceIntegrityGitPolicy) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SourceIntegrityGitPolicy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.GPG != nil {
+		{
+			size, err := m.GPG.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Repos) > 0 {
+		for iNdEx := len(m.Repos) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Repos[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SourceIntegrityGitPolicyGPG) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SourceIntegrityGitPolicyGPG) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SourceIntegrityGitPolicyGPG) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Keys) > 0 {
+		for iNdEx := len(m.Keys) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Keys[iNdEx])
+			copy(dAtA[i:], m.Keys[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Keys[iNdEx])))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	i -= len(m.Mode)
+	copy(dAtA[i:], m.Mode)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Mode)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *SourceIntegrityGitPolicyRepo) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SourceIntegrityGitPolicyRepo) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SourceIntegrityGitPolicyRepo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.URL)
+	copy(dAtA[i:], m.URL)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.URL)))
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -16047,6 +16572,11 @@ func (m *SyncSource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.RepoURL)
+	copy(dAtA[i:], m.RepoURL)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.RepoURL)))
+	i--
+	dAtA[i] = 0x1a
 	i -= len(m.Path)
 	copy(dAtA[i:], m.Path)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Path)))
@@ -16565,6 +17095,10 @@ func (m *AppProjectSpec) Size() (n int) {
 			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
+	}
+	if m.SourceIntegrity != nil {
+		l = m.SourceIntegrity.Size()
+		n += 1 + l + sovGenerated(uint64(l))
 	}
 	return n
 }
@@ -17204,6 +17738,8 @@ func (m *ApplicationSource) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Name)
 	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.TagPrefix)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -17542,6 +18078,7 @@ func (m *ApplicationSummary) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	n += 2
 	return n
 }
 
@@ -18062,6 +18599,11 @@ func (m *ExecProviderConfig) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.InstallHint)
 	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
+	if m.Config != nil {
+		l = m.Config.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
 	return n
 }
 
@@ -19718,6 +20260,10 @@ func (m *RevisionMetadata) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	if m.SourceIntegrityResult != nil {
+		l = m.SourceIntegrityResult.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
 	return n
 }
 
@@ -20036,6 +20582,115 @@ func (m *SourceHydratorStatus) Size() (n int) {
 		l = m.CurrentOperation.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	l = len(m.LastComparedDryRevision)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *SourceIntegrity) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Git != nil {
+		l = m.Git.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	return n
+}
+
+func (m *SourceIntegrityCheckResult) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Checks) > 0 {
+		for _, e := range m.Checks {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *SourceIntegrityCheckResultItem) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Problems) > 0 {
+		for _, s := range m.Problems {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *SourceIntegrityGit) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Policies) > 0 {
+		for _, e := range m.Policies {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *SourceIntegrityGitPolicy) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Repos) > 0 {
+		for _, e := range m.Repos {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	if m.GPG != nil {
+		l = m.GPG.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	return n
+}
+
+func (m *SourceIntegrityGitPolicyGPG) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Mode)
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Keys) > 0 {
+		for _, s := range m.Keys {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *SourceIntegrityGitPolicyRepo) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.URL)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -20215,6 +20870,8 @@ func (m *SyncSource) Size() (n int) {
 	l = len(m.TargetBranch)
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Path)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.RepoURL)
 	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
@@ -20477,6 +21134,7 @@ func (this *AppProjectSpec) String() string {
 		`SourceNamespaces:` + fmt.Sprintf("%v", this.SourceNamespaces) + `,`,
 		`PermitOnlyProjectScopedClusters:` + fmt.Sprintf("%v", this.PermitOnlyProjectScopedClusters) + `,`,
 		`DestinationServiceAccounts:` + repeatedStringForDestinationServiceAccounts + `,`,
+		`SourceIntegrity:` + strings.Replace(this.SourceIntegrity.String(), "SourceIntegrity", "SourceIntegrity", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -20904,13 +21562,14 @@ func (this *ApplicationSource) String() string {
 		`RepoURL:` + fmt.Sprintf("%v", this.RepoURL) + `,`,
 		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
 		`TargetRevision:` + fmt.Sprintf("%v", this.TargetRevision) + `,`,
-		`Helm:` + strings.Replace(this.Helm.String(), "ApplicationSourceHelm", "ApplicationSourceHelm", 1) + `,`,
+		`Helm:` + strings.Replace(fmt.Sprintf("%v", this.Helm), "ApplicationSourceHelm", "ApplicationSourceHelm", 1) + `,`,
 		`Kustomize:` + strings.Replace(this.Kustomize.String(), "ApplicationSourceKustomize", "ApplicationSourceKustomize", 1) + `,`,
 		`Directory:` + strings.Replace(this.Directory.String(), "ApplicationSourceDirectory", "ApplicationSourceDirectory", 1) + `,`,
 		`Plugin:` + strings.Replace(this.Plugin.String(), "ApplicationSourcePlugin", "ApplicationSourcePlugin", 1) + `,`,
 		`Chart:` + fmt.Sprintf("%v", this.Chart) + `,`,
 		`Ref:` + fmt.Sprintf("%v", this.Ref) + `,`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`TagPrefix:` + fmt.Sprintf("%v", this.TagPrefix) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -20924,40 +21583,6 @@ func (this *ApplicationSourceDirectory) String() string {
 		`Jsonnet:` + strings.Replace(strings.Replace(this.Jsonnet.String(), "ApplicationSourceJsonnet", "ApplicationSourceJsonnet", 1), `&`, ``, 1) + `,`,
 		`Exclude:` + fmt.Sprintf("%v", this.Exclude) + `,`,
 		`Include:` + fmt.Sprintf("%v", this.Include) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSourceHelm) String() string {
-	if this == nil {
-		return "nil"
-	}
-	repeatedStringForParameters := "[]HelmParameter{"
-	for _, f := range this.Parameters {
-		repeatedStringForParameters += strings.Replace(strings.Replace(f.String(), "HelmParameter", "HelmParameter", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForParameters += "}"
-	repeatedStringForFileParameters := "[]HelmFileParameter{"
-	for _, f := range this.FileParameters {
-		repeatedStringForFileParameters += strings.Replace(strings.Replace(f.String(), "HelmFileParameter", "HelmFileParameter", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForFileParameters += "}"
-	s := strings.Join([]string{`&ApplicationSourceHelm{`,
-		`ValueFiles:` + fmt.Sprintf("%v", this.ValueFiles) + `,`,
-		`Parameters:` + repeatedStringForParameters + `,`,
-		`ReleaseName:` + fmt.Sprintf("%v", this.ReleaseName) + `,`,
-		`Values:` + fmt.Sprintf("%v", this.Values) + `,`,
-		`FileParameters:` + repeatedStringForFileParameters + `,`,
-		`Version:` + fmt.Sprintf("%v", this.Version) + `,`,
-		`PassCredentials:` + fmt.Sprintf("%v", this.PassCredentials) + `,`,
-		`IgnoreMissingValueFiles:` + fmt.Sprintf("%v", this.IgnoreMissingValueFiles) + `,`,
-		`SkipCrds:` + fmt.Sprintf("%v", this.SkipCrds) + `,`,
-		`ValuesObject:` + strings.Replace(fmt.Sprintf("%v", this.ValuesObject), "RawExtension", "runtime.RawExtension", 1) + `,`,
-		`Namespace:` + fmt.Sprintf("%v", this.Namespace) + `,`,
-		`KubeVersion:` + fmt.Sprintf("%v", this.KubeVersion) + `,`,
-		`APIVersions:` + fmt.Sprintf("%v", this.APIVersions) + `,`,
-		`SkipTests:` + fmt.Sprintf("%v", this.SkipTests) + `,`,
-		`SkipSchemaValidation:` + fmt.Sprintf("%v", this.SkipSchemaValidation) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -21154,6 +21779,7 @@ func (this *ApplicationSummary) String() string {
 	s := strings.Join([]string{`&ApplicationSummary{`,
 		`ExternalURLs:` + fmt.Sprintf("%v", this.ExternalURLs) + `,`,
 		`Images:` + fmt.Sprintf("%v", this.Images) + `,`,
+		`IsAppOfApps:` + fmt.Sprintf("%v", this.IsAppOfApps) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -21493,7 +22119,7 @@ func (this *DrySource) String() string {
 		`RepoURL:` + fmt.Sprintf("%v", this.RepoURL) + `,`,
 		`TargetRevision:` + fmt.Sprintf("%v", this.TargetRevision) + `,`,
 		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
-		`Helm:` + strings.Replace(this.Helm.String(), "ApplicationSourceHelm", "ApplicationSourceHelm", 1) + `,`,
+		`Helm:` + strings.Replace(fmt.Sprintf("%v", this.Helm), "ApplicationSourceHelm", "ApplicationSourceHelm", 1) + `,`,
 		`Kustomize:` + strings.Replace(this.Kustomize.String(), "ApplicationSourceKustomize", "ApplicationSourceKustomize", 1) + `,`,
 		`Directory:` + strings.Replace(this.Directory.String(), "ApplicationSourceDirectory", "ApplicationSourceDirectory", 1) + `,`,
 		`Plugin:` + strings.Replace(this.Plugin.String(), "ApplicationSourcePlugin", "ApplicationSourcePlugin", 1) + `,`,
@@ -21557,6 +22183,8 @@ func (this *ExecProviderConfig) String() string {
 		`Env:` + mapStringForEnv + `,`,
 		`APIVersion:` + fmt.Sprintf("%v", this.APIVersion) + `,`,
 		`InstallHint:` + fmt.Sprintf("%v", this.InstallHint) + `,`,
+		`ProvideClusterInfo:` + fmt.Sprintf("%v", this.ProvideClusterInfo) + `,`,
+		`Config:` + strings.Replace(fmt.Sprintf("%v", this.Config), "RawExtension", "runtime.RawExtension", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -22826,6 +23454,7 @@ func (this *RevisionMetadata) String() string {
 		`Message:` + fmt.Sprintf("%v", this.Message) + `,`,
 		`SignatureInfo:` + fmt.Sprintf("%v", this.SignatureInfo) + `,`,
 		`References:` + repeatedStringForReferences + `,`,
+		`SourceIntegrityResult:` + strings.Replace(this.SourceIntegrityResult.String(), "SourceIntegrityCheckResult", "SourceIntegrityCheckResult", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -23040,6 +23669,95 @@ func (this *SourceHydratorStatus) String() string {
 	s := strings.Join([]string{`&SourceHydratorStatus{`,
 		`LastSuccessfulOperation:` + strings.Replace(this.LastSuccessfulOperation.String(), "SuccessfulHydrateOperation", "SuccessfulHydrateOperation", 1) + `,`,
 		`CurrentOperation:` + strings.Replace(this.CurrentOperation.String(), "HydrateOperation", "HydrateOperation", 1) + `,`,
+		`LastComparedDryRevision:` + fmt.Sprintf("%v", this.LastComparedDryRevision) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *SourceIntegrity) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&SourceIntegrity{`,
+		`Git:` + strings.Replace(this.Git.String(), "SourceIntegrityGit", "SourceIntegrityGit", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *SourceIntegrityCheckResult) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForChecks := "[]SourceIntegrityCheckResultItem{"
+	for _, f := range this.Checks {
+		repeatedStringForChecks += strings.Replace(strings.Replace(f.String(), "SourceIntegrityCheckResultItem", "SourceIntegrityCheckResultItem", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForChecks += "}"
+	s := strings.Join([]string{`&SourceIntegrityCheckResult{`,
+		`Checks:` + repeatedStringForChecks + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *SourceIntegrityCheckResultItem) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&SourceIntegrityCheckResultItem{`,
+		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`Problems:` + fmt.Sprintf("%v", this.Problems) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *SourceIntegrityGit) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForPolicies := "[]*SourceIntegrityGitPolicy{"
+	for _, f := range this.Policies {
+		repeatedStringForPolicies += strings.Replace(f.String(), "SourceIntegrityGitPolicy", "SourceIntegrityGitPolicy", 1) + ","
+	}
+	repeatedStringForPolicies += "}"
+	s := strings.Join([]string{`&SourceIntegrityGit{`,
+		`Policies:` + repeatedStringForPolicies + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *SourceIntegrityGitPolicy) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForRepos := "[]SourceIntegrityGitPolicyRepo{"
+	for _, f := range this.Repos {
+		repeatedStringForRepos += strings.Replace(strings.Replace(f.String(), "SourceIntegrityGitPolicyRepo", "SourceIntegrityGitPolicyRepo", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForRepos += "}"
+	s := strings.Join([]string{`&SourceIntegrityGitPolicy{`,
+		`Repos:` + repeatedStringForRepos + `,`,
+		`GPG:` + strings.Replace(this.GPG.String(), "SourceIntegrityGitPolicyGPG", "SourceIntegrityGitPolicyGPG", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *SourceIntegrityGitPolicyGPG) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&SourceIntegrityGitPolicyGPG{`,
+		`Mode:` + fmt.Sprintf("%v", this.Mode) + `,`,
+		`Keys:` + fmt.Sprintf("%v", this.Keys) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *SourceIntegrityGitPolicyRepo) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&SourceIntegrityGitPolicyRepo{`,
+		`URL:` + fmt.Sprintf("%v", this.URL) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -23157,6 +23875,7 @@ func (this *SyncSource) String() string {
 	s := strings.Join([]string{`&SyncSource{`,
 		`TargetBranch:` + fmt.Sprintf("%v", this.TargetBranch) + `,`,
 		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
+		`RepoURL:` + fmt.Sprintf("%v", this.RepoURL) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -24304,6 +25023,42 @@ func (m *AppProjectSpec) Unmarshal(dAtA []byte) error {
 			}
 			m.DestinationServiceAccounts = append(m.DestinationServiceAccounts, ApplicationDestinationServiceAccount{})
 			if err := m.DestinationServiceAccounts[len(m.DestinationServiceAccounts)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SourceIntegrity", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.SourceIntegrity == nil {
+				m.SourceIntegrity = &SourceIntegrity{}
+			}
+			if err := m.SourceIntegrity.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -29646,6 +30401,38 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 			}
 			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TagPrefix", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TagPrefix = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -32505,6 +33292,26 @@ func (m *ApplicationSummary) Unmarshal(dAtA []byte) error {
 			}
 			m.Images = append(m.Images, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IsAppOfApps", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.IsAppOfApps = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -37308,6 +38115,62 @@ func (m *ExecProviderConfig) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.InstallHint = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProvideClusterInfo", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ProvideClusterInfo = bool(v != 0)
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Config", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Config == nil {
+				m.Config = &runtime.RawExtension{}
+			}
+			if err := m.Config.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -52853,6 +53716,42 @@ func (m *RevisionMetadata) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SourceIntegrityResult", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.SourceIntegrityResult == nil {
+				m.SourceIntegrityResult = &SourceIntegrityCheckResult{}
+			}
+			if err := m.SourceIntegrityResult.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -55723,6 +56622,722 @@ func (m *SourceHydratorStatus) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastComparedDryRevision", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LastComparedDryRevision = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SourceIntegrity) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SourceIntegrity: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SourceIntegrity: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Git", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Git == nil {
+				m.Git = &SourceIntegrityGit{}
+			}
+			if err := m.Git.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SourceIntegrityCheckResult) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SourceIntegrityCheckResult: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SourceIntegrityCheckResult: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Checks", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Checks = append(m.Checks, SourceIntegrityCheckResultItem{})
+			if err := m.Checks[len(m.Checks)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SourceIntegrityCheckResultItem) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SourceIntegrityCheckResultItem: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SourceIntegrityCheckResultItem: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Problems", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Problems = append(m.Problems, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SourceIntegrityGit) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SourceIntegrityGit: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SourceIntegrityGit: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Policies", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Policies = append(m.Policies, &SourceIntegrityGitPolicy{})
+			if err := m.Policies[len(m.Policies)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SourceIntegrityGitPolicy) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SourceIntegrityGitPolicy: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SourceIntegrityGitPolicy: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Repos", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Repos = append(m.Repos, SourceIntegrityGitPolicyRepo{})
+			if err := m.Repos[len(m.Repos)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GPG", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.GPG == nil {
+				m.GPG = &SourceIntegrityGitPolicyGPG{}
+			}
+			if err := m.GPG.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SourceIntegrityGitPolicyGPG) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SourceIntegrityGitPolicyGPG: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SourceIntegrityGitPolicyGPG: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Mode", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Mode = SourceIntegrityGitPolicyGPGMode(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Keys", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Keys = append(m.Keys, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SourceIntegrityGitPolicyRepo) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SourceIntegrityGitPolicyRepo: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SourceIntegrityGitPolicyRepo: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field URL", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.URL = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -57113,6 +58728,38 @@ func (m *SyncSource) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Path = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RepoURL", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RepoURL = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

@@ -94,6 +94,10 @@ const (
 	ComparisonWithNothing CompareWith = 0
 )
 
+func init() {
+	settings_util.ConfigureGoClientFeatures()
+}
+
 func (a CompareWith) Max(b CompareWith) CompareWith {
 	return CompareWith(math.Max(float64(a), float64(b)))
 }
@@ -884,7 +888,20 @@ func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, ap
 }
 
 // Run starts the Application CRD controller.
-func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int) {
+// normalizeHydrationProcessors clamps the configured number of manifest hydration workers to a safe
+// minimum. The --hydration-processors flag / ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS env var
+// can be set to 0 or a negative value on the command line (the env default is clamped, but an explicit
+// flag value is not). Starting zero workers would silently stall hydration, so fall back to a single
+// worker and warn. See https://github.com/argoproj/argo-cd/issues/27926.
+func normalizeHydrationProcessors(hydrationProcessors int) int {
+	if hydrationProcessors < 1 {
+		log.Warnf("hydration-processors was set to %d; hydration requires at least one worker, using 1 instead", hydrationProcessors)
+		return 1
+	}
+	return hydrationProcessors
+}
+
+func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int, hydrationProcessors int) {
 	defer runtime.HandleCrash()
 	defer ctrl.appRefreshQueue.ShutDown()
 	defer ctrl.appComparisonTypeRefreshQueue.ShutDown()
@@ -952,15 +969,29 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}, time.Second, ctx.Done())
 
 	if ctrl.hydrator != nil {
+		// The app hydrate queue is keyed per application. Its only job is to decide whether the
+		// app needs hydration and, if so, enqueue the (deduped) hydration key. The Hydrating
+		// status mark and all subsequent per-app status writes live on the hydration queue side,
+		// so this worker is just an enqueuer and a single goroutine is sufficient
+		// (https://github.com/argoproj/argo-cd/issues/27926).
 		go wait.Until(func() {
 			for ctrl.processAppHydrateQueueItem() {
 			}
 		}, time.Second, ctx.Done())
 
-		go wait.Until(func() {
-			for ctrl.processHydrationQueueItem() {
-			}
-		}, time.Second, ctx.Done())
+		// The hydration queue does the heavy lifting (marking apps Hydrating, generating
+		// manifests, committing to the hydrated branch, and writing the per-app statuses) and is
+		// keyed by {SourceRepoURL, SourceTargetRevision, DestinationBranch}. Because it is a
+		// rate-limiting workqueue, the same key is never processed by two workers at once, so
+		// additional workers only parallelize hydration across *distinct* keys. The per-key dedup
+		// is also what makes the status writes safe to do inside this worker rather than ahead of
+		// time on the app hydrate queue. This is the concurrency knob requested in #27926.
+		for range normalizeHydrationProcessors(hydrationProcessors) {
+			go wait.Until(func() {
+				for ctrl.processHydrationQueueItem() {
+				}
+			}, time.Second, ctx.Done())
+		}
 	}
 
 	<-ctx.Done()
@@ -1979,6 +2010,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
 		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
+		"destinationRepoURL":   hydrationKey.DestinationRepoURL,
 		"destinationBranch":    hydrationKey.DestinationBranch,
 	})
 
@@ -2164,13 +2196,52 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return patchDuration
 	}
-	// calculate time for path call
+	// calculate time for patch call
 	start := time.Now()
 	defer func() {
 		patchDuration = time.Since(start)
 	}()
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
+		if apierrors.IsRequestEntityTooLargeError(err) {
+			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
+			fallbackStatus := orig.Status.DeepCopy()
+			fallbackStatus.SetConditions([]appv1.ApplicationCondition{
+				{
+					Type:    appv1.ApplicationConditionUnknownError,
+					Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
+				},
+			},
+				map[appv1.ApplicationConditionType]bool{
+					appv1.ApplicationConditionUnknownError: true,
+				})
+
+			fallbackPatch, modified, mpErr := createMergePatch(
+				&appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: orig.GetAnnotations(),
+					},
+					Status: orig.Status,
+				},
+				&appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: newAnnotations,
+					},
+					Status: *fallbackStatus,
+				},
+			)
+			if mpErr != nil {
+				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
+				return patchDuration
+			}
+			if !modified {
+				return patchDuration
+			}
+			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
+				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			}
+			return patchDuration
+		}
 		logCtx.WithError(err).Warn("Error updating application")
 	} else {
 		logCtx.Infof("Update successful")
@@ -2479,7 +2550,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		cache.Indexers{
 			cache.NamespaceIndex: func(obj any) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
-				if ok {
+				if ok && ctrl.projInformer.HasSynced() {
 					// We only generally work with applications that are in one
 					// the allowed namespaces.
 					if ctrl.isAppNamespaceAllowed(app) {
@@ -2502,6 +2573,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 
 				if !ctrl.isAppNamespaceAllowed(app) {
+					return nil, nil
+				}
+
+				if !ctrl.projInformer.HasSynced() {
 					return nil, nil
 				}
 
