@@ -222,6 +222,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 		DomainHint:               o.DomainHint,
+		GroupsClaim:              o.GroupsClaim,
 	}
 }
 
@@ -243,6 +244,7 @@ type OIDCConfig struct {
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
 	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
+	GroupsClaim              string                 `json:"groupsClaim,omitempty"`
 }
 
 type AzureOIDCConfig struct {
@@ -2739,6 +2741,14 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 		labelKeys = append(labelKeys, k)
 	}
 	return labelKeys
+}
+
+func (a *ArgoCDSettings) UserInfoGroupsClaim() string {
+	cfg := a.OIDCConfig()
+	if cfg != nil && cfg.GroupsClaim != "" {
+		return strings.TrimSpace(cfg.GroupsClaim)
+	}
+	return "groups"
 }
 
 // IsInClusterEnabled returns false if in-cluster is explicitly disabled in argocd-cm configmap, true otherwise
