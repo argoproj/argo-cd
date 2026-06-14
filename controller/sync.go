@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
@@ -42,6 +44,14 @@ const (
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
+
+func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.GetOpenAPISchema(), nil
+}
 
 func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
@@ -236,7 +246,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	// resources which in this case applies the live values in the configured
 	// ignore differences fields.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
-		patchedTargets, err := normalizeTargetResources(compareResult)
+		openAPISchema, err := m.getOpenAPISchema(destCluster)
+		if err != nil {
+			state.Phase = common.OperationError
+			state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
+			return
+		}
+
+		patchedTargets, err := normalizeTargetResources(openAPISchema, compareResult)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
@@ -396,33 +413,42 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 //   - applies normalization to the target resources based on the live resources
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
-func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// normalize live and target resources
+func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+	// Normalize live and target resources (cleaning or aligning them)
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
 	}
+
 	patchedTargets := []*unstructured.Unstructured{}
+
 	for idx, live := range cr.reconciliationResult.Live {
 		normalizedTarget := normalized.Targets[idx]
 		if normalizedTarget == nil {
 			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
+		gvk := normalizedTarget.GroupVersionKind()
+
 		originalTarget := cr.reconciliationResult.Target[idx]
 		if live == nil {
+			// No live resource, just use target
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
 
-		var lookupPatchMeta *strategicpatch.PatchMetaFromStruct
-		versionedObject, err := scheme.Scheme.New(normalizedTarget.GroupVersionKind())
-		if err == nil {
-			meta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
-			if err != nil {
+		var (
+			lookupPatchMeta strategicpatch.LookupPatchMeta
+			versionedObject any
+		)
+
+		// Load patch meta struct or OpenAPI schema for CRDs
+		if versionedObject, err = scheme.Scheme.New(gvk); err == nil {
+			if lookupPatchMeta, err = strategicpatch.NewPatchMetaFromStruct(versionedObject); err != nil {
 				return nil, err
 			}
-			lookupPatchMeta = &meta
+		} else if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
+			lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
 		}
 
 		// RespectIgnoreDifferences preserves ignored fields by copying their live
@@ -447,19 +473,21 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			return nil, err
 		}
 
-		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject)
+		// Apply the patch to the normalized target
+		// This ensures ignored fields in live are restored into the target before syncing
+		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
-
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
+
 	return patchedTargets, nil
 }
 
 // getMergePatch calculates and returns the patch between the original and the
 // modified unstructures.
-func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta *strategicpatch.PatchMetaFromStruct) ([]byte, error) {
+func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta strategicpatch.LookupPatchMeta) ([]byte, error) {
 	originalJSON, err := original.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -469,24 +497,66 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 		return nil, err
 	}
 	if lookupPatchMeta != nil {
-		return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
+		patch, err := tryStrategicMergePatch(originalJSON, modifiedJSON, lookupPatchMeta)
+		if err == nil {
+			return patch, nil
+		}
+		// Strategic merge patch can fail (and even panic) for resources whose schema
+		// has incomplete or nil subschemas for some fields, e.g. CRDs with free-form
+		// objects such as the Argo CD Application CRD. This is a known bug in the
+		// strategic merge patch handling of k8s.io/apimachinery prior to v0.35
+		// (see https://github.com/argoproj/argo-cd/issues/25199). Fall back to a
+		// regular JSON merge patch so the sync does not fail; the only downside is
+		// that ignoring individual array elements is not applied for that resource.
+		log.Warnf("falling back to JSON merge patch, strategic merge patch failed: %v", err)
 	}
 
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
-// applyMergePatch will apply the given patch in the obj and return the patched
-// unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any) (*unstructured.Unstructured, error) {
+// tryStrategicMergePatch computes a three-way strategic merge patch and recovers
+// from any panic originating in the k8s.io/apimachinery strategic merge patch code
+// (see https://github.com/argoproj/argo-cd/issues/25199), returning an error
+// instead so the caller can fall back to a regular JSON merge patch.
+func tryStrategicMergePatch(originalJSON, modifiedJSON []byte, lookupPatchMeta strategicpatch.LookupPatchMeta) (patch []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			patch = nil
+			err = fmt.Errorf("recovered from panic in strategic merge patch: %v", r)
+		}
+	}()
+	return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
+}
+
+// applyMergePatch will apply the given patch in the obj and return the patched unstructure.
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any, meta strategicpatch.LookupPatchMeta) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
 	var patchedJSON []byte
-	if versionedObject == nil {
-		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
-	} else {
+	switch {
+	case versionedObject != nil:
 		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
+	case meta != nil:
+		var originalMap, patchMap map[string]any
+		if err := json.Unmarshal(originalJSON, &originalMap); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(patch, &patchMap); err != nil {
+			return nil, err
+		}
+
+		patchedMap, err := strategicpatch.StrategicMergeMapPatchUsingLookupPatchMeta(originalMap, patchMap, meta)
+		if err != nil {
+			return nil, err
+		}
+		patchedJSON, err = json.Marshal(patchedMap)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
 	}
 	if err != nil {
 		return nil, err
