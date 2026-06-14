@@ -236,3 +236,42 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to extract organization")
 	assert.Contains(t, err.Error(), "invalid-url-format")
 }
+
+func TestCopyCredentialsFrom_Depth(t *testing.T) {
+	tests := []struct {
+		name      string
+		repoCreds RepoCreds
+		repo      Repository
+		expected  Repository
+	}{
+		{
+			name:      "copies depth from repoCreds when repo depth is zero",
+			repo:      Repository{Depth: 0},
+			repoCreds: RepoCreds{Depth: 5},
+			expected:  Repository{Depth: 5},
+		},
+		{
+			name:      "does not override depth when repo depth is non-zero",
+			repo:      Repository{Depth: 3},
+			repoCreds: RepoCreds{Depth: 5},
+			expected:  Repository{Depth: 3},
+		},
+		{
+			name:      "keeps zero when both repo and repoCreds depth are zero",
+			repo:      Repository{Depth: 0},
+			repoCreds: RepoCreds{Depth: 0},
+			expected:  Repository{Depth: 0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := tt.repo
+			repo.CopyCredentialsFrom(&tt.repoCreds)
+
+			if repo.Depth != tt.expected.Depth {
+				t.Errorf("expected depth %d, got %d", tt.expected.Depth, repo.Depth)
+			}
+		})
+	}
+}

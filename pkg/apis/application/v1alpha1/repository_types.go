@@ -57,6 +57,8 @@ type RepoCreds struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
 	// AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
 	AzureServicePrincipalClientId string `json:"azureServicePrincipalClientId,omitempty" protobuf:"bytes,29,opt,name=azureServicePrincipalClientId"`
 	// AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
@@ -264,7 +266,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.Type == "" {
 			repo.Type = source.Type
 		}
-
+		if repo.Depth == 0 {
+			repo.Depth = source.Depth
+		}
 		repo.EnableOCI = source.EnableOCI
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth

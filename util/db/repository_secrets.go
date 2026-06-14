@@ -523,6 +523,12 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	depth, err := intOrZero(secret, "depth")
+	if err != nil {
+		return repository, err
+	}
+	repository.Depth = depth
+
 	return repository, nil
 }
 
@@ -552,6 +558,7 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretString(secretCopy, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
+	updateSecretInt(secretCopy, "depth", repoCreds.Depth)
 	updateSecretString(secretCopy, "azureServicePrincipalClientID", repoCreds.AzureServicePrincipalClientId)
 	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repoCreds.AzureServicePrincipalClientSecret)
 	updateSecretString(secretCopy, "azureServicePrincipalTenantID", repoCreds.AzureServicePrincipalTenantId)
