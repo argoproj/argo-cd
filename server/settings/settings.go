@@ -95,15 +95,17 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		return nil, err
 	}
 
+	kustomizeOptions := &v1alpha1.KustomizeOptions{
+		BuildOptions: argoCDSettings.KustomizeBuildOptions,
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AdditionalURLs:     argoCDSettings.AdditionalURLs,
 		AppLabelKey:        appInstanceLabelKey,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
 		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
-		KustomizeOptions: &v1alpha1.KustomizeOptions{
-			BuildOptions: argoCDSettings.KustomizeBuildOptions,
-		},
+		KustomizeOptions:   kustomizeOptions,
 		GoogleAnalytics: &settingspkg.GoogleAnalyticsConfig{
 			TrackingID:     gaSettings.TrackingID,
 			AnonymizeUsers: gaSettings.AnonymizeUsers,
@@ -132,6 +134,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 		set.ControllerNamespace = s.mgr.GetNamespace()
 		set.ResourceOverrides = overrides
+		set.KustomizeOptions = kustomizeSettings
 	}
 	if sessionmgr.LoggedIn(ctx) {
 		set.PasswordPattern = argoCDSettings.PasswordPattern

@@ -381,8 +381,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	var cmd *exec.Cmd
-	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(ctx, k, kustomizeOptions.BuildOptions, buildOpts)
+	buildOptions := getKustomizeBuildOptions(opts, kustomizeOptions)
+	if buildOptions != "" {
+		params := parseKustomizeBuildOptions(ctx, k, buildOptions, buildOpts)
 		cmd = exec.CommandContext(ctx, k.getBinaryPath(), params...)
 	} else {
 		cmd = exec.CommandContext(ctx, k.getBinaryPath(), "build", k.path)
@@ -407,6 +408,20 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	return objs, getImageParameters(objs), redactedCommands, nil
+}
+
+func getKustomizeBuildOptions(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) string {
+	if kustomizeOptions == nil {
+		return ""
+	}
+	if opts != nil && opts.Version != "" {
+		for _, ver := range kustomizeOptions.Versions {
+			if ver.Name == opts.Version && ver.BuildOptions != "" {
+				return ver.BuildOptions
+			}
+		}
+	}
+	return kustomizeOptions.BuildOptions
 }
 
 func parseKustomizeBuildOptions(ctx context.Context, k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {
