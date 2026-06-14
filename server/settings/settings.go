@@ -101,9 +101,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		AppLabelKey:        appInstanceLabelKey,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
 		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
-		KustomizeOptions: &v1alpha1.KustomizeOptions{
-			BuildOptions: argoCDSettings.KustomizeBuildOptions,
-		},
+		KustomizeOptions:   kustomizeSettings,
 		GoogleAnalytics: &settingspkg.GoogleAnalyticsConfig{
 			TrackingID:     gaSettings.TrackingID,
 			AnonymizeUsers: gaSettings.AnonymizeUsers,
