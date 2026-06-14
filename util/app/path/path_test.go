@@ -15,52 +15,62 @@ import (
 )
 
 func TestPathRoot(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "/")
 	require.EqualError(t, err, "/: app path is absolute")
 }
 
 func TestPathAbsolute(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "/etc/passwd")
 	require.EqualError(t, err, "/etc/passwd: app path is absolute")
 }
 
 func TestPathDotDot(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "..")
 	require.EqualError(t, err, "..: app path outside root")
 }
 
 func TestPathDotDotSlash(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "../")
 	require.EqualError(t, err, "../: app path outside root")
 }
 
 func TestPathDot(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", ".")
 	require.NoError(t, err)
 }
 
 func TestPathDotSlash(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "./")
 	require.NoError(t, err)
 }
 
 func TestNonExistentPath(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "does-not-exist")
 	require.EqualError(t, err, "does-not-exist: app path does not exist")
 }
 
 func TestPathNotDir(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "file.txt")
 	require.EqualError(t, err, "file.txt: app path is not a directory")
 }
 
 func TestGoodSymlinks(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/goodlink")
 	require.NoError(t, err)
 }
 
 // Simple check of leaving the repo
 func TestBadSymlinks(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
@@ -69,6 +79,7 @@ func TestBadSymlinks(t *testing.T) {
 
 // Crazy formatting check
 func TestBadSymlinks2(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink2")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
@@ -77,6 +88,7 @@ func TestBadSymlinks2(t *testing.T) {
 
 // Make sure no part of the symlink can leave the repo, even if it ultimately targets inside the repo
 func TestBadSymlinks3(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink3")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
@@ -84,6 +96,7 @@ func TestBadSymlinks3(t *testing.T) {
 }
 
 func TestBadSymlinksExcluded(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink", "badlink")
 	assert.NoError(t, err)
 }

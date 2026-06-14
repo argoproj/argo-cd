@@ -241,6 +241,7 @@ spec:
 }
 
 func TestError(t *testing.T) {
+	t.Parallel()
 	app := &appv1.Application{}
 
 	result, err := applyTemplatePatch(app, "hello world")

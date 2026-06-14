@@ -251,6 +251,8 @@ export interface ApplicationSource {
     ref?: string;
 
     name?: string;
+
+    tagPrefix?: string;
 }
 
 export interface SourceHydrator {
@@ -524,6 +526,7 @@ export interface ApplicationCondition {
 export interface ApplicationSummary {
     externalURLs?: string[];
     images?: string[];
+    isAppOfApps?: boolean;
 }
 
 export interface ApplicationStatus {

@@ -72,6 +72,7 @@ func (m *mockResourceInterface) Namespace(string) dynamic.ResourceInterface {
 // TestListResourcesNilPointerFix tests that our fix prevents panic when
 // resClient.List() returns (nil, error)
 func TestListResourcesNilPointerFix(t *testing.T) {
+	t.Parallel()
 	// Create a cluster cache with proper configuration
 	cache := &clusterCache{
 		listSemaphore:       semaphore.NewWeighted(1),
