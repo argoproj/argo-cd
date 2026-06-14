@@ -173,10 +173,17 @@ export class ApplicationsService {
             });
     }
 
-    public getManifest(name: string, appNamespace: string, revision: string): Promise<models.ManifestResponse> {
+    public getManifest(name: string, appNamespace: string, revision: string, revisions?: string[], sourcePositions?: number[]): Promise<models.ManifestResponse> {
+        const query: any = {name, revision, appNamespace};
+        if (revisions && revisions.length > 0) {
+            query.revisions = revisions;
+        }
+        if (sourcePositions && sourcePositions.length > 0) {
+            query.sourcePositions = sourcePositions;
+        }
         return requests
             .get(`/applications/${name}/manifests`)
-            .query({name, revision, appNamespace})
+            .query(query)
             .then(res => res.body as models.ManifestResponse);
     }
 
