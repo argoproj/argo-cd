@@ -52,9 +52,25 @@
       ],
       "matchPackageNames": [
         "docker.io/library/node",
-        "docker.io/library/golang"
+        "docker.io/library/golang",
+        "ghcr.io/dexidp/dex"
       ],
       "enabled": true
+    },
+    {
+      "description": "Group Dex updates and run codegen to update generated manifests",
+      "groupName": "dex",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/dexidp/dex"
+      ],
+      "postUpgradeTasks": {
+        "commands": ["make codegen-local"],
+        "fileFilters": ["manifests/**"],
+        "executionMode": "branch"
+      }
     },
     {
       "description": "Group golang-version packages",

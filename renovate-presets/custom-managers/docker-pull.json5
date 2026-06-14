@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "customManagers": [
+    {
+      "description": "A custom manager for updating docker pull commands in CI workflows.",
+      "customType": "regex",
+      "fileMatch": [
+        ".github/workflows/.+\\.(?:yml|yaml)$"
+      ],
+      "matchStrings": [
+        "docker pull (?<depName>[^:\\s]+):v?(?<currentValue>[\\d]+\\.[\\d]+\\.[\\d]+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
+}
