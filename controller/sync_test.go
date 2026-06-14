@@ -25,6 +25,18 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+var syncOptsRespectIgnoreDiffs = v1alpha1.SyncOptions{synccommon.SyncOptionRespectIgnoreDifferences}
+
+func withRespectIgnoreDiffs(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[synccommon.AnnotationSyncOptions] = synccommon.SyncOptionRespectIgnoreDifferences
+	obj.SetAnnotations(annotations)
+	return obj
+}
+
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
 	app.Status.OperationState = nil
@@ -368,7 +380,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 			Build()
 		require.NoError(t, err)
 		live := test.YamlToUnstructured(testdata.LiveDeploymentYaml)
-		target := test.YamlToUnstructured(testdata.TargetDeploymentYaml)
+		target := withRespectIgnoreDiffs(test.YamlToUnstructured(testdata.TargetDeploymentYaml))
 		return &fixture{
 			&comparisonResult{
 				reconciliationResult: sync.ReconciliationResult{
@@ -390,7 +402,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult, nil)
 
 		// then
 		require.NoError(t, err)
@@ -428,7 +440,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult, nil)
 
 		// then
 		require.NoError(t, err)
@@ -448,7 +460,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		unstructured.RemoveNestedField(live.Object, "metadata", "annotations", "iksm-version")
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult, nil)
 
 		// then
 		require.NoError(t, err)
@@ -473,7 +485,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult, nil)
 
 		// then
 		require.NoError(t, err)
@@ -498,11 +510,11 @@ func TestNormalizeTargetResources(t *testing.T) {
 			},
 		}
 		f := setup(t, ignores)
-		target := test.YamlToUnstructured(testdata.TargetDeploymentNewEntries)
+		target := withRespectIgnoreDiffs(test.YamlToUnstructured(testdata.TargetDeploymentNewEntries))
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult, nil)
 
 		// then
 		require.NoError(t, err)
@@ -511,6 +523,87 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ok)
 		assert.Len(t, containers, 2)
+	})
+}
+
+func TestNormalizeTargetResourcesPerResource(t *testing.T) {
+	ignoreReplicas := v1alpha1.ResourceIgnoreDifferences{
+		Group:        "apps",
+		Kind:         "Deployment",
+		JSONPointers: []string{"/spec/replicas"},
+	}
+	dc, err := diff.NewDiffConfigBuilder().
+		WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{ignoreReplicas}, nil, true, normalizers.IgnoreNormalizerOpts{}).
+		WithNoCache().
+		Build()
+	require.NoError(t, err)
+
+	annotated := test.YamlToUnstructured(testdata.TargetDeploymentYaml)
+	annotated.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionRespectIgnoreDifferences})
+	unannotated := test.YamlToUnstructured(testdata.TargetDeploymentYaml)
+
+	live1 := test.YamlToUnstructured(testdata.LiveDeploymentYaml)
+	live2 := test.YamlToUnstructured(testdata.LiveDeploymentYaml)
+	cr := &comparisonResult{
+		reconciliationResult: sync.ReconciliationResult{
+			Live:   []*unstructured.Unstructured{live1, live2},
+			Target: []*unstructured.Unstructured{annotated, unannotated},
+		},
+		diffConfig: dc,
+	}
+
+	t.Run("normalizes annotated resource, skips unannotated", func(t *testing.T) {
+		targets, err := normalizeTargetResources(cr, nil)
+		require.NoError(t, err)
+		require.Len(t, targets, 2)
+
+		// annotated: gets live replicas (4) via JSON merge patch
+		replicas0, ok, err := unstructured.NestedInt64(targets[0].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, int64(4), replicas0)
+
+		// unannotated: returned as-is from YAML (float64 from yaml.Unmarshal)
+		replicas1, ok, err := unstructured.NestedFieldNoCopy(targets[1].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.EqualValues(t, 1, replicas1)
+	})
+	t.Run("no-op when no annotation and app-level disabled", func(t *testing.T) {
+		onlyUnannotated := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live1},
+				Target: []*unstructured.Unstructured{unannotated},
+			},
+			diffConfig: dc,
+		}
+		targets, err := normalizeTargetResources(onlyUnannotated, nil)
+		require.NoError(t, err)
+		assert.Same(t, unannotated, targets[0])
+	})
+	t.Run("per-resource disable annotation overrides app-level enabled", func(t *testing.T) {
+		disabled := test.YamlToUnstructured(testdata.TargetDeploymentYaml)
+		disabled.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionDisableRespectIgnoreDifferences})
+
+		cr := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live1, live2},
+				Target: []*unstructured.Unstructured{disabled, unannotated},
+			},
+			diffConfig: dc,
+		}
+		targets, err := normalizeTargetResources(cr, syncOptsRespectIgnoreDiffs)
+		require.NoError(t, err)
+		require.Len(t, targets, 2)
+
+		// disabled: annotation overrides app-level; returned as-is
+		assert.Same(t, disabled, targets[0])
+
+		// unannotated: no override, app-level applies; gets live replicas (4)
+		replicas1, ok, err := unstructured.NestedInt64(targets[1].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, int64(4), replicas1)
 	})
 }
 
@@ -526,7 +619,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 			Build()
 		require.NoError(t, err)
 		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
-		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		target := withRespectIgnoreDiffs(test.YamlToUnstructured(testdata.TargetHTTPProxy))
 		return &fixture{
 			&comparisonResult{
 				reconciliationResult: sync.ReconciliationResult{
@@ -549,11 +642,11 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 			},
 		}
 		f := setupHTTPProxy(t, ignores)
-		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		target := withRespectIgnoreDiffs(test.YamlToUnstructured(testdata.TargetHTTPProxy))
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		patchedTargets, err := normalizeTargetResources(f.comparisonResult)
+		patchedTargets, err := normalizeTargetResources(f.comparisonResult, nil)
 
 		// then
 		require.NoError(t, err)
@@ -587,12 +680,12 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		}
 		f := setupHTTPProxy(t, ignores)
 		live := test.YamlToUnstructured(testdata.LiveDeploymentEnvVarsYaml)
-		target := test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml)
+		target := withRespectIgnoreDiffs(test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml))
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult, nil)
 
 		// then
 		require.NoError(t, err)
@@ -639,12 +732,12 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		}
 		f := setupHTTPProxy(t, ignores)
 		live := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
-		target := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
+		target := withRespectIgnoreDiffs(test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml))
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult, nil)
 
 		// then
 		require.NoError(t, err)
