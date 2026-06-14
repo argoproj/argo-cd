@@ -127,6 +127,61 @@ func TestHandleRegistryEvent_RefreshMatchingApp(t *testing.T) {
 	assert.Contains(t, hook.LastEntry().Message, "Requested app 'oci-app' refresh")
 }
 
+func TestHandleRegistryEvent_RefreshMatchingHelmOCIChart(t *testing.T) {
+	tests := []struct {
+		name    string
+		repoURL string
+		chart   string
+	}{
+		{"unprefixed repoURL plus chart", "ghcr.io/user", "repo"},
+		{"oci:// repoURL plus chart", "oci://ghcr.io/user", "repo"},
+		{"trailing slash repoURL plus chart", "oci://ghcr.io/user/", "repo"},
+		{"repoURL already ends in chart", "oci://ghcr.io/user/repo", "repo"},
+		{"chart name differs in case", "ghcr.io/user", "Repo"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patchedApps := []string{}
+			reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
+				patch := action.(kubetesting.PatchAction)
+				patchedApps = append(patchedApps, patch.GetName())
+				return true, nil, nil
+			}
+
+			h := NewMockHandler(
+				&reactorDef{"patch", "applications", reaction},
+				[]string{},
+				&v1alpha1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "oci-app",
+						Namespace: "argocd",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Sources: v1alpha1.ApplicationSources{
+							{
+								RepoURL:        tt.repoURL,
+								Chart:          tt.chart,
+								TargetRevision: "1.0.0",
+							},
+						},
+					},
+				},
+			)
+
+			event := &RegistryEvent{
+				RegistryURL: "ghcr.io",
+				Repository:  "user/repo",
+				Tag:         "1.0.0",
+			}
+
+			h.HandleRegistryEvent(event)
+
+			assert.Contains(t, patchedApps, "oci-app")
+		})
+	}
+}
+
 func TestHandleRegistryEvent_RepoMismatch(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	hook := test.NewGlobal()

@@ -1,0 +1,25 @@
+{
+  "callback_url": "https://registry.hub.docker.com/u/myorg/myimage/hook/abc123/",
+  "push_data": {
+    "pushed_at": 1700000000,
+    "pusher": "myuser",
+    "tag": "v1.0.0"
+  },
+  "repository": {
+    "comment_count": 0,
+    "date_created": 1690000000,
+    "description": "",
+    "dockerfile": "",
+    "full_description": null,
+    "is_official": false,
+    "is_private": false,
+    "is_trusted": false,
+    "name": "myimage",
+    "namespace": "myorg",
+    "owner": "myorg",
+    "repo_name": "myorg/myimage",
+    "repo_url": "https://hub.docker.com/r/myorg/myimage",
+    "star_count": 0,
+    "status": "Active"
+  }
+}
