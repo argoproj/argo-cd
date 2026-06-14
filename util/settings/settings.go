@@ -116,6 +116,8 @@ type ArgoCDSettings struct {
 	WebhookBitbucketServerSecret string `json:"webhookBitbucketServerSecret,omitempty"`
 	// WebhookGogsSecret holds the shared secret for authenticating Gogs webhook events
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
+	// WebhookHarborSecret holds the shared secret for authenticating Harbor webhook events
+	WebhookHarborSecret string `json:"webhookHarborSecret,omitempty"`
 	// WebhookAzureDevOpsUsername holds the username for authenticating Azure DevOps webhook events
 	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
 	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
@@ -457,6 +459,8 @@ const (
 	settingsWebhookBitbucketServerSecretKey = "webhook.bitbucketserver.secret"
 	// settingsWebhookGogsSecret is the key for Gogs webhook secret
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
+	// settingsWebhookHarborSecret is the key for Harbor webhook secret
+	settingsWebhookHarborSecretKey = "webhook.harbor.secret"
 	// settingsWebhookAzureDevOpsUsernameKey is the key for Azure DevOps webhook username
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
@@ -1736,6 +1740,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
 	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
 	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
+	settings.WebhookHarborSecret = string(argoCDSecret.Data[settingsWebhookHarborSecretKey])
 	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
 	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])
 
@@ -1982,6 +1987,11 @@ func (a *ArgoCDSettings) GetWebhookBitbucketServerSecret() string {
 // GetWebhookGogsSecret returns the resolved Gogs webhook secret
 func (a *ArgoCDSettings) GetWebhookGogsSecret() string {
 	return ReplaceStringSecret(a.WebhookGogsSecret, a.Secrets)
+}
+
+// GetWebhookHarborSecret returns the resolved Harbor webhook secret
+func (a *ArgoCDSettings) GetWebhookHarborSecret() string {
+	return ReplaceStringSecret(a.WebhookHarborSecret, a.Secrets)
 }
 
 // GetWebhookAzureDevOpsUsername returns the resolved Azure DevOps webhook username
