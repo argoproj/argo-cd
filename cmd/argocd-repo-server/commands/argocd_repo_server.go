@@ -113,7 +113,7 @@ func NewCommand() *cobra.Command {
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)
-
+			repoCacheExpiration := cache.GetRepoCacheExpiration()
 			maxCombinedDirectoryManifestsQuantity, err := resource.ParseQuantity(maxCombinedDirectoryManifestsSize)
 			errors.CheckError(err)
 
@@ -155,6 +155,7 @@ func NewCommand() *cobra.Command {
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
+				HelmChartCacheExpiration:                     repoCacheExpiration,
 			}, askPassServer)
 			errors.CheckError(err)
 

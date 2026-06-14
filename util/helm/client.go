@@ -115,19 +115,27 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 	return c
 }
 
+// WithHelmChartCacheExpiration sets the cache expiration duration for chart cache.
+func WithHelmChartCacheExpiration(helmChartCacheExpiration time.Duration) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.helmChartCacheExpiration = helmChartCacheExpiration
+	}
+}
+
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths utilio.TempPaths
-	repoURL         string
-	creds           Creds
-	repoLock        sync.KeyLock
-	enableOci       bool
-	plainHTTP       bool
-	indexCache      indexCache
-	proxy           string
-	noProxy         string
-	customUserAgent string // Custom User-Agent string (optional)
+	chartCachePaths          utilio.TempPaths
+	repoURL                  string
+	creds                    Creds
+	repoLock                 sync.KeyLock
+	enableOci                bool
+	plainHTTP                bool
+	indexCache               indexCache
+	proxy                    string
+	noProxy                  string
+	customUserAgent          string        // Custom User-Agent string (optional)
+	helmChartCacheExpiration time.Duration // Cache expiration for chart cache
 }
 
 // getUserAgent returns the User-Agent string to use for HTTP requests.
@@ -210,6 +218,54 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 		return "", nil, fmt.Errorf("error checking existence of cached chart path: %w", err)
 	}
 
+	// if chart tar exists, check if it is expired based on cache expiration duration configuration.
+	if exists && c.helmChartCacheExpiration > 0 {
+		info, err := os.Stat(cachedChartPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				_ = os.RemoveAll(tempDir)
+				return "", nil, fmt.Errorf(
+					"failed to get file info for cached chart path: %w",
+					err,
+				)
+			}
+			exists = false
+		} else {
+			now := time.Now()
+			age := now.Sub(info.ModTime())
+
+			switch {
+			case age > c.helmChartCacheExpiration:
+				if err := os.RemoveAll(cachedChartPath); err != nil {
+					_ = os.RemoveAll(tempDir)
+					return "", nil, fmt.Errorf(
+						"error removing expired cached chart: %w",
+						err,
+					)
+				}
+				exists = false
+			case age < 0:
+				// Handle clock skew.
+				// If the cached chart has a modification time in the future, it is likely due to clock skew.
+				// In this case, remove the cached chart to allow it to be re-downloaded with a current timestamp.
+				log.WithFields(log.Fields{
+					"chart":   chart,
+					"version": version,
+					"mtime":   info.ModTime(),
+					"now":     now,
+				}).Warn("cached Helm chart has a future modification time; removing cached archive")
+				if err := os.RemoveAll(cachedChartPath); err != nil {
+					_ = os.RemoveAll(tempDir)
+					return "", nil, fmt.Errorf(
+						"error removing cached chart with future timestamp: %w",
+						err,
+					)
+				}
+				exists = false
+			}
+		}
+	}
+
 	if !exists {
 		// create empty temp directory to extract chart from the registry
 		tempDest, err := files.CreateTempDir(os.TempDir())
@@ -264,6 +320,15 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 		err = os.Rename(chartFilePath, cachedChartPath)
 		if err != nil {
 			return "", nil, fmt.Errorf("error renaming file from %s to %s: %w", chartFilePath, cachedChartPath, err)
+		}
+
+		// Use the repo-server clock as the source of truth for the cache insertion
+		// time. The cached chart is not modified after it is stored.
+		now := time.Now()
+		if err := os.Chtimes(cachedChartPath, now, now); err != nil {
+			_ = os.RemoveAll(tempDir)
+			_ = os.RemoveAll(cachedChartPath)
+			return "", nil, fmt.Errorf("error normalizing downloaded chart timestamp: %w", err)
 		}
 	}
 
