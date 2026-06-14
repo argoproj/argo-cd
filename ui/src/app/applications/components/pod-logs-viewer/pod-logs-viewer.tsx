@@ -10,6 +10,7 @@ import {services, ViewPreferences} from '../../../shared/services';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 
 import './pod-logs-viewer.scss';
+import {ClearLogsButton} from './clear-logs-button';
 import {CopyLogsButton} from './copy-logs-button';
 import {DownloadLogsButton} from './download-logs-button';
 import {ContainerSelector} from './container-selector';
@@ -295,6 +296,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
+                                <ClearLogsButton disabled={logs.length === 0} onClear={() => setLogs([])} />
                                 <CopyLogsButton logs={logs} />
                                 <DownloadLogsButton {...props} previous={previous} />
                                 <FullscreenButton
