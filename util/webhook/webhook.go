@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 
 	bb "github.com/ktrysmt/go-bitbucket"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/workqueue"
 
@@ -589,6 +590,15 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error validating destination: %w", err)
 	}
 
+	var sourceIntegrity *v1alpha1.SourceIntegrity
+	if app.Spec.Project != "" {
+		proj, err := a.appClientset.ArgoprojV1alpha1().AppProjects(a.ns).Get(context.Background(), app.Spec.Project, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		sourceIntegrity = proj.EffectiveSourceIntegrity()
+	}
+
 	var clusterInfo v1alpha1.ClusterInfo
 	err = a.serverCache.GetClusterInfo(destCluster.Server, &clusterInfo)
 	if err != nil {
@@ -607,17 +617,19 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
 
-	oldManifestKey := cache.ManifestKey{
-		Revision:       change.shaBefore,
-		AppSource:      &source,
-		RefSources:     refSources,
-		ClusterInfo:    &clusterInfo,
-		Namespace:      app.Spec.Destination.Namespace,
-		TrackingMethod: trackingMethod,
-		AppLabelKey:    appInstanceLabelKey,
-		AppName:        app.Name,
-		InstallationID: installationID,
-	}
+	oldManifestKey := cache.NewManifestKey(
+		change.shaBefore,
+		&source,
+		refSources,
+		app.Spec.Destination.Namespace,
+		trackingMethod,
+		appInstanceLabelKey,
+		app.Name,
+		installationID,
+		sourceIntegrity,
+		&clusterInfo,
+		nil,
+	)
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", oldManifestKey)
 
 	newManifestKey := oldManifestKey
