@@ -70,6 +70,15 @@ func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.
 
 	sfKey := key.Pattern + "\x00" + key.Separators
 	v, err, _ := compileGroup.Do(sfKey, func() (any, error) {
+		// Double-check cache: another singleflight call may have populated it
+		// between our cache check and this singleflight registration.
+		globCacheLock.Lock()
+		if cached, ok := globCache.Get(key); ok {
+			globCacheLock.Unlock()
+			return cached.(glob.Glob), nil
+		}
+		globCacheLock.Unlock()
+
 		compiled, err := compiler(pattern, separators...)
 		if err != nil {
 			return nil, err
