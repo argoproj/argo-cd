@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -136,28 +135,30 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
-		jsonBytes, err := luajson.Encode(returnValue)
-		if err != nil {
-			return nil, err
-		}
-		healthStatus := &health.HealthStatus{}
-		err = json.Unmarshal(jsonBytes, healthStatus)
-		if err != nil {
-			// Validate if the error is caused by an empty object
-			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeFor[*health.HealthStatus]()}
-			if errors.As(err, &typeError) {
-				return &health.HealthStatus{}, nil
+		tbl := returnValue.(*lua.LTable)
+		firstKey, _ := tbl.Next(lua.LNil)
+		switch firstKey.Type() {
+		case lua.LTNil, lua.LTNumber:
+			// Empty table or array encodes as a JSON array, which unmarshals to an empty HealthStatus.
+			return &health.HealthStatus{}, nil
+		case lua.LTString:
+			healthStatus := &health.HealthStatus{
+				Status:  health.HealthStatusCode(lua.LVAsString(tbl.RawGetString("status"))),
+				Message: lua.LVAsString(tbl.RawGetString("message")),
 			}
-			return nil, err
+			if !isValidHealthStatusCode(healthStatus.Status) {
+				return &health.HealthStatus{
+					Status:  health.HealthStatusUnknown,
+					Message: invalidHealthStatus,
+				}, nil
+			}
+			return healthStatus, nil
+		default:
+			if _, err := luajson.Encode(returnValue); err != nil {
+				return nil, err
+			}
+			return nil, errors.New("invalid health status table")
 		}
-		if !isValidHealthStatusCode(healthStatus.Status) {
-			return &health.HealthStatus{
-				Status:  health.HealthStatusUnknown,
-				Message: invalidHealthStatus,
-			}, nil
-		}
-
-		return healthStatus, nil
 	} else if returnValue.Type() == lua.LTNil {
 		return &health.HealthStatus{}, nil
 	}
