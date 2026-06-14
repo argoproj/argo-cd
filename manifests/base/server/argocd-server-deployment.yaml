@@ -160,6 +160,24 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.repo.server.strict.tls
                   optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.ca.cert.path
+                  optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.client.cert.path
+                  optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.client.cert.key.path
+                  optional: true
             - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
               valueFrom:
                 configMapKeyRef:
@@ -377,6 +395,8 @@ spec:
               mountPath: /app/config/tls
             - name: argocd-repo-server-tls
               mountPath: /app/config/server/tls
+            - name: argocd-repo-server-mtls
+              mountPath: /app/config/reposerver/mtls
             - name: argocd-dex-server-tls
               mountPath: /app/config/dex/tls
             - mountPath: /home/argocd
@@ -441,6 +461,17 @@ spec:
                 path: tls.crt
               - key: ca.crt
                 path: ca.crt
+        - name: argocd-repo-server-mtls
+          secret:
+            secretName: argocd-repo-server-mtls
+            optional: true
+            items:
+              - key: client.crt
+                path: client.crt
+              - key: client.key
+                path: client.key
+              - key: server-ca.crt
+                path: server-ca.crt
         - name: argocd-cmd-params-cm
           configMap:
             optional: true
