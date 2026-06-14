@@ -139,7 +139,7 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
                         }>
                         <h4>Update account password</h4>
                         <Form
-                            onSubmit={(params: PasswordFormData) => changePassword(userInfo.username, params.currentPassword, params.newPassword)}
+                            onSubmit={(params: PasswordFormData) => changePassword('', params.currentPassword, params.newPassword)}
                             getApi={api => (formApiPassword.current = api)}
                             validateError={validatePasswordForm}>
                             {formApi => (

@@ -413,7 +413,50 @@ g, my-local-user, role:admin
 > p, my-local-user, *, *, *, allow
 > ```
 
+### Disambiguating Local Users with Strict Mode
+
+To remove the ambiguity described above without changing how you assign roles, you can enable strict mode for local
+users. When enabled, Argo CD appends an `@local` suffix to local account names *during RBAC enforcement only*. This
+ensures that a policy bound to a local user does not accidentally apply to an SSO user with a matching scope.
+
+Enable strict mode by setting the following key in the `argocd-cm` ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  rbac.local.user.strictmode: "true"
+```
+
+With strict mode enabled, reference local users in your RBAC policies using the `@local` suffix. For example, to grant
+the local user `sally` the `role:developer` role:
+
+```yaml
+g, sally@local, role:developer
+```
+
+> [!NOTE]
+> Users continue to log in with their normal account name (for example `sally`) via the CLI and UI. The `@local`
+> suffix is used exclusively for RBAC matching. When strict mode is enabled, the user info section of the UI displays
+> the `@local` identity (for example `sally@local`) so you know which subject to reference in your policies.
+
+> [!WARNING]
+> When you enable strict mode, any existing RBAC policies that reference local users by their plain name (for example
+> `g, sally, role:developer`) will stop matching those local users. You must update such bindings to use the `@local`
+> suffix. The built-in `admin` account is already granted `role:admin` for both `admin` and `admin@local`, so the
+> default admin access is preserved.
+>
+> Strict mode is disabled by default; when it is unset, local account names are matched verbatim (the pre-existing
+> behavior).
+
 ## Policy CSV Composition
+
 
 It is possible to provide additional entries in the `argocd-rbac-cm` configmap to compose the final policy csv.
 In this case, the key must follow the pattern `policy.<any string>.csv`.
