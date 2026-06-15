@@ -510,9 +510,6 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 	}
 	if lookupPatchMeta != nil {
 		return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
-		if err == nil {
-			return patch, nil
-		}
 	}
 
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
