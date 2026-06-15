@@ -1,9 +1,15 @@
 package applicationset
 
 import (
+	"context"
+	"errors"
 	"sort"
 	"testing"
+	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	kubetesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cr_fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -841,6 +847,185 @@ func TestListResourceEvents(t *testing.T) {
 		assert.Contains(t, eventNames, "appset1-event-1")
 		assert.Contains(t, eventNames, "appset1-event-2")
 	})
+}
+
+func TestRefreshAppSet(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
+
+	t.Run("Refresh sets annotation in default namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+
+		res, err := appSetServer.Refresh(t.Context(), &applicationset.ApplicationSetGetQuery{Name: "AppSet1"})
+		require.NoError(t, err)
+		assert.Equal(t, "true", res.Annotations[common.AnnotationApplicationSetRefresh])
+	})
+
+	t.Run("Refresh in named namespace", func(t *testing.T) {
+		ns := "external-namespace"
+		namespacedAppSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+			appset.Name = "AppSet1"
+			appset.Namespace = ns
+		})
+		appSetServer := newTestAppSetServer(t, namespacedAppSet)
+
+		res, err := appSetServer.Refresh(t.Context(), &applicationset.ApplicationSetGetQuery{
+			Name:            "AppSet1",
+			AppsetNamespace: ns,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "true", res.Annotations[common.AnnotationApplicationSetRefresh])
+	})
+
+	t.Run("Refresh in not allowed namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+
+		_, err := appSetServer.Refresh(t.Context(), &applicationset.ApplicationSetGetQuery{
+			Name:            "AppSet1",
+			AppsetNamespace: "NOT-ALLOWED",
+		})
+		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+
+	t.Run("Refresh for non-existent appset", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+
+		_, err := appSetServer.Refresh(t.Context(), &applicationset.ApplicationSetGetQuery{Name: "DoesNotExist"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting ApplicationSet")
+	})
+}
+
+func TestRefreshAppSetWithConflicts(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.ResourceVersion = "1"
+	})
+	appSetServer := newTestAppSetServer(t, appSet1)
+	fakeAppCs := appSetServer.appclientset.(*apps.Clientset)
+
+	getCallCount := 0
+	updateCallCount := 0
+
+	fakeAppCs.Lock()
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		getCallCount++
+		fresh := appSet1.DeepCopy()
+		if getCallCount > 1 {
+			fresh.ResourceVersion = "2"
+		}
+		return true, fresh, nil
+	})
+	fakeAppCs.AddReactor("update", "applicationsets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		updateCallCount++
+		updateAction := action.(kubetesting.UpdateAction)
+		appset := updateAction.GetObject().(*appsv1.ApplicationSet)
+		if appset.ResourceVersion == "1" {
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Group: "argoproj.io", Resource: "applicationsets"},
+				appset.Name,
+				errors.New("the object has been modified"),
+			)
+		}
+		updated := appset.DeepCopy()
+		updated.ResourceVersion = "3"
+		return true, updated, nil
+	})
+	fakeAppCs.Unlock()
+
+	res, err := appSetServer.Refresh(context.Background(), &applicationset.ApplicationSetGetQuery{Name: "AppSet1"})
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
+	assert.Equal(t, "true", res.Annotations[common.AnnotationApplicationSetRefresh])
+}
+
+func TestRefreshAppSetGetError(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
+	appSetServer := newTestAppSetServer(t, appSet1)
+	fakeAppCs := appSetServer.appclientset.(*apps.Clientset)
+
+	fakeAppCs.Lock()
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("simulated get error")
+	})
+	fakeAppCs.Unlock()
+
+	_, err := appSetServer.refreshAppSet(context.Background(), appSet1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error getting ApplicationSet: simulated get error")
+}
+
+func TestRefreshAppSetTooManyConflicts(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.ResourceVersion = "1"
+	})
+	appSetServer := newTestAppSetServer(t, appSet1)
+	fakeAppCs := appSetServer.appclientset.(*apps.Clientset)
+
+	fakeAppCs.Lock()
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, appSet1.DeepCopy(), nil
+	})
+	fakeAppCs.AddReactor("update", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, apierrors.NewConflict(
+			schema.GroupResource{Group: "argoproj.io", Resource: "applicationsets"},
+			appSet1.Name,
+			errors.New("the object has been modified"),
+		)
+	})
+	fakeAppCs.Unlock()
+
+	_, err := appSetServer.refreshAppSet(context.Background(), appSet1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error updating ApplicationSet")
+	assert.True(t, apierrors.IsConflict(errors.Unwrap(err)), "expected conflict after backoff retries are exhausted")
+}
+
+func TestWaitSync(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.ResourceVersion = "5"
+	})
+	appSetServer := newTestAppSetServer(t, appSet1)
+
+	t.Run("returns immediately when informer cache is up to date", func(t *testing.T) {
+		appset := appSet1.DeepCopy()
+		appset.ResourceVersion = "1"
+		start := time.Now()
+		appSetServer.waitSync(appset)
+		assert.Less(t, time.Since(start), informerSyncTimeout)
+	})
+
+	t.Run("waits until timeout when cache never catches up", func(t *testing.T) {
+		stale := appSet1.DeepCopy()
+		stale.ResourceVersion = "99999"
+		oldTimeout := informerSyncTimeout
+		informerSyncTimeout = 120 * time.Millisecond
+		defer func() { informerSyncTimeout = oldTimeout }()
+		start := time.Now()
+		appSetServer.waitSync(stale)
+		assert.GreaterOrEqual(t, time.Since(start), 120*time.Millisecond)
+	})
+}
+
+func TestRefreshAppSetWaitSync(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
+	appSetServer := newTestAppSetServer(t, appSet1)
+
+	start := time.Now()
+	updated, err := appSetServer.refreshAppSet(context.Background(), appSet1)
+	require.NoError(t, err)
+	assert.Equal(t, "true", updated.Annotations[common.AnnotationApplicationSetRefresh])
+	assert.Less(t, time.Since(start), informerSyncTimeout, "waitSync after refresh should not block until full timeout when cache is synced")
 }
 
 func TestAppSet_Generate_Cluster(t *testing.T) {

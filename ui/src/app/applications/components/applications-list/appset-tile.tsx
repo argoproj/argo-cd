@@ -1,5 +1,6 @@
 import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import classNames from 'classnames';
 import {ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../utils';
@@ -14,9 +15,10 @@ export interface AppSetTileProps {
     pref: ViewPreferences;
     ctx: ContextApis;
     tileRef?: React.RefObject<HTMLDivElement>;
+    refreshApplicationSet: (appSetName: string, appSetNamespace: string) => void;
 }
 
-export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTileProps) => {
+export const AppSetTile = ({appSet, selected, pref, ctx, tileRef, refreshApplicationSet}: AppSetTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
 
@@ -156,6 +158,25 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                                 Created At:
                             </div>
                             <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
+                        </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className='row applications-tiles__actions'>
+                        <div className='columns applications-list__entry--actions'>
+                            <Tooltip className='custom-tooltip' content={'Refresh'}>
+                                <a
+                                    className='argo-button argo-button--base'
+                                    qe-id='applicationsets-tiles-button-refresh'
+                                    {...AppUtils.appSetRefreshLinkAttrs(appSet)}
+                                    onClick={e => {
+                                        e.stopPropagation();
+                                        refreshApplicationSet(appSet.metadata.name, appSet.metadata.namespace);
+                                    }}>
+                                    <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppSetRefreshing(appSet)})} />{' '}
+                                    <span className='show-for-xxlarge'>Refresh</span>
+                                </a>
+                            </Tooltip>
                         </div>
                     </div>
                 </div>

@@ -15,6 +15,7 @@ export const ApplicationsTable = (props: {
     applications: models.AbstractApplication[];
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
+    refreshApplicationSet: (appSetName: string, appSetNamespace: string) => void;
     deleteApplication: (appName: string, appNamespace: string) => any;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
@@ -61,7 +62,14 @@ export const ApplicationsTable = (props: {
                                         deleteApplication={props.deleteApplication}
                                     />
                                 ) : (
-                                    <AppSetTableRow key={AppUtils.appInstanceName(app)} appSet={app as models.ApplicationSet} selected={selectedApp === i} pref={pref} ctx={ctx} />
+                                    <AppSetTableRow
+                                        key={AppUtils.appInstanceName(app)}
+                                        appSet={app as models.ApplicationSet}
+                                        selected={selectedApp === i}
+                                        pref={pref}
+                                        ctx={ctx}
+                                        refreshApplicationSet={props.refreshApplicationSet}
+                                    />
                                 )
                             )}
                         </div>

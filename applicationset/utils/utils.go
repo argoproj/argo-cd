@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -20,10 +21,14 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/gosimple/slug"
 	"github.com/valyala/fasttemplate"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	argoappsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 )
@@ -638,4 +643,23 @@ func FindApplicationStatusIndex(appStatuses []argoappsv1.ApplicationSetApplicati
 		}
 	}
 	return -1
+}
+
+// RequestRefresh patches the ApplicationSet with the refresh annotation to reconcile
+func RequestRefresh(ctx context.Context, c client.Client, appSet *argoappsv1.ApplicationSet) (*argoappsv1.ApplicationSet, error) {
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		err := c.Get(ctx, types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
+		if err != nil {
+			return fmt.Errorf("error getting ApplicationSet: %w", err)
+		}
+		if appSet.Annotations == nil {
+			appSet.Annotations = map[string]string{}
+		}
+		appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
+		return c.Patch(ctx, appSet, client.Merge)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return appSet, nil
 }

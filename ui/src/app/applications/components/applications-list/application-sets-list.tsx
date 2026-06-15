@@ -265,7 +265,13 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     return itemsPer || 1;
 };
 
-const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
+const ApplicationSetTiles = ({
+    appSets,
+    refreshApplicationSet
+}: {
+    appSets: models.ApplicationSet[];
+    refreshApplicationSet: (appSetName: string, appSetNamespace: string) => void;
+}) => {
     const [selectedAppSet, navAppSet, reset] = useNav(appSets.length);
     const ctxh = React.useContext(Context);
     const firstTileRef = React.useRef<HTMLDivElement>(null);
@@ -326,6 +332,7 @@ const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
                                     pref={pref}
                                     ctx={ctx}
                                     tileRef={i === 0 ? firstTileRef : undefined}
+                                    refreshApplicationSet={refreshApplicationSet}
                                 />
                             ))}
                         </div>
@@ -336,7 +343,13 @@ const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
     );
 };
 
-const ApplicationSetTable = ({appSets}: {appSets: models.ApplicationSet[]}) => {
+const ApplicationSetTable = ({
+    appSets,
+    refreshApplicationSet
+}: {
+    appSets: models.ApplicationSet[];
+    refreshApplicationSet: (appSetName: string, appSetNamespace: string) => void;
+}) => {
     const [selectedAppSet, navAppSet, reset] = useNav(appSets.length);
     const ctxh = React.useContext(Context);
     const {useKeybinding} = React.useContext(KeybindingContext);
@@ -368,7 +381,14 @@ const ApplicationSetTable = ({appSets}: {appSets: models.ApplicationSet[]}) => {
                     {(pref: ViewPreferences) => (
                         <div className='applications-table argo-table-list argo-table-list--clickable'>
                             {appSets.map((appSet, i) => (
-                                <AppSetTableRow key={AppUtils.appInstanceName(appSet)} appSet={appSet} selected={selectedAppSet === i} pref={pref} ctx={ctx} />
+                                <AppSetTableRow
+                                    key={AppUtils.appInstanceName(appSet)}
+                                    appSet={appSet}
+                                    selected={selectedAppSet === i}
+                                    pref={pref}
+                                    ctx={ctx}
+                                    refreshApplicationSet={refreshApplicationSet}
+                                />
                             ))}
                         </div>
                     )}
@@ -381,6 +401,19 @@ const ApplicationSetTable = ({appSets}: {appSets: models.ApplicationSet[]}) => {
 export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
     const {List, Summary, Tiles} = AppsListViewKey;
     const sidebarTarget = useSidebarTarget();
+    const loaderRef = React.useRef<DataLoader>();
+
+    function refreshAppSet(appSetName: string, appSetNamespace: string) {
+        if (loaderRef.current) {
+            const appSets = loaderRef.current.getData() as models.ApplicationSet[];
+            const appSet = appSets.find(item => item.metadata.name === appSetName && item.metadata.namespace === appSetNamespace);
+            if (appSet) {
+                AppUtils.setAppSetRefreshing(appSet);
+                loaderRef.current.setData(appSets);
+            }
+        }
+        services.applications.refreshApplicationSet(appSetName, appSetNamespace);
+    }
 
     function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref as AppsListPreferences});
@@ -420,6 +453,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                 toolbar={{breadcrumbs: [{title: 'ApplicationSets', path: props.match.url}]}}
                                 hideAuth={true}>
                                 <DataLoader
+                                    ref={loaderRef}
                                     input={pref.projectsFilter?.join(',')}
                                     load={() => AppUtils.handlePageVisibility(() => loadApplicationSets(pref.projectsFilter))}
                                     loadingRenderer={() => (
@@ -509,7 +543,9 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                                     data={filteredApps}
                                                                     onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                     {data =>
-                                                                        (pref.view === Tiles && <ApplicationSetTiles appSets={data} />) || <ApplicationSetTable appSets={data} />
+                                                                        (pref.view === Tiles && <ApplicationSetTiles appSets={data} refreshApplicationSet={refreshAppSet} />) || (
+                                                                            <ApplicationSetTable appSets={data} refreshApplicationSet={refreshAppSet} />
+                                                                        )
                                                                     }
                                                                 </Paginate>
                                                             )}
