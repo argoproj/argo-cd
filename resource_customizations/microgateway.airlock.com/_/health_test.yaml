@@ -1,0 +1,28 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "AccessControlPolicy is healthy"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "Ancestor example-gateway: ContentSecurityPolicy is conflicting with other policies for this ancestor: [example-contentsecuritypolicy]"
+  inputPath: testdata/degraded_conflicting.yaml
+- healthStatus:
+    status: Degraded
+    message: >-
+      Ancestor example-gateway: Resolving CustomResponsePolicy failed:
+      Missing referenced CustomResponse 'example'
+      WARNING: traffic to referenced target(s) will be rejected.
+  inputPath: testdata/degraded_resolved_refs.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for EnvoyExtensionPolicy status"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Ancestor example-gateway to update ICAPPolicy status"
+  inputPath: testdata/progressing_observed_generation.yaml
+- healthStatus:
+    status: Healthy
+    message: "DenyRules is healthy"
+  inputPath: testdata/unknown.yaml
