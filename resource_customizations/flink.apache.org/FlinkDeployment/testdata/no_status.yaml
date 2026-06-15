@@ -1,0 +1,16 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: test-flink
+  namespace: default
+spec:
+  image: flink:1.18
+  flinkVersion: v1_18
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
