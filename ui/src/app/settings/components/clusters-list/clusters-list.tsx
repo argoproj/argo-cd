@@ -6,11 +6,88 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {filterClusters, getClusterFilterResults, ClustersFilter, ClustersListPreferences, ClustersListPreferencesHelper} from './clusters-filter';
 
 import './cluster-list.scss';
+
+// Server versions are normalized server-side to "v<major>.<minor>.<patch>", but we compare them in a
+// semver-aware way to be defensive against any suffix (e.g. "-gke.100", "-rc.1", "+k3s1") that may slip
+// through. The numeric release components are compared numerically (so v1.9.0 sorts before v1.10.0), build
+// metadata after "+" is ignored, and a pre-release suffix after "-" ranks below the plain release.
+const comparePreRelease = (a: string, b: string): number => {
+    // No pre-release outranks any pre-release (e.g. v1.0.0 > v1.0.0-rc.1).
+    if (!a && !b) {
+        return 0;
+    }
+    if (!a) {
+        return 1;
+    }
+    if (!b) {
+        return -1;
+    }
+    const ai = a.split('.');
+    const bi = b.split('.');
+    const len = Math.max(ai.length, bi.length);
+    for (let i = 0; i < len; i++) {
+        // A larger set of pre-release fields has higher precedence when all preceding fields are equal.
+        if (ai[i] === undefined) {
+            return -1;
+        }
+        if (bi[i] === undefined) {
+            return 1;
+        }
+        const aNum = /^\d+$/.test(ai[i]);
+        const bNum = /^\d+$/.test(bi[i]);
+        if (aNum && bNum) {
+            const diff = parseInt(ai[i], 10) - parseInt(bi[i], 10);
+            if (diff !== 0) {
+                return diff;
+            }
+        } else if (aNum) {
+            // Numeric identifiers always have lower precedence than alphanumeric ones.
+            return -1;
+        } else if (bNum) {
+            return 1;
+        } else {
+            const diff = ai[i].localeCompare(bi[i]);
+            if (diff !== 0) {
+                return diff;
+            }
+        }
+    }
+    return 0;
+};
+
+export const compareServerVersion = (a: string, b: string): number => {
+    const split = (v: string) => {
+        // Strip leading "v" and drop build metadata (everything after "+"), then separate the pre-release
+        // suffix (everything after the first "-") from the numeric release components.
+        const cleaned = (v || '').replace(/^v/i, '').split('+')[0];
+        const dashIdx = cleaned.indexOf('-');
+        const release = dashIdx === -1 ? cleaned : cleaned.slice(0, dashIdx);
+        const pre = dashIdx === -1 ? '' : cleaned.slice(dashIdx + 1);
+        return {
+            release: release.split('.').map(p => parseInt(p, 10)),
+            pre
+        };
+    };
+    const sa = split(a);
+    const sb = split(b);
+
+    const len = Math.max(sa.release.length, sb.release.length);
+    for (let i = 0; i < len; i++) {
+        const na = isNaN(sa.release[i]) ? 0 : sa.release[i];
+        const nb = isNaN(sb.release[i]) ? 0 : sb.release[i];
+        if (na !== nb) {
+            return na - nb;
+        }
+    }
+
+    return comparePreRelease(sa.pre, sb.pre);
+};
 
 export const ClustersList = () => {
     const clustersLoaderRef = React.useRef<DataLoader | null>(null);
@@ -22,6 +99,9 @@ export const ClustersList = () => {
         credentialFilter: []
     });
     const sidebarTarget = useSidebarTarget();
+
+    type SortKey = 'name' | 'url' | 'version';
+    const {sortKey, dir, requestSort, sortIcon, compareString} = useListSort<SortKey>('name');
 
     const onFilterChange = (newPref: ClustersListPreferences) => {
         setFilterPref(newPref);
@@ -59,18 +139,29 @@ export const ClustersList = () => {
                     </div>
                     <div className='clusters-list__banner-spacer' />
                     <div className='argo-container'>
-                        <DataLoader
-                            ref={clustersLoaderRef}
-                            load={() => services.clusters.list().then(clusters => clusters.sort((first, second) => first.name.localeCompare(second.name)))}>
+                        <DataLoader ref={clustersLoaderRef} load={() => services.clusters.list()}>
                             {(clusters: models.Cluster[]) => {
                                 const filterResults = getClusterFilterResults(clusters, filterPref);
                                 const filteredByStatus = filterClusters(filterResults);
-                                const filteredClusters = filteredByStatus.filter(
-                                    cluster =>
-                                        searchText === '' ||
-                                        clusterName(cluster.name).toLowerCase().includes(searchText.toLowerCase()) ||
-                                        cluster.server.toLowerCase().includes(searchText.toLowerCase())
-                                );
+                                const filteredClusters = filteredByStatus
+                                    .filter(
+                                        cluster =>
+                                            searchText === '' ||
+                                            clusterName(cluster.name).toLowerCase().includes(searchText.toLowerCase()) ||
+                                            cluster.server.toLowerCase().includes(searchText.toLowerCase())
+                                    )
+                                    .sort((a, b) => {
+                                        switch (sortKey) {
+                                            case 'name':
+                                                return compareString(clusterName(a.name), clusterName(b.name));
+                                            case 'url':
+                                                return compareString(a.server, b.server);
+                                            case 'version':
+                                                return dir * compareServerVersion(a.info.serverVersion, b.info.serverVersion);
+                                            default:
+                                                return 0;
+                                        }
+                                    });
 
                                 return (
                                     <>
@@ -86,9 +177,18 @@ export const ClustersList = () => {
                                                     <div className='argo-table-list argo-table-list--clickable'>
                                                         <div className='argo-table-list__head'>
                                                             <div className='row'>
-                                                                <div className='columns small-3'>NAME</div>
-                                                                <div className='columns small-5'>URL</div>
-                                                                <div className='columns small-2'>VERSION</div>
+                                                                <div className='columns small-3 sortable' onClick={() => requestSort('name')}>
+                                                                    NAME
+                                                                    {sortIcon('name')}
+                                                                </div>
+                                                                <div className='columns small-5 sortable' onClick={() => requestSort('url')}>
+                                                                    URL
+                                                                    {sortIcon('url')}
+                                                                </div>
+                                                                <div className='columns small-2 sortable' onClick={() => requestSort('version')}>
+                                                                    VERSION
+                                                                    {sortIcon('version')}
+                                                                </div>
                                                                 <div className='columns small-2'>CONNECTION STATUS</div>
                                                             </div>
                                                         </div>

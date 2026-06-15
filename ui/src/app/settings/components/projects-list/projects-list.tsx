@@ -7,6 +7,7 @@ import {Context} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 
 export function ProjectsList() {
@@ -15,6 +16,9 @@ export function ProjectsList() {
     const query = useQuery();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
+
+    type SortKey = 'name' | 'description';
+    const {sortKey, requestSort, sortIcon, compareString} = useListSort<SortKey>('name');
 
     return (
         <Page
@@ -44,12 +48,23 @@ export function ProjectsList() {
             <div className='projects argo-container'>
                 <DataLoader load={() => services.projects.list()}>
                     {projects => {
-                        const filteredProjects = projects.filter(
-                            proj =>
-                                searchText === '' ||
-                                proj.metadata.name.toLowerCase().includes(searchText.toLowerCase()) ||
-                                (proj.spec.description && proj.spec.description.toLowerCase().includes(searchText.toLowerCase()))
-                        );
+                        const filteredProjects = projects
+                            .filter(
+                                proj =>
+                                    searchText === '' ||
+                                    proj.metadata.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                                    (proj.spec.description && proj.spec.description.toLowerCase().includes(searchText.toLowerCase()))
+                            )
+                            .sort((a, b) => {
+                                switch (sortKey) {
+                                    case 'name':
+                                        return compareString(a.metadata.name, b.metadata.name);
+                                    case 'description':
+                                        return compareString(a.spec.description, b.spec.description);
+                                    default:
+                                        return 0;
+                                }
+                            });
 
                         return (
                             <>
@@ -59,8 +74,14 @@ export function ProjectsList() {
                                             <div className='argo-table-list argo-table-list--clickable'>
                                                 <div className='argo-table-list__head'>
                                                     <div className='row'>
-                                                        <div className='columns small-3'>NAME</div>
-                                                        <div className='columns small-6'>DESCRIPTION</div>
+                                                        <div className='columns small-3 sortable' onClick={() => requestSort('name')}>
+                                                            NAME
+                                                            {sortIcon('name')}
+                                                        </div>
+                                                        <div className='columns small-6 sortable' onClick={() => requestSort('description')}>
+                                                            DESCRIPTION
+                                                            {sortIcon('description')}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 {projectsToDisplay.map(proj => (

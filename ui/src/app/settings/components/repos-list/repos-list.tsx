@@ -9,6 +9,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {RepoDetails} from '../repo-details/repo-details';
 import {useQuery} from '../../../shared/hooks/query';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {
@@ -26,8 +27,6 @@ import {
     isWrite,
     isTemplate
 } from './repos-filter';
-
-require('./repos-list.scss');
 
 // Helper functions to convert to UnifiedRepo
 const repoToUnified = (repo: models.Repository, isWriteFlag: boolean): UnifiedRepo => (isWriteFlag ? {writeRepo: repo} : {readRepo: repo});
@@ -221,6 +220,9 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         ctx.navigation.goto('.', filterQuery(newPref, name), {replace: true});
         setPage(0);
     };
+
+    type SortKey = 'type' | 'name' | 'repository' | 'project' | 'permission';
+    const {sortKey, requestSort, sortIcon, compareString, compareNumber} = useListSort<SortKey>('name');
 
     const formApi = React.useRef<FormApi | null>(null);
     const credsTemplate = React.useRef<boolean>(false);
@@ -838,7 +840,22 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                             }}>
                             {(allRepos: UnifiedRepo[]) => {
                                 const filterResults = getRepoFilterResults(allRepos, filterPref);
-                                const filteredRepos = filteredName(filterRepos(filterResults), name);
+                                const filteredRepos = filteredName(filterRepos(filterResults), name).sort((a, b) => {
+                                    switch (sortKey) {
+                                        case 'type':
+                                            return compareString(getRepoType(a), getRepoType(b));
+                                        case 'name':
+                                            return compareString(getRepoName(a), getRepoName(b));
+                                        case 'repository':
+                                            return compareString(getRepoUrl(a), getRepoUrl(b));
+                                        case 'project':
+                                            return compareString(getRepoProject(a), getRepoProject(b));
+                                        case 'permission':
+                                            return compareNumber(Number(isWrite(a)), Number(isWrite(b)));
+                                        default:
+                                            return 0;
+                                    }
+                                });
 
                                 return (
                                     <>
@@ -855,11 +872,26 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         <div className='argo-table-list__head'>
                                                             <div className='row'>
                                                                 <div className='columns small-1' />
-                                                                <div className='columns small-1'>TYPE</div>
-                                                                <div className='columns small-2'>NAME</div>
-                                                                <div className='columns small-4'>REPOSITORY</div>
-                                                                <div className='columns small-1'>PROJECT</div>
-                                                                <div className='columns small-1'>PERMISSION</div>
+                                                                <div className='columns small-1 sortable' onClick={() => requestSort('type')}>
+                                                                    TYPE
+                                                                    {sortIcon('type')}
+                                                                </div>
+                                                                <div className='columns small-2 sortable' onClick={() => requestSort('name')}>
+                                                                    NAME
+                                                                    {sortIcon('name')}
+                                                                </div>
+                                                                <div className='columns small-4 sortable' onClick={() => requestSort('repository')}>
+                                                                    REPOSITORY
+                                                                    {sortIcon('repository')}
+                                                                </div>
+                                                                <div className='columns small-1 sortable' onClick={() => requestSort('project')}>
+                                                                    PROJECT
+                                                                    {sortIcon('project')}
+                                                                </div>
+                                                                <div className='columns small-1 sortable' onClick={() => requestSort('permission')}>
+                                                                    PERMISSION
+                                                                    {sortIcon('permission')}
+                                                                </div>
                                                                 <div className='columns small-2'>CONNECTION STATUS</div>
                                                             </div>
                                                         </div>

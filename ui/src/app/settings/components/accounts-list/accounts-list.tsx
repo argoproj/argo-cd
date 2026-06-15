@@ -5,6 +5,7 @@ import {DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {AccountsFilter, AccountsListPreferences, getAccountFilterResults, filterAccounts} from './accounts-filter';
@@ -20,6 +21,9 @@ export const AccountsList = () => {
         statusFilter: query.getAll('status') || [],
         capabilitiesFilter: query.getAll('capabilities') || []
     });
+
+    type SortKey = 'name' | 'enabled' | 'capabilities';
+    const {sortKey, requestSort, sortIcon, compareString, compareNumber} = useListSort<SortKey>('name');
 
     const updateFilterPref = (newPref: AccountsListPreferences) => {
         setFilterPref(newPref);
@@ -66,12 +70,25 @@ export const AccountsList = () => {
                         const accountsWithFilter = getAccountFilterResults(accounts, filterPref);
                         const filteredByFilter = filterAccounts(accountsWithFilter);
 
-                        const filteredAccounts = filteredByFilter.filter(
-                            account =>
-                                searchText === '' ||
-                                account.name.toLowerCase().includes(searchText.toLowerCase()) ||
-                                (account.capabilities && account.capabilities.join(', ').toLowerCase().includes(searchText.toLowerCase()))
-                        );
+                        const filteredAccounts = filteredByFilter
+                            .filter(
+                                account =>
+                                    searchText === '' ||
+                                    account.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                                    (account.capabilities && account.capabilities.join(', ').toLowerCase().includes(searchText.toLowerCase()))
+                            )
+                            .sort((a, b) => {
+                                switch (sortKey) {
+                                    case 'name':
+                                        return compareString(a.name, b.name);
+                                    case 'enabled':
+                                        return compareNumber(Number(!!a.enabled), Number(!!b.enabled));
+                                    case 'capabilities':
+                                        return compareString((a.capabilities || []).join(', '), (b.capabilities || []).join(', '));
+                                    default:
+                                        return 0;
+                                }
+                            });
 
                         return (
                             <>
@@ -83,9 +100,18 @@ export const AccountsList = () => {
                                             <div className='argo-table-list argo-table-list--clickable'>
                                                 <div className='argo-table-list__head'>
                                                     <div className='row'>
-                                                        <div className='columns small-3'>NAME</div>
-                                                        <div className='columns small-3'>ENABLED</div>
-                                                        <div className='columns small-6'>CAPABILITIES</div>
+                                                        <div className='columns small-3 sortable' onClick={() => requestSort('name')}>
+                                                            NAME
+                                                            {sortIcon('name')}
+                                                        </div>
+                                                        <div className='columns small-3 sortable' onClick={() => requestSort('enabled')}>
+                                                            ENABLED
+                                                            {sortIcon('enabled')}
+                                                        </div>
+                                                        <div className='columns small-6 sortable' onClick={() => requestSort('capabilities')}>
+                                                            CAPABILITIES
+                                                            {sortIcon('capabilities')}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 {accountsToDisplay.map(account => (

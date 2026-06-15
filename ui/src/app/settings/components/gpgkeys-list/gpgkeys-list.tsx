@@ -9,6 +9,7 @@ import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {GpgKeysFilter, GpgKeysListPreferences, getGpgKeyFilterResults, filterGpgKeys} from './gpgkeys-filter';
@@ -32,6 +33,9 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     const [filterPref, setFilterPref] = React.useState<GpgKeysListPreferences>({
         keyTypeFilter: query.getAll('keyType') || []
     });
+
+    type SortKey = 'keyId' | 'keyType' | 'identity';
+    const {sortKey, requestSort, sortIcon, compareString} = useListSort<SortKey>('keyId');
 
     const updateFilterPref = (newPref: GpgKeysListPreferences) => {
         setFilterPref(newPref);
@@ -151,13 +155,26 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                             const gpgkeysWithFilter = getGpgKeyFilterResults(gpgkeys, filterPref);
                             const filteredByFilter = filterGpgKeys(gpgkeysWithFilter);
 
-                            const filteredGpgKeys = filteredByFilter.filter(
-                                gpgkey =>
-                                    searchText === '' ||
-                                    gpgkey.keyID.toLowerCase().includes(searchText.toLowerCase()) ||
-                                    gpgkey.owner.toLowerCase().includes(searchText.toLowerCase()) ||
-                                    gpgkey.subType.toLowerCase().includes(searchText.toLowerCase())
-                            );
+                            const filteredGpgKeys = filteredByFilter
+                                .filter(
+                                    gpgkey =>
+                                        searchText === '' ||
+                                        gpgkey.keyID.toLowerCase().includes(searchText.toLowerCase()) ||
+                                        gpgkey.owner.toLowerCase().includes(searchText.toLowerCase()) ||
+                                        gpgkey.subType.toLowerCase().includes(searchText.toLowerCase())
+                                )
+                                .sort((a, b) => {
+                                    switch (sortKey) {
+                                        case 'keyId':
+                                            return compareString(a.keyID, b.keyID);
+                                        case 'keyType':
+                                            return compareString(a.subType, b.subType);
+                                        case 'identity':
+                                            return compareString(a.owner, b.owner);
+                                        default:
+                                            return 0;
+                                    }
+                                });
 
                             return (
                                 <>
@@ -169,9 +186,18 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-table-list'>
                                                     <div className='argo-table-list__head'>
                                                         <div className='row'>
-                                                            <div className='columns small-3'>KEY ID</div>
-                                                            <div className='columns small-3'>KEY TYPE</div>
-                                                            <div className='columns small-6'>IDENTITY</div>
+                                                            <div className='columns small-3 sortable' onClick={() => requestSort('keyId')}>
+                                                                KEY ID
+                                                                {sortIcon('keyId')}
+                                                            </div>
+                                                            <div className='columns small-3 sortable' onClick={() => requestSort('keyType')}>
+                                                                KEY TYPE
+                                                                {sortIcon('keyType')}
+                                                            </div>
+                                                            <div className='columns small-6 sortable' onClick={() => requestSort('identity')}>
+                                                                IDENTITY
+                                                                {sortIcon('identity')}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     {gpgkeysToDisplay.map(gpgkey => (

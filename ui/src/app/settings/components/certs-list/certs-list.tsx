@@ -9,6 +9,7 @@ import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {useQuery} from '../../../shared/hooks/query';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {CertsFilter, CertsListPreferences, getCertFilterResults, filterCerts} from './certs-filter';
@@ -39,6 +40,9 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
     const [filterPref, setFilterPref] = React.useState<CertsListPreferences>({
         certTypeFilter: query.getAll('certType') || []
     });
+
+    type SortKey = 'serverName' | 'certType' | 'certInfo';
+    const {sortKey, requestSort, sortIcon, compareString} = useListSort<SortKey>('serverName');
 
     const updateFilterPref = (newPref: CertsListPreferences) => {
         setFilterPref(newPref);
@@ -197,14 +201,27 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                             const certsWithFilter = getCertFilterResults(certs, filterPref);
                             const filteredByFilter = filterCerts(certsWithFilter);
 
-                            const filteredCerts = filteredByFilter.filter(
-                                cert =>
-                                    searchText === '' ||
-                                    cert.serverName.toLowerCase().includes(searchText.toLowerCase()) ||
-                                    cert.certType.toLowerCase().includes(searchText.toLowerCase()) ||
-                                    cert.certSubType.toLowerCase().includes(searchText.toLowerCase()) ||
-                                    cert.certInfo.toLowerCase().includes(searchText.toLowerCase())
-                            );
+                            const filteredCerts = filteredByFilter
+                                .filter(
+                                    cert =>
+                                        searchText === '' ||
+                                        cert.serverName.toLowerCase().includes(searchText.toLowerCase()) ||
+                                        cert.certType.toLowerCase().includes(searchText.toLowerCase()) ||
+                                        cert.certSubType.toLowerCase().includes(searchText.toLowerCase()) ||
+                                        cert.certInfo.toLowerCase().includes(searchText.toLowerCase())
+                                )
+                                .sort((a, b) => {
+                                    switch (sortKey) {
+                                        case 'serverName':
+                                            return compareString(a.serverName, b.serverName);
+                                        case 'certType':
+                                            return compareString(`${a.certType} ${a.certSubType}`, `${b.certType} ${b.certSubType}`);
+                                        case 'certInfo':
+                                            return compareString(a.certInfo, b.certInfo);
+                                        default:
+                                            return 0;
+                                    }
+                                });
 
                             return (
                                 <>
@@ -216,9 +233,18 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-table-list'>
                                                     <div className='argo-table-list__head'>
                                                         <div className='row'>
-                                                            <div className='columns small-3'>SERVER NAME</div>
-                                                            <div className='columns small-3'>CERT TYPE</div>
-                                                            <div className='columns small-6'>CERT INFO</div>
+                                                            <div className='columns small-3 sortable' onClick={() => requestSort('serverName')}>
+                                                                SERVER NAME
+                                                                {sortIcon('serverName')}
+                                                            </div>
+                                                            <div className='columns small-3 sortable' onClick={() => requestSort('certType')}>
+                                                                CERT TYPE
+                                                                {sortIcon('certType')}
+                                                            </div>
+                                                            <div className='columns small-6 sortable' onClick={() => requestSort('certInfo')}>
+                                                                CERT INFO
+                                                                {sortIcon('certInfo')}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     {certsToDisplay.map(cert => (

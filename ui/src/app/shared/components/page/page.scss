@@ -109,3 +109,10 @@
         }
     }
 }
+
+.argo-table-list__head {
+    .columns.sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+}
