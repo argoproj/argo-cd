@@ -950,12 +950,12 @@ func (c *clusterCache) reloadOpenAPISchema() error {
 
 // apiServiceWatchReconcileBackoff is the retry schedule used when reconciling
 // watches in response to an APIService becoming available. The exponential ramp
-// (capped at 5s, ~27s total budget) accommodates the kube-apiserver's aggregated
-// discovery lagging behind an APIService reporting Available.
+// (9 attempts, intervals growing 500ms -> ~8.5s for a ~25s total budget)
+// accommodates the kube-apiserver's aggregated discovery lagging behind an
+// APIService reporting Available.
 var apiServiceWatchReconcileBackoff = wait.Backoff{
 	Duration: 500 * time.Millisecond,
-	Factor:   2.0,
-	Cap:      5 * time.Second,
+	Factor:   1.5,
 	Steps:    9,
 }
 
