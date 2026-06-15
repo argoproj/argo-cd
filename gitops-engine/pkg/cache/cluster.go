@@ -948,25 +948,19 @@ func (c *clusterCache) reloadOpenAPISchema() error {
 	})
 }
 
-// apiServiceWatchReconcileBackoff is the retry schedule used when reconciling
-// watches in response to an APIService becoming available. The exponential ramp
-// (9 attempts, intervals growing 500ms -> ~8.5s for a ~25s total budget)
-// accommodates the kube-apiserver's aggregated discovery lagging behind an
-// APIService reporting Available.
-var apiServiceWatchReconcileBackoff = wait.Backoff{
-	Duration: 500 * time.Millisecond,
-	Factor:   1.5,
-	Steps:    9,
-}
-
 // reconcileAPIServiceWatches re-runs discovery and starts any missing watches in
 // response to an APIService event. Aggregated discovery can lag behind an
 // APIService reporting Available, so when waitForGroup is true (Added/Modified
-// while Available) it retries with backoff until the APIService's group is served
-// by the cluster (i.e. a watch for it has been started) or the attempts are
-// exhausted. For deletions it reconciles once.
+// while Available) it retries with exponential backoff (9 attempts, intervals
+// growing 500ms -> ~8.5s for a ~25s total budget) until the APIService's group
+// is served by the cluster (i.e. a watch for it has been started) or the attempts
+// are exhausted. For deletions it reconciles once.
 func (c *clusterCache) reconcileAPIServiceWatches(group string, waitForGroup bool) {
-	err := wait.ExponentialBackoff(apiServiceWatchReconcileBackoff, func() (bool, error) {
+	err := wait.ExponentialBackoff(wait.Backoff{
+		Duration: 500 * time.Millisecond,
+		Factor:   1.5,
+		Steps:    9,
+	}, func() (bool, error) {
 		if err := runSynced(&c.lock, func() error {
 			return c.startMissingWatches()
 		}); err != nil {
