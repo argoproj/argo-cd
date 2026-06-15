@@ -913,17 +913,16 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					// watched, mirroring how CRD events are handled above. Otherwise the
 					// new kinds remain invisible until the next manual cache invalidation
 					// or full resync.
-					if event.Type == watch.Deleted || isAPIServiceAvailable(obj) {
-						c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", obj.GetName())
-						err = runSynced(&c.lock, func() error {
-							return c.startMissingWatches()
-						})
-						if err != nil {
-							c.log.Error(err, "Failed to start missing watch")
-						}
-						if err := c.reloadOpenAPISchema(); err != nil {
-							c.log.Error(err, "Failed to reload open api schema")
-						}
+					deleted := event.Type == watch.Deleted
+					if deleted || isAPIServiceAvailable(obj) {
+						// The kube-apiserver's aggregated discovery can lag behind an
+						// APIService reporting Available, so the group may not be served yet
+						// when we first re-run discovery. Reconcile watches with a bounded
+						// retry (in a goroutine to avoid blocking this watch) until the
+						// APIService's own group is served or we exhaust our attempts.
+						group, _, _ := unstructured.NestedString(obj.Object, "spec", "group")
+						c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", obj.GetName(), "group", group)
+						go c.reconcileAPIServiceWatches(group, !deleted)
 					}
 				}
 			}
@@ -947,6 +946,53 @@ func (c *clusterCache) reloadOpenAPISchema() error {
 		c.openAPISchema = openAPISchema
 		return nil
 	})
+}
+
+// apiServiceWatchReconcileBackoff is the retry schedule used when reconciling
+// watches in response to an APIService becoming available. The exponential ramp
+// (capped at 5s, ~27s total budget) accommodates the kube-apiserver's aggregated
+// discovery lagging behind an APIService reporting Available.
+var apiServiceWatchReconcileBackoff = wait.Backoff{
+	Duration: 500 * time.Millisecond,
+	Factor:   2.0,
+	Cap:      5 * time.Second,
+	Steps:    9,
+}
+
+// reconcileAPIServiceWatches re-runs discovery and starts any missing watches in
+// response to an APIService event. Aggregated discovery can lag behind an
+// APIService reporting Available, so when waitForGroup is true (Added/Modified
+// while Available) it retries with backoff until the APIService's group is served
+// by the cluster (i.e. a watch for it has been started) or the attempts are
+// exhausted. For deletions it reconciles once.
+func (c *clusterCache) reconcileAPIServiceWatches(group string, waitForGroup bool) {
+	err := wait.ExponentialBackoff(apiServiceWatchReconcileBackoff, func() (bool, error) {
+		if err := runSynced(&c.lock, func() error {
+			return c.startMissingWatches()
+		}); err != nil {
+			c.log.Error(err, "Failed to start missing watches after APIService event")
+		}
+		if err := c.reloadOpenAPISchema(); err != nil {
+			c.log.Error(err, "Failed to reload open api schema after APIService event")
+		}
+		return !waitForGroup || group == "" || c.isGroupWatched(group), nil
+	})
+	if err != nil {
+		c.log.Info("Aggregated API group is not served by discovery yet after retries; it will be picked up on the next resync", "group", group)
+	}
+}
+
+// isGroupWatched reports whether the cache has started watching any resource in
+// the given API group.
+func (c *clusterCache) isGroupWatched(group string) bool {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	for gk := range c.apisMeta {
+		if gk.Group == group {
+			return true
+		}
+	}
+	return false
 }
 
 // isAPIServiceAvailable reports whether the given APIService object has an
