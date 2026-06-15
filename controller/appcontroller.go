@@ -2452,7 +2452,28 @@ func (ctrl *ApplicationController) enqueueHydration(obj any) {
 	if !ctrl.isAppNamespaceAllowed(app) {
 		return
 	}
+	// A hydration is already in progress for this app's group; the in-flight ProcessHydrationQueueItem
+	// will re-evaluate the group when it finishes. Re-enqueueing now only adds churn (and, combined
+	// with informer status lag, risks redundant hydration of the same group).
+	if op := app.Status.SourceHydrator.CurrentOperation; op != nil && op.Phase == appv1.HydrateOperationPhaseHydrating {
+		return
+	}
 	ctrl.hydrationQueue.AddRateLimited(hydrator.GetHydrationQueueKey(app))
+}
+
+// hydrationUpdateIsRelevant reports whether an informer update could change the hydration decision for
+// an app. The controller writes application status frequently (sync status, health, reconciledAt,
+// resource tree, and the hydration status itself); enqueueing a hydration on every such write makes
+// the heavy group hydration (which lists all apps and may call the repo-server) run constantly and,
+// under informer status lag, can hydrate the same group more than once. To avoid that, status-only
+// updates are ignored. Updates that can actually affect hydration are still enqueued:
+//   - resyncs (same ResourceVersion), so new dry commits are detected periodically;
+//   - spec changes (Generation bumps), e.g. a changed sourceHydrator;
+//   - annotation changes, e.g. a refresh or hydrate request.
+func hydrationUpdateIsRelevant(oldApp, newApp *appv1.Application) bool {
+	return oldApp.ResourceVersion == newApp.ResourceVersion ||
+		oldApp.Generation != newApp.Generation ||
+		!maps.Equal(oldApp.Annotations, newApp.Annotations)
 }
 
 func (ctrl *ApplicationController) canProcessApp(obj any) bool {
@@ -2588,8 +2609,13 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			},
 			UpdateFunc: func(old, new any) {
 				// Hydration ownership is independent of cluster sharding, so enqueue the hydration key
-				// before the canProcessApp (cluster) gate.
-				ctrl.enqueueHydration(new)
+				// before the canProcessApp (cluster) gate — but only for updates that could change the
+				// hydration decision, so the controller's own status writes don't drive a hydration loop.
+				if oldApp, oldOK := old.(*appv1.Application); oldOK {
+					if newApp, newOK := new.(*appv1.Application); newOK && hydrationUpdateIsRelevant(oldApp, newApp) {
+						ctrl.enqueueHydration(new)
+					}
+				}
 				if !ctrl.canProcessApp(new) {
 					return
 				}
