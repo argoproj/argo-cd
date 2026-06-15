@@ -182,6 +182,11 @@ func setupSigningKey(keyPath, passphraseFile string) (*gpgsign.Config, error) {
 	}
 
 	cfg, err := gpgsign.ImportSigningKey(context.Background(), keyData, passphrase)
+	// keyData held a copy of the private signing key. Scrub it as soon as the
+	// import returns so the secret doesn't linger on the heap until GC reclaims
+	// it. Defense-in-depth only: the key still lives on disk and in GNUPGHOME,
+	// and the passphrase string can't be wiped the same way.
+	clear(keyData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to import signing key: %w", err)
 	}
