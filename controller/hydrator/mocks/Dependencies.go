@@ -54,7 +54,7 @@ type Dependencies_AddHydrationQueueItem_Call struct {
 
 // AddHydrationQueueItem is a helper method to define mock.On call
 //   - key types.HydrationQueueKey
-func (_e *Dependencies_Expecter) AddHydrationQueueItem(key interface{}) *Dependencies_AddHydrationQueueItem_Call {
+func (_e *Dependencies_Expecter) AddHydrationQueueItem(key any) *Dependencies_AddHydrationQueueItem_Call {
 	return &Dependencies_AddHydrationQueueItem_Call{Call: _e.mock.On("AddHydrationQueueItem", key)}
 }
 
@@ -125,7 +125,7 @@ type Dependencies_EvaluateAppRevisionsChanges_Call struct {
 //   - revision string
 //   - project *v1alpha1.AppProject
 //   - noRevisionCache bool
-func (_e *Dependencies_Expecter) EvaluateAppRevisionsChanges(ctx interface{}, app interface{}, source interface{}, revision interface{}, project interface{}, noRevisionCache interface{}) *Dependencies_EvaluateAppRevisionsChanges_Call {
+func (_e *Dependencies_Expecter) EvaluateAppRevisionsChanges(ctx any, app any, source any, revision any, project any, noRevisionCache any) *Dependencies_EvaluateAppRevisionsChanges_Call {
 	return &Dependencies_EvaluateAppRevisionsChanges_Call{Call: _e.mock.On("EvaluateAppRevisionsChanges", ctx, app, source, revision, project, noRevisionCache)}
 }
 
@@ -424,7 +424,7 @@ type Dependencies_GetProcessableAppProj_Call struct {
 
 // GetProcessableAppProj is a helper method to define mock.On call
 //   - app *v1alpha1.Application
-func (_e *Dependencies_Expecter) GetProcessableAppProj(app interface{}) *Dependencies_GetProcessableAppProj_Call {
+func (_e *Dependencies_Expecter) GetProcessableAppProj(app any) *Dependencies_GetProcessableAppProj_Call {
 	return &Dependencies_GetProcessableAppProj_Call{Call: _e.mock.On("GetProcessableAppProj", app)}
 }
 
@@ -553,7 +553,7 @@ type Dependencies_GetRepoObjs_Call struct {
 //   - source v1alpha1.ApplicationSource
 //   - revision string
 //   - project *v1alpha1.AppProject
-func (_e *Dependencies_Expecter) GetRepoObjs(ctx interface{}, app interface{}, source interface{}, revision interface{}, project interface{}) *Dependencies_GetRepoObjs_Call {
+func (_e *Dependencies_Expecter) GetRepoObjs(ctx any, app any, source any, revision any, project any) *Dependencies_GetRepoObjs_Call {
 	return &Dependencies_GetRepoObjs_Call{Call: _e.mock.On("GetRepoObjs", ctx, app, source, revision, project)}
 }
 
@@ -637,7 +637,7 @@ type Dependencies_GetWriteCredentials_Call struct {
 //   - ctx context.Context
 //   - repoURL string
 //   - project string
-func (_e *Dependencies_Expecter) GetWriteCredentials(ctx interface{}, repoURL interface{}, project interface{}) *Dependencies_GetWriteCredentials_Call {
+func (_e *Dependencies_Expecter) GetWriteCredentials(ctx any, repoURL any, project any) *Dependencies_GetWriteCredentials_Call {
 	return &Dependencies_GetWriteCredentials_Call{Call: _e.mock.On("GetWriteCredentials", ctx, repoURL, project)}
 }
 
@@ -688,7 +688,7 @@ type Dependencies_PersistHydrationStatus_Call struct {
 // PersistHydrationStatus is a helper method to define mock.On call
 //   - orig *v1alpha1.Application
 //   - newStatus *v1alpha1.SourceHydratorStatus
-func (_e *Dependencies_Expecter) PersistHydrationStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistHydrationStatus_Call {
+func (_e *Dependencies_Expecter) PersistHydrationStatus(orig any, newStatus any) *Dependencies_PersistHydrationStatus_Call {
 	return &Dependencies_PersistHydrationStatus_Call{Call: _e.mock.On("PersistHydrationStatus", orig, newStatus)}
 }
 
@@ -745,7 +745,7 @@ type Dependencies_RequestAppRefresh_Call struct {
 // RequestAppRefresh is a helper method to define mock.On call
 //   - appName string
 //   - appNamespace string
-func (_e *Dependencies_Expecter) RequestAppRefresh(appName interface{}, appNamespace interface{}) *Dependencies_RequestAppRefresh_Call {
+func (_e *Dependencies_Expecter) RequestAppRefresh(appName any, appNamespace any) *Dependencies_RequestAppRefresh_Call {
 	return &Dependencies_RequestAppRefresh_Call{Call: _e.mock.On("RequestAppRefresh", appName, appNamespace)}
 }
 
