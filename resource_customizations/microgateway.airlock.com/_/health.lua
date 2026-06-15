@@ -5,7 +5,7 @@ local function is_policy_kind(kind)
 end
 
 if not is_policy_kind(obj.kind) then
-  return nil
+  return { status = "Healthy", message = obj.kind .. " is healthy" }
 end
 
 if obj.status ~= nil and obj.status.ancestors ~= nil then

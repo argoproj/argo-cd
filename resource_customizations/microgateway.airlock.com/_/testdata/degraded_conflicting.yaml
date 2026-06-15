@@ -1,9 +1,8 @@
 apiVersion: microgateway.airlock.com/v1alpha1
-kind: XPolicy
+kind: ContentSecurityPolicy
 metadata:
-  name: example-xpolicy
+  name: example-contentsecuritypolicy-2
   namespace: default
-  generation: 3
 spec:
   targetRefs:
   - group: gateway.networking.k8s.io
@@ -16,10 +15,11 @@ status:
       kind: Gateway
       name: example-gateway
     conditions:
-    - lastTransitionTime: '2026-04-16T12:20:11Z'
-      message: XPolicy is accepted
-      observedGeneration: 1
-      reason: Accepted
-      status: 'True'
+    - lastTransitionTime: '2026-04-16T14:21:38Z'
+      message: >-
+        ContentSecurityPolicy is conflicting with other policies for this ancestor: [example-contentsecuritypolicy]
+      observedGeneration: 3
+      reason: Conflicted
+      status: 'False'
       type: Accepted
     controllerName: example.com/gatewayclass-controller

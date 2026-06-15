@@ -1,7 +1,7 @@
 apiVersion: microgateway.airlock.com/v1alpha1
-kind: XPolicy
+kind: CustomResponsePolicy
 metadata:
-  name: example-xpolicy-2
+  name: example-customresponsepolicy
   namespace: default
 spec:
   targetRefs:
@@ -15,11 +15,13 @@ status:
       kind: Gateway
       name: example-gateway
     conditions:
-    - lastTransitionTime: '2026-04-16T14:21:38Z'
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
       message: >-
-        XPolicy is conflicting with other policies for this ancestor: [example-xpolicy]
+        Resolving CustomResponsePolicy failed:
+        Missing referenced CustomResponse 'example'
+        WARNING: traffic to referenced target(s) will be rejected.
       observedGeneration: 3
-      reason: Conflicted
+      reason: Invalid
       status: 'False'
       type: Accepted
     controllerName: example.com/gatewayclass-controller
