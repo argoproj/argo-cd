@@ -317,6 +317,14 @@ data:
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
   commitserver.grpc.enable.txt.service.config: "false"
+  # Path to the ASCII-armored GPG private key used as the commit server's default
+  # signing key for hydrated commits (default ""). Setting this enables signing:
+  # there is no separate on/off toggle. When set, the commit server fails at
+  # startup if the key cannot be loaded — it will not silently fall back to
+  # unsigned commits.
+  commitserver.signing.key.path: ""
+  # Optional path to a file containing the passphrase for the signing key.
+  commitserver.signing.key.passphrase.file: ""
 
   # Set the logging format. One of: json|text (default "json")
   dexserver.log.format: "json"
