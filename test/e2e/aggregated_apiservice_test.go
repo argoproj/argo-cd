@@ -98,7 +98,13 @@ metadata:
 				// the cache or re-run discovery: without the APIService fix the kind
 				// remains unwatched, so the Flunder never enters the tree regardless of
 				// how many times we refresh.
-				if _, err := RunCli("app", "get", ctx.AppQualifiedName(), "--refresh"); err != nil {
+				refresh := string(RefreshTypeNormal)
+				if _, err := cdClient.Get(context.Background(), &applicationpkg.ApplicationQuery{
+					Name:         &app.Name,
+					AppNamespace: &app.Namespace,
+					Project:      []string{app.Spec.Project},
+					Refresh:      &refresh,
+				}); err != nil {
 					t.Logf("app refresh failed: %v", err)
 				}
 				tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
