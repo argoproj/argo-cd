@@ -142,6 +142,10 @@ func parseImportFingerprint(statusOut string) (string, error) {
 func WriteSignWrapper(dir, passphraseFile string) (string, error) {
 	script := "#!/bin/sh\nexec gpg --no-permission-warning --batch --pinentry-mode loopback"
 	if passphraseFile != "" {
+		// Validate the path at startup before embedding it into shell source.
+		if !filepath.IsAbs(passphraseFile) || passphraseFile != filepath.Clean(passphraseFile) {
+			return "", fmt.Errorf("passphrase file path must be clean and absolute: %q", passphraseFile)
+		}
 		// Quote the path so paths with spaces still work. We've already
 		// rejected empty here.
 		script += " --passphrase-file '" + strings.ReplaceAll(passphraseFile, "'", `'\''`) + "'"
