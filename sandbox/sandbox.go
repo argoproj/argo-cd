@@ -93,7 +93,7 @@ func GenerateDefaultSandboxConfig(ops *ToolOpts) (*ArgocdSandboxConfig, error) {
 	return cfg, nil
 }
 
-func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName string, args ...string) (*exec.Cmd, error) {
+func CommandContextEnv(ctx context.Context, env []string, sandboxRunOpts *SandboxRunOpts, cmdName string, args ...string) (*exec.Cmd, error) {
 	var toolOpts *ToolOpts
 	switch {
 	case cmdName == "helm" && HelmToolOps.IsEnabled:
@@ -106,7 +106,7 @@ func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName
 	default:
 		log.Infof("executing command %q without sandbox", cmdName)
 		cmd := exec.CommandContext(ctx, cmdName, args...)
-		cmd.Env = os.Environ()
+		cmd.Env = env
 		return cmd, nil
 	}
 	binPath := cmdName
@@ -124,7 +124,7 @@ func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName
 	args = makeSandboxCmdline(toolOpts, sandboxRunOpts, binPath, args...)
 	//  FIXME: w/o separate binary
 	cmd := exec.CommandContext(ctx, common.CommandSandbox, args...)
-	cmd.Env = os.Environ()
+	cmd.Env = env
 	for idx, entry := range cmd.Env {
 		if strings.HasPrefix(entry, "ARGOCD_BINARY_NAME=") {
 			cmd.Env[idx] = common.CommandSandbox

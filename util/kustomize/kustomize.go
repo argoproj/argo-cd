@@ -390,7 +390,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		params = []string{"build", k.path}
 	}
 	sandboxRunOpts := k.makeSandboxRunOpts(params...)
-	cmd, err = sandbox.CommandContext(ctx, sandboxRunOpts, k.getBinaryPath(), params...)
+	cmd, err = sandbox.CommandContextEnv(ctx, os.Environ(), sandboxRunOpts, k.getBinaryPath(), params...)
 
 	// FIXME env handling
 	cmd.Env = append(cmd.Env, env...)

@@ -67,7 +67,7 @@ func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
 	// cmd := exec.CommandContext(ctx, "helm", args...)
 	// FIXME run this only  when the tool is enabled!
 	sandboxRunOpts := c.makeSandboxRunOpts(args...)
-	cmd, err := sandbox.CommandContext(ctx, sandboxRunOpts, "helm", args...)
+	cmd, err := sandbox.CommandContextEnv(ctx, os.Environ(), sandboxRunOpts, "helm", args...)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create command context for helm: %w", err)
 	}
