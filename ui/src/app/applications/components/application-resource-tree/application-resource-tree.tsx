@@ -1,5 +1,5 @@
 import {DropDown, Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import Moment from 'react-moment';
@@ -1428,7 +1428,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const graphNodes = graph.nodes();
     const size = getGraphSize(graphNodes.map(id => graph.node(id)));
 
-    const resourceTreeRef = React.useRef<HTMLDivElement>();
+    const resourceTreeRef = React.useRef<HTMLDivElement | null>(null);
 
     const graphMoving = React.useRef({
         enable: false,

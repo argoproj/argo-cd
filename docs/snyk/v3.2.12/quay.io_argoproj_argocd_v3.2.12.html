@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="38 known vulnerabilities found in 40 vulnerable dependency paths.">
+  <meta name="description" content="47 known vulnerabilities found in 55 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 24th 2026, 12:58:57 am (UTC+00:00)</p>
+                <p class="timestamp">June 14th 2026, 1:07:07 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>38</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>40 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>47</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>55 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2326</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -587,6 +587,92 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPC-15691172">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Improper Authentication</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--critical">
+                        <span class="label__text">critical severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/idna
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and golang.org/x/net/idna@v0.47.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/idna@v0.47.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/idna@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Authentication via the <code>ToASCII</code> and <code>ToUnicode</code> functions. An attacker can bypass hostname validation by submitting Punycode-encoded labels that decode to ASCII-only labels, potentially leading to privilege escalation in applications that rely on these functions for security checks.</p>
+        <p><strong>Note:</strong> The fix depends on the Go toolchain in use having Unicode version 16 or later, which is planned for the 1.27 release.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/idna</code> to version 0.54.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/8c4c965e028475082408749b50ed7a686df0d265">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5026">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/767220">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/78760">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETIDNA-17116876">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1720,6 +1806,656 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGOBJECT-16638689">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and golang.org/x/net/html@v0.47.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.47.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) in the <code>inBodyEndTagOther()</code> function, when rendering sanitized HTML. An attacker can cause the execution of scripts in the context of the affected application by providing malicious HTML input containing unmatched tags.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/0dc5b7a5f81d7155ade6d5e9db35992998679932">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5025">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781700">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79571">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873672">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and golang.org/x/net/html@v0.47.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.47.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via the <code>readStartTag()</code> function in the <code>Tokenizer</code>. An attacker can cause the execution of scripts in the context of the affected application by supplying malicious HTML with duplicate attributes.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/a452f3cc17168a60bc3f439a3ae0fcffc32eca0e">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5030">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781685">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79575">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873674">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and golang.org/x/net/html@v0.47.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.47.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via the <code>childTextNodesAreLiteral()</code> function in `render.go. An attacker can cause the execution of scripts in the context of the affected application by providing malicious HTML input containing fostered elements that are outside their parent namespace.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/a8fb2fe4f7378f816302b9f2f7b8290ce512e5dd">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5027">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781701">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79572">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873676">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and golang.org/x/net/html@v0.47.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.47.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via the <code>writeQuoted()</code> function, which does not properly handle <code>&gt;</code> characters in DOCTYPE data. An attacker can cause the execution of scripts in the context of the affected application by providing malicious HTML input that contains unescaped <code>&gt;</code>s.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/4ece7b612ad44ad6c4d5e0d5d4df9c18cc211905">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5029">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781703">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79574">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873774">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and golang.org/x/net/html@v0.47.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.47.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity in <code>parse.go</code>, when checking attributes iteratively. An attacker can cause excessive CPU consumption by providing malicious HTML input.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.55.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/08be507abce89191d78cd49da60f4501fc910472">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5028">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/781702">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/79573">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-16873779">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -3045,6 +3781,85 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
+                            github.com/go-git/go-git/v5/plumbing/format/packfile
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/plumbing/format/packfile@v5.14.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/format/packfile@v5.14.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling through the parsing of maliciously crafted Git repository data, such as <code>.pack</code>, <code>.idx</code>, or loose objects. An attacker can cause the application to panic by providing a payload that exceeds the declared size of a slice for <code>isCopyFromDelta()</code>, or consume excessive resources by sending an unlimited stream of calls to <code>isCopyFromDelta()</code> or a stream of calls with excessively large <code>targetSz</code> values (i.e. amplification).</p>
+        <p><strong>Note:</strong> This is only exploitable if the attacker can alter read-only files in the local repository&#39;s <code>.git/objects/pack/</code> directory or if the user interacts with a malicious remote server.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/format/packfile</code> to version 5.19.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-w5pp-99ch-qj29">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/0693fd127531cbc29557e34833f8ea3487fdc6c7">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/1f38e171218526ea254a73187a52f0648253c1b8">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/30a8e3405ff4a59b69fbf6f49c5ad8a294b3bd9c">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/396fffc1d28bb088f234fe487651f9e45e5c9346">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/9a42882ae4deae536c1d822b961e528ac14193cf">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/f7545a02529e03998d6a7219140dc0e6644ad337">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGFORMATPACKFILE-17111065">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
                             github.com/go-git/go-git/v5/plumbing/format/index
                     </li>
         
@@ -3164,6 +3979,160 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGFORMATINDEX-15855246">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-git/go-git/v5/plumbing/format/idxfile
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/plumbing/format/idxfile@v5.14.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/format/idxfile@v5.14.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling through the parsing of maliciously crafted Git repository data, such as <code>.pack</code>, <code>.idx</code>, or loose objects. An attacker can cause the application to panic by providing a payload that exceeds the declared size of a slice for <code>isCopyFromDelta()</code>, or consume excessive resources by sending an unlimited stream of calls to <code>isCopyFromDelta()</code> or a stream of calls with excessively large <code>targetSz</code> values (i.e. amplification).</p>
+        <p><strong>Note:</strong> This is only exploitable if the attacker can alter read-only files in the local repository&#39;s <code>.git/objects/pack/</code> directory or if the user interacts with a malicious remote server.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/format/idxfile</code> to version 5.19.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-w5pp-99ch-qj29">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/0693fd127531cbc29557e34833f8ea3487fdc6c7">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/1f38e171218526ea254a73187a52f0648253c1b8">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/30a8e3405ff4a59b69fbf6f49c5ad8a294b3bd9c">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/396fffc1d28bb088f234fe487651f9e45e5c9346">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/9a42882ae4deae536c1d822b961e528ac14193cf">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/f7545a02529e03998d6a7219140dc0e6644ad337">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGFORMATIDXFILE-17111067">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Removal of Sensitive Information Before Storage or Transfer</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/argoproj/gitops-engine/pkg/diff
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/argoproj/gitops-engine/pkg/diff@v0.7.1-0.20260512161450-ff8d2f5207dc
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/diff@v0.7.1-0.20260512161450-ff8d2f5207dc
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Removal of Sensitive Information Before Storage or Transfer in the <code>HideSecretData()</code> function that fails to mask <code>predictedLive</code> argument for <code>--server-side-diff</code> command. An attacker can extract last-applied-configuration which may contain a JSON-serialized Secret manifest with sensitive values.</p>
+        <p><strong>Note:</strong></p>
+        <p><code>github.com/argoproj/gitops-engine</code> module migrated to <code>github.com/argoproj/argo-cd/gitops-engine</code>.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>A fix was pushed into the <code>master</code> branch but not yet published.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/argoproj/argo-cd/security/advisories/GHSA-rg3g-4rw9-gqrp">GitHub Advisory</a></li>
+        <li><a href="https://github.com/argoproj/argo-cd/commit/dcda17a40d1f91dc5a66fe93805bc2ac6ca34668">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMARGOPROJGITOPSENGINEPKGDIFF-16874297">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

@@ -513,6 +513,12 @@ message ApplicationSource {
 
   // Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
   optional string name = 14;
+
+  // TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+  // The prefix is stripped from tag names before comparison and re-added to the resolved version.
+  // For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+  // "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+  optional string tagPrefix = 15;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
@@ -766,6 +772,9 @@ message ApplicationSummary {
 
   // Images holds all images of application child resources.
   repeated string images = 2;
+
+  // IsAppOfApps holds true if the application has any application for child resource.
+  optional bool isAppOfApps = 3;
 }
 
 // ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
@@ -1142,6 +1151,21 @@ message ExecProviderConfig {
 
   // This text is shown to the user when the executable doesn't seem to be present
   optional string installHint = 5;
+
+  // ProvideClusterInfo determines whether or not to provide cluster information,
+  // which could potentially contain very large CA data, to this exec plugin as a
+  // part of the KUBERNETES_EXEC_INFO environment variable.
+  // Comment mirrored from k8s.io/client-go/tools/clientcmd/api.ExecConfig.ProvideClusterInfo
+  optional bool provideClusterInfo = 6;
+
+  // Config holds cluster-specific configuration data that will be passed to the exec plugin
+  // via ExecCredential.Spec.Cluster.Config. This is typically used to pass information like
+  // the cluster name to credential plugins that need it for multi-cluster authentication.
+  //
+  // This data is sourced from the kubeconfig cluster's extensions field with the reserved key
+  // "client.authentication.k8s.io/exec", as defined by the Kubernetes client authentication API.
+  // Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension config = 7;
 }
 
 message GitDirectoryGeneratorItem {
@@ -1297,8 +1321,8 @@ message HydrateOperation {
   optional SourceHydrator sourceHydrator = 7;
 }
 
-// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
-// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+// HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The repository and path are inherited from SyncSource.
 message HydrateTo {
   // TargetBranch is the branch to which hydrated manifests should be committed
   optional string targetBranch = 1;
@@ -2798,8 +2822,8 @@ message SyncPolicyAutomated {
   optional bool enabled = 4;
 }
 
-// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
-// associated DrySource config in the SourceHydrator.
+// SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
+// to be the same as the associated DrySource config in the SourceHydrator.
 message SyncSource {
   // TargetBranch is the branch from which hydrated manifests will be synced.
   // If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
@@ -2813,6 +2837,10 @@ message SyncSource {
   // +kubebuilder:validation:MinLength=1
   // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
+
+  // RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+  // the DrySource.RepoURL.
+  optional string repoURL = 3;
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
