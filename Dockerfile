@@ -8,8 +8,6 @@ FROM docker.io/library/golang:1.26.4@sha256:87a41d2539e5671777734e91f467499ed5ea
 
 WORKDIR /tmp
 
-RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
-
 RUN apt-get update && apt-get install --no-install-recommends -y \
     openssh-server \
     nginx \

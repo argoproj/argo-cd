@@ -1645,7 +1645,12 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					appName = appNamespace + "/" + appName
 				}
 				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
-				errors.CheckError(err)
+				if err != nil {
+					if isContextCanceledErr(err) {
+						log.Fatalf("timed out (%ds) waiting for app %q to match the expected conditions", timeout, appName)
+					}
+					errors.CheckError(err)
+				}
 			}
 		},
 	}
@@ -2370,7 +2375,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	printFinalStatus := func(app *argoappv1.Application) *argoappv1.Application {
 		var err error
-		if refresh {
+		if refresh && ctx.Err() == nil {
 			conn, appClient := acdClient.NewApplicationClientOrDie()
 			refreshType := string(argoappv1.RefreshTypeNormal)
 			app, err = appClient.Get(ctx, &application.ApplicationQuery{
@@ -2530,6 +2535,21 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	}
 	_ = printFinalStatus(appWithLock.GetApp())
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+}
+
+// isContextCanceledErr returns true if the error is a context cancellation or deadline exceeded,
+// either as a stdlib error or wrapped in a gRPC status error.
+func isContextCanceledErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	if st, ok := status.FromError(err); ok {
+		return st.Code() == codes.Canceled || st.Code() == codes.DeadlineExceeded
+	}
+	return false
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application

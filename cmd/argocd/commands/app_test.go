@@ -23,6 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+	grpccodes "google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -2694,4 +2696,40 @@ func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string
 		appSetEventsCh <- addedEvent
 	}()
 	return appSetEventsCh
+}
+
+func TestIsContextCanceledErr(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil error returns false", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, isContextCanceledErr(nil))
+	})
+
+	t.Run("context.Canceled returns true", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, isContextCanceledErr(context.Canceled))
+	})
+
+	t.Run("context.DeadlineExceeded returns true", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, isContextCanceledErr(context.DeadlineExceeded))
+	})
+
+	t.Run("gRPC Canceled status returns true", func(t *testing.T) {
+		t.Parallel()
+		grpcErr := grpcstatus.Error(grpccodes.Canceled, "context canceled")
+		assert.True(t, isContextCanceledErr(grpcErr))
+	})
+
+	t.Run("gRPC DeadlineExceeded status returns true", func(t *testing.T) {
+		t.Parallel()
+		grpcErr := grpcstatus.Error(grpccodes.DeadlineExceeded, "deadline exceeded")
+		assert.True(t, isContextCanceledErr(grpcErr))
+	})
+
+	t.Run("unrelated error returns false", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, isContextCanceledErr(errors.New("some other error")))
+	})
 }
