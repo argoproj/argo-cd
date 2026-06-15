@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,6 +81,49 @@ func TestValues_SetString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplicationSourceHelm_NormalizeValuesObject(t *testing.T) {
+	t.Run("nil receiver does not panic", func(t *testing.T) {
+		var h *ApplicationSourceHelm
+		assert.NotPanics(t, h.NormalizeValuesObject)
+	})
+
+	t.Run("nil ValuesObject is left untouched", func(t *testing.T) {
+		h := &ApplicationSourceHelm{Values: "foo: bar"}
+		h.NormalizeValuesObject()
+		assert.Nil(t, h.ValuesObject)
+	})
+
+	t.Run("byte-different but semantically equal values normalize to identical bytes", func(t *testing.T) {
+		// The Kubernetes API server serves '&' unescaped, while encoding/json HTML-escapes it to
+		// &. Normalization must collapse both representations to the same canonical bytes so they
+		// compare equal.
+		escaped, err := json.Marshal(map[string]string{"foo": "&"})
+		require.NoError(t, err)
+		require.NotEqual(t, `{"foo":"&"}`, string(escaped)) // sanity: the inputs really do differ
+
+		unescapedSrc := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo":"&"}`)}}
+		escapedSrc := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: escaped}}
+		unescapedSrc.NormalizeValuesObject()
+		escapedSrc.NormalizeValuesObject()
+		assert.Equal(t, string(escapedSrc.ValuesObject.Raw), string(unescapedSrc.ValuesObject.Raw))
+	})
+
+	t.Run("is idempotent and sorts keys", func(t *testing.T) {
+		h := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`{"b":2,"a":1}`)}}
+		h.NormalizeValuesObject()
+		first := string(h.ValuesObject.Raw)
+		assert.Equal(t, `{"a":1,"b":2}`, first)
+		h.NormalizeValuesObject()
+		assert.Equal(t, first, string(h.ValuesObject.Raw))
+	})
+
+	t.Run("invalid JSON is left untouched", func(t *testing.T) {
+		h := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`not json`)}}
+		h.NormalizeValuesObject()
+		assert.Equal(t, `not json`, string(h.ValuesObject.Raw))
+	})
 }
 
 func TestApplicationSourceHelm_String(t *testing.T) {

@@ -38,6 +38,29 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 	return nil
 }
 
+// NormalizeValuesObject rewrites ValuesObject.Raw into a canonical JSON form so that two semantically
+// equal values also compare equal at the byte level. This is required because the JSON produced by the
+// Kubernetes API server does not HTML-escape characters such as '&', '<' and '>', whereas Go's
+// encoding/json (used when a request source is parsed) does. Without normalization, a byte-wise comparison
+// such as reflect.DeepEqual would report a spurious difference between an otherwise identical stored source
+// and the source supplied in a request.
+func (h *ApplicationSourceHelm) NormalizeValuesObject() {
+	if h == nil || h.ValuesObject == nil || h.ValuesObject.Raw == nil {
+		return
+	}
+	var v any
+	if err := json.Unmarshal(h.ValuesObject.Raw, &v); err != nil {
+		// Leave the raw value untouched if it is not valid JSON; it should never happen because
+		// ValuesObject is only ever set from JSON, but we must not panic or corrupt the value.
+		return
+	}
+	normalized, err := json.Marshal(v)
+	if err != nil {
+		return
+	}
+	h.ValuesObject.Raw = normalized
+}
+
 func (h *ApplicationSourceHelm) ValuesYAML() []byte {
 	if h.ValuesObject == nil || h.ValuesObject.Raw == nil {
 		return []byte(h.Values)

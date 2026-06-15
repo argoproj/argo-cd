@@ -3787,6 +3787,12 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	otherCopy := other.DeepCopy()
 	sourceCopy.Plugin = nil
 	otherCopy.Plugin = nil
+	// Helm's valuesObject is stored as raw JSON bytes in a runtime.RawExtension. Two semantically identical
+	// values can have different byte representations (e.g. the Kubernetes API server does not HTML-escape
+	// '&', '<' and '>', while encoding/json does), which would make the reflect.DeepEqual below report a
+	// spurious difference. Normalize both sides to a canonical JSON form before comparing.
+	sourceCopy.Helm.NormalizeValuesObject()
+	otherCopy.Helm.NormalizeValuesObject()
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
