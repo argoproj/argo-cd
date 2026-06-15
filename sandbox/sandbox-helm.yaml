@@ -1,0 +1,15 @@
+#
+landlock:             # landlock plugin configuration
+  defaultFSDeny: "read_file,read_dir,execute"  # deny all FS operations
+  defaultNetDeny:     # deny binding to ports while allowing outbound connections
+        - BindTCP
+  # default allowed paths
+  allowedPaths:
+    # Helm static binary 
+    - paths: [ "/usr/local/bin/helm" ]
+      access: read_file,execute
+    # OS trust store — required for TLS when outbound is allowed
+    - paths: [ "/etc/ssl/certs", "/home/parallels/.config/helm" ]
+      access: read_dir
+    - paths: [ "/etc/resolv.conf", "/home/parallels/.config/helm/repositories.lock", "/home/parallels/.config/helm/repositories.yaml" ]
+      access: read_file
