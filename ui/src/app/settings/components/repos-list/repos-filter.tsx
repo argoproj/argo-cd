@@ -7,16 +7,63 @@ export interface ReposListPreferences {
     typeFilter: string[];
     projectFilter: string[];
     statusFilter: string[];
+    credentialTypeFilter: string[]; // read or write
+    templateFilter: string[]; // template or repository
 }
 
 export interface FilterResult {
     type: boolean;
     project: boolean;
     status: boolean;
+    credentialType: boolean;
+    template: boolean;
 }
 
-export interface FilteredRepo extends models.Repository {
+// Unified type for both repositories and credential templates
+// Uses discriminated union - only one of these four will be defined
+export interface UnifiedRepo {
+    readRepo?: models.Repository;
+    writeRepo?: models.Repository;
+    readCred?: models.RepoCreds;
+    writeCred?: models.RepoCreds;
+}
+
+export interface FilteredRepo extends UnifiedRepo {
     filterResult: FilterResult;
+}
+
+// Helper functions to access properties
+export function getRepoUrl(item: UnifiedRepo): string {
+    return item.readRepo?.repo || item.writeRepo?.repo || item.readCred?.url || item.writeCred?.url || '';
+}
+
+export function getRepoName(item: UnifiedRepo): string {
+    // Only repositories have a name; templates are left blank when no name is defined
+    return item.readRepo?.name || item.writeRepo?.name || '';
+}
+
+export function getRepoType(item: UnifiedRepo): string {
+    // Check if OCI is enabled (for Helm OCI registries)
+    if (item.readRepo?.enableOCI || item.writeRepo?.enableOCI || item.readCred?.enableOCI || item.writeCred?.enableOCI) {
+        return 'oci';
+    }
+    return item.readRepo?.type || item.writeRepo?.type || item.readCred?.type || item.writeCred?.type || 'git';
+}
+
+export function getRepoProject(item: UnifiedRepo): string | undefined {
+    return item.readRepo?.project || item.writeRepo?.project;
+}
+
+export function getConnectionState(item: UnifiedRepo): models.ConnectionState | undefined {
+    return item.readRepo?.connectionState || item.writeRepo?.connectionState;
+}
+
+export function isWrite(item: UnifiedRepo): boolean {
+    return !!(item.writeRepo || item.writeCred);
+}
+
+export function isTemplate(item: UnifiedRepo): boolean {
+    return !!(item.readCred || item.writeCred);
 }
 
 export class ReposListPreferencesHelper {
@@ -24,45 +71,55 @@ export class ReposListPreferencesHelper {
         pref.typeFilter = [];
         pref.projectFilter = [];
         pref.statusFilter = [];
+        pref.credentialTypeFilter = [];
+        pref.templateFilter = [];
     }
 }
 
-export function getRepoFilterResults(repos: models.Repository[], pref: ReposListPreferences): FilteredRepo[] {
+export function getRepoFilterResults(repos: UnifiedRepo[], pref: ReposListPreferences): FilteredRepo[] {
     return repos.map(repo => ({
         ...repo,
         filterResult: {
-            type: pref.typeFilter.length === 0 || pref.typeFilter.includes(repo.type || 'git'),
-            project: pref.projectFilter.length === 0 || (repo.project && pref.projectFilter.includes(repo.project)),
-            status: pref.statusFilter.length === 0 || pref.statusFilter.includes(repo.connectionState.status)
+            type: pref.typeFilter.length === 0 || pref.typeFilter.includes(getRepoType(repo)),
+            project: pref.projectFilter.length === 0 || (getRepoProject(repo) && pref.projectFilter.includes(getRepoProject(repo)!)),
+            status: pref.statusFilter.length === 0 || (getConnectionState(repo) && pref.statusFilter.includes(getConnectionState(repo)!.status)),
+            credentialType: pref.credentialTypeFilter.length === 0 || pref.credentialTypeFilter.includes(isWrite(repo) ? 'write' : 'read'),
+            template: pref.templateFilter.length === 0 || pref.templateFilter.includes(isTemplate(repo) ? 'template' : 'repository')
         }
     }));
 }
 
-export function filterRepos(repos: FilteredRepo[]): models.Repository[] {
+export function filterRepos(repos: FilteredRepo[]): UnifiedRepo[] {
     return repos.filter(repo => Object.values(repo.filterResult).every(v => v));
 }
 
-const getCounts = (repos: FilteredRepo[], filterType: keyof FilterResult, filter: (repo: models.Repository) => string, init?: string[]) => {
+const getCounts = (repos: FilteredRepo[], filterType: keyof FilterResult, filter: (repo: UnifiedRepo) => string | undefined, init?: string[]) => {
     const map = new Map<string, number>();
     if (init) {
         init.forEach(key => map.set(key, 0));
     }
-    repos
-        .filter(repo => filter(repo) && Object.keys(repo.filterResult).every((key: keyof FilterResult) => key === filterType || repo.filterResult[key]))
-        .forEach(repo => map.set(filter(repo), (map.get(filter(repo)) || 0) + 1));
+    repos.forEach(repo => {
+        if (Object.keys(repo.filterResult).every((key: keyof FilterResult) => key === filterType || repo.filterResult[key])) {
+            const val = filter(repo);
+            if (val !== undefined) {
+                map.set(val, (map.get(val) || 0) + 1);
+            }
+        }
+    });
     return map;
 };
 
 const getOptions = (
     repos: FilteredRepo[],
     filterType: keyof FilterResult,
-    filter: (repo: models.Repository) => string,
+    filter: (repo: UnifiedRepo) => string | undefined,
     keys: string[],
-    getIcon?: (k: string) => React.ReactNode
+    getIcon?: (k: string) => React.ReactNode,
+    getLabel?: (k: string) => string
 ) => {
     const counts = getCounts(repos, filterType, filter, keys);
     return keys.map(k => ({
-        label: k,
+        label: getLabel ? getLabel(k) : k.charAt(0).toUpperCase() + k.slice(1),
         icon: getIcon && getIcon(k),
         count: counts.get(k)
     }));
@@ -79,7 +136,16 @@ interface ReposFilterProps {
     collapsed?: boolean;
 }
 
-const getTypeIcon = (type: string) => <i className={'icon argo-icon-' + type} style={{fontSize: '16px', display: 'inline-block', verticalAlign: 'middle'}} />;
+const getTypeIcon = (type: string) => <i className={'icon argo-icon-' + type} style={{fontSize: '16px', display: 'flex', alignItems: 'center'}} />;
+
+const getTypeLabel = (type: string) => {
+    switch (type) {
+        case 'oci':
+            return 'OCI';
+        default:
+            return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+};
 
 const getStatusIcon = (status: string) => {
     switch (status) {
@@ -97,15 +163,15 @@ const getStatusIcon = (status: string) => {
 const TypeFilter = (props: ReposFilterProps) => (
     <Filter
         label='TYPE'
-        selected={props.pref.typeFilter}
-        setSelected={s => props.onChange({...props.pref, typeFilter: s})}
-        options={getOptions(props.repos, 'type', repo => repo.type || 'git', ['git', 'helm'], getTypeIcon)}
+        selected={props.pref.typeFilter.map(getTypeLabel)}
+        setSelected={s => props.onChange({...props.pref, typeFilter: s.map(v => v.toLowerCase())})}
+        options={getOptions(props.repos, 'type', getRepoType, ['git', 'helm', 'oci'], getTypeIcon, getTypeLabel)}
     />
 );
 
 const ProjectFilter = React.memo((props: ReposFilterProps) => {
     const projectOptions = React.useMemo(
-        () => optionsFrom(Array.from(new Set(props.repos.map(repo => repo.project).filter((item): item is string => !!item && item.trim() !== ''))), props.pref.projectFilter),
+        () => optionsFrom(Array.from(new Set(props.repos.map(getRepoProject).filter((item): item is string => !!item && item.trim() !== ''))), props.pref.projectFilter),
         [props.repos, props.pref.projectFilter]
     );
     return (
@@ -121,15 +187,40 @@ const StatusFilter = (props: ReposFilterProps) => (
         options={getOptions(
             props.repos,
             'status',
-            repo => repo.connectionState.status,
+            repo => getConnectionState(repo)?.status,
             [models.ConnectionStatuses.Successful, models.ConnectionStatuses.Failed, models.ConnectionStatuses.Unknown],
             getStatusIcon
         )}
     />
 );
 
+const PermissionFilter = (props: ReposFilterProps) => (
+    <Filter
+        label='PERMISSION'
+        selected={props.pref.credentialTypeFilter.map(s => s.charAt(0).toUpperCase() + s.slice(1))}
+        setSelected={s => props.onChange({...props.pref, credentialTypeFilter: s.map(v => v.toLowerCase())})}
+        options={getOptions(props.repos, 'credentialType', repo => (isWrite(repo) ? 'write' : 'read'), ['read', 'write'])}
+        radio={true}
+    />
+);
+
+const CategoryFilter = (props: ReposFilterProps) => (
+    <Filter
+        label='CATEGORY'
+        selected={props.pref.templateFilter.map(s => s.charAt(0).toUpperCase() + s.slice(1))}
+        setSelected={s => props.onChange({...props.pref, templateFilter: s.map(v => v.toLowerCase())})}
+        options={getOptions(props.repos, 'template', repo => (isTemplate(repo) ? 'template' : 'repository'), ['repository', 'template'])}
+    />
+);
+
 export const ReposFilter = (props: ReposFilterProps) => {
-    const appliedFilter = [...(props.pref.typeFilter || []), ...(props.pref.projectFilter || []), ...(props.pref.statusFilter || [])];
+    const appliedFilter = [
+        ...(props.pref.typeFilter || []),
+        ...(props.pref.projectFilter || []),
+        ...(props.pref.statusFilter || []),
+        ...(props.pref.credentialTypeFilter || []),
+        ...(props.pref.templateFilter || [])
+    ];
 
     const onClearFilter = () => {
         const newPref = {...props.pref};
@@ -140,7 +231,9 @@ export const ReposFilter = (props: ReposFilterProps) => {
     return (
         <FiltersGroup title='Repository filters' content={null} appliedFilter={appliedFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             <ProjectFilter {...props} />
+            <CategoryFilter {...props} />
             <TypeFilter {...props} />
+            <PermissionFilter {...props} />
             <StatusFilter {...props} />
         </FiltersGroup>
     );
