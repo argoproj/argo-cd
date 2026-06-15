@@ -8,6 +8,9 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: wardle
+  # e2e.argoproj.io lets fixture EnsureCleanState catch leaks if t.Cleanup fails.
+  labels:
+    e2e.argoproj.io: "true"
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -20,6 +23,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: wardle:system:auth-delegator
+  labels:
+    e2e.argoproj.io: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -49,6 +54,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: wardle-aggregated-apiserver-clusterrole
+  labels:
+    e2e.argoproj.io: "true"
 rules:
 - apiGroups: [""]
   resources: ["namespaces"]
@@ -64,6 +71,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: wardle-aggregated-apiserver-clusterrolebinding
+  labels:
+    e2e.argoproj.io: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

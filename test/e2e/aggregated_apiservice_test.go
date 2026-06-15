@@ -13,6 +13,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -68,12 +69,9 @@ metadata:
 		And(func() {
 			// Register the extension apiserver AFTER Argo CD is up and wait until it
 			// is actually serving its API group.
-			_, err := Run("", "kubectl", "apply", "-f", serverManifests)
-			require.NoError(t, err)
-			_, err = Run("", "kubectl", "-n", "wardle", "rollout", "status", "deployment/wardle-server", "--timeout=180s")
-			require.NoError(t, err)
-			_, err = Run("", "kubectl", "wait", "--for=condition=Available", "apiservice/"+wardleAPIServiceName, "--timeout=180s")
-			require.NoError(t, err)
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "apply", "-f", serverManifests))
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "-n", "wardle", "rollout", "status", "deployment/wardle-server", "--timeout=180s"))
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "wait", "--for=condition=Available", "apiservice/"+wardleAPIServiceName, "--timeout=180s"))
 		}).
 		// Deliberately NO InvalidateCache and NO RefreshTypeHard here - the cache must
 		// discover the new kind on its own in response to the APIService event.
