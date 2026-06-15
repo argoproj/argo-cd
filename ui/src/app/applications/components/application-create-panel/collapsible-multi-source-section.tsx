@@ -7,7 +7,7 @@ import {SourcePanel} from './source-panel';
 export function CollapsibleMultiSourceSection(props: {
     index: number;
     formApi: FormApi;
-    repos: string[];
+    repos: models.Repository[];
     reposInfo: models.Repository[];
     formApp: models.Application;
     canRemove?: boolean;
