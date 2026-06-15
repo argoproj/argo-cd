@@ -449,3 +449,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
+1. [OpenChoreo](https://openchoreo.dev/)
