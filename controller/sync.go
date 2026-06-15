@@ -526,19 +526,6 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
-// tryStrategicMergePatch computes a three-way strategic merge patch and recovers
-// from any panic originating in the k8s.io/apimachinery strategic merge patch code
-// (see https://github.com/argoproj/argo-cd/issues/25199), returning an error
-// instead so the caller can fall back to a regular JSON merge patch.
-func tryStrategicMergePatch(originalJSON, modifiedJSON []byte, lookupPatchMeta strategicpatch.LookupPatchMeta) (patch []byte, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			patch = nil
-			err = fmt.Errorf("recovered from panic in strategic merge patch: %v", r)
-		}
-	}()
-	return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
-}
 
 // applyMergePatch will apply the given patch in the obj and return the patched unstructure.
 func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any, meta strategicpatch.LookupPatchMeta) (*unstructured.Unstructured, error) {
