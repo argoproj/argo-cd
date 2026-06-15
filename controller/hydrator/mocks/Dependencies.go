@@ -41,6 +41,46 @@ func (_m *Dependencies) EXPECT() *Dependencies_Expecter {
 	return &Dependencies_Expecter{mock: &_m.Mock}
 }
 
+// AddHydrationQueueItem provides a mock function for the type Dependencies
+func (_mock *Dependencies) AddHydrationQueueItem(key types.HydrationQueueKey) {
+	_mock.Called(key)
+	return
+}
+
+// Dependencies_AddHydrationQueueItem_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddHydrationQueueItem'
+type Dependencies_AddHydrationQueueItem_Call struct {
+	*mock.Call
+}
+
+// AddHydrationQueueItem is a helper method to define mock.On call
+//   - key types.HydrationQueueKey
+func (_e *Dependencies_Expecter) AddHydrationQueueItem(key any) *Dependencies_AddHydrationQueueItem_Call {
+	return &Dependencies_AddHydrationQueueItem_Call{Call: _e.mock.On("AddHydrationQueueItem", key)}
+}
+
+func (_c *Dependencies_AddHydrationQueueItem_Call) Run(run func(key types.HydrationQueueKey)) *Dependencies_AddHydrationQueueItem_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 types.HydrationQueueKey
+		if args[0] != nil {
+			arg0 = args[0].(types.HydrationQueueKey)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Dependencies_AddHydrationQueueItem_Call) Return() *Dependencies_AddHydrationQueueItem_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key types.HydrationQueueKey)) *Dependencies_AddHydrationQueueItem_Call {
+	_c.Run(run)
+	return _c
+}
+
 // EvaluateAppRevisionsChanges provides a mock function for the type Dependencies
 func (_mock *Dependencies) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject, noRevisionCache bool) (bool, string, error) {
 	ret := _mock.Called(ctx, app, source, revision, project, noRevisionCache)

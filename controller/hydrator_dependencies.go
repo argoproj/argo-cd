@@ -108,6 +108,10 @@ func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Applicatio
 	ctrl.persistAppStatus(orig, status, newAnnotations)
 }
 
+func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
+	ctrl.hydrationQueue.AddRateLimited(key)
+}
+
 func (ctrl *ApplicationController) IsManagedHydrationKey(key types.HydrationQueueKey) bool {
 	return ctrl.clusterSharding.IsManagedHydrationKey(key)
 }
