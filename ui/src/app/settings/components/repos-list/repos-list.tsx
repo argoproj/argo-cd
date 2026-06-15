@@ -871,7 +871,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <div className='argo-table-list argo-table-list--clickable'>
                                                         <div className='argo-table-list__head'>
                                                             <div className='row'>
-                                                                <div className='columns small-1' />
+                                                                <div className='columns small-1 argo-table-list__icon-column' />
                                                                 <div className='columns small-1 sortable' onClick={() => requestSort('type')}>
                                                                     TYPE
                                                                     {sortIcon('type')}
@@ -902,7 +902,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                             return (
                                                                 <div className='argo-table-list__row' key={repoKey} onClick={() => displayEditSliding(repo)}>
                                                                     <div className='row'>
-                                                                        <div className='columns small-1'>
+                                                                        <div className='columns small-1 argo-table-list__icon-column'>
                                                                             <i className={'icon argo-icon-' + getRepoType(repo)} />
                                                                         </div>
                                                                         <div className='columns small-1'>

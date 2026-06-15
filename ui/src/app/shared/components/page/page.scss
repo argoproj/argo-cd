@@ -116,3 +116,33 @@
         user-select: none;
     }
 }
+
+// Reduce the width of a leading column that only holds an item (e.g. an icon), so it does not
+// take up a full grid column. Apply to both the head and row cell to keep columns aligned.
+.argo-table-list__head,
+.argo-table-list__row {
+    .columns.argo-table-list__icon-column {
+        max-width: 60px;
+        // Let the icon use the full column width and avoid the text-overflow ellipsis that the table
+        // columns apply when content is clipped. Center the icon within the column.
+        padding-inline: 0;
+        overflow: visible;
+        text-overflow: clip;
+        text-align: center;
+
+        // The argo-icon glyphs render at their own intrinsic size. Pin a fixed box and center the
+        // glyph so all icons render consistently. Match the ResourceIcon image size: a 40x32
+        // border-box with 2px padding leaves a 36x28 glyph area.
+        .icon {
+            display: inline-block;
+            width: 40px;
+            height: 32px;
+            padding: 2px;
+            font-size: 28px;
+            line-height: 28px;
+            text-align: center;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+    }
+}
