@@ -1316,6 +1316,16 @@ func (status *ApplicationStatus) GetRevisions() []string {
 	return revisions
 }
 
+func (status *ApplicationStatus) GetSourcesSyncStatus() ApplicationSources {
+	if len(status.Sync.ComparedTo.Sources) != 0 {
+		return status.Sync.ComparedTo.Sources
+	}
+	if !status.Sync.ComparedTo.Source.IsZero() {
+		return ApplicationSources{status.Sync.ComparedTo.Source}
+	}
+	return ApplicationSources{}
+}
+
 // BuildComparedToStatus will build a ComparedTo object based on the current
 // Application state.
 func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) ComparedTo {

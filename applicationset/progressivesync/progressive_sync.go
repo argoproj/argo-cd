@@ -89,7 +89,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	appsToSync := getAppsToSync(appset, appDependencyList, applications)
 	logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appsToSync)
 
-	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
+	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap, applications, desiredApplications)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
@@ -298,22 +298,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			newAppStatus.LastTransitionTime = &now
 		}
 
-		if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaiting {
-			// App has changed to waiting because the TargetRevisions changed or it is a new selected app
-			// This does not mean we should always sync the app. The app may not be OutOfSync
-			// and may not require a sync if it does not have differences.
-			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
-				if app.Status.Health.Status == health.HealthStatusHealthy {
-					newAppStatus.LastTransitionTime = &now
-					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
-					newAppStatus.Message = "Application resource has synced, updating status to Healthy"
-				} else {
-					newAppStatus.LastTransitionTime = &now
-					newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
-					newAppStatus.Message = "Application resource has synced, updating status to Progressing"
-				}
-			}
-		} else {
+		if newAppStatus.Status != argov1alpha1.ProgressiveSyncWaiting {
 			// The target revision is the same, so we need to evaluate the current revision progress
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
 				// No need to evaluate status health further if the application did not change since our last transition
@@ -448,10 +433,19 @@ func isApplicationWithError(app argov1alpha1.Application) bool {
 }
 
 // check Applications that are in Waiting status and promote them to Pending if needed
-func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int, currentApplications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationSet.Status.ApplicationStatus))
+
+	desiredAppsMap := make(map[string]*argov1alpha1.Application)
+	currentApplicationsMap := make(map[string]*argov1alpha1.Application)
+	for i := range desiredApplications {
+		desiredAppsMap[desiredApplications[i].Name] = &desiredApplications[i]
+	}
+	for i := range currentApplications {
+		currentApplicationsMap[currentApplications[i].Name] = &currentApplications[i]
+	}
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
 	if RollingSyncStrategyEnabled(applicationSet) {
@@ -503,9 +497,34 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 			}
 
 			if appStatus.Status == argov1alpha1.ProgressiveSyncWaiting && appsToSync[appStatus.Application] && maxUpdateAllowed {
-				appStatus.LastTransitionTime = &now
-				appStatus.Status = argov1alpha1.ProgressiveSyncPending
-				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing"
+				desiredApp, desiredAppExist := desiredAppsMap[appStatus.Application]
+				currApp, currAppExists := currentApplicationsMap[appStatus.Application]
+
+				// Compare desired sources with status.sync.comparedTo.sources to ensure
+				// the Application controller has updated the sync status for the latest sources.
+				if desiredAppExist && currAppExists && cmp.Equal(desiredApp.Spec.GetSources(), currApp.Status.GetSourcesSyncStatus(), cmpopts.EquateEmpty()) {
+					// App has changed to waiting because the TargetRevisions changed or it is a new selected app
+					// This does not mean we should always sync the app. The app may not be OutOfSync
+					// and may not require a sync if it does not have differences.
+					if currentApplicationsMap[appStatus.Application].Status.Sync.Status == argov1alpha1.SyncStatusCodeSynced {
+						if currApp.Status.Health.Status == health.HealthStatusHealthy {
+							appStatus.LastTransitionTime = &now
+							appStatus.Status = argov1alpha1.ProgressiveSyncHealthy
+							appStatus.Message = "Application resource has synced, updating status to Healthy"
+						} else {
+							appStatus.LastTransitionTime = &now
+							appStatus.Status = argov1alpha1.ProgressiveSyncProgressing
+							appStatus.Message = "Application resource has synced, updating status to Progressing"
+						}
+					} else {
+						appStatus.LastTransitionTime = &now
+						appStatus.Status = argov1alpha1.ProgressiveSyncPending
+						appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing"
+					}
+				} else {
+					logCtx.Printf("skip change status to waiting because sources in status and in desired manifest not equal")
+					appStatus.LastTransitionTime = &now
+				}
 
 				statusLogCtx.WithFields(log.Fields{
 					"new_status.status":          appStatus.Status,
