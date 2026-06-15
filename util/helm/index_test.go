@@ -41,11 +41,14 @@ func TestIndex_GetChartURLs(t *testing.T) {
 }
 
 func TestIndex_GetEntries(t *testing.T) {
+	t.Parallel()
 	t.Run("NotFound", func(t *testing.T) {
+		t.Parallel()
 		_, err := index.GetEntries("foo")
 		require.EqualError(t, err, "chart 'foo' not found in index")
 	})
 	t.Run("Found", func(t *testing.T) {
+		t.Parallel()
 		ts, err := index.GetEntries("argo-cd")
 		require.NoError(t, err)
 		assert.Len(t, ts, len(index.Entries["argo-cd"]))

@@ -49,7 +49,7 @@ type Broadcaster_OnAdd_Call[E any] struct {
 // OnAdd is a helper method to define mock.On call
 //   - v any
 //   - b bool
-func (_e *Broadcaster_Expecter[E]) OnAdd(v interface{}, b interface{}) *Broadcaster_OnAdd_Call[E] {
+func (_e *Broadcaster_Expecter[E]) OnAdd(v any, b any) *Broadcaster_OnAdd_Call[E] {
 	return &Broadcaster_OnAdd_Call[E]{Call: _e.mock.On("OnAdd", v, b)}
 }
 
@@ -94,7 +94,7 @@ type Broadcaster_OnDelete_Call[E any] struct {
 
 // OnDelete is a helper method to define mock.On call
 //   - v any
-func (_e *Broadcaster_Expecter[E]) OnDelete(v interface{}) *Broadcaster_OnDelete_Call[E] {
+func (_e *Broadcaster_Expecter[E]) OnDelete(v any) *Broadcaster_OnDelete_Call[E] {
 	return &Broadcaster_OnDelete_Call[E]{Call: _e.mock.On("OnDelete", v)}
 }
 
@@ -135,7 +135,7 @@ type Broadcaster_OnUpdate_Call[E any] struct {
 // OnUpdate is a helper method to define mock.On call
 //   - v any
 //   - v1 any
-func (_e *Broadcaster_Expecter[E]) OnUpdate(v interface{}, v1 interface{}) *Broadcaster_OnUpdate_Call[E] {
+func (_e *Broadcaster_Expecter[E]) OnUpdate(v any, v1 any) *Broadcaster_OnUpdate_Call[E] {
 	return &Broadcaster_OnUpdate_Call[E]{Call: _e.mock.On("OnUpdate", v, v1)}
 }
 
@@ -170,11 +170,11 @@ func (_c *Broadcaster_OnUpdate_Call[E]) RunAndReturn(run func(v any, v1 any)) *B
 // Subscribe provides a mock function for the type Broadcaster
 func (_mock *Broadcaster[E]) Subscribe(ch chan *E, filters ...func(event *E) bool) func() {
 	// func(event *E) bool
-	_va := make([]interface{}, len(filters))
+	_va := make([]any, len(filters))
 	for _i := range filters {
 		_va[_i] = filters[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ch)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -202,9 +202,9 @@ type Broadcaster_Subscribe_Call[E any] struct {
 // Subscribe is a helper method to define mock.On call
 //   - ch chan *E
 //   - filters ...func(event *E) bool
-func (_e *Broadcaster_Expecter[E]) Subscribe(ch interface{}, filters ...interface{}) *Broadcaster_Subscribe_Call[E] {
+func (_e *Broadcaster_Expecter[E]) Subscribe(ch any, filters ...any) *Broadcaster_Subscribe_Call[E] {
 	return &Broadcaster_Subscribe_Call[E]{Call: _e.mock.On("Subscribe",
-		append([]interface{}{ch}, filters...)...)}
+		append([]any{ch}, filters...)...)}
 }
 
 func (_c *Broadcaster_Subscribe_Call[E]) Run(run func(ch chan *E, filters ...func(event *E) bool)) *Broadcaster_Subscribe_Call[E] {

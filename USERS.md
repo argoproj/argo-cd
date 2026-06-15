@@ -114,7 +114,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [DigitalOcean](https://www.digitalocean.com)
 1. [Divar](https://divar.ir)
 1. [Divistant](https://divistant.com)
-2. [DocNetwork](https://docnetwork.org/)
+1. [DocNetwork](https://docnetwork.org/)
 1. [Dott](https://ridedott.com)
 1. [Doubble](https://www.doubble.app)
 1. [Doximity](https://www.doximity.com/)
@@ -449,3 +449,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
+1. [OpenChoreo](https://openchoreo.dev/)

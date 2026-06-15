@@ -15,6 +15,7 @@ import (
 )
 
 func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:        "apps",
 		Kind:         "Deployment",
@@ -40,6 +41,7 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 }
 
 func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:        "",
 		Kind:         "Service",
@@ -59,6 +61,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 }
 
 func TestNormalizeMatchedResourceOverrides(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"apps/Deployment": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers"}},
@@ -111,6 +114,7 @@ spec:
             x-kubernetes-preserve-unknown-fields: true`
 
 func TestNormalizeMissingJsonPointer(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"apps/Deployment": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/garbage"}},
@@ -135,6 +139,7 @@ func TestNormalizeMissingJsonPointer(t *testing.T) {
 }
 
 func TestNormalizeGlobMatch(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"*/*": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers"}},
@@ -157,6 +162,7 @@ func TestNormalizeGlobMatch(t *testing.T) {
 }
 
 func TestNormalizeJQPathExpression(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:             "apps",
 		Kind:              "Deployment",
@@ -192,6 +198,7 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 }
 
 func TestNormalizeIllegalJQPathExpression(t *testing.T) {
+	t.Parallel()
 	_, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:             "apps",
 		Kind:              "Deployment",
@@ -203,6 +210,7 @@ func TestNormalizeIllegalJQPathExpression(t *testing.T) {
 }
 
 func TestNormalizeJQPathExpressionWithError(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:             "apps",
 		Kind:              "Deployment",
@@ -224,6 +232,7 @@ func TestNormalizeJQPathExpressionWithError(t *testing.T) {
 }
 
 func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"*/*": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
@@ -254,6 +263,7 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 }
 
 func TestJqPathExpressionFailWithTimeout(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"*/*": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
@@ -276,6 +286,7 @@ func TestJqPathExpressionFailWithTimeout(t *testing.T) {
 }
 
 func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Kind: "ConfigMap",
 		// This is a really wild expression, but it does trigger the desired error.
@@ -295,6 +306,7 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 }
 
 func TestNormalizeFailureLogIncludesResourceContext(t *testing.T) {
+	t.Parallel()
 	// When a normalization patch fails with a non-silenced error, the log entry
 	// must identify which resource was being normalized so operators can act on it.
 	// Regression test for https://github.com/argoproj/argo-cd/issues/14148.
