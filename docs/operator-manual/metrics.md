@@ -105,6 +105,13 @@ argocd_app_labels{label_business_unit="bu-id-1",label_team_name="my-team",name="
 argocd_app_labels{label_business_unit="bu-id-2",label_team_name="another-team",name="my-app-3",namespace="argocd",project="important-project"} 1
 ```
 
+This can also be configured through `argocd-cmd-params-cm` instead of container args, using the comma-separated `controller.metrics.application.labels` key:
+
+    controller.metrics.application.labels: "team-name,business-unit"
+
+!!! warning
+    Each distinct label value becomes a separate `argocd_app_labels` time series. Exposing labels with many distinct values increases the metric's cardinality, which can degrade Prometheus performance and increase storage requirements. Prefer low-cardinality labels and add them sparingly.
+
 ### Exposing Application conditions as Prometheus metrics
 
 There are use-cases where Argo CD Applications contain conditions that are desired to be exposed as Prometheus metrics.
