@@ -513,14 +513,6 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 		if err == nil {
 			return patch, nil
 		}
-		// Strategic merge patch can fail (and even panic) for resources whose schema
-		// has incomplete or nil subschemas for some fields, e.g. CRDs with free-form
-		// objects such as the Argo CD Application CRD. This is a known bug in the
-		// strategic merge patch handling of k8s.io/apimachinery prior to v0.35
-		// (see https://github.com/argoproj/argo-cd/issues/25199). Fall back to a
-		// regular JSON merge patch so the sync does not fail; the only downside is
-		// that ignoring individual array elements is not applied for that resource.
-		log.Warnf("falling back to JSON merge patch, strategic merge patch failed: %v", err)
 	}
 
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
