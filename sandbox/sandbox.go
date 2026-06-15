@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -18,6 +19,7 @@ type SandboxRunOpts struct {
 	RODirs  []string
 	ROFiles []string
 	RWDirs  []string
+	ROXDirs []string
 }
 
 type SandboxImpl interface {
@@ -97,7 +99,8 @@ func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName
 	case cmdName == "helm" && HelmToolOps.IsEnabled:
 		log.Infof("executing command %s in sandbox", cmdName)
 		toolOpts = &HelmToolOps
-	case cmdName == "kustomize" && KustomizeToolOps.IsEnabled:
+		// FIXME!
+	case strings.Contains(cmdName, "kustomize") && KustomizeToolOps.IsEnabled:
 		log.Infof("executing command %s in sandbox", cmdName)
 		toolOpts = &KustomizeToolOps
 	default:
@@ -106,10 +109,15 @@ func CommandContext(ctx context.Context, sandboxRunOpts *SandboxRunOpts, cmdName
 		cmd.Env = os.Environ()
 		return cmd, nil
 	}
-	binPath, err := exec.LookPath(cmdName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create command context for helm: %w", err)
+	binPath := cmdName
+	var err error
+	if !filepath.IsAbs(cmdName) {
+		binPath, err = exec.LookPath(cmdName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create command context for %q: %w", cmdName, err)
+		}
 	}
+
 	// sandboxRunOpts := makeSandboxRunOpts(args...)
 	// if sandboxRunOpts == nil {
 	//}

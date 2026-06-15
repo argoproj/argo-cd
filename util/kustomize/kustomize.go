@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/sandbox"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -159,7 +160,8 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 	}
 
-	env = append(env, environ...)
+	// FIXME: sets ARGOCD_BINARY_NAME to git ask pass, why?
+	//env = append(env, environ...)
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
@@ -381,13 +383,17 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	var cmd *exec.Cmd
+	var params []string
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(ctx, k, kustomizeOptions.BuildOptions, buildOpts)
-		cmd = exec.CommandContext(ctx, k.getBinaryPath(), params...)
+		params = parseKustomizeBuildOptions(ctx, k, kustomizeOptions.BuildOptions, buildOpts)
 	} else {
-		cmd = exec.CommandContext(ctx, k.getBinaryPath(), "build", k.path)
+		params = []string{"build", k.path}
 	}
-	cmd.Env = env
+	sandboxRunOpts := k.makeSandboxRunOpts(params...)
+	cmd, err = sandbox.CommandContext(ctx, sandboxRunOpts, k.getBinaryPath(), params...)
+
+	// FIXME env handling
+	cmd.Env = append(cmd.Env, env...)
 	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
 	cmd.Dir = k.repoRoot
 	commands = append(commands, executil.GetCommandArgsToLog(cmd))
@@ -407,6 +413,77 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	return objs, getImageParameters(objs), redactedCommands, nil
+}
+
+func (k kustomize) makeSandboxRunOpts(args ...string) *sandbox.SandboxRunOpts {
+	sandboxRunOpts := sandbox.SandboxRunOpts{
+		RODirs: []string{
+			k.repoRoot,
+			//c.WorkDir,
+			//c.helmHome,
+		},
+		RWDirs: []string{
+			// FIXME
+			"/tmp",
+			//c.WorkDir,
+			//c.helmHome,
+		},
+		ROXDirs: []string{
+			// FIXME
+			"/home/argocd/.config/kustomize/plugin",
+			//c.WorkDir,
+			//c.helmHome,
+		},
+	}
+	if len(args) == 0 {
+		return &sandboxRunOpts
+	}
+	switch args[0] {
+	case "build":
+		k.addBuildRuntimeOpts(&sandboxRunOpts, args[1:]...)
+	default:
+		// nothing to do
+	}
+
+	return &sandboxRunOpts
+}
+
+func (k kustomize) addBuildRuntimeOpts(opts *sandbox.SandboxRunOpts, args ...string) {
+	numArgs := len(args)
+	if numArgs > 0 {
+		kpath := args[0]
+		opts.RODirs = append(opts.ROFiles, kpath)
+	}
+	// FIXME: mount options
+
+	// from one because the first argument is Chart
+	// for idx := 1; idx < numArgs; idx++ {
+	// 	switch args[idx] {
+	// 	// FIXME: can values be URL?
+	// 	// FIXME: array limits
+
+	// 	case "--name-template", "--namespace", "--kube-version", "--set", "--set-string", "--api-versions":
+	// 		idx++
+	// 		continue
+	// 	case "--values":
+	// 		idx++
+	// 		if idx < numArgs {
+	// 			opts.ROFiles = append(opts.ROFiles, args[idx])
+	// 		}
+	// 	case "--set-file":
+	// 		idx++
+	// 		if idx < numArgs {
+	// 			arg := args[idx]
+	// 			parts := strings.SplitN(arg, "=", 2)
+	// 			if len(parts) > 1 {
+	// 				// FIXME: unescape --set-file value?
+	// 				opts.ROFiles = append(opts.ROFiles, parts[1])
+	// 			}
+	// 		}
+	// 	case "--include-crds", "--skip-schema-validation", "--skip-tests":
+	// 	default:
+	// 	}
+	// }
 }
 
 func parseKustomizeBuildOptions(ctx context.Context, k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {

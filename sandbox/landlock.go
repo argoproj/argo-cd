@@ -17,6 +17,7 @@ const (
 	LANDLOCK_STD_RW      = "read_dir,make_dir,read_file,write_file"
 	LANDLOCK_STD_FILE_RW = "read_file,write_file"
 	LANDLOCK_STD_RO      = "read_dir,read_file"
+	LANDLOCK_STD_ROX     = "read_dir,read_file,execute"
 	LANDLOCK_STD_FILE_RO = "read_file"
 )
 
@@ -179,6 +180,7 @@ func (m *Landlock) MakeArgs(runOpts *SandboxRunOpts) []string {
 		result = append(result, m.makeFSArgs(LANDLOCK_STD_RW, runOpts.RWDirs)...)
 		result = append(result, m.makeFSArgs(LANDLOCK_STD_RO, runOpts.RODirs)...)
 		result = append(result, m.makeFSArgs(LANDLOCK_STD_FILE_RO, runOpts.ROFiles)...)
+		result = append(result, m.makeFSArgs(LANDLOCK_STD_ROX, runOpts.ROXDirs)...)
 	}
 	return result
 }
