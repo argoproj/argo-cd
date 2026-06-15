@@ -68,9 +68,10 @@ type Dependencies interface {
 	// PersistHydrationStatus persists the application status for the source hydrator.
 	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 
-	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
-	// a group of applications which are hydrating to the same repo and target branch.
-	AddHydrationQueueItem(key types.HydrationQueueKey)
+	// IsManagedHydrationKey returns whether this controller shard is the owner responsible for
+	// hydrating the given key. Hydration ownership is derived from the key (not the destination
+	// cluster) so that a group spanning multiple clusters is hydrated by exactly one shard.
+	IsManagedHydrationKey(key types.HydrationQueueKey) bool
 
 	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
 	GetHydratorCommitMessageTemplate() (string, error)
@@ -108,57 +109,38 @@ func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, 
 	}
 }
 
-// ProcessAppHydrateQueueItem processes an application hydrate queue item. It checks whether the
-// application needs hydration and, if so, enqueues the deduped hydration key.
-//
-// The per-app status update that marks the application as Hydrating is deliberately NOT done here.
-// It is performed by ProcessHydrationQueueItem, which gathers every application sharing the
-// hydration key and updates them together. Because the hydration workqueue dedups by key and never
-// hands the same key to two workers concurrently, ProcessHydrationQueueItem holds exclusive
-// ownership of the entire app group when it runs — there is no possibility of a worker observing a
-// partial view of the group, so the status update is safe under parallel hydration workers
-// (https://github.com/argoproj/argo-cd/issues/27926).
-//
-// It's likely that multiple applications will trigger hydration at the same time. The hydration
-// queue key is meant to dedupe these requests.
-func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
-	app := origApp.DeepCopy()
-	if app.Spec.SourceHydrator == nil {
-		return
-	}
-
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
-	logCtx.Debug("Processing app hydrate queue item")
-
-	needsHydration, reason, resolvedDryRevision := h.appNeedsHydration(app)
-	if resolvedDryRevision != "" && resolvedDryRevision != app.Status.SourceHydrator.LastComparedDryRevision {
-		// Update the last compared dry revision to the resolved revision
-		// If the app is currently hydrating, we should not have a resolvedDryRevision
-		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
-		logCtx.WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
-	}
-
-	// Always persist to consume the hydrate annotation, even if hydration is not needed.
-	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
-
-	// needsRefresh re-enqueues the hydration key for an app that was marked Hydrating on an earlier
-	// pass but whose StartedAt has aged past statusRefreshTimeout (typically because the hydration
-	// worker crashed or fell behind). CurrentOperation can be nil here for an app that has never
-	// been hydrated, so the nil guard is required now that we no longer set CurrentOperation above.
-	needsRefresh := app.Status.SourceHydrator.CurrentOperation != nil &&
-		app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating &&
-		metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
-	if needsHydration || needsRefresh {
-		logCtx.WithField("reason", reason).Info("Hydrating app")
-		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
-	} else {
-		logCtx.WithField("reason", reason).Debug("Skipping hydration")
-	}
-
-	logCtx.Debug("Successfully processed app hydrate queue item")
+// needsRefresh reports whether an app that was previously marked Hydrating has been stuck past the
+// status refresh timeout (typically because the hydration worker crashed or fell behind) and should
+// be retried. CurrentOperation can be nil for an app that has never been hydrated, hence the guard.
+func (h *Hydrator) needsRefresh(app *appv1.Application) bool {
+	op := app.Status.SourceHydrator.CurrentOperation
+	return op != nil &&
+		op.Phase == appv1.HydrateOperationPhaseHydrating &&
+		metav1.Now().Sub(op.StartedAt.Time) > h.statusRefreshTimeout
 }
 
-func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
+// persistHydrationSkip handles the "no hydration needed" bookkeeping for a single app: it records a
+// newly resolved dry revision and consumes the hydrate annotation. It only writes when something
+// actually changed, so re-evaluating a steady-state group does not generate pointless patches.
+func (h *Hydrator) persistHydrationSkip(logCtx *log.Entry, app *appv1.Application, resolvedDryRevision string) {
+	origApp := app.DeepCopy()
+	changed := false
+	if resolvedDryRevision != "" && resolvedDryRevision != app.Status.SourceHydrator.LastComparedDryRevision {
+		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
+		changed = true
+		logCtx.WithFields(applog.GetAppLogFields(app)).WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
+	}
+	// Persist if a hydrate was requested (so the annotation is consumed) or the revision changed.
+	requested, _ := app.IsHydrateRequested()
+	if changed || requested {
+		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
+	}
+}
+
+// GetHydrationQueueKey computes the hydration queue key for an application. It is exported so the
+// application controller can enqueue the key directly from the informer using identical URL
+// normalization.
+func GetHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 	hydrateToSource := app.Spec.GetHydrateToSource()
 	key := types.HydrationQueueKey{
 		SourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
@@ -169,18 +151,23 @@ func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 	return key
 }
 
-// ProcessHydrationQueueItem processes a hydration queue item. It retrieves the relevant applications for the given
-// hydration key, marks every app in the group as Hydrating, generates and commits their manifests, and updates each
-// app's status accordingly. If the hydration fails, it marks the operation as failed and logs the error. If successful,
-// it updates the operation to indicate that hydration was successful and requests a refresh of the applications to pick
-// up the new hydrated commit.
+// ProcessHydrationQueueItem processes a hydration queue item. It is the single entry point for all
+// hydration decisions: it confirms this shard owns the key, gathers every application sharing the
+// key, decides whether the group needs hydration, and—if so—marks every app in the group as
+// Hydrating, generates and commits their manifests, and updates each app's status accordingly. If
+// the hydration fails, it marks the operation as failed and logs the error. If no app needs work, it
+// performs the lightweight skip-path bookkeeping (consuming hydrate annotations and recording the
+// resolved dry revision) instead.
 //
-// The hydration workqueue is a rate-limiting queue keyed by hydration key, which guarantees the same key is never
-// handed to two workers at once. So at the start of this function we hold exclusive ownership over the entire app
-// group sharing this key. That ownership is what makes the per-app status updates safe even when multiple hydration
-// workers are running in parallel (https://github.com/argoproj/argo-cd/issues/27926): there is no possibility of a
-// worker observing a partial view of the group, so we can mark every app Hydrating up front and keep their statuses in
-// lockstep with the single commit produced by hydrate().
+// Exactly one shard takes responsibility for a hydration group. A hydration group can span multiple
+// clusters, which are sharded independently, so the workqueue's per-key dedup (which is only
+// per-process) is not enough to prevent two shards from hydrating the same group. Ownership is
+// instead assigned deterministically by hashing the hydration key (IsManagedHydrationKey): all
+// shards may enqueue the key, but only the owner processes it. That single-owner guarantee is what
+// makes the per-app status updates safe even when multiple hydration workers run in parallel
+// (https://github.com/argoproj/argo-cd/issues/27926): there is no possibility of a worker observing
+// a partial view of the group, so we can mark every app Hydrating up front and keep their statuses
+// in lockstep with the single commit produced by hydrate().
 func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKey) {
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
@@ -188,6 +175,14 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		"destinationRepoURL":   hydrationKey.DestinationRepoURL,
 		"destinationBranch":    hydrationKey.DestinationBranch,
 	})
+
+	// Ownership gate: only the shard that owns this key hydrates it. Every shard enqueues the key
+	// (because hydration groups can span clusters owned by different shards), but all non-owners drop
+	// it here before doing any repo-server work or status writes.
+	if !h.dependencies.IsManagedHydrationKey(hydrationKey) {
+		logCtx.Debug("Skipping hydration key not owned by this shard")
+		return
+	}
 
 	// Get all applications sharing the same hydration key
 	apps, err := h.getAppsForHydrationKey(hydrationKey)
@@ -198,11 +193,25 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		logCtx.WithError(err).Error("failed to get apps for hydration")
 		return
 	}
-	logCtx.WithField("appCount", len(apps))
+	logCtx = logCtx.WithField("appCount", len(apps))
+	if len(apps) == 0 {
+		return
+	}
 
-	// Atomically mark every app in this group as Hydrating before doing any work. The workqueue's
-	// per-key dedup means no other worker can be touching this group concurrently, so it is safe to
-	// do the status writes here rather than in ProcessAppHydrateQueueItem
+	// Decide whether the group needs hydration. If it does, the whole group is hydrated together
+	// (atomic-group semantics). If it does not, do the lightweight per-app bookkeeping instead.
+	needWork, resolvedRevisions := h.groupNeedsHydration(logCtx, apps)
+	if !needWork {
+		for i, app := range apps {
+			h.persistHydrationSkip(logCtx, app, resolvedRevisions[i])
+		}
+		logCtx.Debug("No apps in hydration group need hydration")
+		return
+	}
+
+	// Atomically mark every app in this group as Hydrating before doing any work. Because this shard
+	// is the sole owner of the key and the workqueue's per-key dedup prevents concurrent processing
+	// within this process, no other worker can be touching this group concurrently
 	// (https://github.com/argoproj/argo-cd/issues/27926).
 	h.markAppsHydrating(apps)
 
@@ -288,16 +297,16 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 }
 
 // markAppsHydrating stamps every app in the group with a Hydrating CurrentOperation and persists
-// the change. It is called from ProcessHydrationQueueItem, where the hydration workqueue's per-key
-// dedup gives the caller exclusive ownership of the app group — there is no possibility of another
-// worker mutating these apps' hydration phase concurrently
-// (https://github.com/argoproj/argo-cd/issues/27926).
+// the change. It is called from ProcessHydrationQueueItem, where hash-based key ownership plus the
+// hydration workqueue's per-key dedup give the caller exclusive ownership of the app group — there
+// is no possibility of another worker (in this or another shard) mutating these apps' hydration
+// phase concurrently (https://github.com/argoproj/argo-cd/issues/27926).
 //
 // Apps already in the Hydrating phase are left alone. That happens on a needsRefresh re-entry
-// (statusRefreshTimeout elapsed while the previous attempt was in-flight) and also on the very
-// first re-entry for a brand-new run where ProcessAppHydrateQueueItem fires twice before the
-// hydration worker picks the key up. Preserving the original StartedAt keeps the operation's
-// elapsed time meaningful for observers, and avoids needlessly thrashing the persisted status.
+// (statusRefreshTimeout elapsed while the previous attempt was in-flight) and also when
+// ProcessHydrationQueueItem re-processes a key before the prior run finished. Preserving the original
+// StartedAt keeps the operation's elapsed time meaningful for observers, and avoids needlessly
+// thrashing the persisted status.
 func (h *Hydrator) markAppsHydrating(apps []*appv1.Application) {
 	now := metav1.Now()
 	for _, app := range apps {
@@ -341,7 +350,7 @@ func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) 
 		if app.Spec.SourceHydrator == nil {
 			continue
 		}
-		appKey := getHydrationQueueKey(&app)
+		appKey := GetHydrationQueueKey(&app)
 		if appKey != hydrationKey {
 			continue
 		}
@@ -630,23 +639,23 @@ func (h *Hydrator) newRevisionHasChanges(app *appv1.Application, noRevisionCache
 	return hasChanges, resolvedRev, nil
 }
 
-// appNeedsHydration answers if application needs manifests hydrated. The third return value is the resolved dry
-// source revision from revision evaluation (empty if evaluation was skipped or failed).
-func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string, resolvedDryRevision string) {
+// appNeedsHydrationCheap answers whether the app needs hydration using only in-memory state, without
+// contacting the repo-server. The decided return value reports whether the answer is final; when it
+// is false the caller must fall back to a revision-change check (newRevisionHasChanges) to decide.
+func (h *Hydrator) appNeedsHydrationCheap(app *appv1.Application) (needsHydration bool, decided bool, reason string) {
 	requested, hydrateType := app.IsHydrateRequested()
-	noRevisionCache := requested
 
 	switch {
 	case app.Spec.SourceHydrator == nil:
-		return false, "source hydrator not configured", ""
+		return false, true, "source hydrator not configured"
 	case app.Status.SourceHydrator.CurrentOperation == nil:
-		return true, "no previous hydrate operation", ""
+		return true, true, "no previous hydrate operation"
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
-		return false, "hydration operation already in progress", ""
+		return false, true, "hydration operation already in progress"
 	case requested && hydrateType == appv1.HydrateTypeHard:
-		return true, "hard hydrate requested", ""
+		return true, true, "hard hydrate requested"
 	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
-		return true, "spec.sourceHydrator differs", ""
+		return true, true, "spec.sourceHydrator differs"
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed:
 		finishedAt := app.Status.SourceHydrator.CurrentOperation.FinishedAt
 		withinCooldown := finishedAt == nil || metav1.Now().Sub(finishedAt.Time) <= 2*time.Minute
@@ -654,20 +663,30 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration boo
 		case requested:
 			// Manual/API refresh or dry-source webhook explicitly asks to hydrate;
 			// retry now (hard requests are handled by the earlier case).
-			return true, "retrying previous failed hydration", ""
+			return true, true, "retrying previous failed hydration"
 		case !withinCooldown:
-			return true, "previous hydrate operation failed more than 2 minutes ago", ""
+			return true, true, "previous hydrate operation failed more than 2 minutes ago"
 		case app.Status.SourceHydrator.LastComparedDryRevision == "":
 			// No baseline to diff against; revision evaluation would always report
 			// "needs hydration", causing a tight retry loop. Wait out the cooldown.
-			return false, "previous hydrate operation failed", ""
+			return false, true, "previous hydrate operation failed"
 		}
-		// Within cooldown with a baseline: fall through to newRevisionHasChanges so a
+		// Within cooldown with a baseline: fall through to the revision check so a
 		// new dry commit retries immediately while an unchanged revision stays idle.
 	}
 
-	// Check for new revision changes
-	hasChanges, resolvedRev, err := h.newRevisionHasChanges(app, noRevisionCache)
+	return false, false, ""
+}
+
+// appNeedsHydration answers if application needs manifests hydrated. The third return value is the resolved dry
+// source revision from revision evaluation (empty if evaluation was skipped or failed).
+func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string, resolvedDryRevision string) {
+	if needs, decided, reason := h.appNeedsHydrationCheap(app); decided {
+		return needs, reason, ""
+	}
+
+	requested, _ := app.IsHydrateRequested()
+	hasChanges, resolvedRev, err := h.newRevisionHasChanges(app, requested)
 	if err != nil {
 		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to check for new revision changes")
 		return false, "cannot determine if hydration is needed", resolvedRev
@@ -677,6 +696,66 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration boo
 	}
 
 	return false, "hydration not needed", resolvedRev
+}
+
+// groupNeedsHydration decides whether any application in a hydration group requires hydration. It is
+// optimized to bound repo-server load:
+//
+//  1. Cheap in-memory checks (appNeedsHydrationCheap) and the stuck-Hydrating refresh check run first.
+//     As soon as one app needs work, the whole group will be hydrated together, so we stop early.
+//  2. Only if no app needs work from the cheap checks do we contact the repo-server. Because every app
+//     in a group shares the same dry source repo and target revision, the resolved dry SHA is identical
+//     across the group; once it is resolved, any app whose LastComparedDryRevision already equals that
+//     SHA cannot have changes and is skipped without a per-app repo-server call.
+//
+// The returned resolvedRevisions slice is only meaningful when the group does not need hydration; it
+// feeds the skip-path bookkeeping so each app can record its newly resolved dry revision.
+func (h *Hydrator) groupNeedsHydration(logCtx *log.Entry, apps []*appv1.Application) (needWork bool, resolvedRevisions []string) {
+	resolvedRevisions = make([]string, len(apps))
+	groupDryRevision := ""
+	groupDryRevisionResolved := false
+
+	for i, app := range apps {
+		needs, decided, reason := h.appNeedsHydrationCheap(app)
+		if decided {
+			// A stuck Hydrating operation (worker crashed/fell behind) should be retried even though
+			// the cheap check reports "in progress".
+			if !needs && h.needsRefresh(app) {
+				needs, reason = true, "hydration operation stuck past refresh timeout"
+			}
+			if needs {
+				logCtx.WithFields(applog.GetAppLogFields(app)).WithField("reason", reason).Info("Hydrating app")
+				return true, resolvedRevisions
+			}
+			continue
+		}
+
+		// Revision check required for this app. Skip the repo-server call if the app is already at the
+		// group's resolved dry SHA.
+		if groupDryRevisionResolved && groupDryRevision != "" &&
+			app.Status.SourceHydrator.LastComparedDryRevision == groupDryRevision {
+			resolvedRevisions[i] = groupDryRevision
+			continue
+		}
+
+		requested, _ := app.IsHydrateRequested()
+		hasChanges, resolvedRev, err := h.newRevisionHasChanges(app, requested)
+		if err != nil {
+			logCtx.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to check for new revision changes")
+			continue
+		}
+		resolvedRevisions[i] = resolvedRev
+		if resolvedRev != "" && !groupDryRevisionResolved {
+			groupDryRevision = resolvedRev
+			groupDryRevisionResolved = true
+		}
+		if hasChanges {
+			logCtx.WithFields(applog.GetAppLogFields(app)).WithField("reason", "new revision may have changes").Info("Hydrating app")
+			return true, resolvedRevisions
+		}
+	}
+
+	return false, resolvedRevisions
 }
 
 // getTemplatedCommitMessage gets the multi-line commit message based on the template defined in the configmap. It is a two step process:

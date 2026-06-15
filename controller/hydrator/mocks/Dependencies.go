@@ -41,24 +41,35 @@ func (_m *Dependencies) EXPECT() *Dependencies_Expecter {
 	return &Dependencies_Expecter{mock: &_m.Mock}
 }
 
-// AddHydrationQueueItem provides a mock function for the type Dependencies
-func (_mock *Dependencies) AddHydrationQueueItem(key types.HydrationQueueKey) {
-	_mock.Called(key)
-	return
+// IsManagedHydrationKey provides a mock function for the type Dependencies
+func (_mock *Dependencies) IsManagedHydrationKey(key types.HydrationQueueKey) bool {
+	ret := _mock.Called(key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsManagedHydrationKey")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(types.HydrationQueueKey) bool); ok {
+		r0 = returnFunc(key)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
 }
 
-// Dependencies_AddHydrationQueueItem_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddHydrationQueueItem'
-type Dependencies_AddHydrationQueueItem_Call struct {
+// Dependencies_IsManagedHydrationKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsManagedHydrationKey'
+type Dependencies_IsManagedHydrationKey_Call struct {
 	*mock.Call
 }
 
-// AddHydrationQueueItem is a helper method to define mock.On call
+// IsManagedHydrationKey is a helper method to define mock.On call
 //   - key types.HydrationQueueKey
-func (_e *Dependencies_Expecter) AddHydrationQueueItem(key any) *Dependencies_AddHydrationQueueItem_Call {
-	return &Dependencies_AddHydrationQueueItem_Call{Call: _e.mock.On("AddHydrationQueueItem", key)}
+func (_e *Dependencies_Expecter) IsManagedHydrationKey(key any) *Dependencies_IsManagedHydrationKey_Call {
+	return &Dependencies_IsManagedHydrationKey_Call{Call: _e.mock.On("IsManagedHydrationKey", key)}
 }
 
-func (_c *Dependencies_AddHydrationQueueItem_Call) Run(run func(key types.HydrationQueueKey)) *Dependencies_AddHydrationQueueItem_Call {
+func (_c *Dependencies_IsManagedHydrationKey_Call) Run(run func(key types.HydrationQueueKey)) *Dependencies_IsManagedHydrationKey_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 types.HydrationQueueKey
 		if args[0] != nil {
@@ -71,13 +82,13 @@ func (_c *Dependencies_AddHydrationQueueItem_Call) Run(run func(key types.Hydrat
 	return _c
 }
 
-func (_c *Dependencies_AddHydrationQueueItem_Call) Return() *Dependencies_AddHydrationQueueItem_Call {
-	_c.Call.Return()
+func (_c *Dependencies_IsManagedHydrationKey_Call) Return(b bool) *Dependencies_IsManagedHydrationKey_Call {
+	_c.Call.Return(b)
 	return _c
 }
 
-func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key types.HydrationQueueKey)) *Dependencies_AddHydrationQueueItem_Call {
-	_c.Run(run)
+func (_c *Dependencies_IsManagedHydrationKey_Call) RunAndReturn(run func(key types.HydrationQueueKey) bool) *Dependencies_IsManagedHydrationKey_Call {
+	_c.Call.Return(run)
 	return _c
 }
 

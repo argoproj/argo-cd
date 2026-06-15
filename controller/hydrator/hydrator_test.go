@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -541,7 +543,10 @@ func setTestAppPhase(app *v1alpha1.Application, phase v1alpha1.HydrateOperationP
 	case v1alpha1.HydrateOperationPhaseHydrating:
 		status = v1alpha1.SourceHydratorStatus{
 			CurrentOperation: &v1alpha1.HydrateOperation{
-				StartedAt:      metav1.Now(),
+				// StartedAt is set well in the past so that needsRefresh() deterministically treats the
+				// operation as stuck (elapsed > statusRefreshTimeout) in tests that rely on a Hydrating
+				// app to trigger group hydration.
+				StartedAt:      metav1.NewTime(time.Now().Add(-time.Hour)),
 				FinishedAt:     nil,
 				Phase:          phase,
 				SourceHydrator: *app.Spec.SourceHydrator,
@@ -575,114 +580,24 @@ func setTestAppPhase(app *v1alpha1.Application, phase v1alpha1.HydrateOperationP
 	return app
 }
 
-func TestProcessAppHydrateQueueItem_HydrationNeeded_NoCurrentOperation(t *testing.T) {
+func TestProcessHydrationQueueItem_NonOwnerShardShortCircuits(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	app := newTestApp("test-app")
+	hydrationKey := GetHydrationQueueKey(app)
 
-	// appNeedsHydration returns true if no CurrentOperation
-	app.Status.SourceHydrator.CurrentOperation = nil
+	// This shard does not own the key, so it must return immediately without listing apps, evaluating
+	// revisions, persisting status, or committing.
+	d.EXPECT().IsManagedHydrationKey(hydrationKey).Return(false).Once()
 
-	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
-		persistedStatus = newStatus
-	}).Return().Once()
-	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+	h := &Hydrator{dependencies: d, statusRefreshTimeout: time.Minute}
+	h.ProcessHydrationQueueItem(hydrationKey)
 
-	h := &Hydrator{
-		dependencies:         d,
-		statusRefreshTimeout: time.Minute,
-	}
-
-	h.ProcessAppHydrateQueueItem(app)
-
-	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
-	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
-
-	require.NotNil(t, persistedStatus)
-	// ProcessAppHydrateQueueItem no longer marks the app Hydrating — that work moved to
-	// ProcessHydrationQueueItem so it can happen atomically across the whole app group
-	// (https://github.com/argoproj/argo-cd/issues/27926). All we persist here is the consumed
-	// hydrate annotation; CurrentOperation stays nil until the hydration worker picks the key up.
-	assert.Nil(t, persistedStatus.CurrentOperation)
-	assert.Empty(t, persistedStatus.LastComparedDryRevision)
-}
-
-func TestProcessAppHydrateQueueItem_HydrationNeeded_HydrationPassedTimeout(t *testing.T) {
-	t.Parallel()
-	d := mocks.NewDependencies(t)
-	now := metav1.Now()
-	// StartedAt is more than statusRefreshTimeout ago
-	startedAt := metav1.NewTime(now.Add(-2 * time.Minute))
-	app := newTestApp("test-app")
-	app.Status = v1alpha1.ApplicationStatus{
-		SourceHydrator: v1alpha1.SourceHydratorStatus{
-			CurrentOperation: &v1alpha1.HydrateOperation{
-				StartedAt:      startedAt,
-				Phase:          v1alpha1.HydrateOperationPhaseHydrating,
-				SourceHydrator: v1alpha1.SourceHydrator{},
-			},
-		},
-	}
-
-	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
-	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
-
-	h := &Hydrator{
-		dependencies:         d,
-		statusRefreshTimeout: time.Minute,
-	}
-
-	h.ProcessAppHydrateQueueItem(app)
-
-	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
-	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
-}
-
-func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoSourceHydrator(t *testing.T) {
-	t.Parallel()
-	d := mocks.NewDependencies(t)
-	app := newTestApp("test-app")
-	app.Spec.SourceHydrator = nil
-
-	h := &Hydrator{
-		dependencies:         d,
-		statusRefreshTimeout: time.Minute,
-	}
-	h.ProcessAppHydrateQueueItem(app)
-
-	// Should not call anything
+	d.AssertNotCalled(t, "GetProcessableApps")
 	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
-	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
 
-func TestProcessAppHydrateQueueItem_HydrationNotNeeded_AlreadyHydrating(t *testing.T) {
-	t.Parallel()
-	d := mocks.NewDependencies(t)
-	now := metav1.Now()
-	app := newTestApp("test-app")
-	app.Status = v1alpha1.ApplicationStatus{
-		SourceHydrator: v1alpha1.SourceHydratorStatus{
-			CurrentOperation: &v1alpha1.HydrateOperation{
-				StartedAt: now,
-				Phase:     v1alpha1.HydrateOperationPhaseHydrating,
-			},
-		},
-	}
-
-	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
-
-	h := &Hydrator{
-		dependencies:         d,
-		statusRefreshTimeout: time.Minute,
-	}
-	h.ProcessAppHydrateQueueItem(app)
-
-	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
-	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
-}
-
-func TestProcessAppHydrateQueueItem_HydrationNeeded_RevisionChanges(t *testing.T) {
+func TestProcessHydrationQueueItem_NoWork_RecordsResolvedRevision(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	proj := newTestProject()
@@ -693,71 +608,106 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_RevisionChanges(t *testing.T
 		SourceHydrator: *app.Spec.SourceHydrator,
 	}
 	app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+	hydrationKey := GetHydrationQueueKey(app)
 
-	var persistedStatus *v1alpha1.SourceHydratorStatus
+	d.EXPECT().IsManagedHydrationKey(hydrationKey).Return(true)
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
-	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.Anything, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj, mock.Anything).Return(true, "new-sha", nil).Once()
-	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
-		persistedStatus = newStatus
-	}).Return().Once()
-	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.Anything, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj, mock.Anything).Return(false, "new-sha", nil).Once()
 
-	h := &Hydrator{
-		dependencies:         d,
-		statusRefreshTimeout: time.Minute,
-	}
-	h.ProcessAppHydrateQueueItem(app)
-
-	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
-	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
-
-	require.NotNil(t, persistedStatus)
-	// ProcessAppHydrateQueueItem no longer overwrites CurrentOperation with a Hydrating stamp;
-	// that move lives on ProcessHydrationQueueItem now (#27926). We persist the freshly resolved
-	// LastComparedDryRevision and leave the prior Hydrated CurrentOperation intact until the
-	// hydration worker takes the key.
-	require.NotNil(t, persistedStatus.CurrentOperation)
-	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrated, persistedStatus.CurrentOperation.Phase)
-	assert.Equal(t, "old-sha", persistedStatus.CurrentOperation.DrySHA)
-	assert.Equal(t, "new-sha", persistedStatus.LastComparedDryRevision)
-}
-
-func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoRevisionChanges(t *testing.T) {
-	t.Parallel()
-	d := mocks.NewDependencies(t)
-	proj := newTestProject()
-	app := newTestApp("test-app")
-	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
-		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
-		DrySHA:         "old-sha",
-		SourceHydrator: *app.Spec.SourceHydrator,
-	}
-	app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
-
-	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
-	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.Anything, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj, mock.Anything).Return(false, "old-sha", nil).Once()
 	var persisted *v1alpha1.SourceHydratorStatus
 	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, st *v1alpha1.SourceHydratorStatus) {
 		persisted = st
-	}).Return()
+	}).Return().Once()
 
-	h := &Hydrator{
-		dependencies:         d,
-		statusRefreshTimeout: time.Minute,
-	}
-	h.ProcessAppHydrateQueueItem(app)
+	h := &Hydrator{dependencies: d, statusRefreshTimeout: time.Minute}
+	h.ProcessHydrationQueueItem(hydrationKey)
 
-	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+	// No hydration was needed, but the newly resolved dry revision is recorded and no commit happens.
 	require.NotNil(t, persisted)
-	assert.Equal(t, "old-sha", persisted.LastComparedDryRevision)
+	assert.Equal(t, "new-sha", persisted.LastComparedDryRevision)
+	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrated, persisted.CurrentOperation.Phase)
+	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
+}
+
+func TestProcessHydrationQueueItem_NoWork_ConsumesHydrateAnnotation(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+	app.Annotations = map[string]string{v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal)}
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "sha"
+	hydrationKey := GetHydrationQueueKey(app)
+
+	d.EXPECT().IsManagedHydrationKey(hydrationKey).Return(true)
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	// Resolved revision is unchanged, but a hydrate was requested, so the annotation must still be
+	// consumed via a status persist.
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.Anything, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj, mock.Anything).Return(false, "sha", nil).Once()
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return().Once()
+
+	h := &Hydrator{dependencies: d, statusRefreshTimeout: time.Minute}
+	h.ProcessHydrationQueueItem(hydrationKey)
+
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
+}
+
+// TestProcessHydrationQueueItem_GroupRevisionResolvedOnce verifies the group-revision optimization:
+// the dry revision is resolved once for the group, and an app already at that revision is skipped
+// without a second repo-server call.
+func TestProcessHydrationQueueItem_GroupRevisionResolvedOnce(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+
+	app1 := newTestApp("app-1")
+	app1.Spec.SourceHydrator.SyncSource.Path = "app-1"
+	app1.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		SourceHydrator: *app1.Spec.SourceHydrator,
+	}
+	app1.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+
+	app2 := newTestApp("app-2")
+	app2.Spec.SourceHydrator.SyncSource.Path = "app-2"
+	app2.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		SourceHydrator: *app2.Spec.SourceHydrator,
+	}
+	// app2 is already at the resolved group SHA, so it must be skipped without a repo-server call.
+	app2.Status.SourceHydrator.LastComparedDryRevision = "new-sha"
+
+	hydrationKey := GetHydrationQueueKey(app1)
+	require.Equal(t, hydrationKey, GetHydrationQueueKey(app2), "both apps must share the hydration key")
+
+	d.EXPECT().IsManagedHydrationKey(hydrationKey).Return(true)
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app1, *app2}}, nil)
+	// GetProcessableAppProj and EvaluateAppRevisionsChanges must be called exactly once (for app1
+	// only); app2 is skipped because its baseline already matches the resolved group SHA.
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.Anything, mock.Anything, mock.Anything, proj, mock.Anything).Return(false, "new-sha", nil).Once()
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return()
+
+	h := &Hydrator{dependencies: d, statusRefreshTimeout: time.Minute}
+	h.ProcessHydrationQueueItem(hydrationKey)
+
+	d.AssertNumberOfCalls(t, "EvaluateAppRevisionsChanges", 1)
 }
 
 func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	app1 := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app2 := setTestAppPhase(newTestApp("test-app-2"), v1alpha1.HydrateOperationPhaseHydrating)
-	hydrationKey := getHydrationQueueKey(app1)
+	hydrationKey := GetHydrationQueueKey(app1)
 
 	// getAppsForHydrationKey returns two apps
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app1, *app2}}, nil)
@@ -796,11 +746,12 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	app1 := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app2 := newTestApp("test-app-2")
 	app2.Spec.SourceHydrator.SyncSource.Path = "something/else"
 	app2 = setTestAppPhase(app2, v1alpha1.HydrateOperationPhaseHydrating)
-	hydrationKey := getHydrationQueueKey(app1)
+	hydrationKey := GetHydrationQueueKey(app1)
 
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app1, *app2}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
@@ -840,12 +791,13 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	r := mocks.NewRepoGetter(t)
 	app1 := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app2 := newTestApp("test-app-2")
 	app2.Spec.SourceHydrator.SyncSource.Path = "something/else"
 	app2 = setTestAppPhase(app2, v1alpha1.HydrateOperationPhaseHydrating)
-	hydrationKey := getHydrationQueueKey(app1)
+	hydrationKey := GetHydrationQueueKey(app1)
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app1, *app2}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
 	h := &Hydrator{dependencies: d, repoGetter: r}
@@ -887,11 +839,12 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
 	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
-	hydrationKey := getHydrationQueueKey(app)
+	hydrationKey := GetHydrationQueueKey(app)
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
 	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
@@ -935,12 +888,13 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredentials(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
 	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/hydrated-repo"
-	hydrationKey := getHydrationQueueKey(app)
+	hydrationKey := GetHydrationQueueKey(app)
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
 	proj := newTestProject()
 	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, "https://example.com/hydrated-repo")
@@ -1710,6 +1664,7 @@ func expectSuccessfulHydratePipeline(d *mocks.Dependencies, r *mocks.RepoGetter,
 func TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
@@ -1721,8 +1676,8 @@ func TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated(t *testing.
 	fresh.Spec.SourceHydrator.SyncSource.Path = "fresh"
 	require.Nil(t, fresh.Status.SourceHydrator.CurrentOperation, "precondition: fresh app starts with nil CurrentOperation")
 
-	hydrationKey := getHydrationQueueKey(hydrating)
-	require.Equal(t, hydrationKey, getHydrationQueueKey(fresh), "both apps must share the hydration key")
+	hydrationKey := GetHydrationQueueKey(hydrating)
+	require.Equal(t, hydrationKey, GetHydrationQueueKey(fresh), "both apps must share the hydration key")
 
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*hydrating, *fresh}}, nil)
 	expectSuccessfulHydratePipeline(d, r, rc, cc, 2)
@@ -1763,10 +1718,11 @@ func TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated(t *testing.
 func TestProcessHydrationQueueItem_MarksHydratingBeforeValidation(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 
 	app := newTestApp("fresh-app")
 	require.Nil(t, app.Status.SourceHydrator.CurrentOperation)
-	hydrationKey := getHydrationQueueKey(app)
+	hydrationKey := GetHydrationQueueKey(app)
 
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
 	// Validation fails for every app in the group, so hydrate() is never called - but markAppsHydrating
@@ -1798,6 +1754,7 @@ func TestProcessHydrationQueueItem_MarksHydratingBeforeValidation(t *testing.T) 
 func TestProcessHydrationQueueItem_CommitsCompletePathSet(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
@@ -1807,8 +1764,8 @@ func TestProcessHydrationQueueItem_CommitsCompletePathSet(t *testing.T) {
 	fresh := newTestApp("fresh-app")
 	fresh.Spec.SourceHydrator.SyncSource.Path = "fresh"
 
-	hydrationKey := getHydrationQueueKey(ready)
-	require.Equal(t, hydrationKey, getHydrationQueueKey(fresh), "both apps must share the hydration key")
+	hydrationKey := GetHydrationQueueKey(ready)
+	require.Equal(t, hydrationKey, GetHydrationQueueKey(fresh), "both apps must share the hydration key")
 
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*ready, *fresh}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
@@ -1850,6 +1807,7 @@ func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
 	const totalApps = 20
 
 	d := mocks.NewDependencies(t)
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
@@ -1870,7 +1828,7 @@ func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
 		items = append(items, *app)
 	}
 
-	hydrationKey := getHydrationQueueKey(&items[0])
+	hydrationKey := GetHydrationQueueKey(&items[0])
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: items}, nil)
 	expectSuccessfulHydratePipeline(d, r, rc, cc, totalApps)
 
@@ -1889,4 +1847,117 @@ func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
 	})
 
 	require.Len(t, hydrated, totalApps, "every app in the group must end up persisted as Hydrated")
+}
+
+// crossShardRegressionApps builds a hydration group that spans two destination clusters. Under
+// cluster-based controller sharding those clusters are owned by different shards, so each shard
+// independently observes the apps and enqueues the same HydrationQueueKey. The two apps share a
+// single hydration key (the key does not depend on destination cluster or sync path) but use
+// distinct sync paths so group validation does not flag them as duplicate destinations.
+func crossShardRegressionApps() []v1alpha1.Application {
+	appA := newTestApp("app-a")
+	appA.Spec.SourceHydrator.SyncSource.Path = "app-a"
+	appA.Spec.Destination = v1alpha1.ApplicationDestination{Server: "https://cluster-0.example.com"}
+	appA = setTestAppPhase(appA, v1alpha1.HydrateOperationPhaseHydrating)
+
+	appB := newTestApp("app-b")
+	appB.Spec.SourceHydrator.SyncSource.Path = "app-b"
+	appB.Spec.Destination = v1alpha1.ApplicationDestination{Server: "https://cluster-1.example.com"}
+	appB = setTestAppPhase(appB, v1alpha1.HydrateOperationPhaseHydrating)
+
+	return []v1alpha1.Application{*appA, *appB}
+}
+
+// newCrossShardRegressionHydrator builds a Hydrator standing in for a single controller shard.
+// Every dependency is mocked leniently (.Maybe()) so the test is valid both before the ownership
+// gate exists (the shard runs the full pipeline) and after (a non-owning shard short-circuits and
+// calls nothing). All commit calls increment the shared counter so the test can assert that the
+// group is committed exactly once across all shards.
+func newCrossShardRegressionHydrator(t *testing.T, commitCount *atomic.Int32, isOwner bool) *Hydrator {
+	t.Helper()
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+
+	// Only the shard that owns the key processes it; others short-circuit before any other call.
+	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(isOwner).Maybe()
+	// Each shard has its own informer view and never observes the other shard's writes.
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: crossShardRegressionApps()}, nil).Maybe()
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil).Maybe()
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return().Maybe()
+	d.EXPECT().RequestAppRefresh(mock.Anything, mock.Anything).Return(nil).Maybe()
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, &repoclient.ManifestResponse{Revision: "drysha-1"}, nil).Maybe()
+	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Maybe()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Maybe()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Maybe()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Maybe()
+
+	r.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, _ *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
+			commitCount.Add(1)
+		}).
+		Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydratedsha-1"}, nil).Maybe()
+
+	return &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+	}
+}
+
+// TestProcessHydrationQueueItem_CrossShardDuplicateHydration_Regression is the authoritative
+// regression for the cross-shard duplicate-hydration bug. A hydration group spanning two clusters
+// is processed by two shards. Exactly one shard must take ownership and commit. Before the
+// ownership gate exists, both shards commit and this fails deterministically with commitCount == 2.
+func TestProcessHydrationQueueItem_CrossShardDuplicateHydration_Regression(t *testing.T) {
+	t.Parallel()
+
+	var commitCount atomic.Int32
+
+	const replicas = 2
+	hydrationKey := GetHydrationQueueKey(&crossShardRegressionApps()[0])
+	owner := hydrationKey.Shard(replicas)
+
+	shard0 := newCrossShardRegressionHydrator(t, &commitCount, owner == 0)
+	shard1 := newCrossShardRegressionHydrator(t, &commitCount, owner == 1)
+
+	// Both shards receive the same key (cross-cluster fan-in) and attempt to process it.
+	shard0.ProcessHydrationQueueItem(hydrationKey)
+	shard1.ProcessHydrationQueueItem(hydrationKey)
+
+	assert.Equal(t, int32(1), commitCount.Load(),
+		"exactly one shard must hydrate (commit) a hydration group; got duplicate cross-shard hydration")
+}
+
+// TestProcessHydrationQueueItem_CrossShardDuplicateHydration_Concurrent documents the real-world
+// race: two shards processing the same key at the same time. It is a thread-safety companion to the
+// deterministic regression above (which is the authoritative gate).
+func TestProcessHydrationQueueItem_CrossShardDuplicateHydration_Concurrent(t *testing.T) {
+	t.Parallel()
+
+	var commitCount atomic.Int32
+
+	const replicas = 2
+	hydrationKey := GetHydrationQueueKey(&crossShardRegressionApps()[0])
+	owner := hydrationKey.Shard(replicas)
+
+	shard0 := newCrossShardRegressionHydrator(t, &commitCount, owner == 0)
+	shard1 := newCrossShardRegressionHydrator(t, &commitCount, owner == 1)
+
+	var wg sync.WaitGroup
+	for _, shard := range []*Hydrator{shard0, shard1} {
+		wg.Go(func() {
+			shard.ProcessHydrationQueueItem(hydrationKey)
+		})
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), commitCount.Load(),
+		"exactly one shard must hydrate (commit) a hydration group, even under concurrent processing")
 }

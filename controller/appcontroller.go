@@ -120,7 +120,6 @@ type ApplicationController struct {
 	appComparisonTypeRefreshQueue workqueue.TypedRateLimitingInterface[string]
 	appOperationQueue             workqueue.TypedRateLimitingInterface[string]
 	projectRefreshQueue           workqueue.TypedRateLimitingInterface[string]
-	appHydrateQueue               workqueue.TypedRateLimitingInterface[string]
 	hydrationQueue                workqueue.TypedRateLimitingInterface[hydratortypes.HydrationQueueKey]
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
@@ -201,7 +200,6 @@ func NewApplicationController(
 		appOperationQueue:                 workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_operation_processing_queue"}),
 		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
 		appComparisonTypeRefreshQueue:     workqueue.NewTypedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig)),
-		appHydrateQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_hydration_queue"}),
 		hydrationQueue:                    workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[hydratortypes.HydrationQueueKey](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[hydratortypes.HydrationQueueKey]{Name: "manifest_hydration_queue"}),
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
@@ -907,7 +905,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appComparisonTypeRefreshQueue.ShutDown()
 	defer ctrl.appOperationQueue.ShutDown()
 	defer ctrl.projectRefreshQueue.ShutDown()
-	defer ctrl.appHydrateQueue.ShutDown()
 	defer ctrl.hydrationQueue.ShutDown()
 
 	ctrl.RegisterClusterSecretUpdater(ctx)
@@ -969,23 +966,16 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}, time.Second, ctx.Done())
 
 	if ctrl.hydrator != nil {
-		// The app hydrate queue is keyed per application. Its only job is to decide whether the
-		// app needs hydration and, if so, enqueue the (deduped) hydration key. The Hydrating
-		// status mark and all subsequent per-app status writes live on the hydration queue side,
-		// so this worker is just an enqueuer and a single goroutine is sufficient
-		// (https://github.com/argoproj/argo-cd/issues/27926).
-		go wait.Until(func() {
-			for ctrl.processAppHydrateQueueItem() {
-			}
-		}, time.Second, ctx.Done())
-
-		// The hydration queue does the heavy lifting (marking apps Hydrating, generating
-		// manifests, committing to the hydrated branch, and writing the per-app statuses) and is
-		// keyed by {SourceRepoURL, SourceTargetRevision, DestinationBranch}. Because it is a
-		// rate-limiting workqueue, the same key is never processed by two workers at once, so
-		// additional workers only parallelize hydration across *distinct* keys. The per-key dedup
-		// is also what makes the status writes safe to do inside this worker rather than ahead of
-		// time on the app hydrate queue. This is the concurrency knob requested in #27926.
+		// The hydration queue is the single entry point for all hydration work: deciding whether a
+		// group needs hydration, marking apps Hydrating, generating manifests, committing to the
+		// hydrated branch, and writing the per-app statuses. It is keyed by
+		// {SourceRepoURL, SourceTargetRevision, DestinationRepoURL, DestinationBranch}. Every shard
+		// enqueues a key on any relevant app change (hydration groups can span clusters owned by
+		// different shards), but ProcessHydrationQueueItem hashes the key to a single owning shard so
+		// exactly one shard hydrates a group. Because it is a rate-limiting workqueue, the same key is
+		// never processed by two workers at once within a process, so additional workers only
+		// parallelize hydration across *distinct* keys. This is the concurrency knob requested in
+		// #27926.
 		for range normalizeHydrationProcessors(hydrationProcessors) {
 			go wait.Until(func() {
 				for ctrl.processHydrationQueueItem() {
@@ -1965,40 +1955,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	return processNext
 }
 
-func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext bool) {
-	appKey, shutdown := ctrl.appHydrateQueue.Get()
-	if shutdown {
-		processNext = false
-		return processNext
-	}
-	processNext = true
-	defer func() {
-		if r := recover(); r != nil {
-			log.WithField("appkey", appKey).Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-		}
-		ctrl.appHydrateQueue.Done(appKey)
-	}()
-	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
-	if err != nil {
-		log.WithField("appkey", appKey).WithError(err).Error("Failed to get application from informer index")
-		return processNext
-	}
-	if !exists {
-		// This happens after app was deleted, but the work queue still had an entry for it.
-		return processNext
-	}
-	origApp, ok := obj.(*appv1.Application)
-	if !ok {
-		log.WithField("appkey", appKey).Warn("Key in index is not an application")
-		return processNext
-	}
-
-	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp.DeepCopy())
-
-	log.WithFields(applog.GetAppLogFields(origApp)).Debug("Successfully processed app hydrate queue item")
-	return processNext
-}
-
 func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool) {
 	hydrationKey, shutdown := ctrl.hydrationQueue.Get()
 	if shutdown {
@@ -2479,6 +2435,26 @@ func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application)
 	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.REGEXP)
 }
 
+// enqueueHydration enqueues an application's hydration key so that the shard which owns the key can
+// hydrate the group. Hydration ownership is independent of cluster sharding (a hydration group can
+// span clusters owned by different shards), so this deliberately does NOT gate on canProcessApp's
+// cluster check: every shard enqueues the key and ProcessHydrationQueueItem drops keys it does not
+// own. It still respects namespace allow-listing, matching the group membership computed by
+// getAppsForHydrationKey.
+func (ctrl *ApplicationController) enqueueHydration(obj any) {
+	if ctrl.hydrator == nil {
+		return
+	}
+	app, ok := obj.(*appv1.Application)
+	if !ok || app.Spec.SourceHydrator == nil {
+		return
+	}
+	if !ctrl.isAppNamespaceAllowed(app) {
+		return
+	}
+	ctrl.hydrationQueue.AddRateLimited(hydrator.GetHydrationQueueKey(app))
+}
+
 func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	app, ok := obj.(*appv1.Application)
 	if !ok {
@@ -2595,6 +2571,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	_, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
+				// Hydration ownership is independent of cluster sharding, so enqueue the hydration key
+				// before the canProcessApp (cluster) gate.
+				ctrl.enqueueHydration(obj)
 				if !ctrl.canProcessApp(obj) {
 					return
 				}
@@ -2608,6 +2587,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 			},
 			UpdateFunc: func(old, new any) {
+				// Hydration ownership is independent of cluster sharding, so enqueue the hydration key
+				// before the canProcessApp (cluster) gate.
+				ctrl.enqueueHydration(new)
 				if !ctrl.canProcessApp(new) {
 					return
 				}
@@ -2637,9 +2619,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
 				if !newOK || (delay != nil && *delay != time.Duration(0)) {
 					ctrl.appOperationQueue.AddRateLimited(key)
-				}
-				if ctrl.hydrator != nil {
-					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},

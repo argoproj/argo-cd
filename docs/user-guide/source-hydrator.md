@@ -587,7 +587,22 @@ This applies to both webhook-driven and periodically-reconciled refreshes:
 The annotation's path filtering applies to the dry source. The sync source is always watched at its configured
 `syncSource.path`; the annotation value is not applied to the sync source.
 
-## Limitations
+## High Availability and Sharded Controllers
+
+Applications that hydrate to the same destination repository and branch (sharing the same dry source
+repo and target revision) form a single **hydration group**, and the whole group is hydrated together
+in one commit. A hydration group can span Applications deployed to different clusters.
+
+Because the application controller is sharded by cluster, a hydration group can include Applications
+owned by different shards. To guarantee that a group is hydrated exactly once, hydration ownership is
+assigned deterministically by hashing the hydration group's identity (its dry source repo/revision and
+destination repo/branch) to a single shard. Every shard observes the relevant Application changes, but
+only the owning shard performs the hydration and writes the resulting status for the whole group.
+
+> [!NOTE]
+> No configuration is required. This ownership assignment is automatic and applies whenever the
+> application controller runs with more than one replica. With a single replica, that replica owns all
+> hydration groups.
 
 ### Signature Verification
 
