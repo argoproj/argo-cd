@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 )
@@ -61,12 +63,13 @@ func ImportSigningKey(ctx context.Context, keyData []byte, passphrase string) (*
 		"--pinentry-mode", "loopback",
 		"--status-fd", "1",
 	}
+	var cleanup func()
 	if passphrase != "" {
-		ppFile, cleanup, err := writePassphraseFile(passphrase)
+		ppFile, c, err := writePassphraseFile(passphrase)
 		if err != nil {
 			return nil, err
 		}
-		defer cleanup()
+		cleanup = c
 		args = append(args, "--passphrase-file", ppFile)
 	}
 	args = append(args, "--import")
@@ -75,6 +78,12 @@ func ImportSigningKey(ctx context.Context, keyData []byte, passphrase string) (*
 	cmd.Env = gpgEnv()
 	cmd.Stdin = strings.NewReader(string(keyData))
 	out, err := executil.Run(cmd)
+	// The passphrase file is only needed for the import above; remove it
+	// immediately once gpg has run, regardless of the outcome, rather than
+	// holding it open until the function returns.
+	if cleanup != nil {
+		cleanup()
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to import signing key: %w", err)
 	}
@@ -102,7 +111,11 @@ func writePassphraseFile(passphrase string) (string, func(), error) {
 	if err != nil {
 		return "", func() {}, fmt.Errorf("failed to create passphrase temp file: %w", err)
 	}
-	cleanup := func() { _ = os.Remove(f.Name()) }
+	cleanup := func() {
+		if err := os.Remove(f.Name()); err != nil && !os.IsNotExist(err) {
+			log.WithError(err).Warnf("failed to remove passphrase temp file %q", f.Name())
+		}
+	}
 	if _, err := f.WriteString(passphrase); err != nil {
 		_ = f.Close()
 		cleanup()
