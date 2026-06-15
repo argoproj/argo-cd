@@ -902,24 +902,71 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 							c.log.Error(err, "Failed to start missing watch")
 						}
 					}
-					err = runSynced(&c.lock, func() error {
-						openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
-						if err != nil {
-							return fmt.Errorf("failed to load open api schema while handling CRD change: %w", err)
-						}
-						if gvkParser != nil {
-							c.gvkParser = gvkParser
-						}
-						c.openAPISchema = openAPISchema
-						return nil
-					})
-					if err != nil {
+					if err := c.reloadOpenAPISchema(); err != nil {
 						c.log.Error(err, "Failed to reload open api schema")
+					}
+				} else if kube.IsAPIService(obj) {
+					// When an aggregated API's extension apiserver becomes available, the
+					// kube-apiserver starts serving new group/kinds that were not present
+					// during the initial discovery (e.g. the extension apiserver was down
+					// when Argo CD started). Re-run discovery so those resources get
+					// watched, mirroring how CRD events are handled above. Otherwise the
+					// new kinds remain invisible until the next manual cache invalidation
+					// or full resync.
+					if event.Type == watch.Deleted || isAPIServiceAvailable(obj) {
+						c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", obj.GetName())
+						err = runSynced(&c.lock, func() error {
+							return c.startMissingWatches()
+						})
+						if err != nil {
+							c.log.Error(err, "Failed to start missing watch")
+						}
+						if err := c.reloadOpenAPISchema(); err != nil {
+							c.log.Error(err, "Failed to reload open api schema")
+						}
 					}
 				}
 			}
 		}
 	})
+}
+
+// reloadOpenAPISchema reloads the cluster's OpenAPI schema and GVK parser. It is
+// called after the set of served APIs changes (e.g. due to a CRD or APIService
+// event) so that field management and schema-aware operations stay in sync with
+// the cluster.
+func (c *clusterCache) reloadOpenAPISchema() error {
+	return runSynced(&c.lock, func() error {
+		openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
+		if err != nil {
+			return fmt.Errorf("failed to load open api schema: %w", err)
+		}
+		if gvkParser != nil {
+			c.gvkParser = gvkParser
+		}
+		c.openAPISchema = openAPISchema
+		return nil
+	})
+}
+
+// isAPIServiceAvailable reports whether the given APIService object has an
+// Available condition set to True, indicating its backing (aggregated) apiserver
+// is ready to serve its API group.
+func isAPIServiceAvailable(obj *unstructured.Unstructured) bool {
+	conditions, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
+	if err != nil || !found {
+		return false
+	}
+	for _, condition := range conditions {
+		cond, ok := condition.(map[string]any)
+		if !ok {
+			continue
+		}
+		if cond["type"] == "Available" {
+			return cond["status"] == "True"
+		}
+	}
+	return false
 }
 
 // processApi processes all the resources for a given API. First we construct an API client for the given API. Then we
