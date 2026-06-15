@@ -1,8 +1,9 @@
 apiVersion: microgateway.airlock.com/v1alpha1
-kind: XPolicy
+kind: ICAPPolicy
 metadata:
-  name: example-xpolicy
+  name: example-icappolicy
   namespace: default
+  generation: 3
 spec:
   targetRefs:
   - group: gateway.networking.k8s.io
@@ -16,12 +17,9 @@ status:
       name: example-gateway
     conditions:
     - lastTransitionTime: '2026-04-16T12:20:11Z'
-      message: >-
-        Resolving XPolicy failed:
-        Missing referenced XResource.Secret 'ca'
-        WARNING: traffic to referenced target(s) will be rejected.
-      observedGeneration: 3
-      reason: Invalid
-      status: 'False'
+      message: ICAPPolicy is accepted
+      observedGeneration: 1
+      reason: Accepted
+      status: 'True'
       type: Accepted
     controllerName: example.com/gatewayclass-controller

@@ -1,7 +1,7 @@
 apiVersion: microgateway.airlock.com/v1alpha1
-kind: XCustomResource
+kind: DenyRules
 metadata:
-  name: example-xcustomresource
+  name: example-denyrules
   namespace: default
 spec:
   targetRefs:
