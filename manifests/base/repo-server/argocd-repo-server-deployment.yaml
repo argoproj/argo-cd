@@ -101,6 +101,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.tls.ciphers
                   optional: true
+          - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.client.ca.path
+                optional: true
           - name: ARGOCD_REPO_CACHE_EXPIRATION
             valueFrom:
                 configMapKeyRef:
@@ -312,6 +318,8 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
+        - name: argocd-repo-server-mtls
+          mountPath: /app/config/reposerver/mtls
         - name: tmp
           mountPath: /tmp
         - mountPath: /helm-working-dir
@@ -365,6 +373,13 @@ spec:
               path: tls.key
             - key: ca.crt
               path: ca.crt
+        - name: argocd-repo-server-mtls
+          secret:
+            secretName: argocd-repo-server-mtls
+            optional: true
+            items:
+            - key: client-ca.crt
+              path: client-ca.crt
         - emptyDir: {}
           name: var-files
         - emptyDir: {}

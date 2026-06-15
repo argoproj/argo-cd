@@ -872,10 +872,10 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 	})
 
 	t.Run("DNS resolution failure", func(t *testing.T) {
+		t.Parallel()
 		if testing.Short() {
 			t.Skip("skipping DNS failure test (~15s due to hardcoded context timeout)")
 		}
-		t.Parallel()
 		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey,
 			"http://this-host-does-not-exist-anywhere.invalid:8080")
 		token, err := creds.getAccessToken()
@@ -1056,6 +1056,7 @@ var gcpImpersonatedServiceAccountKeyJSON string
 var gcpAuthorizedUserJSON string
 
 func TestCredentialTypeFromJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -1105,6 +1106,7 @@ func TestCredentialTypeFromJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			actual := credentialTypeFromJSON([]byte(tt.input))
 			assert.Equal(t, tt.expected, actual)
 		})

@@ -85,6 +85,9 @@ argocd-server [flags]
       --redisdb int                                     Redis database.
       --repo-cache-expiration duration                  Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
       --repo-server string                              Repo server address (default "argocd-repo-server:8081")
+      --repo-server-ca-cert-path string                 Path to the repo-server CA certificate file
+      --repo-server-client-cert-key-path string         Path to the client certificate key file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.key")
+      --repo-server-client-cert-path string             Path to the client certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.crt")
       --repo-server-default-cache-expiration duration   Cache expiration default (default 24h0m0s)
       --repo-server-plaintext                           Use a plaintext client (non-TLS) to connect to repository server
       --repo-server-redis string                        Redis server hostname and port (e.g. argocd-redis:6379). 
@@ -97,7 +100,6 @@ argocd-server [flags]
       --repo-server-redisdb int                         Redis database.
       --repo-server-sentinel stringArray                Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --repo-server-sentinelmaster string               Redis sentinel master group name. (default "master")
-      --repo-server-strict-tls                          Perform strict validation of TLS certificates when connecting to repo server
       --repo-server-timeout-seconds int                 Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --revision-cache-expiration duration              Cache expiration for cached revision (default 3m0s)
