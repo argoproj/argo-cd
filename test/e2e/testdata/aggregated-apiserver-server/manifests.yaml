@@ -1,0 +1,137 @@
+# A minimal aggregated (extension) API server based on the Kubernetes
+# "sample-apiserver" (wardle). It registers the wardle.example.com/v1alpha1 group
+# (Flunder/Fischer kinds) via an APIService. These manifests are intentionally
+# NOT part of any Argo CD application path; the e2e test applies them directly
+# with kubectl AFTER Argo CD is already running, to verify that the cluster cache
+# picks up the newly served kinds without a manual cache invalidation.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wardle
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apiserver
+  namespace: wardle
+---
+# Allows the aggregated apiserver to delegate authn/authz to the kube-apiserver.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: wardle:system:auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: apiserver
+  namespace: wardle
+---
+# Allows the aggregated apiserver to read the extension-apiserver-authentication
+# configmap (front-proxy CA / requestheader config) from kube-system.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wardle-auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+- kind: ServiceAccount
+  name: apiserver
+  namespace: wardle
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: wardle-aggregated-apiserver-clusterrole
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["flowcontrol.apiserver.k8s.io"]
+  resources: ["prioritylevelconfigurations", "flowschemas"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: wardle-aggregated-apiserver-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: wardle-aggregated-apiserver-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: apiserver
+  namespace: wardle
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wardle-server
+  namespace: wardle
+  labels:
+    apiserver: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      apiserver: "true"
+  template:
+    metadata:
+      labels:
+        apiserver: "true"
+    spec:
+      serviceAccountName: apiserver
+      containers:
+      - name: wardle-server
+        image: registry.k8s.io/e2e-test-images/sample-apiserver:1.29.2
+        imagePullPolicy: IfNotPresent
+        args:
+        - --etcd-servers=http://127.0.0.1:2379
+        - --secure-port=8443
+        ports:
+        - containerPort: 8443
+      - name: etcd
+        image: registry.k8s.io/etcd:3.5.16-0
+        imagePullPolicy: IfNotPresent
+        command: ["/usr/local/bin/etcd"]
+        args:
+        - --data-dir=/tmp/etcd
+        - --listen-client-urls=http://127.0.0.1:2379
+        - --advertise-client-urls=http://127.0.0.1:2379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: wardle
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    apiserver: "true"
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.wardle.example.com
+spec:
+  insecureSkipTLSVerify: true
+  group: wardle.example.com
+  groupPriorityMinimum: 1000
+  versionPriority: 15
+  service:
+    name: api
+    namespace: wardle
+  version: v1alpha1
