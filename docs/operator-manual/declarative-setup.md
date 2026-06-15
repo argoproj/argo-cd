@@ -18,6 +18,8 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm-yaml.md)                       | argocd-rbac-cm                                                                     | ConfigMap | RBAC Configuration                                                                   |
 | [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm-yaml.md)             | argocd-tls-certs-cm                                                                | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later)   |
 | [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm-yaml.md) | argocd-ssh-known-hosts-cm                                                          | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later)        |
+| [`argocd-git-config-cm.yaml`](argocd-git-config-cm-yaml.md)           | argocd-git-config-cm                                                               | ConfigMap | Configuration for git in the repo-server                                             |
+
 
 For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
