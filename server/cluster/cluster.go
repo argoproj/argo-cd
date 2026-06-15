@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -49,6 +50,25 @@ func CreateClusterRBACObject(project string, server string) string {
 	return server
 }
 
+// enforceClusterAccessErr checks RBAC permission for cluster access using both server URL and name
+// this allows RBAC policies to match either the cluster's server URL or its logical name
+func (s *Server) enforceClusterAccessErr(ctx context.Context, action string, clust *appv1.Cluster) error {
+	err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, action, CreateClusterRBACObject(clust.Project, clust.Server))
+	if err == nil {
+		return nil
+	}
+
+	if clust.Name != "" {
+		errWithName := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, action, CreateClusterRBACObject(clust.Project, clust.Name))
+		if errWithName != nil {
+			return errors.Join(err, errWithName)
+		}
+		return nil
+	}
+
+	return err
+}
+
 // List returns list of clusters
 func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
@@ -71,7 +91,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 
 	items := make([]appv1.Cluster, 0)
 	for _, clust := range filteredItems {
-		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionGet, CreateClusterRBACObject(clust.Project, clust.Server)) {
+		if err := s.enforceClusterAccessErr(ctx, rbac.ActionGet, &clust); err == nil {
 			items = append(items, clust)
 		}
 	}
@@ -215,8 +235,13 @@ func (s *Server) getClusterAndVerifyAccess(ctx context.Context, q *cluster.Clust
 	}
 
 	// verify that user can do the specified action inside project where cluster is located
-	if !s.enf.Enforce(ctx.Value("claims"), rbac.ResourceClusters, action, CreateClusterRBACObject(c.Project, c.Server)) {
-		log.WithField("cluster", q.Server).Warnf("encountered permissions issue while processing request: %v", err)
+	// check both server URL and cluster name for RBAC matching
+	if err := s.enforceClusterAccessErr(ctx, action, c); err != nil {
+		logField := q.Server
+		if logField == "" {
+			logField = q.Name
+		}
+		log.WithField("cluster", logField).Warnf("encountered permissions issue while processing request: %v", err)
 		return nil, common.PermissionDeniedAPIError
 	}
 
@@ -306,7 +331,12 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 
 	if len(q.UpdatedFields) == 0 || sets.NewString(q.UpdatedFields...).Has("project") {
 		// verify that user can do update inside project where cluster will be located
-		if !s.enf.Enforce(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionUpdate, CreateClusterRBACObject(q.Cluster.Project, c.Server)) {
+		clusterToCheck := &appv1.Cluster{
+			Name:    c.Name,
+			Server:  c.Server,
+			Project: q.Cluster.Project,
+		}
+		if err := s.enforceClusterAccessErr(ctx, rbac.ActionUpdate, clusterToCheck); err != nil {
 			return nil, common.PermissionDeniedAPIError
 		}
 	}
@@ -361,12 +391,17 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 			return nil, common.PermissionDeniedAPIError
 		}
 		for _, server := range servers {
-			if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
+			clusterToDelete := &appv1.Cluster{
+				Name:    c.Name,
+				Server:  server,
+				Project: c.Project,
+			}
+			if err := enforceAndDelete(ctx, s, clusterToDelete); err != nil {
 				return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
 			}
 		}
 	} else {
-		if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
+		if err := enforceAndDelete(ctx, s, c); err != nil {
 			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
 		}
 	}
@@ -374,12 +409,16 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 	return &cluster.ClusterResponse{}, nil
 }
 
-func enforceAndDelete(ctx context.Context, s *Server, server, project string) error {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionDelete, CreateClusterRBACObject(project, server)); err != nil {
-		log.WithField("cluster", server).Warnf("encountered permissions issue while processing request: %v", err)
+func enforceAndDelete(ctx context.Context, s *Server, clust *appv1.Cluster) error {
+	if err := s.enforceClusterAccessErr(ctx, rbac.ActionDelete, clust); err != nil {
+		logField := clust.Server
+		if logField == "" {
+			logField = clust.Name
+		}
+		log.WithField("cluster", logField).Warnf("encountered permissions issue while processing request: %v", err)
 		return common.PermissionDeniedAPIError
 	}
-	return s.db.DeleteCluster(ctx, server)
+	return s.db.DeleteCluster(ctx, clust.Server)
 }
 
 // RotateAuth rotates the bearer token used for a cluster
@@ -397,13 +436,18 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 			return nil, common.PermissionDeniedAPIError
 		}
 		for _, server := range servers {
-			if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionUpdate, CreateClusterRBACObject(clust.Project, server)); err != nil {
+			clusterToCheck := &appv1.Cluster{
+				Name:    clust.Name,
+				Server:  server,
+				Project: clust.Project,
+			}
+			if err := s.enforceClusterAccessErr(ctx, rbac.ActionUpdate, clusterToCheck); err != nil {
 				log.WithField("cluster", server).Warnf("encountered permissions issue while processing request: %v", err)
 				return nil, common.PermissionDeniedAPIError
 			}
 		}
 	} else {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionUpdate, CreateClusterRBACObject(clust.Project, q.Server)); err != nil {
+		if err := s.enforceClusterAccessErr(ctx, rbac.ActionUpdate, clust); err != nil {
 			log.WithField("cluster", q.Server).Warnf("encountered permissions issue while processing request: %v", err)
 			return nil, common.PermissionDeniedAPIError
 		}
