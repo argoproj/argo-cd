@@ -1835,12 +1835,13 @@ var ignoredRefreshResources = map[string]bool{
 func (c *clusterCache) GetClusterInfo() ClusterInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	c.syncStatus.lock.Lock()
-	defer c.syncStatus.lock.Unlock()
 
 	c.syncWarningsLock.Lock()
 	warnings := append([]string(nil), c.syncWarnings...)
 	c.syncWarningsLock.Unlock()
+
+	c.syncStatus.lock.Lock()
+	defer c.syncStatus.lock.Unlock()
 	return ClusterInfo{
 		APIsCount:         len(c.apisMeta),
 		K8SVersion:        c.serverVersion,
