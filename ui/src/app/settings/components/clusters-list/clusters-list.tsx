@@ -214,7 +214,9 @@ export const ClustersList = () => {
                                                                         <ConnectionStateIcon state={cluster.info.connectionState} /> {cluster.info.connectionState.status}
                                                                         <DropDownMenu
                                                                             anchor={() => (
-                                                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                                <button
+                                                                                    className='argo-button argo-button--light argo-button--lg argo-button--short'
+                                                                                    onMouseDown={() => document.body.click()}>
                                                                                     <i className='fa fa-ellipsis-v' />
                                                                                 </button>
                                                                             )}

@@ -110,6 +110,18 @@
     }
 }
 
+.argo-table-list {
+    // Ensure table columns keep a usable minimum width instead of collapsing on narrow screens.
+    // Foundation gives each column 15px of left/right gutter padding, which eats most of a narrow
+    // column. Scale the gutter with the viewport (5px on small screens up to the default 15px on
+    // wide ones) so more of the width is usable content.
+    .columns {
+        min-width: 60px;
+        padding-left: clamp(2px, 1vw, 15px);
+        padding-right: clamp(2px, 1vw, 15px);
+    }
+}
+
 .argo-table-list__head {
     .columns.sortable {
         cursor: pointer;
@@ -122,6 +134,7 @@
 .argo-table-list__head,
 .argo-table-list__row {
     .columns.argo-table-list__icon-column {
+        min-width: 60px;
         max-width: 60px;
         // Let the icon use the full column width and avoid the text-overflow ellipsis that the table
         // columns apply when content is clipped. Center the icon within the column.

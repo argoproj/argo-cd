@@ -211,7 +211,9 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                                                                     {gpgkey.owner}
                                                                     <DropDownMenu
                                                                         anchor={() => (
-                                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                            <button
+                                                                                className='argo-button argo-button--light argo-button--lg argo-button--short'
+                                                                                onMouseDown={() => document.body.click()}>
                                                                                 <i className='fa fa-ellipsis-v' />
                                                                             </button>
                                                                         )}
