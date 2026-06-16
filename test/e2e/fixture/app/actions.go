@@ -183,8 +183,15 @@ func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags 
 	return a
 }
 
-func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
+func (a *Actions) CreateMultiSourceApp(flags ...string) *Actions {
 	a.context.T().Helper()
+
+	return a.CreateMultiSourceAppFromFile(func(_ *v1alpha1.Application) {}, flags...)
+}
+
+func (a *Actions) CreateMultiSourceAppFromFile(handler func(app *v1alpha1.Application), flags ...string) *Actions {
+	a.context.T().Helper()
+
 	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
@@ -204,6 +211,8 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 			},
 		},
 	}
+
+	handler(app)
 
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
@@ -312,6 +321,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
+	}
+	if a.context.tagPrefix != "" {
+		args = append(args, "--tag-prefix", a.context.tagPrefix)
 	}
 	if a.context.helmPassCredentials {
 		args = append(args, "--helm-pass-credentials")

@@ -313,7 +313,7 @@ data:
 kind: ConfigMap
 ``` 
 
-Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
 

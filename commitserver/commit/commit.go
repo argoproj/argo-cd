@@ -57,29 +57,6 @@ type CommitNote struct {
 	DrySHA string `json:"drySha"` // SHA of original commit that triggerd the hydrator
 }
 
-// TODO: make this configurable via ConfigMap.
-var manifestHydrationReadmeTemplate = `# Manifest Hydration
-
-To hydrate the manifests in this repository, run the following commands:
-
-` + "```shell" + `
-git clone {{ .RepoURL }}
-# cd into the cloned directory
-git checkout {{ .DrySHA }}
-{{ range $command := .Commands -}}
-{{ $command }}
-{{ end -}}` + "```" + `
-{{ if .References -}}
-
-## References
-
-{{ range $ref := .References -}}
-{{ if $ref.Commit -}}
-* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
-{{ end -}}
-{{ end -}}
-{{ end -}}`
-
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
 // the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
 // pushes the changes. It returns the hydrated revision SHA and an error if one occurred.
@@ -130,6 +107,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	if r.Repo == nil {
 		return "", "", errors.New("repo is required")
 	}
+
 	if r.Repo.Repo == "" {
 		return "", "", errors.New("repo URL is required")
 	}
@@ -191,8 +169,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	shouldCommit, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient)
-	// When there are no new manifests to commit, err will be nil and success will be false as nothing to commit. Else or every other error err will not be nil
+	shouldCommit, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}

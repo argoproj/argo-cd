@@ -2,7 +2,8 @@ package application
 
 import (
 	"context"
-	stderrors "errors"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -13,7 +14,9 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
@@ -310,6 +313,27 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		true,
 	)
 	return server.(*Server)
+}
+
+func newCachedManagedResources(t *testing.T, server *Server, app *v1alpha1.Application, objects ...*unstructured.Unstructured) *servercache.Cache {
+	t.Helper()
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+	appInstanceName := app.InstanceName(server.appNamespaceOrDefault(app.Namespace))
+
+	managedResources := make([]*v1alpha1.ResourceDiff, len(objects))
+	for i, res := range objects {
+		managedResources[i] = &v1alpha1.ResourceDiff{
+			Group:     res.GroupVersionKind().Group,
+			Kind:      res.GetObjectKind().GroupVersionKind().Kind,
+			Name:      res.GetName(),
+			Namespace: res.GetNamespace(),
+		}
+	}
+	err := appStateCache.SetAppManagedResources(appInstanceName, managedResources)
+	require.NoError(t, err)
+
+	return servercache.NewCache(appStateCache, time.Hour, time.Hour)
 }
 
 // return an ApplicationServiceServer which returns fake data
@@ -3036,7 +3060,7 @@ func TestGetCachedAppState(t *testing.T) {
 	})
 
 	t.Run("NonCacheErrorDoesNotTriggerRefresh", func(t *testing.T) {
-		randomError := stderrors.New("random error")
+		randomError := errors.New("random error")
 		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			return randomError
 		})
@@ -4644,6 +4668,307 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+
+	t.Run("LiveObjectPermissions", func(t *testing.T) {
+		// Test that ServerSideDiff validates that live resources in the request
+		// are part of the application's managed resources
+		// Create an authorized ConfigMap that will be registered as managed
+		authorizedConfigMap := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "authorized-config",
+				Namespace: "default",
+			},
+			Data: map[string]string{
+				"key": "value",
+			},
+		}
+
+		// Create app server with the authorized ConfigMap in managed resources
+		appServerWithManagedResources := newTestAppServer(t, testProj, testApp)
+		appServerWithManagedResources.cache = newCachedManagedResources(
+			t,
+			appServerWithManagedResources,
+			testApp,
+			kube.MustToUnstructured(authorizedConfigMap),
+		)
+
+		// Test 1: Attempt to diff with an unauthorized ConfigMap (different name)
+		unauthorizedConfigMap := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "unauthorized-config",
+				Namespace: "default",
+			},
+			Data: map[string]string{
+				"key": "value",
+			},
+		}
+
+		unauthorizedJSON, err := json.Marshal(unauthorizedConfigMap)
+		require.NoError(t, err)
+
+		unauthorizedQuery := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(testApp.Name),
+			AppNamespace: new(testApp.Namespace),
+			Project:      new(testApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "unauthorized-config",
+					LiveState: string(unauthorizedJSON),
+				},
+			},
+			TargetManifests: []string{string(unauthorizedJSON)},
+		}
+
+		_, err = appServerWithManagedResources.ServerSideDiff(t.Context(), unauthorizedQuery)
+
+		// Should fail with PermissionDenied error
+		require.Error(t, err)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+		assert.Equal(t, "/ConfigMap unauthorized-config not found as part of application test-app", status.Convert(err).Message())
+	})
+
+	t.Run("NewObjectsAreAllowed", func(t *testing.T) {
+		// Test that ServerSideDiff does not check permissions for new objects (LiveState is empty/null)
+
+		// Create an applier that will fail if called
+		applierCalled := false
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				applierCalled = true
+				return "", errors.New("applier should not be called for new objects")
+			},
+		}
+
+		// Create mock kubectl that returns our custom applier
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		appServerWithMock := newTestAppServer(t, testProj, testApp)
+		appServerWithMock.kubectl = mockKubectl
+
+		// Create a new ConfigMap (no LiveState)
+		newConfigMap := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "new-config",
+				Namespace: "default",
+			},
+			Data: map[string]string{
+				"key": "value",
+			},
+		}
+		newConfigJSON, err := json.Marshal(newConfigMap)
+		require.NoError(t, err)
+
+		// Query with new object (no LiveState)
+		queryNewObjectEmpty := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(testApp.Name),
+			AppNamespace: new(testApp.Namespace),
+			Project:      new(testApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "new-config",
+					LiveState: "", // Empty LiveState indicates new object
+				},
+			},
+			TargetManifests: []string{string(newConfigJSON)},
+		}
+
+		applierCalled = false
+		resp, err := appServerWithMock.ServerSideDiff(t.Context(), queryNewObjectEmpty)
+
+		// Should succeed without calling the applier
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.False(t, applierCalled, "applier should not be called for new objects")
+
+		// Also test with "null" LiveState
+		queryNewObjectNull := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(testApp.Name),
+			AppNamespace: new(testApp.Namespace),
+			Project:      new(testApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "new-config",
+					LiveState: "null", // "null" also indicates new object
+				},
+			},
+			TargetManifests: []string{string(newConfigJSON)},
+		}
+
+		applierCalled = false
+		resp, err = appServerWithMock.ServerSideDiff(t.Context(), queryNewObjectNull)
+
+		// Should succeed without calling the applier
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		// This MUST validate that the applier is NOT called for new objects during diff as well
+		// Calling the applier for new objects would allow the caller to discover existing objects in the
+		// clusters that are not part of the application's managed resources.
+		assert.False(t, applierCalled, "applier should not be called for new objects with null LiveState")
+	})
+
+	t.Run("LiveObjectConsistency", func(t *testing.T) {
+		// Test that ServerSideDiff validates that the JSON object in LiveState
+		// matches the Group, Kind, Namespace, Name fields of the ResourceDiff
+
+		// Test 1: Name mismatch
+		configMapCorrect := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "correct-name",
+				Namespace: "default",
+			},
+			Data: map[string]string{
+				"key": "value",
+			},
+		}
+		correctJSON, err := json.Marshal(configMapCorrect)
+		require.NoError(t, err)
+
+		queryNameMismatch := &application.ApplicationServerSideDiffQuery{
+			AppName:      new("test-app"),
+			AppNamespace: new(testNamespace),
+			Project:      new("test-project"),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "wrong-name", // Name doesn't match JSON
+					LiveState: string(correctJSON),
+				},
+			},
+			TargetManifests: []string{string(correctJSON)},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryNameMismatch)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "name mismatch: expected wrong-name, got correct-name for live resource /ConfigMap/wrong-name", status.Convert(err).Message())
+
+		// Test 2: Namespace mismatch
+		queryNamespaceMismatch := &application.ApplicationServerSideDiffQuery{
+			AppName:      new("test-app"),
+			AppNamespace: new(testNamespace),
+			Project:      new("test-project"),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "kube-system", // Namespace doesn't match JSON
+					Name:      "correct-name",
+					LiveState: string(correctJSON),
+				},
+			},
+			TargetManifests: []string{string(correctJSON)},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryNamespaceMismatch)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "namespace mismatch: expected kube-system, got default for live resource /ConfigMap/correct-name", status.Convert(err).Message())
+
+		// Test 3: Kind mismatch
+		queryKindMismatch := &application.ApplicationServerSideDiffQuery{
+			AppName:      new("test-app"),
+			AppNamespace: new(testNamespace),
+			Project:      new("test-project"),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "Secret", // Kind doesn't match JSON (ConfigMap)
+					Namespace: "default",
+					Name:      "correct-name",
+					LiveState: string(correctJSON),
+				},
+			},
+			TargetManifests: []string{string(correctJSON)},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryKindMismatch)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "kind mismatch: expected Secret, got ConfigMap for live resource /Secret/correct-name", status.Convert(err).Message())
+
+		// Test 4: Group mismatch
+		deploymentCorrect := &appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-deployment",
+				Namespace: "default",
+			},
+			Spec: appsv1.DeploymentSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "test"},
+				},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "test"},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "test",
+								Image: "nginx",
+							},
+						},
+					},
+				},
+			},
+		}
+		deploymentJSON, err := json.Marshal(deploymentCorrect)
+		require.NoError(t, err)
+
+		queryGroupMismatch := &application.ApplicationServerSideDiffQuery{
+			AppName:      new("test-app"),
+			AppNamespace: new(testNamespace),
+			Project:      new("test-project"),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "batch", // Group doesn't match JSON (apps)
+					Kind:      "Deployment",
+					Namespace: "default",
+					Name:      "test-deployment",
+					LiveState: string(deploymentJSON),
+				},
+			},
+			TargetManifests: []string{string(deploymentJSON)},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryGroupMismatch)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "group mismatch: expected batch, got apps for live resource batch/Deployment/test-deployment", status.Convert(err).Message())
+	})
 }
 
 // TestTerminateOperationWithConflicts tests that TerminateOperation properly handles
@@ -4699,7 +5024,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 			return true, nil, apierrors.NewConflict(
 				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
 				app.Name,
-				stderrors.New("the object has been modified"),
+				errors.New("the object has been modified"),
 			)
 		}
 

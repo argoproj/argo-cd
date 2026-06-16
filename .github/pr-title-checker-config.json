@@ -10,6 +10,6 @@
   "MESSAGES": {
     "success": "PR title is valid",
     "failure": "PR title is invalid",
-    "notice": "PR Title needs to pass regex '^(refactor|feat|fix|docs|test|ci|chore)!?(\\(.*\\))?!?:.*"
+    "notice": "PR Title needs to pass regex '^(refactor|feat|fix|docs|test|ci|chore|revert)!?(\\(.*\\))?!?:.*"
   }
 }

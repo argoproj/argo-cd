@@ -55,12 +55,14 @@ func fixtures(ctx context.Context, data map[string]string) (*fake.Clientset, *se
 }
 
 func TestSettingsServer(t *testing.T) {
+	t.Parallel()
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(t.Context(), data)
 		return NewServer(settingsMgr, nil, nil, false, false, false, false)
 	}
 
 	t.Run("TestGetInstallationID", func(t *testing.T) {
+		t.Parallel()
 		settingsServer := newServer(map[string]string{
 			"installationID": "1234567890",
 		})
@@ -70,6 +72,7 @@ func TestSettingsServer(t *testing.T) {
 	})
 
 	t.Run("TestGetInstallationIDNotSet", func(t *testing.T) {
+		t.Parallel()
 		settingsServer := newServer(map[string]string{})
 		resp, err := settingsServer.Get(t.Context(), nil)
 		require.NoError(t, err)
@@ -77,6 +80,7 @@ func TestSettingsServer(t *testing.T) {
 	})
 
 	t.Run("TestGetTrackingMethod", func(t *testing.T) {
+		t.Parallel()
 		settingsServer := newServer(map[string]string{
 			"application.resourceTrackingMethod": "annotation+label",
 		})
@@ -86,6 +90,7 @@ func TestSettingsServer(t *testing.T) {
 	})
 
 	t.Run("TestGetAppLabelKey", func(t *testing.T) {
+		t.Parallel()
 		settingsServer := newServer(map[string]string{
 			"application.instanceLabelKey": "instance",
 		})
@@ -95,6 +100,7 @@ func TestSettingsServer(t *testing.T) {
 	})
 
 	t.Run("TestGetResourceOverridesNotLoggedIn", func(t *testing.T) {
+		t.Parallel()
 		settingsServer := newServer(map[string]string{
 			"resource.customizations.ignoreResourceUpdates.all": resourceOverrides,
 		})
@@ -104,6 +110,7 @@ func TestSettingsServer(t *testing.T) {
 	})
 
 	t.Run("TestGetResourceOverridesLoggedIn", func(t *testing.T) {
+		t.Parallel()
 		//nolint:staticcheck // it's ok to use built-in type string as key for value for testing purposes
 		loggedInContext := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 		settingsServer := newServer(map[string]string{
