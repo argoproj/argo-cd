@@ -4,7 +4,21 @@ import * as ReactDOM from 'react-dom';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'argo-ui';
 import {Context} from '../../../shared/context';
-import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, NumberField, Page, Paginate, Repo, SearchBar, Spinner} from '../../../shared/components';
+import {
+    ActionMenu,
+    CheckboxField,
+    ConnectionStateIcon,
+    DataLoader,
+    EmptyState,
+    ErrorNotification,
+    IconColumn,
+    NumberField,
+    Page,
+    Paginate,
+    Repo,
+    SearchBar,
+    Spinner
+} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {RepoDetails} from '../repo-details/repo-details';
@@ -871,7 +885,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <div className='argo-table-list argo-table-list--clickable'>
                                                         <div className='argo-table-list__head'>
                                                             <div className='row'>
-                                                                <div className='columns small-1 argo-table-list__icon-column' />
+                                                                <IconColumn />
                                                                 <div className='columns small-1 sortable' onClick={() => requestSort('type')}>
                                                                     TYPE
                                                                     {sortIcon('type')}
@@ -902,9 +916,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                             return (
                                                                 <div className='argo-table-list__row' key={repoKey} onClick={() => displayEditSliding(repo)}>
                                                                     <div className='row'>
-                                                                        <div className='columns small-1 argo-table-list__icon-column'>
-                                                                            <i className={'icon argo-icon-' + getRepoType(repo)} />
-                                                                        </div>
+                                                                        <IconColumn icon={'argo-icon-' + getRepoType(repo)} />
                                                                         <div className='columns small-1'>
                                                                             <span>{getRepoType(repo)}</span>
                                                                         </div>
@@ -937,14 +949,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                                 <span>-</span>
                                                                             )}
                                                                             {!isTemplate(repo) && (
-                                                                                <DropDownMenu
-                                                                                    anchor={() => (
-                                                                                        <button
-                                                                                            className='argo-button argo-button--light argo-button--lg argo-button--short'
-                                                                                            onMouseDown={() => document.body.click()}>
-                                                                                            <i className='fa fa-ellipsis-v' />
-                                                                                        </button>
-                                                                                    )}
+                                                                                <ActionMenu
                                                                                     items={[
                                                                                         {
                                                                                             title: 'Create application',
@@ -961,14 +966,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                                 />
                                                                             )}
                                                                             {isTemplate(repo) && (
-                                                                                <DropDownMenu
-                                                                                    anchor={() => (
-                                                                                        <button
-                                                                                            className='argo-button argo-button--light argo-button--lg argo-button--short'
-                                                                                            onMouseDown={() => document.body.click()}>
-                                                                                            <i className='fa fa-ellipsis-v' />
-                                                                                        </button>
-                                                                                    )}
+                                                                                <ActionMenu
                                                                                     items={[
                                                                                         {
                                                                                             title: 'Remove',

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
+import {getFilterOptions} from '../list-filter-utils';
 
 export interface CertsListPreferences {
     certTypeFilter: string[];
@@ -32,38 +33,6 @@ export function getCertFilterResults(certs: models.RepoCert[], pref: CertsListPr
 export function filterCerts(certs: FilteredCert[]): models.RepoCert[] {
     return certs.filter(cert => Object.values(cert.filterResult).every(v => v));
 }
-
-const getCounts = (certs: FilteredCert[], filterType: keyof FilterResult, filter: (cert: models.RepoCert) => string, init?: string[]) => {
-    const map = new Map<string, number>();
-    if (init) {
-        init.forEach(key => map.set(key, 0));
-    }
-    certs.forEach(cert => {
-        if (Object.keys(cert.filterResult).every((key: keyof FilterResult) => key === filterType || cert.filterResult[key])) {
-            const val = filter(cert);
-            if (val !== undefined) {
-                map.set(val, (map.get(val) || 0) + 1);
-            }
-        }
-    });
-    return map;
-};
-
-const getOptions = (
-    certs: FilteredCert[],
-    filterType: keyof FilterResult,
-    filter: (cert: models.RepoCert) => string,
-    keys: string[],
-    getIcon?: (k: string) => React.ReactNode,
-    getLabel?: (k: string) => string
-) => {
-    const counts = getCounts(certs, filterType, filter, keys);
-    return keys.map(k => ({
-        label: getLabel ? getLabel(k) : k,
-        icon: getIcon && getIcon(k),
-        count: counts.get(k)
-    }));
-};
 
 interface CertsFilterProps {
     certs: FilteredCert[];
@@ -110,7 +79,7 @@ const CertTypeFilter = (props: CertsFilterProps) => (
         label='CERT TYPE'
         selected={props.pref.certTypeFilter.map(getCertTypeLabel)}
         setSelected={s => props.onChange({...props.pref, certTypeFilter: s.map(getCertTypeValue)})}
-        options={getOptions(props.certs, 'certType', cert => cert.certType, ['https', 'ssh'], getCertTypeIcon, getCertTypeLabel)}
+        options={getFilterOptions(props.certs, 'certType', cert => cert.certType, ['https', 'ssh'], getCertTypeIcon, getCertTypeLabel)}
     />
 );
 

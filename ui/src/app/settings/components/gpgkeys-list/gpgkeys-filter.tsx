@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
+import {getFilterCounts} from '../list-filter-utils';
 
 export interface GpgKeysListPreferences {
     keyTypeFilter: string[];
@@ -33,22 +34,6 @@ export function filterGpgKeys(gpgkeys: FilteredGpgKey[]): models.GnuPGPublicKey[
     return gpgkeys.filter(gpgkey => Object.values(gpgkey.filterResult).every(v => v));
 }
 
-const getCounts = (gpgkeys: FilteredGpgKey[], filterType: keyof FilterResult, filter: (gpgkey: models.GnuPGPublicKey) => string | undefined, init?: string[]) => {
-    const map = new Map<string, number>();
-    if (init) {
-        init.forEach(key => map.set(key, 0));
-    }
-    gpgkeys.forEach(gpgkey => {
-        if (Object.keys(gpgkey.filterResult).every((key: keyof FilterResult) => key === filterType || gpgkey.filterResult[key])) {
-            const val = filter(gpgkey);
-            if (val !== undefined) {
-                map.set(val, (map.get(val) || 0) + 1);
-            }
-        }
-    });
-    return map;
-};
-
 interface GpgKeysFilterProps {
     gpgkeys: FilteredGpgKey[];
     pref: GpgKeysListPreferences;
@@ -61,7 +46,7 @@ const getKeyTypeIcon = () => <i className='fa fa-key' />;
 const KeyTypeFilter = React.memo((props: GpgKeysFilterProps) => {
     const keyTypeOptions = React.useMemo(() => {
         const keyTypes = Array.from(new Set(props.gpgkeys.map(gpgkey => gpgkey.subType?.toLowerCase()).filter((type): type is string => !!type && type.trim() !== ''))).sort();
-        const counts = getCounts(props.gpgkeys, 'keyType', gpgkey => gpgkey.subType?.toLowerCase(), keyTypes);
+        const counts = getFilterCounts(props.gpgkeys, 'keyType', gpgkey => gpgkey.subType?.toLowerCase(), keyTypes);
         return keyTypes.map(type => ({
             label: type.toUpperCase(),
             icon: getKeyTypeIcon(),

@@ -1,7 +1,7 @@
-import {DropDownMenu, ErrorNotification, NotificationType, Tooltip} from 'argo-ui';
+import {ErrorNotification, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import {clusterName, ConnectionStateIcon, DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
+import {ActionMenu, clusterName, ConnectionStateIcon, DataLoader, EmptyState, IconColumn, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -177,7 +177,8 @@ export const ClustersList = () => {
                                                     <div className='argo-table-list argo-table-list--clickable'>
                                                         <div className='argo-table-list__head'>
                                                             <div className='row'>
-                                                                <div className='columns small-3 sortable' onClick={() => requestSort('name')}>
+                                                                <IconColumn />
+                                                                <div className='columns small-2 sortable' onClick={() => requestSort('name')}>
                                                                     NAME
                                                                     {sortIcon('name')}
                                                                 </div>
@@ -198,8 +199,8 @@ export const ClustersList = () => {
                                                                 key={cluster.server}
                                                                 onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`)}>
                                                                 <div className='row'>
-                                                                    <div className='columns small-3'>
-                                                                        <i className='icon argo-icon-hosts' />
+                                                                    <IconColumn icon='argo-icon-hosts' />
+                                                                    <div className='columns small-2'>
                                                                         <Tooltip content={clusterName(cluster.name)}>
                                                                             <span>{clusterName(cluster.name)}</span>
                                                                         </Tooltip>
@@ -212,14 +213,7 @@ export const ClustersList = () => {
                                                                     <div className='columns small-2'>{cluster.info.serverVersion}</div>
                                                                     <div className='columns small-2'>
                                                                         <ConnectionStateIcon state={cluster.info.connectionState} /> {cluster.info.connectionState.status}
-                                                                        <DropDownMenu
-                                                                            anchor={() => (
-                                                                                <button
-                                                                                    className='argo-button argo-button--light argo-button--lg argo-button--short'
-                                                                                    onMouseDown={() => document.body.click()}>
-                                                                                    <i className='fa fa-ellipsis-v' />
-                                                                                </button>
-                                                                            )}
+                                                                        <ActionMenu
                                                                             items={[
                                                                                 {
                                                                                     title: 'Delete',

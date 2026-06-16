@@ -1,10 +1,10 @@
-import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Form, FormApi, Text, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
-import {DataLoader, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
+import {ActionMenu, DataLoader, EmptyState, ErrorNotification, IconColumn, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -233,7 +233,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-table-list'>
                                                     <div className='argo-table-list__head'>
                                                         <div className='row'>
-                                                            <div className='columns small-1 argo-table-list__icon-column' />
+                                                            <IconColumn />
                                                             <div className='columns small-3 sortable' onClick={() => requestSort('serverName')}>
                                                                 SERVER NAME
                                                                 {sortIcon('serverName')}
@@ -251,23 +251,14 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                     {certsToDisplay.map(cert => (
                                                         <div className='argo-table-list__row' key={cert.certType + '_' + cert.certSubType + '_' + cert.serverName}>
                                                             <div className='row'>
-                                                                <div className='columns small-1 argo-table-list__icon-column'>
-                                                                    <i className='icon argo-icon-git' />
-                                                                </div>
+                                                                <IconColumn icon='argo-icon-git' />
                                                                 <div className='columns small-3'>{cert.serverName}</div>
                                                                 <div className='columns small-3'>
                                                                     {cert.certType} {cert.certSubType}
                                                                 </div>
                                                                 <div className='columns small-5'>
                                                                     {cert.certInfo}
-                                                                    <DropDownMenu
-                                                                        anchor={() => (
-                                                                            <button
-                                                                                className='argo-button argo-button--light argo-button--lg argo-button--short'
-                                                                                onMouseDown={() => document.body.click()}>
-                                                                                <i className='fa fa-ellipsis-v' />
-                                                                            </button>
-                                                                        )}
+                                                                    <ActionMenu
                                                                         items={[
                                                                             {
                                                                                 title: 'Remove',

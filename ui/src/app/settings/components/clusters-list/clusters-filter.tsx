@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 import {COLORS} from '../../../shared/components/colors';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
+import {getFilterCounts, getFilterOptions} from '../list-filter-utils';
 
 export interface ClustersListPreferences {
     statusFilter: string[];
@@ -48,32 +49,6 @@ export function filterClusters(clusters: FilteredCluster[]): models.Cluster[] {
     return clusters.filter(cluster => Object.values(cluster.filterResult).every(v => v));
 }
 
-const getCounts = (clusters: FilteredCluster[], filterType: keyof FilterResult, filter: (cluster: models.Cluster) => string, init?: string[]) => {
-    const map = new Map<string, number>();
-    if (init) {
-        init.forEach(key => map.set(key, 0));
-    }
-    clusters
-        .filter(cluster => filter(cluster) && Object.keys(cluster.filterResult).every((key: keyof FilterResult) => key === filterType || cluster.filterResult[key]))
-        .forEach(cluster => map.set(filter(cluster), (map.get(filter(cluster)) || 0) + 1));
-    return map;
-};
-
-const getOptions = (
-    clusters: FilteredCluster[],
-    filterType: keyof FilterResult,
-    filter: (cluster: models.Cluster) => string,
-    keys: string[],
-    getIcon?: (k: string) => React.ReactNode
-) => {
-    const counts = getCounts(clusters, filterType, filter, keys);
-    return keys.map(k => ({
-        label: k,
-        icon: getIcon && getIcon(k),
-        count: counts.get(k)
-    }));
-};
-
 interface ClustersFilterProps {
     clusters: FilteredCluster[];
     pref: ClustersListPreferences;
@@ -99,7 +74,7 @@ const StatusFilter = (props: ClustersFilterProps) => (
         label='CONNECTION STATUS'
         selected={props.pref.statusFilter}
         setSelected={s => props.onChange({...props.pref, statusFilter: s})}
-        options={getOptions(
+        options={getFilterOptions(
             props.clusters,
             'status',
             cluster => cluster.info.connectionState.status,
@@ -112,7 +87,7 @@ const StatusFilter = (props: ClustersFilterProps) => (
 const CredentialFilter = React.memo((props: ClustersFilterProps) => {
     const credentialOptions = React.useMemo(() => {
         const credTypes = Array.from(new Set(props.clusters.map(cluster => getCredentialType(cluster))));
-        const counts = getCounts(props.clusters, 'credential', getCredentialType, credTypes);
+        const counts = getFilterCounts(props.clusters, 'credential', getCredentialType, credTypes);
         return credTypes.map(type => ({
             label: type,
             count: counts.get(type)

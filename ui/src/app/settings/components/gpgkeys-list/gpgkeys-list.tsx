@@ -1,10 +1,10 @@
-import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Form, FormApi, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
-import {DataLoader, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
+import {ActionMenu, DataLoader, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -209,14 +209,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                                                                 <div className='columns small-3'>{gpgkey.subType.toUpperCase()}</div>
                                                                 <div className='columns small-6'>
                                                                     {gpgkey.owner}
-                                                                    <DropDownMenu
-                                                                        anchor={() => (
-                                                                            <button
-                                                                                className='argo-button argo-button--light argo-button--lg argo-button--short'
-                                                                                onMouseDown={() => document.body.click()}>
-                                                                                <i className='fa fa-ellipsis-v' />
-                                                                            </button>
-                                                                        )}
+                                                                    <ActionMenu
                                                                         items={[
                                                                             {
                                                                                 title: 'Remove',

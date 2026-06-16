@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 import {COLORS} from '../../../shared/components/colors';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
+import {capitalize, getFilterOptions} from '../list-filter-utils';
 
 export interface ReposListPreferences {
     typeFilter: string[];
@@ -93,38 +94,6 @@ export function filterRepos(repos: FilteredRepo[]): UnifiedRepo[] {
     return repos.filter(repo => Object.values(repo.filterResult).every(v => v));
 }
 
-const getCounts = (repos: FilteredRepo[], filterType: keyof FilterResult, filter: (repo: UnifiedRepo) => string | undefined, init?: string[]) => {
-    const map = new Map<string, number>();
-    if (init) {
-        init.forEach(key => map.set(key, 0));
-    }
-    repos.forEach(repo => {
-        if (Object.keys(repo.filterResult).every((key: keyof FilterResult) => key === filterType || repo.filterResult[key])) {
-            const val = filter(repo);
-            if (val !== undefined) {
-                map.set(val, (map.get(val) || 0) + 1);
-            }
-        }
-    });
-    return map;
-};
-
-const getOptions = (
-    repos: FilteredRepo[],
-    filterType: keyof FilterResult,
-    filter: (repo: UnifiedRepo) => string | undefined,
-    keys: string[],
-    getIcon?: (k: string) => React.ReactNode,
-    getLabel?: (k: string) => string
-) => {
-    const counts = getCounts(repos, filterType, filter, keys);
-    return keys.map(k => ({
-        label: getLabel ? getLabel(k) : k.charAt(0).toUpperCase() + k.slice(1),
-        icon: getIcon && getIcon(k),
-        count: counts.get(k)
-    }));
-};
-
 const optionsFrom = (options: string[], filter: string[]) => {
     return options.filter(s => filter.indexOf(s) === -1).map(item => ({label: item}));
 };
@@ -165,7 +134,7 @@ const TypeFilter = (props: ReposFilterProps) => (
         label='TYPE'
         selected={props.pref.typeFilter.map(getTypeLabel)}
         setSelected={s => props.onChange({...props.pref, typeFilter: s.map(v => v.toLowerCase())})}
-        options={getOptions(props.repos, 'type', getRepoType, ['git', 'helm', 'oci'], getTypeIcon, getTypeLabel)}
+        options={getFilterOptions(props.repos, 'type', getRepoType, ['git', 'helm', 'oci'], getTypeIcon, getTypeLabel)}
     />
 );
 
@@ -184,12 +153,13 @@ const StatusFilter = (props: ReposFilterProps) => (
         label='CONNECTION STATUS'
         selected={props.pref.statusFilter}
         setSelected={s => props.onChange({...props.pref, statusFilter: s})}
-        options={getOptions(
+        options={getFilterOptions(
             props.repos,
             'status',
             repo => getConnectionState(repo)?.status,
             [models.ConnectionStatuses.Successful, models.ConnectionStatuses.Failed, models.ConnectionStatuses.Unknown],
-            getStatusIcon
+            getStatusIcon,
+            capitalize
         )}
     />
 );
@@ -199,7 +169,7 @@ const PermissionFilter = (props: ReposFilterProps) => (
         label='PERMISSION'
         selected={props.pref.credentialTypeFilter.map(s => s.charAt(0).toUpperCase() + s.slice(1))}
         setSelected={s => props.onChange({...props.pref, credentialTypeFilter: s.map(v => v.toLowerCase())})}
-        options={getOptions(props.repos, 'credentialType', repo => (isWrite(repo) ? 'write' : 'read'), ['read', 'write'])}
+        options={getFilterOptions(props.repos, 'credentialType', repo => (isWrite(repo) ? 'write' : 'read'), ['read', 'write'], undefined, capitalize)}
         radio={true}
     />
 );
@@ -209,7 +179,7 @@ const CategoryFilter = (props: ReposFilterProps) => (
         label='CATEGORY'
         selected={props.pref.templateFilter.map(s => s.charAt(0).toUpperCase() + s.slice(1))}
         setSelected={s => props.onChange({...props.pref, templateFilter: s.map(v => v.toLowerCase())})}
-        options={getOptions(props.repos, 'template', repo => (isTemplate(repo) ? 'template' : 'repository'), ['repository', 'template'])}
+        options={getFilterOptions(props.repos, 'template', repo => (isTemplate(repo) ? 'template' : 'repository'), ['repository', 'template'], undefined, capitalize)}
     />
 );
 

@@ -1,10 +1,11 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
+@import '../../../shared/config.scss';
 
 .clusters-list {
     &__info-banner {
         position: fixed;
-        left: 230px;
+        left: $sidebar-width;
         right: 0;
         top: 100px;
         display: flex;
@@ -28,27 +29,5 @@
 
     &__banner-spacer {
         height: 35px;
-    }
-}
-
-.help-text {
-    color: $argo-color-gray-8;
-    @include themify($themes) {
-        color: themed('text-2');
-    }
-    a {
-        color: #007bff;
-        @include themify($themes) {
-            color: themed('light-argo-teal-7');
-        }
-        text-decoration: none;
-        transition: color 0.3s ease;
-
-        &:hover {
-            color: #0056b3;
-            @include themify($themes) {
-                color: themed('light-argo-teal-5');
-            }
-        }
     }
 }

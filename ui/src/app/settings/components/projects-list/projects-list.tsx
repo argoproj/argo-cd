@@ -2,7 +2,7 @@ import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'argo-ui';
 
-import {DataLoader, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, IconColumn, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -74,6 +74,7 @@ export function ProjectsList() {
                                             <div className='argo-table-list argo-table-list--clickable'>
                                                 <div className='argo-table-list__head'>
                                                     <div className='row'>
+                                                        <IconColumn />
                                                         <div className='columns small-3 sortable' onClick={() => requestSort('name')}>
                                                             NAME
                                                             {sortIcon('name')}
@@ -87,9 +88,8 @@ export function ProjectsList() {
                                                 {projectsToDisplay.map(proj => (
                                                     <div className='argo-table-list__row' key={proj.metadata.name} onClick={() => ctx.navigation.goto(`./${proj.metadata.name}`)}>
                                                         <div className='row'>
-                                                            <div className='columns small-3'>
-                                                                <i className='fa fa-object-group' /> {proj.metadata.name}
-                                                            </div>
+                                                            <IconColumn icon='fa fa-object-group' />
+                                                            <div className='columns small-3'>{proj.metadata.name}</div>
                                                             <div className='columns small-6'>{proj.spec.description}</div>
                                                         </div>
                                                     </div>
