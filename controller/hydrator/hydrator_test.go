@@ -763,7 +763,7 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 	d.EXPECT().IsManagedHydrationKey(mock.Anything).Return(true)
 	app1 := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app2 := setTestAppPhase(newTestApp("test-app-2"), v1alpha1.HydrateOperationPhaseHydrating)
-	hydrationKey := getHydrationQueueKey(app1)
+	hydrationKey := GetHydrationQueueKey(app1)
 
 	// getAppsForHydrationKey returns two apps
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app1, *app2}}, nil)
@@ -807,7 +807,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	app2 := newTestApp("test-app-2")
 	app2.Spec.SourceHydrator.SyncSource.Path = "something/else"
 	app2 = setTestAppPhase(app2, v1alpha1.HydrateOperationPhaseHydrating)
-	hydrationKey := getHydrationQueueKey(app1)
+	hydrationKey := GetHydrationQueueKey(app1)
 
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app1, *app2}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
@@ -853,7 +853,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	app2 := newTestApp("test-app-2")
 	app2.Spec.SourceHydrator.SyncSource.Path = "something/else"
 	app2 = setTestAppPhase(app2, v1alpha1.HydrateOperationPhaseHydrating)
-	hydrationKey := getHydrationQueueKey(app1)
+	hydrationKey := GetHydrationQueueKey(app1)
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app1, *app2}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
 	h := &Hydrator{dependencies: d, repoGetter: r}
@@ -900,7 +900,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
 	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
-	hydrationKey := getHydrationQueueKey(app)
+	hydrationKey := GetHydrationQueueKey(app)
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
 	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
@@ -950,7 +950,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredential
 	cc := commitservermocks.NewCommitServiceClient(t)
 	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/hydrated-repo"
-	hydrationKey := getHydrationQueueKey(app)
+	hydrationKey := GetHydrationQueueKey(app)
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
 	proj := newTestProject()
 	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, "https://example.com/hydrated-repo")
@@ -1732,8 +1732,8 @@ func TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated(t *testing.
 	fresh.Spec.SourceHydrator.SyncSource.Path = "fresh"
 	require.Nil(t, fresh.Status.SourceHydrator.CurrentOperation, "precondition: fresh app starts with nil CurrentOperation")
 
-	hydrationKey := getHydrationQueueKey(hydrating)
-	require.Equal(t, hydrationKey, getHydrationQueueKey(fresh), "both apps must share the hydration key")
+	hydrationKey := GetHydrationQueueKey(hydrating)
+	require.Equal(t, hydrationKey, GetHydrationQueueKey(fresh), "both apps must share the hydration key")
 
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*hydrating, *fresh}}, nil)
 	expectSuccessfulHydratePipeline(d, r, rc, cc, 2)
@@ -1778,7 +1778,7 @@ func TestProcessHydrationQueueItem_MarksHydratingBeforeValidation(t *testing.T) 
 
 	app := newTestApp("fresh-app")
 	require.Nil(t, app.Status.SourceHydrator.CurrentOperation)
-	hydrationKey := getHydrationQueueKey(app)
+	hydrationKey := GetHydrationQueueKey(app)
 
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
 	// Validation fails for every app in the group, so hydrate() is never called - but markAppsHydrating
@@ -1820,8 +1820,8 @@ func TestProcessHydrationQueueItem_CommitsCompletePathSet(t *testing.T) {
 	fresh := newTestApp("fresh-app")
 	fresh.Spec.SourceHydrator.SyncSource.Path = "fresh"
 
-	hydrationKey := getHydrationQueueKey(ready)
-	require.Equal(t, hydrationKey, getHydrationQueueKey(fresh), "both apps must share the hydration key")
+	hydrationKey := GetHydrationQueueKey(ready)
+	require.Equal(t, hydrationKey, GetHydrationQueueKey(fresh), "both apps must share the hydration key")
 
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*ready, *fresh}}, nil)
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestProject(), nil)
@@ -1884,7 +1884,7 @@ func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
 		items = append(items, *app)
 	}
 
-	hydrationKey := getHydrationQueueKey(&items[0])
+	hydrationKey := GetHydrationQueueKey(&items[0])
 	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: items}, nil)
 	expectSuccessfulHydratePipeline(d, r, rc, cc, totalApps)
 
@@ -1932,7 +1932,7 @@ func TestProcessAppHydrateQueueItem_NotOwnedShardSkips(t *testing.T) {
 func TestProcessHydrationQueueItem_NotOwnedShardSkips(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
-	hydrationKey := getHydrationQueueKey(newTestApp("test-app"))
+	hydrationKey := GetHydrationQueueKey(newTestApp("test-app"))
 
 	d.EXPECT().IsManagedHydrationKey(hydrationKey).Return(false).Once()
 

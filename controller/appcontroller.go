@@ -2479,18 +2479,25 @@ func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application)
 	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.REGEXP)
 }
 
-// enqueueAppHydration adds an app to the per-app hydrate queue regardless of which cluster shard
-// manages its destination cluster. Hydration ownership is keyed by the hydration group (not the
-// destination cluster), so the owning shard — whose informer observes all apps — must be able to
-// discover group members on clusters it does not manage. This deliberately bypasses canProcessApp's
-// cluster check; ProcessAppHydrateQueueItem drops apps whose hydration key this shard does not own.
+// enqueueAppHydration adds an app to the per-app hydrate queue when this shard owns its hydration
+// group. Hydration ownership is keyed by the hydration group (not the destination cluster), so the
+// owning shard — whose informer observes all apps — must be able to discover group members on
+// clusters it does not manage. This deliberately bypasses canProcessApp's cluster check. Every
+// shard watches all applications, so non-owning shards can skip enqueueing here rather than feeding
+// the queue and dropping items later in ProcessAppHydrateQueueItem.
 func (ctrl *ApplicationController) enqueueAppHydration(obj any) {
 	if ctrl.hydrator == nil {
 		return
 	}
-	if app, ok := obj.(*appv1.Application); ok && app.Spec.SourceHydrator != nil && ctrl.isAppNamespaceAllowed(app) {
-		ctrl.appHydrateQueue.AddRateLimited(app.QualifiedName())
+	app, ok := obj.(*appv1.Application)
+	if !ok || app.Spec.SourceHydrator == nil || !ctrl.isAppNamespaceAllowed(app) {
+		return
 	}
+	hydrationKey := hydrator.GetHydrationQueueKey(app)
+	if !ctrl.clusterSharding.IsManagedHydrationKey(hydrationKey) {
+		return
+	}
+	ctrl.appHydrateQueue.AddRateLimited(app.QualifiedName())
 }
 
 func (ctrl *ApplicationController) canProcessApp(obj any) bool {
@@ -2609,8 +2616,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	_, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
-				// Hydration ownership is independent of cluster sharding, so discover apps for the
-				// hydrate queue before the canProcessApp (cluster) gate.
+				// Owning shard discovers hydrator apps before the canProcessApp (cluster) gate.
 				ctrl.enqueueAppHydration(obj)
 				if !ctrl.canProcessApp(obj) {
 					return
@@ -2625,8 +2631,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 			},
 			UpdateFunc: func(old, new any) {
-				// Hydration ownership is independent of cluster sharding, so discover apps for the
-				// hydrate queue before the canProcessApp (cluster) gate.
+				// Owning shard discovers hydrator apps before the canProcessApp (cluster) gate.
 				ctrl.enqueueAppHydration(new)
 				if !ctrl.canProcessApp(new) {
 					return

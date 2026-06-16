@@ -141,7 +141,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	// fed regardless of cluster), but only the shard that owns the key performs discovery and
 	// hydration for it. Non-owners drop the item here before any repo-server work or status writes,
 	// which guarantees exactly one shard hydrates the group.
-	hydrationKey := getHydrationQueueKey(app)
+	hydrationKey := GetHydrationQueueKey(app)
 	if !h.dependencies.IsManagedHydrationKey(hydrationKey) {
 		logCtx.Debug("Skipping app hydrate queue item: hydration key not owned by this shard")
 		return
@@ -175,7 +175,9 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx.Debug("Successfully processed app hydrate queue item")
 }
 
-func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
+// GetHydrationQueueKey returns the deduplication key for a hydration group derived from the
+// application's source hydrator coordinates.
+func GetHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 	hydrateToSource := app.Spec.GetHydrateToSource()
 	key := types.HydrationQueueKey{
 		SourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
@@ -369,7 +371,7 @@ func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) 
 		if app.Spec.SourceHydrator == nil {
 			continue
 		}
-		appKey := getHydrationQueueKey(&app)
+		appKey := GetHydrationQueueKey(&app)
 		if appKey != hydrationKey {
 			continue
 		}
