@@ -233,6 +233,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-table-list'>
                                                     <div className='argo-table-list__head'>
                                                         <div className='row'>
+                                                            <div className='columns small-1 argo-table-list__icon-column' />
                                                             <div className='columns small-3 sortable' onClick={() => requestSort('serverName')}>
                                                                 SERVER NAME
                                                                 {sortIcon('serverName')}
@@ -241,7 +242,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                                 CERT TYPE
                                                                 {sortIcon('certType')}
                                                             </div>
-                                                            <div className='columns small-6 sortable' onClick={() => requestSort('certInfo')}>
+                                                            <div className='columns small-5 sortable' onClick={() => requestSort('certInfo')}>
                                                                 CERT INFO
                                                                 {sortIcon('certInfo')}
                                                             </div>
@@ -250,13 +251,14 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                     {certsToDisplay.map(cert => (
                                                         <div className='argo-table-list__row' key={cert.certType + '_' + cert.certSubType + '_' + cert.serverName}>
                                                             <div className='row'>
-                                                                <div className='columns small-3'>
-                                                                    <i className='icon argo-icon-git' /> {cert.serverName}
+                                                                <div className='columns small-1 argo-table-list__icon-column'>
+                                                                    <i className='icon argo-icon-git' />
                                                                 </div>
+                                                                <div className='columns small-3'>{cert.serverName}</div>
                                                                 <div className='columns small-3'>
                                                                     {cert.certType} {cert.certSubType}
                                                                 </div>
-                                                                <div className='columns small-6'>
+                                                                <div className='columns small-5'>
                                                                     {cert.certInfo}
                                                                     <DropDownMenu
                                                                         anchor={() => (

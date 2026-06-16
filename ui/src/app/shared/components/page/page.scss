@@ -99,8 +99,10 @@
     padding: 1em;
 }
 
+
 .argo-table-list__row {
     .columns:last-child {
+        padding-right: 40px;
         .argo-dropdown {
             position: absolute;
             right: 0;
@@ -111,9 +113,25 @@
 }
 
 .argo-table-list {
+    // Lay each row out as a single no-wrap flex line. Foundation's float grid lets columns wrap
+    // onto a second row once their combined min-width no longer fits; with flex + nowrap the
+    // columns shrink to their min-width (and ellipsize) instead of wrapping.
+    .row {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+
+        // Foundation adds clearfix pseudo-elements for the float grid; they would become stray
+        // flex items (and add a trailing gap) once the row is a flex container, so hide them.
+        &::before,
+        &::after {
+            display: none;
+        }
+    }
+
     // Ensure table columns keep a usable minimum width instead of collapsing on narrow screens.
     // Foundation gives each column 15px of left/right gutter padding, which eats most of a narrow
-    // column. Scale the gutter with the viewport (5px on small screens up to the default 15px on
+    // column. Scale the gutter with the viewport (2px on small screens up to the default 15px on
     // wide ones) so more of the width is usable content.
     .columns {
         min-width: 60px;
