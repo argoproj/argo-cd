@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -32,6 +33,10 @@ type Service struct {
 	// is GPG-signed with the configured key, locally verified, and only then
 	// pushed — there is no unsigned fallback.
 	signingConfig *gpgsign.Config
+	// branchLock serializes the read-modify-write of a given target branch so
+	// concurrent requests for the same branch don't race each other. Keyed by
+	// repo URL + target branch.
+	branchLock sync.KeyLock
 }
 
 // NewService returns a new instance of the commit service. When signingConfig
@@ -41,6 +46,7 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, sig
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 		signingConfig:     signingConfig,
+		branchLock:        sync.NewKeyLock(),
 	}
 }
 
@@ -125,6 +131,15 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	if r.SyncBranch == "" {
 		return "", "", errors.New("sync branch is required")
 	}
+
+	// Serialize same-branch requests so they don't clone the same base and then
+	// race on the push (the loser hits a non-fast-forward rejection after a
+	// wasted sign cycle). Per-replica only; cross-replica safety still relies on
+	// git rejecting non-fast-forward pushes. The NUL separator can't appear in
+	// either field, so distinct (repo, branch) pairs never share a key.
+	branchKey := r.Repo.Repo + "\x00" + r.TargetBranch
+	s.branchLock.Lock(branchKey)
+	defer s.branchLock.Unlock(branchKey)
 
 	logCtx = logCtx.WithField("repo", r.Repo.Repo)
 	logCtx.Debug("Initiating git client")

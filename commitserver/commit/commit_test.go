@@ -532,6 +532,25 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		assert.ErrorContains(t, err, "verify signature")
 	})
 
+	t.Run("does not push when commit has no signature", func(t *testing.T) {
+		t.Parallel()
+		service, mockRepoClientFactory := newServiceWithMocksAndSigning(t, signingCfg)
+		c := gitmocks.NewClient(t)
+		commonMockExpectations(c)
+		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
+		// "N" is git's %G? code for "no signature"; it must be rejected like any
+		// other non-good status so an unsigned commit is never pushed.
+		c.EXPECT().HeadSignatureStatus().Return("N", "", nil).Once()
+		c.EXPECT().CommitSHA().Return("never-pushed-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()
+
+		_, err := service.CommitHydratedManifests(t.Context(), baseRequest)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "signature status")
+		// Push is intentionally NOT in the mock expectations — if the impl
+		// reaches push, the mocks.Client strict mode in NewClient will fail.
+	})
+
 	t.Run("does not push when signed by a different key", func(t *testing.T) {
 		t.Parallel()
 		service, mockRepoClientFactory := newServiceWithMocksAndSigning(t, signingCfg)
