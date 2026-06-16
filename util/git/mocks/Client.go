@@ -411,7 +411,7 @@ type Client_Commit_Call struct {
 // Commit is a helper method to define mock.On call
 //   - message string
 //   - signingKeyID string
-func (_e *Client_Expecter) Commit(message interface{}, signingKeyID interface{}) *Client_Commit_Call {
+func (_e *Client_Expecter) Commit(message any, signingKeyID any) *Client_Commit_Call {
 	return &Client_Commit_Call{Call: _e.mock.On("Commit", message, signingKeyID)}
 }
 
@@ -1229,7 +1229,7 @@ type Client_Push_Call struct {
 
 // Push is a helper method to define mock.On call
 //   - branch string
-func (_e *Client_Expecter) Push(branch interface{}) *Client_Push_Call {
+func (_e *Client_Expecter) Push(branch any) *Client_Push_Call {
 	return &Client_Push_Call{Call: _e.mock.On("Push", branch)}
 }
 
