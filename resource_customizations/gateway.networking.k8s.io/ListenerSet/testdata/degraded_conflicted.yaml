@@ -1,0 +1,57 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: example-listenerset
+  namespace: default
+spec:
+  parentRef:
+    name: example-gateway
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+status:
+  conditions:
+    - lastTransitionTime: "2026-06-15T13:38:39Z"
+      message: ListenerSet has no valid listeners
+      observedGeneration: 1
+      reason: ListenersNotValid
+      status: "False"
+      type: Programmed
+    - lastTransitionTime: "2026-06-15T13:28:40Z"
+      message: ListenerSet has no valid listeners
+      observedGeneration: 1
+      reason: ListenersNotValid
+      status: "False"
+      type: Accepted
+  listeners:
+    - attachedRoutes: 1
+      conditions:
+        - lastTransitionTime: "2026-06-15T13:38:39Z"
+          message: Listener conflicts with at least one other port 80 listener attached to the same Gateway because it uses the same hostname.
+          observedGeneration: 1
+          reason: HostnameConflict
+          status: "False"
+          type: Programmed
+        - lastTransitionTime: "2026-06-15T13:28:40Z"
+          message: Listener is accepted
+          observedGeneration: 1
+          reason: Listener conflicts with at least one other port 80 listener attached to the same Gateway because it uses the same hostname.
+          status: "False"
+          type: Accepted
+        - lastTransitionTime: "2026-06-15T13:28:40Z"
+          message: All references are resolved
+          observedGeneration: 1
+          reason: ResolvedRefs
+          status: "True"
+          type: ResolvedRefs
+        - lastTransitionTime: "2026-06-15T13:28:40Z"
+          message: Listener conflicts with at least one other port 80 listener attached to the same Gateway because it uses the same hostname.
+          observedGeneration: 1
+          reason: HostnameConflict
+          status: "True"
+          type: Conflicted
+      name: http
+      supportedKinds:
+        - group: gateway.networking.k8s.io
+          kind: HTTPRoute
