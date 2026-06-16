@@ -57,6 +57,7 @@ We use [PR title checker](https://github.com/marketplace/actions/pr-title-checke
 * `docs` - Your PR improves the documentation
 * `chore` - Your PR improves any internals of Argo CD, such as the build process, unit tests, etc
 * `refactor` - Your PR refactors the code base, without adding new features or fixing bugs
+* `revert` - Your PR reverts a previous commit
 
 Please prefix the title of your PR with one of the valid categories. For example, if you chose the title your PR `Add documentation for GitHub SSO integration`, please use `docs: Add documentation for GitHub SSO integration` instead.
 

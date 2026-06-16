@@ -15,6 +15,7 @@ import {ApplicationResourceEvents} from '../application-resource-events/applicat
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationSummary} from '../application-summary/application-summary';
+import {AppSetResourceNodePreview} from './appset-resource-node-preview';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
@@ -35,11 +36,16 @@ interface ResourceDetailsProps {
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
-    const [activeContainer, setActiveContainer] = useState();
+    const [activeContainer, setActiveContainer] = useState<number | null>(null);
     const appContext = React.useContext(Context);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
+
+    React.useEffect(() => {
+        setActiveContainer(null);
+    }, [selectedNodeKey]);
+
     const [pageNumber, setPageNumber] = React.useState(0);
     const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
     const handleCollapse = (i: number, isCollapsed: boolean) => {
@@ -57,7 +63,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         tabs: Tab[],
         execEnabled: boolean,
         execAllowed: boolean,
-        logsAllowed: boolean
+        logsAllowed: boolean,
+        controlledState: {summary: models.ResourceStatus; state: models.ResourceDiff} | null
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -93,8 +100,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             }
 
             const onClickContainer = (group: any, i: number, activeTab: string) => {
-                setActiveContainer(group.offset + i);
-                SelectNode(selectedNodeKey, activeContainer, activeTab, appContext);
+                const newIndex = group.offset + i;
+                setActiveContainer(newIndex);
+                SelectNode(selectedNodeKey, newIndex, activeTab, appContext);
             };
 
             if (logsAllowed) {
@@ -142,6 +150,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     }
                 ]);
             }
+        }
+        if (node?.kind === 'ApplicationSet' && node?.group === 'argoproj.io') {
+            const appSetSyncStatus = controlledState?.summary?.status || SyncStatuses.Unknown;
+            tabs.push({
+                title: 'PREVIEW',
+                key: 'preview',
+                badge: appSetSyncStatus === SyncStatuses.OutOfSync ? '!' : null,
+                content: <AppSetResourceNodePreview liveAppSet={state} targetAppSet={controlledState?.state?.targetState} syncStatus={appSetSyncStatus} />
+            });
         }
         if (state) {
             extensionTabs.forEach((tabExtensions, i) => {
@@ -257,7 +274,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         if (controlled && controlled.targetState) {
                             resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
                         }
-                        const liveState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, resQuery).catch(() => null);
+                        const liveState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, resQuery).catch((): null => null);
                         const events =
                             (liveState &&
                                 (await services.applications.resourceEvents(application.metadata.name, application.metadata.namespace, {
@@ -273,16 +290,16 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         } else {
                             const childPod = AppUtils.findChildPod(selectedNode, tree);
                             if (childPod) {
-                                podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch(() => null);
+                                podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch((): null => null);
                             }
                             childResources = AppUtils.findChildResources(selectedNode, tree);
                         }
 
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
-                        const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
-                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
-                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
+                        const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
                         return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
                     }}>
@@ -350,7 +367,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     ],
                                     data.execEnabled,
                                     data.execAllowed,
-                                    data.logsAllowed
+                                    data.logsAllowed,
+                                    data.controlledState
                                 )}
                                 selectedTabKey={tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}

@@ -40,7 +40,7 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
-				log.Fatalf("No context found. Login using `argocd login`")
+				log.Fatal("No context found. Login using `argocd login`")
 			}
 			configCtx, err := localCfg.ResolveContext(localCfg.CurrentContext)
 			errors.CheckError(err)

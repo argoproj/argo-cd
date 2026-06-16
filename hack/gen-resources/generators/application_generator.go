@@ -84,7 +84,7 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 			return err
 		}
 		log.Printf("Pick destination %q", destination)
-		log.Printf("Create application")
+		log.Print("Create application")
 		_, err = applications.Create(context.TODO(), &v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "application-",
@@ -105,7 +105,7 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (generator *ApplicationGenerator) Clean(opts *util.GenerateOpts) error {
-	log.Printf("Clean applications")
+	log.Print("Clean applications")
 	applications := generator.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
 	return applications.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",

@@ -70,7 +70,7 @@ This will start all Argo CD services and the UI in a Docker container and expose
 * The Argo CD UI server on port 4000
 * The Helm registry server on port 5000
 
-You can now use either the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
+You can now use the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
 
 As an alternative to using the above command line parameters each time you call `argocd` CLI, you can set the following environment variables:
 
@@ -231,7 +231,7 @@ DEV_IMAGE=true DOCKER_PUSH=true make image
 ```
 
 > [!NOTE]
-> The first run of this build task may take a long time because it needs first to build the base image first; however,
+> The first run of this build task may take a long time because it needs to build the base image first; however,
 > once it's done, the build process should be much faster than a regular full image build in Docker.
 
 

@@ -145,16 +145,19 @@ linters:
       strconcat: true
 
     revive:
+      enable-all-rules: false
+      enable-default-rules: true
+      max-open-files: 2048
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
       rules:
-        - name: bool-literal-in-expr
-
         - name: blank-imports
           disabled: true
 
+        - name: bool-literal-in-expr
+
         - name: context-as-argument
           arguments:
-            - allowTypesBefore: '*testing.T,testing.TB'
+            - allow-types-before: '*testing.T,testing.TB'
 
         - name: context-keys-type
           disabled: true
@@ -166,12 +169,9 @@ linters:
 
         - name: early-return
           arguments:
-            - preserveScope
+            - preserve-scope
 
         - name: empty-block
-          disabled: true
-
-        - name: error-naming
           disabled: true
 
         - name: error-return
@@ -181,6 +181,9 @@ linters:
 
         - name: errorf
 
+        - name: exported
+          disabled: true
+
         - name: identical-branches
 
         - name: if-return
@@ -189,7 +192,7 @@ linters:
 
         - name: indent-error-flow
           arguments:
-            - preserveScope
+            - preserve-scope
 
         - name: modifies-parameter
 
@@ -206,7 +209,7 @@ linters:
 
         - name: superfluous-else
           arguments:
-            - preserveScope
+            - preserve-scope
 
         - name: time-equal
 
@@ -215,6 +218,8 @@ linters:
 
         - name: unexported-return
           disabled: true
+
+        - name: unnecessary-format
 
         - name: unnecessary-stmt
 
@@ -232,8 +237,8 @@ linters:
           arguments:
             - - ID
             - - VM
-            - - skipPackageNameChecks: true
-                upperCaseConst: true
+            - - skip-initialism-name-checks: true
+                upper-case-const: true
 
     staticcheck:
       checks:
@@ -254,8 +259,5 @@ linters:
 
     usetesting:
       os-mkdir-temp: false
-
-output:
-  show-stats: false
 
 version: "2"

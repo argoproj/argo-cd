@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/lua"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 )
 
 type HookType string
@@ -98,6 +99,16 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	if err != nil {
 		return false, err
 	}
+	trackingMethodStr, err := ctrl.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return false, err
+	}
+	installationID, err := ctrl.settingsMgr.GetInstallationID()
+	if err != nil {
+		return false, err
+	}
+	trackingMethod := appv1.TrackingMethod(trackingMethodStr)
+	resourceTracking := argoutil.NewResourceTracking()
 
 	var revisions []string
 	for _, src := range app.Spec.GetSources() {
@@ -105,7 +116,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	}
 
 	// Fetch target objects from Git to know which hooks should exist
-	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, nil, proj, true)
 	if err != nil {
 		return false, err
 	}
@@ -135,13 +146,15 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	// Create hooks that don't exist yet
 	createdCnt := 0
 	for key, obj := range expectedHook {
-		// Add app instance label so the hook can be tracked and cleaned up
-		labels := obj.GetLabels()
-		if labels == nil {
-			labels = make(map[string]string)
+		// Apply app instance tracking metadata so the hook can be tracked and cleaned up.
+		// Use the same code path as regular sync resources so the configured
+		// tracking method (label, annotation, annotation+label) is honored.
+		// When the configured tracking method writes a label, this also ensures
+		// the label value is truncated to fit Kubernetes' 63-character label
+		// limit (see https://github.com/argoproj/argo-cd/issues/27527).
+		if err := resourceTracking.SetAppInstance(obj, appLabelKey, app.InstanceName(ctrl.namespace), app.Spec.Destination.Namespace, trackingMethod, installationID); err != nil {
+			return false, fmt.Errorf("failed to set app instance tracking on %s hook %s: %w", hookType, key, err)
 		}
-		labels[appLabelKey] = app.InstanceName(ctrl.namespace)
-		obj.SetLabels(labels)
 
 		logCtx.Infof("Creating %s hook resource: %s", hookType, key)
 		_, err = ctrl.kubectl.CreateResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
