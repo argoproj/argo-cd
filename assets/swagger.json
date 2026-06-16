@@ -5486,6 +5486,10 @@
       "properties": {
         "applicationSet": {
           "$ref": "#/definitions/v1alpha1ApplicationSet"
+        },
+        "outputParameters": {
+          "type": "boolean",
+          "title": "when true, the response carries the parameters produced by the generators instead of the rendered applications"
         }
       }
     },
@@ -5497,6 +5501,13 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1Application"
+          }
+        },
+        "parameters": {
+          "type": "array",
+          "title": "the parameters produced by the generators, each entry being a JSON-encoded parameter set; populated when outputParameters is set on the request",
+          "items": {
+            "type": "string"
           }
         }
       }

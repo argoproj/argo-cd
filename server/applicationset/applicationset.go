@@ -3,6 +3,7 @@ package applicationset
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -366,18 +367,28 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	return updated, nil
 }
 
-func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet) ([]v1alpha1.Application, error) {
+func (s *Server) appSetGenerators(ctx context.Context) map[string]generators.Generator {
 	argoCDDB := s.db
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
-	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer)
+	return generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer)
+}
 
-	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
+func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet) ([]v1alpha1.Application, error) {
+	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, s.appSetGenerators(ctx), &appsetutils.Render{}, s.client)
 	if err != nil {
 		return nil, fmt.Errorf("error generating applications: %w", err)
 	}
 	return apps, nil
+}
+
+func (s *Server) generateApplicationSetParams(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet) ([]map[string]any, error) {
+	params, err := appsettemplate.GenerateParams(logEntry, appset, s.appSetGenerators(ctx), s.client)
+	if err != nil {
+		return nil, fmt.Errorf("error generating parameters: %w", err)
+	}
+	return params, nil
 }
 
 func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, merge bool) (*v1alpha1.ApplicationSet, error) {
@@ -491,7 +502,25 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	// namespace that would lead to error when generating params
 	// for an appset in any namespace feature.
 	// See https://github.com/argoproj/argo-cd/issues/22942
-	apps, err := s.generateApplicationSetApps(ctx, logger.WithField("applicationset", appset.Name), *appset)
+	logEntry := logger.WithField("applicationset", appset.Name)
+
+	if q.GetOutputParameters() {
+		params, err := s.generateApplicationSetParams(ctx, logEntry, *appset)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate parameters of ApplicationSet: %w\n%s", err, logs.String())
+		}
+		res := &applicationset.ApplicationSetGenerateResponse{}
+		for _, p := range params {
+			encoded, err := json.Marshal(p)
+			if err != nil {
+				return nil, fmt.Errorf("unable to encode generated parameters: %w", err)
+			}
+			res.Parameters = append(res.Parameters, string(encoded))
+		}
+		return res, nil
+	}
+
+	apps, err := s.generateApplicationSetApps(ctx, logEntry, *appset)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w\n%s", err, logs.String())
 	}

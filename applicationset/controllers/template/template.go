@@ -79,6 +79,28 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 	return res, applicationSetReason, firstError
 }
 
+// GenerateParams runs the generators of an ApplicationSet and returns the parameter sets they produce,
+// without rendering the template. It is used to expose generator output for debugging, so that template
+// rendering errors can be diagnosed against the parameters the template operates on.
+func GenerateParams(logCtx *log.Entry, applicationSetInfo argov1alpha1.ApplicationSet, g map[string]generators.Generator, client client.Client) ([]map[string]any, error) {
+	var res []map[string]any
+
+	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
+		t, err := generators.Transform(requestedGenerator, g, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]any{}, client)
+		if err != nil {
+			logCtx.WithError(err).WithField("generator", requestedGenerator).
+				Error("error generating params")
+			return nil, err
+		}
+
+		for _, a := range t {
+			res = append(res, a.Params...)
+		}
+	}
+
+	return res, nil
+}
+
 func renderTemplatePatch(r utils.Renderer, app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]any) (*argov1alpha1.Application, error) {
 	replacedTemplate, err := r.Replace(*applicationSetInfo.Spec.TemplatePatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
 	if err != nil {

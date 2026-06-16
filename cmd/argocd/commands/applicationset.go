@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
@@ -248,6 +250,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
 	var appSetNamespace string
+	var outputParameters bool
 	command := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate apps of ApplicationSet rendered templates",
@@ -257,6 +260,9 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 
 	# Generate apps of ApplicationSet rendered templates in a specific namespace
 	argocd appset generate --appset-namespace=APPSET_NAMESPACE <filename or URL> (<filename or URL>...)
+
+	# Output the parameters produced by the generators instead of the rendered templates
+	argocd appset generate --output-parameters <filename or URL> (<filename or URL>...)
 `),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -288,10 +294,16 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			defer utilio.Close(conn)
 
 			req := applicationset.ApplicationSetGenerateRequest{
-				ApplicationSet: appset,
+				ApplicationSet:   appset,
+				OutputParameters: outputParameters,
 			}
 			resp, err := appIf.Generate(ctx, &req)
 			errors.CheckError(err)
+
+			if outputParameters {
+				errors.CheckError(printApplicationSetParameters(resp.Parameters, output))
+				return
+			}
 
 			var appsList []arogappsetv1.Application
 			for i := range resp.Applications {
@@ -319,7 +331,39 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace used for generating Applications (ignored when provided YAML file has namespace set in metadata)")
+	command.Flags().BoolVar(&outputParameters, "output-parameters", false, "Output the parameters produced by the generators instead of the rendered Applications. Honors --output for json (default) or yaml")
 	return command
+}
+
+// printApplicationSetParameters renders the JSON-encoded parameter sets returned by the generators.
+// The default output is pretty-printed JSON; yaml is produced when -o yaml is requested.
+func printApplicationSetParameters(parameters []string, output string) error {
+	params := make([]any, 0, len(parameters))
+	for _, p := range parameters {
+		var decoded any
+		if err := json.Unmarshal([]byte(p), &decoded); err != nil {
+			return fmt.Errorf("unable to decode generated parameters: %w", err)
+		}
+		params = append(params, decoded)
+	}
+
+	switch output {
+	case "yaml":
+		out, err := yaml.Marshal(params)
+		if err != nil {
+			return err
+		}
+		fmt.Print(string(out))
+	case "json", "wide", "":
+		out, err := json.MarshalIndent(params, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+	default:
+		return fmt.Errorf("unknown output format: %s", output)
+	}
+	return nil
 }
 
 // NewApplicationSetListCommand returns a new instance of an `argocd appset list` command

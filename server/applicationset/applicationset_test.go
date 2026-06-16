@@ -1,6 +1,7 @@
 package applicationset
 
 import (
+	"encoding/json"
 	"sort"
 	"testing"
 
@@ -891,5 +892,26 @@ func TestAppSet_Generate_Cluster(t *testing.T) {
 
 		_, err := appSetServer.Generate(t.Context(), &appsetQuery)
 		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+
+	t.Run("Output parameters instead of applications", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+		appsetQuery := applicationset.ApplicationSetGenerateRequest{
+			ApplicationSet:   appSet1,
+			OutputParameters: true,
+		}
+
+		res, err := appSetServer.Generate(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		assert.Empty(t, res.Applications)
+		require.Len(t, res.Parameters, 2)
+
+		names := make([]string, 0, len(res.Parameters))
+		for _, p := range res.Parameters {
+			var param map[string]any
+			require.NoError(t, json.Unmarshal([]byte(p), &param))
+			names = append(names, param["name"].(string))
+		}
+		assert.ElementsMatch(t, []string{"fake-cluster", "in-cluster"}, names)
 	})
 }
