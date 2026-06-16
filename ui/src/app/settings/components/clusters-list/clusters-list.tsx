@@ -83,9 +83,9 @@ export const ClustersList = () => {
                                                                 <span>{cluster.server}</span>
                                                             </Tooltip>
                                                         </div>
-                                                        <div className='columns small-2'>{cluster.info.serverVersion}</div>
+                                                        <div className='columns small-2'>{cluster.info?.serverVersion}</div>
                                                         <div className='columns small-2'>
-                                                            <ConnectionStateIcon state={cluster.info.connectionState} /> {cluster.info.connectionState.status}
+                                                            <ConnectionStateIcon state={cluster.info?.connectionState} /> {cluster.info?.connectionState?.status}
                                                             <DropDownMenu
                                                                 anchor={() => (
                                                                     <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
