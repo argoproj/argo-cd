@@ -2844,8 +2844,8 @@ func TestGettersRaceWithResyncInformers(t *testing.T) {
 			Name:      common.ArgoCDSecretName,
 			Namespace: "default",
 			Labels: map[string]string{
-				"app.kubernetes.io/part-of":   "argocd",
-				common.LabelKeySecretType:     common.LabelValueSecretTypeRepository,
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeRepository,
 			},
 		},
 		Data: map[string][]byte{
@@ -2882,9 +2882,7 @@ func TestGettersRaceWithResyncInformers(t *testing.T) {
 
 	// Spawn goroutines calling ResyncInformers concurrently.
 	for range goroutines / 2 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for {
 				select {
 				case <-done:
@@ -2893,14 +2891,12 @@ func TestGettersRaceWithResyncInformers(t *testing.T) {
 					_ = mgr.ResyncInformers()
 				}
 			}
-		}()
+		})
 	}
 
 	// Spawn goroutines calling the various getters concurrently.
 	for range goroutines / 2 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for {
 				select {
 				case <-done:
@@ -2913,7 +2909,7 @@ func TestGettersRaceWithResyncInformers(t *testing.T) {
 					_, _ = mgr.GetSecretByName(common.ArgoCDSecretName)
 				}
 			}
-		}()
+		})
 	}
 
 	// Let the race run for a bit.
