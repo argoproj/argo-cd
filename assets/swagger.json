@@ -10638,6 +10638,52 @@
         }
       }
     },
+    "v1alpha1SelectiveSync": {
+      "description": "SelectiveSync allows restricting automated sync to a subset of an application's resources. When\nenabled, only the resources selected by MatchExpressions and/or Filters are considered for\nautomated sync; the remaining resources stay under manual control.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enabled enables selective automated sync. When false (the default), automated sync applies to\nall of the application's resources.",
+          "type": "boolean"
+        },
+        "filters": {
+          "description": "Filters selects resources by group/kind/name/namespace. When empty, all resources match (subject\nto MatchExpressions). A resource is selected when it matches at least one filter.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SelectiveSyncResource"
+          }
+        },
+        "matchExpressions": {
+          "description": "MatchExpressions selects resources by their labels, using the same syntax as Kubernetes label\nselector requirements (operators In, NotIn, Exists and DoesNotExist). When empty, all resources\nmatch (subject to Filters).",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1LabelSelectorRequirement"
+          }
+        }
+      }
+    },
+    "v1alpha1SelectiveSyncResource": {
+      "description": "SelectiveSyncResource identifies a resource, or a set of resources, targeted by selective automated\nsync. An empty field (or \"*\") matches any value for that field.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "description": "Group is the API group of the resource. Empty or \"*\" matches any group.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is the kind of the resource. Empty or \"*\" matches any kind.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name is the name of the resource. Empty or \"*\" matches any name.",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "Namespace is the namespace of the resource. Empty or \"*\" matches any namespace.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1SignatureKey": {
       "description": "Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.",
       "type": "object",
@@ -10941,6 +10987,9 @@
         "prune": {
           "type": "boolean",
           "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
+        },
+        "selective": {
+          "$ref": "#/definitions/v1alpha1SelectiveSync"
         },
         "selfHeal": {
           "type": "boolean",

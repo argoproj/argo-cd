@@ -2280,6 +2280,77 @@ spec:
                           from the cluster that are not found in the sources anymore
                           as part of automated sync (default: false)'
                         type: boolean
+                      selective:
+                        description: 'Selective restricts automated sync to a subset
+                          of the application''s resources (default: all resources)'
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled enables selective automated sync. When false (the default), automated sync applies to
+                              all of the application's resources.
+                            type: boolean
+                          filters:
+                            description: |-
+                              Filters selects resources by group/kind/name/namespace. When empty, all resources match (subject
+                              to MatchExpressions). A resource is selected when it matches at least one filter.
+                            items:
+                              description: |-
+                                SelectiveSyncResource identifies a resource, or a set of resources, targeted by selective automated
+                                sync. An empty field (or "*") matches any value for that field.
+                              properties:
+                                group:
+                                  description: Group is the API group of the resource.
+                                    Empty or "*" matches any group.
+                                  type: string
+                                kind:
+                                  description: Kind is the kind of the resource. Empty
+                                    or "*" matches any kind.
+                                  type: string
+                                name:
+                                  description: Name is the name of the resource. Empty
+                                    or "*" matches any name.
+                                  type: string
+                                namespace:
+                                  description: Namespace is the namespace of the resource.
+                                    Empty or "*" matches any namespace.
+                                  type: string
+                              type: object
+                            type: array
+                          matchExpressions:
+                            description: |-
+                              MatchExpressions selects resources by their labels, using the same syntax as Kubernetes label
+                              selector requirements (operators In, NotIn, Exists and DoesNotExist). When empty, all resources
+                              match (subject to Filters).
+                            items:
+                              description: |-
+                                A label selector requirement is a selector that contains values, a key, and an operator that
+                                relates the key and values.
+                              properties:
+                                key:
+                                  description: key is the label key that the selector
+                                    applies to.
+                                  type: string
+                                operator:
+                                  description: |-
+                                    operator represents a key's relationship to a set of values.
+                                    Valid operators are In, NotIn, Exists and DoesNotExist.
+                                  type: string
+                                values:
+                                  description: |-
+                                    values is an array of string values. If the operator is In or NotIn,
+                                    the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                    the values array must be empty. This array is replaced during a strategic
+                                    merge patch.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              required:
+                              - key
+                              - operator
+                              type: object
+                            type: array
+                        type: object
                       selfHeal:
                         description: 'SelfHeal specifies whether to revert resources
                           back to their desired state upon modification in the cluster
@@ -8014,6 +8085,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -8928,6 +9034,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -9843,6 +9984,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -10736,6 +10912,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -11654,6 +11865,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -12568,6 +12814,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -13483,6 +13764,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -14376,6 +14692,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -15277,6 +15628,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -16405,6 +16791,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -17530,6 +17951,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -18440,6 +18896,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -19360,6 +19851,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -20274,6 +20800,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -21189,6 +21750,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -22082,6 +22678,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -22983,6 +23614,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -24111,6 +24777,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -25236,6 +25937,41 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  selective:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      filters:
+                                                        items:
+                                                          properties:
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                              x-kubernetes-list-type: atomic
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                    type: object
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -26150,6 +26886,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -27050,6 +27821,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -28178,6 +28984,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -29303,6 +30144,41 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        selective:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            filters:
+                                              items:
+                                                properties:
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                    x-kubernetes-list-type: atomic
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                          type: object
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -30290,6 +31166,41 @@ spec:
                                 type: boolean
                               prune:
                                 type: boolean
+                              selective:
+                                properties:
+                                  enabled:
+                                    type: boolean
+                                  filters:
+                                    items:
+                                      properties:
+                                        group:
+                                          type: string
+                                        kind:
+                                          type: string
+                                        name:
+                                          type: string
+                                        namespace:
+                                          type: string
+                                      type: object
+                                    type: array
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                          x-kubernetes-list-type: atomic
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                type: object
                               selfHeal:
                                 type: boolean
                             type: object
