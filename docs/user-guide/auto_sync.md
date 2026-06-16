@@ -131,6 +131,58 @@ spec:
       refresh: true
 ```
 
+## Selective Auto-Sync
+
+By default automated sync applies to every resource in the application. Selective auto-sync lets you
+restrict automated sync to a subset of the application's resources, while the remaining resources stay
+under manual control. This is useful, for example, when you want critical `ConfigMaps` or `Secrets` to
+be reconciled automatically, but want to keep `Deployments` or `StatefulSets` under manual control to
+avoid unintended rollouts.
+
+Selective auto-sync is configured under `spec.syncPolicy.automated.selective` and is only applied when
+`enabled` is set to `true`. The selection is expressed with two optional mechanisms that can be used on
+their own or together:
+
+* `matchExpressions` — selects resources by their **labels**, using the same syntax as Kubernetes
+  [label selector requirements](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#resources-that-support-set-based-requirements)
+  (operators `In`, `NotIn`, `Exists` and `DoesNotExist`).
+* `filters` — selects resources by `group`, `kind`, `name` and `namespace`. A resource matches a filter
+  when every non-empty field of the filter equals the resource's corresponding value; an empty field
+  (or `"*"`) matches any value. A resource is selected when it matches at least one filter.
+
+When both `matchExpressions` and `filters` are specified, a resource must satisfy **both** to be selected
+(logical AND). When a mechanism is omitted it matches all resources, so specifying neither (with
+`enabled: true`) is equivalent to ordinary, application-wide automated sync.
+
+```yaml
+spec:
+  syncPolicy:
+    automated:
+      selective:
+        enabled: true
+        # Select resources by label. If omitted, all resources match (subject to filters).
+        matchExpressions:
+          - key: app.kubernetes.io/component
+            operator: In
+            values:
+              - config
+              - secrets
+        # Select resources by group/kind/name/namespace. If omitted, all resources match
+        # (subject to matchExpressions). An omitted field (or "*") matches any value.
+        filters:
+          - group: ""
+            kind: ConfigMap
+            name: my-config        # a specific ConfigMap
+            namespace: default
+          - kind: Secret           # all Secrets in the application
+```
+
+> [!NOTE]
+> Selective auto-sync narrows *which* resources are synced automatically; it does not change *how* they
+> are synced. The `prune`, `selfHeal`, `allowEmpty` and `retry` settings of the `automated` policy still
+> apply, but only to the selected resources. If no selected resource is `OutOfSync`, no automated sync is
+> triggered even when other (non-selected) resources are out of sync.
+
 ## Automated Sync Semantics
 
 * An automated sync will only be performed if the application is OutOfSync. Applications in a

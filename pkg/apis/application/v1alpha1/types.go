@@ -1614,6 +1614,51 @@ type SyncPolicyAutomated struct {
 	AllowEmpty *bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
 	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
+	// Selective restricts automated sync to a subset of the application's resources (default: all resources)
+	Selective *SelectiveSync `json:"selective,omitempty" protobuf:"bytes,5,opt,name=selective"`
+}
+
+// SelectiveSync allows restricting automated sync to a subset of an application's resources. When
+// enabled, only the resources selected by MatchExpressions and/or Filters are considered for
+// automated sync; the remaining resources stay under manual control.
+type SelectiveSync struct {
+	// Enabled enables selective automated sync. When false (the default), automated sync applies to
+	// all of the application's resources.
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,1,opt,name=enabled"`
+	// MatchExpressions selects resources by their labels, using the same syntax as Kubernetes label
+	// selector requirements (operators In, NotIn, Exists and DoesNotExist). When empty, all resources
+	// match (subject to Filters).
+	MatchExpressions []metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty" protobuf:"bytes,2,rep,name=matchExpressions"`
+	// Filters selects resources by group/kind/name/namespace. When empty, all resources match (subject
+	// to MatchExpressions). A resource is selected when it matches at least one filter.
+	Filters []SelectiveSyncResource `json:"filters,omitempty" protobuf:"bytes,3,rep,name=filters"`
+}
+
+// SelectiveSyncResource identifies a resource, or a set of resources, targeted by selective automated
+// sync. An empty field (or "*") matches any value for that field.
+type SelectiveSyncResource struct {
+	// Group is the API group of the resource. Empty or "*" matches any group.
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	// Kind is the kind of the resource. Empty or "*" matches any kind.
+	Kind string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	// Name is the name of the resource. Empty or "*" matches any name.
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	// Namespace is the namespace of the resource. Empty or "*" matches any namespace.
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+}
+
+// IsEnabled returns true when selective automated sync is enabled.
+func (s *SelectiveSync) IsEnabled() bool {
+	return s != nil && s.Enabled != nil && *s.Enabled
+}
+
+// Matches returns true when the given resource coordinates match the filter. An empty (or "*") field
+// matches any value for that field.
+func (r SelectiveSyncResource) Matches(group, kind, name, namespace string) bool {
+	return (r.Group == "" || r.Group == "*" || r.Group == group) &&
+		(r.Kind == "" || r.Kind == "*" || r.Kind == kind) &&
+		(r.Name == "" || r.Name == "*" || r.Name == name) &&
+		(r.Namespace == "" || r.Namespace == "*" || r.Namespace == namespace)
 }
 
 // GetPrune returns the value of Prune, defaulting to false if nil.
@@ -1638,6 +1683,12 @@ func (a *SyncPolicyAutomated) GetAllowEmpty() bool {
 		return false
 	}
 	return *a.AllowEmpty
+}
+
+// IsSelectiveSyncEnabled returns true when automated sync should be restricted to a subset of the
+// application's resources.
+func (a *SyncPolicyAutomated) IsSelectiveSyncEnabled() bool {
+	return a != nil && a.Selective.IsEnabled()
 }
 
 // SyncStrategy controls the manner in which a sync is performed

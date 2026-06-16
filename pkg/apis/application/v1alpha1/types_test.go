@@ -5295,6 +5295,42 @@ func TestSyncPolicyAutomatedSerialisation(t *testing.T) {
 	}
 }
 
+func TestSelectiveSync_IsEnabled(t *testing.T) {
+	assert.False(t, (*SelectiveSync)(nil).IsEnabled())
+	assert.False(t, (&SelectiveSync{}).IsEnabled())
+	assert.False(t, (&SelectiveSync{Enabled: new(false)}).IsEnabled())
+	assert.True(t, (&SelectiveSync{Enabled: new(true)}).IsEnabled())
+}
+
+func TestSyncPolicyAutomated_IsSelectiveSyncEnabled(t *testing.T) {
+	assert.False(t, (*SyncPolicyAutomated)(nil).IsSelectiveSyncEnabled())
+	assert.False(t, (&SyncPolicyAutomated{}).IsSelectiveSyncEnabled())
+	assert.False(t, (&SyncPolicyAutomated{Selective: &SelectiveSync{}}).IsSelectiveSyncEnabled())
+	assert.True(t, (&SyncPolicyAutomated{Selective: &SelectiveSync{Enabled: new(true)}}).IsSelectiveSyncEnabled())
+}
+
+func TestSelectiveSyncResource_Matches(t *testing.T) {
+	tests := []struct {
+		name     string
+		resource SelectiveSyncResource
+		want     bool
+	}{
+		{"empty filter matches anything", SelectiveSyncResource{}, true},
+		{"exact match", SelectiveSyncResource{Group: "apps", Kind: "Deployment", Name: "guestbook", Namespace: "default"}, true},
+		{"kind only", SelectiveSyncResource{Kind: "Deployment"}, true},
+		{"wildcards", SelectiveSyncResource{Group: "*", Kind: "*", Name: "*", Namespace: "*"}, true},
+		{"omitted name matches any name", SelectiveSyncResource{Group: "apps", Kind: "Deployment", Namespace: "default"}, true},
+		{"kind mismatch", SelectiveSyncResource{Kind: "ConfigMap"}, false},
+		{"namespace mismatch", SelectiveSyncResource{Kind: "Deployment", Namespace: "other"}, false},
+		{"group mismatch", SelectiveSyncResource{Group: "batch", Kind: "Deployment"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.resource.Matches("apps", "Deployment", "guestbook", "default"))
+		})
+	}
+}
+
 func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DenyWindowWithoutOverrunBlocksContinuingSync", func(t *testing.T) {
 		// given - a deny window without allowSyncOverrun
