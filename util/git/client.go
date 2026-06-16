@@ -168,12 +168,6 @@ type Client interface {
 	CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error)
 	// RemoveContents removes all files from the given paths in the git repository.
 	RemoveContents(paths []string) (string, error)
-	// CommitAndPush commits and pushes changes to the target branch.
-	//
-	// Deprecated: use Commit followed by Push so a verification step can be
-	// interleaved between committing and pushing (e.g. asserting a signed
-	// commit before it leaves the host). Retained for backwards compatibility.
-	CommitAndPush(branch, message string) (string, error)
 	// Commit stages all changes and creates a single commit. If signingKeyID
 	// is non-empty, the commit is GPG-signed with the given key from the
 	// shared GNUPGHOME (common.GetGnuPGHomePath()); the key's passphrase, if
@@ -1532,21 +1526,6 @@ func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
 	out, err := m.runCmd(context.Background(), args...)
 	if err != nil {
 		return out, fmt.Errorf("failed to clear paths %v: %w", paths, err)
-	}
-	return "", nil
-}
-
-// CommitAndPush commits (unsigned) and pushes changes to the target branch.
-//
-// Deprecated: use Commit followed by Push directly so verification can be
-// interleaved between the two. Retained for backwards compatibility.
-func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) {
-	out, err := m.Commit(message, "")
-	if err != nil {
-		return out, err
-	}
-	if pushOut, err := m.Push(branch); err != nil {
-		return pushOut, err
 	}
 	return "", nil
 }
