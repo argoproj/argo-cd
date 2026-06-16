@@ -8,10 +8,37 @@
 /mkdocs.yml  @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
 
 # CI
-/.codecov.yml             @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
 /.github/**               @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
 /.goreleaser.yaml         @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+
+# Build / e2e testing
+Procfile                  @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+Makefile                  @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+Dockerfile                @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+Dockerfile.*              @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+.dockerignore             @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/Tiltfile                 @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/entrypoint.sh            @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+
+# Security/code quality scanners/bots config
+/.golangci.yaml           @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/.codecov.yml             @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/.snyk                    @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/SECURITY-INSIGHTS.yml    @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/renovate.json            @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/renovate-presets/**      @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
 /sonar-project.properties @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+
+# Assorted stuff in hack/ with exclusions for not CI/build related paths
+/hack/                          @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/hack/gen-docs/                 @argoproj/argocd-approvers
+/hack/migrate-gitops-engine/    @argoproj/argocd-approvers
+/hack/gen-resources/            @argoproj/argocd-approvers
+/hack/known_types/              @argoproj/argocd-approvers
+/hack/admonitions-to-alerts.sh  @argoproj/argocd-approvers
+/hack/generate-actions-list.sh  @argoproj/argocd-approvers
+/hack/git-ask-pass.sh           @argoproj/argocd-approvers
+/hack/git-verify-wrapper.sh     @argoproj/argocd-approvers
 
 # CLI
 /cmd/argocd/** @argoproj/argocd-approvers @argoproj/argocd-approvers-cli
