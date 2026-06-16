@@ -9,10 +9,4 @@ spec:
     kind: HTTPRoute
     name: example-httproute
 status:
-  ancestors:
-  - ancestorRef:
-      group: gateway.networking.k8s.io
-      kind: Gateway
-      name: example-gateway
-    conditions: []
-    controllerName: example.com/gatewayclass-controller
+  ancestors: []

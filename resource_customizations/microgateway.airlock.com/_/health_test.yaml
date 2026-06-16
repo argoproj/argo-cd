@@ -15,6 +15,10 @@ tests:
       WARNING: traffic to referenced target(s) will be rejected.
   inputPath: testdata/degraded_resolved_refs.yaml
 - healthStatus:
+    status: Degraded
+    message: "Ancestor example-gateway-2: RateLimitPolicy is not accepted"
+  inputPath: testdata/degraded_multiple_ancestors.yaml
+- healthStatus:
     status: Progressing
     message: "Waiting for EnvoyExtensionPolicy status"
   inputPath: testdata/progressing.yaml

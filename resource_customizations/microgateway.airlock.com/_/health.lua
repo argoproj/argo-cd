@@ -12,19 +12,19 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
   if obj.metadata.generation ~= nil then
     for i, ancestor in ipairs(obj.status.ancestors) do
       for _, condition in ipairs(ancestor.conditions) do
-        if condition.observedGeneration ~= nil then
-          if condition.observedGeneration ~= obj.metadata.generation then
-              hs.message = "Waiting for Ancestor " .. (ancestor.ancestorRef.name or "") .. " to update " .. (obj.kind or "Policy")  .. " status"
-             return hs
-          end
+        if condition.observedGeneration == nil or condition.observedGeneration ~= obj.metadata.generation then
+           hs.message = "Waiting for Ancestor " .. (ancestor.ancestorRef.name or "") .. " to update " .. (obj.kind or "Policy")  .. " status"
+           return hs
         end
       end
     end
   end
 
   for i, ancestor in ipairs(obj.status.ancestors) do
+    local hasAcceptedCondition = false
     for j, condition in ipairs(ancestor.conditions) do
       if condition.type == "Accepted" then
+        hasAcceptedCondition = true
         if condition.status ~= "True" then
           hs.status = "Degraded"
           hs.message = "Ancestor " .. (ancestor.ancestorRef.name or "") .. ": " .. condition.message
@@ -42,6 +42,10 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
           return hs
         end
       end
+    end
+    if not hasAcceptedCondition then
+        hs.status = "Degraded"
+        hs.message = "Ancestor " .. (ancestor.ancestorRef.name or "") .. ": " .. (obj.kind or "Policy")  .. " is not accepted"
     end
   end
 end

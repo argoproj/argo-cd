@@ -14,5 +14,4 @@ status:
       group: gateway.networking.k8s.io
       kind: Gateway
       name: example-gateway
-    conditions: []
     controllerName: example.com/gatewayclass-controller
