@@ -59,6 +59,7 @@ func newClient(objs ...client.Object) (*cacheSyncingClient, k8scache.Store, erro
 }
 
 func TestCreateSyncsCache(t *testing.T) {
+	t.Parallel()
 	c, store, err := newClient()
 	require.NoError(t, err)
 
@@ -71,6 +72,7 @@ func TestCreateSyncsCache(t *testing.T) {
 }
 
 func TestUpdateSyncsCache(t *testing.T) {
+	t.Parallel()
 	app := &application.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -91,6 +93,7 @@ func TestUpdateSyncsCache(t *testing.T) {
 }
 
 func TestDeleteSyncsCache(t *testing.T) {
+	t.Parallel()
 	app := &application.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",

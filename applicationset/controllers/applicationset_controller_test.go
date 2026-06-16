@@ -42,6 +42,7 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	testutil "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 // getDefaultTestClientSet creates a Clientset with the default argo objects
@@ -1223,8 +1224,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				require.NoError(t, err)
 				initObjs = append(initObjs, &a)
 			}
+			client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
@@ -1238,7 +1239,12 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
-				got := &v1alpha1.Application{}
+				got := &v1alpha1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+				}
 				_ = client.Get(t.Context(), crtclient.ObjectKey{
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
@@ -2163,7 +2169,7 @@ func TestCreateApplications(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
@@ -2177,15 +2183,18 @@ func TestCreateApplications(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
-				got := &v1alpha1.Application{}
+				got := &v1alpha1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+				}
 				_ = client.Get(t.Context(), crtclient.ObjectKey{
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
 				}, got)
-
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
 				require.NoError(t, err)
-
 				assert.Equal(t, obj, *got)
 			}
 		})
@@ -2307,7 +2316,7 @@ func TestDeleteInCluster(t *testing.T) {
 			initObjs = append(initObjs, &temp)
 		}
 
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+		client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 		metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 		kubeclientset := kubefake.NewClientset()
@@ -2330,7 +2339,12 @@ func TestDeleteInCluster(t *testing.T) {
 
 		// For each of the expected objects, verify they exist on the cluster
 		for _, obj := range c.expected {
-			got := &v1alpha1.Application{}
+			got := &v1alpha1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       application.ApplicationKind,
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+			}
 			_ = client.Get(t.Context(), crtclient.ObjectKey{
 				Namespace: obj.Namespace,
 				Name:      obj.Name,
@@ -2338,7 +2352,6 @@ func TestDeleteInCluster(t *testing.T) {
 
 			err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
 			require.NoError(t, err)
-
 			assert.Equal(t, obj, *got)
 		}
 

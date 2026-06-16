@@ -498,6 +498,7 @@ func TestDescribeProblems(t *testing.T) {
 			gpg:  &policy,
 			sigs: []git.RevisionSignatureInfo{
 				sig("revoked", git.GPGVerificationResultRevokedKey),
+				sig(kGood, git.GPGVerificationResultGood),
 				sig("", git.GPGVerificationResultUnsigned),
 				sig("untrusted", git.GPGVerificationResultUntrusted),
 				sig("missing", git.GPGVerificationResultMissingKey),
@@ -524,7 +525,31 @@ func TestDescribeProblems(t *testing.T) {
 				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=more_bad)",
 				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=outright_terrible)",
 			},
-			legacy: "Invalid signature from Commit Author <nereply@acme.com> key revoked",
+			legacy: "Invalid signature from " + a + " key revoked",
+		},
+		{
+			name: "legacy verification is possitive even when older commits are untrusted, legacy is always shallow",
+			gpg:  &policy,
+			sigs: []git.RevisionSignatureInfo{
+				sig(kGood, git.GPGVerificationResultGood),
+				sig("bad", git.GPGVerificationResultBad),
+			},
+			expected: []string{
+				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=bad)",
+			},
+			legacy: "Good signature from " + a + " key AAAAAAAAAAAAAAAA",
+		},
+		{
+			name: "do not collapse commits by key when they differ by the result",
+			gpg:  &policy,
+			sigs: []git.RevisionSignatureInfo{
+				sig(kGood, git.GPGVerificationResultGood),
+				sig(kGood, git.GPGVerificationResultBad),
+			},
+			expected: []string{
+				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=" + kGood + ")",
+			},
+			legacy: "Good signature from " + a + " key AAAAAAAAAAAAAAAA",
 		},
 	}
 
