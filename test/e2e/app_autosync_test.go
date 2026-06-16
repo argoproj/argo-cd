@@ -210,3 +210,29 @@ func TestAutoSyncAllowEmptyCanBeDisabled(t *testing.T) {
 			assert.False(t, *app.Spec.SyncPolicy.Automated.AllowEmpty, "allowEmpty=false should be persisted, not silently dropped")
 		})
 }
+
+// TestSelectiveAutoSync verifies that when automated sync is restricted via
+// spec.syncPolicy.automated.selective, only the selected resources are synced
+// automatically while the remaining resources stay under manual control.
+func TestSelectiveAutoSync(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		// Restrict automated sync to the Service only; the Deployment must stay out of sync.
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Automated: &SyncPolicyAutomated{
+					Selective: &SelectiveSync{
+						Enabled: new(true),
+						Filters: []SelectiveSyncResource{{Kind: "Service"}},
+					},
+				},
+			}
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// The selected Service is auto-synced, the Deployment is not, so the app is overall OutOfSync.
+		Expect(ResourceSyncStatusIs("Service", "guestbook-ui", SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Deployment", "guestbook-ui", SyncStatusCodeOutOfSync)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+}
