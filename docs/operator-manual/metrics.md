@@ -83,10 +83,17 @@ Some examples are:
 - Having the team name as a label to allow routing alerts to specific receivers
 - Creating dashboards broken down by business units
 
-As the Application labels are specific to each company, this feature is disabled by default. To enable it, add the
-`--metrics-application-labels` flag to the Argo CD application controller.
+As the Application labels are specific to each company, this feature is disabled by default. To enable it, set the
+comma-separated `controller.metrics.application.labels` key in the `argocd-cmd-params-cm` ConfigMap.
 
 The example below will expose the Argo CD Application labels `team-name` and `business-unit` to Prometheus:
+
+    controller.metrics.application.labels: "team-name,business-unit"
+
+!!! warning
+    Each distinct label value becomes a separate `argocd_app_labels` time series. Exposing labels with many distinct values increases the metric's cardinality, which can degrade Prometheus performance and increase storage requirements. Prefer low-cardinality labels and add them sparingly.
+
+Alternatively, the labels can be passed as `--metrics-application-labels` flags directly to the application controller:
 
     containers:
     - command:
@@ -96,7 +103,7 @@ The example below will expose the Argo CD Application labels `team-name` and `bu
       - --metrics-application-labels
       - business-unit
 
-In this case, the metric would look like:
+In either case, the metric would look like:
 
 ```
 # TYPE argocd_app_labels gauge
@@ -104,13 +111,6 @@ argocd_app_labels{label_business_unit="bu-id-1",label_team_name="my-team",name="
 argocd_app_labels{label_business_unit="bu-id-1",label_team_name="my-team",name="my-app-2",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_business_unit="bu-id-2",label_team_name="another-team",name="my-app-3",namespace="argocd",project="important-project"} 1
 ```
-
-This can also be configured through `argocd-cmd-params-cm` instead of container args, using the comma-separated `controller.metrics.application.labels` key:
-
-    controller.metrics.application.labels: "team-name,business-unit"
-
-!!! warning
-    Each distinct label value becomes a separate `argocd_app_labels` time series. Exposing labels with many distinct values increases the metric's cardinality, which can degrade Prometheus performance and increase storage requirements. Prefer low-cardinality labels and add them sparingly.
 
 ### Exposing Application conditions as Prometheus metrics
 
@@ -120,10 +120,14 @@ Some examples are:
 - Hunting orphaned resources across all deployed applications
 - Knowing which resources are excluded from ArgoCD
 
-As the Application conditions are specific to each company, this feature is disabled by default. To enable it, add the
-`--metrics-application-conditions` flag to the Argo CD application controller.
+As the Application conditions are specific to each company, this feature is disabled by default. To enable it, set the
+comma-separated `controller.metrics.application.conditions` key in the `argocd-cmd-params-cm` ConfigMap.
 
 The example below will expose the Argo CD Application condition `OrphanedResourceWarning` and `ExcludedResourceWarning` to Prometheus:
+
+    controller.metrics.application.conditions: "OrphanedResourceWarning,ExcludedResourceWarning"
+
+Alternatively, the conditions can be passed as `--metrics-application-conditions` flags directly to the application controller:
 
 ```yaml
 containers:
@@ -190,10 +194,14 @@ All the following `argocd_github_api_*` metrics can be enabled upon setting `app
 
 ### Exposing Cluster labels as Prometheus metrics
 
-As the Cluster labels are specific to each company, this feature is disabled by default. To enable it, add the
-`--metrics-cluster-labels` flag to the Argo CD application controller.
+As the Cluster labels are specific to each company, this feature is disabled by default. To enable it, set the
+comma-separated `controller.metrics.cluster.labels` key in the `argocd-cmd-params-cm` ConfigMap.
 
-The example below will expose the Argo CD Application labels `team-name` and `environment` to Prometheus:
+The example below will expose the Argo CD cluster labels `team-name` and `environment` to Prometheus:
+
+    controller.metrics.cluster.labels: "team-name,environment"
+
+Alternatively, the labels can be passed as `--metrics-cluster-labels` flags directly to the application controller:
 
     containers:
     - command:
@@ -203,7 +211,7 @@ The example below will expose the Argo CD Application labels `team-name` and `en
       - --metrics-cluster-labels
       - environment
 
-In this case, the metric would look like:
+In either case, the metric would look like:
 
 ```
 # TYPE argocd_cluster_labels gauge
