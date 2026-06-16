@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -78,6 +79,31 @@ func TestSetupSigningKey(t *testing.T) {
 		require.NotNil(t, cfg)
 		assert.Equal(t, wantFP, cfg.Fingerprint)
 		assert.Equal(t, wantFP[len(wantFP)-16:], cfg.KeyID)
+	})
+
+	t.Run("imports a passphrase-protected key and presets the passphrase", func(t *testing.T) {
+		const passphrase = "s3cret"
+		keyData, wantFP := gpgsigntest.GenerateSigningKey(t, passphrase)
+		setSharedGnuPGHome(t)
+
+		dir := gpgsigntest.ShortTempDir(t)
+		keyPath := filepath.Join(dir, "signingKey")
+		require.NoError(t, os.WriteFile(keyPath, keyData, 0o600))
+		// File-editors love a trailing newline; setupSigningKey must strip it.
+		passphraseFile := filepath.Join(dir, "passphrase")
+		require.NoError(t, os.WriteFile(passphraseFile, []byte(passphrase+"\n"), 0o600))
+
+		cfg, err := setupSigningKey(keyPath, passphraseFile)
+		// gpg-preset-passphrase, and the gpgconf used to locate it, ship with the
+		// gpg-agent package but may be absent in minimal environments; skip there
+		// rather than fail.
+		if err != nil && (strings.Contains(err.Error(), "gpg-preset-passphrase not found") ||
+			strings.Contains(err.Error(), "failed to locate gnupg libexec dir")) {
+			t.Skipf("gpg-preset-passphrase unavailable: %v", err)
+		}
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, wantFP, cfg.Fingerprint)
 	})
 
 	t.Run("fails when the key file does not exist", func(t *testing.T) {
