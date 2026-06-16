@@ -217,3 +217,36 @@ func TestTerminalSession_Write(t *testing.T) {
 
 	assert.Equal(t, expectedMessage, receivedMessage)
 }
+
+func TestGetToken(t *testing.T) {
+	t.Parallel()
+	const tokenValue = "sample-jwt-token"
+
+	t.Run("bearer token in Authorization header", func(t *testing.T) {
+		t.Parallel()
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.Header.Set("Authorization", "Bearer "+tokenValue)
+		token, err := getToken(r)
+		require.NoError(t, err)
+		assert.Equal(t, tokenValue, token)
+	})
+
+	t.Run("auth cookie when no Authorization header", func(t *testing.T) {
+		t.Parallel()
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: tokenValue})
+		token, err := getToken(r)
+		require.NoError(t, err)
+		assert.Equal(t, tokenValue, token)
+	})
+
+	t.Run("bearer token preferred over cookie", func(t *testing.T) {
+		t.Parallel()
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.Header.Set("Authorization", "Bearer "+tokenValue)
+		r.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: "cookie-token"})
+		token, err := getToken(r)
+		require.NoError(t, err)
+		assert.Equal(t, tokenValue, token)
+	})
+}
