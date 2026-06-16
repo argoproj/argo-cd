@@ -8,7 +8,7 @@ require (
 	code.gitea.io/sdk/gitea v0.25.1
 	dario.cat/mergo v1.0.2
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0
 	github.com/Azure/kubelogin v0.2.18
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
@@ -143,7 +143,7 @@ require (
 	cloud.google.com/go/pubsub v1.49.0 // indirect
 	cyphar.com/go-pathrs v0.2.2 // indirect
 	github.com/42wim/httpsig v1.2.4 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity/cache v0.3.2 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity/cache v0.4.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -153,7 +153,7 @@ require (
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/AzureAD/microsoft-authentication-extensions-for-go/cache v0.1.1 // indirect
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.6.0 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
