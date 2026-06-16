@@ -1,0 +1,37 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "ListenerSet is healthy"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "ListenerSet has no valid listeners"
+  inputPath: testdata/degraded_resolved_refs.yaml
+- healthStatus:
+    status: Degraded
+    message: "Listener: Referenced certificate secret 'example-cert' does not exist"
+  inputPath: testdata/degraded_resolved_refs_accepted.yaml
+- healthStatus:
+    status: Degraded
+    message: "ListenerSet has no valid listeners"
+  inputPath: testdata/degraded_conflicted.yaml
+- healthStatus:
+    status: Degraded
+    message: "Listener: Listener has an unsupported protocol"
+  inputPath: testdata/degraded_conflicted_accepted.yaml
+- healthStatus:
+    status: Progressing
+    message: "ListenerSet is waiting to get programmed, check Gateway status condition Programmed for further details."
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ListenerSet status"
+  inputPath: testdata/progressing_observed_generation.yaml
+- healthStatus:
+    status: Progressing
+    message: "Listener: Listener is waiting to get programmed, check ListenerSet status condition Programmed for further details."
+  inputPath: testdata/progressing_listener.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ListenerSet status"
+  inputPath: testdata/progressing_no_listener.yaml
