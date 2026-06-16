@@ -1,0 +1,34 @@
+.application-selective-sync {
+    &__section {
+        margin: 0.5em 0;
+    }
+
+    &__label {
+        display: block;
+        margin-bottom: 0.5em;
+        font-weight: 500;
+    }
+
+    &__row {
+        margin-bottom: 0.5em;
+        align-items: center;
+    }
+
+    &__remove {
+        cursor: pointer;
+        color: #6d7f8b;
+        &:hover {
+            color: #e96d76;
+        }
+    }
+
+    &__view {
+        ul {
+            margin: 0.25em 0 0.5em 1em;
+        }
+    }
+
+    &__view-title {
+        font-weight: 500;
+    }
+}

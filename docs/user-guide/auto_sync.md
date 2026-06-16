@@ -7,18 +7,22 @@ Instead, the pipeline makes a commit and push to the Git repository with the cha
 manifests in the tracking Git repo.
 
 To configure automated sync run:
+
 ```bash
 argocd app set <APPNAME> --sync-policy automated
 ```
 
 Alternatively, if creating the application an application manifest, specify a syncPolicy with an
 `automated` policy.
+
 ```yaml
 spec:
   syncPolicy:
     automated: {}
 ```
+
 Application CRD now also support explicitly setting automated sync to be turned on or off by using `spec.syncPolicy.automated.enabled` flag to true or false. When `enable` field is set to true, Automated Sync is active and when set to false controller will skip automated sync even if `prune`, `self-heal` and `allowEmpty` are set.
+
 ```yaml
 spec:
   syncPolicy:
@@ -33,7 +37,6 @@ spec:
 
 For a standalone application, toggling auto-sync is performed by changing the application's `spec.syncPolicy.automated` field. For an ApplicationSet managed application, changing the application's `spec.syncPolicy.automated` field will, however, have no effect.
 [Controlling Resource Modification](../operator-manual/applicationset/Controlling-Resource-Modification.md) has more details about how to perform the toggling for applications managed by ApplicationSets.
-
 
 ## Automatic Pruning
 
@@ -57,7 +60,7 @@ spec:
 
 ## Automatic Pruning with Allow-Empty (v1.8)
 
-By default (and as a safety mechanism), automated sync with prune have a protection from any automation/human errors 
+By default (and as a safety mechanism), automated sync with prune have a protection from any automation/human errors
 when there are no target resources. It prevents application from having empty resources. To allow applications have empty resources, run:
 
 ```bash
@@ -75,7 +78,8 @@ spec:
 ```
 
 ## Automatic Self-Healing
-By default, changes that are made to the live cluster will not trigger automated sync. To enable automatic sync 
+
+By default, changes that are made to the live cluster will not trigger automated sync. To enable automatic sync
 when the live cluster's state deviates from the state defined in Git, run:
 
 ```bash
@@ -143,10 +147,10 @@ Selective auto-sync is configured under `spec.syncPolicy.automated.selective` an
 `enabled` is set to `true`. The selection is expressed with two optional mechanisms that can be used on
 their own or together:
 
-* `matchExpressions` — selects resources by their **labels**, using the same syntax as Kubernetes
+- `matchExpressions` — selects resources by their **labels**, using the same syntax as Kubernetes
   [label selector requirements](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#resources-that-support-set-based-requirements)
   (operators `In`, `NotIn`, `Exists` and `DoesNotExist`).
-* `filters` — selects resources by `group`, `kind`, `name` and `namespace`. A resource matches a filter
+- `filters` — selects resources by `group`, `kind`, `name` and `namespace`. A resource matches a filter
   when every non-empty field of the filter equals the resource's corresponding value; an empty field
   (or `"*"`) matches any value. A resource is selected when it matches at least one filter.
 
@@ -183,17 +187,22 @@ spec:
 > apply, but only to the selected resources. If no selected resource is `OutOfSync`, no automated sync is
 > triggered even when other (non-selected) resources are out of sync.
 
+Selective auto-sync can also be configured from the web UI. When creating an application, the "Sync Policy"
+section exposes an "Enable Selective Sync" option with editors for the filters and match expressions. For an
+existing application, the "SYNC POLICY" panel lets you toggle selective sync on or off and shows the
+configured selection (edit the detailed filters/expressions via the application manifest).
+
 ## Automated Sync Semantics
 
-* An automated sync will only be performed if the application is OutOfSync. Applications in a
+- An automated sync will only be performed if the application is OutOfSync. Applications in a
   Synced or error state will not attempt automated sync.
-* Automated sync will only attempt one synchronization per unique combination of commit SHA1 and
+- Automated sync will only attempt one synchronization per unique combination of commit SHA1 and
   application parameters. If the most recent successful sync in the history was already performed
   against the same commit-SHA and parameters, a second sync will not be attempted, unless `selfHeal` flag is set to true.
-* If the `selfHeal` flag is set to true, then the sync will be attempted again after self-heal timeout (5 seconds by default)
+- If the `selfHeal` flag is set to true, then the sync will be attempted again after self-heal timeout (5 seconds by default)
 which is controlled by `--self-heal-timeout-seconds` flag of `argocd-application-controller` deployment.
-* Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
+- Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
   and parameters had failed.
 
-* Rollback cannot be performed against an application with automated sync enabled.
-* The automatic sync interval is determined by [the `timeout.reconciliation` value in the `argocd-cm` ConfigMap](../faq.md#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository), which defaults to `120s` with added jitter of `60s` for a maximum period of 3 minutes.
+- Rollback cannot be performed against an application with automated sync enabled.
+- The automatic sync interval is determined by [the `timeout.reconciliation` value in the `argocd-cm` ConfigMap](../faq.md#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository), which defaults to `120s` with added jitter of `60s` for a maximum period of 3 minutes.

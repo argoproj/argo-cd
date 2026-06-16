@@ -11,6 +11,7 @@ import {AuthSettingsCtx} from '../../../shared/context';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
+import {SelectiveSyncEditor} from '../application-selective-sync/application-selective-sync';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
 import {HydratorSourcePanel} from './hydrator-source-panel';
 import {CollapsibleMultiSourceSection} from './collapsible-multi-source-section';
@@ -77,6 +78,7 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
                         <label htmlFor='policySelfHeal'>Self Heal</label>
                         <HelpIcon title='If checked, Argo will force the state defined in Git into the cluster when a deviation in the cluster is detected' />
                     </div>
+                    <SelectiveSyncEditor selective={automated.selective} onChange={selective => setValue({...automated, selective})} />
                 </div>
             )}
         </React.Fragment>
