@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,8 +47,18 @@ type terminalSession struct {
 	terminalOpts   *TerminalOptions
 }
 
-// getToken get auth token from web socket request
+// getToken extracts the auth token from a websocket request. Consistent with
+// the rest of the API server, a bearer token provided in the Authorization
+// header is preferred over the auth cookie. This allows clients that
+// authenticate with a bearer token (rather than a cookie) to use the terminal
+// endpoint.
 func getToken(r *http.Request) (string, error) {
+	// Prefer the bearer token from the Authorization header, matching the
+	// behavior of the main API server.
+	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		return strings.TrimPrefix(auth, "Bearer "), nil
+	}
+	// Fall back to the auth cookie.
 	cookies := r.Cookies()
 	return httputil.JoinCookies(common.AuthCookieName, cookies)
 }
