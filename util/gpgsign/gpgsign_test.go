@@ -12,88 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/gpgsign/gpgsigntest"
 )
-
-// shortTempDir creates a temp dir under /tmp (not t.TempDir's potentially
-// long /var/folders path on macOS) so the gpg-agent unix socket path stays
-// under 108 bytes.
-func shortTempDir(t *testing.T) string {
-	t.Helper()
-	d, err := os.MkdirTemp("/tmp", "gpgsign-")
-	require.NoError(t, err)
-	require.NoError(t, os.Chmod(d, 0o700))
-	t.Cleanup(func() { _ = os.RemoveAll(d) })
-	return d
-}
-
-// generateTestSigningKey creates a throwaway protected/unprotected GPG key
-// in its own GNUPGHOME and exports the secret key block. Returns the ASCII
-// armored secret key and its 40-char fingerprint.
-func generateTestSigningKey(t *testing.T, passphrase string) ([]byte, string) {
-	t.Helper()
-	if _, err := exec.LookPath("gpg"); err != nil {
-		t.Skip("gpg not available")
-	}
-
-	srcHome := shortTempDir(t)
-	recipe := strings.Builder{}
-	if passphrase == "" {
-		recipe.WriteString("%no-protection\n")
-	}
-	recipe.WriteString("Key-Type: RSA\nKey-Length: 2048\nKey-Usage: sign\n")
-	recipe.WriteString("Name-Real: Argo CD Test\nName-Email: test@argo-cd.invalid\n")
-	recipe.WriteString("Expire-Date: 0\n")
-	if passphrase != "" {
-		recipe.WriteString("Passphrase: " + passphrase + "\n")
-	}
-	recipe.WriteString("%commit\n")
-
-	recipePath := filepath.Join(srcHome, "recipe")
-	require.NoError(t, os.WriteFile(recipePath, []byte(recipe.String()), 0o600))
-
-	env := append(os.Environ(), "GNUPGHOME="+srcHome, "LANG=C.UTF-8")
-
-	ctx := t.Context()
-	cmd := exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--batch", "--pinentry-mode", "loopback", "--gen-key", recipePath)
-	cmd.Env = env
-	stderr, err := cmd.CombinedOutput()
-	require.NoError(t, err, "gen-key failed: %s", string(stderr))
-
-	cmd = exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--with-colons", "--list-secret-keys")
-	cmd.Env = env
-	out, err := cmd.Output()
-	require.NoError(t, err)
-	fp := ""
-	inSec := false
-	for line := range strings.SplitSeq(string(out), "\n") {
-		fields := strings.Split(line, ":")
-		if len(fields) == 0 {
-			continue
-		}
-		if fields[0] == "sec" {
-			inSec = true
-		} else if fields[0] == "fpr" && inSec {
-			fp = fields[9]
-			break
-		}
-	}
-	require.NotEmpty(t, fp)
-
-	args := []string{"--no-permission-warning", "--batch", "--pinentry-mode", "loopback", "--armor", "--export-secret-keys"}
-	if passphrase != "" {
-		args = append(args, "--passphrase", passphrase)
-	}
-	args = append(args, fp)
-	cmd = exec.CommandContext(ctx, "gpg", args...)
-	cmd.Env = env
-	keyData, err := cmd.Output()
-	require.NoError(t, err)
-	return keyData, fp
-}
 
 func setSharedGnuPGHome(t *testing.T) {
 	t.Helper()
-	home := shortTempDir(t)
+	home := gpgsigntest.ShortTempDir(t)
 	t.Setenv(common.EnvGnuPGHome, home)
 }
 
@@ -108,7 +32,7 @@ func generateTestSigningKeyWithSubkey(t *testing.T) (keyData []byte, primaryFP, 
 		t.Skip("gpg not available")
 	}
 
-	srcHome := shortTempDir(t)
+	srcHome := gpgsigntest.ShortTempDir(t)
 	recipe := "%no-protection\n" +
 		"Key-Type: RSA\nKey-Length: 2048\nKey-Usage: cert\n" +
 		"Subkey-Type: RSA\nSubkey-Length: 2048\nSubkey-Usage: sign\n" +
@@ -226,7 +150,7 @@ func TestImportSigningKey_SigningSubkey(t *testing.T) {
 }
 
 func TestImportSigningKey_Unprotected(t *testing.T) {
-	keyData, wantFP := generateTestSigningKey(t, "")
+	keyData, wantFP := gpgsigntest.GenerateSigningKey(t, "")
 	setSharedGnuPGHome(t)
 
 	cfg, err := ImportSigningKey(context.Background(), keyData, "")
@@ -239,7 +163,7 @@ func TestImportSigningKey_Unprotected(t *testing.T) {
 }
 
 func TestImportSigningKey_WithPassphrase(t *testing.T) {
-	keyData, wantFP := generateTestSigningKey(t, "s3cret")
+	keyData, wantFP := gpgsigntest.GenerateSigningKey(t, "s3cret")
 	setSharedGnuPGHome(t)
 
 	cfg, err := ImportSigningKey(context.Background(), keyData, "s3cret")
@@ -308,7 +232,7 @@ func TestParseSigningKeygrips(t *testing.T) {
 
 func TestPresetSigningPassphrase_EnablesNonInteractiveSigning(t *testing.T) {
 	const passphrase = "s3cret"
-	keyData, fp := generateTestSigningKey(t, passphrase)
+	keyData, fp := gpgsigntest.GenerateSigningKey(t, passphrase)
 	setSharedGnuPGHome(t)
 	home := common.GetGnuPGHomePath()
 
@@ -342,9 +266,9 @@ func TestPresetSigningPassphrase_EnablesNonInteractiveSigning(t *testing.T) {
 }
 
 func TestImportSigningKey_PublicKeyOnly_Rejected(t *testing.T) {
-	keyData, fp := generateTestSigningKey(t, "")
+	keyData, fp := gpgsigntest.GenerateSigningKey(t, "")
 	// Export only the public part to simulate user mistake.
-	srcHome := shortTempDir(t)
+	srcHome := gpgsigntest.ShortTempDir(t)
 	env := append(os.Environ(), "GNUPGHOME="+srcHome, "LANG=C.UTF-8")
 	// First import secret to source home so we can re-export the public key.
 	ctx := t.Context()

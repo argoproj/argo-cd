@@ -3,6 +3,9 @@ package commit
 import (
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,10 +15,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/commit/mocks"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/gpgsign"
+	"github.com/argoproj/argo-cd/v3/util/gpgsign/gpgsigntest"
 )
 
 func Test_CommitHydratedManifests(t *testing.T) {
@@ -582,4 +587,77 @@ func newServiceWithMocksAndSigning(t *testing.T, signingConfig *gpgsign.Config) 
 	service.repoClientFactory = mockRepoClientFactory
 
 	return service, mockRepoClientFactory
+}
+
+// Test_CommitHydratedManifests_Signing_FullFlow drives the whole signed
+// hydration flow against a real git client and a local origin repo — clone,
+// checkout sync/target branches, write manifests, GPG-sign the commit, locally
+// verify the signature, and push — then asserts the commit that lands in origin
+// is signed by the configured key. This is the closest we can get to an e2e of
+// the feature without standing up a full commit-server deployment. Requires gpg.
+func Test_CommitHydratedManifests_Signing_FullFlow(t *testing.T) {
+	keyData, fingerprint := gpgsigntest.GenerateSigningKey(t, "")
+
+	// One GNUPGHOME, shared by the commit server (sign + verify) and the
+	// post-push verification below.
+	home := gpgsigntest.ShortTempDir(t)
+	t.Setenv(common.EnvGnuPGHome, home)
+	require.NoError(t, gpgsign.WriteAgentConfig(home))
+	signingCfg, err := gpgsign.ImportSigningKey(t.Context(), keyData, "")
+	require.NoError(t, err)
+	require.Equal(t, fingerprint, signingCfg.Fingerprint)
+
+	origin := newOriginRepo(t)
+
+	service := NewService(git.NoopCredsStore{}, metrics.NewMetricsServer(), signingCfg)
+
+	req := &apiclient.CommitHydratedManifestsRequest{
+		Repo:          &v1alpha1.Repository{Repo: "file://" + origin},
+		TargetBranch:  "hydrated",
+		SyncBranch:    "env/test",
+		CommitMessage: "hydrate manifests",
+		DrySha:        "0123456789abcdef0123456789abcdef01234567",
+		Paths: []*apiclient.PathDetails{{
+			Path: ".",
+			Manifests: []*apiclient.HydratedManifestDetails{{
+				ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"x"}}`,
+			}},
+		}},
+	}
+
+	resp, err := service.CommitHydratedManifests(t.Context(), req)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.HydratedSha)
+
+	// The commit that landed on the target branch in origin must carry a good
+	// signature from the configured key.
+	cmd := exec.CommandContext(t.Context(), "git", "-C", origin, "log", "-1", "--pretty=format:%G?:%GK", "hydrated")
+	cmd.Env = append(os.Environ(), "GNUPGHOME="+home, "LANG=C")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "git log: %s", out)
+
+	status, key, found := strings.Cut(strings.TrimSpace(string(out)), ":")
+	require.True(t, found, "unexpected signature output: %q", out)
+	assert.Contains(t, []string{git.SignatureStatusGood, git.SignatureStatusGoodUnknownTrust}, status)
+	assert.True(t, signingCfg.MatchesSigningKey(key), "commit signed by unexpected key %q", key)
+}
+
+// newOriginRepo creates a non-bare git repo seeded with an empty initial commit
+// to act as the push target. denyCurrentBranch=updateInstead lets the commit
+// server push branches and notes into it.
+func newOriginRepo(t *testing.T) string {
+	t.Helper()
+	dir := gpgsigntest.ShortTempDir(t)
+	run := func(args ...string) {
+		cmd := exec.CommandContext(t.Context(), "git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "git %s: %s", strings.Join(args, " "), out)
+	}
+	run("init", ".")
+	run("config", "user.email", "origin@argo-cd.invalid")
+	run("config", "user.name", "Origin")
+	run("config", "receive.denyCurrentBranch", "updateInstead")
+	run("commit", "--allow-empty", "-m", "init")
+	return dir
 }
