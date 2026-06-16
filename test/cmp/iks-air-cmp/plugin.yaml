@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: iks-air-cmp
+spec:
+  init:
+    command: [env]
+  generate:
+    command: [/Users/zaller/Development/argo-cd/test/cmp/iks-air-cmp/iks-air-cmp, 'hydrate', '-f', '.', '-e', '/Users/zaller/go/bin/iks-express-darwin-amd64']
+  parameters:
+    static:
+      - name: environment-type
+        string: preprod
+      - name: environment-name
+        string: qal
+      - name: environment
+        string: qal-usw2-air
+  discover:
+    fileName: "iks-express.yaml"
+  provideGitCreds: true

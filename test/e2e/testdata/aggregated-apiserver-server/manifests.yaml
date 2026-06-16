@@ -135,6 +135,10 @@ apiVersion: apiregistration.k8s.io/v1
 kind: APIService
 metadata:
   name: v1alpha1.wardle.example.com
+  # e2e.argoproj.io lets fixture EnsureCleanState clean up this cluster-scoped
+  # APIService between tests; a dangling APIService degrades discovery.
+  labels:
+    e2e.argoproj.io: "true"
 spec:
   insecureSkipTLSVerify: true
   group: wardle.example.com

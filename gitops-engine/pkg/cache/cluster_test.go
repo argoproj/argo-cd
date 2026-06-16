@@ -1100,6 +1100,7 @@ func TestIsAPIServiceAvailable(t *testing.T) {
 			"apiVersion": "apiregistration.k8s.io/v1",
 			"kind":       "APIService",
 			"metadata":   map[string]any{"name": "v1beta1.metrics.k8s.io"},
+			"spec":       map[string]any{"group": "metrics.k8s.io", "version": "v1beta1"},
 		}}
 		if conditions != nil {
 			obj.Object["status"] = map[string]any{"conditions": conditions}

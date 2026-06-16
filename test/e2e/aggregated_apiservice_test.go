@@ -37,15 +37,12 @@ const wardleAPIServiceName = "v1alpha1.wardle.example.com"
 // watched, so a resource can show as Synced even though the cache never observed
 // it - which is exactly why it would be missing from the UI/tree.
 func TestAPIServiceLateRegistrationIsDiscovered(t *testing.T) {
-	const serverManifests = "testdata/aggregated-apiserver-server/manifests.yaml"
-
 	// The aggregated apiserver infrastructure is cluster-scoped (Namespace,
-	// APIService, ClusterRole(Binding)s) and is not managed by an Argo CD app, so
-	// it must be cleaned up explicitly. A dangling APIService backed by a deleted
-	// service would otherwise degrade discovery for subsequent tests.
-	t.Cleanup(func() {
-		_, _ = Run("", "kubectl", "delete", "-f", serverManifests, "--ignore-not-found=true", "--wait=false")
-	})
+	// APIService, ClusterRole(Binding)s) and is not managed by an Argo CD app. It
+	// is labeled with e2e.argoproj.io=true so fixture.EnsureCleanState tears it
+	// down between tests; a dangling APIService backed by a deleted service would
+	// otherwise degrade discovery for subsequent tests.
+	const serverManifests = "testdata/aggregated-apiserver-server/manifests.yaml"
 
 	flunderManifest := `apiVersion: wardle.example.com/v1alpha1
 kind: Flunder
