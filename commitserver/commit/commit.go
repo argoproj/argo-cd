@@ -192,12 +192,11 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return "", hydratedSha, nil
 	}
 	logCtx.Debug("Committing changes")
-	signingKeyID, gpgProgram := "", ""
+	signingKeyID := ""
 	if s.signingConfig != nil {
 		signingKeyID = s.signingConfig.KeyID
-		gpgProgram = s.signingConfig.GPGProgram
 	}
-	out, err = gitClient.Commit(r.CommitMessage, signingKeyID, gpgProgram)
+	out, err = gitClient.Commit(r.CommitMessage, signingKeyID)
 	if err != nil {
 		if s.signingConfig != nil {
 			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonCommit)

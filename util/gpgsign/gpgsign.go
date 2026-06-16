@@ -25,9 +25,7 @@ import (
 // Config holds the resolved signing identity. KeyID is the long key ID
 // (16 hex chars, the trailing 64 bits of the fingerprint) of the imported
 // primary key. The key material itself lives in the shared GNUPGHOME at
-// common.GetGnuPGHomePath(). GPGProgram, when non-empty, is the path to a
-// wrapper script that git's gpg.program must be set to so that loopback
-// pinentry (and an optional passphrase file) are used during signing.
+// common.GetGnuPGHomePath().
 //
 // SigningKeyIDs lists the long key IDs of every signing-capable (sub)key of
 // the imported key — primary plus any signing subkeys. git/gpg may produce
@@ -36,7 +34,6 @@ import (
 type Config struct {
 	KeyID         string
 	Fingerprint   string
-	GPGProgram    string
 	SigningKeyIDs []string
 }
 
@@ -144,32 +141,138 @@ func parseImportFingerprint(statusOut string) (string, error) {
 	return "", errors.New("could not determine fingerprint from gpg import output (no IMPORT_OK status with a 40-char fingerprint)")
 }
 
-// WriteSignWrapper writes a small POSIX shell wrapper to dir that invokes gpg
-// with --batch and loopback pinentry. If passphraseFile is non-empty, the
-// wrapper additionally passes --passphrase-file. Returns the absolute path to
-// the script. The script must be set as git's gpg.program when signing.
-//
-// We need the wrapper because `git commit -S` shells out to gpg without
-// piping stdin, so the only way to feed a passphrase to a protected key is
-// for gpg itself to read it from a file.
-func WriteSignWrapper(dir, passphraseFile string) (string, error) {
-	script := "#!/bin/sh\nexec gpg --no-permission-warning --batch --pinentry-mode loopback"
-	if passphraseFile != "" {
-		// Validate the path at startup before embedding it into shell source.
-		if !filepath.IsAbs(passphraseFile) || passphraseFile != filepath.Clean(passphraseFile) {
-			return "", fmt.Errorf("passphrase file path must be clean and absolute: %q", passphraseFile)
-		}
-		// Quote the path so paths with spaces still work. We've already
-		// rejected empty here.
-		script += " --passphrase-file '" + strings.ReplaceAll(passphraseFile, "'", `'\''`) + "'"
-	}
-	script += " \"$@\"\n"
+// agentConfig enables preset-passphrase support and pins a long cache TTL so a
+// passphrase loaded via PresetSigningPassphrase survives for the life of the
+// long-lived commit server. One year is far longer than any pod's lifetime; on
+// restart the passphrase is preset again.
+const agentConfig = `allow-preset-passphrase
+default-cache-ttl 31536000
+max-cache-ttl 31536000
+`
 
-	path := filepath.Join(dir, "argocd-gpg-sign-wrapper.sh")
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
-		return "", fmt.Errorf("failed to write gpg sign wrapper: %w", err)
+// WriteAgentConfig writes gpg-agent.conf into gnupgHome, which must already
+// exist. An already-running agent only applies these settings after a reload,
+// which PresetSigningPassphrase performs before presetting — without
+// allow-preset-passphrase in effect the preset would be refused.
+func WriteAgentConfig(gnupgHome string) error {
+	path := filepath.Join(gnupgHome, "gpg-agent.conf")
+	if err := os.WriteFile(path, []byte(agentConfig), 0o600); err != nil {
+		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
-	return path, nil
+	return nil
+}
+
+// PresetSigningPassphrase loads passphrase into the running gpg-agent for every
+// signing-capable (sub)key of fingerprint, so that `git commit -S` can sign
+// non-interactively — no wrapper script and no on-disk passphrase file at
+// signing time. The agent answers gpg's passphrase request from its cache.
+//
+// It fails fast if gpg-preset-passphrase is missing from the image (it ships
+// with the gpg-agent package but lives in libexec, off PATH); that binary is
+// the only hard runtime dependency this signing approach adds.
+func PresetSigningPassphrase(ctx context.Context, fingerprint, passphrase string) error {
+	bin, err := presetPassphraseBin(ctx)
+	if err != nil {
+		return err
+	}
+	grips, err := signingKeygrips(ctx, fingerprint)
+	if err != nil {
+		return err
+	}
+	// Ensure the agent is up and has re-read gpg-agent.conf — it may have been
+	// started during key import, so reload to guarantee allow-preset-passphrase
+	// is in effect before we preset.
+	if err := reloadAgent(ctx); err != nil {
+		return err
+	}
+	for _, grip := range grips {
+		cmd := exec.CommandContext(ctx, bin, "--preset", grip)
+		cmd.Env = gpgEnv()
+		cmd.Stdin = strings.NewReader(passphrase)
+		if _, err := executil.Run(cmd); err != nil {
+			return fmt.Errorf("failed to preset passphrase for keygrip %s: %w", grip, err)
+		}
+	}
+	return nil
+}
+
+// presetPassphraseBin resolves the absolute path to gpg-preset-passphrase via
+// `gpgconf --list-dirs libexecdir`. The binary is part of the gpg-agent
+// package but lives in libexec and is not on PATH, so it must be located
+// explicitly. A failure here at startup means the image is missing it.
+func presetPassphraseBin(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "gpgconf", "--list-dirs", "libexecdir")
+	cmd.Env = gpgEnv()
+	out, err := executil.Run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to locate gnupg libexec dir: %w", err)
+	}
+	bin := filepath.Join(strings.TrimSpace(out), "gpg-preset-passphrase")
+	if _, err := os.Stat(bin); err != nil {
+		return "", fmt.Errorf("gpg-preset-passphrase not found at %s (is the gpg-agent package installed?): %w", bin, err)
+	}
+	return bin, nil
+}
+
+// reloadAgent launches the agent (if not already running) and reloads its
+// configuration so a pre-existing agent picks up gpg-agent.conf. gpgconf is
+// idempotent and ships with gnupg.
+func reloadAgent(ctx context.Context) error {
+	for _, args := range [][]string{{"--launch", "gpg-agent"}, {"--reload", "gpg-agent"}} {
+		cmd := exec.CommandContext(ctx, "gpgconf", args...)
+		cmd.Env = gpgEnv()
+		if _, err := executil.Run(cmd); err != nil {
+			return fmt.Errorf("gpgconf %s failed: %w", strings.Join(args, " "), err)
+		}
+	}
+	return nil
+}
+
+// signingKeygrips returns the keygrips of every signing-capable (sub)key for
+// the imported fingerprint. The keygrip identifies the secret key to
+// gpg-preset-passphrase. In `gpg --with-colons --with-keygrip` output every
+// sec/ssb record is followed by a grp record carrying that key's keygrip.
+func signingKeygrips(ctx context.Context, fingerprint string) ([]string, error) {
+	cmd := exec.CommandContext(ctx, "gpg",
+		"--no-permission-warning",
+		"--with-colons",
+		"--with-keygrip",
+		"--list-secret-keys",
+		fingerprint,
+	)
+	cmd.Env = gpgEnv()
+	out, err := executil.Run(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list keygrips for %s: %w", fingerprint, err)
+	}
+	grips := parseSigningKeygrips(out)
+	if len(grips) == 0 {
+		return nil, fmt.Errorf("no signing-capable keygrip found for %s", fingerprint)
+	}
+	return grips, nil
+}
+
+// parseSigningKeygrips scans `gpg --with-colons --with-keygrip
+// --list-secret-keys` output and returns the keygrip (field 10) of each grp
+// record that belongs to a signing-capable sec/ssb key (capability field 12
+// contains "s"). A grp record always follows its key record, so we capture the
+// keygrip only while the most recent sec/ssb was signing-capable.
+func parseSigningKeygrips(colonOut string) []string {
+	var grips []string
+	signing := false
+	for line := range strings.SplitSeq(colonOut, "\n") {
+		fields := strings.Split(line, ":")
+		switch fields[0] {
+		case "sec", "ssb":
+			signing = len(fields) >= 12 && strings.Contains(fields[11], "s")
+		case "grp":
+			if signing && len(fields) >= 10 && fields[9] != "" {
+				grips = append(grips, fields[9])
+			}
+			signing = false
+		}
+	}
+	return grips
 }
 
 // signingKeyIDs lists the secret keys for the imported fingerprint and returns

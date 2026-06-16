@@ -253,28 +253,92 @@ func TestImportSigningKey_EmptyKey(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestWriteSignWrapper(t *testing.T) {
-	dir := t.TempDir()
+func TestParseSigningKeygrips(t *testing.T) {
+	t.Parallel()
+	// In `gpg --with-colons --with-keygrip` output the keygrip lives in field 10
+	// (index 9) of each grp record, which follows its key record.
+	const (
+		grip1 = "1111111111111111111111111111111111111111"
+		grip2 = "2222222222222222222222222222222222222222"
+	)
+	tests := []struct {
+		name string
+		out  string
+		want []string
+	}{
+		{
+			name: "sign-capable primary, encrypt subkey",
+			out: "sec:u:3072:1:1234567890ABCDEF:1700000000:::u:::scESC:::+:::23::0:\n" +
+				"fpr:::::::::AAAA1111BBBB2222CCCC33331234567890ABCDEF:\n" +
+				"grp:::::::::" + grip1 + ":\n" +
+				"ssb:u:3072:1:FEDCBA0987654321:1700000000::::::e:::+:::23:\n" +
+				"grp:::::::::" + grip2 + ":\n",
+			want: []string{grip1},
+		},
+		{
+			name: "cert-only primary, signing subkey",
+			out: "sec:u:3072:1:1111222233334444:1700000000:::u:::cSC:::+:::23::0:\n" +
+				"fpr:::::::::DDDD4444EEEE5555FFFF66661111222233334444:\n" +
+				"grp:::::::::" + grip1 + ":\n" +
+				"ssb:u:3072:1:5555666677778888:1700000000::::::s:::+:::23:\n" +
+				"grp:::::::::" + grip2 + ":\n",
+			want: []string{grip2},
+		},
+		{
+			name: "both primary and subkey signing-capable",
+			out: "sec:u:3072:1:1111222233334444:1700000000:::u:::scSC:::+:::23::0:\n" +
+				"grp:::::::::" + grip1 + ":\n" +
+				"ssb:u:3072:1:5555666677778888:1700000000::::::s:::+:::23:\n" +
+				"grp:::::::::" + grip2 + ":\n",
+			want: []string{grip1, grip2},
+		},
+		{
+			name: "public only, no keygrip",
+			out:  "pub:u:3072:1:9999000011112222:1700000000:::u:::scESC::::::23::0:\n",
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, parseSigningKeygrips(tt.out))
+		})
+	}
+}
 
-	path, err := WriteSignWrapper(dir, "")
+func TestPresetSigningPassphrase_EnablesNonInteractiveSigning(t *testing.T) {
+	const passphrase = "s3cret"
+	keyData, fp := generateTestSigningKey(t, passphrase)
+	setSharedGnuPGHome(t)
+	home := common.GetGnuPGHomePath()
+
+	// The agent config must be in place before importing starts the agent.
+	require.NoError(t, WriteAgentConfig(home))
+
+	ctx := context.Background()
+	_, err := ImportSigningKey(ctx, keyData, passphrase)
 	require.NoError(t, err)
 
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-	// Must be executable so git's gpg.program can spawn it.
-	assert.NotZero(t, info.Mode().Perm()&0o100, "wrapper must be executable")
+	// gpg-preset-passphrase ships in libexec with the gpg-agent package but may
+	// be absent in some minimal environments; skip rather than fail there.
+	if _, err := presetPassphraseBin(ctx); err != nil {
+		t.Skipf("gpg-preset-passphrase unavailable: %v", err)
+	}
 
-	body, err := os.ReadFile(path)
-	require.NoError(t, err)
-	assert.Contains(t, string(body), "pinentry-mode loopback")
-	assert.NotContains(t, string(body), "--passphrase-file",
-		"no passphraseFile path should mean no --passphrase-file in wrapper")
+	require.NoError(t, PresetSigningPassphrase(ctx, fp, passphrase))
 
-	pathPP, err := WriteSignWrapper(dir, "/etc/secret/passphrase")
-	require.NoError(t, err)
-	bodyPP, err := os.ReadFile(pathPP)
-	require.NoError(t, err)
-	assert.Contains(t, string(bodyPP), "--passphrase-file '/etc/secret/passphrase'")
+	// --pinentry-mode error makes gpg fail instead of prompting (or hanging)
+	// when the passphrase isn't available, so a successful sign here proves the
+	// passphrase was served from the agent's preset cache.
+	cmd := exec.CommandContext(ctx, "gpg",
+		"--no-permission-warning", "--batch", "--no-tty",
+		"--pinentry-mode", "error",
+		"-u", fp, "--detach-sign",
+	)
+	cmd.Env = append(os.Environ(), "GNUPGHOME="+home, "LANG=C.UTF-8")
+	cmd.Stdin = strings.NewReader("hydrated manifest content")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "signing must not prompt after preset: %s", out)
 }
 
 func TestImportSigningKey_PublicKeyOnly_Rejected(t *testing.T) {

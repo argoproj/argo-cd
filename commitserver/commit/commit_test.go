@@ -192,7 +192,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
 		mockGitClient.EXPECT().HasFileChanged(mock.Anything).Return(true, nil).Twice()
-		mockGitClient.EXPECT().Commit("test commit message", "", "").Return("", nil).Once()
+		mockGitClient.EXPECT().Commit("test commit message", "").Return("", nil).Once()
 		mockGitClient.EXPECT().Push("main").Return("", nil).Once()
 		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		mockGitClient.EXPECT().CommitSHA().Return("root-and-blank-sha", nil).Twice()
@@ -242,7 +242,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
 		mockGitClient.EXPECT().HasFileChanged(mock.Anything).Return(true, nil).Once()
-		mockGitClient.EXPECT().Commit("test commit message", "", "").Return("", nil).Once()
+		mockGitClient.EXPECT().Commit("test commit message", "").Return("", nil).Once()
 		mockGitClient.EXPECT().Push("main").Return("", nil).Once()
 		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		mockGitClient.EXPECT().CommitSHA().Return("subdir-path-sha", nil).Twice()
@@ -286,7 +286,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
 		mockGitClient.EXPECT().HasFileChanged(mock.Anything).Return(true, nil).Times(3)
-		mockGitClient.EXPECT().Commit("test commit message", "", "").Return("", nil).Once()
+		mockGitClient.EXPECT().Commit("test commit message", "").Return("", nil).Once()
 		mockGitClient.EXPECT().Push("main").Return("", nil).Once()
 		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		mockGitClient.EXPECT().CommitSHA().Return("mixed-paths-sha", nil).Twice()
@@ -457,7 +457,6 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 	signingCfg := &gpgsign.Config{
 		KeyID:         fp[len(fp)-16:],
 		Fingerprint:   fp,
-		GPGProgram:    "/tmp/wrap.sh",
 		SigningKeyIDs: []string{fp[len(fp)-16:]},
 	}
 
@@ -489,7 +488,7 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		service, mockRepoClientFactory := newServiceWithMocksAndSigning(t, signingCfg)
 		c := gitmocks.NewClient(t)
 		commonMockExpectations(c)
-		c.EXPECT().Commit("test commit message", signingCfg.KeyID, signingCfg.GPGProgram).Return("", nil).Once()
+		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
 		c.EXPECT().HeadSignatureStatus().Return("G", signingCfg.Fingerprint, nil).Once()
 		c.EXPECT().Push("main").Return("", nil).Once()
 		c.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
@@ -506,7 +505,7 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		service, mockRepoClientFactory := newServiceWithMocksAndSigning(t, signingCfg)
 		c := gitmocks.NewClient(t)
 		commonMockExpectations(c)
-		c.EXPECT().Commit("test commit message", signingCfg.KeyID, signingCfg.GPGProgram).Return("", nil).Once()
+		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
 		c.EXPECT().HeadSignatureStatus().Return("B", signingCfg.Fingerprint, nil).Once()
 		c.EXPECT().CommitSHA().Return("never-pushed-sha", nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()
@@ -523,7 +522,7 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		service, mockRepoClientFactory := newServiceWithMocksAndSigning(t, signingCfg)
 		c := gitmocks.NewClient(t)
 		commonMockExpectations(c)
-		c.EXPECT().Commit("test commit message", signingCfg.KeyID, signingCfg.GPGProgram).Return("", nil).Once()
+		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
 		c.EXPECT().HeadSignatureStatus().Return("", "", errors.New("git boom")).Once()
 		c.EXPECT().CommitSHA().Return("never-pushed-sha", nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()
@@ -538,7 +537,7 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		service, mockRepoClientFactory := newServiceWithMocksAndSigning(t, signingCfg)
 		c := gitmocks.NewClient(t)
 		commonMockExpectations(c)
-		c.EXPECT().Commit("test commit message", signingCfg.KeyID, signingCfg.GPGProgram).Return("", nil).Once()
+		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
 		c.EXPECT().HeadSignatureStatus().Return("G", "DEADBEEFDEADBEEF", nil).Once()
 		c.EXPECT().CommitSHA().Return("never-pushed-sha", nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()

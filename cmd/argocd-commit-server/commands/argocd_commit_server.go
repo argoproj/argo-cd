@@ -78,7 +78,6 @@ func NewCommand() *cobra.Command {
 					"keyID":       cfg.KeyID,
 					"fingerprint": cfg.Fingerprint,
 					"gnupgHome":   common.GetGnuPGHomePath(),
-					"gpgProgram":  cfg.GPGProgram,
 				}).Info("Hydrated commit signing enabled")
 			}
 
@@ -154,12 +153,21 @@ func validateSigningFlags(keyPath, passphraseFile string) error {
 }
 
 // setupSigningKey initializes the shared GNUPGHOME, imports the configured
-// private signing key, and writes the loopback gpg wrapper. Any error here
-// must propagate up to abort startup — silently falling back to unsigned
-// commits would defeat the feature's purpose.
+// private signing key, and — for a passphrase-protected key — loads the
+// passphrase into gpg-agent so later `git commit -S` calls sign
+// non-interactively. Any error here must propagate up to abort startup —
+// silently falling back to unsigned commits would defeat the feature's purpose.
 func setupSigningKey(keyPath, passphraseFile string) (*gpgsign.Config, error) {
 	if err := sourceintegrity.InitializeGnuPG(); err != nil {
 		return nil, fmt.Errorf("failed to initialize GnuPG home: %w", err)
+	}
+
+	// Write gpg-agent.conf into the GNUPGHOME that InitializeGnuPG just created.
+	// The agent is typically already running by now (InitializeGnuPG generates a
+	// key, which starts it); PresetSigningPassphrase reloads the agent so
+	// allow-preset-passphrase takes effect before the passphrase is preset.
+	if err := gpgsign.WriteAgentConfig(common.GetGnuPGHomePath()); err != nil {
+		return nil, fmt.Errorf("failed to configure gpg-agent: %w", err)
 	}
 
 	keyData, err := os.ReadFile(keyPath)
@@ -191,17 +199,11 @@ func setupSigningKey(keyPath, passphraseFile string) (*gpgsign.Config, error) {
 		return nil, fmt.Errorf("failed to import signing key: %w", err)
 	}
 
-	// Keep the wrapper script out of GNUPGHOME — we don't want executable
-	// scratch state mixed in with the secret keyring. A pod-scoped temp dir
-	// is good enough; the commit server doesn't persist anything here.
-	wrapperDir, err := os.MkdirTemp("", "argocd-commit-sign-")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create wrapper dir: %w", err)
+	// Only a protected key needs a preset; an unprotected key signs without one.
+	if passphrase != "" {
+		if err := gpgsign.PresetSigningPassphrase(context.Background(), cfg.Fingerprint, passphrase); err != nil {
+			return nil, fmt.Errorf("failed to preset signing passphrase: %w", err)
+		}
 	}
-	wrapper, err := gpgsign.WriteSignWrapper(wrapperDir, passphraseFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write gpg sign wrapper: %w", err)
-	}
-	cfg.GPGProgram = wrapper
 	return cfg, nil
 }

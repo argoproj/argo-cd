@@ -176,10 +176,9 @@ type Client interface {
 	CommitAndPush(branch, message string) (string, error)
 	// Commit stages all changes and creates a single commit. If signingKeyID
 	// is non-empty, the commit is GPG-signed with the given key from the
-	// shared GNUPGHOME (common.GetGnuPGHomePath()). When gpgProgram is non-
-	// empty, it is used as git's gpg.program for this commit (needed for
-	// loopback pinentry / passphrase-file). Returns the git output.
-	Commit(message, signingKeyID, gpgProgram string) (string, error)
+	// shared GNUPGHOME (common.GetGnuPGHomePath()); the key's passphrase, if
+	// any, must already be cached in gpg-agent. Returns the git output.
+	Commit(message, signingKeyID string) (string, error)
 	// Push pushes the target branch to origin.
 	Push(branch string) (string, error)
 	// HeadSignatureStatus returns git's signature status code (%G?) and the
@@ -1542,7 +1541,7 @@ func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
 // Deprecated: use Commit followed by Push directly so verification can be
 // interleaved between the two. Retained for backwards compatibility.
 func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) {
-	out, err := m.Commit(message, "", "")
+	out, err := m.Commit(message, "")
 	if err != nil {
 		return out, err
 	}
@@ -1553,10 +1552,10 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 }
 
 // Commit stages all changes and creates a single commit. If signingKeyID is
-// non-empty, the commit is GPG-signed with that key from the shared GNUPGHOME.
-// When gpgProgram is non-empty, it overrides git's gpg.program (needed for
-// loopback pinentry / passphrase-file).
-func (m *nativeGitClient) Commit(message, signingKeyID, gpgProgram string) (string, error) {
+// non-empty, the commit is GPG-signed with that key from the shared GNUPGHOME;
+// the key's passphrase, if any, must already be cached in gpg-agent so gpg can
+// sign non-interactively.
+func (m *nativeGitClient) Commit(message, signingKeyID string) (string, error) {
 	ctx := context.Background()
 	if out, err := m.runCmd(ctx, "add", "."); err != nil {
 		return out, fmt.Errorf("failed to add files: %w", err)
@@ -1579,11 +1578,8 @@ func (m *nativeGitClient) Commit(message, signingKeyID, gpgProgram string) (stri
 	args := []string{
 		"-c", "user.signingkey=" + signingKeyID,
 		"-c", "commit.gpgsign=true",
+		"commit", "-m", message,
 	}
-	if gpgProgram != "" {
-		args = append(args, "-c", "gpg.program="+gpgProgram)
-	}
-	args = append(args, "commit", "-m", message)
 	cmd := m.cmdWithGPG(ctx, "git", args...)
 	out, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {

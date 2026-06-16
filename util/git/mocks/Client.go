@@ -378,8 +378,8 @@ func (_c *Client_CheckoutOrOrphan_Call) RunAndReturn(run func(branch string, sub
 }
 
 // Commit provides a mock function for the type Client
-func (_mock *Client) Commit(message string, signingKeyID string, gpgProgram string) (string, error) {
-	ret := _mock.Called(message, signingKeyID, gpgProgram)
+func (_mock *Client) Commit(message string, signingKeyID string) (string, error) {
+	ret := _mock.Called(message, signingKeyID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Commit")
@@ -387,16 +387,16 @@ func (_mock *Client) Commit(message string, signingKeyID string, gpgProgram stri
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string, string) (string, error)); ok {
-		return returnFunc(message, signingKeyID, gpgProgram)
+	if returnFunc, ok := ret.Get(0).(func(string, string) (string, error)); ok {
+		return returnFunc(message, signingKeyID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string, string) string); ok {
-		r0 = returnFunc(message, signingKeyID, gpgProgram)
+	if returnFunc, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = returnFunc(message, signingKeyID)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string, string) error); ok {
-		r1 = returnFunc(message, signingKeyID, gpgProgram)
+	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = returnFunc(message, signingKeyID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -411,12 +411,11 @@ type Client_Commit_Call struct {
 // Commit is a helper method to define mock.On call
 //   - message string
 //   - signingKeyID string
-//   - gpgProgram string
-func (_e *Client_Expecter) Commit(message interface{}, signingKeyID interface{}, gpgProgram interface{}) *Client_Commit_Call {
-	return &Client_Commit_Call{Call: _e.mock.On("Commit", message, signingKeyID, gpgProgram)}
+func (_e *Client_Expecter) Commit(message interface{}, signingKeyID interface{}) *Client_Commit_Call {
+	return &Client_Commit_Call{Call: _e.mock.On("Commit", message, signingKeyID)}
 }
 
-func (_c *Client_Commit_Call) Run(run func(message string, signingKeyID string, gpgProgram string)) *Client_Commit_Call {
+func (_c *Client_Commit_Call) Run(run func(message string, signingKeyID string)) *Client_Commit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -426,14 +425,9 @@ func (_c *Client_Commit_Call) Run(run func(message string, signingKeyID string, 
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -444,7 +438,7 @@ func (_c *Client_Commit_Call) Return(s string, err error) *Client_Commit_Call {
 	return _c
 }
 
-func (_c *Client_Commit_Call) RunAndReturn(run func(message string, signingKeyID string, gpgProgram string) (string, error)) *Client_Commit_Call {
+func (_c *Client_Commit_Call) RunAndReturn(run func(message string, signingKeyID string) (string, error)) *Client_Commit_Call {
 	_c.Call.Return(run)
 	return _c
 }
