@@ -99,7 +99,8 @@
     padding: 1em;
 }
 
-
+// Pin the trailing action menu to the right edge of the row and reserve room so it does not overlap
+// the last column's content.
 .argo-table-list__row {
     .columns:last-child {
         padding-right: 40px;
