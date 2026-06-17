@@ -1,7 +1,6 @@
 package git
 
 import (
-	"context"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -558,7 +557,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		})
 
 		// Execute
-		ctx := context.Background()
+		ctx := t.Context()
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, appId, "fake-key", "", org)
 
 		// Assert
@@ -593,7 +592,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		})
 
 		// Execute & Assert
-		ctx := context.Background()
+		ctx := t.Context()
 		// Pass the mock server URL as the enterpriseBaseURL so the GitHub client uses it
 		// Note: The mock server will have a different domain (e.g., 127.0.0.1) than the first test (github.com),
 		// so there's no cache collision between the two subtests.
@@ -625,7 +624,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 			}
 		})
 
-		ctx := context.Background()
+		ctx := t.Context()
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "target-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(22222), actualId, "should return the installation ID for the requested org, not the last one in the list")
