@@ -139,6 +139,34 @@ containers:
       - ExcludedResourceWarning
 ```
 
+### Exposing Cluster labels as Prometheus metrics
+
+As the Cluster labels are specific to each company, this feature is disabled by default. To enable it, set the
+comma-separated `controller.metrics.cluster.labels` key in the `argocd-cmd-params-cm` ConfigMap.
+
+The example below will expose the Argo CD cluster labels `team-name` and `environment` to Prometheus:
+
+    controller.metrics.cluster.labels: "team-name,environment"
+
+Alternatively, the labels can be passed as `--metrics-cluster-labels` flags directly to the application controller:
+
+    containers:
+    - command:
+      - argocd-application-controller
+      - --metrics-cluster-labels
+      - team-name
+      - --metrics-cluster-labels
+      - environment
+
+In either case, the metric would look like:
+
+```
+# TYPE argocd_cluster_labels gauge
+argocd_cluster_labels{label_environment="dev",label_team_name="team1",name="cluster1",server="server1"} 1
+argocd_cluster_labels{label_environment="staging",label_team_name="team2",name="cluster2",server="server2"} 1
+argocd_cluster_labels{label_environment="production",label_team_name="team3",name="cluster3",server="server3"} 1
+```
+
 ## Application Set Controller metrics
 
 The Application Set controller exposes the following metrics for application sets.
@@ -191,34 +219,6 @@ All the following `argocd_github_api_*` metrics can be enabled upon setting `app
 | namespace   | default       | Namespace of an ApplicationSet (namespace where the ApplicationSet CR is located, not the destination namespace).                             |
 | result      | hit           | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.            |
 | verb        | List          | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                |
-
-### Exposing Cluster labels as Prometheus metrics
-
-As the Cluster labels are specific to each company, this feature is disabled by default. To enable it, set the
-comma-separated `controller.metrics.cluster.labels` key in the `argocd-cmd-params-cm` ConfigMap.
-
-The example below will expose the Argo CD cluster labels `team-name` and `environment` to Prometheus:
-
-    controller.metrics.cluster.labels: "team-name,environment"
-
-Alternatively, the labels can be passed as `--metrics-cluster-labels` flags directly to the application controller:
-
-    containers:
-    - command:
-      - argocd-application-controller
-      - --metrics-cluster-labels
-      - team-name
-      - --metrics-cluster-labels
-      - environment
-
-In either case, the metric would look like:
-
-```
-# TYPE argocd_cluster_labels gauge
-argocd_cluster_labels{label_environment="dev",label_team_name="team1",name="cluster1",server="server1"} 1
-argocd_cluster_labels{label_environment="staging",label_team_name="team2",name="cluster2",server="server2"} 1
-argocd_cluster_labels{label_environment="production",label_team_name="team3",name="cluster3",server="server3"} 1
-```
 
 ## API Server Metrics
 
