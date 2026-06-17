@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: webhook-cert-create
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-7"
+    helm.sh/hook-delete-policy: hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 0
+  backoffLimit: 1
+  template:
+    spec:
+      serviceAccountName: webhook-cert-mgr
+      restartPolicy: Never
+      containers:
+        - name: cert-create
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c", "sleep 2 && echo cert-ok"]

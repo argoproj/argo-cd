@@ -586,6 +586,15 @@ func (sc *syncContext) Sync() {
 					continue
 				}
 				if liveObj != nil {
+					task.liveObj = liveObj
+					if task.isHook() {
+						operationState, message, err := sc.getOperationPhase(task.liveObj)
+						if err != nil {
+							sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("failed to evaluate hook phase: %v", err))
+						} else {
+							sc.setResourceResult(task, task.syncStatus, operationState, message)
+						}
+					}
 					continue
 				}
 
@@ -593,8 +602,11 @@ func (sc *syncContext) Sync() {
 			}
 		}
 
-		sc.setRunningPhase(runningTasks, false)
-		return
+		stillRunning := runningTasks.Filter(func(t *syncTask) bool { return t.running() })
+		if stillRunning.Len() > 0 {
+			sc.setRunningPhase(stillRunning, false)
+			return
+		}
 	}
 
 	// if pruned tasks pending deletion, then wait...

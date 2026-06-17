@@ -728,3 +728,39 @@ spec:
 		Expect(podWithoutFinalizer("complete-delete-on-create")).
 		Expect(podWithoutFinalizer("complete-delete-on-failed"))
 }
+
+// TestPreSyncHelmWebhookCertHooks verifies that a sync with multiple Helm pre-install hooks completes successfully.
+func TestPreSyncHelmWebhookCertHooks(t *testing.T) {
+	ctx := Given(t)
+	ns := ctx.DeploymentNamespace()
+	prefix := ctx.GetName()
+	crName := prefix + "-webhook-cert-mgr"
+	crbName := prefix + "-operator-webhook-cert-mgr"
+
+	ctx.Path("presync-webhook-cert").
+		When().
+		PatchFile("clusterrole.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/name", "value": %q}]`, crName)).
+		PatchFile("clusterrolebinding.yaml", fmt.Sprintf(`[
+			{"op": "replace", "path": "/metadata/name", "value": %q},
+			{"op": "replace", "path": "/roleRef/name", "value": %q},
+			{"op": "replace", "path": "/subjects/0/namespace", "value": %q}
+		]`, crbName, crName, ns)).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Deployment", "presync-repro-main", health.HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(5)).
+		Expect(ResourceResultMatches(ResourceResult{
+			Group: "rbac.authorization.k8s.io", Version: "v1", Kind: "ClusterRoleBinding", Namespace: ns, Name: crbName,
+			HookType: HookTypePreSync, Status: ResultCodeSynced, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync,
+			Message: ".*",
+		})).
+		Expect(ResourceResultMatches(ResourceResult{
+			Group: "batch", Version: "v1", Kind: "Job", Namespace: ns, Name: "webhook-cert-create",
+			HookType: HookTypePreSync, Status: ResultCodeSynced, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync,
+			Message: ".*",
+		}))
+}

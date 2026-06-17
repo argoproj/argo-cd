@@ -376,6 +376,7 @@ func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 		resourcesChange   map[kube.ResourceKey]reconciledResource
 		statusExpected    synccommon.ResultCode
 		hookPhaseExpected synccommon.OperationPhase
+		operationExpected synccommon.OperationPhase
 		clientGet         bool
 	}{
 		{
@@ -390,6 +391,7 @@ func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 			}),
 			statusExpected:    synccommon.ResultCodeSyncFailed,
 			hookPhaseExpected: synccommon.OperationError,
+			operationExpected: synccommon.OperationFailed,
 			clientGet:         false,
 		},
 		{
@@ -404,6 +406,7 @@ func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 			}),
 			statusExpected:    synccommon.ResultCodeSynced,
 			hookPhaseExpected: synccommon.OperationRunning,
+			operationExpected: synccommon.OperationRunning,
 			clientGet:         false,
 		},
 		{
@@ -418,6 +421,7 @@ func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 			}),
 			statusExpected:    synccommon.ResultCodeSynced,
 			hookPhaseExpected: synccommon.OperationRunning,
+			operationExpected: synccommon.OperationRunning,
 			clientGet:         true,
 		},
 	}
@@ -447,7 +451,7 @@ func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 
 			syncCtx.Sync()
 			phase, _, resources = syncCtx.GetState()
-			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Equal(t, tt.operationExpected, phase)
 			assert.Len(t, resources, 1)
 			assert.Equal(t, "pod-1", resources[0].ResourceKey.Name)
 			assert.Equal(t, tt.statusExpected, resources[0].Status)
@@ -3330,4 +3334,77 @@ func TestTerminate_Hooks_Error(t *testing.T) {
 	assert.Equal(t, kube.GetResourceKey(hook1), results[0].ResourceKey)
 	assert.Equal(t, synccommon.OperationError, results[0].HookPhase)
 	assert.Contains(t, results[0].Message, "update failed")
+}
+
+// TestSync_PreSyncHook_AdvancesPhaseWhenLiveObjectOnlyAvailableViaGet verifies that PreSync
+// hooks stored only in sc.hooks advance to Succeeded when getResource returns the live object.
+func TestSync_PreSyncHook_AdvancesPhaseWhenLiveObjectOnlyAvailableViaGet(t *testing.T) {
+	t.Run("ClusterRoleBinding", func(t *testing.T) {
+		hookObj := newHelmPreSyncClusterRoleBindingHook("presync-repro-operator-webhook-cert-mgr")
+		liveHook := hookObj.DeepCopy()
+		liveHook.SetFinalizers([]string{hook.HookFinalizer})
+		runPreSyncHookLiveViaGetResourceTest(t, hookObj, liveHook)
+	})
+
+	t.Run("Job", func(t *testing.T) {
+		hookObj := newHelmPreSyncJobHook("webhook-cert-create")
+		liveHook := hookObj.DeepCopy()
+		liveHook.SetNamespace(testingutils.FakeArgoCDNamespace)
+		liveHook.SetFinalizers([]string{hook.HookFinalizer})
+		require.NoError(t, unstructured.SetNestedField(liveHook.Object, int64(1), "status", "succeeded"))
+		require.NoError(t, unstructured.SetNestedSlice(liveHook.Object, []any{
+			map[string]any{
+				"type":   "Complete",
+				"status": "True",
+			},
+		}, "status", "conditions"))
+		runPreSyncHookLiveViaGetResourceTest(t, hookObj, liveHook)
+	})
+}
+
+func runPreSyncHookLiveViaGetResourceTest(t *testing.T, hookObj, liveHook *unstructured.Unstructured) {
+	t.Helper()
+	ns := testingutils.FakeArgoCDNamespace
+	key := hookResourceKey(hookObj, ns)
+
+	pod := testingutils.NewPod()
+	pod.SetName("presync-repro-main")
+	pod.SetNamespace(ns)
+
+	syncCtx := newTestSyncCtx(nil, WithInitialState(
+		synccommon.OperationRunning,
+		"waiting for completion of hook",
+		[]synccommon.ResourceSyncResult{{
+			ResourceKey: key,
+			HookPhase:   synccommon.OperationRunning,
+			Status:      synccommon.ResultCodeSynced,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+			Message:     "hook resource created",
+			Order:       1,
+		}},
+		metav1.Now(),
+	))
+
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), liveHook)
+	syncCtx.dynamicIf = fakeDynamicClient
+	fakeDynamicClient.PrependReactor("update", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		return false, action.(testcore.UpdateAction).GetObject(), nil
+	})
+
+	// Hook manifests live in sc.hooks only — not in sc.resources (production reconcile path).
+	syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil},
+		Target: []*unstructured.Unstructured{pod},
+	})
+
+	syncCtx.Sync()
+	phase, message, resources := syncCtx.GetState()
+
+	hookResult := getResourceResult(resources, key)
+	require.NotNil(t, hookResult, "expected hook result for %s", key)
+	assert.Equal(t, synccommon.OperationSucceeded, hookResult.HookPhase,
+		"hook phase should advance when live object is returned from the API")
+	assert.Equal(t, synccommon.OperationSucceeded, phase,
+		"sync should complete after hook succeeds; got message: %s", message)
 }

@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: presync-repro-webhook-cert-mgr
+  labels:
+    e2e.argoproj.io: "true"
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-9"
+    helm.sh/hook-delete-policy: hook-succeeded
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "update", "patch"]

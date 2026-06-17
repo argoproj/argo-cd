@@ -1,0 +1,18 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: presync-repro-operator-webhook-cert-mgr
+  labels:
+    e2e.argoproj.io: "true"
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-8"
+    helm.sh/hook-delete-policy: hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: presync-repro-webhook-cert-mgr
+subjects:
+  - kind: ServiceAccount
+    name: webhook-cert-mgr
+    namespace: presync-repro-ns
