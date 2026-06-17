@@ -1092,6 +1092,68 @@ func TestAppendAPIResource(t *testing.T) {
 	assert.ElementsMatch(t, []kube.APIResourceInfo{resourceInfo}, cluster.apiResources)
 }
 
+func TestIsAPIServiceAvailable(t *testing.T) {
+	t.Parallel()
+
+	apiService := func(conditions []any) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apiregistration.k8s.io/v1",
+			"kind":       "APIService",
+			"metadata":   map[string]any{"name": "v1beta1.metrics.k8s.io"},
+			"spec":       map[string]any{"group": "metrics.k8s.io", "version": "v1beta1"},
+		}}
+		if conditions != nil {
+			obj.Object["status"] = map[string]any{"conditions": conditions}
+		}
+		return obj
+	}
+
+	testCases := []struct {
+		name     string
+		obj      *unstructured.Unstructured
+		expected bool
+	}{
+		{
+			name:     "no status",
+			obj:      apiService(nil),
+			expected: false,
+		},
+		{
+			name:     "no conditions",
+			obj:      apiService([]any{}),
+			expected: false,
+		},
+		{
+			name: "available true",
+			obj: apiService([]any{
+				map[string]any{"type": "Available", "status": "True"},
+			}),
+			expected: true,
+		},
+		{
+			name: "available false",
+			obj: apiService([]any{
+				map[string]any{"type": "Available", "status": "False"},
+			}),
+			expected: false,
+		},
+		{
+			name: "unrelated condition only",
+			obj: apiService([]any{
+				map[string]any{"type": "SomethingElse", "status": "True"},
+			}),
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isAPIServiceAvailable(tc.obj))
+		})
+	}
+}
+
 func ExampleNewClusterCache_resourceUpdatedEvents() {
 	// kubernetes cluster config here
 	config := &rest.Config{}
