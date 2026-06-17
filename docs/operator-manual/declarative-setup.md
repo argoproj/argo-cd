@@ -544,7 +544,7 @@ A note on noProxy: Argo CD uses exec to interact with different tools such as he
 Cluster credentials are stored in secrets same as repositories or repository credentials. Each secret must have label
 `argocd.argoproj.io/secret-type: cluster`.
 
-The secret data must include following fields:
+The secret data can include the following fields (`name`, `server` and `config` are required, the rest are optional):
 
 * `name` - cluster name
 * `server` - cluster api server url
