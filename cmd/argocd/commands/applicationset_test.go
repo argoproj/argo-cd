@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -372,4 +374,56 @@ SyncPolicy:         <none>
 			assert.Equal(t, tt.expectedOutput, string(out))
 		})
 	}
+}
+
+func TestPrintApplicationSetParameters(t *testing.T) {
+	t.Run("renders pretty JSON by default", func(t *testing.T) {
+		out, err := captureOutput(func() error {
+			return printApplicationSetParameters([]string{`{"cluster":"in-cluster","values":{"region":"eu"}}`}, "")
+		})
+		require.NoError(t, err)
+		var decoded []any
+		require.NoError(t, json.Unmarshal([]byte(out), &decoded))
+		assert.Equal(t, []any{map[string]any{"cluster": "in-cluster", "values": map[string]any{"region": "eu"}}}, decoded)
+	})
+
+	t.Run("treats the default wide output as JSON", func(t *testing.T) {
+		out, err := captureOutput(func() error {
+			return printApplicationSetParameters([]string{`{"cluster":"in-cluster"}`}, "wide")
+		})
+		require.NoError(t, err)
+		var decoded []any
+		require.NoError(t, json.Unmarshal([]byte(out), &decoded))
+		assert.Equal(t, []any{map[string]any{"cluster": "in-cluster"}}, decoded)
+	})
+
+	t.Run("renders YAML when requested", func(t *testing.T) {
+		out, err := captureOutput(func() error {
+			return printApplicationSetParameters([]string{`{"cluster":"in-cluster"}`, `{"cluster":"fake-cluster"}`}, "yaml")
+		})
+		require.NoError(t, err)
+		var decoded []any
+		require.NoError(t, yaml.Unmarshal([]byte(out), &decoded))
+		assert.Equal(t, []any{map[string]any{"cluster": "in-cluster"}, map[string]any{"cluster": "fake-cluster"}}, decoded)
+	})
+
+	t.Run("renders an empty list when there are no parameters", func(t *testing.T) {
+		out, err := captureOutput(func() error {
+			return printApplicationSetParameters(nil, "json")
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "[]\n", out)
+	})
+
+	t.Run("returns an error for an unknown output format", func(t *testing.T) {
+		err := printApplicationSetParameters([]string{`{"cluster":"in-cluster"}`}, "name")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown output format")
+	})
+
+	t.Run("returns an error when a parameter set is not valid JSON", func(t *testing.T) {
+		err := printApplicationSetParameters([]string{`{"cluster":`}, "json")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to decode generated parameters")
+	})
 }

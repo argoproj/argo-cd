@@ -331,7 +331,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace used for generating Applications (ignored when provided YAML file has namespace set in metadata)")
-	command.Flags().BoolVar(&outputParameters, "output-parameters", false, "Output the parameters produced by the generators instead of the rendered Applications. Honors --output for json (default) or yaml")
+	command.Flags().BoolVar(&outputParameters, "output-parameters", false, "Output the parameters produced by the generators instead of the rendered Applications. Parameters are printed as JSON, or as YAML when --output yaml is set")
 	return command
 }
 

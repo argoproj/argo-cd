@@ -27,7 +27,7 @@ argocd appset generate [flags]
   -N, --appset-namespace string   Namespace used for generating Applications (ignored when provided YAML file has namespace set in metadata)
   -h, --help                      help for generate
   -o, --output string             Output format. One of: json|yaml|wide (default "wide")
-      --output-parameters         Output the parameters produced by the generators instead of the rendered Applications. Honors --output for json (default) or yaml
+      --output-parameters         Output the parameters produced by the generators instead of the rendered Applications. Parameters are printed as JSON, or as YAML when --output yaml is set
 ```
 
 ### Options inherited from parent commands
