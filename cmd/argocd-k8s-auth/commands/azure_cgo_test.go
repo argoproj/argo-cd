@@ -124,7 +124,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		o, err := buildAzureTokenOptions()
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, o)
 	})
 
@@ -138,7 +138,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		o, err := buildAzureTokenOptions()
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, o)
 	})
 
