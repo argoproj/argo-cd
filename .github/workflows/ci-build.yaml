@@ -434,12 +434,11 @@ jobs:
           name: test-results
           path: test-results
       - name: Generate unit test coverage profile
-        # Main and gitops-engine use different counter modes (set vs atomic),
-        # so they must be converted separately and then concatenated.
+        # -pcombine allows merging coverage from different binaries whose counter
+        # modes differ (main uses set, gitops-engine uses atomic due to -race).
         run: |
-          go tool covdata textfmt -i=test-results -o test-results/unit-coverage.out
-          go tool covdata textfmt -i=test-results/gitops-engine -o test-results/unit-coverage-engine.out
-          tail -n +2 test-results/unit-coverage-engine.out >> test-results/unit-coverage.out
+          go tool covdata merge -pcombine -i=test-results,test-results/gitops-engine -o test-results/merged
+          go tool covdata textfmt -i=test-results/merged -o test-results/unit-coverage.out
       - name: Generate e2e test coverage profile
         # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
         # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
