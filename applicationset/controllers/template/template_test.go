@@ -354,3 +354,63 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateParams(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct {
+		name                string
+		params              []map[string]any
+		generateParamsError error
+		expectErr           bool
+		expectedParams      []map[string]any
+	}{
+		{
+			name:           "returns the params produced by the generator",
+			params:         []map[string]any{{"name": "app1"}, {"name": "app2"}},
+			expectedParams: []map[string]any{{"name": "app1"}, {"name": "app2"}},
+		},
+		{
+			name:           "preserves nested param values",
+			params:         []map[string]any{{"cluster": map[string]any{"name": "in-cluster"}}},
+			expectedParams: []map[string]any{{"cluster": map[string]any{"name": "in-cluster"}}},
+		},
+		{
+			name:                "returns an error when the generator fails",
+			generateParamsError: errors.New("boom"),
+			expectErr:           true,
+		},
+	} {
+		cc := c
+		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
+			generatorMock := &genmock.Generator{}
+			generator := v1alpha1.ApplicationSetGenerator{
+				List: &v1alpha1.ListGenerator{},
+			}
+
+			generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+				Return(cc.params, cc.generateParamsError)
+			generatorMock.EXPECT().GetTemplate(&generator).
+				Return(&v1alpha1.ApplicationSetTemplate{})
+
+			got, err := GenerateParams(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{generator},
+				},
+			}, map[string]generators.Generator{"List": generatorMock}, nil)
+
+			if cc.expectErr {
+				require.Error(t, err)
+				assert.Nil(t, got)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, cc.expectedParams, got)
+			}
+		})
+	}
+}

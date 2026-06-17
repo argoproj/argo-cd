@@ -67,11 +67,15 @@ message ApplicationSetTreeQuery {
 message ApplicationSetGenerateRequest {
 	// the applicationsets
 	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSet applicationSet = 1;
+	// when true, the response carries the parameters produced by the generators instead of the rendered applications
+	bool outputParameters = 2;
 }
 
 // ApplicationSetGenerateResponse is a response for applicationset generate request
 message ApplicationSetGenerateResponse {
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application applications = 1;
+	// the parameters produced by the generators, each entry being a JSON-encoded parameter set; populated when outputParameters is set on the request
+	repeated string parameters = 2;
 }
 
 // ApplicationSetService
