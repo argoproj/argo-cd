@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -38,27 +39,42 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 	return nil
 }
 
-// NormalizeValuesObject rewrites ValuesObject.Raw into a canonical JSON form so that two semantically
-// equal values also compare equal at the byte level. This is required because the JSON produced by the
-// Kubernetes API server does not HTML-escape characters such as '&', '<' and '>', whereas Go's
-// encoding/json (used when a request source is parsed) does. Without normalization, a byte-wise comparison
-// such as reflect.DeepEqual would report a spurious difference between an otherwise identical stored source
-// and the source supplied in a request.
-func (h *ApplicationSourceHelm) NormalizeValuesObject() {
-	if h == nil || h.ValuesObject == nil || h.ValuesObject.Raw == nil {
-		return
+// Equals reports whether h and other are semantically equal. ValuesObject is compared by
+// marshaling both sides to canonical JSON so that HTML-escaping differences (e.g. '&' vs
+// '&') that arise between the Kubernetes API server and encoding/json do not cause
+// a spurious inequality.
+func (h *ApplicationSourceHelm) Equals(other *ApplicationSourceHelm) bool {
+	if h == nil && other == nil {
+		return true
+	}
+	if h == nil || other == nil {
+		return false
+	}
+	if !bytes.Equal(canonicalValuesJSON(h.ValuesObject), canonicalValuesJSON(other.ValuesObject)) {
+		return false
+	}
+	hCopy, otherCopy := h.DeepCopy(), other.DeepCopy()
+	hCopy.ValuesObject = nil
+	otherCopy.ValuesObject = nil
+	return reflect.DeepEqual(hCopy, otherCopy)
+}
+
+// canonicalValuesJSON returns the canonical JSON encoding of a ValuesObject by round-tripping
+// through json.Unmarshal + json.Marshal. Returns the original Raw bytes for invalid JSON,
+// or nil if the extension is absent.
+func canonicalValuesJSON(ext *runtime.RawExtension) []byte {
+	if ext == nil || ext.Raw == nil {
+		return nil
 	}
 	var v any
-	if err := json.Unmarshal(h.ValuesObject.Raw, &v); err != nil {
-		// Leave the raw value untouched if it is not valid JSON; it should never happen because
-		// ValuesObject is only ever set from JSON, but we must not panic or corrupt the value.
-		return
+	if err := json.Unmarshal(ext.Raw, &v); err != nil {
+		return ext.Raw
 	}
-	normalized, err := json.Marshal(v)
+	b, err := json.Marshal(v)
 	if err != nil {
-		return
+		return ext.Raw
 	}
-	h.ValuesObject.Raw = normalized
+	return b
 }
 
 func (h *ApplicationSourceHelm) ValuesYAML() []byte {

@@ -3783,16 +3783,15 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	}
 	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
 	// not considered in the DeepEqual comparison.
+	if !source.Helm.Equals(other.Helm) {
+		return false
+	}
 	sourceCopy := source.DeepCopy()
 	otherCopy := other.DeepCopy()
 	sourceCopy.Plugin = nil
 	otherCopy.Plugin = nil
-	// Helm's valuesObject is stored as raw JSON bytes in a runtime.RawExtension. Two semantically identical
-	// values can have different byte representations (e.g. the Kubernetes API server does not HTML-escape
-	// '&', '<' and '>', while encoding/json does), which would make the reflect.DeepEqual below report a
-	// spurious difference. Normalize both sides to a canonical JSON form before comparing.
-	sourceCopy.Helm.NormalizeValuesObject()
-	otherCopy.Helm.NormalizeValuesObject()
+	sourceCopy.Helm = nil
+	otherCopy.Helm = nil
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
