@@ -163,17 +163,20 @@ func TestSyncComparisonError(t *testing.T) {
 			Name:      "default",
 		},
 		Spec: v1alpha1.AppProjectSpec{
-			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 		},
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []string{},
-			Namespace:    test.FakeDestNamespace,
-			Server:       test.FakeClusterURL,
-			Revision:     "abc123",
-			VerifyResult: "something went wrong",
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name:     "GIT/GPG",
+				Problems: []string{"Unknown key 'XXX'"},
+			}}},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
@@ -215,7 +218,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 				Destinations: []v1alpha1.ApplicationDestination{
 					{
 						Namespace: "*",
@@ -394,6 +397,31 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.Len(t, targets, 1)
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "2.0", iksmVersion)
+	})
+	t.Run("will not copy live status into the apply target", func(t *testing.T) {
+		// given: status is configured as an ignored field (equivalent to the
+		// default ignoreResourceStatusField=crd behavior) and the live resource
+		// has an in-flight operationState.
+		ignore := v1alpha1.ResourceIgnoreDifferences{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/status"},
+		}
+		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{ignore})
+		live := f.comparisonResult.reconciliationResult.Live[0]
+		require.NoError(t, unstructured.SetNestedField(
+			live.Object, "Running", "status", "operationState", "phase"))
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then: live status must not be merged into the target that gets applied,
+		// otherwise the SSA sync manager co-owns and freezes operationState.phase.
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		_, found, err := unstructured.NestedMap(targets[0].Object, "status")
+		require.NoError(t, err)
+		assert.False(t, found, "live status must not be merged into the apply target")
 	})
 	t.Run("will not modify target resource if ignore difference is not configured", func(t *testing.T) {
 		// given

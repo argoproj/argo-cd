@@ -22,10 +22,10 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -36,6 +36,13 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 )
+
+func init() {
+	err := apiextensions.AddToScheme(scheme.Scheme)
+	if err != nil {
+		panic(err)
+	}
+}
 
 func mustToUnstructured(obj any) *unstructured.Unstructured {
 	un, err := kube.ToUnstructured(obj)
@@ -290,6 +297,7 @@ func Benchmark_sync_CrossNamespace(b *testing.B) {
 }
 
 func TestEnsureSynced(t *testing.T) {
+	t.Parallel()
 	obj1 := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -327,6 +335,7 @@ func TestEnsureSynced(t *testing.T) {
 }
 
 func TestStatefulSetOwnershipInferred(t *testing.T) {
+	t.Parallel()
 	var opts []UpdateSettingsFunc
 	opts = append(opts, func(c *clusterCache) {
 		c.batchEventsProcessing = true
@@ -392,6 +401,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := tc.cluster.EnsureSynced()
 			require.NoError(t, err)
 
@@ -422,6 +432,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 // The index is updated inline when inferred owner refs are added in setNode()
 // (see the inferred parent handling section in clusterCache.setNode).
 func TestStatefulSetPVC_ParentToChildrenIndex(t *testing.T) {
+	t.Parallel()
 	stsUID := types.UID("sts-uid-123")
 
 	// StatefulSet with volumeClaimTemplate named "data"
@@ -487,6 +498,7 @@ func TestStatefulSetPVC_ParentToChildrenIndex(t *testing.T) {
 // This tests the inline index update logic in setNode() which updates the index
 // immediately when inferred owner refs are added.
 func TestStatefulSetPVC_WatchEvent_IndexUpdated(t *testing.T) {
+	t.Parallel()
 	stsUID := types.UID("sts-uid-456")
 
 	// StatefulSet with volumeClaimTemplate
@@ -539,6 +551,7 @@ func TestStatefulSetPVC_WatchEvent_IndexUpdated(t *testing.T) {
 }
 
 func TestEnsureSyncedSingleNamespace(t *testing.T) {
+	t.Parallel()
 	obj1 := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -577,6 +590,7 @@ func TestEnsureSyncedSingleNamespace(t *testing.T) {
 }
 
 func TestGetChildren(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
@@ -620,6 +634,7 @@ func TestGetChildren(t *testing.T) {
 }
 
 func TestGetManagedLiveObjs(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
@@ -646,6 +661,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
@@ -671,6 +687,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource_ClusterResourceEnabled(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
@@ -712,6 +729,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsAllNamespaces(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
@@ -740,6 +758,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsValidNamespace(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
@@ -768,6 +787,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsInvalidNamespace(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
@@ -794,6 +814,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsFailedConversion(t *testing.T) {
+	t.Parallel()
 	cronTabGroup := "stable.example.com"
 
 	testCases := []struct {
@@ -819,8 +840,8 @@ func TestGetManagedLiveObjsFailedConversion(t *testing.T) {
 	for _, testCase := range testCases {
 		testCaseCopy := testCase
 		t.Run(testCaseCopy.name, func(t *testing.T) {
-			err := apiextensions.AddToScheme(scheme.Scheme)
-			require.NoError(t, err)
+			t.Parallel()
+			var err error
 			cluster := newCluster(t, testCRD(), testCronTab()).
 				WithAPIResources([]kube.APIResourceInfo{
 					{
@@ -875,6 +896,7 @@ metadata:
 }
 
 func TestChildDeletedEvent(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
@@ -886,6 +908,7 @@ func TestChildDeletedEvent(t *testing.T) {
 }
 
 func TestProcessNewChildEvent(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
@@ -946,6 +969,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 }
 
 func TestWatchCacheUpdated(t *testing.T) {
+	t.Parallel()
 	removed := testPod1()
 	removed.SetName(removed.GetName() + "-removed-pod")
 
@@ -972,6 +996,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 }
 
 func TestNamespaceModeReplace(t *testing.T) {
+	t.Parallel()
 	ns1Pod := testPod1()
 	ns1Pod.SetNamespace("ns1")
 	ns1Pod.SetName("pod1")
@@ -997,6 +1022,7 @@ func TestNamespaceModeReplace(t *testing.T) {
 }
 
 func TestGetDuplicatedChildren(t *testing.T) {
+	t.Parallel()
 	extensionsRS := testExtensionsRS()
 	cluster := newCluster(t, testDeploy(), testRS(), extensionsRS)
 	err := cluster.EnsureSynced()
@@ -1014,6 +1040,7 @@ func TestGetDuplicatedChildren(t *testing.T) {
 }
 
 func TestGetClusterInfo(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t)
 	cluster.apiResources = []kube.APIResourceInfo{{GroupKind: schema.GroupKind{Group: "test", Kind: "test kind"}}}
 	cluster.serverVersion = "v1.16"
@@ -1026,6 +1053,7 @@ func TestGetClusterInfo(t *testing.T) {
 }
 
 func TestDeleteAPIResource(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t)
 	cluster.apiResources = []kube.APIResourceInfo{{
 		GroupKind:            schema.GroupKind{Group: "test", Kind: "test kind"},
@@ -1048,6 +1076,7 @@ func TestDeleteAPIResource(t *testing.T) {
 }
 
 func TestAppendAPIResource(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t)
 
 	resourceInfo := kube.APIResourceInfo{
@@ -1061,6 +1090,68 @@ func TestAppendAPIResource(t *testing.T) {
 	// make sure same group, kind version is not added twice
 	cluster.appendAPIResource(resourceInfo)
 	assert.ElementsMatch(t, []kube.APIResourceInfo{resourceInfo}, cluster.apiResources)
+}
+
+func TestIsAPIServiceAvailable(t *testing.T) {
+	t.Parallel()
+
+	apiService := func(conditions []any) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apiregistration.k8s.io/v1",
+			"kind":       "APIService",
+			"metadata":   map[string]any{"name": "v1beta1.metrics.k8s.io"},
+			"spec":       map[string]any{"group": "metrics.k8s.io", "version": "v1beta1"},
+		}}
+		if conditions != nil {
+			obj.Object["status"] = map[string]any{"conditions": conditions}
+		}
+		return obj
+	}
+
+	testCases := []struct {
+		name     string
+		obj      *unstructured.Unstructured
+		expected bool
+	}{
+		{
+			name:     "no status",
+			obj:      apiService(nil),
+			expected: false,
+		},
+		{
+			name:     "no conditions",
+			obj:      apiService([]any{}),
+			expected: false,
+		},
+		{
+			name: "available true",
+			obj: apiService([]any{
+				map[string]any{"type": "Available", "status": "True"},
+			}),
+			expected: true,
+		},
+		{
+			name: "available false",
+			obj: apiService([]any{
+				map[string]any{"type": "Available", "status": "False"},
+			}),
+			expected: false,
+		},
+		{
+			name: "unrelated condition only",
+			obj: apiService([]any{
+				map[string]any{"type": "SomethingElse", "status": "True"},
+			}),
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isAPIServiceAvailable(tc.obj))
+		})
+	}
 }
 
 func ExampleNewClusterCache_resourceUpdatedEvents() {
@@ -1272,11 +1363,13 @@ func testDeploy() *appsv1.Deployment {
 }
 
 func TestIterateHierarchyV2(t *testing.T) {
+	t.Parallel()
 	cluster := newCluster(t, testPod1(), testPod2(), testRS(), testExtensionsRS(), testDeploy())
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
 
 	t.Run("IterateAll", func(t *testing.T) {
+		t.Parallel()
 		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testDeploy()))}
 		keys := []kube.ResourceKey{}
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
@@ -1295,6 +1388,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 	})
 
 	t.Run("ExitAtRoot", func(t *testing.T) {
+		t.Parallel()
 		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testDeploy()))}
 		keys := []kube.ResourceKey{}
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
@@ -1310,6 +1404,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 	})
 
 	t.Run("ExitAtSecondLevelChild", func(t *testing.T) {
+		t.Parallel()
 		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testDeploy()))}
 		keys := []kube.ResourceKey{}
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
@@ -1326,6 +1421,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 	})
 
 	t.Run("ExitAtThirdLevelChild", func(t *testing.T) {
+		t.Parallel()
 		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testDeploy()))}
 		keys := []kube.ResourceKey{}
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
@@ -1344,6 +1440,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 	})
 
 	t.Run("IterateAllStartFromMultiple", func(t *testing.T) {
+		t.Parallel()
 		startKeys := []kube.ResourceKey{
 			kube.GetResourceKey(mustToUnstructured(testRS())),
 			kube.GetResourceKey(mustToUnstructured(testDeploy())),
@@ -1366,6 +1463,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 
 	// After uid is backfilled for owner of pod2, it should appear in results here as well.
 	t.Run("IterateStartFromExtensionsRS", func(t *testing.T) {
+		t.Parallel()
 		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testExtensionsRS()))}
 		keys := []kube.ResourceKey{}
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
@@ -1438,8 +1536,8 @@ func testClusterChild() *rbacv1.ClusterRole {
 	}
 }
 
-
 func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
+	t.Parallel()
 	// Test that cluster-scoped parents automatically find all their children (both cluster-scoped and namespaced)
 	// This is the core behavior of the new implementation - cross-namespace relationships are always tracked
 	cluster := newCluster(t, testClusterParent(), testNamespacedChild(), testClusterChild()).WithAPIResources([]kube.APIResourceInfo{{
@@ -1473,6 +1571,7 @@ func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
 }
 
 func TestIterateHierarchyV2_MultiLevelClusterScoped_FindsNamespacedGrandchildren(t *testing.T) {
+	t.Parallel()
 	// Test 3-level hierarchy: ClusterScoped -> ClusterScoped -> Namespaced
 	// This test the scenario where:
 	//   Provider (managed) -> ProviderRevision (dynamic) -> Deployment (namespaced)
@@ -1566,6 +1665,7 @@ func TestIterateHierarchyV2_MultiLevelClusterScoped_FindsNamespacedGrandchildren
 }
 
 func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
+	t.Parallel()
 	// Test that passing only a cluster-scoped parent finds children even with inferred UIDs.
 	// This should never happen but we coded defensively for this case, and at worst it would link a child
 	// to the wrong parent if there were multiple parents with the same name (i.e. deleted and recreated).
@@ -1623,6 +1723,7 @@ func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
 }
 
 func TestOrphanedChildrenCleanup(t *testing.T) {
+	t.Parallel()
 	// Test that parent-to-children index is properly cleaned up when resources are deleted
 	clusterParent := testClusterParent()
 	namespacedChild := testNamespacedChild()
@@ -1672,6 +1773,7 @@ func TestOrphanedChildrenCleanup(t *testing.T) {
 }
 
 func TestOrphanedChildrenIndex_OwnerRefLifecycle(t *testing.T) {
+	t.Parallel()
 	// Test realistic scenarios of owner references being added and removed
 	clusterParent := testClusterParent()
 
@@ -2056,13 +2158,13 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 
 		// Secondary dimension: Within a namespace, % of resources that are cross-NS
 		// 5,000 total resources, 2% of namespaces (1/50) have cross-NS children
-		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10},  // 10% of namespace resources (10/100)
-		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25},  // 25% of namespace resources (25/100)
-		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50},  // 50% of namespace resources (50/100)
+		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10}, // 10% of namespace resources (10/100)
+		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25}, // 25% of namespace resources (25/100)
+		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50}, // 50% of namespace resources (50/100)
 
 		// Edge cases
-		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10},   // 1% of namespaces (1/100) - extreme clustering
-		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10},  // 100% of namespaces - worst case
+		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10},  // 1% of namespaces (1/100) - extreme clustering
+		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10}, // 100% of namespaces - worst case
 	}
 
 	for _, tc := range testCases {
@@ -2080,7 +2182,7 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 
 			// CRITICAL: Initialize namespacedResources so setNode will populate orphanedChildren index
 			cluster.namespacedResources = map[schema.GroupKind]bool{
-				{Group: "", Kind: "Pod"}:                                   true,
+				{Group: "", Kind: "Pod"}:                                  true,
 				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
 			}
 
@@ -2130,10 +2232,10 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 // multi-level cluster-scoped hierarchies: ClusterScoped -> ClusterScoped -> Namespaced
 func BenchmarkIterateHierarchyV2_MultiLevelClusterScoped(b *testing.B) {
 	testCases := []struct {
-		name                  string
-		intermediateChildren  int // Number of intermediate cluster-scoped children per root
+		name                    string
+		intermediateChildren    int // Number of intermediate cluster-scoped children per root
 		namespacedGrandchildren int // Number of namespaced grandchildren per intermediate
-		totalNamespaces       int
+		totalNamespaces         int
 	}{
 		// Baseline: no multi-level hierarchy
 		{"NoMultiLevel", 0, 0, 10},
@@ -2164,8 +2266,8 @@ func BenchmarkIterateHierarchyV2_MultiLevelClusterScoped(b *testing.B) {
 			}})
 
 			cluster.namespacedResources = map[schema.GroupKind]bool{
-				{Group: "", Kind: "Pod"}:                                   true,
-				{Group: "", Kind: "Namespace"}:                             false,
+				{Group: "", Kind: "Pod"}:                                  true,
+				{Group: "", Kind: "Namespace"}:                            false,
 				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
 			}
 
@@ -2240,6 +2342,7 @@ metadata:
 }
 
 func TestIterateHierarchyV2_NoDuplicatesInSameNamespace(t *testing.T) {
+	t.Parallel()
 	// Create a parent-child relationship in the same namespace
 	parent := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
@@ -2279,6 +2382,7 @@ func TestIterateHierarchyV2_NoDuplicatesInSameNamespace(t *testing.T) {
 }
 
 func TestIterateHierarchyV2_NoDuplicatesCrossNamespace(t *testing.T) {
+	t.Parallel()
 	// Test that cross-namespace parent-child relationships don't cause duplicates
 	visitCount := make(map[string]int)
 
@@ -2313,6 +2417,7 @@ func TestIterateHierarchyV2_NoDuplicatesCrossNamespace(t *testing.T) {
 }
 
 func TestIterateHierarchyV2_CircularOwnerReference_NoStackOverflow(t *testing.T) {
+	t.Parallel()
 	// Test that self-referencing resources (circular ownerReferences) don't cause stack overflow.
 	// This reproduces the bug reported in https://github.com/argoproj/argo-cd/issues/26783
 	// where a resource with an ownerReference pointing to itself caused infinite recursion.
@@ -2359,6 +2464,7 @@ func TestIterateHierarchyV2_CircularOwnerReference_NoStackOverflow(t *testing.T)
 }
 
 func TestIterateHierarchyV2_CircularOwnerChain_NoStackOverflow(t *testing.T) {
+	t.Parallel()
 	// Test that circular ownership chains (A -> B -> A) don't cause stack overflow.
 	// This is a more complex case where two resources own each other.
 
@@ -2528,7 +2634,7 @@ func BenchmarkSync_ParentToChildrenIndex(b *testing.B) {
 // set-based storage so add/remove operations are O(1) regardless of children count.
 func BenchmarkUpdateParentUIDToChildren(b *testing.B) {
 	testCases := []struct {
-		name            string
+		name              string
 		childrenPerParent int
 	}{
 		{"10children", 10},

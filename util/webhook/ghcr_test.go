@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,8 @@ import (
 )
 
 func TestGHCRParser_Parse(t *testing.T) {
-	parser := NewGHCRParser("")
+	t.Parallel()
+	parser := newGHCRParser("")
 	tests := []struct {
 		name       string
 		body       string
@@ -93,8 +95,9 @@ func TestGHCRParser_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
-			event, err := parser.Parse(req, []byte(tt.body))
+			t.Parallel()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(tt.body))
+			event, err := parser.Parse(req)
 
 			if tt.expectErr {
 				require.Error(t, err)
@@ -115,6 +118,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 }
 
 func TestValidateSignature(t *testing.T) {
+	t.Parallel()
 	body := []byte(`{"test":"payload"}`)
 	secret := "my-secret"
 
@@ -157,7 +161,8 @@ func TestValidateSignature(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parser := NewGHCRParser(tt.secret)
+			t.Parallel()
+			parser := newGHCRParser(tt.secret)
 
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 

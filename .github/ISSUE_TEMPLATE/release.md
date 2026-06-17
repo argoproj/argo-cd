@@ -9,6 +9,15 @@ assignees: ''
 Target RC1 date: ___. __, ____
 Target GA date: ___. __, ____
 
+## Chores requiring a merge before RC1 date (please start them as you create this issue, as they are mandatory for this release)
+
+ - [ ] Open a documentation PR for upgrading to this release version using [this](../../docs/operator-manual/templates/minor_version_upgrade.md) template.
+ - [ ] Check Helm version in `hack/tool-versions.sh` - if a newer Helm version exists, open a PR to bump it.  
+ - [ ] Check Kustomize version in `hack/tool-versions.sh` - if a newer Kustomize version exists, open a PR to bump it.  
+ - [ ] Check latest K8s version in the CI e2e matrix - if a newer K8s version exists, open a PR to bump it.  
+ - [ ] Check Go version in CI, Dockerfiles and `go.mod` - if a newer Go version exists, open a PR to bump it in all those files.
+ - [ ] Check `k8s.io/kubernetes` Go client version in `go.mod`- if a newer Go K8s client version exists, open a PR to bump it. Make sure to bump Go K8s client in `gitops-engine` `go.mod` as well and to follow this: https://github.com/argoproj/argo-cd/blob/d7760253c4bd2fee045411a70330eb4fce5b523a/gitops-engine/go.mod#L106   
+
 ## RC1 Release Checklist
 
  - [ ] 1wk before feature freeze post in #argo-contributors that PRs must be merged by DD-MM-YYYY to be included in the release - ask approvers to drop items from milestone they can't merge
@@ -41,7 +50,6 @@ Target GA date: ___. __, ____
      Thanks to all the folks who spent their time contributing to this release in any way possible!
      ```
  - [ ] Monitor support channels for issues, cherry-picking bugfixes and docs fixes as appropriate during the RC period (or delegate this task to an Approver and coordinate timing)
- - [ ] After creating the RC, open a documentation PR for the next minor version using [this](../../docs/operator-manual/templates/minor_version_upgrade.md) template.
 
 ## GA Release Checklist
 

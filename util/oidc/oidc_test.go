@@ -1017,10 +1017,11 @@ func TestGetUserInfo(t *testing.T) {
 			expectEncrypted bool
 			expectError     bool
 		}
-		idpHandler func(w http.ResponseWriter, r *http.Request)
-		idpClaims  jwt.MapClaims // as per specification sub and exp are REQUIRED fields
-		cache      cache.CacheClient
-		cacheItems []struct { // items to put in cache before execution
+		idpHandler         func(w http.ResponseWriter, r *http.Request)
+		idpHandlerUserInfo func(w http.ResponseWriter, r *http.Request) // same as idpHandler but listening on userInfoBaseURL instead of issuerURL
+		idpClaims          jwt.MapClaims                                // as per specification sub and exp are REQUIRED fields
+		cache              cache.CacheClient
+		cacheItems         []struct { // items to put in cache before execution
 			key     string
 			value   string
 			encrypt bool
@@ -1215,10 +1216,76 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:                  "call UserInfo on separate endpoint",
+			userInfoPath:          "/user-info",
+			expectedOutput:        jwt.MapClaims{"groups": []any{"githubOrg:developers"}}, // response from separate idpHandlerUserInfo expected
+			expectError:           false,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:             FormatUserInfoResponseCacheKey("randomUser"),
+					value:           "{\"groups\":[\"githubOrg:developers\"]}",
+					expectEncrypted: true,
+					expectError:     false,
+				},
+			},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
+				userInfoBytes := `
+				{
+					"groups":["githubOrg:engineers"]
+				}`
+				w.Header().Set("content-type", "application/json")
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			},
+			idpHandlerUserInfo: func(w http.ResponseWriter, _ *http.Request) {
+				userInfoBytes := `
+				{
+					"groups":["githubOrg:developers"]
+				}`
+				w.Header().Set("content-type", "application/json")
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     FormatAccessTokenCacheKey("randomUser"),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var tsUserInfo *httptest.Server
+			if tt.idpHandlerUserInfo != nil {
+				tsUserInfo = httptest.NewServer(http.HandlerFunc(tt.idpHandlerUserInfo))
+			} else {
+				tsUserInfo = httptest.NewServer(http.HandlerFunc(tt.idpHandler))
+			}
+
 			ts := httptest.NewServer(http.HandlerFunc(tt.idpHandler))
 			defer ts.Close()
 
@@ -1243,7 +1310,7 @@ func TestGetUserInfo(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			got, unauthenticated, err := a.GetUserInfo(t.Context(), tt.idpClaims, ts.URL, tt.userInfoPath)
+			got, unauthenticated, err := a.GetUserInfo(t.Context(), tt.idpClaims, ts.URL, tsUserInfo.URL, tt.userInfoPath)
 			assert.Equal(t, tt.expectedOutput, got)
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {
@@ -1269,7 +1336,7 @@ func TestGetUserInfo(t *testing.T) {
 	}
 }
 
-func TestSetGroupsFromUserInfo(t *testing.T) {
+func TestSetGroupsClaimFromEndpoint(t *testing.T) {
 	tests := []struct {
 		name           string
 		inputClaims    jwt.MapClaims // function input
@@ -1323,7 +1390,7 @@ userInfoPath: /`,
 			a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
 			require.NoError(t, err, "failed creating clientapp")
 
-			// prepoluate cache to predict what the GetUserInfo function will return to the SetGroupsFromUserInfo function (without having to mock the userinfo response)
+			// prepoluate cache to predict what the GetUserInfo function will return to the SetGroupsClaimFromEndpoint function (without having to mock the userinfo response)
 			encryptionKey, err := cdSettings.GetServerEncryptionKey()
 			require.NoError(t, err, "failed obtaining encryption key from settings")
 
@@ -1349,7 +1416,7 @@ userInfoPath: /`,
 				require.NoError(t, err, "failed setting item to in-memory cache")
 			}
 
-			receivedClaims, err := a.SetGroupsFromUserInfo(t.Context(), tt.inputClaims, "argocd")
+			receivedClaims, err := a.SetGroupsClaimFromEndpoint(t.Context(), tt.inputClaims, "argocd")
 			if tt.expectError {
 				require.Error(t, err)
 			} else {

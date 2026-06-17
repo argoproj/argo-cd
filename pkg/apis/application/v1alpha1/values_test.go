@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestValues_SetString(t *testing.T) {
@@ -79,4 +80,71 @@ func TestValues_SetString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplicationSourceHelm_String(t *testing.T) {
+	t.Run("nil receiver returns nil", func(t *testing.T) {
+		var h *ApplicationSourceHelm
+		assert.Equal(t, "nil", h.String())
+	})
+
+	t.Run("nil ValuesObject falls through to generated-style format", func(t *testing.T) {
+		h := &ApplicationSourceHelm{Values: "foo: bar"}
+		s := h.String()
+		assert.Contains(t, s, "&ApplicationSourceHelm{")
+		assert.Contains(t, s, "Values:foo: bar")
+		assert.Contains(t, s, "ValuesObject:nil")
+	})
+
+	t.Run("ValuesObject with JSON-encoded bytes is rendered as YAML not integers", func(t *testing.T) {
+		h := &ApplicationSourceHelm{
+			ValuesObject: &runtime.RawExtension{Raw: []byte(`{"image":{"tag":"v1.2.3"}}`)},
+		}
+		s := h.String()
+		assert.NotContains(t, s, "[123", "must not contain raw byte integers, got: %s", s)
+		assert.Contains(t, s, "image:")
+		assert.Contains(t, s, "tag: v1.2.3")
+	})
+
+	t.Run("ValuesObject with YAML-encoded bytes is rendered readably", func(t *testing.T) {
+		// Some call sites construct RawExtension.Raw directly from YAML rather
+		// than JSON; ValuesString() falls back to string(Raw) when JSONToYAML
+		// fails, so the output should still be human-readable.
+		h := &ApplicationSourceHelm{
+			ValuesObject: &runtime.RawExtension{Raw: []byte("image:\n  tag: v1.2.3\n")},
+		}
+		s := h.String()
+		assert.NotContains(t, s, "[105", "must not contain raw byte integers, got: %s", s)
+		assert.Contains(t, s, "image:")
+		assert.Contains(t, s, "tag: v1.2.3")
+	})
+}
+
+func TestApplicationSource_String(t *testing.T) {
+	t.Run("ValuesObject in Helm child renders as YAML through parent String", func(t *testing.T) {
+		s := &ApplicationSource{
+			RepoURL: "registry-1.docker.io",
+			Chart:   "my-chart",
+			Helm: &ApplicationSourceHelm{
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`{"replicaCount":2}`)},
+			},
+		}
+		out := s.String()
+		assert.NotContains(t, out, "[123", "must not contain raw byte integers, got: %s", out)
+		assert.Contains(t, out, "replicaCount: 2")
+	})
+
+	t.Run("ValuesObject with YAML-encoded bytes also renders readably via parent", func(t *testing.T) {
+		s := &ApplicationSource{
+			RepoURL: "registry-1.docker.io",
+			Chart:   "my-chart",
+			Helm: &ApplicationSourceHelm{
+				ValuesObject: &runtime.RawExtension{Raw: []byte("replicaCount: 2\nimage:\n  tag: latest\n")},
+			},
+		}
+		out := s.String()
+		assert.NotContains(t, out, "[114", "must not contain raw byte integers, got: %s", out)
+		assert.Contains(t, out, "replicaCount: 2")
+		assert.Contains(t, out, "tag: latest")
+	})
 }

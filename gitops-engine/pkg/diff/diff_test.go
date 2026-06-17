@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1331,6 +1332,76 @@ func TestServerSideDiff(t *testing.T) {
 		predictedData := mustGetSecretData(t, result.PredictedLive)
 		assert.Equal(t, "raw-value", predictedData["password"], "non-core Secret data must be left untouched")
 	})
+	t.Run("will strip kubectl.kubernetes.io/last-applied-configuration from both sides", func(t *testing.T) {
+		t.Parallel()
+
+		const lastAppliedRaw = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"secret","namespace":"default","annotations":{"app":"test"}},"data":{"password":"U0VDUkVUVkFM"},"stringData":{"username":"SECRETVAL"}}`
+
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test",
+					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`)
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test"
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`)
+		predictedLiveJSON := `{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test",
+					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), "kubectl.kubernetes.io/last-applied-configuration",
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), "kubectl.kubernetes.io/last-applied-configuration",
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.PredictedLive), "U0VDUkVUVkFM",
+			"PredictedLive must not contain raw secret values from last-applied-configuration")
+		assert.NotContains(t, string(result.PredictedLive), "SECRETVAL",
+			"PredictedLive must not contain raw secret values from last-applied-configuration")
+	})
 }
 
 // buildSecret returns a core/v1 Secret as an *unstructured.Unstructured.
@@ -2136,4 +2207,152 @@ spec:
 		assert.Contains(t, predictedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 	})
+}
+
+func TestStructuredMergeDiff_HPAv2ToV1Conversion(t *testing.T) {
+	// Reproduces https://github.com/argoproj/argo-cd/issues/17795
+	gvkParser := buildGVKParser(t)
+
+	config := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	live := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+  managedFields:
+  - apiVersion: autoscaling/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:maxReplicas: {}
+        f:minReplicas: {}
+        f:scaleTargetRef: {}
+    manager: helm
+    operation: Apply
+    time: "2024-01-01T00:00:00Z"
+  - apiVersion: autoscaling/v2
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:metrics: {}
+    manager: argocd-controller
+    operation: Apply
+    time: "2024-01-02T00:00:00Z"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	// Identical config and live should not be modified
+	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.False(t, result.Modified, "identical config and live should not show as modified")
+}
+
+func TestStructuredMergeDiff_HPAv2ToV1Conversion_Modified(t *testing.T) {
+	// Verifies that a real change is detected when config differs from live
+	// with cross-version managed fields
+	gvkParser := buildGVKParser(t)
+
+	config := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+`)
+
+	live := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+  managedFields:
+  - apiVersion: autoscaling/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:maxReplicas: {}
+        f:minReplicas: {}
+        f:scaleTargetRef: {}
+    manager: helm
+    operation: Apply
+    time: "2024-01-01T00:00:00Z"
+  - apiVersion: autoscaling/v2
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:metrics: {}
+    manager: argocd-controller
+    operation: Apply
+    time: "2024-01-02T00:00:00Z"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.Modified, "different config and live should show as modified")
 }
