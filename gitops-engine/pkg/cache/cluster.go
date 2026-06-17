@@ -28,7 +28,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-	"strings"
+	"slices"
 	"sync"
 	"time"
 
@@ -1019,6 +1019,7 @@ func (c *clusterCache) sync() error {
 
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
+	c.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 	config := c.config
@@ -1417,7 +1418,7 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 						// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
 						key1 := r.ResourceKey()
 						key2 := childNode.ResourceKey()
-						if strings.Compare(key1.String(), key2.String()) > 0 {
+						if key1.String() > key2.String() {
 							graph[uidNodeKey][childNode.Ref.UID] = childNode
 						}
 					}
@@ -1437,12 +1438,7 @@ func (c *clusterCache) IsNamespaced(gk schema.GroupKind) (bool, error) {
 }
 
 func (c *clusterCache) managesNamespace(namespace string) bool {
-	for _, ns := range c.namespaces {
-		if ns == namespace {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.namespaces, namespace)
 }
 
 // GetManagedLiveObjs helps finding matching live K8S resources for a given resources list.
