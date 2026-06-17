@@ -544,14 +544,14 @@ A note on noProxy: Argo CD uses exec to interact with different tools such as he
 Cluster credentials are stored in secrets same as repositories or repository credentials. Each secret must have label
 `argocd.argoproj.io/secret-type: cluster`.
 
-The secret data can include the following fields (`name`, `server` and `config` are required, the rest are optional):
+The secret data can include the following fields:
 
-* `name` - cluster name
-* `server` - cluster api server url
+* `name` - required, cluster name
+* `server` - required, cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Setting namespace values will cause cluster-level resources to be ignored unless `clusterResources` is set to `true`.
 * `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is only used when namespaces are restricted using the `namespaces` list.
 * `project` - optional string to designate this as a project-scoped cluster.
-* `config` - JSON representation of the following data structure:
+* `config` - required. JSON representation of the following data structure:
 
 ```yaml
 # Basic authentication settings
