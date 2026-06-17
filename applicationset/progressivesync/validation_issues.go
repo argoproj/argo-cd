@@ -48,6 +48,9 @@ func (v *ValidationIssues) formatInvalidMatchExpressionMessage() string {
 		stepNums[i] += strconv.Itoa(invalidMatch.StepIndex + 1)
 		invalidOperators[i] = invalidMatch.Operator
 	}
+	if len(stepNums) == 1 {
+		return fmt.Sprintf("Step %s has invalid matchExpression operators: %s. Supported Operators are 'In' and 'NotIn'", stepNums[0], strings.Join(invalidOperators, ", "))
+	}
 	return fmt.Sprintf("Steps %s have invalid matchExpression operators: %s. Supported Operators are 'In' and 'NotIn'", strings.Join(stepNums, ", "), strings.Join(invalidOperators, ", "))
 }
 
@@ -64,9 +67,12 @@ func (v *ValidationIssues) formatDuplicateAppSelectionMessage() string {
 		for i, step := range steps {
 			stepNumsString[i] = strconv.Itoa(step + 1)
 		}
-		stepNums = append(stepNums, strings.Join(stepNumsString, ","))
+		stepNums = append(stepNums, strings.Join(stepNumsString, "-"))
 	}
-	return fmt.Sprintf("Applications '%v' are selected by multiple steps: %v", appNames, stepNums)
+	if len(appNames) == 1 {
+		return fmt.Sprintf("Application '%s' is selected by multiple steps: (%s)", appNames[0], strings.Join(stepNums, ", "))
+	}
+	return fmt.Sprintf("Applications '%s' are selected by multiple steps: [(%s)]", strings.Join(appNames, "', '"), strings.Join(stepNums, "), ("))
 }
 
 // formatInvalidMaxUpdateMessage formats error message for invalid maxUpdate values
@@ -78,7 +84,10 @@ func (v *ValidationIssues) formatInvalidMaxUpdateMessage() string {
 		stepNums[i] = strconv.Itoa(invalidMaxUpdate.StepIndex + 1)
 		values[i] = invalidMaxUpdate.MaxUpdate.String()
 	}
-	return fmt.Sprintf("Steps %v have invalid maxUpdate values %v", strings.Join(stepNums, ", "), strings.Join(values, ", "))
+	if len(stepNums) == 1 {
+		return fmt.Sprintf("Step %v has an invalid maxUpdate value: %v", strings.Join(stepNums, ", "), strings.Join(values, ", "))
+	}
+	return fmt.Sprintf("Steps %v have invalid maxUpdate values: [%v]", strings.Join(stepNums, ", "), strings.Join(values, ", "))
 }
 
 // formatEmptyStepsMessage formats warning message for empty steps

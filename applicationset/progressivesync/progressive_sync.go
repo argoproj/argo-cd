@@ -586,9 +586,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 	return appStatuses, nil
 }
 
-func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.ApplicationSet) argov1alpha1.ApplicationSetCondition {
+func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.ApplicationSet) *argov1alpha1.ApplicationSetCondition {
 	if !IsRollingSyncStrategy(applicationSet) {
-		return argov1alpha1.ApplicationSetCondition{}
+		return nil
 	}
 	completedWaves := map[string]bool{}
 	for _, appStatus := range applicationSet.Status.ApplicationStatus {
@@ -616,7 +616,7 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 	}
 
 	if isProgressing {
-		return argov1alpha1.ApplicationSetCondition{
+		return &argov1alpha1.ApplicationSetCondition{
 			Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
 			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			Message: "ApplicationSet is performing rollout of step " + progressingStep,
@@ -624,18 +624,15 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 		}
 	}
 	// prioritize other Progressive Sync rollout scenarios here:
-	var rolloutReason string
-	var rolloutMessage string
+	rolloutReason := argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete
+	rolloutMessage := "ApplicationSet Rollout has completed"
 
 	if m.validationIssues.HasIssues() {
 		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
 		rolloutMessage = m.validationIssues.getConditionMessage()
-	} else {
-		rolloutReason = argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete
-		rolloutMessage = "ApplicationSet Rollout has completed"
 	}
 
-	return argov1alpha1.ApplicationSetCondition{
+	return &argov1alpha1.ApplicationSetCondition{
 		Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
 		Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
 		Message: rolloutMessage,
@@ -643,17 +640,14 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 	}
 }
 
-func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition argov1alpha1.ApplicationSetCondition) []argov1alpha1.ApplicationSetCondition {
-	if !IsRollingSyncStrategy(applicationSet) {
-		return applicationSet.Status.Conditions
+func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition *argov1alpha1.ApplicationSetCondition) []argov1alpha1.ApplicationSetCondition {
+	if condition != nil {
+		_ = m.dependencies.SetApplicationSetStatusCondition(ctx,
+			applicationSet,
+			*condition,
+			true,
+		)
 	}
-
-	_ = m.dependencies.SetApplicationSetStatusCondition(ctx,
-		applicationSet,
-		condition,
-		true,
-	)
-
 	return applicationSet.Status.Conditions
 }
 

@@ -39,7 +39,7 @@ func TestFormatInvalidMatchExpressionMessage(t *testing.T) {
 					},
 				},
 			},
-			expectedConditionMessage: "Steps 1 have invalid matchExpression operators: Invalid. Supported Operators are 'In' and 'NotIn'",
+			expectedConditionMessage: "Step 1 has invalid matchExpression operators: Invalid. Supported Operators are 'In' and 'NotIn'",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestFormatDuplicateAppSelectionMessage(t *testing.T) {
 					"foo": {0, 1},
 				},
 			},
-			expectedConditionMessage: "Applications '[foo]' are selected by multiple steps: [1,2]",
+			expectedConditionMessage: "Application 'foo' is selected by multiple steps: (1-2)",
 		},
 		{
 			name: "multiple applications selected in multiple steps have DuplicateAppSelections found for RollingSync",
@@ -74,7 +74,7 @@ func TestFormatDuplicateAppSelectionMessage(t *testing.T) {
 				},
 			},
 			// function sorts maps on keys to consistently test and avoid flakiness
-			expectedConditionMessage: "Applications '[bar foo]' are selected by multiple steps: [2,3 1,2]",
+			expectedConditionMessage: "Applications 'bar', 'foo' are selected by multiple steps: [(2-3), (1-2)]",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -104,7 +104,7 @@ func TestFormatInvalidMaxUpdateMessage(t *testing.T) {
 					},
 				},
 			},
-			expectedConditionMessage: "Steps 1 have invalid maxUpdate values Invalid",
+			expectedConditionMessage: "Step 1 has an invalid maxUpdate value: Invalid",
 		},
 		{
 			name: "multiple steps with invalid maxUpdate found for RollingSync",
@@ -126,7 +126,7 @@ func TestFormatInvalidMaxUpdateMessage(t *testing.T) {
 					},
 				},
 			},
-			expectedConditionMessage: "Steps 1, 5 have invalid maxUpdate values Invalid, Another",
+			expectedConditionMessage: "Steps 1, 5 have invalid maxUpdate values: [Invalid, Another]",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
