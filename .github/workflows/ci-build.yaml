@@ -437,6 +437,7 @@ jobs:
         # -pcombine allows merging coverage from different binaries whose counter
         # modes differ (main uses set, gitops-engine uses atomic due to -race).
         run: |
+          mkdir -p test-results/merged
           go tool covdata merge -pcombine -i=test-results,test-results/gitops-engine -o test-results/merged
           go tool covdata textfmt -i=test-results/merged -o test-results/unit-coverage.out
       - name: Generate e2e test coverage profile
