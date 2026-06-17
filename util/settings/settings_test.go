@@ -2568,7 +2568,7 @@ func TestGetHydratorReadmeTemplate(t *testing.T) {
 
 	t.Run("ConfigMapError", func(t *testing.T) {
 		kubeClient := fake.NewClientset()
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		template, err := settingsManager.GetHydratorReadmeTemplate()
 		require.Error(t, err)
 		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)

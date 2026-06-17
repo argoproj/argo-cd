@@ -66,7 +66,7 @@ func TestCreateSyncsCache(t *testing.T) {
 	app := &application.Application{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
 	}
-	require.NoError(t, c.Create(context.Background(), app))
+	require.NoError(t, c.Create(t.Context(), app))
 
 	require.Contains(t, store.List(), app)
 }
@@ -85,7 +85,7 @@ func TestUpdateSyncsCache(t *testing.T) {
 
 	updatedApp := app.DeepCopy()
 	updatedApp.Labels["foo"] = "bar-UPDATED"
-	require.NoError(t, c.Update(context.Background(), updatedApp))
+	require.NoError(t, c.Update(t.Context(), updatedApp))
 
 	updated, _, err := store.GetByKey("test")
 	require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestDeleteSyncsCache(t *testing.T) {
 	c, store, err := newClient(app)
 	require.NoError(t, err)
 
-	require.NoError(t, c.Delete(context.Background(), app))
+	require.NoError(t, c.Delete(t.Context(), app))
 
 	require.Empty(t, store.List())
 }

@@ -1196,7 +1196,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app := newFakeApp()
 		app.SetPreDeleteFinalizer()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		ctrl := newFakeController(context.Background(), &fakeData{
+		ctrl := newFakeController(t.Context(), &fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
 				Manifests: []string{fakePreDeleteHook},
 			}},
@@ -1236,7 +1236,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.Name = "this-application-name-is-deliberately-seventy-characters-long-12345678"
 		app.SetPreDeleteFinalizer()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		ctrl := newFakeController(context.Background(), &fakeData{
+		ctrl := newFakeController(t.Context(), &fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
 				Manifests: []string{fakePreDeleteHook},
 			}},
@@ -1363,7 +1363,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		liveHook := &unstructured.Unstructured{Object: newFakePreDeleteHook()}
 		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
-		ctrl := newFakeController(context.Background(), &fakeData{
+		ctrl := newFakeController(t.Context(), &fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
 				Manifests: []string{fakePreDeleteHook},
 			}},
@@ -4032,7 +4032,7 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		ctrl.persistReconciliationStatus(origApp, newStatus)
 
 		// Verify the patch was created correctly
-		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 
 		// Refresh annotation should be deleted
@@ -4073,7 +4073,7 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		ctrl.persistAppStatus(origApp, newStatus, newAnnotations)
 
 		// Verify the patch was created correctly
-		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 
 		// Hydrate annotation should be deleted

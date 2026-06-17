@@ -104,7 +104,7 @@ func mockDiffStrategyNoneModified() diffStrategy {
 
 // TestComputeDiff_DefaultCase tests the default case with both live and target resources
 func TestCompareManifests_DefaultCase(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources with both live and target states
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -146,7 +146,7 @@ func TestCompareManifests_DefaultCase(t *testing.T) {
 
 // TestComputeDiff_AddedResource tests when a resource exists in target but not live
 func TestCompareManifests_AddedResource(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a target-only resource (added) - no live state
 	targetDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -177,7 +177,7 @@ func TestCompareManifests_AddedResource(t *testing.T) {
 
 // TestComputeDiff_RemovedResource tests when a resource exists in live but not target
 func TestCompareManifests_RemovedResource(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a live-only resource (removed) - no target state
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -208,7 +208,7 @@ func TestCompareManifests_RemovedResource(t *testing.T) {
 
 // TestComputeDiff_MultipleResources tests handling multiple resources
 func TestCompareManifests_MultipleResources(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create multiple resources
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -287,7 +287,7 @@ func TestCompareManifests_MultipleResources(t *testing.T) {
 
 // TestComputeDiff_EmptyResources tests with no resources
 func TestCompareManifests_EmptyResources(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
@@ -301,7 +301,7 @@ func TestCompareManifests_EmptyResources(t *testing.T) {
 
 // TestComputeDiff_MixedAddedRemovedModified tests a scenario with added, removed, and modified resources
 func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Modified resource (exists in both live and target)
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -391,7 +391,7 @@ func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
 
 // TestComputeDiff_NoModifications tests that resources without modifications are not returned
 func TestCompareManifests_NoModifications(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -497,7 +497,7 @@ func TestManifestsToUnstructured(t *testing.T) {
 }
 
 func TestNewMultiSourceRevisionProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	deployment := createTestUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -550,7 +550,7 @@ func TestNewMultiSourceRevisionProvider(t *testing.T) {
 }
 
 func TestNewSingleRevisionProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	service := createTestUnstructured(&corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -601,7 +601,7 @@ func TestNewSingleRevisionProvider(t *testing.T) {
 }
 
 func TestNewDefaultTargetProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("Success with multiple items", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
@@ -678,7 +678,7 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 }
 
 func TestNewLiveManifestProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("Success", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
@@ -793,7 +793,7 @@ func TestNewLiveManifestProvider(t *testing.T) {
 // Test Diff Strategy Functions
 
 func TestNewServerSideDiffStrategy(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	deployment := createTestUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -1129,7 +1129,7 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 }
 
 func TestNewClientSideDiffStrategy(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	deployment := createTestUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -1328,7 +1328,7 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 }
 
 func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("Normalizes manifests with tracking labels", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
