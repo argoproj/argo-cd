@@ -1468,9 +1468,12 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 
 	// Loop through all nodes, calling each one "childNode," because we're only bothering with it if it has a parent.
 	for _, childNode := range nsNodes {
-		for i, ownerRef := range childNode.OwnerRefs {
-			// First, backfill UID of inferred owner child references.
-			if ownerRef.UID == "" {
+		for _, ownerRef := range childNode.OwnerRefs {
+			// Resolve empty owner-ref UIDs into a local variable only. childNode is shared
+			// cache state and IterateHierarchyV2 may run concurrently under RLock.
+			ownerUID := ownerRef.UID
+			if ownerUID == "" {
+				// First, backfill UID of inferred owner child references.
 				group, err := schema.ParseGroupVersion(ownerRef.APIVersion)
 				if err != nil {
 					// APIVersion is invalid, so we couldn't find the parent.
@@ -1481,12 +1484,11 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 					// No resource found with the given graph key, so move on.
 					continue
 				}
-				ownerRef.UID = graphKeyNode.Ref.UID
-				childNode.OwnerRefs[i] = ownerRef
+				ownerUID = graphKeyNode.Ref.UID
 			}
 
 			// Now that we have the UID of the parent, update the graph.
-			uidNodes, ok := nodesByUID[ownerRef.UID]
+			uidNodes, ok := nodesByUID[ownerUID]
 			if ok {
 				for _, uidNode := range uidNodes {
 					// Cache ResourceKey() to avoid repeated expensive calls
