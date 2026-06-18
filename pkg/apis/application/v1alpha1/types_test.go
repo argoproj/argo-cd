@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -1081,6 +1082,72 @@ func TestAppSourceEquality(t *testing.T) {
 	assert.True(t, left.Equals(right))
 	right.Directory.Recurse = false
 	assert.False(t, left.Equals(right))
+}
+
+// TestAppSourceEquality_HelmValuesObject verifies that two semantically identical Helm valuesObject
+// values compare equal even when their raw JSON byte representations differ. This happens in practice
+// because the Kubernetes API server serializes the stored spec without HTML-escaping characters such as
+// '&', '<' and '>', whereas a source supplied in a request is typically parsed with encoding/json, which
+// does escape them. Without normalization this byte-level mismatch made GetAppDetails reject valid
+// requests with a 403 (see isSourceInHistory).
+func TestAppSourceEquality_HelmValuesObject(t *testing.T) {
+	// jsonEscaped returns the JSON encoding that encoding/json produces, which HTML-escapes '&', '<' and
+	// '>' into their \uXXXX form. This mirrors how a source supplied in a request is encoded, and differs
+	// byte-for-byte from the unescaped JSON served by the Kubernetes API server.
+	jsonEscaped := func(v any) []byte {
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		return b
+	}
+
+	tests := []struct {
+		name     string
+		a        []byte
+		b        []byte
+		expected bool
+	}{
+		{
+			name:     "unescaped vs unicode-escaped ampersand",
+			a:        []byte(`{"foo":"&"}`),                      // as served by the Kubernetes API server
+			b:        jsonEscaped(map[string]string{"foo": "&"}), // {"foo":"&"} as encoded by a request
+			expected: true,
+		},
+		{
+			name:     "unescaped vs unicode-escaped angle brackets",
+			a:        []byte(`{"k":"<a>"}`),
+			b:        jsonEscaped(map[string]string{"k": "<a>"}), // {"k":"<a>"}
+			expected: true,
+		},
+		{
+			name:     "different map key ordering",
+			a:        []byte(`{"a":1,"b":2}`),
+			b:        []byte(`{"b":2,"a":1}`),
+			expected: true,
+		},
+		{
+			name:     "genuinely different values",
+			a:        []byte(`{"foo":"&"}`),
+			b:        []byte(`{"foo":"bar"}`),
+			expected: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			left := &ApplicationSource{
+				RepoURL: "https://example.com/repo.git",
+				Helm:    &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: tc.a}},
+			}
+			right := &ApplicationSource{
+				RepoURL: "https://example.com/repo.git",
+				Helm:    &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: tc.b}},
+			}
+			assert.Equal(t, tc.expected, left.Equals(right))
+			// Equals must be symmetric and must not mutate its operands.
+			assert.Equal(t, tc.expected, right.Equals(left))
+			assert.Equal(t, string(tc.a), string(left.Helm.ValuesObject.Raw))
+			assert.Equal(t, string(tc.b), string(right.Helm.ValuesObject.Raw))
+		})
+	}
 }
 
 func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {

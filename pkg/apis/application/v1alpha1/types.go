@@ -3783,10 +3783,15 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	}
 	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
 	// not considered in the DeepEqual comparison.
+	if !source.Helm.Equals(other.Helm) {
+		return false
+	}
 	sourceCopy := source.DeepCopy()
 	otherCopy := other.DeepCopy()
 	sourceCopy.Plugin = nil
 	otherCopy.Plugin = nil
+	sourceCopy.Helm = nil
+	otherCopy.Helm = nil
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
