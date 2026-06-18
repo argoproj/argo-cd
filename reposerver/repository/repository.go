@@ -849,7 +849,11 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
+							// Use the referenced source's own depth instead of the primary source's depth.
+							// For multi-source Applications where the primary source is a Helm/OCI artifact,
+							// q.Repo.Depth is unset (0), which would otherwise force a full fetch of the
+							// referenced git repository regardless of its configured depth.
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, refSourceMapping.Repo.Depth, clean)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
