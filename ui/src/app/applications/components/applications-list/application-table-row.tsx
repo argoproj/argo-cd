@@ -83,57 +83,57 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                 />
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
-                    <div className='row'>
-                        <div className='columns small-2'>
-                            <div>
-                                <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                    <button onClick={handleFavoriteToggle}>
-                                        <i
-                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
-                                            style={{
-                                                cursor: 'pointer',
-                                                marginRight: '7px',
-                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                            }}
-                                        />
-                                    </button>
-                                </Tooltip>
-                                <ApplicationURLs urls={app.status.summary?.externalURLs} />
-                            </div>
-                        </div>
-                        <div className='show-for-xxlarge columns small-4'>Project:</div>
-                        <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
-                    </div>
-                    <div className='row'>
-                        <div className='columns small-2' />
-                        <div className='show-for-xxlarge columns small-4'>Name:</div>
-                        <div className='columns small-12 xxlarge-6'>
-                            {/* Rendered before the name so it stays visible when the name truncates with ellipsis;
-                                the column's `overflow:hidden; white-space:nowrap` (argo-ui table-list) clips trailing
-                                inline children. The tile view does the opposite because there the title wraps. */}
-                            <NoticeIcon annotations={app.metadata.annotations} />
-                            <Tooltip
-                                content={
-                                    <>
-                                        {app.metadata.name}
-                                        <br />
-                                        <Moment fromNow={true} ago={true}>
-                                            {app.metadata.creationTimestamp}
-                                        </Moment>
-                                    </>
-                                }>
-                                <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
-                                    {app.metadata.name}
-                                </a>
+                    <div className='applications-list__meta-column'>
+                        <div className='applications-list__fav-col'>
+                            <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                                <button type='button' onClick={handleFavoriteToggle}>
+                                    <i
+                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                        style={{
+                                            cursor: 'pointer',
+                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                        }}
+                                    />
+                                </button>
                             </Tooltip>
-                            <button
-                                type='button'
-                                className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
-                                onClick={handleExternalLinkClick}
-                                style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
-                                title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                                <i className='fa fa-external-link-alt' />
-                            </button>
+                            <ApplicationURLs urls={app.status.summary?.externalURLs} />
+                        </div>
+                        <div className='applications-list__meta-rows'>
+                            <div className='applications-list__meta-row'>
+                                <div className='show-for-xxlarge applications-list__meta-label'>Project:</div>
+                                <div className='applications-list__meta-value'>{app.spec.project}</div>
+                            </div>
+                            <div className='applications-list__meta-row'>
+                                <div className='show-for-xxlarge applications-list__meta-label'>Name:</div>
+                                <div className='applications-list__meta-value'>
+                                    {/* Rendered before the name so it stays visible when the name truncates with ellipsis;
+                                        the column's `overflow:hidden; white-space:nowrap` (argo-ui table-list) clips trailing
+                                        inline children. The tile view does the opposite because there the title wraps. */}
+                                    <NoticeIcon annotations={app.metadata.annotations} />
+                                    <Tooltip
+                                        content={
+                                            <>
+                                                {app.metadata.name}
+                                                <br />
+                                                <Moment fromNow={true} ago={true}>
+                                                    {app.metadata.creationTimestamp}
+                                                </Moment>
+                                            </>
+                                        }>
+                                        <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
+                                            {app.metadata.name}
+                                        </a>
+                                    </Tooltip>
+                                    <button
+                                        type='button'
+                                        className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
+                                        onClick={handleExternalLinkClick}
+                                        style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
+                                        title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -142,23 +142,25 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     behaves as a real link (middle-click / right-click / status-bar URL preview).
                     Keyboard users tab to the overlay anchor instead (CellLink uses tabIndex=-1). */}
                 <div className='columns small-6'>
-                    <div className='row'>
-                        <div className='show-for-xxlarge columns small-2'>Source:</div>
-                        <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
-                            <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>
-                                <ApplicationsSource source={source} />
-                            </CellLink>
-                            <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__labels'>
-                                <ApplicationsLabels app={app} />
-                            </CellLink>
+                    <div className='applications-list__meta-rows'>
+                        <div className='applications-list__meta-row'>
+                            <div className='show-for-xxlarge applications-list__meta-label'>Source:</div>
+                            <div className='applications-list__meta-value applications-table-source' style={{position: 'relative'}}>
+                                <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>
+                                    <ApplicationsSource source={source} />
+                                </CellLink>
+                                <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__labels'>
+                                    <ApplicationsLabels app={app} />
+                                </CellLink>
+                            </div>
                         </div>
-                    </div>
-                    <div className='row'>
-                        <div className='show-for-xxlarge columns small-2'>Destination:</div>
-                        <div className='columns small-12 xxlarge-10'>
-                            <CellLink href={appLink.href} onClick={appLink.onClick}>
-                                <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
-                            </CellLink>
+                        <div className='applications-list__meta-row'>
+                            <div className='show-for-xxlarge applications-list__meta-label'>Destination:</div>
+                            <div className='applications-list__meta-value'>
+                                <CellLink href={appLink.href} onClick={appLink.onClick}>
+                                    <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                                </CellLink>
+                            </div>
                         </div>
                     </div>
                 </div>

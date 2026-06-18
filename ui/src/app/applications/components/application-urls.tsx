@@ -35,7 +35,7 @@ export const ExternalLinks = (urls?: string[]) => {
         try {
             const externalLink = new ExternalLink(url);
             externalLinks.push(externalLink);
-        } catch (InvalidExternalLinkError) {
+        } catch {
             continue;
         }
     }

@@ -1,10 +1,9 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
-.applications-table {
+$applications-list-label-min: 5.75rem;
+$applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
-    .application-name {
-        font-weight: bolder;
-    }
+.applications-table {
 
     .argo-table-list__row {
         line-height: 26px;
@@ -105,44 +104,81 @@
         }
     }
 
-    .applications-table-source {
-        display: flex;
-        justify-content: space-between;
-
-        .applications-table-source__link {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .applications-table-source__labels {
-            max-width: 40%;
-        }
-    }
-
-    .applications-list__external-link {
-        button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            margin: 0;
-            color: inherit;
-
-            &:hover {
-                color: $argo-color-teal-5;
-            }
-
-            i {
-                font-size: 14px;
-            }
-        }
-    }
-
     .applications-list__table-row button.managed-by-url-invalid {
         color: #f4c030;
 
         &:hover {
             color: #f4c030;
+        }
+    }
+
+    .applications-list__meta-column {
+        display: flex;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .applications-list__fav-col {
+        flex-shrink: 0;
+        padding-left: 0;
+        padding-right: 10px;
+
+        button {
+            padding: 0;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .applications-list__external-links-icon-container {
+            display: inline-block;
+            margin-left: 0.125rem;
+        }
+    }
+
+    .applications-list__meta-rows {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .applications-list__meta-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+
+        @media screen and (min-width: $applications-list-xxlarge) {
+            grid-template-columns: minmax($applications-list-label-min, 2fr) minmax(0, 8fr);
+            column-gap: 0.25rem;
+        }
+    }
+
+    .applications-list__meta-label {
+        min-width: $applications-list-label-min;
+        white-space: nowrap;
+    }
+
+    .applications-list__meta-value {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .applications-list__meta-value.applications-table-source {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        overflow: visible;
+
+        .applications-table-source__link {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .applications-table-source__labels {
+            max-width: 40%;
+            flex-shrink: 0;
         }
     }
 }

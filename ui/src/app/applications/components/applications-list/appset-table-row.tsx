@@ -74,52 +74,52 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                 />
                 {/* First column: Favorite, Kind, Name */}
                 <div className='columns small-4'>
-                    <div className='row'>
-                        <div className='columns small-2'>
-                            <div>
-                                <Tooltip content={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                    <button onClick={handleFavoriteToggle}>
-                                        <i
-                                            className={favList?.includes(appSet.metadata.name) ? 'fas fa-star' : 'far fa-star'}
-                                            style={{
-                                                cursor: 'pointer',
-                                                marginRight: '7px',
-                                                color: favList?.includes(appSet.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                            }}
-                                        />
-                                    </button>
-                                </Tooltip>
-                            </div>
-                        </div>
-                        <div className='show-for-xxlarge columns small-4'>Kind:</div>
-                        <div className='columns small-12 xxlarge-6'>ApplicationSet</div>
-                    </div>
-                    <div className='row'>
-                        <div className='columns small-2' />
-                        <div className='show-for-xxlarge columns small-4'>Name:</div>
-                        <div className='columns small-12 xxlarge-6'>
-                            <Tooltip
-                                content={
-                                    <>
-                                        {appSet.metadata.name}
-                                        <br />
-                                        <Moment fromNow={true} ago={true}>
-                                            {appSet.metadata.creationTimestamp}
-                                        </Moment>
-                                    </>
-                                }>
-                                <a className='applications-list__table-row-name' href={appSetLink.href} onClick={appSetLink.onClick} tabIndex={-1}>
-                                    {appSet.metadata.name}
-                                </a>
+                    <div className='applications-list__meta-column'>
+                        <div className='applications-list__fav-col'>
+                            <Tooltip content={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                                <button type='button' onClick={handleFavoriteToggle}>
+                                    <i
+                                        className={favList?.includes(appSet.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                        style={{
+                                            cursor: 'pointer',
+                                            color: favList?.includes(appSet.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                        }}
+                                    />
+                                </button>
                             </Tooltip>
-                            <button
-                                type='button'
-                                className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
-                                onClick={handleExternalLinkClick}
-                                style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
-                                title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                                <i className='fa fa-external-link-alt' />
-                            </button>
+                        </div>
+                        <div className='applications-list__meta-rows'>
+                            <div className='applications-list__meta-row'>
+                                <div className='show-for-xxlarge applications-list__meta-label'>Kind:</div>
+                                <div className='applications-list__meta-value'>ApplicationSet</div>
+                            </div>
+                            <div className='applications-list__meta-row'>
+                                <div className='show-for-xxlarge applications-list__meta-label'>Name:</div>
+                                <div className='applications-list__meta-value'>
+                                    <Tooltip
+                                        content={
+                                            <>
+                                                {appSet.metadata.name}
+                                                <br />
+                                                <Moment fromNow={true} ago={true}>
+                                                    {appSet.metadata.creationTimestamp}
+                                                </Moment>
+                                            </>
+                                        }>
+                                        <a className='applications-list__table-row-name' href={appSetLink.href} onClick={appSetLink.onClick} tabIndex={-1}>
+                                            {appSet.metadata.name}
+                                        </a>
+                                    </Tooltip>
+                                    <button
+                                        type='button'
+                                        className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
+                                        onClick={handleExternalLinkClick}
+                                        style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
+                                        title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

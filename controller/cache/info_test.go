@@ -602,6 +602,7 @@ func TestGetPodInfo(t *testing.T) {
 	})
 
 	t.Run("TestGetPodWithInitialContainerInfo", func(t *testing.T) {
+		t.Parallel()
 		pod := strToUnstructured(`
   apiVersion: "v1"
   kind: "Pod"
@@ -659,6 +660,7 @@ func TestGetPodInfo(t *testing.T) {
 	})
 
 	t.Run("TestGetPodWithInitialContainerInfoWithResources", func(t *testing.T) {
+		t.Parallel()
 		pod := strToUnstructured(`
         apiVersion: "v1"
         kind: "Pod"

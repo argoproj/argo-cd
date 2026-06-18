@@ -20,6 +20,7 @@ import (
 )
 
 func TestStateDiff(t *testing.T) {
+	t.Parallel()
 	type diffConfigParams struct {
 		ignores        []v1alpha1.ResourceIgnoreDifferences
 		overrides      map[string]v1alpha1.ResourceOverride
@@ -131,6 +132,7 @@ func TestStateDiff(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
+			t.Parallel()
 			dc := diffConfig(t, tc.params())
 
 			// when
@@ -155,6 +157,7 @@ func TestStateDiff(t *testing.T) {
 }
 
 func TestDiffConfigBuilder(t *testing.T) {
+	t.Parallel()
 	type fixture struct {
 		ignores        []v1alpha1.ResourceIgnoreDifferences
 		overrides      map[string]v1alpha1.ResourceOverride
@@ -177,6 +180,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 	}
 	t.Run("will build diff config successfully", func(t *testing.T) {
 		// given
+		t.Parallel()
 		f := setup()
 
 		// when
@@ -201,6 +205,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 	})
 	t.Run("will initialize ignore differences if nil is passed", func(t *testing.T) {
 		// given
+		t.Parallel()
 		f := setup()
 
 		// when
@@ -223,6 +228,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 	})
 	t.Run("will return error if retrieving diff from cache an no appName configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		f := setup()
 
 		// when
@@ -238,6 +244,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 	})
 	t.Run("will return error if retrieving diff from cache and no stateCache configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		f := setup()
 
 		// when
@@ -254,8 +261,10 @@ func TestDiffConfigBuilder(t *testing.T) {
 }
 
 func TestDiffFromCache(t *testing.T) {
+	t.Parallel()
 	t.Run("returns false and logs warning on cache miss", func(t *testing.T) {
 		// given
+		t.Parallel()
 		hook := test.NewLocal(logrus.StandardLogger())
 		defer hook.Reset()
 
@@ -283,6 +292,7 @@ func TestDiffFromCache(t *testing.T) {
 
 	t.Run("returns false and logs error on cache failure", func(t *testing.T) {
 		// given
+		t.Parallel()
 		hook := test.NewLocal(logrus.StandardLogger())
 		defer hook.Reset()
 
