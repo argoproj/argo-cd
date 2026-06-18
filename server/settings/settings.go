@@ -130,6 +130,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
+		set.UiLoginButtonText = argoCDSettings.UiLoginButtonText
 		set.ControllerNamespace = s.mgr.GetNamespace()
 		set.ResourceOverrides = overrides
 	}
