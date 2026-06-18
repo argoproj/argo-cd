@@ -21,9 +21,9 @@ Would result in:
 
 ## CLI Download Links
 
-The **Help** page (linked from the bottom of the sidebar) links to the GitHub releases page for the running Argo CD version, where the CLI is available for all supported operating systems and architectures.
+By default, the **Help** page (linked from the bottom of the sidebar) links to the GitHub releases page for the running Argo CD version, where the CLI is available for all supported operating systems and architectures.
 
-To offer direct download buttons instead (for example an internal mirror, or air-gapped environments where GitHub is not reachable), set `help.download.<os>-<arch>` keys in the [argocd-cm](argocd-cm-yaml.md) ConfigMap. Each configured key adds a download button on the Help page pointing at the URL you provide. The Argo CD server also serves its own embedded Linux CLI binary at `download/argocd-linux-<arch>`, which can be used as a target for these keys:
+To offer direct download buttons instead (for example an internal mirror, or air-gapped environments where GitHub is not reachable), set `help.download.<os>-<arch>` keys in the [argocd-cm](argocd-cm-yaml.md) ConfigMap. When any of these keys are configured, the Help page renders a button per key pointing at the URL you provide and the default GitHub releases link is no longer shown. The Argo CD server also serves its own embedded Linux CLI binary at `download/argocd-linux-<arch>`, which can be used as a target for these keys:
 
 ```yaml
 apiVersion: v1

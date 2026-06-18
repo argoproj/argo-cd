@@ -52,10 +52,14 @@ export const Help = () => {
                                     <div className='columns large-4 small-6'>
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
-                                            <a href={downloadURL} target='_blank' rel='noopener noreferrer' className='user-info-panel-buttons argo-button argo-button--base'>
-                                                <i className='fab fa-github' /> GitHub releases
-                                            </a>
-                                            &nbsp;
+                                            {/* Configured help.download.* links take precedence (see #28180): when any are set
+                                                we render only those, otherwise we fall back to the GitHub releases link for the
+                                                running version. This keeps the fallback out of the way in air-gapped setups. */}
+                                            {Object.keys(binaryUrls).length === 0 && (
+                                                <a href={downloadURL} target='_blank' rel='noopener noreferrer' className='user-info-panel-buttons argo-button argo-button--base'>
+                                                    <i className='fab fa-github' /> GitHub releases
+                                                </a>
+                                            )}
                                             {Object.keys(binaryUrls || {}).map(binaryName => {
                                                 const url = binaryUrls[binaryName];
                                                 const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64|ppc64le|s390x)/);
