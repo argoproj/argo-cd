@@ -632,7 +632,6 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 		Message: "ApplicationSet Rollout has completed",
 		Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
 	}
-
 }
 
 func (m *Manager) getInvalidRolloutConfig(applicationSet *argov1alpha1.ApplicationSet) *argov1alpha1.ApplicationSetCondition {

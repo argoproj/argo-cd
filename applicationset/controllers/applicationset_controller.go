@@ -537,7 +537,6 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 				evaluatedTypes[condition.Type] = false
 			}
 		}
-
 	}
 
 	// Update the applicationSet conditions
