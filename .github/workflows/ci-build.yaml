@@ -454,6 +454,7 @@ jobs:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/unit-coverage.out
           flags: unit-tests
+          disable_search: true
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -464,6 +465,7 @@ jobs:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/e2e-coverage.out
           flags: e2e
+          disable_search: true
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
