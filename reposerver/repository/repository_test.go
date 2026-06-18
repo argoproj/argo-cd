@@ -648,6 +648,67 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	assert.Nil(t, response)
 }
 
+// TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored is a regression
+// test for https://github.com/argoproj/argo-cd/issues/27811. For multi-source
+// Applications whose primary source is a Helm chart (or any non-git artifact),
+// the depth configured on the referenced git source must be propagated to the
+// git fetch. Previously the depth of the primary source was incorrectly used,
+// which is unset (0) for Helm/OCI primary sources and therefore caused full
+// git fetches regardless of the referenced repository's configured depth.
+func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T) {
+	const refSourceDepth int64 = 1
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		// Strict expectation: Fetch must be invoked with the referenced source's
+		// depth (refSourceDepth), not the primary source's depth (which is 0
+		// because the primary source is Helm and Repository.Depth is unset).
+		// Any call with a different depth would fail this assertion.
+		gitClient.EXPECT().Fetch(mock.Anything, refSourceDepth).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(mock.Anything).Return(mock.Anything, nil)
+		gitClient.EXPECT().CommitSHA().Return(mock.Anything, nil)
+		gitClient.EXPECT().Root().Return(".")
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", nil)
+
+		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+			"my-chart": {{Version: "1.0.0"}, {Version: "1.1.0"}},
+		}}, nil)
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
+
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": "."})
+	}, ".")
+
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/my-chart/my-chart-values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{
+			Repo:  "https://git.example.com/test/repo",
+			Depth: refSourceDepth,
+		}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
+	assert.NotNil(t, response)
+}
+
 func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	service := newService(t, ".")
 	err := os.Mkdir("testdata/oob-symlink", 0o755)
