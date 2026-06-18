@@ -50,6 +50,10 @@ func (h *ApplicationSourceHelm) Equals(other *ApplicationSourceHelm) bool {
 	if h == nil || other == nil {
 		return false
 	}
+	if bytes.Equal(a.Raw, b.Raw) {
+		// If they're already byte-equal, quit early to save time.
+		return true
+	}
 	if !bytes.Equal(canonicalValuesJSON(h.ValuesObject), canonicalValuesJSON(other.ValuesObject)) {
 		return false
 	}
