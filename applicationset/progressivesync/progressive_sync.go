@@ -55,7 +55,7 @@ type Dependencies interface {
 	SetApplicationSetStatusCondition(
 		ctx context.Context,
 		applicationSet *argov1alpha1.ApplicationSet,
-		condition argov1alpha1.ApplicationSetCondition,
+		conditions []argov1alpha1.ApplicationSetCondition,
 		parametersGenerated bool,
 	) error
 }
@@ -103,8 +103,10 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
 
-	condition := m.getProgressingCondition(&appset)
-	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset, condition)
+	progressingCondition := m.getProgressingCondition(&appset)
+	invalidConfigCondition := m.getInvalidRolloutConfig(&appset)
+	conditions := []*argov1alpha1.ApplicationSetCondition{invalidConfigCondition, progressingCondition}
+	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset, conditions)
 
 	return appsToSync, nil
 }
@@ -186,7 +188,7 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 			for _, matchExpression := range step.MatchExpressions {
 				if val, ok := app.Labels[matchExpression.Key]; ok {
 					valueMatched, operatorErr := labelMatchedExpression(val, matchExpression)
-					if operatorErr != nil {
+					if operatorErr != nil && !issues.alreadyExists(i, matchExpression.Operator) {
 						issues.InvalidMatchExpressions = append(issues.InvalidMatchExpressions, InvalidMatchExpression{
 							StepIndex: i,
 							Operator:  matchExpression.Operator,
@@ -623,31 +625,53 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 			Reason:  argov1alpha1.ApplicationSetReasonApplicationSetModified,
 		}
 	}
-	// prioritize other Progressive Sync rollout scenarios here:
-	rolloutReason := argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete
-	rolloutMessage := "ApplicationSet Rollout has completed"
-
-	if m.validationIssues.HasIssues() {
-		rolloutReason = argov1alpha1.ApplicationSetReasonInvalidRolloutConfig
-		rolloutMessage = m.validationIssues.getConditionMessage()
-	}
 
 	return &argov1alpha1.ApplicationSetCondition{
 		Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
 		Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-		Message: rolloutMessage,
-		Reason:  rolloutReason,
+		Message: "ApplicationSet Rollout has completed",
+		Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
+	}
+
+}
+
+func (m *Manager) getInvalidRolloutConfig(applicationSet *argov1alpha1.ApplicationSet) *argov1alpha1.ApplicationSetCondition {
+	if !IsRollingSyncStrategy(applicationSet) {
+		return nil
+	}
+	if m.validationIssues.HasIssues() {
+		return &argov1alpha1.ApplicationSetCondition{
+			Type:    argov1alpha1.ApplicationSetConditionInvalidRolloutConfig,
+			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+			Reason:  argov1alpha1.ApplicationSetReasonInvalidRolloutConfig,
+			Message: m.validationIssues.getConditionMessage(),
+		}
+	}
+
+	return &argov1alpha1.ApplicationSetCondition{
+		Type:    argov1alpha1.ApplicationSetConditionInvalidRolloutConfig,
+		Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+		Message: "Rolling Sync Configured correctly",
+		Reason:  argov1alpha1.ApplicationSetReasonValidRolloutConfig,
 	}
 }
 
-func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition *argov1alpha1.ApplicationSetCondition) []argov1alpha1.ApplicationSetCondition {
-	if condition != nil {
+func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []*argov1alpha1.ApplicationSetCondition) []argov1alpha1.ApplicationSetCondition {
+	// filter out nil conditions
+	var filteredConditions []argov1alpha1.ApplicationSetCondition
+	for _, condition := range conditions {
+		if condition != nil {
+			filteredConditions = append(filteredConditions, *condition)
+		}
+	}
+	if len(filteredConditions) != 0 {
 		_ = m.dependencies.SetApplicationSetStatusCondition(ctx,
 			applicationSet,
-			*condition,
+			filteredConditions,
 			true,
 		)
 	}
+
 	return applicationSet.Status.Conditions
 }
 

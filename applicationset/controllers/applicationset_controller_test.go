@@ -776,7 +776,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source:  &v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -2766,7 +2766,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	for _, c := range []struct {
 		name                string
 		appset              v1alpha1.ApplicationSet
-		condition           v1alpha1.ApplicationSetCondition
+		condition           []v1alpha1.ApplicationSetCondition
 		parametersGenerated bool
 		testfunc            func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition)
 	}{
@@ -2788,11 +2788,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "This is a message",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "This is a message",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: false,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -2826,11 +2828,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-				Message: "This is a message",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+					Message: "This is a message",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -2860,11 +2864,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "This is a message",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "This is a message",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -2898,11 +2904,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "Completed",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "Completed",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			},
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
@@ -2939,11 +2947,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: "Error",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+					Message: "Error",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			},
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
@@ -3005,10 +3015,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "existing",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "existing",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -3072,10 +3084,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "existing",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "existing",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -3125,10 +3139,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-				Message: "do not add me",
-				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+					Message: "do not add me",
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -3182,10 +3198,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-				Message: "new value",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+					Message: "new value",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {

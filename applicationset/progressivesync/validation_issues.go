@@ -39,6 +39,17 @@ func (v *ValidationIssues) HasIssues() bool {
 		len(v.InvalidMaxUpdates) > 0
 }
 
+func (v *ValidationIssues) alreadyExists(stepIndex int, operator string) bool {
+	if len(v.InvalidMatchExpressions) > 0 {
+		for _, i := range v.InvalidMatchExpressions {
+			if i.StepIndex == stepIndex && i.Operator == operator {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // formatInvalidMatchExpressionMessage formats error message for invalid match expressions
 func (v *ValidationIssues) formatInvalidMatchExpressionMessage() string {
 	count := len(v.InvalidMatchExpressions)
