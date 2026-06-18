@@ -1895,7 +1895,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
-		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
+		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.managedResources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
 			app.Status.SetConditions(
@@ -2250,7 +2250,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, managedResources []managedResource, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	ts := stats.NewTimingStats()
 	defer func() {
@@ -2278,6 +2278,34 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
 		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
 		return nil, 0
+	}
+
+	// When selective auto-sync is enabled, restrict the auto-sync to the resources that match the
+	// configured selection. The remaining resources stay under manual control. All subsequent
+	// per-resource checks (pruning, self-heal, etc.) then operate on this subset only.
+	selectiveSyncEnabled := app.Spec.SyncPolicy.Automated.IsSelectiveSyncEnabled()
+	if selectiveSyncEnabled {
+		selected, err := selectAutoSyncResources(resources, managedResources, app.Spec.SyncPolicy.Automated.Selective)
+		if err != nil {
+			logCtx.WithError(err).Error("Skipping auto-sync: failed to evaluate selective sync selection")
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, 0
+		}
+		if len(selected) == 0 {
+			logCtx.Info("Skipping auto-sync: selective sync is enabled but no resources matched the selection")
+			return nil, 0
+		}
+		resources = selected
+		outOfSync := false
+		for _, r := range resources {
+			if r.Status != appv1.SyncStatusCodeSynced {
+				outOfSync = true
+				break
+			}
+		}
+		if !outOfSync {
+			logCtx.Info("Skipping auto-sync: no selected resources are out of sync")
+			return nil, 0
+		}
 	}
 
 	if !app.Spec.SyncPolicy.Automated.GetPrune() {
@@ -2317,6 +2345,13 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		op.Retry = *app.Spec.SyncPolicy.Retry
 	}
 
+	// Scope the sync operation to the selected resources so that only they are synced. This also
+	// covers the initial (non self-heal) selective sync, where op.Sync.Resources would otherwise be
+	// empty and cause the whole application to be synced.
+	if selectiveSyncEnabled {
+		op.Sync.Resources = autoSyncOperationResources(resources)
+	}
+
 	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
@@ -2347,13 +2382,17 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 
 		op.Sync.SelfHealAttemptsCount++
-		for _, resource := range resources {
-			if resource.Status != appv1.SyncStatusCodeSynced {
-				op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
-					Kind:  resource.Kind,
-					Group: resource.Group,
-					Name:  resource.Name,
-				})
+		// For selective sync the operation is already scoped to the selected resources above, so we
+		// must not widen it back to every out-of-sync resource here.
+		if !selectiveSyncEnabled {
+			for _, resource := range resources {
+				if resource.Status != appv1.SyncStatusCodeSynced {
+					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
+						Kind:  resource.Kind,
+						Group: resource.Group,
+						Name:  resource.Name,
+					})
+				}
 			}
 		}
 	}
@@ -2397,6 +2436,81 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil, setOpTime
+}
+
+// selectAutoSyncResources returns the subset of resources that are selected for selective automated
+// sync, based on the configured label match expressions and resource filters. A resource is selected
+// when it satisfies every constraint that is specified: if matchExpressions is set the resource's
+// labels must match it, and if filters is set the resource must match at least one filter. An empty
+// constraint matches all resources.
+func selectAutoSyncResources(resources []appv1.ResourceStatus, managedResources []managedResource, selective *appv1.SelectiveSync) ([]appv1.ResourceStatus, error) {
+	if selective == nil {
+		return nil, nil
+	}
+
+	var selector labels.Selector
+	if len(selective.MatchExpressions) > 0 {
+		var err error
+		selector, err = metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchExpressions: selective.MatchExpressions})
+		if err != nil {
+			return nil, fmt.Errorf("invalid selective sync matchExpressions: %w", err)
+		}
+		// Index resource labels by key, preferring the target (desired) object and falling back to the
+		// live object for resources that only exist in the cluster (e.g. candidates for pruning).
+		labelsByKey := make(map[kube.ResourceKey]map[string]string, len(managedResources))
+		for _, mr := range managedResources {
+			obj := mr.Target
+			if obj == nil {
+				obj = mr.Live
+			}
+			if obj == nil {
+				continue
+			}
+			labelsByKey[kube.NewResourceKey(mr.Group, mr.Kind, mr.Namespace, mr.Name)] = obj.GetLabels()
+		}
+
+		filtered := resources[:0:0]
+		for _, r := range resources {
+			objLabels := labelsByKey[kube.NewResourceKey(r.Group, r.Kind, r.Namespace, r.Name)]
+			if selector.Matches(labels.Set(objLabels)) {
+				filtered = append(filtered, r)
+			}
+		}
+		resources = filtered
+	}
+
+	if len(selective.Filters) > 0 {
+		filtered := resources[:0:0]
+		for _, r := range resources {
+			for _, f := range selective.Filters {
+				if f.Matches(r.Group, r.Kind, r.Name, r.Namespace) {
+					filtered = append(filtered, r)
+					break
+				}
+			}
+		}
+		resources = filtered
+	}
+
+	return resources, nil
+}
+
+// autoSyncOperationResources returns the sync operation resources for the out-of-sync resources in the
+// given list, used to scope a selective auto-sync to only the selected resources.
+func autoSyncOperationResources(resources []appv1.ResourceStatus) []appv1.SyncOperationResource {
+	var syncResources []appv1.SyncOperationResource
+	for _, r := range resources {
+		if r.Status == appv1.SyncStatusCodeSynced {
+			continue
+		}
+		syncResources = append(syncResources, appv1.SyncOperationResource{
+			Group:     r.Group,
+			Kind:      r.Kind,
+			Name:      r.Name,
+			Namespace: r.Namespace,
+		})
+	}
+	return syncResources
 }
 
 // alreadyAttemptedSync returns whether the most recently synced revision(s) exactly match the given desiredRevisions

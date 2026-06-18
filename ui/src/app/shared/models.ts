@@ -332,10 +332,30 @@ export interface ApplicationSourceDirectory {
     exclude?: string;
 }
 
+export interface SelectiveSyncResource {
+    group?: string;
+    kind?: string;
+    name?: string;
+    namespace?: string;
+}
+
+export interface SelectiveSyncMatchExpression {
+    key: string;
+    operator: string;
+    values?: string[];
+}
+
+export interface SelectiveSync {
+    enabled?: boolean;
+    matchExpressions?: SelectiveSyncMatchExpression[];
+    filters?: SelectiveSyncResource[];
+}
+
 export interface Automated {
     prune: boolean;
     selfHeal: boolean;
     enabled: boolean;
+    selective?: SelectiveSync;
 }
 
 export interface SyncPolicy {

@@ -37,6 +37,7 @@ import {
 } from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
+import {SelectiveSyncView} from '../application-selective-sync/application-selective-sync';
 import {Link} from 'react-router-dom';
 import {EditNotificationSubscriptions, useEditNotificationSubscriptions} from './edit-notification-subscriptions';
 import {EditAnnotations} from './edit-annotations';
@@ -580,7 +581,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     updatedApp.spec.syncPolicy.automated = {
                         prune: existingAutomated?.prune ?? false,
                         selfHeal: existingAutomated?.selfHeal ?? false,
-                        enabled: !isEnabled
+                        enabled: !isEnabled,
+                        selective: existingAutomated?.selective
                     };
                     await updateApp(updatedApp, {validate: false});
                 } else {
@@ -620,7 +622,43 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     updatedApp.spec.syncPolicy = {};
                 }
 
-                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: enable};
+                const existingSelective = updatedApp.spec.syncPolicy.automated?.selective;
+                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: enable, selective: existingSelective};
+                await updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                setChangeSync(false);
+            }
+        }
+    }
+
+    // Handler for the ENABLE SELECTIVE SYNC checkbox; preserves the existing prune/selfHeal/enabled and selection details.
+    async function toggleSelectiveSync(ctx: ContextApis) {
+        const existingAutomated = app.spec.syncPolicy?.automated;
+        const isEnabled = !!existingAutomated?.selective?.enabled;
+        const confirmationTitle = isEnabled ? 'Disable Selective Sync?' : 'Enable Selective Sync?';
+        const confirmationText = isEnabled
+            ? 'Are you sure you want to disable selective auto-sync? Auto-sync will then apply to all of the application resources.'
+            : 'If checked, auto-sync only applies to the resources matched by the configured filters/match expressions. Configure the selection in the application manifest.';
+        const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
+        if (confirmed) {
+            try {
+                setChangeSync(true);
+                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                if (!updatedApp.spec.syncPolicy) {
+                    updatedApp.spec.syncPolicy = {};
+                }
+                const automated = updatedApp.spec.syncPolicy.automated;
+                updatedApp.spec.syncPolicy.automated = {
+                    prune: automated?.prune ?? false,
+                    selfHeal: automated?.selfHeal ?? false,
+                    enabled: automated?.enabled ?? true,
+                    selective: {...(automated?.selective || {}), enabled: !isEnabled}
+                };
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
@@ -804,6 +842,22 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                 />
                                                 <label htmlFor='self-heal'>SELF HEAL</label>
                                             </div>
+                                        </div>
+                                    </div>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-12'>
+                                            <div className='checkbox-container'>
+                                                <Checkbox
+                                                    onChange={async () => {
+                                                        await toggleSelectiveSync(ctx);
+                                                    }}
+                                                    checked={!!app.spec.syncPolicy?.automated?.selective?.enabled}
+                                                    id='selective-sync'
+                                                />
+                                                <label htmlFor='selective-sync'>ENABLE SELECTIVE SYNC</label>
+                                                <HelpIcon title='If enabled, auto-sync only applies to the selected resources. Configure the filters/match expressions in the application manifest.' />
+                                            </div>
+                                            <SelectiveSyncView selective={app.spec.syncPolicy?.automated?.selective} />
                                         </div>
                                     </div>
                                 </React.Fragment>

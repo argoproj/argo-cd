@@ -3,6 +3,7 @@ import { SyncPolicy } from '../../../shared/models';
 
 const AUTO_SYNC_ENABLED = 'Enabled';
 const AUTO_SYNC_DISABLED = 'Disabled';
+const AUTO_SYNC_SELECTIVE = 'Selective';
 
 test('automated.enabled is true, return to `Enabled`.', () => {
     const syncPolicy = {
@@ -43,4 +44,34 @@ test('syncPolicy is nil, return to `Disabled`', () => {
 test('automated is nil, return to `Disabled`.', () => {
     const syncPolicy = {} as SyncPolicy;
     expect(getAutoSyncStatus(syncPolicy)).toBe(AUTO_SYNC_DISABLED);
+});
+
+test('selective sync is enabled, return to `Selective`.', () => {
+    const syncPolicy = {
+        automated: {
+            enabled: true,
+            prune: false,
+            selfHeal: false,
+            selective: {
+                enabled: true
+            }
+        }
+    } as SyncPolicy;
+
+    expect(getAutoSyncStatus(syncPolicy)).toBe(AUTO_SYNC_SELECTIVE);
+});
+
+test('selective sync present but disabled, return to `Enabled`.', () => {
+    const syncPolicy = {
+        automated: {
+            enabled: true,
+            prune: false,
+            selfHeal: false,
+            selective: {
+                enabled: false
+            }
+        }
+    } as SyncPolicy;
+
+    expect(getAutoSyncStatus(syncPolicy)).toBe(AUTO_SYNC_ENABLED);
 });

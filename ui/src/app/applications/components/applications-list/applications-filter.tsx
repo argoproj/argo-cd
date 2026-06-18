@@ -54,6 +54,9 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     if (!syncPolicy || !syncPolicy.automated || syncPolicy.automated.enabled === false) {
         return 'Disabled';
     }
+    if (syncPolicy.automated.selective && syncPolicy.automated.selective.enabled) {
+        return 'Selective';
+    }
     return 'Enabled';
 }
 
@@ -443,12 +446,17 @@ const FavoriteFilter = (props: {value: boolean; onChange: (showFavorites: boolea
 };
 
 function getAutoSyncOptions(apps: FilteredApp[]) {
-    const counts = getCounts(apps, 'autosync', app => getAutoSyncStatus(app.spec.syncPolicy), ['Enabled', 'Disabled']);
+    const counts = getCounts(apps, 'autosync', app => getAutoSyncStatus(app.spec.syncPolicy), ['Enabled', 'Selective', 'Disabled']);
     return [
         {
             label: 'Enabled',
             icon: <i className='fa fa-circle-play' style={{color: COLORS.sync.synced}} />,
             count: counts.get('Enabled')
+        },
+        {
+            label: 'Selective',
+            icon: <i className='fa fa-filter' style={{color: COLORS.sync.unknown}} />,
+            count: counts.get('Selective')
         },
         {
             label: 'Disabled',
