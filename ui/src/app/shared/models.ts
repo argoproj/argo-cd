@@ -693,6 +693,8 @@ export interface RepoCreds {
     url: string;
     username?: string;
     bearerToken?: string;
+    type?: string;
+    enableOCI?: boolean;
 }
 
 export interface RepoCredsList extends ItemsList<RepoCreds> {}

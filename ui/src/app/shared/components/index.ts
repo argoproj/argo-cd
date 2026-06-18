@@ -26,3 +26,7 @@ export * from './spinner';
 export * from './badge-panel/badge-panel';
 export * from './number-field';
 export * from './clipboard-text';
+export * from './flex-top-bar/flex-top-bar';
+export * from './search-bar/search-bar';
+export * from './action-menu/action-menu';
+export * from './icon-column/icon-column';

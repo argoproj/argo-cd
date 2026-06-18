@@ -10,15 +10,6 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         padding-top: 4px;
         padding-bottom: 4px;
         padding-left: 2em;
-
-        .columns:last-child {
-            .argo-dropdown {
-                position: absolute;
-                right: 0;
-                top: 50%;
-                transform: translateY(-50%);
-            }
-        }
     }
 
     .applications-list__table-row.applications-table-row--with-hydrator {
