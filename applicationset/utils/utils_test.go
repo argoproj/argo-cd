@@ -802,6 +802,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 	} {
 		t.Run(c.testName, func(t *testing.T) {
 			// Clone the template application
+
 			application := emptyApplication.DeepCopy()
 			application.Finalizers = c.existingFinalizers
 

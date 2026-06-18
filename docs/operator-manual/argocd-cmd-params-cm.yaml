@@ -19,7 +19,7 @@ data:
   # Redis database
   redis.db:
 
-  # Enables the alpha "manifest hydrator" feature. (default "false")
+  # Enables the beta "manifest hydrator" feature. (default "false")
   hydrator.enabled: "false"
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
@@ -50,10 +50,18 @@ data:
   controller.repo.server.plaintext: "false"
   # Whether to use strict validation of the TLS cert presented by the repo server
   controller.repo.server.strict.tls: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate 
+  controller.repo.server.ca.cert.path: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  controller.repo.server.client.cert.path: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  controller.repo.server.client.cert.key.path: ""
   # Number of application status processors (default 20)
   controller.status.processors: "20"
   # Number of application operation processors (default 10)
   controller.operation.processors: "10"
+  # Number of manifest hydration processors (default 5). Only relevant when the Source Hydrator is enabled.
+  controller.hydration.processors: "5"
   # Set the logging format. One of: json|text (default "json")
   controller.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
@@ -152,6 +160,10 @@ data:
   server.webhook.parallelism.limit: "50"
   # Maximum number of compiled glob patterns to cache for RBAC evaluation (default 10000)
   server.glob.cache.size: "10000"
+  # Number of concurrent workers processing webhook-triggered app refresh requests (default 20).
+  # Increase this value when webhook events affect large numbers of applications to reduce refresh latency.
+  # Works together with webhook.refresh.jitter / webhook.refresh.jitter.threshold in argocd-cm.
+  server.webhook.refresh.workers: "20"
   # Whether to allow sync with replace checked to go through. Resource-level annotation to replace override this setting, i.e. it's only enforced on the API server level.
   server.sync.replace.allowed: "true"
 
@@ -165,6 +177,12 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  server.repo.server.ca.cert.path: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  server.repo.server.client.cert.path: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  server.repo.server.client.cert.key.path: ""
   # Dex server address (default "http://argocd-dex-server:5556")
   server.dex.server: "http://argocd-dex-server:5556"
   # Use a plaintext client (non-TLS) to connect to dex server
@@ -240,6 +258,8 @@ data:
   reposerver.tls.maxversion: "1.3"
   # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
   reposerver.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+  # Path to the client CA certificate file for mTLS. if the file is not found or empty, mTLS is disabled.
+  reposerver.client.ca.path: ""
   # Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
   reposerver.repo.cache.expiration: "24h0m0s"
   # Cache expiration default (default 24h0m0s)
@@ -389,6 +409,12 @@ data:
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
   applicationsetcontroller.grpc.enable.txt.service.config: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  applicationsetcontroller.repo.server.ca.cert.path: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  applicationsetcontroller.repo.server.client.cert.path: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  applicationsetcontroller.repo.server.client.cert.key.path: ""
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
@@ -401,3 +427,9 @@ data:
   notificationscontroller.selfservice.enabled: "false"
   # Disable TLS on connections to repo server
   notificationscontroller.repo.server.plaintext: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  notificationscontroller.repo.server.ca.cert.path: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  notificationscontroller.repo.server.client.cert.path: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  notificationscontroller.repo.server.client.cert.key.path: ""
