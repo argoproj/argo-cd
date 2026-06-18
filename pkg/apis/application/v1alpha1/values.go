@@ -50,11 +50,18 @@ func (h *ApplicationSourceHelm) Equals(other *ApplicationSourceHelm) bool {
 	if h == nil || other == nil {
 		return false
 	}
-	if bytes.Equal(h.ValuesObject.Raw, other.ValuesObject.Raw) {
-		// If they're already byte-equal, quit early to save time.
-		return true
+	// Compare ValuesObject: skip the JSON normalisation round-trip when raw bytes are
+	// already identical. Otherwise normalise both to canonical JSON to absorb
+	// HTML-escaping differences (e.g. '&' vs '&').
+	var hRaw, otherRaw []byte
+	if h.ValuesObject != nil {
+		hRaw = h.ValuesObject.Raw
 	}
-	if !bytes.Equal(canonicalValuesJSON(h.ValuesObject), canonicalValuesJSON(other.ValuesObject)) {
+	if other.ValuesObject != nil {
+		otherRaw = other.ValuesObject.Raw
+	}
+	if !bytes.Equal(hRaw, otherRaw) &&
+		!bytes.Equal(canonicalValuesJSON(h.ValuesObject), canonicalValuesJSON(other.ValuesObject)) {
 		return false
 	}
 	hCopy, otherCopy := h.DeepCopy(), other.DeepCopy()
