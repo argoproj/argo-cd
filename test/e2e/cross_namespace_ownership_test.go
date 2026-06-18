@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -99,7 +98,7 @@ rules:
 			defer io.Close(closer)
 
 			// Invalidate cache for the default cluster (https://kubernetes.default.svc)
-			cluster, err := clusterClient.InvalidateCache(context.Background(), &clusterpkg.ClusterQuery{
+			cluster, err := clusterClient.InvalidateCache(t.Context(), &clusterpkg.ClusterQuery{
 				Server: "https://kubernetes.default.svc",
 			})
 			if err != nil {
@@ -118,7 +117,7 @@ rules:
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
 
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
+			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{
 				ApplicationName: &app.Name,
 				AppNamespace:    &app.Namespace,
 			})
@@ -232,7 +231,7 @@ rules:
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
 
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
+			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{
 				ApplicationName: &app.Name,
 				AppNamespace:    &app.Namespace,
 			})

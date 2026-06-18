@@ -43,11 +43,11 @@ func (_m *GPGKeyServiceClient) EXPECT() *GPGKeyServiceClient_Expecter {
 // Create provides a mock function for the type GPGKeyServiceClient
 func (_mock *GPGKeyServiceClient) Create(ctx context.Context, in *gpgkey.GnuPGPublicKeyCreateRequest, opts ...grpc.CallOption) (*gpgkey.GnuPGPublicKeyCreateResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -85,9 +85,9 @@ type GPGKeyServiceClient_Create_Call struct {
 //   - ctx context.Context
 //   - in *gpgkey.GnuPGPublicKeyCreateRequest
 //   - opts ...grpc.CallOption
-func (_e *GPGKeyServiceClient_Expecter) Create(ctx interface{}, in interface{}, opts ...interface{}) *GPGKeyServiceClient_Create_Call {
+func (_e *GPGKeyServiceClient_Expecter) Create(ctx any, in any, opts ...any) *GPGKeyServiceClient_Create_Call {
 	return &GPGKeyServiceClient_Create_Call{Call: _e.mock.On("Create",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *GPGKeyServiceClient_Create_Call) Run(run func(ctx context.Context, in *gpgkey.GnuPGPublicKeyCreateRequest, opts ...grpc.CallOption)) *GPGKeyServiceClient_Create_Call {
@@ -130,11 +130,11 @@ func (_c *GPGKeyServiceClient_Create_Call) RunAndReturn(run func(ctx context.Con
 // Delete provides a mock function for the type GPGKeyServiceClient
 func (_mock *GPGKeyServiceClient) Delete(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption) (*gpgkey.GnuPGPublicKeyResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -172,9 +172,9 @@ type GPGKeyServiceClient_Delete_Call struct {
 //   - ctx context.Context
 //   - in *gpgkey.GnuPGPublicKeyQuery
 //   - opts ...grpc.CallOption
-func (_e *GPGKeyServiceClient_Expecter) Delete(ctx interface{}, in interface{}, opts ...interface{}) *GPGKeyServiceClient_Delete_Call {
+func (_e *GPGKeyServiceClient_Expecter) Delete(ctx any, in any, opts ...any) *GPGKeyServiceClient_Delete_Call {
 	return &GPGKeyServiceClient_Delete_Call{Call: _e.mock.On("Delete",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *GPGKeyServiceClient_Delete_Call) Run(run func(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption)) *GPGKeyServiceClient_Delete_Call {
@@ -217,11 +217,11 @@ func (_c *GPGKeyServiceClient_Delete_Call) RunAndReturn(run func(ctx context.Con
 // Get provides a mock function for the type GPGKeyServiceClient
 func (_mock *GPGKeyServiceClient) Get(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption) (*v1alpha1.GnuPGPublicKey, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -259,9 +259,9 @@ type GPGKeyServiceClient_Get_Call struct {
 //   - ctx context.Context
 //   - in *gpgkey.GnuPGPublicKeyQuery
 //   - opts ...grpc.CallOption
-func (_e *GPGKeyServiceClient_Expecter) Get(ctx interface{}, in interface{}, opts ...interface{}) *GPGKeyServiceClient_Get_Call {
+func (_e *GPGKeyServiceClient_Expecter) Get(ctx any, in any, opts ...any) *GPGKeyServiceClient_Get_Call {
 	return &GPGKeyServiceClient_Get_Call{Call: _e.mock.On("Get",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *GPGKeyServiceClient_Get_Call) Run(run func(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption)) *GPGKeyServiceClient_Get_Call {
@@ -304,11 +304,11 @@ func (_c *GPGKeyServiceClient_Get_Call) RunAndReturn(run func(ctx context.Contex
 // List provides a mock function for the type GPGKeyServiceClient
 func (_mock *GPGKeyServiceClient) List(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption) (*v1alpha1.GnuPGPublicKeyList, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -346,9 +346,9 @@ type GPGKeyServiceClient_List_Call struct {
 //   - ctx context.Context
 //   - in *gpgkey.GnuPGPublicKeyQuery
 //   - opts ...grpc.CallOption
-func (_e *GPGKeyServiceClient_Expecter) List(ctx interface{}, in interface{}, opts ...interface{}) *GPGKeyServiceClient_List_Call {
+func (_e *GPGKeyServiceClient_Expecter) List(ctx any, in any, opts ...any) *GPGKeyServiceClient_List_Call {
 	return &GPGKeyServiceClient_List_Call{Call: _e.mock.On("List",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *GPGKeyServiceClient_List_Call) Run(run func(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption)) *GPGKeyServiceClient_List_Call {
