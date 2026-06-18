@@ -550,7 +550,7 @@ The secret data can include the following fields:
 * `server` - required, cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Setting namespace values will cause cluster-level resources to be ignored unless `clusterResources` is set to `true`.
 * `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is only used when namespaces are restricted using the `namespaces` list.
-* `project` - optional string to designate this as a project-scoped cluster.
+* `project` - optional string to designate this as a project-scoped cluster. Note that defining a project-scoped cluster implicitly adds its namespaces (or a wildcard if `namespaces` is unset) to the project's destination list. See [Project-scoped repositories and clusters](../user-guide/projects.md#project-scoped-repositories-and-clusters) for more details.
 * `config` - required. JSON representation of the following data structure:
 
 ```yaml
