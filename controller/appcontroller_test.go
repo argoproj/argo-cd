@@ -735,6 +735,51 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	})
 }
 
+func TestAutoSyncManifestGeneratePathsNewCommit(t *testing.T) {
+	// Regression for #27875: with the manifest-generate-paths annotation, an app must still
+	// auto-sync to a newer commit while it is OutOfSync, and must not sync when it is already
+	// synced to that revision.
+	revA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	revB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	t.Run("NewCommitTriggersAutoSync", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."}
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
+		app.Status.OperationState.SyncResult.Revision = revA
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: revB,
+		}
+		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, syncStatus.Status == v1alpha1.SyncStatusCodeOutOfSync)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, app.Operation)
+		require.NotNil(t, app.Operation.Sync)
+		assert.Equal(t, revB, app.Operation.Sync.Revision)
+		assert.Empty(t, app.Operation.Sync.Resources)
+	})
+
+	t.Run("SameRevisionDriftDoesNotTriggerAutoSync", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."}
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
+		app.Status.OperationState.SyncResult.Revision = revB
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: revB,
+		}
+		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, syncStatus.Status == v1alpha1.SyncStatusCodeOutOfSync)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
+}
+
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = new(true)
