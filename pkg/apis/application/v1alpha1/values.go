@@ -50,7 +50,7 @@ func (h *ApplicationSourceHelm) Equals(other *ApplicationSourceHelm) bool {
 	if h == nil || other == nil {
 		return false
 	}
-	if bytes.Equal(a.Raw, b.Raw) {
+	if bytes.Equal(h.ValuesObject.Raw, other.ValuesObject.Raw) {
 		// If they're already byte-equal, quit early to save time.
 		return true
 	}
