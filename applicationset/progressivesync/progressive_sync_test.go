@@ -1593,7 +1593,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			},
 		},
 		{
-			name: "application with refresh annotation not reconciled",
+			name: "application has refresh annotation but is already reconciled since time, function returns false",
 			applications: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1764,6 +1764,50 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 				{
 					Application:     "app1",
 					TargetRevisions: []string{"new-revision"},
+				},
+			},
+		},
+		{
+			name: "application already has refreshAnnotation, but hasn't been reconciled yet, returns false doesn't add annotation again",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+						Annotations: map[string]string{
+							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &before,
+						Sync: v1alpha1.SyncStatus{
+							Revision: "abc123",
+						},
+					},
+				},
+			},
+			sinceTime:                 &now,
+			expected:                  false,
+			expectedAppsNeedReconcile: nil,
+			expectedAppsWithAnnotations: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+						Annotations: map[string]string{
+							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &before,
+						Sync: v1alpha1.SyncStatus{
+							Revision: "abc123",
+						},
+					},
+				},
+			},
+			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					TargetRevisions: []string{"def123"},
 				},
 			},
 		},

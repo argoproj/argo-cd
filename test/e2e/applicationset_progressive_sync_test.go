@@ -9,6 +9,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -536,6 +537,12 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		"refresh-prod-app3":    {Application: "refresh-prod-app3", Status: v1alpha1.ProgressiveSyncHealthy},
 	}
 
+	expectProgressiveSyncBlocked := map[string]v1alpha1.ApplicationSetApplicationStatus{
+		"refresh-dev-app1":     {Application: "refresh-dev-app1", Status: v1alpha1.ProgressiveSyncHealthy},
+		"refresh-staging-app2": {Application: "refresh-staging-app2", Status: v1alpha1.ProgressiveSyncWaiting},
+		"refresh-prod-app3":    {Application: "refresh-prod-app3", Status: v1alpha1.ProgressiveSyncWaiting},
+	}
+
 	expectedOrder := []string{"refresh-dev-app1", "refresh-staging-app2", "refresh-prod-app3"}
 	var changeTime *metav1.Time
 	Given(t).
@@ -546,31 +553,33 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		// Wait for all apps Synced on revisionA
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
 		Expect(ApplicationsLastTransitionTime(expectedOrder)).
-		And(func() {
-			t.Log("Updating targetRevision to new revision by patching git")
-			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 2}]`)
-			t.Log("Git revision changed to revisionB")
-			for _, app := range expectedApps {
-				// Refresh the app to detect git changes
-				_, err := fixture.RunCli("app", "get", app.Name, "--refresh")
-				require.NoError(t, err)
-			}
-		}).
-		// Immediately make another change, before all applications become healthy,
+		When().
+		AddAppAnnotation("refresh-dev-app1", common.AnnotationKeyAppSkipReconcile, "true").
 		And(func() {
 			now := metav1.Now()
 			changeTime = &now
 			t.Log("Updating targetRevision to new revision by patching git")
 			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
-			t.Log("Git revision changed to revisionC")
+			t.Log("Git revision changed to revisionB")
 		}).
-		When().RefreshApp(expectedOrder).Then().
+		Then().
 		// Since applications were already healthy, before checking the progressive sync status of all applications, check if all applications were reconciled after changeTime
 		// ensureApplicationsReconciled adds refresh annotations to applications, but processing that annotation happens asynchronously by app controller and thus difficult to check deterministically in e2e tests
-		ExpectWithDuration(CheckApplicationsReconciledAfter(expectedApps, changeTime), TransitionTimeout).
-		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout).
-		Expect(ApplicationsLastTransitionTime(expectedOrder)).
+		ExpectWithDuration(CheckApplicationsReconciledAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime), TransitionTimeout*4).
+		Expect(CheckApplicationsNotReconciledAfter([]string{"refresh-dev-app1"}, changeTime)). // Check application with skip-reconcile was not reconciled
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectProgressiveSyncBlocked), TransitionTimeout*3). // This ensures that applications do not sync out of order
+		Expect(AppsTransitionedAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
+		// removing the skip reconcile, apps allowed to sync
+		When().
+		AddAppAnnotation("refresh-dev-app1", common.AnnotationKeyAppSkipReconcile, "false").
+		And(func() {
+			now := metav1.Now()
+			changeTime = &now
+		}).
+		Then().
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
 		Expect(AppsTransitionedAfter([]string{"refresh-dev-app1", "refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
+		Expect(ApplicationsLastTransitionTime(expectedOrder)).
 		// Cleanup
 		When().
 		Delete(metav1.DeletePropagationForeground).
@@ -784,17 +793,14 @@ var appSetForRefreshAnnotation = v1alpha1.ApplicationSet{
 				List: &v1alpha1.ListGenerator{
 					Elements: []apiextensionsv1.JSON{
 						{Raw: []byte(`{"environment": "prod", "name": "app3"}`)},
-						// {Raw: []byte(`{"environment": "prod", "name": "app7"}`)},
-						// {Raw: []byte(`{"environment": "prod", "name": "app8"}`)},
-						// {Raw: []byte(`{"environment": "prod", "name": "app9"}`)},
 						{Raw: []byte(`{"environment": "dev", "name": "app1"}`)},
-						// {Raw: []byte(`{"environment": "dev", "name": "app2"}`)},
-						// {Raw: []byte(`{"environment": "staging", "name": "app3"}`)},
-						// {Raw: []byte(`{"environment": "staging", "name": "app4"}`)},
 						{Raw: []byte(`{"environment": "staging", "name": "app2"}`)},
 					},
 				},
 			},
+		},
+		PreservedFields: &v1alpha1.ApplicationPreservedFields{
+			Annotations: []string{common.AnnotationKeyAppSkipReconcile},
 		},
 		Strategy: &v1alpha1.ApplicationSetStrategy{
 			Type: "RollingSync",

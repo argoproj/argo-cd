@@ -181,18 +181,34 @@ func ApplicationsLastTransitionTime(expectedOrderApps []string) Expectation {
 }
 
 // CheckApplicationsReconciledAfter expects all apps in expectedApps to have reconciled after changeTime
-func CheckApplicationsReconciledAfter(expectedApps []v1alpha1.Application, changeTime *metav1.Time) Expectation {
+func CheckApplicationsReconciledAfter(expectedApps []string, changeTime *metav1.Time) Expectation {
 	return func(c *Consequences) (state, string) {
 		for _, expectedApp := range expectedApps {
-			foundApp := c.app(expectedApp.Name)
+			foundApp := c.app(expectedApp)
 			if foundApp == nil {
-				return pending, fmt.Sprintf("application '%s' not found", expectedApp.Name)
+				return pending, fmt.Sprintf("application '%s' not found", expectedApp)
 			}
 			if foundApp.Status.ReconciledAt != nil && foundApp.Status.ReconciledAt.Before(changeTime) {
 				return pending, fmt.Sprintf("application '%s' has not reconciled yet", foundApp.Name)
 			}
 		}
 		return succeeded, "all applications have reconciled after changeTime"
+	}
+}
+
+// CheckApplicationsNotReconciledAfter expects all apps in appNames to have ReconciledAt before changeTime
+func CheckApplicationsNotReconciledAfter(appNames []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			foundApp := c.app(appName)
+			if foundApp == nil {
+				return pending, fmt.Sprintf("application '%s' not found", appName)
+			}
+			if foundApp.Status.ReconciledAt != nil && !foundApp.Status.ReconciledAt.Before(changeTime) {
+				return failed, fmt.Sprintf("application '%s' reconciled after changeTime at %s", appName, foundApp.Status.ReconciledAt)
+			}
+		}
+		return succeeded, "all applications have not reconciled after changeTime"
 	}
 }
 
