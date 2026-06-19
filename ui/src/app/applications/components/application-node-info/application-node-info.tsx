@@ -286,7 +286,7 @@ export const ApplicationNodeInfo = (props: {
                                         </div>
                                         <YamlEditor
                                             input={live}
-                                            hideModeButtons={!live}
+                                            hideModeButtons={!live || !props.showApplicationReference}
                                             vScrollbar={live}
                                             enableWordWrap={pref.appDetails.enableWordWrap}
                                             onSave={(patch, patchType) =>
