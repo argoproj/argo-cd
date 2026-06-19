@@ -1698,7 +1698,10 @@ func expectSuccessfulHydratePipeline(d *mocks.Dependencies, r *mocks.RepoGetter,
 	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
 	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
 	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
-	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).
+	// The commit must run on a live (non-canceled) context. Regression guard for the bug where the
+	// errgroup-derived context (canceled once eg.Wait() returns) clobbered the operation context used
+	// for the commit step, making every hydration fail with "context canceled".
+	cc.EXPECT().CommitHydratedManifests(mock.MatchedBy(func(ctx context.Context) bool { return ctx.Err() == nil }), mock.Anything).
 		Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
 }
 

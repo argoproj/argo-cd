@@ -447,7 +447,11 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
 	}
 
-	eg, ctx := errgroup.WithContext(ctx)
+	// NB: use a distinct name for the errgroup-derived context. errgroup cancels it as soon as
+	// Wait() returns, so it must NOT clobber the operation ctx used by the calls after Wait()
+	// (getRevisionMetadata/GetWriteCredentials/CommitHydratedManifests) - otherwise those run on a
+	// canceled context and hydration fails.
+	eg, egCtx := errgroup.WithContext(ctx)
 	var mu sync.Mutex
 
 	for _, app := range apps[1:] {
@@ -455,7 +459,7 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 			// Use goroutine-local variables here. Assigning to the function-scoped pathDetails/err
 			// from multiple errgroup goroutines is a data race (and can append the wrong path under
 			// the mutex). See https://github.com/argoproj/argo-cd/issues/27926.
-			_, pathDetails, err := h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
+			_, pathDetails, err := h.getManifests(egCtx, app, targetRevision, projects[app.Spec.Project])
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
