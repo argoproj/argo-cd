@@ -202,13 +202,15 @@ func (s *Service) Init() error {
 					// don't run `git reset` unless an index file is actually present
 					indexFile := filepath.Join(fullPath, ".git", "index")
 					if _, err = os.Stat(indexFile); err == nil {
-						wt, _ := repo.Worktree()
-						headRef, _ := repo.Head()
-						err = wt.Reset(&gogit.ResetOptions{
+						wt, err := repo.Worktree()
+						if err != nil {
+							log.Errorf("Failed to get worktree for git repo %s: %v", fullPath, err)
+						} else if headRef, err := repo.Head(); err != nil {
+							log.Errorf("Failed to resolve HEAD for git repo %s: %v", fullPath, err)
+						} else if err = wt.Reset(&gogit.ResetOptions{
 							Mode:   gogit.MixedReset,
 							Commit: headRef.Hash(),
-						})
-						if err != nil {
+						}); err != nil {
 							log.Errorf("Failed to reset git repo %s: %v", fullPath, err)
 						}
 					}
