@@ -1263,6 +1263,50 @@ stringData:
     }
 ```
 
+### Generic OIDC
+
+For a cluster whose API server is configured to trust an external OIDC issuer (`--oidc-issuer-url`), the `oidc` command emits a pre-issued token as the credential. A common source is a projected ServiceAccount token whose audience matches the API server's configured client ID; the token file is re-read on each invocation, so rotation is handled automatically and no long-lived credential is stored.
+
+The token file path is set with `--token-file` or the `ARGOCD_OIDC_TOKEN_FILE` environment variable.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  server: https://mycluster.example.com
+  config: |
+    {
+      "execProviderConfig": {
+        "command": "argocd-k8s-auth",
+        "args": ["oidc", "--token-file", "/var/run/secrets/oidc/token"],
+        "apiVersion": "client.authentication.k8s.io/v1beta1"
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
+To project a ServiceAccount token with the required audience, mount it on the `argocd-application-controller` and `argocd-server` pods, for example:
+
+```yaml
+volumes:
+  - name: oidc-token
+    projected:
+      sources:
+        - serviceAccountToken:
+            path: token
+            audience: <api server oidc client id>
+            expirationSeconds: 3600
+```
+
 ## Helm
 
 Helm charts can be sourced from a Helm repository or OCI registry.
