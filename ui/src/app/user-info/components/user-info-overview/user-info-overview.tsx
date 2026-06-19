@@ -3,7 +3,7 @@ import {useCallback, useContext, useRef, useState} from 'react';
 
 import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import {Form, FormApi, FormValue, Nested, Text} from 'argo-ui';
-import {DataLoader, ErrorNotification, Page, Spinner} from '../../../shared/components';
+import {AuthOption, DataLoader, ErrorNotification, Page, Spinner} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 
@@ -85,6 +85,7 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
             title='User Info'
             toolbar={{
                 breadcrumbs: [{title: 'User Info'}],
+                tools: <AuthOption />,
                 actionMenu: isPasswordChangeAvailable
                     ? {
                           items: [
