@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -9,7 +10,7 @@ import (
 	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 )
 
@@ -23,14 +24,14 @@ func newOIDCCommand() *cobra.Command {
 				tokenFile = os.Getenv("ARGOCD_OIDC_TOKEN_FILE")
 			}
 			if tokenFile == "" {
-				errors.CheckError(fmt.Errorf("token file must be set via --token-file or ARGOCD_OIDC_TOKEN_FILE"))
+				argoerrors.CheckError(errors.New("token file must be set via --token-file or ARGOCD_OIDC_TOKEN_FILE"))
 			}
 
 			raw, err := os.ReadFile(tokenFile)
-			errors.CheckError(err)
+			argoerrors.CheckError(err)
 			token := strings.TrimSpace(string(raw))
 			if token == "" {
-				errors.CheckError(fmt.Errorf("token file %q is empty", tokenFile))
+				argoerrors.CheckError(fmt.Errorf("token file %q is empty", tokenFile))
 			}
 
 			_, _ = fmt.Fprint(os.Stdout, formatJSON(token, tokenExpiration(token)))
