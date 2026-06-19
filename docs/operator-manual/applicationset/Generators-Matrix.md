@@ -106,7 +106,7 @@ Finally, the Matrix generator will combine both sets of outputs, and produce:
   path: /examples/git-generator-directory/cluster-addons/prometheus-operator
   path.basename: prometheus-operator
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/matrix).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/matrix).*)
 
 ## Using Parameters from one child generator in another child generator
 

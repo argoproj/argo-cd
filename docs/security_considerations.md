@@ -32,7 +32,7 @@ no fix yet.
 
 ## Known Issues And Workarounds
 
-A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai) )
+A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Eriner) of Soluble AI (acquired by https://www.fortinet.com) )
 has revealed several limitations in Argo CD which could compromise security.
 Most of the issues are related to the built-in user management implementation.
 
@@ -81,7 +81,7 @@ When you are running `v1.4.x`, you can upgrade to `v1.4.3` by simply changing th
 tags for `argocd-server`, `argocd-repo-server` and `argocd-controller` to `v1.4.3`. 
 The `v1.4.3` release does not contain additional functional bug fixes.
 
-Likewise, hen you are running `v1.5.x`, you can upgrade to `v1.5.2` by simply changing
+Likewise, when you are running `v1.5.x`, you can upgrade to `v1.5.2` by simply changing
 the image tags for `argocd-server`, `argocd-repo-server` and `argocd-controller` to `v1.5.2`.
 The `v1.5.2` release does not contain additional functional bug fixes.
 
@@ -122,7 +122,7 @@ An attacker could use this information in an attempt to deduce the state of the 
 **Mitigation and/or workaround:**
 
 The recommended mitigation as described in the user documentation is to use SSO integration. The default admin password
-should only be used for initial configuration and then [disabled](../operator-manual/user-management/#disable-admin-user)
+should only be used for initial configuration and then [disabled](operator-manual/user-management/index.md#disable-admin-user)
 or at least changed to a more secure password.
 
 ### CVE-2020-8827 - Insufficient anti-automation/anti-brute force

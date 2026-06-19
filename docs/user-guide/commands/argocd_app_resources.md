@@ -2,19 +2,38 @@
 
 ## argocd app resources
 
-List resource of application
+List resources of application
 
 ```
 argocd app resources APPNAME [flags]
 ```
 
+### Examples
+
+```
+  # List first-level resources of application
+  argocd app resources my-app --refresh
+  
+  # List only the orphaned resources of application
+  argocd app resources my-app --orphaned
+  
+  # Shows resource hierarchy with parent-child relationships
+  argocd app resources my-app --output tree
+  
+  # Shows resource hierarchy with parent-child relationships including information about age, health and reason
+  argocd app resources my-app --output tree=detailed
+```
+
 ### Options
 
 ```
-  -h, --help             help for resources
-      --orphaned         Lists only orphaned resources
-      --output string    Provides the tree view of the resources
-      --project string   The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
+  -N, --app-namespace string   Namespace of the application
+  -h, --help                   help for resources
+      --orphaned               Lists only orphaned resources
+      --output string          Output format. One of: tree|tree=detailed.
+                                 tree: Shows resource hierarchy with parent-child relationships
+                                 tree=detailed: Same as tree, but includes AGE, HEALTH, and REASON columns
+      --project string         The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
 ```
 
 ### Options inherited from parent commands

@@ -3,7 +3,7 @@ package kube
 import (
 	"testing"
 
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,35 +41,6 @@ func Test_convertToVersionWithScheme(t *testing.T) {
 			fields: []checkField{
 				{
 					expected: "apiVersion: apps/v1beta2",
-				},
-			},
-		},
-		{
-			name:          "v1 HPA to v2beta1 HPA",
-			file:          "v1HPA.yaml",
-			outputVersion: "autoscaling/v2beta1",
-			fields: []checkField{
-				{
-					expected: "apiVersion: autoscaling/v2beta1",
-				},
-				{
-					expected: "name: cpu",
-				},
-				{
-					expected: "targetAverageUtilization: 50",
-				},
-			},
-		},
-		{
-			name:          "v2beta1 HPA to v1 HPA",
-			file:          "v2beta1HPA.yaml",
-			outputVersion: "autoscaling/v1",
-			fields: []checkField{
-				{
-					expected: "apiVersion: autoscaling/v1",
-				},
-				{
-					expected: "targetCPUUtilizationPercentage: 50",
 				},
 			},
 		},

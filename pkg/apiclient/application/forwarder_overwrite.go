@@ -29,10 +29,17 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
 	"metadata.deletionTimestamp": func(app *v1alpha1.Application) any { return app.DeletionTimestamp },
 	"spec":                       func(app *v1alpha1.Application) any { return app.Spec },
+	"spec.destination":           func(app *v1alpha1.Application) any { return app.Spec.Destination },
+	"spec.project":               func(app *v1alpha1.Application) any { return app.Spec.Project },
+	"spec.source":                func(app *v1alpha1.Application) any { return app.Spec.Source },
+	"spec.sources":               func(app *v1alpha1.Application) any { return app.Spec.Sources },
+	"spec.sourceHydrator":        func(app *v1alpha1.Application) any { return app.Spec.SourceHydrator },
+	"spec.syncPolicy":            func(app *v1alpha1.Application) any { return app.Spec.SyncPolicy },
 	"status.sourceHydrator":      func(app *v1alpha1.Application) any { return app.Status.SourceHydrator },
-	"status.sync.status":         func(app *v1alpha1.Application) any { return app.Status.Sync.Status },
-	"status.health":              func(app *v1alpha1.Application) any { return app.Status.Health },
 	"status.summary":             func(app *v1alpha1.Application) any { return app.Status.Summary },
+	"status.sync.status":         func(app *v1alpha1.Application) any { return app.Status.Sync.Status },
+	"status.sync.revision":       func(app *v1alpha1.Application) any { return app.Status.Sync.Revision },
+	"status.health":              func(app *v1alpha1.Application) any { return app.Status.Health },
 	"status.operationState.startedAt": func(app *v1alpha1.Application) any {
 		if app.Status.OperationState != nil {
 			return app.Status.OperationState.StartedAt
@@ -87,7 +94,7 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 				}
 				parts := strings.Split(field, ".")
 				item := converted
-				for i := 0; i < len(parts); i++ {
+				for i := range parts {
 					subField := parts[i]
 					if i == len(parts)-1 {
 						item[subField] = value

@@ -38,7 +38,7 @@ func (a *Actions) Create(args ...string) *Actions {
 }
 
 func (a *Actions) prepareCreateArgs(args []string) []string {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	args = append([]string{
 		"repo", "add", a.context.path,
 	}, args...)
@@ -49,19 +49,19 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 }
 
 func (a *Actions) Delete() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.runCli("repo", "rm", a.context.path)
 	return a
 }
 
 func (a *Actions) List() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.runCli("repo", "list")
 	return a
 }
 
 func (a *Actions) Get() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.runCli("repo", "get", a.context.path)
 	return a
 }
@@ -77,13 +77,13 @@ func (a *Actions) Project(project string) *Actions {
 }
 
 func (a *Actions) Then() *Consequences {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 
 func (a *Actions) runCli(args ...string) {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	if !a.ignoreErrors && a.lastError != nil {
 		log.Fatal(a.lastOutput)

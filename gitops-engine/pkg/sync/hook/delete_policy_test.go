@@ -5,11 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 )
 
 func TestDeletePolicies(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyBeforeHookCreation}, DeletePolicies(testingutils.NewPod()))
 	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyBeforeHookCreation}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook-delete-policy", "garbage")))
 	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyBeforeHookCreation}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook-delete-policy", "BeforeHookCreation")))

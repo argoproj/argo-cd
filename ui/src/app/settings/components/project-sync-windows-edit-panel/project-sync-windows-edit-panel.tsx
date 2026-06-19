@@ -1,6 +1,6 @@
 import {FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'argo-ui';
 
 import {CheckboxField} from '../../../shared/components';
 
@@ -66,6 +66,9 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                             </div>
                             <div className='argo-form-row'>
                                 <FormField formApi={api} label='Enable manual sync' field='window.manualSync' component={CheckboxField} />
+                            </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Enable sync overrun' field='window.syncOverrun' component={CheckboxField} />
                             </div>
                             <div className='argo-form-row'>
                                 <FormField

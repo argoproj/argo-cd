@@ -37,7 +37,7 @@ spec:
             type: RuntimeDefault
       containers:
       - name: dex
-        image: ghcr.io/dexidp/dex:v2.43.0
+        image: ghcr.io/dexidp/dex:v2.45.0
         imagePullPolicy: Always
         command: [/shared/argocd-dex, rundex]
         env:
@@ -65,6 +65,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: dexserver.disable.tls
                 optional: true
+          - name: DEX_CONTINUE_ON_CONNECTOR_FAILURE
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: dexserver.connector.failure.continue
+                optional: true
         securityContext:
           capabilities:
             drop:
@@ -72,6 +78,7 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          runAsUser: 1001
           seccompProfile:
             type: RuntimeDefault
         ports:

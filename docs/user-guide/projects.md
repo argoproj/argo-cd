@@ -128,9 +128,37 @@ Permitted destination K8s resource kinds are managed with the commands. Note tha
 
 ```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
+```
+
+#### Restrict Cluster-Scoped Resources by Name
+
+Since the names of certain cluster-scoped resources such as Namespaces and CustomResourceDefinitions (CRDs) have special
+significance, it can be useful to allow only specific resources of these kinds. For example, the following AppProject
+config allows only namespaces starting with `team1-`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+    name: team1-*
+```
+
+It is also possible to deny specific names of cluster-scoped resources.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  clusterResourceBlacklist:
+  - group: ''
+    kind: Namespace
+    name: kube-*
 ```
 
 ### Assign Application To A Project
@@ -266,9 +294,10 @@ Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inh
 * namespaceResourceWhitelist
 * clusterResourceBlacklist
 * clusterResourceWhitelist
-* SyncWindows
-* SourceRepos
-* Destinations
+* syncWindows
+* sourceRepos
+* destinations
+* destinationServiceAccounts
 
 Configure global projects in `argocd-cm` ConfigMap:
 ```yaml
@@ -284,7 +313,7 @@ data:
 kind: ConfigMap
 ``` 
 
-Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
 
@@ -363,6 +392,9 @@ stringData:
       }
     }
 ```
+
+> [!NOTE]
+> **Implicit Destinations:** When a project-scoped cluster is defined, an implicit entry is dynamically added to the AppProject's `destinations` list during evaluation. By default, this acts as a wildcard, allowing applications in the project to deploy to all namespaces in the cluster (acting as `namespace: "*"`). If the cluster definition has the `namespaces` field set, only those specific namespaces are implicitly added to the project's destinations instead. Because this happens dynamically during evaluation to facilitate multi-tenancy, these implicit destinations are not reflected in the AppProject's declarative spec or the UI.
 
 With project-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same project, as the example below demonstrates:
 

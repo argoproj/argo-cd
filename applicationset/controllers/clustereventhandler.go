@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/argoproj/argo-cd/v3/common"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -22,8 +23,9 @@ import (
 // requeue any related ApplicationSets.
 type clusterSecretEventHandler struct {
 	// handler.EnqueueRequestForOwner
-	Log    log.FieldLogger
-	Client client.Client
+	Log                      log.FieldLogger
+	Client                   client.Client
+	ApplicationSetNamespaces []string
 }
 
 func (h *clusterSecretEventHandler) Create(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
@@ -68,6 +70,10 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 
 	h.Log.WithField("count", len(appSetList.Items)).Info("listed ApplicationSets")
 	for _, appSet := range appSetList.Items {
+		if !utils.IsNamespaceAllowed(h.ApplicationSetNamespaces, appSet.GetNamespace()) {
+			// Ignore it as not part of the allowed list of namespaces in which to watch Appsets
+			continue
+		}
 		foundClusterGenerator := false
 		for _, generator := range appSet.Spec.Generators {
 			if generator.Clusters != nil {

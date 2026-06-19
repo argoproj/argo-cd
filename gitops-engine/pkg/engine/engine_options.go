@@ -4,8 +4,8 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/klog/v2/textlogger"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
 )
 
 type Option func(*options)

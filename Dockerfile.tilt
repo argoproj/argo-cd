@@ -1,8 +1,6 @@
-FROM docker.io/library/golang:1.25.1@sha256:3c9619997c330b7e48c1dd3280444fccaf1d3b68c10c63fbba7d3461a6b61b3f
+FROM docker.io/library/golang:1.26.4@sha256:792443b89f65105abba56b9bd5e97f680a80074ac62fc844a584212f8c8102c3
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     curl \
@@ -11,7 +9,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     unzip \
     fcgiwrap \
     git \
-    git-lfs \
     make \
     wget \
     gcc \
@@ -28,7 +25,8 @@ COPY hack/install.sh hack/tool-versions.sh ./
 COPY hack/installers installers
 
 RUN ./install.sh helm && \
-    INSTALL_PATH=/usr/local/bin ./install.sh kustomize
+    INSTALL_PATH=/usr/local/bin ./install.sh kustomize && \
+    ./install.sh git-lfs
 
 COPY hack/gpg-wrapper.sh \
     hack/git-verify-wrapper.sh \
@@ -43,7 +41,7 @@ RUN touch ssh_known_hosts && \
 WORKDIR /app/config
 RUN mkdir -p tls && \
     mkdir -p gpg/source && \
-    mkdir -p gpg/keys 
+    mkdir -p gpg/keys
 
 COPY .tilt-bin/argocd_linux /usr/local/bin/argocd
 

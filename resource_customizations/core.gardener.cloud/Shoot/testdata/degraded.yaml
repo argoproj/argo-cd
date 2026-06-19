@@ -1,0 +1,17 @@
+apiVersion: core.gardener.cloud/v1beta1
+kind: Shoot
+metadata:
+  name: example
+  namespace: garden-dev  
+  labels:
+    shoot.gardener.cloud/status: unhealthy
+spec:
+  hibernation:
+    enabled: false  
+status:
+  lastOperation:
+    description: Shoot cluster has been successfully reconciled.
+    lastUpdateTime: '2025-12-17T12:15:19Z'
+    progress: 100
+    state: Succeeded
+    type: Reconcile

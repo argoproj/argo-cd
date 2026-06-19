@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: Change transfer policy is being deleted
+    message: "Change transfer policy is being deleted. changetransferpolicy.promoter.argoproj.io/finalizer: Waiting to clear related PullRequest finalizers and finish cleanup before this policy is removed. Risk if removed manually: The 'changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer' finalizer may not be cleaned up from PullRequests owned by this ChangeTransferPolicy."
   inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Progressing

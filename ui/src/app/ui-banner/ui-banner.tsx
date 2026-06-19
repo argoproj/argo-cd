@@ -46,7 +46,7 @@ const CustomBanner = (props: {
     );
 };
 
-export const Banner = (props: React.Props<any>) => {
+export const Banner = (props: React.PropsWithChildren<{}>) => {
     const [visible, setVisible] = React.useState(true);
     return (
         <DataLoader
@@ -110,7 +110,7 @@ export const Banner = (props: React.Props<any>) => {
                     try {
                         const externalLink = new ExternalLink(chatUrl);
                         chatUrl = externalLink.ref;
-                    } catch (InvalidExternalLinkError) {
+                    } catch {
                         chatUrl = 'invalid-url';
                     }
                 }

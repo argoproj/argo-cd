@@ -1,7 +1,6 @@
 package services
 
 import (
-	"context"
 	"crypto/tls"
 	"net/http"
 	"testing"
@@ -12,11 +11,12 @@ import (
 )
 
 func TestSetupBitbucketClient(t *testing.T) {
-	ctx := context.Background()
+	t.Parallel()
+	ctx := t.Context()
 	cfg := &bitbucketv1.Configuration{}
 
 	// Act
-	client := SetupBitbucketClient(ctx, cfg, "", false, nil)
+	client := SetupBitbucketClient(ctx, cfg, "", false, nil, "", "")
 
 	// Assert
 	require.NotNil(t, client, "expected client to be created")

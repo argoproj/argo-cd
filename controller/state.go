@@ -11,17 +11,20 @@ import (
 	goSync "sync"
 	"time"
 
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync"
-	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
+	hookutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -41,7 +44,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
@@ -72,7 +74,8 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
-	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
+	EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, []string, error)
+	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -90,6 +93,7 @@ type comparisonResult struct {
 	timings            map[string]time.Duration
 	diffResultList     *diff.DiffResultList
 	hasPostDeleteHooks bool
+	hasPreDeleteHooks  bool
 	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
 	revisionsMayHaveChanges bool
 }
@@ -123,11 +127,83 @@ type appStateManager struct {
 	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
+// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
+// If it does not, then the cached manifests are updated to the current revisions.
+// Returns whether any changes were detected across all sources and the resolved revision per source (same order as sources).
+func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, []string, error) {
+	hasChanges := false
+
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get app instance label key: %w", err)
+	}
+
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get trackingMethod: %w", err)
+	}
+
+	installationID, err := m.settingsMgr.GetInstallationID()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get installation ID: %w", err)
+	}
+
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get destination cluster: %w", err)
+	}
+
+	var serverVersion string
+	var apiVersions []string
+	if sendRuntimeState {
+		var apiResources []kubeutil.APIResourceInfo
+		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(destCluster)
+		if err != nil {
+			return false, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
+		}
+		apiVersions = argo.APIResourcesToStrings(apiResources, true)
+	}
+
+	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to connect to repo server: %w", err)
+	}
+	defer utilio.Close(conn)
+
+	refSources, err := argo.GetRefSources(ctx, sources, app.Spec.Project, m.db.GetRepository, revisions)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get ref sources: %w", err)
+	}
+
+	var syncedRefSources v1alpha1.RefTargetRevisionMapping
+	if app.Spec.HasMultipleSources() {
+		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
+	}
+
+	resolvedRevisions := make([]string, 0, len(sources))
+	for i, source := range sources {
+		if len(revisions) < len(sources) || revisions[i] == "" {
+			revisions[i] = source.TargetRevision
+		}
+		resolvedRev, revisionsMayHaveChanges, err := m.evaluateRevisionChanges(ctx, app, source, i, revisions[i], refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient)
+		if err != nil {
+			return false, nil, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
+		}
+		resolvedRevisions = append(resolvedRevisions, resolvedRev)
+
+		if revisionsMayHaveChanges {
+			hasChanges = true
+		}
+	}
+
+	return hasChanges, resolvedRevisions, nil
+}
+
 // GetRepoObjs will generate the manifests for the given application delegating the
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
@@ -199,12 +275,14 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 	ts.AddCheckpoint("build_options_ms")
 	var serverVersion string
-	var apiResources []kubeutil.APIResourceInfo
+	var apiVersions []string
 	if sendRuntimeState {
+		var apiResources []kubeutil.APIResourceInfo
 		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(destCluster)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
 		}
+		apiVersions = argo.APIResourcesToStrings(apiResources, true)
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -223,70 +301,33 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		return nil, nil, false, fmt.Errorf("failed to get ref sources: %w", err)
 	}
 
+	var syncedRefSources v1alpha1.RefTargetRevisionMapping
+	if app.Spec.HasMultipleSources() {
+		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
+	}
+
 	revisionsMayHaveChanges := false
-
-	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
-
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
-		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
-		}
-
-		syncedRevision := app.Status.Sync.Revision
-		if app.Spec.HasMultipleSources() {
-			if i < len(app.Status.Sync.Revisions) {
-				syncedRevision = app.Status.Sync.Revisions[i]
-			} else {
-				syncedRevision = ""
-			}
-		}
-
 		revision := revisions[i]
 
-		appNamespace := app.Spec.Destination.Namespace
-		apiVersions := argo.APIResourcesToStrings(apiResources, true)
-		if !sendRuntimeState {
-			appNamespace = ""
+		// Use evaluateRevisionChanges to check for changes and get resolved revision
+		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, app, source, i, revision, refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
 		}
 
-		if !source.IsHelm() && !source.IsOCI() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
-			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
-			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
-				Repo:               repo,
-				Revision:           revision,
-				SyncedRevision:     syncedRevision,
-				NoRevisionCache:    noRevisionCache,
-				Paths:              path.GetAppRefreshPaths(app),
-				AppLabelKey:        appLabelKey,
-				AppName:            app.InstanceName(m.namespace),
-				Namespace:          appNamespace,
-				ApplicationSource:  &source,
-				KubeVersion:        serverVersion,
-				ApiVersions:        apiVersions,
-				TrackingMethod:     trackingMethod,
-				RefSources:         refSources,
-				HasMultipleSources: app.Spec.HasMultipleSources(),
-				InstallationID:     installationID,
-			})
-			if err != nil {
-				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
-			}
-			if updateRevisionResult.Changes {
-				revisionsMayHaveChanges = true
-			}
-
-			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
-			if updateRevisionResult.Revision != "" {
-				revision = updateRevisionResult.Revision
-			}
-		} else {
-			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+		if hasChanges {
 			revisionsMayHaveChanges = true
 		}
+
+		// Use the resolved revision from evaluateRevisionChanges
+		revision = resolvedRevision
+		revisions[i] = resolvedRevision
+
+		appNamespace := app.Spec.Destination.Namespace
 
 		repos := permittedHelmRepos
 		helmRepoCreds := permittedHelmCredentials
@@ -298,6 +339,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			helmRepoCreds = slices.Clone(permittedHelmCredentials)
 			repos = append(repos, permittedOCIRepos...)
 			helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
+		}
+
+		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
@@ -314,7 +360,8 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     apiVersions,
-			VerifySignature:                 verifySignature,
+			SourceIntegrity:                 sourceIntegrity,
+			VerifySignature:                 sourceIntegrity != nil, // nolint:staticcheck
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enabledSourceTypes,
@@ -327,7 +374,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			InstallationID:                  installationID,
 		})
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
+				genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
+			}
+			return nil, nil, false, genErr
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
@@ -336,6 +387,17 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		}
 		targetObjs = append(targetObjs, targetObj...)
 		manifestInfos = append(manifestInfos, manifestInfo)
+
+		// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
+		if len(sources) > 1 {
+			var sourceId string
+			if source.Name != "" {
+				sourceId = "source " + source.Name
+			} else {
+				sourceId = fmt.Sprintf("source %d of %d", i+1, len(sources))
+			}
+			manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
+		}
 	}
 
 	ts.AddCheckpoint("manifests_ms")
@@ -349,37 +411,102 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
 }
 
-// ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
-func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (string, error) {
-	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to repo server: %w", err)
-	}
-	defer utilio.Close(conn)
-
-	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
-	if err != nil {
-		return "", fmt.Errorf("failed to get repo %q: %w", repoURL, err)
+// evaluateRevisionChanges checks if a single source revision has changes without generating manifests.
+// Returns the resolved revision and whether changes were detected.
+func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, sourceIndex int, revision string, refSources v1alpha1.RefTargetRevisionMapping, syncedRefSources v1alpha1.RefTargetRevisionMapping, noRevisionCache bool, trackingMethod string, appLabelKey string, installationID string, serverVersion string, apiVersions []string, proj *v1alpha1.AppProject, repoClient apiclient.RepoServerServiceClient) (string, bool, error) {
+	alwaysResolveRevision := false
+	if revision == "" {
+		revision = source.TargetRevision
 	}
 
-	// Mock the app. The repo-server only needs to know whether the "chart" field is populated.
-	app := &v1alpha1.Application{
-		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        repoURL,
-				TargetRevision: revision,
-			},
-		},
+	// Determine the synced revision and source type for comparison
+	syncedRevision := app.Status.Sync.Revision
+	if app.Spec.SourceHydrator != nil {
+		if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
+			// Always resolve the revision even if UpdateRevisionForPaths is not called so we can
+			// correctly compare it with the syncedRevision
+			alwaysResolveRevision = true
+			sourceIndex = -1 // Special case allowing GetSourcePtrByIndex() to return the dry source
+			// Use LastComparedDryRevision as the synced revision for cache lookups
+			syncedRevision = app.Status.SourceHydrator.LastComparedDryRevision
+		}
+	} else if app.Spec.HasMultipleSources() {
+		if sourceIndex < len(app.Status.Sync.Revisions) {
+			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
+		} else {
+			syncedRevision = ""
+		}
 	}
-	resp, err := repoClient.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
-		Repo:              repo,
-		App:               app,
-		AmbiguousRevision: revision,
-	})
+
+	if source.IsRef() {
+		// For ref source specifically, we always return false since their change are evaluated as part of the source
+		// referencing them.
+		return revision, false, nil
+	}
+
+	if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+		// if revisions are the same (and we are not using reference sources), we know there is no changes
+		// TODO: Could be optimized to not call the repo server at all if we know this specific source does not use reference.
+		return revision, false, nil
+	}
+	repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
 	if err != nil {
-		return "", fmt.Errorf("failed to determine whether the dry source has changed: %w", err)
+		return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 	}
-	return resp.Revision, nil
+
+	keyManifestGenerateAnnotationVal := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
+
+	if syncedRevision != "" && repo.Depth == 0 && keyManifestGenerateAnnotationVal != "" {
+		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
+			Repo:               repo,
+			Revision:           revision,
+			SyncedRevision:     syncedRevision,
+			NoRevisionCache:    noRevisionCache,
+			Paths:              path.GetSourceRefreshPaths(app, source),
+			AppLabelKey:        appLabelKey,
+			AppName:            app.InstanceName(m.namespace),
+			Namespace:          app.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
+			KubeVersion:        serverVersion,
+			ApiVersions:        apiVersions,
+			TrackingMethod:     trackingMethod,
+			RefSources:         refSources,
+			SyncedRefSources:   syncedRefSources,
+			HasMultipleSources: app.Spec.HasMultipleSources(),
+			InstallationID:     installationID,
+		})
+		if err != nil {
+			return "", false, fmt.Errorf("failed to update revision for paths: %w", err)
+		}
+
+		resolvedRevision := revision
+		if updateRevisionResult.Revision != "" {
+			resolvedRevision = updateRevisionResult.Revision
+		}
+
+		return resolvedRevision, updateRevisionResult.Changes, nil
+	} else if alwaysResolveRevision {
+		resp, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+			Repo:              repo,
+			App:               app,
+			AmbiguousRevision: revision,
+			SourceIndex:       int64(sourceIndex),
+			NoRevisionCache:   noRevisionCache,
+		})
+		if err != nil {
+			return "", false, fmt.Errorf("failed to resolve revision: %w", err)
+		}
+		revision = resp.Revision
+
+		if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+			// if revisions are the same (and we are not using reference sources), we know there is no changes
+			return revision, false, nil
+		}
+		return revision, true, nil
+	}
+
+	// For any types of sources where we cannot know if revision has changed, we return true as we cannot make assumptions.
+	return revision, true, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
@@ -394,33 +521,45 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error
 	return targetObjs, nil
 }
 
-func DeduplicateTargetObjects(
-	namespace string,
-	objs []*unstructured.Unstructured,
-	infoProvider kubeutil.ResourceInfoProvider,
-) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
+func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
 		if obj == nil {
 			continue
 		}
+
+		namespaceModified := false
 		isNamespaced := kubeutil.IsNamespacedOrUnknown(infoProvider, obj.GroupVersionKind().GroupKind())
-		if !isNamespaced {
+		if !isNamespaced && obj.GetNamespace() != "" {
+			// If a resource is cluster scoped, set the namespace to empty.
 			obj.SetNamespace("")
-		} else if obj.GetNamespace() == "" {
+			namespaceModified = true
+		} else if isNamespaced && obj.GetNamespace() == "" {
+			// If the object does not have a namespace specified, set it to the namespace of the application.
 			obj.SetNamespace(namespace)
+			namespaceModified = true
 		}
+
+		if namespaceModified {
+			err := setAppInstance(obj)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to set app instance label on resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+			}
+		}
+
 		key := kubeutil.GetResourceKey(obj)
 		if key.Name == "" && obj.GetGenerateName() != "" {
 			key.Name = fmt.Sprintf("%s%d", obj.GetGenerateName(), i)
 		}
 		targetByKey[key] = append(targetByKey[key], obj)
 	}
+
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	result := make([]*unstructured.Unstructured, 0)
 	for key, targets := range targetByKey {
 		if len(targets) > 1 {
+			// If an object is duplicated in the target, we add a condition to the application.
 			now := metav1.Now()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{
 				Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
@@ -428,33 +567,11 @@ func DeduplicateTargetObjects(
 				LastTransitionTime: &now,
 			})
 		}
+		// Only keep the last target object to avoid duplicate resources.
 		result = append(result, targets[len(targets)-1])
 	}
 
 	return result, conditions, nil
-}
-
-// normalizeClusterScopeTracking will set the app instance tracking metadata on malformed cluster-scoped resources where
-// metadata.namespace is not empty. The repo-server doesn't know which resources are cluster-scoped, so it may apply
-// an incorrect tracking annotation using the metadata.namespace. This function will correct that.
-func normalizeClusterScopeTracking(targetObjs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) error {
-	for i := len(targetObjs) - 1; i >= 0; i-- {
-		targetObj := targetObjs[i]
-		if targetObj == nil {
-			continue
-		}
-		gvk := targetObj.GroupVersionKind()
-		if !kubeutil.IsNamespacedOrUnknown(infoProvider, gvk.GroupKind()) {
-			if targetObj.GetNamespace() != "" {
-				targetObj.SetNamespace("")
-				err := setAppInstance(targetObj)
-				if err != nil {
-					return fmt.Errorf("failed to set app instance label on cluster-scoped resource %s/%s: %w", gvk.String(), targetObj.GetName(), err)
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // getComparisonSettings will return the system level settings related to the
@@ -483,47 +600,30 @@ func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.R
 	return appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, nil
 }
 
-// verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
-// revision.
-func verifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifestInfo *apiclient.ManifestResponse) []v1alpha1.ApplicationCondition {
-	now := metav1.Now()
-	conditions := make([]v1alpha1.ApplicationCondition, 0)
-	// We need to have some data in the verification result to parse, otherwise there was no signature
-	if manifestInfo.VerifyResult != "" {
-		verifyResult := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
-		switch verifyResult.Result {
-		case gpg.VerifyResultGood:
-			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
-			validKey := false
-			for _, k := range project.Spec.SignatureKeys {
-				if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
-					validKey = true
-					break
-				}
-			}
-			if !validKey {
-				msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
-					verifyResult.Cipher, verifyResult.KeyID)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-			}
-		case gpg.VerifyResultInvalid:
-			msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
-				verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-		default:
-			msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-		}
-	} else {
-		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-	}
-
-	return conditions
-}
-
 func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application) bool {
 	return ns != nil && ns.GetKind() == kubeutil.NamespaceKind && ns.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil
+}
+
+// partitionTargetObjsForSync returns the manifest subset passed to gitops-engine sync, and whether
+// the full manifest set declared PreDelete and/or PostDelete hooks (for finalizer handling).
+// Uses isPreDeleteHook / isPostDeleteHook / hasGitOpsEngineSyncPhaseHook from hook.go.
+func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncObjs []*unstructured.Unstructured, hasPreDeleteHooks, hasPostDeleteHooks bool) {
+	for _, obj := range targetObjs {
+		if isPreDeleteHook(obj) {
+			hasPreDeleteHooks = true
+			if !hasGitOpsEngineSyncPhaseHook(obj) {
+				continue
+			}
+		}
+		if isPostDeleteHook(obj) {
+			hasPostDeleteHooks = true
+			if !hasGitOpsEngineSyncPhaseHook(obj) {
+				continue
+			}
+		}
+		syncObjs = append(syncObjs, obj)
+	}
+	return syncObjs, hasPreDeleteHooks, hasPostDeleteHooks
 }
 
 // CompareAppState compares application git state to the live app state, using the specified
@@ -562,9 +662,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown}, nil
 	}
 
-	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
-
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -594,7 +691,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(context.Background(), app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
+		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(context.Background(), app, sources, appLabelKey, revisions, noCache, noRevisionCache, project.EffectiveSourceIntegrity(), project, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := "Failed to load target state: " + err.Error()
@@ -616,10 +713,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			m.repoErrorCache.Delete(app.Name)
 		}
 	} else {
-		// Prevent applying local manifests for now when signature verification is enabled
+		// Prevent applying local manifests for now when source integrity is enforced
 		// This is also enforced on API level, but as a last resort, we also enforce it here
-		if gpg.IsGPGEnabled() && verifySignature {
-			msg := "Cannot use local manifests when signature verification is required"
+		if sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), sources...) {
+			msg := "Cannot use local manifests when source integrity is enforced"
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
@@ -643,17 +740,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		infoProvider = &resourceInfoProviderStub{}
 	}
 
-	err = normalizeClusterScopeTracking(targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
+	targetObjs, dedupConditions, err := NormalizeTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
 		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 	})
 	if err != nil {
-		msg := "Failed to normalize cluster-scoped resource tracking: " + err.Error()
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-	}
-
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
-	if err != nil {
-		msg := "Failed to deduplicate target state: " + err.Error()
+		msg := "Failed to normalize target state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)
@@ -753,14 +844,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
-	hasPostDeleteHooks := false
-	for _, obj := range targetObjs {
-		if isPostDeleteHook(obj) {
-			hasPostDeleteHooks = true
-		}
-	}
+	targetObjsForSync, hasPreDeleteHooks, hasPostDeleteHooks := partitionTargetObjsForSync(targetObjs)
 
-	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
+	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
@@ -813,9 +899,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if err != nil {
 			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
+		} else {
+			defer cleanup()
+			diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 		}
-		defer cleanup()
-		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 	}
 
 	// enable structured merge diff if application syncs with server-side apply
@@ -853,18 +940,24 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 
 		resState := v1alpha1.ResourceStatus{
-			Namespace:       obj.GetNamespace(),
-			Name:            obj.GetName(),
-			Kind:            gvk.Kind,
-			Version:         gvk.Version,
-			Group:           gvk.Group,
-			Hook:            isHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
-			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
-				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm),
+			Namespace:                    obj.GetNamespace(),
+			Name:                         obj.GetName(),
+			Kind:                         gvk.Kind,
+			Version:                      gvk.Version,
+			Group:                        gvk.Group,
+			Hook:                         isHook(obj),
+			RequiresPruning:              targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			RequiresDeletionConfirmation: isObjRequiresDeletionConfirmation(targetObj, app) || isObjRequiresDeletionConfirmation(liveObj, app),
 		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
+		} else if resState.Hook {
+			for _, hookObj := range reconciliation.Hooks {
+				if hookObj.GetName() == liveObj.GetName() && hookObj.GetKind() == liveObj.GetKind() && hookObj.GetNamespace() == liveObj.GetNamespace() {
+					resState.SyncWave = int64(syncwaves.Wave(hookObj))
+					break
+				}
+			}
 		}
 
 		var diffResult diff.DiffResult
@@ -905,7 +998,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 		// set unknown status to all resource that are not permitted in the app project
 		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
-		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
+		if !project.IsGroupKindNamePermitted(gvk.GroupKind(), obj.GetName(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
 
@@ -959,12 +1052,31 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
 
-	// Git has already performed the signature verification via its GPG interface, and the result is available
-	// in the manifest info received from the repository server. We now need to form our opinion about the result
-	// and stop processing if we do not agree about the outcome.
 	for _, manifestInfo := range manifestInfos {
-		if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
-			conditions = append(conditions, verifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
+		if manifestInfo != nil {
+			if err = manifestInfo.SourceIntegrityResult.AsError(); err != nil {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            err.Error(),
+					LastTransitionTime: &now,
+				})
+			}
+
+			// Can happen during migration when the legacy SignatureKeys are used AND the repo-server have not yet been
+			// upgraded to version using Source Integrity. So the manifests comes in with verifyResult only, that we have to interpret anyway.
+			if manifestInfo.SourceIntegrityResult == nil && manifestInfo.VerifyResult != "" { // nolint:staticcheck
+				legacyVerifySignature := len(project.Spec.SignatureKeys) > 0 && sourceintegrity.IsGPGEnabled() // nolint:staticcheck
+				if legacyVerifySignature {
+					var keys []string
+					for _, key := range project.Spec.SignatureKeys { // nolint:staticcheck
+						keys = append(keys, key.KeyID)
+					}
+					condition := sourceintegrity.VerifyGnuPGSignature(manifestInfo.Revision, keys, manifestInfo.VerifyResult) // nolint:staticcheck
+					if condition != nil {
+						conditions = append(conditions, *condition)
+					}
+				}
+			}
 		}
 	}
 
@@ -977,6 +1089,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfig:              diffConfig,
 		diffResultList:          diffResults,
 		hasPostDeleteHooks:      hasPostDeleteHooks,
+		hasPreDeleteHooks:       hasPreDeleteHooks,
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
 
@@ -1051,6 +1164,29 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, sources []v1alpha1.Appli
 	specCopy := spec.DeepCopy()
 	compareToSpec := specCopy.BuildComparedToStatus(sources)
 	return reflect.DeepEqual(comparedTo, compareToSpec)
+}
+
+func isObjRequiresDeletionConfirmation(obj *unstructured.Unstructured, app *v1alpha1.Application) bool {
+	if obj == nil {
+		return false
+	}
+	deleteOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDelete)
+	if deleteOption == nil && app.Spec.SyncPolicy != nil {
+		deleteOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionDelete)
+	}
+	if deleteOption != nil && *deleteOption == synccommon.SyncValueConfirm {
+		return true
+	}
+
+	pruneOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPrune)
+	if pruneOption == nil && app.Spec.SyncPolicy != nil {
+		pruneOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionPrune)
+	}
+	if pruneOption != nil && *pruneOption == synccommon.SyncValueConfirm {
+		return true
+	}
+
+	return false
 }
 
 func (m *appStateManager) persistRevisionHistory(

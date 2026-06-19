@@ -6,11 +6,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 )
 
 func TestNoHooks(t *testing.T) {
+	t.Parallel()
 	obj := &unstructured.Unstructured{}
 	assert.False(t, IsHook(obj))
 	assert.False(t, Skip(obj))
@@ -18,6 +19,7 @@ func TestNoHooks(t *testing.T) {
 }
 
 func TestOneHook(t *testing.T) {
+	t.Parallel()
 	hookTypesString := []string{"PreSync", "Sync", "PostSync", "SyncFail"}
 	hookTypes := []common.HookType{common.HookTypePreSync, common.HookTypeSync, common.HookTypePostSync, common.HookTypeSyncFail}
 	for i, hook := range hookTypesString {
@@ -32,6 +34,7 @@ func TestOneHook(t *testing.T) {
 // IMHO this is bad design  as it conflates a flag on something that can never be a hook, with something that is
 // always a hook, creating a nasty exception we always need to check for, and a bunch of horrible edge cases
 func TestSkipHook(t *testing.T) {
+	t.Parallel()
 	obj := example("Skip")
 	assert.False(t, IsHook(obj))
 	assert.True(t, Skip(obj))
@@ -41,6 +44,7 @@ func TestSkipHook(t *testing.T) {
 // we treat garbage as the user intended you to be a hook, but spelled it wrong, so you are a hook, but we don't
 // know what phase you're a part of
 func TestGarbageHook(t *testing.T) {
+	t.Parallel()
 	obj := example("Garbage")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
@@ -48,6 +52,7 @@ func TestGarbageHook(t *testing.T) {
 }
 
 func TestTwoHooks(t *testing.T) {
+	t.Parallel()
 	obj := example("PreSync,PostSync")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
@@ -55,11 +60,13 @@ func TestTwoHooks(t *testing.T) {
 }
 
 func TestDupHookTypes(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, []common.HookType{common.HookTypeSync}, Types(example("Sync,Sync")))
 }
 
 // horrible edge case
 func TestSkipAndHook(t *testing.T) {
+	t.Parallel()
 	obj := example("Skip,PreSync,PostSync")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
@@ -67,6 +74,7 @@ func TestSkipAndHook(t *testing.T) {
 }
 
 func TestGarbageAndHook(t *testing.T) {
+	t.Parallel()
 	obj := example("Sync,Garbage")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
@@ -74,6 +82,7 @@ func TestGarbageAndHook(t *testing.T) {
 }
 
 func TestHelmHook(t *testing.T) {
+	t.Parallel()
 	obj := testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-install")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
@@ -81,6 +90,7 @@ func TestHelmHook(t *testing.T) {
 }
 
 func TestGarbageHelmHook(t *testing.T) {
+	t.Parallel()
 	obj := testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "garbage")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
@@ -89,6 +99,7 @@ func TestGarbageHelmHook(t *testing.T) {
 
 // we should ignore Helm hooks if we have an Argo CD hook
 func TestBothHooks(t *testing.T) {
+	t.Parallel()
 	obj := testingutils.Annotate(example("Sync"), "helm.sh/hook", "pre-install")
 	assert.Equal(t, []common.HookType{common.HookTypeSync}, Types(obj))
 }

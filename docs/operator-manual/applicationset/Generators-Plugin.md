@@ -1,13 +1,21 @@
 # Plugin Generator
 
-Plugins allow you to provide your own generator.
+The Plugin generator is a generator type which allows you to provide your own custom generator through a plugin. In contrast to other generators with predetermined logic (the [Cluster generator](Generators-Cluster.md) fetching clusters using a selector on ArgoCD secrets, [Git generator](Generators-Git.md) using a Git repository, etc.), a Plugin generator can use any custom code with input and output parameters.
 
 - You can write in any language
 - Simple: a plugin just responds to RPC HTTP requests.
 - You can use it in a sidecar, or standalone deployment.
 - You can get your plugin running today, no need to wait 3-5 months for review, approval, merge and an Argo software
   release.
-- You can combine it with Matrix or Merge.
+- You can combine it with [Matrix generator](Generators-Matrix.md) or [Merge generator](Generators-Merge.md)
+
+In general, the flow of an ApplicationSet with a Plugin generator is as follows:
+
+- The ApplicationSet controller sends an HTTP POST to `baseUrl` every `requeueAfterSeconds`. The request includes `input.parameters` defined in the ApplicationSet.
+- Your custom plugin service receives the request, reads the input parameters and executes its custom logic to fetch any necessary data and construct a list of output parameter objects.
+- The plugin service returns the parameter list in a response to the ApplicationSet controller.
+- The ApplicationSet controller iterates through the parameter objects and uses each one to fill out the template (defined in the ApplicationSet object) to create an Application.
+- This allows for dynamic creation of Argo CD Applications based on custom user-created defined templates, parameters, and logic.
 
 To start working on your own plugin, you can generate a new repository based on the example
 [applicationset-hello-plugin](https://github.com/argoproj-labs/applicationset-hello-plugin).
@@ -110,7 +118,8 @@ If you want to store sensitive data in **another** Kubernetes `Secret`, instead 
 
 Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 
-> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+> [!NOTE]
+> Secret must have label `app.kubernetes.io/part-of: argocd`
 
 ##### Example
 
@@ -221,7 +230,7 @@ Some things to note here:
 - The input parameters are included in the request body and can be accessed using the `input.parameters` variable.
 - The output must always be a list of object maps nested under the `output.parameters` key in a map.
 - `generator.input.parameters` and `values` are reserved keys. If present in the plugin output, these keys will be overwritten by the
-  contents of the `input.parameters` and `values` keys in the ApplicationSet's plugin generator spec.
+  contents of the `input.parameters` and `values` keys in the ApplicationSet's Plugin generator spec.
 
 ## With matrix and pull request example
 
@@ -285,7 +294,7 @@ To illustrate :
 
 - The generator pullRequest would return, for example, 2 branches: `feature-branch-1` and `feature-branch-2`.
 
-- The generator plugin would then perform 2 requests as follows :
+- The Plugin generator would then perform 2 requests as follows :
 
 ```shell
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \

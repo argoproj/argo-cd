@@ -6,13 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 )
-
-func newHook(hookType common.HookType) *unstructured.Unstructured {
-	return testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", string(hookType))
-}
 
 func Test_syncTask_hookType(t *testing.T) {
 	type fields struct {
@@ -25,9 +21,9 @@ func Test_syncTask_hookType(t *testing.T) {
 		want   common.HookType
 	}{
 		{"Empty", fields{common.SyncPhaseSync, testingutils.NewPod()}, ""},
-		{"PreSyncHook", fields{common.SyncPhasePreSync, newHook(common.HookTypePreSync)}, common.HookTypePreSync},
-		{"SyncHook", fields{common.SyncPhaseSync, newHook(common.HookTypeSync)}, common.HookTypeSync},
-		{"PostSyncHook", fields{common.SyncPhasePostSync, newHook(common.HookTypePostSync)}, common.HookTypePostSync},
+		{"PreSyncHook", fields{common.SyncPhasePreSync, newHook("hook", common.HookTypePreSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypePreSync},
+		{"SyncHook", fields{common.SyncPhaseSync, newHook("hook", common.HookTypeSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypeSync},
+		{"PostSyncHook", fields{common.SyncPhasePostSync, newHook("hook", common.HookTypePostSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypePostSync},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

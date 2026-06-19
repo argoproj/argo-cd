@@ -83,10 +83,17 @@ Some examples are:
 - Having the team name as a label to allow routing alerts to specific receivers
 - Creating dashboards broken down by business units
 
-As the Application labels are specific to each company, this feature is disabled by default. To enable it, add the
-`--metrics-application-labels` flag to the Argo CD application controller.
+As the Application labels are specific to each company, this feature is disabled by default. To enable it, set the
+comma-separated `controller.metrics.application.labels` key in the `argocd-cmd-params-cm` ConfigMap.
 
 The example below will expose the Argo CD Application labels `team-name` and `business-unit` to Prometheus:
+
+    controller.metrics.application.labels: "team-name,business-unit"
+
+!!! warning
+    Each distinct label value becomes a separate `argocd_app_labels` time series. Exposing labels with many distinct values increases the metric's cardinality, which can degrade Prometheus performance and increase storage requirements. Prefer low-cardinality labels and add them sparingly.
+
+Alternatively, the labels can be passed as `--metrics-application-labels` flags directly to the application controller:
 
     containers:
     - command:
@@ -96,7 +103,7 @@ The example below will expose the Argo CD Application labels `team-name` and `bu
       - --metrics-application-labels
       - business-unit
 
-In this case, the metric would look like:
+In either case, the metric would look like:
 
 ```
 # TYPE argocd_app_labels gauge
@@ -113,10 +120,14 @@ Some examples are:
 - Hunting orphaned resources across all deployed applications
 - Knowing which resources are excluded from ArgoCD
 
-As the Application conditions are specific to each company, this feature is disabled by default. To enable it, add the
-`--metrics-application-conditions` flag to the Argo CD application controller.
+As the Application conditions are specific to each company, this feature is disabled by default. To enable it, set the
+comma-separated `controller.metrics.application.conditions` key in the `argocd-cmd-params-cm` ConfigMap.
 
 The example below will expose the Argo CD Application condition `OrphanedResourceWarning` and `ExcludedResourceWarning` to Prometheus:
+
+    controller.metrics.application.conditions: "OrphanedResourceWarning,ExcludedResourceWarning"
+
+Alternatively, the conditions can be passed as `--metrics-application-conditions` flags directly to the application controller:
 
 ```yaml
 containers:
@@ -126,6 +137,34 @@ containers:
       - OrphanedResourceWarning
       - --metrics-application-conditions
       - ExcludedResourceWarning
+```
+
+### Exposing Cluster labels as Prometheus metrics
+
+As the Cluster labels are specific to each company, this feature is disabled by default. To enable it, set the
+comma-separated `controller.metrics.cluster.labels` key in the `argocd-cmd-params-cm` ConfigMap.
+
+The example below will expose the Argo CD cluster labels `team-name` and `environment` to Prometheus:
+
+    controller.metrics.cluster.labels: "team-name,environment"
+
+Alternatively, the labels can be passed as `--metrics-cluster-labels` flags directly to the application controller:
+
+    containers:
+    - command:
+      - argocd-application-controller
+      - --metrics-cluster-labels
+      - team-name
+      - --metrics-cluster-labels
+      - environment
+
+In either case, the metric would look like:
+
+```
+# TYPE argocd_cluster_labels gauge
+argocd_cluster_labels{label_environment="dev",label_team_name="team1",name="cluster1",server="server1"} 1
+argocd_cluster_labels{label_environment="staging",label_team_name="team2",name="cluster2",server="server2"} 1
+argocd_cluster_labels{label_environment="production",label_team_name="team3",name="cluster3",server="server3"} 1
 ```
 
 ## Application Set Controller metrics
@@ -181,30 +220,6 @@ All the following `argocd_github_api_*` metrics can be enabled upon setting `app
 | result      | hit           | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.            |
 | verb        | List          | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                |
 
-### Exposing Cluster labels as Prometheus metrics
-
-As the Cluster labels are specific to each company, this feature is disabled by default. To enable it, add the
-`--metrics-cluster-labels` flag to the Argo CD application controller.
-
-The example below will expose the Argo CD Application labels `team-name` and `environment` to Prometheus:
-
-    containers:
-    - command:
-      - argocd-application-controller
-      - --metrics-cluster-labels
-      - team-name
-      - --metrics-cluster-labels
-      - environment
-
-In this case, the metric would look like:
-
-```
-# TYPE argocd_app_labels gauge
-argocd_cluster_labels{label_environment="dev",label_team_name="team1",name="cluster1",server="server1"} 1
-argocd_cluster_labels{label_environment="staging",label_team_name="team2",name="cluster2",server="server2"} 1
-argocd_cluster_labels{label_environment="production",label_team_name="team3",name="cluster3",server="server3"} 1
-```
-
 ## API Server Metrics
 
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
@@ -255,14 +270,22 @@ Metrics about the Repo Server. The gRPC metrics are not exposed by default.  Met
 Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 
 
-| Metric                                  |   Type    | Description                                                               |
-| --------------------------------------- | :-------: | ------------------------------------------------------------------------- |
-| `argocd_git_request_duration_seconds`   | histogram | Git requests duration seconds.                                            |
-| `argocd_git_request_total`              |  counter  | Number of git requests performed by repo server                           |
-| `argocd_git_fetch_fail_total`           |  counter  | Number of git fetch requests failures by repo server                      |
-| `argocd_redis_request_duration_seconds` | histogram | Redis requests duration seconds.                                          |
-| `argocd_redis_request_total`            |  counter  | Number of Kubernetes requests executed during application reconciliation. |
-| `argocd_repo_pending_request_total`     |   gauge   | Number of pending requests requiring repository lock                      |
+| Metric                                   |    Type    | Description                                                               |
+|------------------------------------------|:----------:|---------------------------------------------------------------------------|
+| `argocd_git_request_duration_seconds`    | histogram  | Git requests duration seconds.                                            |
+| `argocd_git_request_total`               |  counter   | Number of git requests performed by repo server                           |
+| `argocd_git_fetch_fail_total`            |  counter   | Number of git fetch requests failures by repo server                      |
+| `argocd_redis_request_duration_seconds`  | histogram  | Redis requests duration seconds.                                          |
+| `argocd_redis_request_total`             |  counter   | Number of Kubernetes requests executed during application reconciliation. |
+| `argocd_repo_pending_request_total`      |   gauge    | Number of pending requests requiring repository lock                      |
+| `argocd_repo_parallelism_wait_duration_seconds` | histogram  | Time spent waiting for the repo-server manifest generation parallelism semaphore (`--parallelismlimit`). Observed on every acquire attempt, including those that fail (e.g. context canceled). |
+| `argocd_oci_request_total`               |  counter   | Number of OCI requests performed by repo server                           |
+| `argocd_oci_request_duration_seconds`    | histogram  | Duration of OCI requests performed by the repo server.                      |
+| `argocd_oci_test_repo_fail_total`        |  counter   | Number of OCI test repo requests failures by repo server                  |
+| `argocd_oci_get_tags_fail_total`         |  counter   | Number of OCI get tags requests failures by repo server                   |
+| `argocd_oci_digest_metadata_fail_total`  |  counter   | Number of OCI digest metadata failures by repo server                     |
+| `argocd_oci_resolve_revision_fail_total` |  counter   | Number of OCI resolve revision failures by repo server                   |
+| `argocd_oci_extract_fail_total`          |  counter   | Number of OCI extract requests failures by repo server                    |
 
 ## Commit Server Metrics
 
@@ -282,6 +305,8 @@ Scraped at the `argocd-commit-server:8087/metrics` endpoint.
 
 If using Prometheus Operator, the following ServiceMonitor example manifests can be used.
 Add a namespace where Argo CD is installed and change `metadata.labels.release` to the name of label selected by your Prometheus.
+
+For a [high availability](high_availability.md) setup where the application controller runs multiple replicas, a `ServiceMonitor` works as expected because endpoint discovery scrapes every controller pod. Other scrapers that are not based on Prometheus Operator (such as Telegraf or Grafana Agent) should use Kubernetes pod or endpoint discovery rather than a ClusterIP target, as scraping the ClusterIP collects metrics from only one replica per request.
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -409,7 +434,7 @@ spec:
 
 ## Dashboards
 
-You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check demo instance
+You can find an [example Grafana dashboard](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check the demo instance
 [dashboard](https://grafana.apps.argoproj.io).
 
 ![dashboard](../assets/dashboard.jpg)
