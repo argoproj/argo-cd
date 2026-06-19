@@ -254,7 +254,7 @@ function PaginateContent<T>({
         const pageNumMinWidth = `${Math.max(2, String(pageCount).length)}ch`;
         return (
             <div style={{marginBottom: '0.5em'}}>
-                <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em', paddingLeft: '1em'}}>
+                <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
                     {pageCount > 1 && <Paginator page={currentPage} pageCount={pageCount} pageNumMinWidth={pageNumMinWidth} onPageChange={handlePageChange} />}
                     <div className='paginate__size-menu'>
                         {sortOptions && (
