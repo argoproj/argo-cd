@@ -26,7 +26,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {APPLICATION_DETAILS_SORT_KEY, APPLICATION_RESOURCE_SORT_OPTIONS, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
+import {APPLICATION_DETAILS_SORT_KEY, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, OCIMetadata, ResourceStatus} from '../../../shared/models';
@@ -1132,19 +1132,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                             </DataLoader>
                                                             {(filteredRes.length > 0 && (
                                                                 <Paginate
-                                                                    key={highlightNodeKey || 'application-resources'}
                                                                     page={state.page}
                                                                     data={filteredRes}
                                                                     onPageChange={page => setState(prevState => ({...prevState, page}))}
-                                                                    preferencesKey={APPLICATION_DETAILS_SORT_KEY}
-                                                                    sortOptions={APPLICATION_RESOURCE_SORT_OPTIONS}
-                                                                    focusItemKey={highlightNodeKey || undefined}
-                                                                    getItemKey={res => AppUtils.nodeKey(res)}>
+                                                                    preferencesKey={APPLICATION_DETAILS_SORT_KEY}>
                                                                     {data => (
                                                                         <ApplicationResourceList
                                                                             pref={pref}
-                                                                            sortPreferencesKey={APPLICATION_DETAILS_SORT_KEY}
-                                                                            onSortChange={() => setState(prevState => ({...prevState, page: 0}))}
                                                                             onNodeClick={fullName => selectNode(fullName)}
                                                                             selectedNodeFullName={highlightNodeKey || undefined}
                                                                             resources={data}
@@ -1179,19 +1173,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             <SlidingPanel isShown={state.groupedResources.length > 0} onClose={() => closeGroupedNodesPanel()}>
                                                 <div className='application-details__sliding-panel-pagination-wrap'>
                                                     <Paginate
-                                                        key={highlightNodeKey || 'grouped-resources'}
                                                         page={state.slidingPanelPage}
                                                         data={state.groupedResources}
                                                         onPageChange={page => setState(prevState => ({...prevState, slidingPanelPage: page}))}
-                                                        preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}
-                                                        sortOptions={APPLICATION_RESOURCE_SORT_OPTIONS}
-                                                        focusItemKey={highlightNodeKey || undefined}
-                                                        getItemKey={res => AppUtils.nodeKey(res)}>
+                                                        preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}>
                                                         {data => (
                                                             <ApplicationResourceList
                                                                 pref={pref}
-                                                                sortPreferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}
-                                                                onSortChange={() => setState(prevState => ({...prevState, slidingPanelPage: 0}))}
                                                                 onNodeClick={fullName => selectNode(fullName)}
                                                                 selectedNodeFullName={highlightNodeKey || undefined}
                                                                 resources={data}
