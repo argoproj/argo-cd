@@ -1132,10 +1132,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                             </DataLoader>
                                                             {(filteredRes.length > 0 && (
                                                                 <Paginate
+                                                                    key={highlightNodeKey || 'application-resources'}
                                                                     page={state.page}
                                                                     data={filteredRes}
                                                                     onPageChange={page => setState(prevState => ({...prevState, page}))}
-                                                                    preferencesKey={APPLICATION_DETAILS_SORT_KEY}>
+                                                                    preferencesKey={APPLICATION_DETAILS_SORT_KEY}
+                                                                    focusItemKey={highlightNodeKey || undefined}
+                                                                    getItemKey={res => AppUtils.nodeKey(res)}>
                                                                     {data => (
                                                                         <ApplicationResourceList
                                                                             pref={pref}
@@ -1173,10 +1176,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             <SlidingPanel isShown={state.groupedResources.length > 0} onClose={() => closeGroupedNodesPanel()}>
                                                 <div className='application-details__sliding-panel-pagination-wrap'>
                                                     <Paginate
+                                                        key={highlightNodeKey || 'grouped-resources'}
                                                         page={state.slidingPanelPage}
                                                         data={state.groupedResources}
                                                         onPageChange={page => setState(prevState => ({...prevState, slidingPanelPage: page}))}
-                                                        preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}>
+                                                        preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}
+                                                        focusItemKey={highlightNodeKey || undefined}
+                                                        getItemKey={res => AppUtils.nodeKey(res)}>
                                                         {data => (
                                                             <ApplicationResourceList
                                                                 pref={pref}
