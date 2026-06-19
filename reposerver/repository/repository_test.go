@@ -438,7 +438,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ExternalDeletes: 1,
 	})
 	gitMocks.AssertCalled(t, "LsRemote", mock.Anything)
-	gitMocks.AssertCalled(t, "Fetch", mock.Anything, mock.Anything)
+	gitMocks.AssertCalled(t, "Fetch", mock.Anything, mock.Anything, mock.Anything)
 }
 
 // Test that when Generate manifest is called with a source that is ref only it does not try to generate manifests or hit the manifest cache
@@ -2002,7 +2002,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Nil(t, res.SourceIntegrityResult)
-		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything)
+		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
 	}
 	// Commit without signature and verification requested
 	{
@@ -2041,7 +2041,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Nil(t, res.SourceIntegrityResult)
-		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything)
+		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
 	}
 }
 
