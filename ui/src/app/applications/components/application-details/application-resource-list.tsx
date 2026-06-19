@@ -10,7 +10,6 @@ import {
     HealthStatusIcon,
     nodeKey,
     isSameNode,
-    createdOrNodeKey,
     resourceStatusToResourceNode,
     getApplicationLinkURLFromNode,
     getManagedByURLFromNode,
@@ -21,8 +20,9 @@ import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
-import {HealthPriority, ResourceNode, SyncPriority, SyncStatusCode} from '../../../shared/models';
+import {ResourceNode} from '../../../shared/models';
 import {isValidManagedByURL} from '../../../shared/utils';
+import {ApplicationResourceSortKey} from './application-resource-sort';
 import './application-resource-list.scss';
 
 export interface ApplicationResourceListProps {
@@ -32,6 +32,9 @@ export interface ApplicationResourceListProps {
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     tree?: models.ApplicationTree;
     selectedNodeFullName?: string;
+    sortKey?: ApplicationResourceSortKey;
+    requestSort?: (key: ApplicationResourceSortKey) => void;
+    sortIcon?: (key: ApplicationResourceSortKey) => React.ReactNode;
 }
 
 export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
@@ -45,88 +48,8 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
         }
     }, [props.selectedNodeFullName, props.resources]);
 
-    const [sortConfig, setSortConfig] = React.useState<{key: string; direction: 'asc' | 'desc'}>({key: 'createdAt', direction: 'desc'});
-
-    const handleSort = (key: string) => {
-        setSortConfig(prevConfig => {
-            if (prevConfig.key !== key) {
-                return {key, direction: 'asc'};
-            }
-            return {key, direction: prevConfig.direction === 'asc' ? 'desc' : 'asc'};
-        });
-    };
-
-    const getSortArrow = (key: string) => {
-        if (sortConfig.key !== key) {
-            return null;
-        }
-
-        const isAsc = sortConfig.direction === 'asc';
-        const style: React.CSSProperties = {
-            position: 'relative',
-            top: isAsc ? '2px' : '-2px'
-        };
-        return (
-            <span style={style}>
-                <i className={isAsc ? 'fa fa-sort-up' : 'fa fa-sort-down'} />
-            </span>
-        );
-    };
-
-    const sortedResources = React.useMemo(() => {
-        const resourcesToSort = [...props.resources];
-        resourcesToSort.sort((a, b) => {
-            let compare = 0;
-            switch (sortConfig.key) {
-                case 'name':
-                    compare = a.name.localeCompare(b.name);
-                    break;
-
-                case 'group-kind':
-                    {
-                        const groupKindA = [a.group, a.kind].filter(item => !!item).join('/');
-                        const groupKindB = [b.group, b.kind].filter(item => !!item).join('/');
-                        compare = groupKindA.localeCompare(groupKindB);
-                    }
-                    break;
-
-                case 'syncOrder':
-                    {
-                        const waveA = a.syncWave ?? 0;
-                        const waveB = b.syncWave ?? 0;
-                        compare = waveA - waveB;
-                    }
-                    break;
-                case 'namespace':
-                    {
-                        const namespaceA = a.namespace ?? '';
-                        const namespaceB = b.namespace ?? '';
-                        compare = namespaceA.localeCompare(namespaceB);
-                    }
-                    break;
-                case 'createdAt':
-                    {
-                        compare = createdOrNodeKey(a).localeCompare(createdOrNodeKey(b), undefined, {numeric: true});
-                    }
-                    break;
-                case 'status':
-                    {
-                        const healthA = a.health?.status ?? 'Unknown';
-                        const healthB = b.health?.status ?? 'Unknown';
-                        const syncA = (a.status as SyncStatusCode) ?? 'Unknown';
-                        const syncB = (b.status as SyncStatusCode) ?? 'Unknown';
-
-                        compare = HealthPriority[healthA] - HealthPriority[healthB];
-                        if (compare === 0) {
-                            compare = SyncPriority[syncA] - SyncPriority[syncB];
-                        }
-                    }
-                    break;
-            }
-            return sortConfig.direction === 'asc' ? compare : -compare;
-        });
-        return resourcesToSort;
-    }, [props.resources, sortConfig]);
+    const handleSort = (key: ApplicationResourceSortKey) => props.requestSort?.(key);
+    const getSortArrow = (key: ApplicationResourceSortKey) => props.sortIcon?.(key);
 
     const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
     const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)));
@@ -184,7 +107,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                             </div>
                         </div>
                     </div>
-                    {sortedResources.map(res => {
+                    {props.resources.map(res => {
                         const groupkindjoin = [res.group, res.kind].filter(item => !!item).join('/');
                         const resKey = nodeKey(res);
                         const isSelected = props.selectedNodeFullName === resKey;

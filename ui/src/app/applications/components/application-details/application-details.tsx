@@ -26,7 +26,8 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {APPLICATION_DETAILS_SORT_KEY, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
+import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, OCIMetadata, ResourceStatus} from '../../../shared/models';
@@ -116,6 +117,11 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         collapsedNodes: [],
         ...getExtensionsState()
     }));
+
+    const resourceSort = useListSort<ApplicationResourceSortKey>('createdAt', false);
+    const groupedResourceSort = useListSort<ApplicationResourceSortKey>('createdAt', false);
+    const sortResources = (resources: models.ResourceStatus[], sort: ReturnType<typeof useListSort<ApplicationResourceSortKey>>) =>
+        [...resources].sort((a, b) => sort.dir * compareApplicationResource(a, b, sort.sortKey));
 
     const getAppNamespace = useCallback(() => {
         if (typeof props.match.params.appnamespace === 'undefined') {
@@ -1134,7 +1140,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 <Paginate
                                                                     key={highlightNodeKey || 'application-resources'}
                                                                     page={state.page}
-                                                                    data={filteredRes}
+                                                                    data={sortResources(filteredRes, resourceSort)}
                                                                     onPageChange={page => setState(prevState => ({...prevState, page}))}
                                                                     preferencesKey={APPLICATION_DETAILS_SORT_KEY}
                                                                     focusItemKey={highlightNodeKey || undefined}
@@ -1144,6 +1150,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                             pref={pref}
                                                                             onNodeClick={fullName => selectNode(fullName)}
                                                                             selectedNodeFullName={highlightNodeKey || undefined}
+                                                                            sortKey={resourceSort.sortKey}
+                                                                            requestSort={resourceSort.requestSort}
+                                                                            sortIcon={resourceSort.sortIcon}
                                                                             resources={data}
                                                                             nodeMenu={
                                                                                 isApplication
@@ -1178,7 +1187,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     <Paginate
                                                         key={highlightNodeKey || 'grouped-resources'}
                                                         page={state.slidingPanelPage}
-                                                        data={state.groupedResources}
+                                                        data={sortResources(state.groupedResources, groupedResourceSort)}
                                                         onPageChange={page => setState(prevState => ({...prevState, slidingPanelPage: page}))}
                                                         preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}
                                                         focusItemKey={highlightNodeKey || undefined}
@@ -1188,6 +1197,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 pref={pref}
                                                                 onNodeClick={fullName => selectNode(fullName)}
                                                                 selectedNodeFullName={highlightNodeKey || undefined}
+                                                                sortKey={groupedResourceSort.sortKey}
+                                                                requestSort={groupedResourceSort.requestSort}
+                                                                sortIcon={groupedResourceSort.sortIcon}
                                                                 resources={data}
                                                                 nodeMenu={node =>
                                                                     AppUtils.renderResourceMenu(
