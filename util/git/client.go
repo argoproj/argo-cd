@@ -31,11 +31,12 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	skeemaknownhosts "github.com/skeema/knownhosts"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 
@@ -197,6 +198,9 @@ type nativeGitClient struct {
 	noProxy string
 	// git configuration environment variables
 	gitConfigEnv []string
+	// tagPrefix filters git tags to only those with this prefix when resolving semver constraints.
+	// The prefix is stripped before comparison and re-added to the resolved tag name.
+	tagPrefix string
 }
 
 type runOpts struct {
@@ -260,6 +264,14 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
+// WithTagPrefix sets a tag prefix to filter and strip when resolving semver constraints via LsRemote.
+// Only tags with this prefix are considered; the prefix is stripped before comparison and re-added to the result.
+func WithTagPrefix(prefix string) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.tagPrefix = prefix
+	}
+}
+
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile(`([/:])`)
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
@@ -291,6 +303,14 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 }
 
 var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
+
+// gitCleanupGracePeriod is the minimum age a temporary pack file must reach
+// before cleanupOrphanedTempPackfiles will remove it. A fetch is killed at
+// ARGOCD_EXEC_TIMEOUT (plus the fatal-timeout grace), so twice that comfortably
+// exceeds the longest a fetch can be in flight; anything older cannot belong to
+// a live fetch (for example a concurrent fetch from another repo-server replica
+// sharing an RWX cache volume).
+var gitCleanupGracePeriod = 2 * env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
@@ -363,31 +383,89 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 	return customHTTPClient
 }
 
-func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
-	switch creds := creds.(type) {
-	case SSHCreds:
-		var sshUser string
-		if isSSH, user := IsSSHURL(repoURL); isSSH {
-			sshUser = user
-		}
+// resolveSSHHostKeyConfig returns a HostKeyCallback bound to Argo CD's
+// ssh_known_hosts file together with the HostKeyAlgorithms registered for the
+// given repo URL. Populating HostKeyAlgorithms is required to avoid
+// "knownhosts: key mismatch" handshake failures with go-git v5.16+ (see
+// go-git/go-git#1551).
+func resolveSSHHostKeyConfig(repoURL string) (ssh.HostKeyCallback, []string, error) {
+	db, err := skeemaknownhosts.NewDB(certutil.GetSSHKnownHostsDataPath())
+	if err != nil {
+		return nil, nil, err
+	}
+	var algos []string
+	if hostWithPort := SSHHostWithPort(repoURL); hostWithPort != "" {
+		algos = db.HostKeyAlgorithms(hostWithPort)
+	}
+	return db.HostKeyCallback(), algos, nil
+}
+
+// buildSSHAuth returns a go-git SSH AuthMethod for repoURL. When creds is non
+// nil the supplied private key is used; otherwise the auth falls back to the
+// local ssh-agent (mirroring go-git's DefaultAuthBuilder). In both cases
+// host-key verification is wired against Argo CD's ssh_known_hosts file rather
+// than the user's ~/.ssh/known_hosts, and HostKeyAlgorithms is populated to
+// avoid "knownhosts: key mismatch" with go-git v5.16+ (go-git/go-git#1551).
+func buildSSHAuth(repoURL string, creds *SSHCreds) (transport.AuthMethod, error) {
+	user := ""
+	if isSSH, u := IsSSHURL(repoURL); isSSH {
+		user = u
+	}
+
+	// Insecure mode short-circuits known_hosts verification entirely.
+	if creds != nil && creds.insecure {
 		signer, err := ssh.ParsePrivateKey([]byte(creds.sshPrivateKey))
 		if err != nil {
 			return nil, err
 		}
 		auth := &PublicKeysWithOptions{}
-		auth.User = sshUser
+		auth.User = user
 		auth.Signer = signer
-		if creds.insecure {
-			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
-		} else {
-			// Set up validation of SSH known hosts for using our ssh_known_hosts
-			// file.
-			auth.HostKeyCallback, err = knownhosts.New(certutil.GetSSHKnownHostsDataPath())
-			if err != nil {
-				log.Errorf("Could not set-up SSH known hosts callback: %v", err)
-			}
-		}
+		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		return auth, nil
+	}
+
+	cb, algos, err := resolveSSHHostKeyConfig(repoURL)
+	if err != nil {
+		// Returning the error rather than continuing with a nil callback
+		// avoids handing back an AuthMethod with no host-key verification.
+		// For the no-credentials path, newAuth catches this and lets go-git
+		// fall back to its DefaultAuthBuilder.
+		return nil, fmt.Errorf("could not set up SSH known hosts callback for %s: %w", repoURL, err)
+	}
+
+	if creds == nil {
+		// No explicit credentials: use ssh-agent, same as go-git's default,
+		// but with our known_hosts wired in.
+		agentAuth, err := gitssh.NewSSHAgentAuth(user)
+		if err != nil {
+			return nil, err
+		}
+		agentAuth.HostKeyCallback = cb
+		agentAuth.HostKeyAlgorithms = algos
+		return agentAuth, nil
+	}
+
+	signer, err := ssh.ParsePrivateKey([]byte(creds.sshPrivateKey))
+	if err != nil {
+		return nil, err
+	}
+	auth := &PublicKeysWithOptions{}
+	auth.User = user
+	auth.Signer = signer
+	auth.HostKeyCallback = cb
+	// PublicKeysWithOptions.ClientConfig sets cfg.HostKeyAlgorithms from the
+	// wrapper field, then go-git's SetHostKeyCallback overwrites it from the
+	// embedded helper field — so both must be populated.
+	auth.HostKeyAlgorithms = algos
+	auth.PublicKeys.HostKeyAlgorithms = algos
+	return auth, nil
+}
+
+func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
+	switch creds := creds.(type) {
+	case SSHCreds:
+		return buildSSHAuth(repoURL, &creds)
 	case HTTPSCreds:
 		if creds.bearerToken != "" {
 			return &githttp.TokenAuth{Token: creds.bearerToken}, nil
@@ -431,6 +509,19 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		auth := githttp.TokenAuth{Token: token}
 		return &auth, nil
+	}
+
+	// Without explicit credentials, go-git's DefaultAuthBuilder would fall
+	// back to ssh-agent and read known_hosts from ~/.ssh / $SSH_KNOWN_HOSTS,
+	// ignoring Argo CD's ssh_known_hosts ConfigMap. Build the same auth
+	// ourselves so we can wire in the Argo CD-managed known_hosts.
+	if isSSH, _ := IsSSHURL(repoURL); isSSH {
+		auth, err := buildSSHAuth(repoURL, nil)
+		if err != nil {
+			log.Debugf("falling back to go-git default SSH auth for %s: %v", repoURL, err)
+			return nil, nil
+		}
+		return auth, nil
 	}
 
 	return nil, nil
@@ -507,6 +598,79 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	return false
 }
 
+// cleanupOrphanedTempPackfiles removes leftover objects/pack/tmp_{pack,idx,rev,mtimes}_* files
+// produced by a git fetch/index-pack that was killed (for example by the exec
+// timeout) before it could finalize the pack. Git treats these as garbage and
+// never prunes them itself, so without this cleanup they accumulate on every
+// failed fetch into the reused cache directory and can grow the repo-server
+// volume without bound. This is best-effort: failures are logged, not returned.
+//
+// Within a single repo-server the per-repository lock (reposerver/repository/
+// lock.go) already serializes fetch/checkout per cache directory, so no
+// in-process fetch is writing these files when we get here. To stay safe across
+// processes too (for example several repo-server replicas sharing an RWX cache
+// volume), only files older than a grace window are removed, so a temp file that
+// a concurrent fetch is still writing is never deleted.
+func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
+	// git's index-pack streams these temp files into objects/pack/ during a fetch
+	// and renames them to pack-<hash>.* on finalize; a killed fetch strands them.
+	// This is a best-effort superset across git versions (tmp_rev_/tmp_mtimes_
+	// are newer). The receive-pack quarantine dir (tmp_objdir-*) is a directory
+	// and is skipped below, so it is intentionally not listed here.
+	tempPrefixes := []string{"tmp_pack_", "tmp_idx_", "tmp_rev_", "tmp_mtimes_"}
+	packDir := filepath.Join(m.root, ".git", "objects", "pack")
+	entries, err := os.ReadDir(packDir)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Warnf("git cleanup: cannot read pack dir %s: %v", packDir, err)
+		}
+		return
+	}
+
+	var removed int
+	var reclaimed int64
+	for _, entry := range entries {
+		// Only remove git's interrupted-fetch temp files (the tempPrefixes
+		// above); finalized pack-*.{pack,idx,rev} files and any subdirectories
+		// must be left untouched.
+		name := entry.Name()
+		if entry.IsDir() {
+			continue
+		}
+		isTempPack := false
+		for _, prefix := range tempPrefixes {
+			if strings.HasPrefix(name, prefix) {
+				isTempPack = true
+				break
+			}
+		}
+		if !isTempPack {
+			continue
+		}
+		info, infoErr := entry.Info()
+		if infoErr != nil {
+			// Can't determine the age, so don't risk deleting a live temp file.
+			continue
+		}
+		if time.Since(info.ModTime()) < gitCleanupGracePeriod {
+			// Still within the grace window: a concurrent fetch may be writing
+			// it. Leave it; a later sweep reclaims it once it is stale.
+			continue
+		}
+		path := filepath.Join(packDir, name)
+		if rerr := os.Remove(path); rerr != nil {
+			log.Warnf("git cleanup: failed to remove orphaned temp pack %s: %v", path, rerr)
+			continue
+		}
+		removed++
+		reclaimed += info.Size()
+	}
+
+	if removed > 0 {
+		log.Infof("git cleanup: removed %d orphaned temp pack file(s) (%d bytes) for %s", removed, reclaimed, m.repoURL)
+	}
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	if m.OnFetch != nil {
@@ -516,9 +680,13 @@ func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	ctx := context.Background()
 
 	err := m.fetch(ctx, revision, depth)
+	if err != nil {
+		m.cleanupOrphanedTempPackfiles()
+		return err
+	}
 
 	// When we have LFS support enabled, check for large files and fetch them too.
-	if err == nil && m.IsLFSEnabled() {
+	if m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
@@ -785,7 +953,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		revision = "HEAD"
 	}
 
-	maxV, err := versions.MaxVersion(revision, getGitTags(refs))
+	maxV, err := versions.MaxVersion(revision, getGitTags(refs), m.tagPrefix)
 	if err == nil {
 		revision = maxV
 	}
@@ -1140,7 +1308,7 @@ func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]
 		if err != nil {
 			return nil, "", err
 		}
-		unresolvedRevision, err = versions.MaxVersion(unresolvedRevision, getGitTags(refs))
+		unresolvedRevision, err = versions.MaxVersion(unresolvedRevision, getGitTags(refs), m.tagPrefix)
 		if err != nil {
 			return nil, "", err
 		}

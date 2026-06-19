@@ -1,12 +1,11 @@
-import {Autocomplete, MockupList, Toolbar, Tooltip} from 'argo-ui';
-import classNames from 'classnames';
+import {MockupList, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {AddAuthToToolbar, DataLoader, EmptyState, Page, Paginate} from '../../../shared/components';
+import {DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, AppSetsListPreferences, HealthStatusBarPreferences, services, ViewPreferences} from '../../../shared/services';
@@ -18,11 +17,12 @@ import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
 import {ApplicationSetsSummary} from './application-sets-summary';
+import {FlexTopBar} from '../../../shared/components';
+import {ViewTypeSwitcher} from './view-type-switcher';
 
 import './applications-list.scss';
 import './applications-table.scss';
 import './applications-tiles.scss';
-import './flex-top-bar.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -138,85 +138,31 @@ function filterApplicationSets(
 }
 
 const ApplicationSetsSearchBar = (props: {content: string; ctx: ContextApis; appSets: models.ApplicationSet[]}) => {
-    const searchBar = React.useRef<HTMLDivElement>(null);
-    const {useKeybinding} = React.useContext(KeybindingContext);
-    const [isFocused, setFocus] = React.useState(false);
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    useKeybinding({
-        keys: Key.SLASH,
-        action: () => {
-            if (searchBar.current) {
-                searchBar.current.querySelector('input').focus();
-                setFocus(true);
-                return true;
-            }
-            return false;
-        }
-    });
-
-    useKeybinding({
-        keys: Key.ESCAPE,
-        action: () => {
-            if (searchBar.current && isFocused) {
-                searchBar.current.querySelector('input').blur();
-                setFocus(false);
-                return true;
-            }
-            return false;
-        }
-    });
-
     return (
-        <Autocomplete
-            filterSuggestions={true}
-            renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
-                    <i
-                        className='fa fa-search'
-                        style={{marginRight: '9px', cursor: 'pointer'}}
-                        onClick={() => {
-                            if (searchBar.current) {
-                                searchBar.current.querySelector('input').focus();
-                            }
-                        }}
-                    />
-                    <input
-                        {...inputProps}
-                        onFocus={e => {
-                            e.target.select();
-                            if (inputProps.onFocus) {
-                                inputProps.onFocus(e);
-                            }
-                        }}
-                        style={{fontSize: '14px'}}
-                        className='argo-field'
-                        placeholder='Search application sets...'
-                    />
-                    <div className='keyboard-hint'>/</div>
-                    {props.content && (
-                        <i className='fa fa-times' onClick={() => props.ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
-                    )}
-                </div>
-            )}
-            wrapperProps={{className: 'applications-list__search-wrapper'}}
-            renderItem={item => (
-                <React.Fragment>
-                    <i className='icon argo-icon-applicationset' /> {item.label}
-                </React.Fragment>
-            )}
-            onSelect={val => {
-                const selectedAppSet = props.appSets?.find(appSet => {
-                    const qualifiedName = AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
-                    return qualifiedName === val;
-                });
-                if (selectedAppSet) {
-                    props.ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedAppSet)}`);
-                }
-            }}
-            onChange={e => props.ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+        <SearchBar
             value={props.content || ''}
-            items={props.appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
+            onChange={value => props.ctx.navigation.goto('.', {search: value}, {replace: true})}
+            placeholder='Search application sets...'
+            autocomplete={{
+                items: props.appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
+                filterSuggestions: true,
+                onSelect: val => {
+                    const selectedAppSet = props.appSets?.find(appSet => {
+                        const qualifiedName = AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
+                        return qualifiedName === val;
+                    });
+                    if (selectedAppSet) {
+                        props.ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedAppSet)}`);
+                    }
+                },
+                renderItem: item => (
+                    <React.Fragment>
+                        <i className='icon argo-icon-applicationset' /> {item.label}
+                    </React.Fragment>
+                )
+            }}
         />
     );
 };
@@ -227,7 +173,6 @@ const ApplicationSetsToolbar = (props: {
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }) => {
-    const {List, Summary, Tiles} = AppsListViewKey;
     const query = useQuery();
 
     return (
@@ -238,85 +183,16 @@ const ApplicationSetsToolbar = (props: {
                     className={`applications-list__accordion argo-button argo-button--base${props.healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
                     style={{border: 'none'}}
                     onClick={() => {
-                        props.healthBarPrefs.showHealthStatusBar = !props.healthBarPrefs.showHealthStatusBar;
                         services.viewPreferences.updatePreferences({
                             appList: {
                                 ...props.pref,
-                                statusBarView: {
-                                    ...props.healthBarPrefs,
-                                    showHealthStatusBar: props.healthBarPrefs.showHealthStatusBar
-                                }
+                                statusBarView: {...props.healthBarPrefs, showHealthStatusBar: !props.healthBarPrefs.showHealthStatusBar}
                             }
                         });
                     }}>
                     <i className='fas fa-ruler-horizontal' />
                 </button>
             </Tooltip>
-            <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
-                <i
-                    className={classNames('fa fa-th', {selected: props.pref.view === Tiles}, 'menu_icon')}
-                    title='Tiles'
-                    onClick={() => {
-                        props.ctx.navigation.goto('.', {view: Tiles});
-                        services.viewPreferences.updatePreferences({appList: {...props.pref, view: Tiles}});
-                    }}
-                />
-                <i
-                    className={classNames('fa fa-th-list', {selected: props.pref.view === List}, 'menu_icon')}
-                    title='List'
-                    onClick={() => {
-                        props.ctx.navigation.goto('.', {view: List});
-                        services.viewPreferences.updatePreferences({appList: {...props.pref, view: List}});
-                    }}
-                />
-                <i
-                    className={classNames('fa fa-chart-pie', {selected: props.pref.view === Summary}, 'menu_icon')}
-                    title='Summary'
-                    onClick={() => {
-                        props.ctx.navigation.goto('.', {view: Summary});
-                        services.viewPreferences.updatePreferences({appList: {...props.pref, view: Summary}});
-                    }}
-                />
-            </div>
-        </React.Fragment>
-    );
-};
-
-const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
-    const ctx = React.useContext(Context);
-    const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
-    return (
-        <React.Fragment>
-            <div className='top-bar row flex-top-bar' key='tool-bar'>
-                <DataLoader load={() => loadToolbar}>
-                    {toolbar => (
-                        <React.Fragment>
-                            <div className='flex-top-bar__actions'>
-                                {toolbar.actionMenu && (
-                                    <React.Fragment>
-                                        {toolbar.actionMenu.items.map((item, i) => (
-                                            <Tooltip className='custom-tooltip' content={item.title} key={item.qeId || i}>
-                                                <button
-                                                    disabled={!!item.disabled}
-                                                    qe-id={item.qeId}
-                                                    className='argo-button argo-button--base'
-                                                    onClick={() => item.action()}
-                                                    style={{marginRight: 2}}
-                                                    key={i}>
-                                                    {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                                    <span className='show-for-large'>{item.title}</span>
-                                                </button>
-                                            </Tooltip>
-                                        ))}
-                                    </React.Fragment>
-                                )}
-                            </div>
-                            <div className='flex-top-bar__tools'>{toolbar.tools}</div>
-                        </React.Fragment>
-                    )}
-                </DataLoader>
-            </div>
-            <div className='flex-top-bar__padder' />
         </React.Fragment>
     );
 };
@@ -496,12 +372,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                 {ctx => (
                     <ViewPref>
                         {pref => (
-                            <Page
-                                key={pref.view}
-                                title={getPageTitle(pref.view)}
-                                useTitleOnly={true}
-                                toolbar={{breadcrumbs: [{title: 'ApplicationSets', path: props.match.url}]}}
-                                hideAuth={true}>
+                            <Page key={pref.view} title={getPageTitle(pref.view)} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'ApplicationSets', path: props.match.url}]}}>
                                 <DataLoader
                                     input={pref.projectsFilter?.join(',')}
                                     load={() => AppUtils.handlePageVisibility(() => loadApplicationSets(pref.projectsFilter))}
@@ -529,6 +400,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                 <FlexTopBar
                                                     toolbar={{
                                                         tools: <ApplicationSetsToolbar appSets={appSets} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
+                                                        options: <ViewTypeSwitcher pref={pref} ctx={ctx} />,
                                                         actionMenu: {
                                                             items: []
                                                         }

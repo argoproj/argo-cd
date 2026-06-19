@@ -62,7 +62,7 @@ type Client_CleanChartCache_Call struct {
 // CleanChartCache is a helper method to define mock.On call
 //   - chart string
 //   - version string
-func (_e *Client_Expecter) CleanChartCache(chart interface{}, version interface{}) *Client_CleanChartCache_Call {
+func (_e *Client_Expecter) CleanChartCache(chart any, version any) *Client_CleanChartCache_Call {
 	return &Client_CleanChartCache_Call{Call: _e.mock.On("CleanChartCache", chart, version)}
 }
 
@@ -139,7 +139,7 @@ type Client_ExtractChart_Call struct {
 //   - passCredentials bool
 //   - manifestMaxExtractedSize int64
 //   - disableManifestMaxExtractedSize bool
-func (_e *Client_Expecter) ExtractChart(chart interface{}, version interface{}, passCredentials interface{}, manifestMaxExtractedSize interface{}, disableManifestMaxExtractedSize interface{}) *Client_ExtractChart_Call {
+func (_e *Client_Expecter) ExtractChart(chart any, version any, passCredentials any, manifestMaxExtractedSize any, disableManifestMaxExtractedSize any) *Client_ExtractChart_Call {
 	return &Client_ExtractChart_Call{Call: _e.mock.On("ExtractChart", chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)}
 }
 
@@ -222,7 +222,7 @@ type Client_GetIndex_Call struct {
 // GetIndex is a helper method to define mock.On call
 //   - noCache bool
 //   - maxIndexSize int64
-func (_e *Client_Expecter) GetIndex(noCache interface{}, maxIndexSize interface{}) *Client_GetIndex_Call {
+func (_e *Client_Expecter) GetIndex(noCache any, maxIndexSize any) *Client_GetIndex_Call {
 	return &Client_GetIndex_Call{Call: _e.mock.On("GetIndex", noCache, maxIndexSize)}
 }
 
@@ -290,7 +290,7 @@ type Client_GetTags_Call struct {
 // GetTags is a helper method to define mock.On call
 //   - chart string
 //   - noCache bool
-func (_e *Client_Expecter) GetTags(chart interface{}, noCache interface{}) *Client_GetTags_Call {
+func (_e *Client_Expecter) GetTags(chart any, noCache any) *Client_GetTags_Call {
 	return &Client_GetTags_Call{Call: _e.mock.On("GetTags", chart, noCache)}
 }
 

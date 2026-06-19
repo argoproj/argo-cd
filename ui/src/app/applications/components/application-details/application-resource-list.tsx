@@ -1,9 +1,10 @@
 import {DropDown, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
+import {ActionMenuButton} from '../../../shared/components';
 import {
     ComparisonStatusIcon,
     HealthStatusIcon,
@@ -150,10 +151,10 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                         <ParentRefDetails />
                     </div>
                 )}
-                <div className='argo-table-list argo-table-list--clickable'>
+                <div className='application-resource-list argo-table-list argo-table-list--clickable'>
                     <div className='argo-table-list__head'>
                         <div className='row'>
-                            <div className='columns small-1 xxxlarge-1' />
+                            <div className='columns small-1 xxxlarge-1 application-resource-list__icon-column' />
                             <div className='columns small-2 xxxlarge-2' onClick={() => handleSort('name')} style={{cursor: 'pointer'}}>
                                 NAME {getSortArrow('name')}
                             </div>
@@ -181,15 +182,14 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                             <div
                                 key={nodeKey(res)}
                                 className={classNames('argo-table-list__row', {
-                                    'application-resource-tree__node--orphaned': res.orphaned
+                                    'application-resource-list__row--orphaned': res.orphaned
                                 })}
                                 onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
                                 <div className='row'>
-                                    <div className='columns small-1 xxxlarge-1'>
-                                        <div className='application-details__resource-icon'>
+                                    <div className='columns small-1 xxxlarge-1 application-resource-list__icon-column'>
+                                        <div className='application-resource-list__kind-icon'>
                                             <ResourceIcon group={res.group} kind={res.kind} />
-                                            <br />
-                                            <div>{ResourceLabel({kind: res.kind})}</div>
+                                            <div className='application-resource-list__kind'>{ResourceLabel({kind: res.kind})}</div>
                                         </div>
                                     </div>
                                     <Tooltip content={res.name} enabled={!!res.name}>
@@ -277,25 +277,17 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                         {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true} />}
                                         {res.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                         {props.nodeMenu && (
-                                            <div className='application-details__node-menu'>
-                                                <DropDown
-                                                    isMenu={true}
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
-                                                    )}>
-                                                    {() => {
-                                                        const node = nodeByKey.get(nodeKey(res));
-                                                        if (node) {
-                                                            return props.nodeMenu(node);
-                                                        } else {
-                                                            // For orphaned resources, create a ResourceNode-like object to prevent errors
-                                                            return props.nodeMenu(resourceStatusToResourceNode(res));
-                                                        }
-                                                    }}
-                                                </DropDown>
-                                            </div>
+                                            <DropDown isMenu={true} anchor={ActionMenuButton}>
+                                                {() => {
+                                                    const node = nodeByKey.get(nodeKey(res));
+                                                    if (node) {
+                                                        return props.nodeMenu(node);
+                                                    } else {
+                                                        // For orphaned resources, create a ResourceNode-like object to prevent errors
+                                                        return props.nodeMenu(resourceStatusToResourceNode(res));
+                                                    }
+                                                }}
+                                            </DropDown>
                                         )}
                                     </div>
                                 </div>

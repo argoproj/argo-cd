@@ -401,7 +401,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil, "", nil)
+	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -426,7 +426,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil, "", nil)
+	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: nil})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -683,6 +683,68 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	assert.Nil(t, response)
 }
 
+// TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored is a regression
+// test for https://github.com/argoproj/argo-cd/issues/27811. For multi-source
+// Applications whose primary source is a Helm chart (or any non-git artifact),
+// the depth configured on the referenced git source must be propagated to the
+// git fetch. Previously the depth of the primary source was incorrectly used,
+// which is unset (0) for Helm/OCI primary sources and therefore caused full
+// git fetches regardless of the referenced repository's configured depth.
+func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T) {
+	const refSourceDepth int64 = 1
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		// Strict expectation: Fetch must be invoked with the referenced source's
+		// depth (refSourceDepth), not the primary source's depth (which is 0
+		// because the primary source is Helm and Repository.Depth is unset).
+		// Any call with a different depth would fail this assertion.
+		gitClient.EXPECT().Fetch(mock.Anything, refSourceDepth).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(mock.Anything).Return(mock.Anything, nil)
+		gitClient.EXPECT().CommitSHA().Return(mock.Anything, nil)
+		gitClient.EXPECT().Root().Return(".")
+		gitClient.EXPECT().RepoURL().Return("https://git.example.com/test/repo")
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", nil)
+
+		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+			"my-chart": {{Version: "1.0.0"}, {Version: "1.1.0"}},
+		}}, nil)
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
+
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": "."})
+	}, ".")
+
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/my-chart/my-chart-values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{
+			Repo:  "https://git.example.com/test/repo",
+			Depth: refSourceDepth,
+		}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
+	assert.NotNil(t, response)
+}
+
 func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	service := newService(t, ".")
 	err := os.Mkdir("testdata/oob-symlink", 0o755)
@@ -865,7 +927,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil, "", nil)
+		err := service.cache.GetManifests(getManifestCacheKey(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, nil), cachedManifestResponse)
 		require.NoError(t, err)
 		return cachedManifestResponse
 	}
@@ -2301,7 +2363,13 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
 			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
 			// operations is the point of the cache.
-			err = service.cache.GetManifests(mock.Anything, source, v1alpha1.RefTargetRevisionMapping{}, &v1alpha1.ClusterInfo{}, "", "", "", "test", res, nil, "", nil)
+			err = service.cache.GetManifests(cache.ManifestKey{
+				Revision:    mock.Anything,
+				AppSource:   source,
+				RefSources:  v1alpha1.RefTargetRevisionMapping{},
+				ClusterInfo: &v1alpha1.ClusterInfo{},
+				AppName:     "test",
+			}, res)
 			require.NoError(t, err)
 		})
 	})
@@ -3052,6 +3120,17 @@ func TestTestRepoHelmOCI(t *testing.T) {
 	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
 }
 
+func TestTestRepositoryUnsupportedType(t *testing.T) {
+	service := newService(t, ".")
+	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
+		Repo: &v1alpha1.Repository{
+			Repo: "https://example.com/repo",
+			Type: "bogus",
+		},
+	})
+	assert.ErrorContains(t, err, `unsupported repository type "bogus"`)
+}
+
 func Test_getHelmDependencyRepos(t *testing.T) {
 	repo1 := "https://charts.bitnami.com/bitnami"
 	repo2 := "https://eventstore.github.io/EventStore.Charts"
@@ -3291,8 +3370,45 @@ func TestFetch(t *testing.T) {
 	gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
 	gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(true)
 
-	err := fetch(gitClient, []string{revision1, revision2})
+	err := fetch(gitClient, []string{revision1, revision2}, 0)
 	require.NoError(t, err)
+}
+
+func TestFetchWithDepth(t *testing.T) {
+	revision1 := "0123456789012345678901234567890123456789"
+	revision2 := "abcdefabcdefabcdefabcdefabcdefabcdefabcd"
+
+	t.Run("skips fetch when all revisions present", func(t *testing.T) {
+		gitClient := &gitmocks.Client{}
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
+		gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(true)
+
+		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("fetches only missing revisions with depth", func(t *testing.T) {
+		gitClient := &gitmocks.Client{}
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
+		gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(false)
+		// After the initial check finds a missing revision, the per-revision loop runs
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
+		gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(false)
+		gitClient.EXPECT().Fetch(revision2, int64(1)).Return(nil)
+
+		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("returns error on fetch failure", func(t *testing.T) {
+		gitClient := &gitmocks.Client{}
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(false)
+		gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(false)
+		gitClient.EXPECT().Fetch(revision1, int64(1)).Return(errors.New("fetch failed"))
+
+		err := fetch(gitClient, []string{revision1, revision2}, 1)
+		require.Error(t, err)
+	})
 }
 
 // TestFetchRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
@@ -3327,10 +3443,10 @@ func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = fetch(gitClient, []string{"does-not-exist"})
+	err = fetch(gitClient, []string{"does-not-exist"}, 0)
 	require.Error(t, err)
 
-	err = fetch(gitClient, []string{pullSha})
+	err = fetch(gitClient, []string{pullSha}, 0)
 	require.NoError(t, err)
 }
 
@@ -5314,18 +5430,8 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 
 	// Seed the manifest cache for the synced revision.
 	err := cacheMocks.cache.SetManifests(
-		syncedRevision,
-		request.ApplicationSource,
-		request.RefSources,
-		request,
-		request.Namespace,
-		request.TrackingMethod,
-		request.AppLabelKey,
-		request.AppName,
+		getManifestCacheKeyFromUpdateRevisionRequest(request, syncedRevision, nil),
 		&cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
-		nil,
-		request.InstallationID,
-		nil,
 	)
 	require.NoError(t, err)
 
@@ -5849,4 +5955,42 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 
 	// verify that newGitClient was never invoked
 	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
+}
+
+func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{{
+			Repo:                 "oci://example.com",
+			Username:             "test",
+			Password:             "test",
+			Type:                 "oci",
+			InsecureOCIForceHttp: true,
+		}},
+		HelmRepoCreds: []*v1alpha1.RepoCreds{},
+	}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) {
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{},
+		HelmRepoCreds: []*v1alpha1.RepoCreds{{
+			URL:                  "oci://example.com",
+			Username:             "test",
+			Password:             "test",
+			Type:                 "oci",
+			InsecureOCIForceHttp: true,
+		}},
+	}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
 }

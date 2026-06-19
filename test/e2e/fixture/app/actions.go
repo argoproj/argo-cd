@@ -334,6 +334,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
 	}
+	if a.context.tagPrefix != "" {
+		args = append(args, "--tag-prefix", a.context.tagPrefix)
+	}
 	if a.context.helmPassCredentials {
 		args = append(args, "--helm-pass-credentials")
 	}

@@ -36,6 +36,9 @@ packages:
     interfaces:
       ClusterServiceClient: {}
       ClusterServiceServer: {}
+  github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey:
+    interfaces:
+      GPGKeyServiceClient: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/project:
     interfaces:
       ProjectServiceClient: {}

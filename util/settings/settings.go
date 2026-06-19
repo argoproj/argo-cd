@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
+	clientgofeatures "k8s.io/client-go/features"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -59,6 +60,28 @@ Co-authored-by: {{ $ref.commit.author }}
 Co-authored-by: {{ .metadata.author }}
 {{- end }}
 `
+
+var DefaultManifestHydrationReadmeTemplate = `# Manifest Hydration
+
+To hydrate the manifests in this repository, run the following commands:
+
+` + "```shell" + `
+git clone {{ .RepoURL }}
+# cd into the cloned directory
+git checkout {{ .DrySHA }}
+{{ range $command := .Commands -}}
+{{ $command }}
+{{ end -}}` + "```" + `
+{{ if .References -}}
+
+## References
+
+{{ range $ref := .References -}}
+{{ if $ref.Commit -}}
+* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+{{ end -}}
+{{ end -}}
+{{ end -}}`
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
@@ -223,7 +246,10 @@ type OIDCConfig struct {
 }
 
 type AzureOIDCConfig struct {
-	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
+	UseWorkloadIdentity                  bool   `json:"useWorkloadIdentity,omitempty"`
+	EnableUserGroupOverageClaim          bool   `json:"enableUserGroupOverageClaim,omitempty"`
+	GraphAPIEndpoint                     string `json:"graphApiEndpoint,omitempty"`
+	UserGroupOverageClaimCacheExpiration string `json:"userGroupOverageClaimCacheExpiration,omitempty"`
 }
 
 var (
@@ -437,6 +463,10 @@ const (
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
 	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
 	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
+	// settingsWebhookRefreshJitter is the key for the maximum jitter duration for webhook-triggered refreshes
+	settingsWebhookRefreshJitter = "webhook.refresh.jitter"
+	// settingsWebhookRefreshJitterThreshold is the key for the minimum number of apps to trigger jitter
+	settingsWebhookRefreshJitterThreshold = "webhook.refresh.jitter.threshold"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
@@ -487,6 +517,8 @@ const (
 	settingsBinaryUrlsKey = "help.download"
 	// settingsSourceHydratorCommitMessageTemplateKey is the key for the hydrator commit message template
 	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
+	// settingsSourceHydratorReadmeMessageTemplateKey is the key to configure hydrator default commit README.md template
+	settingsSourceHydratorReadmeMessageTemplateKey = "sourceHydrator.readmeMessageTemplate"
 	// settingsCommitAuthorNameKey is the key for the commit author name
 	settingsCommitAuthorNameKey = "commit.author.name"
 	// settingsCommitAuthorEmailKey is the key for the commit author email
@@ -539,6 +571,9 @@ const (
 const (
 	// default max webhook payload size is 50MB
 	defaultMaxWebhookPayloadSize = int64(50) * 1024 * 1024
+
+	// default webhook refresh jitter threshold
+	defaultWebhookRefreshJitterThreshold = 10
 
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
@@ -634,6 +669,8 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 	if err != nil {
 		return nil, err
 	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.secrets, nil
 }
 
@@ -642,6 +679,8 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 	if err != nil {
 		return nil, fmt.Errorf("error ensuring that the secrets manager is synced: %w", err)
 	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.secretsInformer, nil
 }
 
@@ -650,6 +689,10 @@ func (mgr *SettingsManager) GetClusterInformer() (*ClusterInformer, error) {
 	if err := mgr.ensureSynced(false); err != nil {
 		return nil, fmt.Errorf("error ensuring that the settings manager is synced: %w", err)
 	}
+	// Read clusterInformer under the lock: a concurrent ResyncInformers() can be
+	// writing this field inside initialize() while we read it here.
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.clusterInformer, nil
 }
 
@@ -741,7 +784,10 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*corev1.Co
 	if err != nil {
 		return nil, err
 	}
-	configMap, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(configMapName)
+	mgr.mutex.Lock()
+	configmaps := mgr.configmaps
+	mgr.mutex.Unlock()
+	configMap, err := configmaps.ConfigMaps(mgr.namespace).Get(configMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -762,7 +808,10 @@ func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, 
 	if err != nil {
 		return nil, err
 	}
-	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(secretName)
+	mgr.mutex.Lock()
+	secrets := mgr.secrets
+	mgr.mutex.Unlock()
+	secret, err := secrets.Secrets(mgr.namespace).Get(secretName)
 	if err != nil {
 		return nil, err
 	}
@@ -778,20 +827,35 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
+	mgr.mutex.Lock()
+	secrets := mgr.secrets
+	mgr.mutex.Unlock()
 
 	selector, err := labels.Parse(partOfArgoCDSelector)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
 	}
-	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
+	secretList, err := secrets.Secrets(mgr.namespace).List(selector)
 	if err != nil {
 		return nil, err
 	}
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SliceCopy(secrets)
-	return secrets, nil
+	secretList = util.SliceCopy(secretList)
+	return secretList, nil
+}
+
+func (mgr *SettingsManager) GetHydratorReadmeTemplate() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return DefaultManifestHydrationReadmeTemplate, err
+	}
+	readmeTemplate := argoCDCM.Data[settingsSourceHydratorReadmeMessageTemplateKey]
+	if readmeTemplate == "" {
+		return DefaultManifestHydrationReadmeTemplate, nil
+	}
+	return readmeTemplate, nil
 }
 
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
@@ -1023,6 +1087,7 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 	if err != nil {
 		return "", err
 	}
+
 	if argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey] == "" {
 		return CommitMessageTemplate, nil // in case template is not defined return default
 	}
@@ -1962,7 +2027,15 @@ func ValidateOIDCConfig(configStr string) error {
 		return err
 	}
 	err = ValidateExternalURL(settings.UserInfoBaseURL)
-	return err
+	if err != nil {
+		return err
+	}
+	if settings.Azure != nil && settings.Azure.GraphAPIEndpoint != "" {
+		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -2111,6 +2184,73 @@ func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
 		return oidcConfig.Azure.UseWorkloadIdentity
 	}
 	return false
+}
+
+// AzureUserGroupOverageClaimEnabled returns whether group claims should be fetched from the Microsoft Graph API
+// when Azure AD returns a groups overage claim (user has 200+ group memberships).
+// See https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference#groups-overage-claim
+func (a *ArgoCDSettings) AzureUserGroupOverageClaimEnabled() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		return oidcConfig.Azure.EnableUserGroupOverageClaim
+	}
+	return false
+}
+
+// knownGraphAPIHosts is the set of trusted Microsoft Graph API hostnames across all clouds.
+var knownGraphAPIHosts = map[string]bool{
+	"graph.microsoft.com":             true, // public cloud
+	"graph.microsoft.us":              true, // US Government
+	"graph.microsoft.de":              true, // Germany (legacy)
+	"microsoftgraph.chinacloudapi.cn": true, // China
+}
+
+const defaultGraphAPIEndpoint = "https://graph.microsoft.com/v1.0"
+
+// ValidateAzureGraphAPIEndpoint returns an error if endpoint is not a trusted Microsoft Graph API URL.
+// A valid endpoint must use the https scheme and a known Microsoft Graph hostname.
+func ValidateAzureGraphAPIEndpoint(endpoint string) error {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("invalid graphApiEndpoint URL %q: %w", endpoint, err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("graphApiEndpoint %q must use https", endpoint)
+	}
+	if !knownGraphAPIHosts[u.Hostname()] {
+		return fmt.Errorf("graphApiEndpoint %q hostname is not a known Microsoft Graph API host", endpoint)
+	}
+	return nil
+}
+
+// AzureGraphAPIEndpoint returns the Microsoft Graph API endpoint URL.
+// Defaults to https://graph.microsoft.com/v1.0 for public cloud.
+// Can be overridden for sovereign clouds (e.g., https://graph.microsoft.us/v1.0).
+// Returns empty string if the configured endpoint fails validation, which disables the overage feature.
+func (a *ArgoCDSettings) AzureGraphAPIEndpoint() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		if oidcConfig.Azure.GraphAPIEndpoint != "" {
+			if err := ValidateAzureGraphAPIEndpoint(oidcConfig.Azure.GraphAPIEndpoint); err != nil {
+				log.Warnf("Invalid graphApiEndpoint, Azure groups overage feature disabled: %v", err)
+				return ""
+			}
+			return oidcConfig.Azure.GraphAPIEndpoint
+		}
+		return defaultGraphAPIEndpoint
+	}
+	return ""
+}
+
+// AzureUserGroupOverageClaimCacheExpiration returns the cache duration for Azure groups overage claim results.
+func (a *ArgoCDSettings) AzureUserGroupOverageClaimCacheExpiration() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil && oidcConfig.Azure.UserGroupOverageClaimCacheExpiration != "" {
+		cacheExpiration, err := time.ParseDuration(oidcConfig.Azure.UserGroupOverageClaimCacheExpiration)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.azure.userGroupOverageClaimCacheExpiration' key: %v", err)
+			return 0
+		}
+		return cacheExpiration
+	}
+	return 0
 }
 
 // OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
@@ -2343,51 +2483,96 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 // ReplaceMapSecrets takes a json object and recursively looks for any secret key references in the
 // object and replaces the value with the secret value
 func ReplaceMapSecrets(obj map[string]any, secretValues map[string]string) map[string]any {
-	newObj := make(map[string]any)
+	return replaceMapSecrets(obj, secretValues, ReplaceStringSecret)
+}
+
+// replaceMapSecrets recursively walks the given object and replaces string values
+// using the provided string replacer function.
+func replaceMapSecrets(obj map[string]any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) map[string]any {
+	newObj := make(map[string]any, len(obj))
 	for k, v := range obj {
-		switch val := v.(type) {
-		case map[string]any:
-			newObj[k] = ReplaceMapSecrets(val, secretValues)
-		case []any:
-			newObj[k] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[k] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[k] = val
-		}
+		newObj[k] = replaceSecretsValue(v, secretValues, stringReplacer)
 	}
 	return newObj
 }
 
-func replaceListSecrets(obj []any, secretValues map[string]string) []any {
+func replaceListSecrets(obj []any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) []any {
 	newObj := make([]any, len(obj))
 	for i, v := range obj {
-		switch val := v.(type) {
-		case map[string]any:
-			newObj[i] = ReplaceMapSecrets(val, secretValues)
-		case []any:
-			newObj[i] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[i] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[i] = val
-		}
+		newObj[i] = replaceSecretsValue(v, secretValues, stringReplacer)
 	}
 	return newObj
+}
+
+func replaceSecretsValue(v any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return replaceMapSecrets(val, secretValues, stringReplacer)
+	case []any:
+		return replaceListSecrets(val, secretValues, stringReplacer)
+	case string:
+		return stringReplacer(val, secretValues)
+	default:
+		return val
+	}
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
 func ReplaceStringSecret(val string, secretValues map[string]string) string {
+	return replaceStringSecret(val, secretValues, strings.TrimSpace)
+}
+
+func replaceStringSecret(val string, secretValues map[string]string, trimmer func(value string) string) string {
 	if val == "" || !strings.HasPrefix(val, "$") {
 		return val
 	}
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
 	if !ok {
-		log.Warnf("config referenced '%s', but key does not exist in secret", val)
+		log.Warn("secret key does not exist in secret")
 		return val
 	}
-	return strings.TrimSpace(secretVal)
+	return trimmer(secretVal)
+}
+
+// EscapeDollarSignsInMap recursively walks the given config map and escapes any
+// literal '$' characters in string values as '$$'. This should be called on a
+// connector's config sub-map after secret references have been resolved by
+// ReplaceMapSecrets. It protects resolved values from Dex's os.ExpandEnv
+// expansion (controlled by DEX_EXPAND_ENV, enabled by default), which is applied
+// to every string field in each connector's config block during unmarshalling.
+//
+// Scoped to connector configs only — Dex does NOT apply ExpandEnv to top-level
+// fields like issuer, web, oauth2, staticClients, logger, etc.
+//
+// See: https://github.com/argoproj/argo-cd/issues/27803
+func EscapeDollarSignsInMap(obj map[string]any) map[string]any {
+	newObj := make(map[string]any, len(obj))
+	for k, v := range obj {
+		newObj[k] = escapeDollarSignsValue(v)
+	}
+	return newObj
+}
+
+func escapeDollarSignsValue(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return EscapeDollarSignsInMap(val)
+	case []any:
+		return escapeDollarSignsInList(val)
+	case string:
+		return strings.ReplaceAll(val, "$", "$$")
+	default:
+		return val
+	}
+}
+
+func escapeDollarSignsInList(obj []any) []any {
+	newObj := make([]any, len(obj))
+	for i, v := range obj {
+		newObj[i] = escapeDollarSignsValue(v)
+	}
+	return newObj
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
@@ -2496,6 +2681,51 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	return maxPayloadSizeMB * 1024 * 1024
 }
 
+func (mgr *SettingsManager) GetWebhookRefreshJitter() time.Duration {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Warnf("Failed to get config map for webhook refresh jitter: %v", err)
+		return 0
+	}
+
+	if argoCDCM.Data[settingsWebhookRefreshJitter] == "" {
+		return 0
+	}
+
+	jitter, err := timeutil.ParseDuration(argoCDCM.Data[settingsWebhookRefreshJitter])
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookRefreshJitter, err)
+		return 0
+	}
+
+	return *jitter
+}
+
+func (mgr *SettingsManager) GetWebhookRefreshJitterThreshold() int {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Warnf("Failed to get config map for webhook refresh jitter threshold: %v", err)
+		return defaultWebhookRefreshJitterThreshold
+	}
+
+	if argoCDCM.Data[settingsWebhookRefreshJitterThreshold] == "" {
+		return defaultWebhookRefreshJitterThreshold
+	}
+
+	threshold, err := strconv.Atoi(argoCDCM.Data[settingsWebhookRefreshJitterThreshold])
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookRefreshJitterThreshold, err)
+		return defaultWebhookRefreshJitterThreshold
+	}
+
+	if threshold < 0 {
+		log.Warnf("Invalid '%s' value %d, must be >= 0, using default %d", settingsWebhookRefreshJitterThreshold, threshold, defaultWebhookRefreshJitterThreshold)
+		return defaultWebhookRefreshJitterThreshold
+	}
+
+	return threshold
+}
+
 // IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
 func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 	cm, err := mgr.getConfigMap()
@@ -2538,4 +2768,32 @@ func (mgr *SettingsManager) IsInClusterEnabled() (bool, error) {
 		return inClusterEnabled != "false", nil
 	}
 	return defaultInClusterEnabledFlag, nil
+}
+
+func init() {
+	ConfigureGoClientFeatures()
+}
+
+type myFeatureGates struct {
+	parent clientgofeatures.Gates
+}
+
+func (m myFeatureGates) Enabled(f clientgofeatures.Feature) bool {
+	if f == clientgofeatures.WatchListClient ||
+		f == clientgofeatures.InOrderInformers {
+		return false
+	}
+	return m.parent.Enabled(f)
+}
+
+// FIXME: remove when we have proper WatchListClient and InOrderInformers support
+func ConfigureGoClientFeatures() {
+	gates := clientgofeatures.FeatureGates()
+	isWatchListEnabled := gates.Enabled(clientgofeatures.WatchListClient)
+	isInOrderInformersEnabled := gates.Enabled(clientgofeatures.InOrderInformers)
+
+	if isWatchListEnabled || isInOrderInformersEnabled {
+		wrapper := myFeatureGates{parent: gates}
+		clientgofeatures.ReplaceFeatureGates(wrapper)
+	}
 }
