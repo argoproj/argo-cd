@@ -19,6 +19,7 @@ Argo CD is a CNCF Graduated project. All code must meet the following standards:
   * `docs:` - Documentation improvements
   * `chore:` - Internals, build processes, unit tests, etc.
   * `refactor:` - Refactoring of the code base, without adding new features or fixing bugs
+  * `revert:` - Reverts a previous commit
 * **PR Templates:** You must fully complete the Argo CD Pull Request template. Do not delete the template sections or leave them blank.
 
 ## 3. Tech Stack & Code Rules

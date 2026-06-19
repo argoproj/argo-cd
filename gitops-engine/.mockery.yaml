@@ -1,0 +1,11 @@
+dir: '{{.InterfaceDir}}/mocks'
+filename: '{{.InterfaceName}}.go'
+include-auto-generated: true # Needed since mockery 3.6.1
+pkgname: mocks
+structname: '{{.InterfaceName}}'
+template-data:
+  unroll-variadic: true
+packages:
+  github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube:
+    interfaces:
+      KubectlOptionsRunner: {}

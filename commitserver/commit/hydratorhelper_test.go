@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // tempRoot creates a temporary directory and returns an os.Root object for it.
@@ -49,6 +50,7 @@ func tempRoot(t *testing.T) *os.Root {
 }
 
 func TestWriteForPaths(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	repoURL := "https://github.com/example/repo"
@@ -101,7 +103,7 @@ Argocd-reference-commit-sha: abc123
 	mockGitClient := gitmocks.NewClient(t)
 	mockGitClient.On("HasFileChanged", mock.Anything).Return(true, nil).Times(len(paths))
 
-	shouldCommit, err := WriteForPaths(root, repoURL, drySha, metadata, paths, mockGitClient)
+	shouldCommit, err := WriteForPaths(root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -152,6 +154,7 @@ Argocd-reference-commit-sha: abc123
 }
 
 func TestWriteForPaths_WithOneManifestMatchesExisting(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	repoURL := "https://github.com/example/repo"
@@ -206,7 +209,7 @@ Argocd-reference-commit-sha: abc123
 	mockGitClient.On("HasFileChanged", "path2/manifest.yaml").Return(true, nil).Once()
 	mockGitClient.On("HasFileChanged", "path3/nested/manifest.yaml").Return(false, nil).Once()
 
-	shouldCommit, err := WriteForPaths(root, repoURL, drySha, metadata, paths, mockGitClient)
+	shouldCommit, err := WriteForPaths(root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -263,6 +266,7 @@ Argocd-reference-commit-sha: abc123
 }
 
 func TestWriteMetadata(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	metadata := hydrator.HydratorCommitMetadata{
@@ -284,6 +288,7 @@ func TestWriteMetadata(t *testing.T) {
 }
 
 func TestWriteReadme(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	randomData := make([]byte, 32)
@@ -308,7 +313,7 @@ func TestWriteReadme(t *testing.T) {
 		},
 	}
 
-	err = writeReadme(root, "", metadata)
+	err = writeReadme(root, "", metadata, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 
 	readmePath := filepath.Join(root.Name(), "README.md")
@@ -330,6 +335,7 @@ git checkout abc123
 }
 
 func TestWriteManifests(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	manifests := []*apiclient.HydratedManifestDetails{
@@ -346,6 +352,7 @@ func TestWriteManifests(t *testing.T) {
 }
 
 func TestWriteGitAttributes(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	err := writeGitAttributes(root)
@@ -359,6 +366,7 @@ func TestWriteGitAttributes(t *testing.T) {
 }
 
 func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	err := writeGitAttributes(root)
@@ -403,6 +411,7 @@ func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			// Use git check-attr to verify if linguist-generated attribute is set
+			t.Parallel()
 			cmd := exec.CommandContext(ctx, "git", "check-attr", "linguist-generated", tc.path)
 			cmd.Dir = repoPath
 			output, err := cmd.CombinedOutput()
@@ -427,6 +436,7 @@ func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
 }
 
 func TestIsHydrated(t *testing.T) {
+	t.Parallel()
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
 	commitSha := "fff456"
@@ -455,6 +465,7 @@ func TestIsHydrated(t *testing.T) {
 }
 
 func TestAddNote(t *testing.T) {
+	t.Parallel()
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
 	commitSha := "fff456"
@@ -476,6 +487,7 @@ func TestAddNote(t *testing.T) {
 // shouldCommit returns false. This reproduces the bug where a new DRY commit that doesn't affect
 // manifests should not create a new hydrated commit.
 func TestWriteForPaths_NoOpScenario(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	repoURL := "https://github.com/example/repo"
@@ -503,7 +515,7 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 	mockGitClient1 := gitmocks.NewClient(t)
 	mockGitClient1.On("HasFileChanged", "guestbook/manifest.yaml").Return(true, nil).Once()
 
-	shouldCommit1, err := WriteForPaths(root, repoURL, drySha1, metadata1, paths, mockGitClient1)
+	shouldCommit1, err := WriteForPaths(root, repoURL, drySha1, metadata1, paths, mockGitClient1, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.True(t, shouldCommit1, "First hydration should commit because manifests are new")
 
@@ -520,7 +532,7 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 	mockGitClient2 := gitmocks.NewClient(t)
 	mockGitClient2.On("HasFileChanged", "guestbook/manifest.yaml").Return(false, nil).Once()
 
-	shouldCommit2, err := WriteForPaths(root, repoURL, drySha2, metadata2, paths, mockGitClient2)
+	shouldCommit2, err := WriteForPaths(root, repoURL, drySha2, metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.False(t, shouldCommit2, "Second hydration should NOT commit because manifests didn't change")
 

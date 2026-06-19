@@ -1,7 +1,7 @@
 /* eslint-disable no-prototype-builtins */
 import {AutocompleteField, Checkbox, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
-import {FormApi, Text} from 'react-form';
+import {FormApi, Text} from 'argo-ui';
 import {
     ClipboardText,
     Cluster,
@@ -20,10 +20,21 @@ import {BadgePanel} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {isValidURL} from '../../../shared/utils';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource} from '../utils';
+import {
+    ComparisonStatusIcon,
+    HealthStatusIcon,
+    syncStatusMessage,
+    urlPattern,
+    formatCreationTimestamp,
+    getAppDefaultSource,
+    getAppSpecDefaultSource,
+    getHydratorSyncSourceRepoURL,
+    appRBACName
+} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -272,6 +283,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <div className='application-summary__links-rows'>
                     {urls
                         .map(item => item.split('|'))
+                        // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
+                        // vbscript:) to prevent XSS via attacker-controlled
+                        // link.argocd.argoproj.io/* annotations on managed resources.
+                        .filter(parts => isValidURL(parts.length > 1 ? parts[1] : parts[0]))
                         .map((parts, i) => (
                             <div className='application-summary__links-row'>
                                 <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
@@ -395,6 +410,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
               ]
             : [
                   {
+                      title: 'TAG PREFIX',
+                      view: source.tagPrefix ? <span>{source.tagPrefix}</span> : null,
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.tagPrefix' component={Text} />
+                  },
+                  {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
                       edit: (formApi: FormApi) => (
@@ -452,27 +472,36 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     const syncSourceItems: EditablePanelItem[] = [
         {
+            title: 'REPO URL (OPTIONAL)',
+            hint: 'Git repo for hydrated manifests. Defaults to the dry source repo when unset.',
+            view: <Repo url={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.repoURL' component={Text} />
+        },
+        {
             title: 'TARGET BRANCH',
             hint: 'Branch where hydrated manifests are written and synced from.',
-            view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
-            edit: (formApi: FormApi) => (
-                <RevisionFormField
-                    helpIconTop={'0'}
-                    hideLabel={true}
-                    formApi={formApi}
-                    fieldValue='spec.sourceHydrator.syncSource.targetBranch'
-                    repoURL={source.repoURL}
-                    repoType='git'
-                    revisionType='Branches'
-                />
-            )
+            view: <Revision repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
+            edit: (formApi: FormApi) => {
+                const spec = formApi.getFormState().values.spec as models.ApplicationSpec;
+                return (
+                    <RevisionFormField
+                        helpIconTop={'0'}
+                        hideLabel={true}
+                        formApi={formApi}
+                        fieldValue='spec.sourceHydrator.syncSource.targetBranch'
+                        repoURL={getHydratorSyncSourceRepoURL(spec.sourceHydrator)}
+                        repoType='git'
+                        revisionType='Branches'
+                    />
+                );
+            }
         },
         {
             title: 'PATH',
             hint: 'Output directory for hydrated manifests; must be a non-root path.',
             view: (
                 <Revision
-                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
                     revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
                     path={app.spec.sourceHydrator?.syncSource?.path}
                     isForPath={true}>
@@ -489,24 +518,27 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             hint: 'Optional staging branch to write hydrated output before syncing.',
             view: (
                 <Revision
-                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
                     revision={
                         app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
                         (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
                     }
                 />
             ),
-            edit: (formApi: FormApi) => (
-                <RevisionFormField
-                    helpIconTop={'0'}
-                    hideLabel={true}
-                    formApi={formApi}
-                    fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
-                    repoURL={source.repoURL}
-                    repoType='git'
-                    revisionType='Branches'
-                />
-            )
+            edit: (formApi: FormApi) => {
+                const spec = formApi.getFormState().values.spec as models.ApplicationSpec;
+                return (
+                    <RevisionFormField
+                        helpIconTop={'0'}
+                        hideLabel={true}
+                        formApi={formApi}
+                        fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
+                        repoURL={getHydratorSyncSourceRepoURL(spec.sourceHydrator)}
+                        repoType='git'
+                        revisionType='Branches'
+                    />
+                );
+            }
         }
     ];
 
@@ -528,6 +560,56 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
           ]
         : [...standardSourceItems, ...sourceItems];
 
+    async function toggleAutoSync(ctx: ContextApis) {
+        const isEnabled = app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
+        const confirmationTitle = isEnabled ? 'Disable Auto-Sync?' : 'Enable Auto-Sync?';
+        const confirmationText = isEnabled
+            ? 'Are you sure you want to disable automated application synchronization'
+            : 'If checked, application will automatically sync when changes are detected';
+        const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
+        if (confirmed) {
+            try {
+                setChangeSync(true);
+                const canUpdate = await services.accounts.canI('applications', 'update', appRBACName(app)).catch(() => false);
+                if (canUpdate) {
+                    const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                    if (!updatedApp.spec.syncPolicy) {
+                        updatedApp.spec.syncPolicy = {};
+                    }
+                    const existingAutomated = updatedApp.spec.syncPolicy.automated;
+                    updatedApp.spec.syncPolicy.automated = {
+                        prune: existingAutomated?.prune ?? false,
+                        selfHeal: existingAutomated?.selfHeal ?? false,
+                        enabled: !isEnabled
+                    };
+                    await updateApp(updatedApp, {validate: false});
+                } else {
+                    await services.applications.runResourceAction(
+                        app.metadata.name,
+                        app.metadata.namespace,
+                        {
+                            name: app.metadata.name,
+                            namespace: app.metadata.namespace,
+                            group: 'argoproj.io',
+                            kind: 'Application',
+                            version: 'v1alpha1'
+                        } as models.ResourceNode,
+                        'toggle-auto-sync',
+                        []
+                    );
+                }
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                setChangeSync(false);
+            }
+        }
+    }
+
+    // Handler for the PRUNE RESOURCES and SELF HEAL checkboxes only; auto-sync toggling lives in `toggleAutoSync` above.
     async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
@@ -542,7 +624,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
-                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
+                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -663,18 +745,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                 <div className='columns small-12'>
                                     <div className='checkbox-container'>
                                         <Checkbox
-                                            onChange={async (val: boolean) => {
-                                                const automated = app.spec.syncPolicy?.automated || {prune: false, selfHeal: false};
-                                                setAutoSync(
-                                                    ctx,
-                                                    val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
-                                                    val
-                                                        ? 'If checked, application will automatically sync when changes are detected'
-                                                        : 'Are you sure you want to disable automated application synchronization',
-                                                    automated.prune,
-                                                    automated.selfHeal,
-                                                    val
-                                                );
+                                            onChange={async () => {
+                                                await toggleAutoSync(ctx);
                                             }}
                                             checked={app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false}
                                             id='enable-auto-sync'

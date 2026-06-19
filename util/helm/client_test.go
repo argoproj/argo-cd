@@ -719,7 +719,7 @@ entries: {}
 
 		// Should succeed because our implementation sets User-Agent
 		require.NoError(t, err, "Request should succeed with User-Agent set")
-		t.Logf("Success! Server accepted request with User-Agent")
+		t.Log("Success! Server accepted request with User-Agent")
 	})
 }
 
@@ -767,5 +767,17 @@ entries: {}
 		// Verify default User-Agent was used
 		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "Should use default User-Agent format")
 		t.Logf("Default User-Agent sent: %s", receivedUserAgent)
+	})
+}
+
+func TestWithPlainHTTP(t *testing.T) {
+	t.Run("not set by default", func(t *testing.T) {
+		c := NewClient("my.registry.com", HelmCreds{}, true, "", "")
+		assert.False(t, c.(*nativeHelmChart).plainHTTP)
+	})
+
+	t.Run("set via WithPlainHTTP option", func(t *testing.T) {
+		c := NewClient("my.registry.com", HelmCreds{}, true, "", "", WithPlainHTTP())
+		assert.True(t, c.(*nativeHelmChart).plainHTTP)
 	})
 }

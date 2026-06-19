@@ -183,7 +183,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 				}
 			}
 			if !found {
-				t.Logf("Returned links:")
+				t.Log("Returned links:")
 				for _, link := range links.Items {
 					if link.Url != nil {
 						t.Logf("- %s", *link.Url)

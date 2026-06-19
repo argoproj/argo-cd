@@ -1,6 +1,5 @@
 import {FormField} from 'argo-ui';
-import * as ReactForm from 'react-form';
-import {Form, Text} from 'react-form';
+import {ReactForm, Form, Text} from 'argo-ui';
 
 import React from 'react';
 
@@ -46,7 +45,7 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
                                 <a
                                     className='argo-button argo-button--base'
                                     onClick={() => {
-                                        if (api.values.groupName.length > 0) {
+                                        if (api.values.groupName?.length > 0) {
                                             props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));
                                             api.values.groupName = '';
                                         }
