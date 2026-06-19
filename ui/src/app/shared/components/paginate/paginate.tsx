@@ -204,27 +204,28 @@ function PaginateContent<T>({
     }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey]);
 
     // Deep-link highlight: when `focusItemKey` is set (e.g. opening an Application from the
-    // Resources page with `?highlight=group/kind/namespace/name`), jump to the page that
-    // contains that item once. We do not keep forcing the page if the user changes pages
-    // afterward (`userPaginatedForKey`), and we reset when `focusItemKey` changes.
-    const autoFocusDoneForKey = React.useRef<string | null>(null);
+    // Resources page with `?highlight=group/kind/namespace/name`), keep the displayed page in
+    // sync with the page that contains that item. We intentionally re-evaluate whenever the data
+    // changes rather than latching a one-shot flag: the resource tree streams in incrementally, so
+    // the item's index (and therefore its page) can change after the first render. We stop forcing
+    // the page only once the user manually paginates (`userPaginatedForKey`), and reset on key change.
     const userPaginatedForKey = React.useRef<string | null>(null);
     const getItemKeyRef = React.useRef(getItemKey);
     getItemKeyRef.current = getItemKey;
     const onPageChangeRef = React.useRef(onPageChange);
     onPageChangeRef.current = onPageChange;
+    const currentPageRef = React.useRef(currentPage);
+    currentPageRef.current = currentPage;
 
     React.useEffect(() => {
         if (!focusItemKey || !getItemKeyRef.current) {
-            autoFocusDoneForKey.current = null;
             userPaginatedForKey.current = null;
             return;
         }
-        if (autoFocusDoneForKey.current && autoFocusDoneForKey.current !== focusItemKey) {
-            autoFocusDoneForKey.current = null;
+        if (userPaginatedForKey.current && userPaginatedForKey.current !== focusItemKey) {
             userPaginatedForKey.current = null;
         }
-        if (userPaginatedForKey.current === focusItemKey || autoFocusDoneForKey.current === focusItemKey) {
+        if (userPaginatedForKey.current === focusItemKey) {
             return;
         }
         const index = sortedData.findIndex(item => getItemKeyRef.current!(item) === focusItemKey);
@@ -235,8 +236,10 @@ function PaginateContent<T>({
         if (targetPage < 0 || targetPage >= pageCount) {
             return;
         }
-        autoFocusDoneForKey.current = focusItemKey;
-        onPageChangeRef.current(targetPage);
+        // Only navigate when needed; comparing against the live page avoids a render loop.
+        if (targetPage !== currentPageRef.current) {
+            onPageChangeRef.current(targetPage);
+        }
     }, [focusItemKey, pageCount, pageSize, sortedData, sortOption]);
 
     const handlePageChange = React.useCallback(
