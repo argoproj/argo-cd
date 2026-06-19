@@ -130,7 +130,9 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
-	needsHydration, reason, resolvedDryRevision := h.appNeedsHydration(app)
+	// Workqueue entry point with no inbound request context, so context.Background() is the root.
+	ctx := context.Background()
+	needsHydration, reason, resolvedDryRevision := h.appNeedsHydration(ctx, app)
 	if resolvedDryRevision != "" && resolvedDryRevision != app.Status.SourceHydrator.LastComparedDryRevision {
 		// Update the last compared dry revision to the resolved revision
 		// If the app is currently hydrating, we should not have a resolvedDryRevision
@@ -225,8 +227,10 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		return
 	}
 
-	// Hydrate all the apps
-	drySHA, hydratedSHA, appErrors, err := h.hydrate(logCtx, apps, projects)
+	// Hydrate all the apps. ProcessHydrationQueueItem is a workqueue entry point with no inbound
+	// request context, so context.Background() is the root of this operation's context tree.
+	ctx := context.Background()
+	drySHA, hydratedSHA, appErrors, err := h.hydrate(ctx, logCtx, apps, projects)
 	if err != nil {
 		// If there is a single error, it affects each applications
 		for i := range apps {
@@ -411,7 +415,7 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 	return projects, errors
 }
 
-func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, map[string]error, error) {
+func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, map[string]error, error) {
 	errors := make(map[string]error)
 	if len(apps) == 0 {
 		return "", "", nil, nil
@@ -429,7 +433,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	drySourceRepoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
 
 	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
-	targetRevision, pathDetails, err := h.getManifests(context.Background(), apps[0], "", projects[apps[0].Spec.Project])
+	targetRevision, pathDetails, err := h.getManifests(ctx, apps[0], "", projects[apps[0].Spec.Project])
 	if err != nil {
 		errors[apps[0].QualifiedName()] = fmt.Errorf("failed to get manifests: %w", err)
 		return "", "", errors, nil
@@ -443,7 +447,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
 	}
 
-	eg, ctx := errgroup.WithContext(context.Background())
+	eg, ctx := errgroup.WithContext(ctx)
 	var mu sync.Mutex
 
 	for _, app := range apps[1:] {
@@ -477,12 +481,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	}
 
 	// Get the commit metadata for the target revision.
-	revisionMetadata, err := h.getRevisionMetadata(context.Background(), drySourceRepoURL, project, targetRevision)
+	revisionMetadata, err := h.getRevisionMetadata(ctx, drySourceRepoURL, project, targetRevision)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get revision metadata for %q: %w", targetRevision, err)
 	}
 
-	repo, err := h.dependencies.GetWriteCredentials(context.Background(), destinationRepoURL, project)
+	repo, err := h.dependencies.GetWriteCredentials(ctx, destinationRepoURL, project)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator credentials: %w", err)
 	}
@@ -537,7 +541,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		return targetRevision, "", errors, fmt.Errorf("failed to create commit service: %w", err)
 	}
 	defer utilio.Close(closer)
-	resp, err := commitService.CommitHydratedManifests(context.Background(), &manifestsRequest)
+	resp, err := commitService.CommitHydratedManifests(ctx, &manifestsRequest)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}
@@ -597,7 +601,7 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 	}
 	defer utilio.Close(closer)
 
-	resp, err := repoService.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	resp, err := repoService.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:     repo,
 		Revision: revision,
 	})
@@ -610,7 +614,7 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 // newRevisionHasChanges checks if the dry source has a new revision that differs from the last compared dry revision.
 // Returns true if the new revision may contain changes that would affect the hydrated manifests, the resolved
 // revision from evaluation (empty if evaluation was skipped), and any error encountered.
-func (h *Hydrator) newRevisionHasChanges(app *appv1.Application, noRevisionCache bool) (bool, string, error) {
+func (h *Hydrator) newRevisionHasChanges(ctx context.Context, app *appv1.Application, noRevisionCache bool) (bool, string, error) {
 	if app.Status.SourceHydrator.LastComparedDryRevision == "" {
 		log.WithFields(applog.GetAppLogFields(app)).Debug("No LastComparedDryRevision, hydration needed")
 		return true, "", nil
@@ -622,7 +626,7 @@ func (h *Hydrator) newRevisionHasChanges(app *appv1.Application, noRevisionCache
 	}
 
 	drySource := app.Spec.SourceHydrator.GetDrySource()
-	hasChanges, resolvedRev, err := h.dependencies.EvaluateAppRevisionsChanges(context.Background(), app, drySource, drySource.TargetRevision, project, noRevisionCache)
+	hasChanges, resolvedRev, err := h.dependencies.EvaluateAppRevisionsChanges(ctx, app, drySource, drySource.TargetRevision, project, noRevisionCache)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to evaluate app revisions changes: %w", err)
 	}
@@ -632,7 +636,7 @@ func (h *Hydrator) newRevisionHasChanges(app *appv1.Application, noRevisionCache
 
 // appNeedsHydration answers if application needs manifests hydrated. The third return value is the resolved dry
 // source revision from revision evaluation (empty if evaluation was skipped or failed).
-func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string, resolvedDryRevision string) {
+func (h *Hydrator) appNeedsHydration(ctx context.Context, app *appv1.Application) (needsHydration bool, reason string, resolvedDryRevision string) {
 	requested, hydrateType := app.IsHydrateRequested()
 	noRevisionCache := requested
 
@@ -667,7 +671,7 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration boo
 	}
 
 	// Check for new revision changes
-	hasChanges, resolvedRev, err := h.newRevisionHasChanges(app, noRevisionCache)
+	hasChanges, resolvedRev, err := h.newRevisionHasChanges(ctx, app, noRevisionCache)
 	if err != nil {
 		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to check for new revision changes")
 		return false, "cannot determine if hydration is needed", resolvedRev

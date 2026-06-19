@@ -301,7 +301,7 @@ func Test_appNeedsHydration(t *testing.T) {
 				tc.setupMocks(d, tc.app)
 				h.dependencies = d
 			}
-			needsHydration, message, resolvedRev := h.appNeedsHydration(tc.app)
+			needsHydration, message, resolvedRev := h.appNeedsHydration(t.Context(), tc.app)
 			assert.Equal(t, tc.expectedNeedsHydration, needsHydration)
 			assert.Equal(t, tc.expectedMessage, message)
 			assert.Equal(t, tc.expectedResolvedRev, resolvedRev)
@@ -1152,7 +1152,7 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	})
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, apps, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, apps, projects)
 
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1181,7 +1181,7 @@ func TestHydrator_hydrate_GetManifestsError(t *testing.T) {
 	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, nil, errors.New("manifests error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.NoError(t, err)
 	assert.Empty(t, sha)
@@ -1213,7 +1213,7 @@ func TestHydrator_hydrate_RevisionMetadataError(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, errors.New("metadata error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1246,7 +1246,7 @@ func TestHydrator_hydrate_GetWriteCredentialsError(t *testing.T) {
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("creds error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1280,7 +1280,7 @@ func TestHydrator_hydrate_CommitMessageTemplateError(t *testing.T) {
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("", errors.New("template error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1314,7 +1314,7 @@ func TestHydrator_hydrate_TemplatedCommitMessageError(t *testing.T) {
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("{{ notAFunction }} template", nil)
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1352,7 +1352,7 @@ func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(nil, errors.New("commit error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1367,7 +1367,7 @@ func TestHydrator_hydrate_EmptyApps(t *testing.T) {
 	logCtx := log.NewEntry(log.StandardLogger())
 	h := &Hydrator{dependencies: d}
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{}, nil)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{}, nil)
 
 	require.NoError(t, err)
 	assert.Empty(t, sha)
@@ -1558,7 +1558,7 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	d.On("GetRepoObjs", mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil).Once()
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, apps, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, apps, projects)
 
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1664,7 +1664,7 @@ func Test_newRevisionHasChanges(t *testing.T) {
 			}
 			h := &Hydrator{dependencies: d}
 
-			hasChanges, resolvedRev, err := h.newRevisionHasChanges(tc.app, false)
+			hasChanges, resolvedRev, err := h.newRevisionHasChanges(t.Context(), tc.app, false)
 
 			assert.Equal(t, tc.expectedResult, hasChanges)
 			assert.Equal(t, tc.expectedResolvedRev, resolvedRev)
