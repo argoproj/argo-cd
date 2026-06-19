@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -2550,7 +2549,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			ctrl := newFakeController(t.Context(), &tc.data, nil)
 
 			hasChanges, resolvedRevisions, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
-				context.Background(),
+				t.Context(),
 				tc.app,
 				tc.sources,
 				tc.revisions,
