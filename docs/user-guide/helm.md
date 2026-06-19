@@ -689,24 +689,23 @@ repoServer:
           chmod -R 777 $HELM_DATA_HOME;
 ```
 
-## Helm Version
+## Helm Version 
 
-Argo CD will assume that the Helm chart is v3 (even if the apiVersion field in the chart is Helm v2), unless v2 is explicitly specified within the Argo CD Application (see below).
+This field was used in the past, during the transition period from Helm 2 to Helm 3.
+Before Helm 2 became EOL, Argo CD was shipped with both Helm binaries (v2 and v3) and users could specify which Helm binary Argo CD should use to render their charts, by setting this field.
 
-If needed, it is possible to specifically set the Helm version to template with by setting the `helm-version` flag on the cli (either v2 or v3):
+Since Helm 2 became EOL, this field does not need to be configured anymore. It exists for backwards-compatibility only. The only Helm binary used to render charts in Argo CD (starting with version 3.5) is v4.
 
-```bash
-argocd app set helm-guestbook --helm-version v3
-```
-
-Or using declarative syntax:
-
+If you historically have the following setting on your Helm applications:
 ```yaml
 spec:
   source:
     helm:
       version: v3
 ```
+
+you are not required to update or remove this field, and can leave this setting as is.
+
 
 ## Helm `--pass-credentials`
 

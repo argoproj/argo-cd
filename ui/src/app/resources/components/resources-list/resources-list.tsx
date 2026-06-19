@@ -329,7 +329,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                     {ctx => (
                         <ViewPref>
                             {pref => (
-                                <Page title={getPageTitle(pref.view)} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'Resources', path: '/resources'}]}} hideAuth={true}>
+                                <Page title={getPageTitle(pref.view)} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'Resources', path: '/resources'}]}}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
@@ -341,21 +341,19 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                         )}>
                                         {(applications: models.Application[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
-                                            const resources = applications
-                                                .map(app =>
-                                                    app.status.resources.map(
-                                                        item =>
-                                                            ({
-                                                                ...item,
-                                                                appName: app.metadata.name,
-                                                                appNamespace: app.metadata.namespace,
-                                                                clusterServer: app.spec.destination.server,
-                                                                clusterName: app.spec.destination.name,
-                                                                appProject: app.spec.project
-                                                            }) as models.Resource
-                                                    )
+                                            const resources = applications.flatMap(app =>
+                                                (app.status.resources || []).map(
+                                                    item =>
+                                                        ({
+                                                            ...item,
+                                                            appName: app.metadata.name,
+                                                            appNamespace: app.metadata.namespace,
+                                                            clusterServer: app.spec.destination.server,
+                                                            clusterName: app.spec.destination.name,
+                                                            appProject: app.spec.project
+                                                        }) as models.Resource
                                                 )
-                                                .flat();
+                                            );
                                             const {filteredResources, filterResults} = filterResources(resources, pref, pref.search);
                                             return (
                                                 <React.Fragment>

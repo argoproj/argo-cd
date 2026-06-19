@@ -1,4 +1,4 @@
-import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {AppContext, AppContextReact, DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
@@ -10,8 +10,8 @@ import help from './help';
 import login from './login';
 import settings from './settings';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
-import {Page} from './shared/components/page/page';
-import {Spinner} from './shared/components/spinner';
+import {Page} from './shared/components';
+import {Spinner} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
@@ -268,6 +268,17 @@ export class App extends React.Component<
             );
         }
 
+        const contextApis = {history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base};
+
+        // argo-ui's AppContext requires a `router`, but this provider sits above <Router> so there is no
+        // route match yet — supply the current location with an empty match. The only fields argo-ui actually
+        // reads off this context are `apis` (DataLoader) and `router` (NavBar, unused in Argo CD).
+        const appContext: AppContext = {
+            history,
+            apis: {popup: this.popupManager, notifications: this.notificationsManager},
+            router: {history, route: {location: history.location, match: {params: {}, isExact: false, path: '', url: ''}}}
+        };
+
         return (
             <React.Fragment>
                 <Helmet>
@@ -275,43 +286,51 @@ export class App extends React.Component<
                     <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
-                    <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
-                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
-                        </DataLoader>
-                        <AuthSettingsCtx.Provider value={this.state.authSettings}>
-                            <Router history={history}>
-                                <Switch>
-                                    <Redirect exact={true} path='/' to='/applications' />
-                                    {Object.keys(this.routes).map(path => {
-                                        const route = this.routes[path];
-                                        return (
-                                            <Route
-                                                key={path}
-                                                path={path}
-                                                render={routeProps =>
-                                                    route.noLayout ? (
-                                                        <div>
-                                                            <route.component {...routeProps} />
-                                                        </div>
-                                                    ) : (
-                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                            {pref => (
-                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
-                                                                    <Banner>
-                                                                        <route.component {...routeProps} />
-                                                                    </Banner>
-                                                                </Layout>
-                                                            )}
-                                                        </DataLoader>
-                                                    )
-                                                }
-                                            />
-                                        );
-                                    })}
-                                </Switch>
-                            </Router>
-                        </AuthSettingsCtx.Provider>
+                    <Provider value={contextApis}>
+                        {/*
+                          argo-ui's class components (e.g. DataLoader) read context via the modern
+                          `static contextType = AppContextReact`. Without this provider, their `this.context`
+                          is undefined and any error path (e.g. DataLoader.handleError after a failed
+                          save/update/delete) throws "this.appContext is undefined".
+                        */}
+                        <AppContextReact.Provider value={appContext}>
+                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
+                            </DataLoader>
+                            <AuthSettingsCtx.Provider value={this.state.authSettings}>
+                                <Router history={history}>
+                                    <Switch>
+                                        <Redirect exact={true} path='/' to='/applications' />
+                                        {Object.keys(this.routes).map(path => {
+                                            const route = this.routes[path];
+                                            return (
+                                                <Route
+                                                    key={path}
+                                                    path={path}
+                                                    render={routeProps =>
+                                                        route.noLayout ? (
+                                                            <div>
+                                                                <route.component {...routeProps} />
+                                                            </div>
+                                                        ) : (
+                                                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                {pref => (
+                                                                    <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
+                                                                        <Banner>
+                                                                            <route.component {...routeProps} />
+                                                                        </Banner>
+                                                                    </Layout>
+                                                                )}
+                                                            </DataLoader>
+                                                        )
+                                                    }
+                                                />
+                                            );
+                                        })}
+                                    </Switch>
+                                </Router>
+                            </AuthSettingsCtx.Provider>
+                        </AppContextReact.Provider>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />

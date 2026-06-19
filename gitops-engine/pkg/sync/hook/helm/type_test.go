@@ -10,6 +10,7 @@ import (
 )
 
 func TestTypes(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, Types(testingutils.NewPod()))
 	assert.Equal(t, []Type{PreInstall}, Types(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-install")))
 	assert.Equal(t, []Type{PreUpgrade}, Types(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-upgrade")))
@@ -25,6 +26,7 @@ func TestTypes(t *testing.T) {
 }
 
 func TestType_HookType(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, common.HookTypePreSync, PreInstall.HookType())
 	assert.Equal(t, common.HookTypePreSync, PreUpgrade.HookType())
 	assert.Equal(t, common.HookTypePostSync, PostUpgrade.HookType())

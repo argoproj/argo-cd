@@ -206,7 +206,7 @@ const ResourceTableRow = (props: {
             <div className='row'>
                 <div className='columns resources-table__col-icon'>
                     <div className='application-details__resource-icon'>
-                        <ResourceIcon group={resource.group} kind={resource.kind} variant='table' />
+                        <ResourceIcon group={resource.group} kind={resource.kind} />
                         <div className='resources-table__kind-label'>{ResourceLabel({kind: resource.kind})}</div>
                     </div>
                 </div>
