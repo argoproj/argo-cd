@@ -50,6 +50,7 @@ func tempRoot(t *testing.T) *os.Root {
 }
 
 func TestWriteForPaths(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	repoURL := "https://github.com/example/repo"
@@ -153,6 +154,7 @@ Argocd-reference-commit-sha: abc123
 }
 
 func TestWriteForPaths_WithOneManifestMatchesExisting(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	repoURL := "https://github.com/example/repo"
@@ -264,6 +266,7 @@ Argocd-reference-commit-sha: abc123
 }
 
 func TestWriteMetadata(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	metadata := hydrator.HydratorCommitMetadata{
@@ -285,6 +288,7 @@ func TestWriteMetadata(t *testing.T) {
 }
 
 func TestWriteReadme(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	randomData := make([]byte, 32)
@@ -331,6 +335,7 @@ git checkout abc123
 }
 
 func TestWriteManifests(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	manifests := []*apiclient.HydratedManifestDetails{
@@ -347,6 +352,7 @@ func TestWriteManifests(t *testing.T) {
 }
 
 func TestWriteGitAttributes(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	err := writeGitAttributes(root)
@@ -360,6 +366,7 @@ func TestWriteGitAttributes(t *testing.T) {
 }
 
 func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	err := writeGitAttributes(root)
@@ -404,6 +411,7 @@ func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			// Use git check-attr to verify if linguist-generated attribute is set
+			t.Parallel()
 			cmd := exec.CommandContext(ctx, "git", "check-attr", "linguist-generated", tc.path)
 			cmd.Dir = repoPath
 			output, err := cmd.CombinedOutput()
@@ -428,6 +436,7 @@ func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
 }
 
 func TestIsHydrated(t *testing.T) {
+	t.Parallel()
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
 	commitSha := "fff456"
@@ -456,6 +465,7 @@ func TestIsHydrated(t *testing.T) {
 }
 
 func TestAddNote(t *testing.T) {
+	t.Parallel()
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
 	commitSha := "fff456"
@@ -477,6 +487,7 @@ func TestAddNote(t *testing.T) {
 // shouldCommit returns false. This reproduces the bug where a new DRY commit that doesn't affect
 // manifests should not create a new hydrated commit.
 func TestWriteForPaths_NoOpScenario(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	repoURL := "https://github.com/example/repo"

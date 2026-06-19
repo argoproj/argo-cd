@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2172,6 +2173,160 @@ func TestUseAzureWorkloadIdentity(t *testing.T) {
 	}
 }
 
+func TestAzureUserGroupOverageClaimEnabled(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult bool
+	}{
+		{
+			Name: "enabled and set to true",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"enableUserGroupOverageClaim": true}}`,
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "enabled and set to false",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"enableUserGroupOverageClaim": false}}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "not defined with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "not defined",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name:           "OIDC config not defined",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureUserGroupOverageClaimEnabled()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
+func TestAzureGraphAPIEndpoint(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult string
+	}{
+		{
+			Name: "default endpoint when azure section present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: "https://graph.microsoft.com/v1.0",
+		},
+		{
+			Name: "custom endpoint for sovereign cloud",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://graph.microsoft.us/v1.0"}}`,
+			},
+			ExpectedResult: "https://graph.microsoft.us/v1.0",
+		},
+		{
+			Name: "custom endpoint for China cloud",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://microsoftgraph.chinacloudapi.cn/v1.0"}}`,
+			},
+			ExpectedResult: "https://microsoftgraph.chinacloudapi.cn/v1.0",
+		},
+		{
+			Name: "non-https endpoint returns empty string",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "http://graph.microsoft.com/v1.0"}}`,
+			},
+			ExpectedResult: "",
+		},
+		{
+			Name: "non-Microsoft hostname returns empty string",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://evil.example.com/v1.0"}}`,
+			},
+			ExpectedResult: "",
+		},
+		{
+			Name: "empty string when no azure section",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{}`,
+			},
+			ExpectedResult: "",
+		},
+		{
+			Name:           "empty string when no OIDC config",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureGraphAPIEndpoint()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
+func TestAzureUserGroupOverageClaimCacheExpiration(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult time.Duration
+	}{
+		{
+			Name: "valid duration",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"userGroupOverageClaimCacheExpiration": "10m"}}`,
+			},
+			ExpectedResult: 10 * time.Minute,
+		},
+		{
+			Name: "not configured",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: 0,
+		},
+		{
+			Name: "invalid duration returns 0",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"userGroupOverageClaimCacheExpiration": "invalid"}}`,
+			},
+			ExpectedResult: 0,
+		},
+		{
+			Name:           "no OIDC config",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureUserGroupOverageClaimCacheExpiration()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
 func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
@@ -2413,7 +2568,7 @@ func TestGetHydratorReadmeTemplate(t *testing.T) {
 
 	t.Run("ConfigMapError", func(t *testing.T) {
 		kubeClient := fake.NewClientset()
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		template, err := settingsManager.GetHydratorReadmeTemplate()
 		require.Error(t, err)
 		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
@@ -2668,6 +2823,261 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, isArgoCDConfigMap(tt.obj))
+		})
+	}
+}
+
+// TestGettersRaceWithResyncInformers verifies that concurrent calls to
+// SettingsManager getters and ResyncInformers do not trigger data races.
+// Run with: go test -race -run TestGettersRaceWithResyncInformers ./util/settings/...
+func TestGettersRaceWithResyncInformers(t *testing.T) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string]string{},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"server.secretkey": []byte("test-secret-key"),
+		},
+	}
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-secret",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://kubernetes.default.svc"),
+			"name":   []byte("in-cluster"),
+			"config": []byte("{}"),
+		},
+	}
+	kubeClient := fake.NewClientset(cm, secret, clusterSecret)
+	mgr := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	// Prime the informers so getters have something to return.
+	err := mgr.ensureSynced(false)
+	require.NoError(t, err)
+
+	const goroutines = 10
+
+	// done signals all goroutines to stop.
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	// Spawn goroutines calling ResyncInformers concurrently.
+	for range goroutines / 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = mgr.ResyncInformers()
+				}
+			}
+		})
+	}
+
+	// Spawn goroutines calling the various getters concurrently.
+	for range goroutines / 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_, _ = mgr.GetSecretsLister()
+					_, _ = mgr.GetSecretsInformer()
+					_, _ = mgr.GetClusterInformer()
+					_, _ = mgr.GetConfigMapByName(common.ArgoCDConfigMapName)
+					_, _ = mgr.GetSecretByName(common.ArgoCDSecretName)
+				}
+			}
+		})
+	}
+
+	// Let the race run for a bit.
+	time.Sleep(200 * time.Millisecond)
+	close(done)
+	wg.Wait()
+}
+
+func TestEscapeDollarSignsInMap(t *testing.T) {
+	t.Run("dollar sign in string value is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "test$test"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "test$$test", result["bindPW"])
+	})
+
+	t.Run("string with no dollar sign is unchanged", func(t *testing.T) {
+		input := map[string]any{"bindPW": "plainpassword"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "plainpassword", result["bindPW"])
+	})
+
+	t.Run("multiple dollar signs are all escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "a$b$c$d"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "a$$b$$c$$d", result["bindPW"])
+	})
+
+	t.Run("leading dollar sign is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "$startswith"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "$$startswith", result["bindPW"])
+	})
+
+	t.Run("trailing dollar sign is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "endswith$"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "endswith$$", result["bindPW"])
+	})
+
+	t.Run("value that is only a dollar sign is escaped", func(t *testing.T) {
+		input := map[string]any{"bindPW": "$"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "$$", result["bindPW"])
+	})
+
+	t.Run("calling with already-escaped content escapes again", func(t *testing.T) {
+		input := map[string]any{"bindPW": "test$$test"}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, "test$$$$test", result["bindPW"])
+	})
+
+	t.Run("non-string values are passed through unchanged", func(t *testing.T) {
+		input := map[string]any{
+			"port":          389,
+			"insecureNoSSL": true,
+		}
+		result := EscapeDollarSignsInMap(input)
+		assert.Equal(t, 389, result["port"])
+		assert.Equal(t, true, result["insecureNoSSL"])
+	})
+
+	t.Run("nested map values are escaped", func(t *testing.T) {
+		input := map[string]any{
+			"config": map[string]any{
+				"bindPW": "test$test",
+				"host":   "ldap.example.org:389",
+			},
+		}
+		result := EscapeDollarSignsInMap(input)
+		nested := result["config"].(map[string]any)
+		assert.Equal(t, "test$$test", nested["bindPW"])
+		assert.Equal(t, "ldap.example.org:389", nested["host"])
+	})
+
+	t.Run("deeply nested map values are escaped", func(t *testing.T) {
+		input := map[string]any{
+			"connectors": map[string]any{
+				"ldap": map[string]any{
+					"config": map[string]any{
+						"bindPW": "test$test",
+					},
+				},
+			},
+		}
+		result := EscapeDollarSignsInMap(input)
+		config := result["connectors"].(map[string]any)["ldap"].(map[string]any)["config"].(map[string]any)
+		assert.Equal(t, "test$$test", config["bindPW"])
+	})
+
+	t.Run("list of maps has dollar signs escaped in each element", func(t *testing.T) {
+		input := map[string]any{
+			"connectors": []any{
+				map[string]any{"type": "ldap", "bindPW": "test$test"},
+				map[string]any{"type": "oidc", "clientSecret": "oidc$secret"},
+			},
+		}
+		result := EscapeDollarSignsInMap(input)
+		connectors := result["connectors"].([]any)
+		assert.Equal(t, "test$$test", connectors[0].(map[string]any)["bindPW"])
+		assert.Equal(t, "oidc$$secret", connectors[1].(map[string]any)["clientSecret"])
+	})
+
+	t.Run("list of strings has dollar signs escaped", func(t *testing.T) {
+		input := map[string]any{
+			"passwords": []any{"a$b", "plain", "c$d$e"},
+		}
+		result := EscapeDollarSignsInMap(input)
+		passwords := result["passwords"].([]any)
+		assert.Equal(t, "a$$b", passwords[0])
+		assert.Equal(t, "plain", passwords[1])
+		assert.Equal(t, "c$$d$$e", passwords[2])
+	})
+
+	t.Run("empty map returns empty map", func(t *testing.T) {
+		result := EscapeDollarSignsInMap(map[string]any{})
+		assert.Empty(t, result)
+	})
+
+	t.Run("input map is not mutated", func(t *testing.T) {
+		input := map[string]any{"bindPW": "test$test"}
+		original := input["bindPW"]
+		_ = EscapeDollarSignsInMap(input)
+		assert.Equal(t, original, input["bindPW"])
+	})
+}
+
+func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		notConfigured bool
+		output        time.Duration
+	}{
+		{
+			name:   "Valid jitter value",
+			input:  "60s",
+			output: 60 * time.Second,
+		},
+		{
+			name:          "Not configured",
+			notConfigured: true,
+			output:        0,
+		},
+		{
+			name:   "Empty input",
+			input:  "",
+			output: 0,
+		},
+		{
+			name:   "Invalid format",
+			input:  "invalid",
+			output: 0,
+		},
+		{
+			name:   "Invalid format with only number",
+			input:  "60",
+			output: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configMap := map[string]string{}
+			if !tt.notConfigured {
+				configMap["webhook.refresh.jitter"] = tt.input
+			}
+			_, settingsManager := fixtures(t.Context(), configMap)
+			jitter := settingsManager.GetWebhookRefreshJitter()
+			assert.Equal(t, tt.output, jitter)
 		})
 	}
 }

@@ -22,6 +22,7 @@ import (
 // regressions where the transform stops dropping (or starts polluting the
 // cache with nil entries).
 func TestInformerFilterDoesNotCacheDisallowedNamespaces(t *testing.T) {
+	t.Parallel()
 	kept := &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "kept", Namespace: "team-a"}}
 	control := &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "ctrl", Namespace: "argocd"}}
 	dropped := &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "dropped", Namespace: "team-b"}}
