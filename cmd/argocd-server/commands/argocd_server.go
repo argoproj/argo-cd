@@ -102,6 +102,8 @@ func NewCommand() *cobra.Command {
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
+
+		repoServerClientTLSConfigSrc func() (tls.Configuration, error)
 	)
 	command := &cobra.Command{
 		Use:               common.CommandServer,
@@ -156,10 +158,10 @@ func NewCommand() *cobra.Command {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
 			}
 			appClientSet := appclientset.NewForConfigOrDie(appclientsetConfig)
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerStrictTLS,
-			}
+			tlsConfig, err := repoServerClientTLSConfigSrc()
+			errors.CheckError(err)
+			tlsConfig.DisableTLS = repoServerPlaintext
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || repoServerStrictTLS
 
 			dynamicClient := dynamic.NewForConfigOrDie(config)
 
@@ -172,9 +174,11 @@ func NewCommand() *cobra.Command {
 			controllerClient = client.NewDryRunClient(controllerClient)
 			controllerClient = client.NewNamespacedClient(controllerClient, namespace)
 
-			// Load CA information to use for validating connections to the
-			// repository server, if strict TLS validation was requested.
-			if !repoServerPlaintext && repoServerStrictTLS {
+			// Load CA information to use for validating connections to the repository server, if strict TLS validation
+			// was requested.
+			// Skip loading the embedded cert if the operator already provided anδ explicit CA via --repo-server-ca-cert;
+			// that pool takes precedence.
+			if !repoServerPlaintext && repoServerStrictTLS && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/server/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/server/tls/ca.crt",
@@ -326,6 +330,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ARGOCD_SERVER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
+	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
 	command.Flags().BoolVar(&dexServerPlaintext, "dex-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to dex server")
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
@@ -344,6 +349,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "appset-enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(command, "SERVER")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

@@ -250,6 +250,10 @@ func NewApplicationController(
 			}
 		},
 		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
 			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
 				// immediately push to queue for deletes
 				ctrl.projectRefreshQueue.Add(key)
@@ -1895,7 +1899,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
-		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
+		// The manifest-generate-paths optimization can report no changes for a newer commit that
+		// arrives while the app is still syncing, which would skip auto-sync and leave the app
+		// stuck OutOfSync. Only use it to avoid regenerating manifests, never to gate the sync
+		// decision: when the app is OutOfSync, always let autoSync compare the desired revision
+		// against the last synced one (#27875).
+		shouldCompareRevisions := compareResult.revisionsMayHaveChanges || compareResult.syncStatus.Status == appv1.SyncStatusCodeOutOfSync
+		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, shouldCompareRevisions)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
 			app.Status.SetConditions(
@@ -2644,6 +2654,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},
 			DeleteFunc: func(obj any) {
+				// Unwrap DeletedFinalStateUnknown tombstones
+				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+					obj = tombstone.Obj
+				}
 				if !ctrl.canProcessApp(obj) {
 					return
 				}
