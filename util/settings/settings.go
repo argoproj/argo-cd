@@ -673,6 +673,8 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 	if err != nil {
 		return nil, err
 	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.secrets, nil
 }
 
@@ -681,6 +683,8 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 	if err != nil {
 		return nil, fmt.Errorf("error ensuring that the secrets manager is synced: %w", err)
 	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.secretsInformer, nil
 }
 
@@ -689,6 +693,10 @@ func (mgr *SettingsManager) GetClusterInformer() (*ClusterInformer, error) {
 	if err := mgr.ensureSynced(false); err != nil {
 		return nil, fmt.Errorf("error ensuring that the settings manager is synced: %w", err)
 	}
+	// Read clusterInformer under the lock: a concurrent ResyncInformers() can be
+	// writing this field inside initialize() while we read it here.
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.clusterInformer, nil
 }
 
@@ -780,7 +788,10 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*corev1.Co
 	if err != nil {
 		return nil, err
 	}
-	configMap, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(configMapName)
+	mgr.mutex.Lock()
+	configmaps := mgr.configmaps
+	mgr.mutex.Unlock()
+	configMap, err := configmaps.ConfigMaps(mgr.namespace).Get(configMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -801,7 +812,10 @@ func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, 
 	if err != nil {
 		return nil, err
 	}
-	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(secretName)
+	mgr.mutex.Lock()
+	secrets := mgr.secrets
+	mgr.mutex.Unlock()
+	secret, err := secrets.Secrets(mgr.namespace).Get(secretName)
 	if err != nil {
 		return nil, err
 	}
@@ -817,20 +831,23 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
+	mgr.mutex.Lock()
+	secrets := mgr.secrets
+	mgr.mutex.Unlock()
 
 	selector, err := labels.Parse(partOfArgoCDSelector)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
 	}
-	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
+	secretList, err := secrets.Secrets(mgr.namespace).List(selector)
 	if err != nil {
 		return nil, err
 	}
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SliceCopy(secrets)
-	return secrets, nil
+	secretList = util.SliceCopy(secretList)
+	return secretList, nil
 }
 
 func (mgr *SettingsManager) GetHydratorReadmeTemplate() (string, error) {
@@ -1385,12 +1402,8 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 // isRepositorySecret reports whether obj is a repository credential secret
 // (argocd.argoproj.io/secret-type=repository). Only repository credential changes
 // need to invalidate the project cache; cluster changes flow through the cluster
-// informer. Unwraps cache.DeletedFinalStateUnknown tombstones for DeleteFunc handlers.
-// Unknown types return false (fail-closed).
+// informer. Unknown types return false (fail-closed).
 func isRepositorySecret(obj any) bool {
-	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
 	repoSelector := labels.SelectorFromSet(labels.Set{common.LabelKeySecretType: common.LabelValueSecretTypeRepository})
 	if s, ok := obj.(metav1.Object); ok {
 		return repoSelector.Matches(labels.Set(s.GetLabels()))
@@ -1401,12 +1414,8 @@ func isRepositorySecret(obj any) bool {
 // isSettingsObject reports whether obj carries app.kubernetes.io/part-of=argocd,
 // the label that identifies secrets and configmaps that participate in ArgoCD's
 // settings system (OIDC config, webhook secrets, $secretName:key template references).
-// Unwraps cache.DeletedFinalStateUnknown tombstones for DeleteFunc handlers.
 // Unknown types return false (fail-closed).
 func isSettingsObject(obj any) bool {
-	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
 	settingsSelector := labels.SelectorFromSet(labels.Set{"app.kubernetes.io/part-of": "argocd"})
 	if s, ok := obj.(metav1.Object); ok {
 		return settingsSelector.Matches(labels.Set(s.GetLabels()))
@@ -1416,12 +1425,8 @@ func isSettingsObject(obj any) bool {
 
 // isArgoCDConfigMap reports whether obj is the argocd-cm ConfigMap. Only argocd-cm
 // carries settings that affect project cache validity (the "globalProjects" key, read
-// by GetGlobalProjectsSettings). Unwraps cache.DeletedFinalStateUnknown tombstones for
-// DeleteFunc handlers. Unknown types return false (fail-closed).
+// by GetGlobalProjectsSettings). Unknown types return false (fail-closed).
 func isArgoCDConfigMap(obj any) bool {
-	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
 	if metaObj, ok := obj.(metav1.Object); ok {
 		return metaObj.GetName() == common.ArgoCDConfigMapName
 	}
@@ -1465,6 +1470,10 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 			}
 		},
 		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
 			if isArgoCDConfigMap(obj) {
 				mgr.onRepoOrClusterChanged()
 			}
@@ -1490,6 +1499,10 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 			}
 		},
 		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
 			if isRepositorySecret(obj) {
 				mgr.onRepoOrClusterChanged()
 			}
@@ -1505,7 +1518,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	_, err = clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(_, _ any) { mgr.onRepoOrClusterChanged() },
 		AddFunc:    func(_ any) { mgr.onRepoOrClusterChanged() },
-		DeleteFunc: func(_ any) { mgr.onRepoOrClusterChanged() },
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				//nolint:ineffassign,staticcheck // obj unwrapped for consistency but not used
+				obj = tombstone.Obj
+			}
+			mgr.onRepoOrClusterChanged()
+		},
 	})
 	if err != nil {
 		log.Error(err)

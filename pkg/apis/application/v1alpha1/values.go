@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -36,6 +37,55 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 		h.Values = ""
 	}
 	return nil
+}
+
+// Equals reports whether h and other are semantically equal. ValuesObject is compared by
+// marshaling both sides to canonical JSON so that HTML-escaping differences (e.g. '&' vs
+// '&') that arise between the Kubernetes API server and encoding/json do not cause
+// a spurious inequality.
+func (h *ApplicationSourceHelm) Equals(other *ApplicationSourceHelm) bool {
+	if h == nil && other == nil {
+		return true
+	}
+	if h == nil || other == nil {
+		return false
+	}
+	// Compare ValuesObject: skip the JSON normalisation round-trip when raw bytes are
+	// already identical. Otherwise normalise both to canonical JSON to absorb
+	// HTML-escaping differences (e.g. '&' vs '&').
+	var hRaw, otherRaw []byte
+	if h.ValuesObject != nil {
+		hRaw = h.ValuesObject.Raw
+	}
+	if other.ValuesObject != nil {
+		otherRaw = other.ValuesObject.Raw
+	}
+	if !bytes.Equal(hRaw, otherRaw) &&
+		!bytes.Equal(canonicalValuesJSON(h.ValuesObject), canonicalValuesJSON(other.ValuesObject)) {
+		return false
+	}
+	hCopy, otherCopy := h.DeepCopy(), other.DeepCopy()
+	hCopy.ValuesObject = nil
+	otherCopy.ValuesObject = nil
+	return reflect.DeepEqual(hCopy, otherCopy)
+}
+
+// canonicalValuesJSON returns the canonical JSON encoding of a ValuesObject by round-tripping
+// through json.Unmarshal + json.Marshal. Returns the original Raw bytes for invalid JSON,
+// or nil if the extension is absent.
+func canonicalValuesJSON(ext *runtime.RawExtension) []byte {
+	if ext == nil || ext.Raw == nil {
+		return nil
+	}
+	var v any
+	if err := json.Unmarshal(ext.Raw, &v); err != nil {
+		return ext.Raw
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return ext.Raw
+	}
+	return b
 }
 
 func (h *ApplicationSourceHelm) ValuesYAML() []byte {

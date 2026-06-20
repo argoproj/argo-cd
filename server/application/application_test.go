@@ -4988,7 +4988,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	}
 
 	appServer := newTestAppServer(t, testApp)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Get the fake clientset from the deepCopy wrapper
 	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
