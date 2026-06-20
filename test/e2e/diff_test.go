@@ -298,7 +298,7 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 		// does not matter what the path is
 		Path("config-map").
 		When().
-		CreateApp("--config-management-plugin", "cmp-kustomize-v1.0").
+		CreateApp("--config-management-plugin", "cmp-kustomize").
 		Sync("--local", appPath, "--local-repo-root", testdataPath).
 		Then().
 		Expect(OperationPhaseIs(synccommon.OperationSucceeded)).

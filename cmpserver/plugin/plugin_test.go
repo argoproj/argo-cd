@@ -64,9 +64,6 @@ func buildPluginConfig(opts ...pluginOpt) *CMPServerInitConstants {
 			Metadata: metav1.ObjectMeta{
 				Name: "some-plugin",
 			},
-			Spec: PluginConfigSpec{
-				Version: "v1.0",
-			},
 		},
 	}
 	for _, opt := range opts {

@@ -34,9 +34,6 @@ metadata:
   # The name of the plugin must be unique within a given Argo CD instance.
   name: my-plugin
 spec:
-  # The version of your plugin. Optional. If specified, the Application's spec.source.plugin.name field
-  # must be <plugin name>-<plugin version>.
-  version: v1.0
   # The init command runs in the Application source directory at the beginning of each manifest generation. The init
   # command can output anything. A non-zero status code will fail manifest generation.
   init:
@@ -164,7 +161,6 @@ data:
     metadata:
       name: my-plugin
     spec:
-      version: v1.0
       init:
         command: [sh, -c, 'echo "Initializing..."']
       generate:
@@ -288,7 +284,7 @@ Plugin commands have access to
 
 You may leave the `name` field
 empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure 
-it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly 
+it matches the plugin's `metadata.name`. When name is explicitly
 specified only that particular plugin will be used if its discovery pattern/command matches the provided application repo.
 
 ```yaml
@@ -326,8 +322,8 @@ If you don't need to set any environment variables, you can set an empty plugin 
     
 > [!NOTE]
 > Each Application can only have one config management plugin configured at a time. If you're converting an existing
-> plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
-> if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
+> plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to match the plugin's `metadata.name`.
+> You can also remove the name altogether
 > and let the automatic discovery to identify the plugin.
 
 > [!NOTE]
@@ -460,8 +456,7 @@ If you want to use discovery instead of the plugin name to match applications to
 your plugin [using the instructions above](#write-discovery-rules-for-your-plugin) and add them to your configuration 
 file.
 
-To use the name instead of discovery, update the name in your application manifest to `<metadata.name>-<spec.version>` 
-if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. For example:
+To use the name instead of discovery, update the name in your application manifest to match the plugin's `metadata.name`. For example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
