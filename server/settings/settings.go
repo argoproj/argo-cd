@@ -116,6 +116,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		UserLoginsDisabled:        userLoginsDisabled,
 		KustomizeVersions:         kustomizeVersions,
 		UiCssURL:                  argoCDSettings.UiCssURL,
+		UiLoginButtonText:         argoCDSettings.UiLoginButtonText,
 		TrackingMethod:            trackingMethod,
 		InstallationID:            installationID,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
@@ -130,7 +131,6 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
-		set.UiLoginButtonText = argoCDSettings.UiLoginButtonText
 		set.ControllerNamespace = s.mgr.GetNamespace()
 		set.ResourceOverrides = overrides
 	}
