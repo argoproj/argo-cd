@@ -129,6 +129,10 @@ func (db *db) watchSecrets(ctx context.Context,
 			}
 		},
 		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
 			if secretObj, ok := obj.(*corev1.Secret); ok {
 				handleDeleteEvent(secretObj)
 			}
