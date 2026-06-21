@@ -49,6 +49,9 @@ import (
 	k8sversion "k8s.io/apimachinery/pkg/util/version"
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
 	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -82,6 +85,12 @@ const (
 )
 
 var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+
+var tracer trace.Tracer
+
+func init() {
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/reposerver/repository")
+}
 
 // Service implements ManifestService interface
 type Service struct {
@@ -2318,6 +2327,9 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 }
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
+	ctx, span := tracer.Start(ctx, "repository.runConfigManagementPluginSidecars")
+	defer span.End()
+
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -2379,6 +2391,9 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
 func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
+	ctx, span := tracer.Start(ctx, "repository.generateManifestsCMP")
+	defer span.End()
+
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)

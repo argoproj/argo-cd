@@ -13,6 +13,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
 	log "github.com/sirupsen/logrus"
 
 	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
@@ -20,6 +23,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/tgzstream"
 )
+
+var tracer trace.Tracer
+
+func init() {
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/cmp")
+}
 
 // StreamSender defines the contract to send App files over stream
 type StreamSender interface {
@@ -36,6 +45,9 @@ type StreamReceiver interface {
 // in destDir. Will return the stream metadata if no error. Metadata
 // will be nil in case of errors.
 func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir string, preserveFileMode bool) (*pluginclient.ManifestRequestMetadata, error) {
+	ctx, span := tracer.Start(ctx, "cmp.ReceiveRepoStream")
+	defer span.End()
+
 	header, err := receiver.Recv()
 	if err != nil {
 		return nil, fmt.Errorf("error receiving stream header: %w", err)
@@ -45,11 +57,16 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 	}
 	metadata := header.GetMetadata()
 
-	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), destDir)
+	receiveCtx, receiveSpan := tracer.Start(ctx, "cmp.receiveFile")
+	tgzFile, err := receiveFile(receiveCtx, receiver, metadata.GetChecksum(), destDir)
+	receiveSpan.End()
 	if err != nil {
 		return nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
+
+	_, untgzSpan := tracer.Start(ctx, "cmp.Untgz")
 	err = files.Untgz(destDir, tgzFile, math.MaxInt64, preserveFileMode)
+	untgzSpan.End()
 	if err != nil {
 		return nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
@@ -87,9 +104,14 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 // SendRepoStream will compress the files under the given rootPath and send
 // them using the plugin stream sender.
 func SendRepoStream(ctx context.Context, appPath, rootPath string, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
+	ctx, span := tracer.Start(ctx, "cmp.SendRepoStream")
+	defer span.End()
+
 	opt := newSenderOption(opts...)
 
+	_, compressSpan := tracer.Start(ctx, "cmp.CompressFiles")
 	tgz, mr, err := GetCompressedRepoAndMetadata(rootPath, appPath, env, excludedGlobs, opt)
+	compressSpan.End()
 	if err != nil {
 		return err
 	}
@@ -104,7 +126,9 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 	}
 
 	// send the compressed file
-	err = sendFile(ctx, sender, tgz, opt)
+	sendCtx, sendSpan := tracer.Start(ctx, "cmp.sendFile")
+	err = sendFile(sendCtx, sender, tgz, opt)
+	sendSpan.End()
 	if err != nil {
 		return fmt.Errorf("error sending tgz file to cmp-server: %w", err)
 	}

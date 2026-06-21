@@ -24,11 +24,21 @@ import (
 	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
+
+var tracer trace.Tracer
+
+func init() {
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
+}
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
 // enough time before the client times out to send a meaningful error message.
@@ -73,6 +83,9 @@ func randExecID() (string, error) {
 }
 
 func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
+	ctx, span := tracer.Start(ctx, "plugin.runCommand")
+	defer span.End()
+
 	if len(command.Command) == 0 {
 		return "", errors.New("Command is empty")
 	}
@@ -89,6 +102,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 
 	argsToLog := argoexec.GetCommandArgsToLog(cmd)
 	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
+	span.SetAttributes(attribute.String("command", argsToLog))
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -124,6 +138,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	duration := time.Since(start)
 	output := stdout.String()
 
+	span.SetAttributes(attribute.String("duration", duration.String()))
 	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
 
 	if err != nil {
@@ -210,6 +225,10 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	ctx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
+
+	ctx, span := tracer.Start(ctx, "plugin.generateManifestGeneric")
+	defer span.End()
+
 	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
 	if err != nil {
 		return fmt.Errorf("error creating workdir for manifest generation: %w", err)
