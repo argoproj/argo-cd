@@ -2535,6 +2535,53 @@ func replaceStringSecret(val string, secretValues map[string]string, trimmer fun
 	return trimmer(secretVal)
 }
 
+// EscapeDollarSignsInConnectorConfig escapes dollar signs in string values, ONLY if they are resolved from the
+// secrets map. This skips unresolved environment variable references from being escaped.
+// It protects resolved secret values from Dex's os.ExpandEnv expansion.
+func EscapeDollarSignsInConnectorConfig(obj map[string]any, secretValues map[string]string) map[string]any {
+	newObj := make(map[string]any, len(obj))
+	for k, v := range obj {
+		newObj[k] = escapeDollarSignsValueConsideringSecrets(v, secretValues)
+	}
+	return newObj
+}
+
+func escapeDollarSignsValueConsideringSecrets(v any, secretValues map[string]string) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return EscapeDollarSignsInConnectorConfig(val, secretValues)
+	case []any:
+		return escapeDollarSignsInListConsideringSecrets(val, secretValues)
+	case string:
+		if !isUnresolvedEnvVarReference(val, secretValues) {
+			return strings.ReplaceAll(val, "$", "$$")
+		}
+		return val
+	default:
+		return val
+	}
+}
+
+func escapeDollarSignsInListConsideringSecrets(obj []any, secretValues map[string]string) []any {
+	newObj := make([]any, len(obj))
+	for i, v := range obj {
+		newObj[i] = escapeDollarSignsValueConsideringSecrets(v, secretValues)
+	}
+	return newObj
+}
+
+func isUnresolvedEnvVarReference(val string, secretValues map[string]string) bool {
+	if !strings.HasPrefix(val, "$") {
+		return false
+	}
+	envVarName := val[1:]
+	if envVarName == "" {
+		return false
+	}
+	_, found := secretValues[envVarName]
+	return !found
+}
+
 // EscapeDollarSignsInMap recursively walks the given config map and escapes any
 // literal '$' characters in string values as '$$'. This should be called on a
 // connector's config sub-map after secret references have been resolved by
