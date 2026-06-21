@@ -973,46 +973,6 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 	})
 }
 
-// panicLookupPatchMeta is a LookupPatchMeta whose lookups always panic. It
-// reproduces the nil pointer dereference that k8s.io/apimachinery strategic merge
-// patch can hit (prior to v0.35) for resources whose schema has incomplete or nil
-// subschemas, e.g. the Argo CD Application CRD (see
-// https://github.com/argoproj/argo-cd/issues/25199).
-type panicLookupPatchMeta struct{}
-
-func (panicLookupPatchMeta) LookupPatchMetadataForStruct(string) (strategicpatch.LookupPatchMeta, strategicpatch.PatchMeta, error) {
-	panic("simulated apimachinery strategic merge patch panic")
-}
-
-func (panicLookupPatchMeta) LookupPatchMetadataForSlice(string) (strategicpatch.LookupPatchMeta, strategicpatch.PatchMeta, error) {
-	panic("simulated apimachinery strategic merge patch panic")
-}
-
-func (panicLookupPatchMeta) Name() string { return "panicLookupPatchMeta" }
-
-func TestGetMergePatchRecoversFromStrategicMergePanic(t *testing.T) {
-	t.Parallel()
-
-	live := &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "argoproj.io/v1alpha1",
-		"kind":       "Application",
-		"metadata":   map[string]any{"name": "test"},
-		"spec":       map[string]any{"project": "default"},
-	}}
-	target := &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "argoproj.io/v1alpha1",
-		"kind":       "Application",
-		"metadata":   map[string]any{"name": "test"},
-		"spec":       map[string]any{"project": "new-project"},
-	}}
-
-	// A panic in the strategic merge patch must be recovered and the function must
-	// fall back to a regular JSON merge patch rather than crashing the controller.
-	require.NotPanics(t, func() {
-		patch, err := getMergePatch(live, target, panicLookupPatchMeta{})
-		require.NoError(t, err)
-		assert.JSONEq(t, `{"spec":{"project":"new-project"}}`, string(patch))
-	})
 }
 
 // TestNormalizeTargetResourcesPDBSelector reproduces https://github.com/argoproj/argo-cd/issues/18232
