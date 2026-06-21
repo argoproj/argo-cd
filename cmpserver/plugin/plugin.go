@@ -102,7 +102,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 
 	argsToLog := argoexec.GetCommandArgsToLog(cmd)
 	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
-	span.SetAttributes(attribute.String("command", argsToLog))
+	span.SetAttributes(attribute.String("command", command.Command[0]))
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -138,7 +138,6 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	duration := time.Since(start)
 	output := stdout.String()
 
-	span.SetAttributes(attribute.String("duration", duration.String()))
 	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
 
 	if err != nil {
