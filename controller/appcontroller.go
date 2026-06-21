@@ -1556,19 +1556,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("sync_app_state_ms")
 
 	switch state.Phase {
-	case synccommon.OperationRunning:
-		// It's possible for an app to be terminated while we were operating on it. We do not want
-		// to clobber the Terminated state with Running. Get the latest app state to check for this.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-		if err == nil {
-			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
-				state.Phase = synccommon.OperationTerminating
-				state.Message = "operation is terminating"
-				// after this, we will get requeued to the workqueue, but next time the
-				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
-				// cleanup (e.g. delete jobs, workflows, etc...)
-			}
-		}
 	case synccommon.OperationFailed, synccommon.OperationError:
 		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
 			now := metav1.Now()
@@ -1589,6 +1576,38 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			}
 			if state.RetryCount > 0 {
 				state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
+			}
+		}
+	}
+
+	// Before persisting a non-terminal operation phase, guard against a lost update. SyncAppState can run for a long
+	// time (e.g. waiting on hooks or resource health), during which another writer (e.g a second controller resuming
+	// the same operation during a rolling restart) may have already completed the operation and cleared .operation.
+	// Persisting our non-terminal phase on top of that would resurrect "Running" over a cleared operation, orphaning
+	// the operation state permanently because processRequestedAppOperation is gated on a non-nil .operation
+	// (see argoproj/argo-cd#18613, #23765). Re-fetch the latest app and bail rather than clobber the terminal result
+	// written by the other writer.
+	if !state.Phase.Completed() {
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		switch {
+		case err != nil:
+			// Best effort: if we can't verify, proceed as before rather than stall the operation.
+			logCtx.WithError(err).Warn("Unable to verify operation is still in progress before persisting operation state; proceeding")
+		case freshApp.Operation == nil:
+			logCtx.Warnf("Operation was completed and cleared by another writer; skipping stale %q operation state update to avoid orphaning it", state.Phase)
+			return
+		case freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating:
+			// It's possible for an app to be terminated while we were operating on it. We do not want
+			// to clobber the Terminating state with Running. After this, we will get requeued to the
+			// workqueue, and next time SyncAppState will operate in a Terminating phase, allowing the
+			// worker to perform cleanup (e.g. delete jobs, workflows, etc...).
+			state.Phase = synccommon.OperationTerminating
+			// Adopt the terminating writer's message (e.g. "operation is terminating due to timeout")
+			// rather than a generic one, but fall back to a default if it happens to be empty.
+			if msg := freshApp.Status.OperationState.Message; msg != "" {
+				state.Message = msg
+			} else {
+				state.Message = "operation is terminating"
 			}
 		}
 	}

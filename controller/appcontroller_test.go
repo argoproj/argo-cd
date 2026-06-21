@@ -3071,6 +3071,176 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
 }
 
+// TestProcessRequestedAppOperation_SkipsStaleNonTerminalUpdateWhenOperationCleared validates the
+// lost-update guard. This is the same setup as TestProcessRequestedAppOperation_FailedHasRetries
+// (which would persist a non-terminal "Running" retry state), except the fresh GET performed before
+// persisting reports that another writer has already completed and cleared the operation. The
+// controller must skip the stale write rather than resurrect "Running" on top of a cleared
+// operation, which is what permanently orphans the operation state (argoproj/argo-cd#18613, #23765).
+func TestProcessRequestedAppOperation_SkipsStaleNonTerminalUpdateWhenOperationCleared(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "invalid-project"
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 1},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+
+	// Simulate a concurrent writer (e.g. a second controller resuming the same operation during a
+	// rolling restart or shard handoff) that already finished and cleared .operation.
+	clearedApp := app.DeepCopy()
+	clearedApp.Operation = nil
+	getCalled := false
+	fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		getCalled = true
+		return true, clearedApp, nil
+	})
+	var patches []map[string]any
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			p := map[string]any{}
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &p))
+			patches = append(patches, p)
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	// The guard's fresh GET must have run (proving we reached the persist path for a non-terminal phase)...
+	assert.True(t, getCalled, "expected a fresh GET before persisting the non-terminal operation state")
+	// ...and the stale retry ("Running") update must not have been persisted.
+	for _, p := range patches {
+		message, _, _ := unstructured.NestedString(p, "status", "operationState", "message")
+		assert.NotContains(t, message, "Retrying attempt", "stale non-terminal operation state must not be persisted after the operation was cleared by another writer")
+	}
+}
+
+// TestProcessRequestedAppOperation_LostUpdateDoesNotOrphanOperationState reproduces the lost-update
+// race behind argoproj/argo-cd#18613 and #23765, end to end through the real merge-patch applied by
+// the fake clientset, and proves the guard prevents it.
+//
+// Setup: writer A (e.g. the completing controller) has already finished the operation and cleared
+// .operation, leaving {phase: Succeeded, operation: nil} in the store. Writer B - a second
+// controller that resumed the same in-progress operation during a restart or shard handoff - then
+// runs with its stale in-memory view (operation still set, phase Running) and ends up wanting to
+// persist a non-terminal phase. Because setOperationState uses a field-level merge patch that only
+// clears .operation on a *completed* phase, persisting B's "Running" merges phase: Running on top
+// of the already-cleared operation, producing {phase: Running, operation: nil} - an orphan that no
+// reconcile path ever revisits (processRequestedAppOperation is gated on a non-nil .operation).
+//
+// With the guard, B detects via a fresh read that the operation was already cleared and skips its
+// stale write, so writer A's terminal state survives. Without the guard, the final stored state is
+// the orphan and this test fails on the phase assertion below.
+func TestProcessRequestedAppOperation_LostUpdateDoesNotOrphanOperationState(t *testing.T) {
+	syncOp := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}, Retry: v1alpha1.RetryStrategy{Limit: 1}}
+
+	// The state writer A left behind: the operation completed and .operation was cleared.
+	// "invalid-project" forces writer B's resumed sync to fail and take the retry path, which is a
+	// convenient way to make B attempt to persist a non-terminal ("Running") phase. The orphaning
+	// mechanism is identical for any non-terminal persist (e.g. the "waiting for health" state in #23765).
+	completedApp := newFakeApp()
+	completedApp.Spec.Project = "invalid-project"
+	completedApp.Operation = nil
+	now := metav1.Now()
+	completedApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation:  syncOp,
+		Phase:      synccommon.OperationSucceeded,
+		Message:    "successfully synced (all tasks run)",
+		StartedAt:  now,
+		FinishedAt: &now,
+	}
+
+	// Patches apply to the fake clientset tracker (no patch reactor override), so the merge-patch
+	// semantics that produce the orphan are exercised faithfully.
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{completedApp}}, nil)
+
+	// Writer B's stale view: it still believes the operation is in progress.
+	staleApp := completedApp.DeepCopy()
+	staleApp.Operation = &syncOp
+	staleApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: syncOp,
+		Phase:     synccommon.OperationRunning,
+		StartedAt: now,
+	}
+
+	ctrl.processRequestedAppOperation(staleApp)
+
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(completedApp.Namespace).Get(t.Context(), completedApp.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	// Writer A's terminal state must survive; B must not have resurrected a non-terminal phase on top
+	// of the cleared operation.
+	assert.Truef(t, stored.Status.OperationState.Phase.Completed(),
+		"operation state was orphaned: phase=%q operation=%v", stored.Status.OperationState.Phase, stored.Operation)
+	assert.Equal(t, synccommon.OperationSucceeded, stored.Status.OperationState.Phase)
+}
+
+// TestProcessRequestedAppOperation_LostUpdateDoesNotOrphanInProgressSync is the same lost-update race
+// as TestProcessRequestedAppOperation_LostUpdateDoesNotOrphanOperationState, but here writer B's
+// SyncAppState legitimately returns OperationRunning for an *in-progress sync* - which is the actual
+// shape reported in #23765 ("successfully synced ... phase: Running" while waiting), rather than the
+// retry path. An active deny sync window keeps SyncAppState in the Running phase without needing live
+// cluster state, so this exercises the real in-progress persist that the guard must skip once another
+// writer has completed and cleared the operation.
+func TestProcessRequestedAppOperation_LostUpdateDoesNotOrphanInProgressSync(t *testing.T) {
+	blockedProj := defaultProj.DeepCopy()
+	blockedProj.Spec.SyncWindows = v1alpha1.SyncWindows{{
+		Kind:         "deny",
+		Schedule:     "0 0 * * *",
+		Duration:     "24h",
+		Clusters:     []string{"*"},
+		Namespaces:   []string{"*"},
+		Applications: []string{"*"},
+	}}
+
+	syncOp := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Source: &v1alpha1.ApplicationSource{}}}
+
+	// The state writer A left behind: the operation completed and .operation was cleared.
+	completedApp := newFakeApp()
+	completedApp.Spec.Project = "default"
+	completedApp.Operation = nil
+	now := metav1.Now()
+	completedApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation:  syncOp,
+		Phase:      synccommon.OperationSucceeded,
+		Message:    "successfully synced (all tasks run)",
+		StartedAt:  now,
+		FinishedAt: &now,
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{completedApp, blockedProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+	}, nil)
+
+	// Writer B's stale view: it still believes the operation is in progress, and its sync stays
+	// Running because the sync window blocks it.
+	staleApp := completedApp.DeepCopy()
+	staleApp.Operation = &syncOp
+	staleApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: syncOp,
+		Phase:     synccommon.OperationRunning,
+		StartedAt: now,
+	}
+
+	ctrl.processRequestedAppOperation(staleApp)
+
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(completedApp.Namespace).Get(t.Context(), completedApp.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.Truef(t, stored.Status.OperationState.Phase.Completed(),
+		"in-progress sync orphaned the operation state: phase=%q operation=%v", stored.Status.OperationState.Phase, stored.Operation)
+	assert.Equal(t, synccommon.OperationSucceeded, stored.Status.OperationState.Phase)
+}
+
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	failedAttemptFinisedAt := time.Now().Add(-time.Minute * 5)
 	app := newFakeApp()
