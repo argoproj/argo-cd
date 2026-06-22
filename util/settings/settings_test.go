@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2347,6 +2348,97 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 			assert.Equal(t, tt.output, keys)
 		})
 	}
+}
+
+// TestGettersRaceWithResyncInformers verifies that concurrent calls to
+// SettingsManager getters and ResyncInformers do not trigger data races.
+// Run with: go test -race -run TestGettersRaceWithResyncInformers ./util/settings/...
+func TestGettersRaceWithResyncInformers(t *testing.T) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string]string{},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"server.secretkey": []byte("test-secret-key"),
+		},
+	}
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-secret",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://kubernetes.default.svc"),
+			"name":   []byte("in-cluster"),
+			"config": []byte("{}"),
+		},
+	}
+	kubeClient := fake.NewClientset(cm, secret, clusterSecret)
+	mgr := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	// Prime the informers so getters have something to return.
+	err := mgr.ensureSynced(false)
+	require.NoError(t, err)
+
+	const goroutines = 10
+
+	// done signals all goroutines to stop.
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	// Spawn goroutines calling ResyncInformers concurrently.
+	for range goroutines / 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = mgr.ResyncInformers()
+				}
+			}
+		})
+	}
+
+	// Spawn goroutines calling the various getters concurrently.
+	for range goroutines / 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_, _ = mgr.GetSecretsLister()
+					_, _ = mgr.GetSecretsInformer()
+					_, _ = mgr.GetClusterInformer()
+					_, _ = mgr.GetConfigMapByName(common.ArgoCDConfigMapName)
+					_, _ = mgr.GetSecretByName(common.ArgoCDSecretName)
+				}
+			}
+		})
+	}
+
+	// Let the race run for a bit.
+	time.Sleep(200 * time.Millisecond)
+	close(done)
+	wg.Wait()
 }
 
 func TestEscapeDollarSignsInMap(t *testing.T) {
