@@ -11,19 +11,30 @@ require('./advanced-settings.scss');
 
 const NOT_CONFIGURED = '';
 
-const isConfiguredItem = (item: EditablePanelItem): boolean => {
-    const viewString = typeof item.view === 'string' ? item.view : String(item.view);
-    return viewString !== NOT_CONFIGURED && viewString !== 'false';
-};
+type AdvancedItem = EditablePanelItem & {configured: boolean};
+
+// A boolean is considered configured whenever it is present in the payload, even when false.
+const boolItem = (title: string, value?: boolean): AdvancedItem => ({
+    title,
+    view: value ? 'true' : 'false',
+    configured: value !== undefined && value !== null
+});
+
+// A text/list value is considered configured only when it is non-empty.
+const textItem = (title: string, value?: string): AdvancedItem => ({
+    title,
+    view: value || NOT_CONFIGURED,
+    configured: !!value
+});
 
 export const AdvancedSettings = () => {
     const authSettings = React.useContext(AuthSettingsCtx);
     const ctx = React.useContext(Context);
     const [showAll, setShowAll] = React.useState(false);
 
-    const renderPanel = (title: string, settings: AuthSettings, allItems: EditablePanelItem[]) => {
-        const configuredItems = allItems.filter(isConfiguredItem);
-        const unconfiguredItems = allItems.filter(item => !isConfiguredItem(item));
+    const renderPanel = (title: string, settings: AuthSettings, allItems: AdvancedItem[]) => {
+        const configuredItems = allItems.filter(item => item.configured);
+        const unconfiguredItems = allItems.filter(item => !item.configured);
         const itemsToShow = showAll ? [...configuredItems, ...unconfiguredItems] : configuredItems;
 
         if (itemsToShow.length === 0) {
@@ -34,111 +45,61 @@ export const AdvancedSettings = () => {
     };
 
     const configurationTab = (settings: AuthSettings) => {
-        const generalItems: EditablePanelItem[] = [
-            {
-                title: 'Status Badge Enabled',
-                view: settings.statusBadgeEnabled ? 'true' : 'false'
-            },
-            {
-                title: 'Status Badge Root URL',
-                view: settings.statusBadgeRootUrl || NOT_CONFIGURED
-            },
-            {
-                title: 'UI CSS URL',
-                view: settings.uiCssURL || NOT_CONFIGURED
-            },
-            {
-                title: 'UI Banner Content',
-                view: settings.uiBannerContent || NOT_CONFIGURED
-            },
-            {
-                title: 'UI Banner URL',
-                view: settings.uiBannerURL || NOT_CONFIGURED
-            },
-            {
-                title: 'UI Banner Position',
-                view: settings.uiBannerPosition || NOT_CONFIGURED
-            },
-            {
-                title: 'UI Banner Permanent',
-                view: settings.uiBannerPermanent ? 'true' : 'false'
-            }
+        const generalItems: AdvancedItem[] = [
+            textItem('App Label Key', settings.appLabelKey),
+            textItem('Tracking Method', settings.trackingMethod),
+            textItem('Additional URLs', settings.additionalUrls && settings.additionalUrls.length > 0 ? settings.additionalUrls.join(', ') : ''),
+            boolItem('Status Badge Enabled', settings.statusBadgeEnabled),
+            textItem('Status Badge Root URL', settings.statusBadgeRootUrl),
+            textItem('UI CSS URL', settings.uiCssURL),
+            textItem('UI Banner Content', settings.uiBannerContent),
+            textItem('UI Banner URL', settings.uiBannerURL),
+            textItem('UI Banner Position', settings.uiBannerPosition),
+            boolItem('UI Banner Permanent', settings.uiBannerPermanent)
         ];
 
-        const authenticationItems: EditablePanelItem[] = [
-            {
-                title: 'User Logins Disabled',
-                view: settings.userLoginsDisabled ? 'true' : 'false'
-            },
-            {
-                title: 'Dex Connectors',
-                view: settings.dexConfig?.connectors ? settings.dexConfig.connectors.map(c => `${c.name} (${c.type})`).join(', ') : NOT_CONFIGURED
-            },
-            {
-                title: 'OIDC Provider',
-                view: settings.oidcConfig?.name || NOT_CONFIGURED
-            }
+        const instanceItems: AdvancedItem[] = [textItem('Controller Namespace', settings.controllerNamespace), textItem('Installation ID', settings.installationID)];
+
+        const authenticationItems: AdvancedItem[] = [
+            boolItem('User Logins Disabled', settings.userLoginsDisabled),
+            textItem('Dex Connectors', settings.dexConfig?.connectors ? settings.dexConfig.connectors.map(c => `${c.name} (${c.type})`).join(', ') : ''),
+            textItem('OIDC Provider', settings.oidcConfig?.name)
         ];
 
-        const featuresItems: EditablePanelItem[] = [
-            {
-                title: 'Exec Enabled',
-                view: settings.execEnabled ? 'true' : 'false'
-            },
-            {
-                title: 'Apps in Any Namespace Enabled',
-                view: settings.appsInAnyNamespaceEnabled ? 'true' : 'false'
-            },
-            {
-                title: 'Hydrator Enabled',
-                view: settings.hydratorEnabled ? 'true' : 'false'
-            },
-            {
-                title: 'Sync with Replace Allowed',
-                view: settings.syncWithReplaceAllowed ? 'true' : 'false'
-            }
+        const featuresItems: AdvancedItem[] = [
+            boolItem('Exec Enabled', settings.execEnabled),
+            boolItem('Apps in Any Namespace Enabled', settings.appsInAnyNamespaceEnabled),
+            boolItem('Hydrator Enabled', settings.hydratorEnabled),
+            boolItem('Sync with Replace Allowed', settings.syncWithReplaceAllowed),
+            boolItem('Impersonation Enabled', settings.impersonationEnabled)
         ];
 
-        const helpAnalyticsItems: EditablePanelItem[] = [
-            {
-                title: 'Google Analytics Tracking ID',
-                view: settings.googleAnalytics?.trackingID || NOT_CONFIGURED
-            },
-            {
-                title: 'Google Analytics Anonymize Users',
-                view: settings.googleAnalytics?.anonymizeUsers ? 'true' : 'false'
-            },
-            {
-                title: 'Help Chat URL',
-                view: settings.help?.chatUrl || NOT_CONFIGURED
-            },
-            {
-                title: 'Help Chat Text',
-                view: settings.help?.chatText || NOT_CONFIGURED
-            },
-            {
-                title: 'Binary URLs',
-                view: settings.help?.binaryUrls
+        const helpAnalyticsItems: AdvancedItem[] = [
+            textItem('Google Analytics Tracking ID', settings.googleAnalytics?.trackingID),
+            boolItem('Google Analytics Anonymize Users', settings.googleAnalytics?.anonymizeUsers),
+            textItem('Help Chat URL', settings.help?.chatUrl),
+            textItem('Help Chat Text', settings.help?.chatText),
+            textItem(
+                'Binary URLs',
+                settings.help?.binaryUrls
                     ? Object.entries(settings.help.binaryUrls)
                           .map(([k, v]) => `${k}: ${v}`)
                           .join(', ')
-                    : NOT_CONFIGURED
-            }
+                    : ''
+            )
         ];
 
-        const kustomizeItems: EditablePanelItem[] = [
-            {
-                title: 'Kustomize Versions',
-                view: settings.kustomizeVersions && settings.kustomizeVersions.length > 0 ? settings.kustomizeVersions.join(', ') : NOT_CONFIGURED
-            }
+        const kustomizeItems: AdvancedItem[] = [
+            textItem('Kustomize Versions', settings.kustomizeVersions && settings.kustomizeVersions.length > 0 ? settings.kustomizeVersions.join(', ') : '')
         ];
 
         return (
             <div className='argo-container'>
                 <div className='advanced-settings__panels'>
                     {renderPanel('GENERAL', settings, generalItems)}
-                    {renderPanel('AUTHENTICATION', settings, authenticationItems)}
                     {renderPanel('FEATURES', settings, featuresItems)}
+                    {renderPanel('INSTANCE', settings, instanceItems)}
+                    {renderPanel('AUTHENTICATION', settings, authenticationItems)}
                     {renderPanel('HELP & ANALYTICS', settings, helpAnalyticsItems)}
                     {renderPanel('KUSTOMIZE', settings, kustomizeItems)}
                 </div>
