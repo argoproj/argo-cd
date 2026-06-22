@@ -824,43 +824,50 @@ func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, ap
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
-			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
-			if err != nil {
-				return nil, fmt.Errorf("error getting resource compare options: %w", err)
-			}
-			resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
-			if err != nil {
-				return nil, fmt.Errorf("error getting resource overrides: %w", err)
-			}
-			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
-			if err != nil {
-				return nil, fmt.Errorf("error getting app instance label key: %w", err)
-			}
-			trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
-			if err != nil {
-				return nil, fmt.Errorf("error getting tracking method: %w", err)
-			}
+			// server-side diff already masks Secret data and removes webhook mutations on
+			// updates; recomputing client-side here would resurrect that drift.
+			useSSDResult := comparisonResult.diffConfig != nil &&
+				comparisonResult.diffConfig.ServerSideDiff() &&
+				res.Target != nil && res.Live != nil
+			if !useSSDResult {
+				compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
+				if err != nil {
+					return nil, fmt.Errorf("error getting resource compare options: %w", err)
+				}
+				resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
+				if err != nil {
+					return nil, fmt.Errorf("error getting resource overrides: %w", err)
+				}
+				appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+				if err != nil {
+					return nil, fmt.Errorf("error getting app instance label key: %w", err)
+				}
+				trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+				if err != nil {
+					return nil, fmt.Errorf("error getting tracking method: %w", err)
+				}
 
-			clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster)
-			if err != nil {
-				return nil, fmt.Errorf("error getting cluster cache: %w", err)
-			}
-			diffConfig, err := argodiff.NewDiffConfigBuilder().
-				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
-				WithTracking(appLabelKey, trackingMethod).
-				WithNoCache().
-				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
-				WithGVKParser(clusterCache.GetGVKParser()).
-				Build()
-			if err != nil {
-				return nil, fmt.Errorf("appcontroller error building diff config: %w", err)
-			}
+				clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster)
+				if err != nil {
+					return nil, fmt.Errorf("error getting cluster cache: %w", err)
+				}
+				diffConfig, err := argodiff.NewDiffConfigBuilder().
+					WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
+					WithTracking(appLabelKey, trackingMethod).
+					WithNoCache().
+					WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
+					WithGVKParser(clusterCache.GetGVKParser()).
+					Build()
+				if err != nil {
+					return nil, fmt.Errorf("appcontroller error building diff config: %w", err)
+				}
 
-			diffResult, err := argodiff.StateDiff(live, target, diffConfig)
-			if err != nil {
-				return nil, fmt.Errorf("error applying diff: %w", err)
+				diffResult, err := argodiff.StateDiff(live, target, diffConfig)
+				if err != nil {
+					return nil, fmt.Errorf("error applying diff: %w", err)
+				}
+				resDiff = diffResult
 			}
-			resDiff = diffResult
 		}
 
 		if live != nil {

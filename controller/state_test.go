@@ -27,12 +27,133 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	diffmocks "github.com/argoproj/argo-cd/gitops-engine/pkg/diff/mocks"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/test"
+	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
+
+func newSecretManagedResource(name string, targetData, liveData map[string][]byte) managedResource {
+	build := func(data map[string][]byte) *unstructured.Unstructured {
+		if data == nil {
+			return nil
+		}
+		return kube.MustToUnstructured(&corev1.Secret{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.SecretKind},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+			Data:       data,
+		})
+	}
+	return managedResource{
+		Name:      name,
+		Namespace: "default",
+		Kind:      kube.SecretKind,
+		Group:     "",
+		Target:    build(targetData),
+		Live:      build(liveData),
+	}
+}
+
+func buildSSADiffConfig(t *testing.T) argodiff.DiffConfig {
+	t.Helper()
+	cfg, err := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(nil, nil, false, normalizers.IgnoreNormalizerOpts{}).
+		WithTracking("", "").
+		WithNoCache().
+		WithServerSideDiff(true).
+		WithServerSideDryRunner(diffmocks.NewServerSideDryRunner(t)).
+		Build()
+	require.NoError(t, err)
+	return cfg
+}
+
+// TestHideSecretData_SSDPathReusesMainDiff verifies that when the main comparison
+// used server-side diff (which already applies HideSecretData and removes webhook
+// mutations in gitops-engine), the cached ResourceDiff items reuse that result
+// instead of re-running a client-side diff that would surface false drift such as
+// the bank-vaults vault-secrets-webhook case.
+func TestHideSecretData_SSDPathReusesMainDiff(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("${vault:secret/foo#bar}")},
+		map[string][]byte{"key": []byte("realvalue")},
+	)
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		NormalizedLive: []byte(`{"masked":"live"}`),
+		PredictedLive:  []byte(`{"masked":"live"}`),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	assert.JSONEq(t, `{"masked":"live"}`, items[0].PredictedLiveState)
+	assert.JSONEq(t, `{"masked":"live"}`, items[0].NormalizedLiveState)
+}
+
+// TestHideSecretData_SSDPathCreateRecomputes verifies that for Secret creation
+// (live is nil) under server-side diff, the function still falls back to the
+// client-side recompute. The server-side diff result for create skips
+// HideSecretData inside gitops-engine, so reusing it would leak raw secret data.
+func TestHideSecretData_SSDPathCreateRecomputes(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("valueA")},
+		nil,
+	)
+	mr.Diff = diff.DiffResult{Modified: false, NormalizedLive: []byte("null"), PredictedLive: []byte("null")}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.True(t, items[0].Modified)
+	assert.NotContains(t, items[0].TargetState, "valueA")
+}
+
+// TestHideSecretData_NonSSDRecomputes verifies that when server-side diff is not
+// in use, the existing client-side recomputation path is preserved.
+func TestHideSecretData_NonSSDRecomputes(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("valueA")},
+		map[string][]byte{"key": []byte("valueB")},
+	)
+	mr.Diff = diff.DiffResult{Modified: false}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+	}
+	items, err := ctrl.hideSecretData(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.True(t, items[0].Modified)
+	assert.NotContains(t, items[0].LiveState, "valueB")
+	assert.NotContains(t, items[0].TargetState, "valueA")
+}
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
 func TestCompareAppStateEmpty(t *testing.T) {
