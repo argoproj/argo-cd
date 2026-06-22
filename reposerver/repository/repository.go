@@ -85,13 +85,23 @@ var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined m
 
 // Service implements ManifestService interface
 type Service struct {
-	gitCredsStore             git.CredsStore
-	rootDir                   string
-	gitRepoPaths              utilio.TempPaths
-	chartPaths                utilio.TempPaths
-	ociPaths                  utilio.TempPaths
-	gitRepoInitializer        func(rootPath string) goio.Closer
-	repoLock                  *repositoryLock
+	gitCredsStore git.CredsStore
+	rootDir       string
+	// worktreeRootDir holds transient git worktrees, a sibling of rootDir so Init's per-repo walk
+	// ignores it. Cleaned of orphans at startup. Lifecycle logic is in worktree.go.
+	worktreeRootDir    string
+	gitRepoPaths       utilio.TempPaths
+	chartPaths         utilio.TempPaths
+	ociPaths           utilio.TempPaths
+	gitRepoInitializer func(rootPath string) goio.Closer
+	repoLock           *repositoryLock
+	// gitWorktreeLock serializes worktree ops per repo root. repoLock can't be reused here: it is
+	// already held for the primary revision on the same root, so re-locking would deadlock.
+	gitWorktreeLock sync.KeyLock
+	// worktrees ref-counts active worktrees by "<normalizedRepoURL>@<commitSHA>"; worktreesMu guards
+	// the map across roots (gitWorktreeLock only serializes a single root).
+	worktrees                 map[string]*worktreeRef
+	worktreesMu               gosync.Mutex
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
@@ -143,6 +153,8 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
+		gitWorktreeLock:           sync.NewKeyLock(),
+		worktrees:                 map[string]*worktreeRef{},
 		cache:                     cache,
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClientExt,
@@ -162,11 +174,17 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		ociPaths:           ociRandomizedPaths,
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
+		worktreeRootDir:    filepath.Join(filepath.Dir(rootDir), "_argocd-worktrees"),
 		symlinksState:      gocache.New(12*time.Hour, time.Hour),
 	}
 }
 
 func (s *Service) Init() error {
+	// Remove worktrees orphaned by a previous process (e.g. a crash before cleanup ran).
+	if err := s.cleanupOrphanedWorktrees(); err != nil {
+		log.Warnf("Failed to clean up orphaned worktrees: %v", err)
+	}
+
 	_, err := os.Stat(s.rootDir)
 	if os.IsNotExist(err) {
 		return os.MkdirAll(s.rootDir, 0o300)
@@ -189,6 +207,7 @@ func (s *Service) Init() error {
 			continue
 		}
 		fullPath := filepath.Join(s.rootDir, file.Name())
+		pruneWorktreeAdminDir(fullPath)
 		closer := s.gitRepoInitializer(fullPath)
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
@@ -406,19 +425,8 @@ func (s *Service) runRepoOperation(
 		defer utilio.Close(closer)
 
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := s.checkOutOfBoundsSymlinks(ociPath, revision, settings.noCache)
-			if err != nil {
-				oobError := &apppathutil.OutOfBoundsSymlinkError{}
-				if errors.As(err, &oobError) {
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"repo":               repo.Repo,
-						"digest":             revision,
-						"file":               oobError.File,
-					}).Warn("oci image contains out-of-bounds symlink")
-					return fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
-				}
-				return err
+			if err := s.checkOutOfBoundsSymlinks(ociPath, revision, settings.noCache); err != nil {
+				return outOfBoundsSymlinkError(err, "oci image", log.Fields{"repo": repo.Repo, "digest": revision})
 			}
 		}
 
@@ -447,19 +455,8 @@ func (s *Service) runRepoOperation(
 		}
 		defer utilio.Close(closer)
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := s.checkOutOfBoundsSymlinks(chartPath, revision, settings.noCache)
-			if err != nil {
-				oobError := &apppathutil.OutOfBoundsSymlinkError{}
-				if errors.As(err, &oobError) {
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"chart":              source.Chart,
-						"revision":           revision,
-						"file":               oobError.File,
-					}).Warn("chart contains out-of-bounds symlink")
-					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
-				}
-				return err
+			if err := s.checkOutOfBoundsSymlinks(chartPath, revision, settings.noCache); err != nil {
+				return outOfBoundsSymlinkError(err, "chart", log.Fields{"chart": source.Chart, "revision": revision})
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
@@ -476,19 +473,8 @@ func (s *Service) runRepoOperation(
 	defer utilio.Close(closer)
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := s.checkOutOfBoundsSymlinks(gitClient.Root(), revision, settings.noCache, ".git")
-		if err != nil {
-			oobError := &apppathutil.OutOfBoundsSymlinkError{}
-			if errors.As(err, &oobError) {
-				log.WithFields(log.Fields{
-					common.SecurityField: common.SecurityHigh,
-					"repo":               repo.Repo,
-					"revision":           revision,
-					"file":               oobError.File,
-				}).Warn("repository contains out-of-bounds symlink")
-				return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-			}
-			return err
+		if err := s.checkOutOfBoundsSymlinks(gitClient.Root(), revision, settings.noCache, ".git"); err != nil {
+			return outOfBoundsSymlinkError(err, "repository", log.Fields{"repo": repo.Repo, "revision": revision})
 		}
 	}
 
@@ -628,6 +614,20 @@ func (s *Service) checkOutOfBoundsSymlinks(rootPath string, version string, noCa
 	return checker.(func() error)()
 }
 
+// outOfBoundsSymlinkError logs and returns a user-facing error when err is an out-of-bounds symlink
+// error; otherwise it returns err unchanged. noun names the artifact (e.g. "repository", "chart")
+// and fields adds security-log context.
+func outOfBoundsSymlinkError(err error, noun string, fields log.Fields) error {
+	oobErr := &apppathutil.OutOfBoundsSymlinkError{}
+	if !errors.As(err, &oobErr) {
+		return err
+	}
+	fields[common.SecurityField] = common.SecurityHigh
+	fields["file"] = oobErr.File
+	log.WithFields(fields).Warnf("%s contains out-of-bounds symlink", noun)
+	return fmt.Errorf("%s contains out-of-bounds symlinks. file: %s", noun, oobErr.File)
+}
+
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 	var err error
@@ -724,17 +724,8 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	}
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := apppathutil.CheckOutOfBoundsSymlinks(workDir)
-		if err != nil {
-			oobError := &apppathutil.OutOfBoundsSymlinkError{}
-			if errors.As(err, &oobError) {
-				log.WithFields(log.Fields{
-					common.SecurityField: common.SecurityHigh,
-					"file":               oobError.File,
-				}).Warn("streamed files contains out-of-bounds symlink")
-				return fmt.Errorf("streamed files contains out-of-bounds symlinks. file: %s", oobError.File)
-			}
-			return err
+		if err := apppathutil.CheckOutOfBoundsSymlinks(workDir); err != nil {
+			return outOfBoundsSymlinkError(err, "streamed files", log.Fields{})
 		}
 	}
 
@@ -836,6 +827,10 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	if err == nil {
 		// Much of the multi-source handling logic is duplicated in resolveReferencedSources. If making changes here,
 		// check whether they should be replicated in resolveReferencedSources.
+		// refVarCommitSHAs maps $refVar (e.g., "$values") to the resolved commit SHA.
+		// This is used to look up the exact worktree path when multiple worktrees exist
+		// for the same repository at different revisions.
+		refVarCommitSHAs := make(map[string]string)
 		if q.HasMultipleSources {
 			if q.ApplicationSource.Helm != nil {
 				refFileParams := make([]string, 0)
@@ -868,24 +863,49 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						return
 					}
 					normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
-					closer, ok := repoRefs[normalizedRepoURL]
-					if ok {
-						if closer.revision != refSourceMapping.TargetRevision {
-							ch.errCh <- fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refVar, refSourceMapping.TargetRevision, closer.key, closer.revision)
+					existingRef, ok := repoRefs[normalizedRepoURL]
+					if ok && existingRef.revision == refSourceMapping.TargetRevision {
+						// Same repo and same revision already referenced - reuse existing checkout
+						// Record the commit SHA for this refVar so we can look up the correct path later
+						refVarCommitSHAs[refVar] = existingRef.commitSHA
+						continue
+					}
+
+					// Resolve the git client and commit SHA for this ref source
+					gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+					if err != nil {
+						ch.errCh <- fmt.Errorf("failed to get git client for repo %s: %w", refSourceMapping.Repo.Repo, err)
+						return
+					}
+
+					refVarCommitSHAs[refVar] = referencedCommitSHA
+
+					needsWorktree := ok || // already have a ref to this repo at a different revision
+						(git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA) // same as primary source at a different revision
+
+					if needsWorktree {
+						worktreePath, cleanup, err := s.createAndRegisterWorktree(gitClient, normalizedRepoURL, referencedCommitSHA, q.Repo.Depth)
+						if err != nil {
+							ch.errCh <- fmt.Errorf("failed to create worktree for repo %s: %w", refSourceMapping.Repo.Repo, err)
 							return
 						}
-					} else {
-						gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
-						if err != nil {
-							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
-							return
+						defer cleanup.cleanup()
+
+						if !s.initConstants.AllowOutOfBoundsSymlinks {
+							if err := s.checkOutOfBoundsSymlinks(worktreePath, referencedCommitSHA, q.NoCache, ".git"); err != nil {
+								ch.errCh <- outOfBoundsSymlinkError(err, "repository", log.Fields{"repo": refSourceMapping.Repo, "revision": refSourceMapping.TargetRevision})
+								return
+							}
 						}
 
-						if git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA {
-							ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
-							return
+						// Key by commit SHA so each revision of the same repo contributes its own entry to
+						// the cache key (a plain repo-URL key would collapse to one revision).
+						repoRefs[normalizedRepoURL+"@"+referencedCommitSHA] = repoRef{
+							revision:  refSourceMapping.TargetRevision,
+							commitSHA: referencedCommitSHA,
 						}
+					} else {
+						// Different repo - use normal checkout flow
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
 							// Use the referenced source's own depth instead of the primary source's depth.
 							// For multi-source Applications where the primary source is a Helm/OCI artifact,
@@ -907,31 +927,19 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 						// Symlink check must happen after acquiring lock.
 						if !s.initConstants.AllowOutOfBoundsSymlinks {
-							err := s.checkOutOfBoundsSymlinks(gitClient.Root(), commitSHA, q.NoCache, ".git")
-							if err != nil {
-								oobError := &apppathutil.OutOfBoundsSymlinkError{}
-								if errors.As(err, &oobError) {
-									log.WithFields(log.Fields{
-										common.SecurityField: common.SecurityHigh,
-										"repo":               refSourceMapping.Repo,
-										"revision":           refSourceMapping.TargetRevision,
-										"file":               oobError.File,
-									}).Warn("repository contains out-of-bounds symlink")
-									ch.errCh <- fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-									return
-								}
-								ch.errCh <- err
+							if err := s.checkOutOfBoundsSymlinks(gitClient.Root(), commitSHA, q.NoCache, ".git"); err != nil {
+								ch.errCh <- outOfBoundsSymlinkError(err, "repository", log.Fields{"repo": refSourceMapping.Repo, "revision": refSourceMapping.TargetRevision})
 								return
 							}
 						}
 
-						repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: refVar}
+						repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA}
 					}
 				}
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithRefSourceCommitSHAs(refVarCommitSHAs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1262,7 +1270,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths, refSourceCommitSHAs map[string]string) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1298,7 +1306,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.Namespace = appHelm.Namespace
 		}
 
-		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
+		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles, refSourceCommitSHAs)
 		if err != nil {
 			return nil, "", fmt.Errorf("error resolving helm value files: %w", err)
 		}
@@ -1336,7 +1344,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, refSourceCommitSHAs)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1447,6 +1455,7 @@ func getResolvedValueFiles(
 	refSources map[string]*v1alpha1.RefTarget,
 	gitRepoPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
+	refSourceCommitSHAs map[string]string,
 ) ([]pathutil.ResolvedFilePath, error) {
 	// Pre-collect resolved paths for all explicit (non-glob) entries. This allows glob
 	// expansion to skip files that also appear explicitly, so the explicit entry controls
@@ -1458,7 +1467,7 @@ func getResolvedValueFiles(
 		var resolved pathutil.ResolvedFilePath
 		var err error
 		if referencedSource != nil {
-			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, refSourceCommitSHAs)
 		} else {
 			resolved, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
 		}
@@ -1490,11 +1499,14 @@ func getResolvedValueFiles(
 		effectiveRoot := repoRoot
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, refSourceCommitSHAs)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
-			if refRepoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
+			// Match the dir the value file resolved against (the worktree for same-repo/different-
+			// revision refs) so the glob boundary check below uses the right root.
+			refVar := strings.Split(rawValueFile, "/")[0]
+			if refRepoPath := resolveRefRepoRoot(referencedSource.Repo.Repo, refVar, gitRepoPaths, refSourceCommitSHAs); refRepoPath != "" {
 				effectiveRoot = refRepoPath
 			}
 		} else {
@@ -1553,15 +1565,39 @@ func getResolvedValueFiles(
 	return resolvedValueFiles, nil
 }
 
+// resolveRefRepoRoot returns the on-disk checkout directory for a referenced source. When a worktree
+// exists for the exact commit (same repo at a different revision), its path is preferred so callers
+// resolve against, and boundary-check within, the correct checkout. refVar is the $-prefixed
+// reference (e.g. "$values"). Returns "" if no path is registered for the repo.
+func resolveRefRepoRoot(refSourceRepo string, refVar string, gitRepoPaths utilio.TempPaths, refSourceCommitSHAs map[string]string) string {
+	normalizedRepoURL := git.NormalizeGitURL(refSourceRepo)
+
+	// Prefer the exact worktree for this commit (set when the repo is referenced at multiple revisions).
+	if refSourceCommitSHAs != nil {
+		if commitSHA, ok := refSourceCommitSHAs[refVar]; ok && commitSHA != "" {
+			if repoPath := gitRepoPaths.GetPathIfExists(normalizedRepoURL + "@" + commitSHA); repoPath != "" {
+				return repoPath
+			}
+		}
+	}
+
+	// Standard repo path (same-revision or non-worktree cases). newClientResolveRevision always
+	// registers this key, so it resolves whenever the ref has been checked out.
+	return gitRepoPaths.GetPathIfExists(normalizedRepoURL)
+}
+
 func getResolvedRefValueFile(
 	rawValueFile string,
 	env *v1alpha1.Env,
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths utilio.TempPaths,
+	refSourceCommitSHAs map[string]string,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+	refVar := pathStrings[0] // e.g. "$values"
+
+	repoPath := resolveRefRepoRoot(refSourceRepo, refVar, gitRepoPaths, refSourceCommitSHAs)
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
 	}
@@ -1680,6 +1716,10 @@ type (
 		cmpTarDoneCh                chan<- bool
 		cmpTarExcludedGlobs         []string
 		cmpUseManifestGeneratePaths bool
+		// refSourceCommitSHAs maps $refVar (e.g., "$values") to the resolved commit SHA.
+		// This is used to look up the exact worktree path when multiple worktrees exist
+		// for the same repository at different revisions.
+		refSourceCommitSHAs map[string]string
 	}
 )
 
@@ -1716,6 +1756,15 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	}
 }
 
+// WithRefSourceCommitSHAs provides a mapping from $refVar (e.g., "$values") to the resolved
+// commit SHA. This is used to look up the exact worktree path when multiple worktrees exist
+// for the same repository at different revisions.
+func WithRefSourceCommitSHAs(shas map[string]string) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.refSourceCommitSHAs = shas
+	}
+}
+
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
@@ -1739,7 +1788,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths, opt.refSourceCommitSHAs)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
@@ -2550,7 +2599,7 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 	if q.Source.Helm != nil {
 		ignoreMissingValueFiles = q.Source.Helm.IgnoreMissingValueFiles
 	}
-	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ignoreMissingValueFiles)
+	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ignoreMissingValueFiles, nil)
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
