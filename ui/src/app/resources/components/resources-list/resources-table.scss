@@ -179,6 +179,15 @@ $resources-table-menu-width: 2.75rem;
     }
 
     .resources-table__status-col {
+        // Stack the health and sync status on two lines, vertically centered within the row.
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+        line-height: 2em;
+    }
+
+    .resources-table__status-line {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

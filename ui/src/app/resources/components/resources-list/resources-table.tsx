@@ -228,8 +228,14 @@ const ResourceTableRow = (props: {
                     </Tooltip>
                 </div>
                 <div className='columns small-3 large-2 resources-table__status-col'>
-                    <AppUtils.HealthStatusIcon state={resourceHealthState(resource)} /> {resourceHealthStatus(resource)} &nbsp;
-                    {resource.status && <AppUtils.ComparisonStatusIcon status={resource.status} resource={resource} label={true} />}
+                    <div className='resources-table__status-line'>
+                        <AppUtils.HealthStatusIcon state={resourceHealthState(resource)} /> <span>{resourceHealthStatus(resource)}</span>
+                    </div>
+                    {resource.status && (
+                        <div className='resources-table__status-line'>
+                            <AppUtils.ComparisonStatusIcon status={resource.status} resource={resource} label={true} />
+                        </div>
+                    )}
                 </div>
             </div>
             <div className='application-details__node-menu resources-table__row-menu' onClick={e => e.stopPropagation()}>
