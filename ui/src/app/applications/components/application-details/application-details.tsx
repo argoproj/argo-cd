@@ -25,7 +25,7 @@ import {isApp} from '../utils';
 import {ResourceDetails} from '../resource-details/resource-details';
 import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
 import * as AppUtils from '../utils';
-import {ApplicationResourceList} from './application-resource-list';
+import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, OCIMetadata, ResourceStatus} from '../../../shared/models';
@@ -1168,6 +1168,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         {isApplication && (
                                             <SlidingPanel isShown={state.groupedResources.length > 0} onClose={() => closeGroupedNodesPanel()}>
                                                 <div className='application-details__sliding-panel-pagination-wrap'>
+                                                    {(pref.view === 'tree' || pref.view === 'network') && (
+                                                        <ApplicationResourceParentRef resources={state.groupedResources} tree={tree} />
+                                                    )}
                                                     <Paginate
                                                         page={state.slidingPanelPage}
                                                         data={state.groupedResources}
