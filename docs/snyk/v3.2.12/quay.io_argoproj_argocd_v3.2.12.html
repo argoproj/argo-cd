@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 7th 2026, 1:05:08 am (UTC+00:00)</p>
+                <p class="timestamp">June 21st 2026, 1:10:19 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -657,6 +657,7 @@
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
         <p>Affected versions of this package are vulnerable to Improper Authentication via the <code>ToASCII</code> and <code>ToUnicode</code> functions. An attacker can bypass hostname validation by submitting Punycode-encoded labels that decode to ASCII-only labels, potentially leading to privilege escalation in applications that rely on these functions for security checks.</p>
+        <p><strong>Note:</strong> The fix depends on the Go toolchain in use having Unicode version 16 or later, which is planned for the 1.27 release.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>golang.org/x/net/idna</code> to version 0.54.0 or higher.</p>
         <h2 id="references">References</h2>

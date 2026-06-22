@@ -216,6 +216,11 @@ type ApplicationSource struct {
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
 	// Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
 	Name string `json:"name,omitempty" protobuf:"bytes,14,opt,name=name"`
+	// TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+	// The prefix is stripped from tag names before comparison and re-added to the resolved version.
+	// For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+	// "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+	TagPrefix string `json:"tagPrefix,omitempty" protobuf:"bytes,15,opt,name=tagPrefix"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
@@ -3778,10 +3783,15 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	}
 	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
 	// not considered in the DeepEqual comparison.
+	if !source.Helm.Equals(other.Helm) {
+		return false
+	}
 	sourceCopy := source.DeepCopy()
 	otherCopy := other.DeepCopy()
 	sourceCopy.Plugin = nil
 	otherCopy.Plugin = nil
+	sourceCopy.Helm = nil
+	otherCopy.Helm = nil
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
