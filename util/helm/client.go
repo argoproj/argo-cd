@@ -222,13 +222,10 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	if exists && c.helmChartCacheExpiration > 0 {
 		info, err := os.Stat(cachedChartPath)
 		if err != nil {
-			if !os.IsNotExist(err) {
-				_ = os.RemoveAll(tempDir)
-				return "", nil, fmt.Errorf(
-					"failed to get file info for cached chart path: %w",
-					err,
-				)
-			}
+			log.WithFields(log.Fields{
+				"path": cachedChartPath,
+				"err":  err,
+			}).Warn("error checking cached Helm chart; removing cached archive")
 			exists = false
 		} else {
 			now := time.Now()
