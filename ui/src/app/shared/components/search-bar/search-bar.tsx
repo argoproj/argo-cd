@@ -25,11 +25,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
     const {useKeybinding} = React.useContext(KeybindingContext);
     const [isFocused, setFocus] = React.useState(false);
     const [localValue, setLocalValue] = React.useState(value);
+    const [prevValue, setPrevValue] = React.useState(value);
 
     // Sync local value with prop value when it changes externally
-    React.useEffect(() => {
+    if (value !== prevValue) {
+        setPrevValue(value);
         setLocalValue(value);
-    }, [value]);
+    }
 
     const handleChange = (newValue: string) => {
         setLocalValue(newValue);

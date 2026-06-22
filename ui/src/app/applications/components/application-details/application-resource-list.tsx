@@ -33,6 +33,24 @@ export interface ApplicationResourceListProps {
     tree?: models.ApplicationTree;
 }
 
+const ParentRefDetails = ({isSameParent, firstParentNode}: {isSameParent: boolean; firstParentNode: models.ResourceRef | false | undefined}) => {
+    return isSameParent && firstParentNode ? (
+        <div className='resource-parent-node-info-title'>
+            <div>Parent Node Info</div>
+            <div className='resource-parent-node-info-title__label'>
+                <div>Name:</div>
+                <div>{firstParentNode.name}</div>
+            </div>
+            <div className='resource-parent-node-info-title__label'>
+                <div>Kind:</div>
+                <div>{firstParentNode.kind}</div>
+            </div>
+        </div>
+    ) : (
+        <div />
+    );
+};
+
 export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
     const nodeByKey = new Map<string, models.ResourceNode>();
     props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
@@ -125,30 +143,13 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
     const isSameKind = props.resources?.every(x => x.group === props.resources[0].group && x.kind === props.resources[0].kind);
     const view = props.pref.view;
 
-    const ParentRefDetails = () => {
-        return isSameParent ? (
-            <div className='resource-parent-node-info-title'>
-                <div>Parent Node Info</div>
-                <div className='resource-parent-node-info-title__label'>
-                    <div>Name:</div>
-                    <div>{firstParentNode.name}</div>
-                </div>
-                <div className='resource-parent-node-info-title__label'>
-                    <div>Kind:</div>
-                    <div>{firstParentNode.kind}</div>
-                </div>
-            </div>
-        ) : (
-            <div />
-        );
-    };
     return (
         props.resources.length > 0 && (
             <div>
                 {/* Display only when the view is set to  or network */}
                 {(view === 'tree' || view === 'network') && (
                     <div className='resource-details__header' style={{paddingTop: '20px'}}>
-                        <ParentRefDetails />
+                        <ParentRefDetails isSameParent={!!isSameParent} firstParentNode={firstParentNode} />
                     </div>
                 )}
                 <div className='application-resource-list argo-table-list argo-table-list--clickable'>
