@@ -91,5 +91,52 @@
                 color: $argo-color-gray-6;
             }
         }
+        &--regex {
+            border-color: $argo-color-teal-5 !important;
+        }
+        &--regex-invalid {
+            border-color: $argo-failed-color !important;
+        }
+    }
+
+    &__regex-toggle {
+        background: transparent;
+        border: 1px solid $argo-color-gray-5;
+        color: $argo-color-gray-7;
+        border-radius: 3px;
+        padding: 0 6px;
+        margin-left: 6px;
+        font-family: monospace;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 18px;
+        flex-shrink: 0;
+        cursor: pointer;
+        user-select: none;
+        &:hover {
+            border-color: $argo-color-teal-5;
+            color: $argo-color-teal-5;
+        }
+        &:focus-visible {
+            outline: 2px solid $argo-color-teal-5;
+            outline-offset: 1px;
+        }
+        &--active {
+            background-color: $argo-color-teal-5;
+            border-color: $argo-color-teal-5;
+            color: white;
+            &:hover {
+                color: white;
+            }
+        }
+        &--invalid {
+            background-color: $argo-failed-color;
+            border-color: $argo-failed-color;
+            color: white;
+            &:hover {
+                border-color: $argo-failed-color;
+                color: white;
+            }
+        }
     }
 }

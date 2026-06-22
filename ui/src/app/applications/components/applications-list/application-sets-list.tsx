@@ -10,9 +10,10 @@ import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/c
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, AppSetsListPreferences, HealthStatusBarPreferences, services, ViewPreferences} from '../../../shared/services';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
-import {useObservableQuery, useQuery} from '../../../shared/hooks/query';
+import {useObservableQuery} from '../../../shared/hooks/query';
 import * as AppUtils from '../utils';
 import {AppSetsFilter, ApplicationSetFilteredApp, getAppSetFilterResults} from './applications-filter';
+import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
@@ -84,7 +85,7 @@ function loadApplicationSets(projects: string[]): Observable<models.ApplicationS
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean}) => React.ReactNode}) => {
     const observableQuery$ = useObservableQuery();
 
     return (
@@ -113,7 +114,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                        return {
+                            ...viewPref,
+                            page: parseInt(params.get('page') || '0', 10),
+                            search: params.get('search') || '',
+                            searchRegex: params.get('searchRegex') === 'true'
+                        };
                     })
                 )
             }>
@@ -125,36 +131,41 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
 function filterApplicationSets(
     appSets: models.ApplicationSet[],
     pref: AppSetsListPreferences,
-    search: string
+    search: string,
+    searchRegex: boolean
 ): {filteredApps: models.ApplicationSet[]; filterResults: ApplicationSetFilteredApp[]} {
     const filterResults = getAppSetFilterResults(appSets, pref);
+    const matchesSearch = createMatcher(search, searchRegex);
 
     return {
         filterResults,
-        filteredApps: filterResults.filter(
-            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
-        )
+        filteredApps: filterResults.filter(app => matchesSearch(app.metadata.name, app.metadata.namespace) && Object.values(app.filterResult).every(val => val))
     };
 }
 
-const ApplicationSetsSearchBar = (props: {content: string; ctx: ContextApis; appSets: models.ApplicationSet[]}) => {
+const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; appSets: models.ApplicationSet[]}) => {
+    const {content, searchRegex, ctx, appSets} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     return (
         <SearchBar
-            value={props.content || ''}
-            onChange={value => props.ctx.navigation.goto('.', {search: value}, {replace: true})}
-            placeholder='Search application sets...'
+            value={content || ''}
+            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search application sets...'}
+            regex={{
+                enabled: searchRegex,
+                onToggle: () => ctx.navigation.goto('.', {searchRegex: !searchRegex || null}, {replace: true})
+            }}
             autocomplete={{
-                items: props.appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
+                items: appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
                 filterSuggestions: true,
                 onSelect: val => {
-                    const selectedAppSet = props.appSets?.find(appSet => {
+                    const selectedAppSet = appSets?.find(appSet => {
                         const qualifiedName = AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
                         return qualifiedName === val;
                     });
                     if (selectedAppSet) {
-                        props.ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedAppSet)}`);
+                        ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedAppSet)}`);
                     }
                 },
                 renderItem: item => (
@@ -169,15 +180,13 @@ const ApplicationSetsSearchBar = (props: {content: string; ctx: ContextApis; app
 
 const ApplicationSetsToolbar = (props: {
     appSets: models.ApplicationSet[];
-    pref: AppsListPreferences & {page: number; search: string};
+    pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean};
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }) => {
-    const query = useQuery();
-
     return (
         <React.Fragment key='appset-list-tools'>
-            <ApplicationSetsSearchBar content={query.get('search')} appSets={props.appSets} ctx={props.ctx} />
+            <ApplicationSetsSearchBar content={props.pref.search} searchRegex={props.pref.searchRegex} appSets={props.appSets} ctx={props.ctx} />
             <Tooltip content='Toggle Health Status Bar'>
                 <button
                     className={`applications-list__accordion argo-button argo-button--base${props.healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
@@ -393,7 +402,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                             statusBarView: pref.statusBarView,
                                             annotationsFilter: pref.annotationsFilter
                                         };
-                                        const {filteredApps, filterResults} = filterApplicationSets(appSets, appSetPref, pref.search);
+                                        const {filteredApps, filterResults} = filterApplicationSets(appSets, appSetPref, pref.search, pref.searchRegex);
 
                                         return (
                                             <React.Fragment>
