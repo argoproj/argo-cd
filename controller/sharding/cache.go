@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	hydratortypes "github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
 )
@@ -21,6 +22,11 @@ type ClusterShardingCache interface {
 	DeleteApp(a *v1alpha1.Application)
 	UpdateApp(a *v1alpha1.Application)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
+	// IsManagedHydrationKey returns whether this shard owns the given hydration key. Unlike cluster
+	// management (which depends on the destination cluster), hydration ownership is derived purely
+	// from the key, so a hydration group spanning multiple clusters is still hydrated by exactly one
+	// shard.
+	IsManagedHydrationKey(key hydratortypes.HydrationQueueKey) bool
 	GetDistribution() map[string]int
 	GetAppDistribution() map[string]int
 	UpdateShard(shard int) bool
@@ -75,6 +81,15 @@ func (sharding *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	}
 	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, sharding.Shard)
 	return clusterShard == sharding.Shard
+}
+
+// IsManagedHydrationKey returns whether the given hydration key is owned by this shard. Ownership is
+// a deterministic function of the key and the replica count, so every shard agrees on a single owner
+// even when the hydration group's apps are spread across clusters managed by different shards.
+func (sharding *ClusterSharding) IsManagedHydrationKey(key hydratortypes.HydrationQueueKey) bool {
+	sharding.lock.RLock()
+	defer sharding.lock.RUnlock()
+	return key.Shard(sharding.Replicas) == sharding.Shard
 }
 
 func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList, apps *v1alpha1.ApplicationList) {

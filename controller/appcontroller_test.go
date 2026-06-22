@@ -41,12 +41,14 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/yaml"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -4134,5 +4136,65 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		otherValue, hasOther := patchedApp.Annotations["other-annotation"]
 		assert.True(t, hasOther, "other annotations should be preserved")
 		assert.Equal(t, "other-value", otherValue)
+	})
+}
+
+func TestEnqueueAppHydration_OwnerShardOnly(t *testing.T) {
+	t.Parallel()
+
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "hydrator-app",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://example.com/repo",
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					TargetBranch: "env/dev",
+				},
+			},
+		},
+	}
+	hydrationKey := hydrator.GetHydrationQueueKey(app)
+
+	const replicas = 4
+	ownerShard := hydrationKey.Shard(replicas)
+	nonOwnerShard := (ownerShard + 1) % replicas
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(replicas).Maybe()
+
+	newTestController := func(shard int) *ApplicationController {
+		return &ApplicationController{
+			hydrator:        &hydrator.Hydrator{},
+			namespace:       test.FakeArgoCDNamespace,
+			clusterSharding: sharding.NewClusterSharding(db, shard, replicas, common.DefaultShardingAlgorithm),
+			appHydrateQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+				workqueue.NewTypedItemExponentialFailureRateLimiter[string](0, 0),
+				workqueue.TypedRateLimitingQueueConfig[string]{Name: "test_app_hydration_queue"},
+			),
+		}
+	}
+
+	t.Run("owner shard enqueues", func(t *testing.T) {
+		t.Parallel()
+		ctrl := newTestController(ownerShard)
+		defer ctrl.appHydrateQueue.ShutDown()
+
+		ctrl.enqueueAppHydration(app)
+		assert.Equal(t, 1, ctrl.appHydrateQueue.Len())
+	})
+
+	t.Run("non-owner shard skips", func(t *testing.T) {
+		t.Parallel()
+		ctrl := newTestController(nonOwnerShard)
+		defer ctrl.appHydrateQueue.ShutDown()
+
+		ctrl.enqueueAppHydration(app)
+		assert.Equal(t, 0, ctrl.appHydrateQueue.Len())
 	})
 }

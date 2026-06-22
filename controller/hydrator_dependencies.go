@@ -112,6 +112,10 @@ func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueu
 	ctrl.hydrationQueue.AddRateLimited(key)
 }
 
+func (ctrl *ApplicationController) IsManagedHydrationKey(key types.HydrationQueueKey) bool {
+	return ctrl.clusterSharding.IsManagedHydrationKey(key)
+}
+
 func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, error) {
 	sourceHydratorCommitMessageKey, err := ctrl.settingsMgr.GetSourceHydratorCommitMessageTemplate()
 	if err != nil {

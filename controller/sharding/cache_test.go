@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	hydratortypes "github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 )
@@ -534,4 +535,29 @@ func TestHasShardingUpdates(t *testing.T) {
 			assert.Equal(t, tc.expected, hasShardingUpdates(tc.old, tc.new))
 		})
 	}
+}
+
+func TestClusterSharding_IsManagedHydrationKey(t *testing.T) {
+	t.Parallel()
+
+	key := hydratortypes.HydrationQueueKey{
+		SourceRepoURL:        "https://example.com/repo",
+		SourceTargetRevision: "main",
+		DestinationRepoURL:   "https://example.com/repo",
+		DestinationBranch:    "env/dev",
+	}
+
+	const replicas = 4
+	owner := key.Shard(replicas)
+
+	// The owning shard manages the key; all others do not.
+	for shard := range replicas {
+		sharding := setupTestSharding(shard, replicas)
+		assert.Equal(t, shard == owner, sharding.IsManagedHydrationKey(key),
+			"shard %d ownership of key should be %v", shard, shard == owner)
+	}
+
+	// With a single replica every shard-0 controller owns every key.
+	single := setupTestSharding(0, 1)
+	assert.True(t, single.IsManagedHydrationKey(key))
 }
