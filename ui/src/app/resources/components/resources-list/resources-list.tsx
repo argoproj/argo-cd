@@ -1,11 +1,11 @@
 import {MockupList, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
+import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, Query} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, Query, SearchBar} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import {useObservableQuery} from '../../../shared/hooks/query';
 import * as models from '../../../shared/models';
@@ -149,88 +149,15 @@ function filterResources(resources: models.Resource[], pref: ResourcesListPrefer
     };
 }
 
-function tryJsonParse(input: string) {
-    try {
-        return (input && JSON.parse(input)) || null;
-    } catch {
-        return null;
-    }
-}
-
-const SearchBar = (props: {content: string; ctx: ContextApis; resources: models.Resource[]}) => {
-    const {content, ctx} = {...props};
-
-    const searchBar = React.useRef<HTMLDivElement>(null);
-
-    const query = new URLSearchParams(window.location.search);
-    const appInput = tryJsonParse(query.get('new'));
-
-    const {useKeybinding} = React.useContext(KeybindingContext);
-    const [isFocused, setFocus] = React.useState(false);
-
-    useKeybinding({
-        keys: Key.SLASH,
-        action: () => {
-            if (searchBar.current && !appInput) {
-                searchBar.current.querySelector('input').focus();
-                setFocus(true);
-                return true;
-            }
-            return false;
-        }
-    });
-
-    useKeybinding({
-        keys: Key.ESCAPE,
-        action: () => {
-            if (searchBar.current && !appInput && isFocused) {
-                searchBar.current.querySelector('input').blur();
-                setFocus(false);
-                return true;
-            }
-            return false;
-        }
-    });
-
-    return (
-        <div className='resources-list__search-wrapper'>
-            <div className='resources-list__search' ref={searchBar}>
-                <i
-                    className='fa fa-search'
-                    style={{marginRight: '9px', cursor: 'pointer'}}
-                    onClick={() => {
-                        if (searchBar.current) {
-                            searchBar.current.querySelector('input').focus();
-                        }
-                    }}
-                />
-                <input
-                    onFocus={e => {
-                        e.target.select();
-                    }}
-                    onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
-                    value={content || ''}
-                    style={{fontSize: '14px'}}
-                    className='argo-field'
-                    placeholder='Search resources...'
-                />
-                <div className='keyboard-hint'>/</div>
-                {content && <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />}
-            </div>
-        </div>
-    );
-};
-
 interface ResourcesToolbarProps {
-    resources: models.Resource[];
     pref: ResourcesListPreferences & {page: number; search: string};
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
-const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({resources, pref, ctx, healthBarPrefs}) => (
+const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBarPrefs}) => (
     <React.Fragment key='resources-list-tools'>
-        <SearchBar content={pref.search} resources={resources} ctx={ctx} />
+        <SearchBar value={pref.search} onChange={value => ctx.navigation.goto('.', {search: value || null}, {replace: true})} placeholder='Search resources...' />
         <Tooltip content='Toggle Health Status Bar'>
             <button
                 className={`resources-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
@@ -346,7 +273,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                     <React.Fragment>
                                                         <div className='top-bar row flex-top-bar' key='tool-bar'>
                                                             <div className='flex-top-bar__tools'>
-                                                                <ResourcesToolbar resources={resources} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />
+                                                                <ResourcesToolbar pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />
                                                             </div>
                                                         </div>
                                                         <div className='flex-top-bar__padder' />
