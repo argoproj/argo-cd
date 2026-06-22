@@ -1081,15 +1081,15 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     const nodesHavingChildren = new Map<string, number>();
     const childrenMap = new Map<string, ResourceTreeNode[]>();
-    const [filters, setFilters] = React.useState(props.filters);
-    const [filteredGraph, setFilteredGraph] = React.useState([]);
+    const filtersRef = React.useRef(props.filters);
+    const filteredGraphRef = React.useRef<any[]>([]);
     const filteredNodes: any[] = [];
 
     React.useEffect(() => {
-        if (props.filters !== filters) {
-            setFilters(props.filters);
-            setFilteredGraph(filteredNodes);
-            props.setTreeFilterGraph(filteredGraph);
+        if (props.filters !== filtersRef.current) {
+            filtersRef.current = props.filters;
+            props.setTreeFilterGraph(filteredGraphRef.current);
+            filteredGraphRef.current = filteredNodes;
         }
     }, [props.filters]);
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;

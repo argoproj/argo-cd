@@ -272,13 +272,13 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
                     className={`applications-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
                     style={{border: 'none'}}
                     onClick={() => {
-                        healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                        const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
                         services.viewPreferences.updatePreferences({
                             appList: {
                                 ...pref,
                                 statusBarView: {
                                     ...healthBarPrefs,
-                                    showHealthStatusBar: healthBarPrefs.showHealthStatusBar
+                                    showHealthStatusBar
                                 }
                             }
                         });
