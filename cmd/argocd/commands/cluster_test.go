@@ -211,8 +211,10 @@ func TestApplyServerProxyUrl_SetProxyWhenKubeconfigHasNone(t *testing.T) {
 	}
 	clst := cmdutil.NewCluster("test", nil, false, conf, "token", nil, nil, nil, nil)
 
-	clst.Config.ProxyUrl = "http://proxy:3128"
-	assert.Equal(t, "http://proxy:3128", clst.Config.ProxyUrl)
+	proxyURL := "http://proxy:3128"
+	err := applyServerProxyOverride(true, proxyURL, clst)
+	require.NoError(t, err)
+	assert.Equal(t, proxyURL, clst.Config.ProxyUrl)
 }
 
 func TestApplyServerProxyOverride_NoChange(t *testing.T) {

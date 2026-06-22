@@ -170,7 +170,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			// If --server-proxy-url was explicitly provided, override the proxy that the ArgoCD server will use to
 			// reach this cluster.  An explicit empty string means "no proxy", which is the common case when the local
 			// machine needs a proxy but the two clusters can reach each other directly.
-			err := applyServerProxyOverride(c.Flags().Changed("server-proxy-url"), clusterOpts.ServerProxyURL, clst)
+			err = applyServerProxyOverride(c.Flags().Changed("server-proxy-url"), clusterOpts.ServerProxyURL, clst)
 			errors.CheckError(err)
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
