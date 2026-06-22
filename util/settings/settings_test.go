@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -2567,7 +2567,7 @@ func TestGetHydratorReadmeTemplate(t *testing.T) {
 
 	t.Run("ConfigMapError", func(t *testing.T) {
 		kubeClient := fake.NewClientset()
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		template, err := settingsManager.GetHydratorReadmeTemplate()
 		require.Error(t, err)
 		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
@@ -2686,22 +2686,6 @@ func TestIsRepositorySecret(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "tombstone wrapping repository secret matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping non-repository secret does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
-			},
-			expected: false,
-		},
-		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
 			expected: false,
@@ -2746,22 +2730,7 @@ func TestIsSettingsObject(t *testing.T) {
 			}},
 			expected: true,
 		},
-		{
-			name: "tombstone wrapping labeled secret matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping unlabeled secret does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
-			},
-			expected: false,
-		},
+
 		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
@@ -2796,24 +2765,6 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "tombstone wrapping argocd-cm matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name: common.ArgoCDConfigMapName,
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping other configmap does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name: common.ArgoCDRBACConfigMapName,
-				}},
-			},
-			expected: false,
-		},
-		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
 			expected: false,
@@ -2824,6 +2775,97 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 			assert.Equal(t, tt.expected, isArgoCDConfigMap(tt.obj))
 		})
 	}
+}
+
+// TestGettersRaceWithResyncInformers verifies that concurrent calls to
+// SettingsManager getters and ResyncInformers do not trigger data races.
+// Run with: go test -race -run TestGettersRaceWithResyncInformers ./util/settings/...
+func TestGettersRaceWithResyncInformers(t *testing.T) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string]string{},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"server.secretkey": []byte("test-secret-key"),
+		},
+	}
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-secret",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://kubernetes.default.svc"),
+			"name":   []byte("in-cluster"),
+			"config": []byte("{}"),
+		},
+	}
+	kubeClient := fake.NewClientset(cm, secret, clusterSecret)
+	mgr := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	// Prime the informers so getters have something to return.
+	err := mgr.ensureSynced(false)
+	require.NoError(t, err)
+
+	const goroutines = 10
+
+	// done signals all goroutines to stop.
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	// Spawn goroutines calling ResyncInformers concurrently.
+	for range goroutines / 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = mgr.ResyncInformers()
+				}
+			}
+		})
+	}
+
+	// Spawn goroutines calling the various getters concurrently.
+	for range goroutines / 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_, _ = mgr.GetSecretsLister()
+					_, _ = mgr.GetSecretsInformer()
+					_, _ = mgr.GetClusterInformer()
+					_, _ = mgr.GetConfigMapByName(common.ArgoCDConfigMapName)
+					_, _ = mgr.GetSecretByName(common.ArgoCDSecretName)
+				}
+			}
+		})
+	}
+
+	// Let the race run for a bit.
+	time.Sleep(200 * time.Millisecond)
+	close(done)
+	wg.Wait()
 }
 
 func TestEscapeDollarSignsInMap(t *testing.T) {

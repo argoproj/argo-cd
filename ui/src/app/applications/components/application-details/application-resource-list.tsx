@@ -4,6 +4,7 @@ import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
+import {ActionMenuButton} from '../../../shared/components';
 import {
     ComparisonStatusIcon,
     HealthStatusIcon,
@@ -276,25 +277,17 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                         {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true} />}
                                         {res.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                         {props.nodeMenu && (
-                                            <div className='application-details__node-menu'>
-                                                <DropDown
-                                                    isMenu={true}
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
-                                                    )}>
-                                                    {() => {
-                                                        const node = nodeByKey.get(nodeKey(res));
-                                                        if (node) {
-                                                            return props.nodeMenu(node);
-                                                        } else {
-                                                            // For orphaned resources, create a ResourceNode-like object to prevent errors
-                                                            return props.nodeMenu(resourceStatusToResourceNode(res));
-                                                        }
-                                                    }}
-                                                </DropDown>
-                                            </div>
+                                            <DropDown isMenu={true} anchor={ActionMenuButton}>
+                                                {() => {
+                                                    const node = nodeByKey.get(nodeKey(res));
+                                                    if (node) {
+                                                        return props.nodeMenu(node);
+                                                    } else {
+                                                        // For orphaned resources, create a ResourceNode-like object to prevent errors
+                                                        return props.nodeMenu(resourceStatusToResourceNode(res));
+                                                    }
+                                                }}
+                                            </DropDown>
                                         )}
                                     </div>
                                 </div>
