@@ -5,6 +5,13 @@ Kubernetes resources managed by your Argo CD applications in a single, filterabl
 resources of every application you can access, so you can search and inspect managed resources across
 applications without opening each application individually.
 
+!!! warning
+
+    Only managed resources are listed, that is, the resources directly declared in Git and deployed by Argo CD.
+    Dependent resources created by controllers on the cluster (for example, the `ReplicaSet` and `Pod` objects
+    generated from a `Deployment`) are not shown, because Argo CD does not deploy them directly. To inspect those
+    child resources, open the owning application and use its resource tree.
+
 ## Disabling the Resources view
 
 Operators can disable the Resources view for an entire Argo CD instance. This is useful when the aggregated view is
