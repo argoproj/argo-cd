@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -106,7 +107,6 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 
 func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	t.Parallel()
-
 	testData := []struct {
 		name        string
 		projDest    []ApplicationDestination
@@ -227,7 +227,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	for _, data := range testData {
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
-
 			proj := AppProject{
 				Spec: AppProjectSpec{
 					Destinations: data.projDest,
@@ -1085,9 +1084,74 @@ func TestAppSourceEquality(t *testing.T) {
 	assert.False(t, left.Equals(right))
 }
 
+// TestAppSourceEquality_HelmValuesObject verifies that two semantically identical Helm valuesObject
+// values compare equal even when their raw JSON byte representations differ. This happens in practice
+// because the Kubernetes API server serializes the stored spec without HTML-escaping characters such as
+// '&', '<' and '>', whereas a source supplied in a request is typically parsed with encoding/json, which
+// does escape them. Without normalization this byte-level mismatch made GetAppDetails reject valid
+// requests with a 403 (see isSourceInHistory).
+func TestAppSourceEquality_HelmValuesObject(t *testing.T) {
+	// jsonEscaped returns the JSON encoding that encoding/json produces, which HTML-escapes '&', '<' and
+	// '>' into their \uXXXX form. This mirrors how a source supplied in a request is encoded, and differs
+	// byte-for-byte from the unescaped JSON served by the Kubernetes API server.
+	jsonEscaped := func(v any) []byte {
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		return b
+	}
+
+	tests := []struct {
+		name     string
+		a        []byte
+		b        []byte
+		expected bool
+	}{
+		{
+			name:     "unescaped vs unicode-escaped ampersand",
+			a:        []byte(`{"foo":"&"}`),                      // as served by the Kubernetes API server
+			b:        jsonEscaped(map[string]string{"foo": "&"}), // {"foo":"&"} as encoded by a request
+			expected: true,
+		},
+		{
+			name:     "unescaped vs unicode-escaped angle brackets",
+			a:        []byte(`{"k":"<a>"}`),
+			b:        jsonEscaped(map[string]string{"k": "<a>"}), // {"k":"<a>"}
+			expected: true,
+		},
+		{
+			name:     "different map key ordering",
+			a:        []byte(`{"a":1,"b":2}`),
+			b:        []byte(`{"b":2,"a":1}`),
+			expected: true,
+		},
+		{
+			name:     "genuinely different values",
+			a:        []byte(`{"foo":"&"}`),
+			b:        []byte(`{"foo":"bar"}`),
+			expected: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			left := &ApplicationSource{
+				RepoURL: "https://example.com/repo.git",
+				Helm:    &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: tc.a}},
+			}
+			right := &ApplicationSource{
+				RepoURL: "https://example.com/repo.git",
+				Helm:    &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: tc.b}},
+			}
+			assert.Equal(t, tc.expected, left.Equals(right))
+			// Equals must be symmetric and must not mutate its operands.
+			assert.Equal(t, tc.expected, right.Equals(left))
+			assert.Equal(t, string(tc.a), string(left.Helm.ValuesObject.Raw))
+			assert.Equal(t, string(tc.b), string(right.Helm.ValuesObject.Raw))
+		})
+	}
+}
+
 func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
 	t.Parallel()
-
 	defaultKV := "999.999.999"
 	cases := []struct {
 		name   string
@@ -1138,7 +1202,6 @@ func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
 
 func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
 	t.Parallel()
-
 	defaultAPIVersions := []string{"v1", "v2"}
 	cases := []struct {
 		name   string
@@ -1189,7 +1252,6 @@ func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
 
 func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
 	t.Parallel()
-
 	defaultNS := "default"
 	cases := []struct {
 		name   string
@@ -1880,7 +1942,8 @@ func TestEnv_Envsubst(t *testing.T) {
 	assert.Equal(t, "FOO", env.Envsubst("${FOO"))
 	assert.Empty(t, env.Envsubst("$BAR"))
 	assert.Empty(t, env.Envsubst("${BAR}"))
-	assert.Equal(t,
+	assert.Equal(
+		t,
 		"echo bar; echo ; echo bar; echo ; echo FOO",
 		env.Envsubst("echo $FOO; echo $BAR; echo ${FOO}; echo ${BAR}; echo ${FOO"),
 	)
@@ -1889,7 +1952,8 @@ func TestEnv_Envsubst(t *testing.T) {
 func TestEnv_Envsubst_Overlap(t *testing.T) {
 	env := Env{&EnvEntry{"ARGOCD_APP_NAMESPACE", "default"}, &EnvEntry{"ARGOCD_APP_NAME", "guestbook"}}
 
-	assert.Equal(t,
+	assert.Equal(
+		t,
 		"namespace: default; name: guestbook",
 		env.Envsubst("namespace: $ARGOCD_APP_NAMESPACE; name: $ARGOCD_APP_NAME"),
 	)
@@ -2669,11 +2733,8 @@ func TestSyncWindows_Matches_AND_Operator(t *testing.T) {
 }
 
 func TestSyncWindows_CanSync(t *testing.T) {
-	t.Parallel()
-
 	t.Run("will allow manual sync if inactive-deny-window set with manual true", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().withInactiveDenyWindow(true).build()
 
 		// when
@@ -2685,7 +2746,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync if inactive-deny-window set with manual false", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().withInactiveDenyWindow(false).build()
 
 		// when
@@ -2697,7 +2757,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync if one inactive-allow-windows set with manual false", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(true).
 			withInactiveAllowWindow(false).
@@ -2712,7 +2771,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual true", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(true).
 			build()
@@ -2726,7 +2784,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual false", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			build()
@@ -2740,7 +2797,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow auto sync if on active-allow-window", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			build()
@@ -2754,7 +2810,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync active-allow and inactive-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withInactiveDenyWindow(false).
@@ -2769,7 +2824,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow auto sync active-allow and inactive-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withInactiveDenyWindow(false).
@@ -2784,7 +2838,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync inactive-allow", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(false).
 			build()
@@ -2798,7 +2851,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync inactive-allow", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(false).
 			build()
@@ -2812,7 +2864,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync inactive-allow with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(true).
 			build()
@@ -2826,7 +2877,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync inactive-allow with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(true).
 			build()
@@ -2840,7 +2890,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync with inactive-allow and inactive-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(false).
 			withInactiveDenyWindow(false).
@@ -2855,7 +2904,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with inactive-allow and inactive-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(false).
 			withInactiveDenyWindow(false).
@@ -2870,7 +2918,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withInactiveAllowWindow(false).
@@ -2885,7 +2932,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(false).
 			build()
@@ -2899,7 +2945,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with active-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(false).
 			build()
@@ -2913,7 +2958,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync with active-deny with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(true).
 			build()
@@ -2927,7 +2971,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with active-deny with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(true).
 			build()
@@ -2941,7 +2984,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(true).
 			withActiveDenyWindow(true).
@@ -2958,7 +3000,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(true).
 			withActiveDenyWindow(true).
@@ -2975,7 +3016,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync with active-deny and active-allow windows with ManualSync disabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withActiveDenyWindow(false).
@@ -2990,7 +3030,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withActiveDenyWindow(true).
@@ -3005,7 +3044,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withActiveDenyWindow(true).
@@ -3020,7 +3058,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny and return error with invalid windows", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInvalidWindows().
 			build()
@@ -3034,7 +3071,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will return error when inactive-allow has invalid schedule", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newTestProject()
 		// Add an inactive allow window with invalid cron schedule
 		invalidWindow := &SyncWindow{
@@ -3058,7 +3094,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will return error when inactive-allow has invalid duration", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newTestProject()
 		// Add an inactive allow window with invalid duration
 		invalidWindow := &SyncWindow{
@@ -3365,7 +3400,8 @@ func (b *projectBuilder) withInactiveDenyWindow(allowManual bool) *projectBuilde
 }
 
 func (b *projectBuilder) withInvalidWindows() *projectBuilder {
-	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows,
+	b.proj.Spec.SyncWindows = append(
+		b.proj.Spec.SyncWindows,
 		newSyncWindow("allow", "* 10 * * 7", false, false),
 		newSyncWindow("deny", "* 10 * * 7", false, false),
 		newSyncWindow("allow", "* 10 * * 7", true, false),
@@ -3775,7 +3811,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 }
 
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
-	t.Run("Has NameSuffix", func(t *testing.T) {
+	t.Run("no params", func(t *testing.T) {
 		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
 			NameSuffix: "test",
 		}}
@@ -3820,7 +3856,7 @@ func TestUnSetCascadedDeletion(t *testing.T) {
 }
 
 func TestRemoveEnvEntry(t *testing.T) {
-	t.Run("Remove element from the list", func(t *testing.T) {
+	t.Run("remove an env entry from empty list", func(t *testing.T) {
 		plugins := &ApplicationSourcePlugin{
 			Name: "test",
 			Env: Env{
@@ -4264,6 +4300,29 @@ func TestGetSummary(t *testing.T) {
 	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
+func TestGetAppOfAppSummary(t *testing.T) {
+	app := newTestApp()
+	standardTree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service"}},
+		},
+	}
+
+	summary := standardTree.GetSummary(app)
+	assert.Empty(t, summary.ExternalURLs)
+	assert.Empty(t, summary.Images)
+	assert.False(t, summary.IsAppOfApps)
+
+	appOfAppsTree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "children-app", Kind: "Application", Group: "argoproj.io"}},
+			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service", Group: ""}},
+		},
+	}
+	summary = appOfAppsTree.GetSummary(app)
+	assert.True(t, summary.IsAppOfApps)
+}
+
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
@@ -4365,8 +4424,6 @@ func getApplicationSpec() *ApplicationSpec {
 }
 
 func TestGetSource(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name           string
 		hasSources     bool
@@ -4382,7 +4439,6 @@ func TestGetSource(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
 			if !testCopy.hasSources {
 				testCopy.appSpec.Sources = nil
 			}
@@ -4396,8 +4452,6 @@ func TestGetSource(t *testing.T) {
 }
 
 func TestGetSources(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name            string
 		hasSources      bool
@@ -4421,7 +4475,6 @@ func TestGetSources(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
 			if !testCopy.hasSources {
 				testCopy.appSpec.Sources = nil
 			}
@@ -4435,8 +4488,6 @@ func TestGetSources(t *testing.T) {
 }
 
 func TestOptionalArrayEquality(t *testing.T) {
-	t.Parallel()
-
 	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
 	// to an empty array.
 	presentButEmpty := `{"array":[]}`
@@ -4473,15 +4524,12 @@ func TestOptionalArrayEquality(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
 }
 
 func TestOptionalMapEquality(t *testing.T) {
-	t.Parallel()
-
 	// Demonstrate that the JSON unmarshalling of an empty map parameter is an OptionalMap with the map field set
 	// to an empty map.
 	presentButEmpty := `{"map":{}}`
@@ -4518,7 +4566,6 @@ func TestOptionalMapEquality(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
@@ -5106,8 +5153,6 @@ func TestSanitized(t *testing.T) {
 }
 
 func TestSourceHydrator_Equals(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name     string
 		a        SourceHydrator
@@ -5121,16 +5166,74 @@ func TestSourceHydrator_Equals(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
-
 			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
 		})
 	}
 }
 
-func TestIgnoreDifferences_Equals(t *testing.T) {
-	t.Parallel()
+func TestSourceHydrator_GetSyncSource(t *testing.T) {
+	hydrator := SourceHydrator{
+		DrySource: DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "dry",
+		},
+		SyncSource: SyncSource{
+			RepoURL:      "https://example.com/sync-repo",
+			TargetBranch: "hydrated",
+			Path:         "sync-path",
+		},
+	}
 
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/sync-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+func TestSourceHydrator_GetSyncSource_DefaultRepoURL(t *testing.T) {
+	hydrator := SourceHydrator{
+		DrySource: DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "dry",
+		},
+		SyncSource: SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "sync-path",
+		},
+	}
+
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+func TestApplicationSpec_GetHydrateToSource_UsesSyncSourceRepo(t *testing.T) {
+	spec := ApplicationSpec{
+		SourceHydrator: &SourceHydrator{
+			DrySource: DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "dry",
+			},
+			SyncSource: SyncSource{
+				RepoURL:      "https://example.com/sync-repo",
+				TargetBranch: "hydrated",
+				Path:         "sync-path",
+			},
+			HydrateTo: &HydrateTo{TargetBranch: "staging"},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/sync-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "staging", source.TargetRevision)
+}
+
+func TestIgnoreDifferences_Equals(t *testing.T) {
 	tests := []struct {
 		name     string
 		a        IgnoreDifferences
@@ -5190,8 +5293,6 @@ func TestIgnoreDifferences_Equals(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
-
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}

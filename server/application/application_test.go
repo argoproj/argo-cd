@@ -15,7 +15,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -4753,7 +4752,7 @@ func TestServerSideDiff(t *testing.T) {
 
 		// Create mock kubectl that returns our custom applier
 		mockKubectl := &kubetest.MockKubectlCmd{}
-		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config, _ openapi.Resources) (diff.KubeApplier, func(), error) {
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
 			return mockApplier, func() {}, nil
 		})
 
@@ -4989,7 +4988,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	}
 
 	appServer := newTestAppServer(t, testApp)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Get the fake clientset from the deepCopy wrapper
 	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)

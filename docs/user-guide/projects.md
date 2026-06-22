@@ -313,7 +313,7 @@ data:
 kind: ConfigMap
 ``` 
 
-Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
 
@@ -392,6 +392,9 @@ stringData:
       }
     }
 ```
+
+> [!NOTE]
+> **Implicit Destinations:** When a project-scoped cluster is defined, an implicit entry is dynamically added to the AppProject's `destinations` list during evaluation. By default, this acts as a wildcard, allowing applications in the project to deploy to all namespaces in the cluster (acting as `namespace: "*"`). If the cluster definition has the `namespaces` field set, only those specific namespaces are implicitly added to the project's destinations instead. Because this happens dynamically during evaluation to facilitate multi-tenancy, these implicit destinations are not reflected in the AppProject's declarative spec or the UI.
 
 With project-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same project, as the example below demonstrates:
 
