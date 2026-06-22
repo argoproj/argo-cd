@@ -1,9 +1,11 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
 
-$resources-table-icon-col-width: 88px;
+// The icon is absolutely positioned and overlays the row's left padding, so it does not consume a
+// grid track. This lets the content columns flex on resize instead of reserving a fixed icon column.
+$resources-table-icon-col-width: 60px;
 $resources-table-menu-width: 2.75rem;
-$resources-table-grid-columns: $resources-table-icon-col-width minmax(4.5rem, 1fr) minmax(4rem, 1.2fr) minmax(5rem, 1.5fr) minmax(5rem, 1.5fr) minmax(5rem, 1.5fr) minmax(6rem, 2fr);
+$resources-table-grid-columns: minmax(7rem, 1.6fr) minmax(4rem, 1.2fr) minmax(6rem, 1.9fr) minmax(5rem, 1.5fr) minmax(5rem, 1.5fr) minmax(6rem, 1.4fr);
 
 // Reuse application details resource list presentation (icon column, row layout).
 .application-details.resources-table {
@@ -12,16 +14,50 @@ $resources-table-grid-columns: $resources-table-icon-col-width minmax(4.5rem, 1f
 
     .argo-table-list__head .row,
     .argo-table-list__row .row {
+        position: relative;
         display: grid;
         grid-template-columns: $resources-table-grid-columns;
         align-items: center;
         width: 100%;
         padding-right: $resources-table-menu-width;
+        padding-left: $resources-table-icon-col-width;
         margin-left: 0;
         margin-right: 0;
     }
 
-    .resources-table__col-icon,
+    .resources-table__col-icon {
+        position: absolute;
+        top: 12px;
+        left: 0;
+        width: $resources-table-icon-col-width;
+        line-height: 1;
+        text-align: center;
+        color: $argo-color-gray-7;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .resources-table__kind {
+        display: inline-block;
+        max-width: 100%;
+        margin-top: 1px;
+        padding: 0 4px;
+        font-size: 0.7rem;
+        color: $argo-color-gray-6;
+        white-space: nowrap;
+        text-align: left;
+    }
+
+    .application-details__item {
+        display: flex;
+    }
+
+    .application-details__item_text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .resources-table__col-group-kind,
     .resources-table__col-namespace,
     .resources-table__col-name,
@@ -34,36 +70,6 @@ $resources-table-grid-columns: $resources-table-icon-col-width minmax(4.5rem, 1f
         min-width: 0;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
-    }
-
-    .resources-table__col-icon {
-        padding-left: 0;
-    }
-
-    .application-details__resource-icon {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        width: $resources-table-icon-col-width;
-        line-height: 1.1;
-        color: $argo-color-gray-7;
-        text-align: center;
-
-        .argo-icon-applicationset {
-            transform: scale(1.12);
-            transform-origin: center center;
-        }
-    }
-
-    .resources-table__kind-label {
-        font-size: 10px;
-        line-height: 1.15;
-        max-width: 100%;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-        hyphens: auto;
     }
 
     .resources-table__col-group-kind {

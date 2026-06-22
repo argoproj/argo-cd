@@ -11,7 +11,6 @@ import {ResourceIcon} from '../../../applications/components/resource-icon';
 import {ResourceLabel} from '../../../applications/components/resource-label';
 import * as AppUtils from '../../../applications/components/utils';
 import {navigateToManagingApplication, openResourceDetails, resourceHealthState, resourceHealthStatus} from '../utils';
-import '../../../applications/components/application-details/application-resource-list.scss';
 import './resources-table.scss';
 import {TruncatedTextTooltip, useTruncatedElement} from './truncated-text-tooltip';
 import {RESOURCE_SORT_KEY_TO_TITLE, RESOURCE_SORT_TITLE_TO_KEY, RESOURCES_LIST_SORT_KEY, ResourceSortKey} from './resources-sort';
@@ -110,7 +109,6 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                 <div className='argo-table-list argo-table-list--clickable'>
                                     <div className='argo-table-list__head'>
                                         <div className='row'>
-                                            <div className='columns resources-table__col-icon' />
                                             <div
                                                 className='columns resources-table__col-group-kind resources-table__head-col'
                                                 onClick={() => handleSort(ctx, 'group-kind')}
@@ -204,11 +202,9 @@ const ResourceTableRow = (props: {
             })}
             onClick={() => openDetails(ctx, resource)}>
             <div className='row'>
-                <div className='columns resources-table__col-icon'>
-                    <div className='application-details__resource-icon'>
-                        <ResourceIcon group={resource.group} kind={resource.kind} />
-                        <div className='resources-table__kind-label'>{ResourceLabel({kind: resource.kind})}</div>
-                    </div>
+                <div className='resources-table__col-icon'>
+                    <ResourceIcon group={resource.group} kind={resource.kind} />
+                    <div className='resources-table__kind'>{ResourceLabel({kind: resource.kind})}</div>
                 </div>
                 <div className='columns resources-table__col-group-kind'>
                     <TruncatedTextTooltip content={groupKind} className='application-details__item_text resources-table__tooltip-anchor' />
