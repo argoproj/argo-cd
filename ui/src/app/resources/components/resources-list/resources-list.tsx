@@ -28,24 +28,10 @@ const WATCH_RETRY_TIMEOUT = 500;
 
 // The applications list/watch API supports only selected set of fields.
 // Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
-const APP_FIELDS = [
-    'metadata.name',
-    'metadata.namespace',
-    'metadata.annotations',
-    'metadata.labels',
-    'metadata.creationTimestamp',
-    'metadata.deletionTimestamp',
-    'spec',
-    'operation.sync',
-    'status.sync.status',
-    'status.sync.revision',
-    'status.health',
-    'status.operationState.phase',
-    'status.operationState.finishedAt',
-    'status.operationState.operation.sync',
-    'status.summary',
-    'status.resources'
-];
+// The Resources view only renders the `status.resources` of each application, decorated with the
+// app's name/namespace (for the owning-app link), destination cluster (`spec.destination`) and
+// project (`spec.project`), both used by filters.
+const APP_FIELDS = ['metadata.name', 'metadata.namespace', 'spec.destination', 'spec.project', 'status.resources'];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
