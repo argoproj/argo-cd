@@ -488,14 +488,19 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 
 	var newConditions []argov1alpha1.ApplicationSetCondition
 	hasParamsGenerated := false
+	paramsMsg := "progressive sync"
 	for _, condition := range conditions {
 		if condition.Type == argov1alpha1.ApplicationSetConditionParametersGenerated {
 			hasParamsGenerated = true
 			break
 		}
+		if condition.Type == argov1alpha1.ApplicationSetConditionErrorOccurred {
+			paramsMsg = condition.Message
+		}
 	}
+	// Evaluate ParametersGenerated since it is always provided
 	if !hasParamsGenerated {
-		newConditions = append(newConditions, getParametersGeneratedCondition(parametersGenerated, "progressive sync"))
+		newConditions = append(newConditions, getParametersGeneratedCondition(parametersGenerated, paramsMsg))
 	}
 	for _, condition := range conditions {
 		// Evaluate current condition
