@@ -1,18 +1,14 @@
-import {Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
-import {COLORS} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {COLORS, StatusBar, StatusBarReading} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {resourceHealthStatus} from '../utils';
-
-import './resources-status-bar.scss';
 
 export interface ResourcesStatusBarProps {
     resources: models.Resource[];
 }
 
 export const ResourcesStatusBar = ({resources}: ResourcesStatusBarProps) => {
-    const readings = [
+    const readings: StatusBarReading[] = [
         {
             name: 'Healthy',
             value: resources.filter(resource => resourceHealthStatus(resource) === 'Healthy').length,
@@ -45,36 +41,5 @@ export const ResourcesStatusBar = ({resources}: ResourcesStatusBarProps) => {
         }
     ];
 
-    // will sort readings by value greatest to lowest, then by name
-    readings.sort((a, b) => (a.value < b.value ? 1 : a.value === b.value ? (a.name > b.name ? 1 : -1) : -1));
-
-    const totalItems = readings.reduce((total, i) => {
-        return total + i.value;
-    }, 0);
-
-    return (
-        <Consumer>
-            {() => (
-                <>
-                    {totalItems > 1 && (
-                        <div className='status-bar'>
-                            {readings &&
-                                readings.length > 1 &&
-                                readings.map((item, i) => {
-                                    if (item.value > 0) {
-                                        return (
-                                            <div className='status-bar__segment' style={{backgroundColor: item.color, width: (item.value / totalItems) * 100 + '%'}} key={i}>
-                                                <Tooltip content={`${item.value} ${item.name}`} inverted={true}>
-                                                    <div className='status-bar__segment__fill' />
-                                                </Tooltip>
-                                            </div>
-                                        );
-                                    }
-                                })}
-                        </div>
-                    )}
-                </>
-            )}
-        </Consumer>
-    );
+    return <StatusBar readings={readings} />;
 };
