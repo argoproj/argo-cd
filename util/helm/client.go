@@ -226,6 +226,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 				"path": cachedChartPath,
 				"err":  err,
 			}).Warn("error checking cached Helm chart; removing cached archive")
+			_ = os.RemoveAll(cachedChartPath)
 			exists = false
 		} else {
 			now := time.Now()
