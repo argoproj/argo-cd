@@ -231,8 +231,8 @@ export const ResourcesFilter = (props: ResourcesFilterProps) => {
 
     return (
         <FiltersGroup title='Resources filters' content={props.children} appliedFilter={appliedFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
-            <SyncFilter {...props} />
             <HealthFilter {...props} />
+            <SyncFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
