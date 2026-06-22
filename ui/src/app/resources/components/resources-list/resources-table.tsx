@@ -110,35 +110,35 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                     <div className='argo-table-list__head'>
                                         <div className='row'>
                                             <div
-                                                className='columns resources-table__col-group-kind resources-table__head-col'
+                                                className='columns small-1 large-2 resources-table__col-group-kind resources-table__head-col'
                                                 onClick={() => handleSort(ctx, 'group-kind')}
                                                 style={{cursor: 'pointer'}}
                                                 title='GROUP/KIND'>
                                                 <span className='resources-table__head-text'>GROUP/KIND {getSortArrow(activeSortKey, sortDirection, 'group-kind')}</span>
                                             </div>
                                             <div
-                                                className='columns resources-table__col-namespace resources-table__head-col'
+                                                className='columns small-2 large-1 resources-table__col-namespace resources-table__head-col'
                                                 onClick={() => handleSort(ctx, 'namespace')}
                                                 style={{cursor: 'pointer'}}
                                                 title='NAMESPACE'>
                                                 <span className='resources-table__head-text'>NAMESPACE {getSortArrow(activeSortKey, sortDirection, 'namespace')}</span>
                                             </div>
                                             <div
-                                                className='columns resources-table__col-name resources-table__head-col'
+                                                className='columns small-3 resources-table__col-name resources-table__head-col'
                                                 onClick={() => handleSort(ctx, 'name')}
                                                 style={{cursor: 'pointer'}}
                                                 title='NAME'>
                                                 <span className='resources-table__head-text'>NAME {getSortArrow(activeSortKey, sortDirection, 'name')}</span>
                                             </div>
                                             <div
-                                                className='columns resources-table__col-cluster resources-table__head-col'
+                                                className='columns small-1 large-2 resources-table__col-cluster resources-table__head-col'
                                                 onClick={() => handleSort(ctx, 'cluster')}
                                                 style={{cursor: 'pointer'}}
                                                 title='CLUSTER'>
                                                 <span className='resources-table__head-text'>CLUSTER {getSortArrow(activeSortKey, sortDirection, 'cluster')}</span>
                                             </div>
                                             <div
-                                                className='columns resources-table__col-application resources-table__head-col'
+                                                className='columns small-2 resources-table__col-application resources-table__head-col'
                                                 onClick={() => handleSort(ctx, 'application')}
                                                 style={{cursor: 'pointer'}}
                                                 title='Application (opens application page)'>
@@ -149,7 +149,7 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                                 </span>
                                             </div>
                                             <div
-                                                className='columns resources-table__status-col resources-table__head-col'
+                                                className='columns small-3 large-2 resources-table__status-col resources-table__head-col'
                                                 onClick={() => handleSort(ctx, 'status')}
                                                 style={{cursor: 'pointer'}}
                                                 title='STATUS'>
@@ -206,28 +206,28 @@ const ResourceTableRow = (props: {
                     <ResourceIcon group={resource.group} kind={resource.kind} />
                     <div className='resources-table__kind'>{ResourceLabel({kind: resource.kind})}</div>
                 </div>
-                <div className='columns resources-table__col-group-kind'>
+                <div className='columns small-1 large-2 resources-table__col-group-kind'>
                     <TruncatedTextTooltip content={groupKind} className='application-details__item_text resources-table__tooltip-anchor' />
                 </div>
-                <div className='columns resources-table__col-namespace'>
+                <div className='columns small-2 large-1 resources-table__col-namespace'>
                     <TruncatedTextTooltip content={resource.namespace} className='resources-table__tooltip-anchor' />
                 </div>
-                <div className='columns resources-table__col-name application-details__item'>
+                <div className='columns small-3 resources-table__col-name application-details__item'>
                     <TruncatedTextTooltip content={resource.name} className='application-details__item_text resources-table__tooltip-anchor' />
                 </div>
-                <div className='columns resources-table__col-cluster'>
+                <div className='columns small-1 large-2 resources-table__col-cluster'>
                     <TruncatedTextTooltip content={resource.clusterName || resource.clusterServer || ''} className='resources-table__cell-text resources-table__tooltip-anchor'>
                         <Cluster server={resource.clusterServer} name={resource.clusterName} />
                     </TruncatedTextTooltip>
                 </div>
-                <div className='columns resources-table__col-application' onClick={e => e.stopPropagation()}>
+                <div className='columns small-2 resources-table__col-application' onClick={e => e.stopPropagation()}>
                     <Tooltip content={resource.appName} enabled={!!resource.appName && appLinkTruncation.isTruncated}>
                         <button ref={appLinkTruncation.ref} type='button' className='resources-table__application-link' onClick={e => navigateToApplication(ctx, resource, e)}>
                             {resource.appName}
                         </button>
                     </Tooltip>
                 </div>
-                <div className='columns resources-table__status-col'>
+                <div className='columns small-3 large-2 resources-table__status-col'>
                     <AppUtils.HealthStatusIcon state={resourceHealthState(resource)} /> {resourceHealthStatus(resource)} &nbsp;
                     {resource.status && <AppUtils.ComparisonStatusIcon status={resource.status} resource={resource} label={true} />}
                 </div>

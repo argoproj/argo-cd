@@ -1,11 +1,11 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
 
-// The icon is absolutely positioned and overlays the row's left padding, so it does not consume a
-// grid track. This lets the content columns flex on resize instead of reserving a fixed icon column.
+// The column widths come from Foundation's grid (the `columns small-N` classes in the markup).
+// The icon is absolutely positioned and overlays the row's left padding, so it does not take a
+// Foundation column; the row menu is absolutely positioned over the row's right padding.
 $resources-table-icon-col-width: 60px;
 $resources-table-menu-width: 2.75rem;
-$resources-table-grid-columns: minmax(7rem, 1.6fr) minmax(4rem, 1.2fr) minmax(6rem, 1.9fr) minmax(5rem, 1.5fr) minmax(5rem, 1.5fr) minmax(6rem, 1.4fr);
 
 // Reuse application details resource list presentation (icon column, row layout).
 .application-details.resources-table {
@@ -15,14 +15,8 @@ $resources-table-grid-columns: minmax(7rem, 1.6fr) minmax(4rem, 1.2fr) minmax(6r
     .argo-table-list__head .row,
     .argo-table-list__row .row {
         position: relative;
-        display: grid;
-        grid-template-columns: $resources-table-grid-columns;
-        align-items: center;
-        width: 100%;
-        padding-right: $resources-table-menu-width;
         padding-left: $resources-table-icon-col-width;
-        margin-left: 0;
-        margin-right: 0;
+        padding-right: $resources-table-menu-width;
     }
 
     .resources-table__col-icon {
@@ -64,10 +58,6 @@ $resources-table-grid-columns: minmax(7rem, 1.6fr) minmax(4rem, 1.2fr) minmax(6r
     .resources-table__col-cluster,
     .resources-table__col-application,
     .resources-table__status-col {
-        width: auto !important;
-        max-width: none !important;
-        flex: none !important;
-        min-width: 0;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
     }
