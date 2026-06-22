@@ -18,7 +18,7 @@ import {ResourcesSummary} from './resources-summary';
 import {FilteredResource, getFilterResults, ResourcesFilter} from './resources-filter';
 import classNames from 'classnames';
 import {ResourcesTable} from './resources-table';
-import {RESOURCE_SORT_OPTIONS} from './resources-sort';
+import {RESOURCE_SORT_OPTIONS, RESOURCES_LIST_SORT_KEY} from './resources-sort';
 import {ResourcesStatusBar} from './resources-status-bar';
 import {ResourcesDetailsPanel} from './resources-details-panel';
 import {openResourceDetails} from '../utils';
@@ -76,16 +76,21 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
     );
 }
 
-const ViewPref = ({children}: {children: (pref: ResourcesListPreferences & {page: number; search: string}) => React.ReactNode}) => {
+const ViewPref = ({
+    children
+}: {
+    children: (pref: ResourcesListPreferences & {page: number; search: string; sortTitle: string; sortDirection: 'asc' | 'desc'}) => React.ReactNode;
+}) => {
     const observableQuery$ = useObservableQuery();
 
     return (
         <DataLoader
             load={() =>
-                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.resourcesList)), observableQuery$]).pipe(
+                combineLatest([services.viewPreferences.getPreferences(), observableQuery$]).pipe(
                     map(items => {
+                        const preferences = items[0];
                         const params = items[1];
-                        const viewPref: ResourcesListPreferences = {...items[0]};
+                        const viewPref: ResourcesListPreferences = {...preferences.resourcesList};
                         if (params.get('proj') != null) {
                             viewPref.projectsFilter = params
                                 .get('proj')
@@ -132,7 +137,9 @@ const ViewPref = ({children}: {children: (pref: ResourcesListPreferences & {page
                         if (viewParam === ResourcesListViewKey.List || viewParam === ResourcesListViewKey.Summary) {
                             viewPref.view = viewParam;
                         }
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                        const sortTitle = preferences.sortOptions?.[RESOURCES_LIST_SORT_KEY] || RESOURCE_SORT_OPTIONS[0].title;
+                        const sortDirection: 'asc' | 'desc' = preferences.sortDirections?.[RESOURCES_LIST_SORT_KEY] === 'desc' ? 'desc' : 'asc';
+                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || '', sortTitle, sortDirection};
                     })
                 )
             }>
@@ -268,6 +275,13 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                 )
                                             );
                                             const {filteredResources, filterResults} = filterResources(resources, pref, pref.search);
+                                            // Sorting is driven by the sortable table headers (persisted in view preferences);
+                                            // apply it here so the data is already ordered before pagination.
+                                            const selectedSort = RESOURCE_SORT_OPTIONS.find(option => option.title === pref.sortTitle) || RESOURCE_SORT_OPTIONS[0];
+                                            const sortedResources = [...filteredResources].sort((a, b) => {
+                                                const result = selectedSort.compare(a, b);
+                                                return pref.sortDirection === 'asc' ? result : -result;
+                                            });
                                             return (
                                                 <React.Fragment>
                                                     <React.Fragment>
@@ -320,8 +334,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                                 </h5>
                                                                             </EmptyState>
                                                                         )}
-                                                                        sortOptions={RESOURCE_SORT_OPTIONS}
-                                                                        data={filteredResources}
+                                                                        data={sortedResources}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {data => <ResourcesTable resources={data} onOpenDetails={resource => openResourceDetails(ctx, resource)} />}
                                                                     </Paginate>
