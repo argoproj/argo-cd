@@ -189,8 +189,7 @@ func TestDockerHubPushEvent(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook?type=dockerhub", io.NopCloser(bytes.NewReader(payload)))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assertLogContains(t, hook, "Received registry webhook event")
