@@ -1,7 +1,7 @@
-import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
+import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
-import {Cluster} from '../../../shared/components';
+import {ActionMenu, Cluster} from '../../../shared/components';
 import {ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
@@ -157,12 +157,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     )}
                     <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
                     <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
-                    <DropDownMenu
-                        anchor={() => (
-                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                <i className='fa fa-ellipsis-v' />
-                            </button>
-                        )}
+                    <ActionMenu
                         items={[
                             {
                                 title: 'Sync',

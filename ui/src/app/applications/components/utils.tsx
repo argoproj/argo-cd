@@ -350,7 +350,9 @@ export const ComparisonStatusIcon = ({
             break;
     }
     return className.includes('fa-spin') ? (
-        <SpinningIcon color={color} qeId='utils-sync-status-title' />
+        <React.Fragment>
+            <SpinningIcon color={color} qeId='utils-sync-status-title' /> {label && title}
+        </React.Fragment>
     ) : (
         <React.Fragment>
             <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}

@@ -30,3 +30,4 @@ export * from './flex-top-bar/flex-top-bar';
 export * from './search-bar/search-bar';
 export * from './action-menu/action-menu';
 export * from './icon-column/icon-column';
+export * from './status-bar/status-bar';

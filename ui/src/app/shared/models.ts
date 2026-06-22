@@ -445,6 +445,14 @@ export interface ResourceStatus {
     orphaned?: boolean;
 }
 
+export interface Resource extends ResourceStatus {
+    appProject?: string;
+    appName?: string;
+    appNamespace?: string;
+    clusterName?: string;
+    clusterServer?: string;
+}
+
 export interface ResourceRef {
     uid: string;
     kind: string;
@@ -627,6 +635,7 @@ export interface AuthSettings {
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
+    resourceViewEnabled: boolean;
 }
 
 export interface UserInfo {
