@@ -635,6 +635,7 @@ export interface AuthSettings {
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
+    resourceViewEnabled: boolean;
 }
 
 export interface UserInfo {

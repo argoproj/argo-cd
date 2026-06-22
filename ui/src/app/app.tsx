@@ -217,6 +217,9 @@ export class App extends React.Component<
             history.replace(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
 
+        // Remove the Resources item from the navigation if the resource view is disabled.
+        this.navItems = this.navItems.filter(item => item.path !== '/resources' || authSettings.resourceViewEnabled);
+
         this.setState(prev => ({
             ...prev,
             navItems: this.navItems,
