@@ -2585,46 +2585,6 @@ func isUnresolvedEnvVarReference(val string, secretValues map[string]string) boo
 	return !found
 }
 
-// EscapeDollarSignsInMap recursively walks the given config map and escapes any
-// literal '$' characters in string values as '$$'. This should be called on a
-// connector's config sub-map after secret references have been resolved by
-// ReplaceMapSecrets. It protects resolved values from Dex's os.ExpandEnv
-// expansion (controlled by DEX_EXPAND_ENV, enabled by default), which is applied
-// to every string field in each connector's config block during unmarshalling.
-//
-// Scoped to connector configs only — Dex does NOT apply ExpandEnv to top-level
-// fields like issuer, web, oauth2, staticClients, logger, etc.
-//
-// See: https://github.com/argoproj/argo-cd/issues/27803
-func EscapeDollarSignsInMap(obj map[string]any) map[string]any {
-	newObj := make(map[string]any, len(obj))
-	for k, v := range obj {
-		newObj[k] = escapeDollarSignsValue(v)
-	}
-	return newObj
-}
-
-func escapeDollarSignsValue(v any) any {
-	switch val := v.(type) {
-	case map[string]any:
-		return EscapeDollarSignsInMap(val)
-	case []any:
-		return escapeDollarSignsInList(val)
-	case string:
-		return strings.ReplaceAll(val, "$", "$$")
-	default:
-		return val
-	}
-}
-
-func escapeDollarSignsInList(obj []any) []any {
-	newObj := make([]any, len(obj))
-	for i, v := range obj {
-		newObj[i] = escapeDollarSignsValue(v)
-	}
-	return newObj
-}
-
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
