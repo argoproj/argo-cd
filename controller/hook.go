@@ -99,7 +99,7 @@ func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
 func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.executeHooks")
 	setAppTraceAttrs(span, app, attribute.String("argocd.hook.type", string(hookType)))
-	defer traceutil.EndSpan(span, &retErr)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return false, err
@@ -244,7 +244,7 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 func (ctrl *ApplicationController) cleanupHooks(ctx context.Context, hookType HookType, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.cleanupHooks")
 	span.SetAttributes(attribute.String("argocd.hook.type", string(hookType)))
-	defer traceutil.EndSpan(span, &retErr)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return false, err

@@ -1240,7 +1240,7 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(destCluster *appv1
 func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Context, app *appv1.Application, projectClusters func(project string) ([]*appv1.Cluster, error)) (retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.finalizeApplicationDeletion")
 	setAppTraceAttrs(span, app)
-	defer traceutil.EndSpan(span, &retErr)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	// Get refreshed application info, since informer app copy might be stale
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})

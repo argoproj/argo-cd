@@ -114,14 +114,15 @@ func clampSampleRatio(sampleRatio float64) float64 {
 	}
 }
 
-// EndSpan ends span, recording an error status when *errp is non-nil. It is meant to be
-// deferred with a named error return so a single call both flags and closes the span:
+// EndSpan ends span, recording an error status when err is non-nil. Defer it inside a
+// closure so err is read at function exit rather than at defer-statement time (when a
+// named return is still nil):
 //
-//	defer trace.EndSpan(span, &retErr)
-func EndSpan(span oteltrace.Span, errp *error) {
-	if errp != nil && *errp != nil {
-		span.SetStatus(codes.Error, (*errp).Error())
-		span.RecordError(*errp)
+//	defer func() { trace.EndSpan(span, retErr) }()
+func EndSpan(span oteltrace.Span, err error) {
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
 	}
 	span.End()
 }

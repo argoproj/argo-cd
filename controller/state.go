@@ -658,7 +658,7 @@ func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncOb
 func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (_ *comparisonResult, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.CompareAppState")
 	setAppTraceAttrs(span, app)
-	defer traceutil.EndSpan(span, &retErr)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 

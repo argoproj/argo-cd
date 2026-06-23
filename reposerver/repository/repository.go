@@ -646,7 +646,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	if q.Repo != nil {
 		span.SetAttributes(attribute.String("argocd.repo.url", sanitizeRepoURL(q.Repo.Repo)))
 	}
-	defer traceutil.EndSpan(span, &retErr)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 
 	var err error
 
@@ -1749,7 +1749,7 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (_ *apiclient.ManifestResponse, retErr error) {
 	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifests")
-	defer traceutil.EndSpan(span, &retErr)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
@@ -2983,7 +2983,7 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (_ goio.Closer, retErr error) {
 	ctx, span := tracer.Start(ctx, "reposerver.checkoutRevision")
 	span.SetAttributes(attribute.String("argocd.revision", revision))
-	defer traceutil.EndSpan(span, &retErr)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, clean)
 	if err != nil {
