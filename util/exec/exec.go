@@ -205,6 +205,11 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		cmd.Stderr = io.MultiWriter(&stderr, opts.StderrWriter)
 	}
 
+	// Run the command in its own process group so a timeout can reap the whole
+	// group (the command plus any grandchildren it spawned), not just the
+	// direct child. See signalProcessGroup.
+	setChildProcessGroup(cmd)
+
 	// Start timers for timeout
 	timeout := DefaultCmdOpts.Timeout
 	fatalTimeout := DefaultCmdOpts.FatalTimeout
@@ -255,15 +260,15 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	select {
 	// noinspection ALL
 	case <-timoutCh:
-		// send timeout signal
-		_ = cmd.Process.Signal(timeoutBehavior.Signal)
+		// send timeout signal to the whole process group
+		_ = signalProcessGroup(cmd, timeoutBehavior.Signal)
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
 			select {
 			case <-done: //nolint:errcheck // exit error after our signal is expected
 			case <-fatalTimeoutCh:
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
-				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
+				_ = signalProcessGroup(cmd, fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
 				<-done //nolint:errcheck
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
