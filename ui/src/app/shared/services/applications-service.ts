@@ -173,6 +173,42 @@ export class ApplicationsService {
             });
     }
 
+    public serverSideDiff(
+        name: string,
+        appNamespace: string,
+        project: string,
+        liveResources: models.ResourceDiff[],
+        targetManifests: string[]
+    ): Promise<{items: models.ResourceDiff[]; modified: boolean}> {
+        const stringify = (v: any) => (v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v));
+        const liveForWire = (liveResources || []).map(r => ({
+            group: r.group,
+            kind: r.kind,
+            namespace: r.namespace,
+            name: r.name,
+            hook: r.hook,
+            liveState: stringify(r.liveState),
+            targetState: stringify(r.targetState)
+        }));
+        return requests
+            .get(`/applications/${name}/server-side-diff`)
+            .query({appName: name, appNamespace, project})
+            .query({liveResources: liveForWire.map(r => JSON.stringify(r))})
+            .query({targetManifests})
+            .then(res => {
+                const items = ((res.body.items as any[]) || []).map(item => {
+                    if (item.liveState) {
+                        item.liveState = JSON.parse(item.liveState);
+                    }
+                    if (item.targetState) {
+                        item.targetState = JSON.parse(item.targetState);
+                    }
+                    return item;
+                }) as models.ResourceDiff[];
+                return {items, modified: !!res.body.modified};
+            });
+    }
+
     public getManifest(name: string, appNamespace: string, revision: string, revisions?: string[], sourcePositions?: number[]): Promise<models.ManifestResponse> {
         const query: any = {name, revision, appNamespace};
         if (revisions && revisions.length > 0) {
