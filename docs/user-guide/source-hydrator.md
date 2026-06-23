@@ -572,6 +572,43 @@ When hydration fails, the application remains in the `Failed` phase and the erro
 > If the first hydration attempt fails before any dry revision is recorded, automatic detection of a
 > new commit during the cooldown may be delayed until the cooldown expires or you refresh manually.
 
+## Forcing Hydration with the `hydrate` Annotation
+
+Argo CD uses the `argocd.argoproj.io/hydrate` annotation to request that an Application's dry source be
+checked and hydrated (if necessary) outside of the normal commit-detection flow. The application controller
+consumes and removes the annotation as soon as it has processed it, so it will not normally persist on the
+Application.
+
+The annotation takes one of two values:
+
+| Value    | Effect                                                                                                                    |
+|----------|---------------------------------------------------------------------------------------------------------------------------|
+| `normal` | Forces a check of whether the dry source has changed since the last hydration.  Hydration only runs if a change is found. |
+| `hard`   | Forces hydration unconditionally, even if the dry source revision hasn't changed since the last hydration.                |
+
+> [!NOTE]
+> Only the exact value `hard` is special-cased. Any other value is treated the  as `normal`.
+
+Argo CD sets this annotation automatically in a few situations:
+
+* **Manual or API refresh.** `argocd app get <app> --refresh` (and the equivalent API call) sets it to `normal`;
+  `argocd app get <app> --hard-refresh` sets it to `hard`.
+* **Dry-source webhooks.** A webhook event affecting the `drySource` repository sets it to `normal`, so the dry
+  source is checked right away instead of waiting for the next periodic reconciliation.
+
+You can also set the annotation yourself to force a re-hydration, for example to retry sooner than the
+[failure cooldown](#hydration-failures-and-retries) or after a change that the hydrator wouldn't otherwise detect
+(such as a change to a [Config Management Plugin](../operator-manual/config-management-plugins.md) that doesn't
+touch the dry source repository):
+
+```shell
+kubectl patch application my-app -n argocd --type merge \
+  -p '{"metadata": {"annotations": {"argocd.argoproj.io/hydrate": "hard"}}}'
+```
+
+> [!NOTE]
+> The annotation only has an effect on Applications with `spec.sourceHydrator` configured, it is ignored otherwise.
+
 ## Manifest Generate Paths
 
 The source hydrator honors the [`manifest-generate-paths` annotation](../operator-manual/high_availability.md#manifest-paths-annotation)
