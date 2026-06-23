@@ -43,6 +43,9 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 						}
 					]
 				}`)
+		case "/repositories/OWNER/REPO/commit/1a8dd249c04a":
+			// commit reachability check — 200 so the PR is not filtered out
+			_, err = io.WriteString(w, `{"hash": "1a8dd249c04a"}`)
 		default:
 			t.Fail()
 		}
@@ -203,6 +206,8 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 					}
 				]
 			}`, r.Host)
+		case "/repositories/OWNER/REPO/commit/1a8dd249c04a", "/repositories/OWNER/REPO/commit/4cf807e67a6d", "/repositories/OWNER/REPO/commit/6344d9623e3b", "/repositories/OWNER/REPO/commit/4a8dd249c04a", "/repositories/OWNER/REPO/commit/2a8dd249c04a":
+			w.WriteHeader(http.StatusOK)
 		default:
 			t.Fail()
 		}
@@ -409,6 +414,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 					}
 				]
 			}`, r.Host)
+		case "/repositories/OWNER/REPO/commit/1a8dd249c04a", "/repositories/OWNER/REPO/commit/4cf807e67a6d", "/repositories/OWNER/REPO/commit/6344d9623e3b", "/repositories/OWNER/REPO/commit/4a8dd249c04a", "/repositories/OWNER/REPO/commit/2a8dd249c04a":
+			w.WriteHeader(http.StatusOK)
 		default:
 			t.Fail()
 		}
@@ -548,4 +555,43 @@ func TestBitbucketCloudListUsesHintAndBypassesAPI(t *testing.T) {
 	// Second call: hint was consumed, falls back to API (which 500s)
 	_, err = svc.List(t.Context())
 	assert.Error(t, err)
+}
+
+func TestBitbucketCloudListSkipsUnreachableCommit(t *testing.T) {
+	// PR whose head SHA returns 404 from the commit API should be skipped;
+	// PR with a reachable SHA should be returned.
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	mux.HandleFunc("/repositories/OWNER/REPO/pullrequests/", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"values": [
+			{"id": 1, "title": "reachable PR", "state": "OPEN",
+			 "source": {"branch": {"name": "feat/a"}, "commit": {"hash": "aabbcc"}},
+			 "destination": {"branch": {"name": "main"}},
+			 "author": {"nickname": "alice"}},
+			{"id": 2, "title": "deleted-branch PR", "state": "OPEN",
+			 "source": {"branch": {"name": "feat/gone"}, "commit": {"hash": "deadbeef"}},
+			 "destination": {"branch": {"name": "main"}},
+			 "author": {"nickname": "bob"}}
+		]}`))
+	})
+	// Reachable commit returns 200.
+	mux.HandleFunc("/repositories/OWNER/REPO/commit/aabbcc", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"hash": "aabbcc"}`))
+	})
+	// Unreachable commit returns 404.
+	mux.HandleFunc("/repositories/OWNER/REPO/commit/deadbeef", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "OWNER", "REPO", nil)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+	require.NoError(t, err)
+	require.Len(t, prs, 1)
+	assert.Equal(t, int64(1), prs[0].Number)
+	assert.Equal(t, "aabbcc", prs[0].HeadSHA)
 }

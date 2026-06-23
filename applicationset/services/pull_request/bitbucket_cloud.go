@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ktrysmt/go-bitbucket"
+	log "github.com/sirupsen/logrus"
 )
 
 type BitbucketCloudService struct {
@@ -165,6 +166,17 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	}
 
 	for _, pull := range pulls {
+		// Bitbucket has no persistent PR refs; a deleted source branch makes the SHA unreachable.
+		if !b.isCommitReachable(pull.Source.Commit.Hash) {
+			log.WithFields(log.Fields{
+				"owner":   b.owner,
+				"repo":    b.repositorySlug,
+				"pr":      pull.ID,
+				"headSHA": pull.Source.Commit.Hash,
+				"branch":  pull.Source.Branch.Name,
+			}).Warn("skipping PR: head commit unreachable (source branch likely deleted)")
+			continue
+		}
 		pullRequests = append(pullRequests, &PullRequest{
 			Number:       int64(pull.ID),
 			Title:        pull.Title,
@@ -176,4 +188,30 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	}
 
 	return pullRequests, nil
+}
+
+// isCommitReachable checks whether the given SHA is accessible in the remote repository.
+// Returns false when Bitbucket returns 404 (branch deleted, commit dangling), true otherwise.
+// On non-404 errors (network, auth) it returns true so the PR is not silently dropped.
+func (b *BitbucketCloudService) isCommitReachable(sha string) bool {
+	if sha == "" {
+		return false
+	}
+	_, err := b.client.Repositories.Commits.GetCommit(&bitbucket.CommitsOptions{
+		Owner:    b.owner,
+		RepoSlug: b.repositorySlug,
+		Revision: sha,
+	})
+	if err == nil {
+		return true
+	}
+	// Only treat 404 as "unreachable"; surface all other errors as reachable so
+	// transient failures don't silently drop PRs.
+	if strings.Contains(err.Error(), "404 Not Found") {
+		return false
+	}
+	log.WithError(err).WithFields(log.Fields{
+		"owner": b.owner, "repo": b.repositorySlug, "sha": sha,
+	}).Warn("error checking commit reachability; treating as reachable")
+	return true
 }
