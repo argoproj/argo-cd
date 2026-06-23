@@ -158,7 +158,7 @@ func newDeployment() *appsv1.Deployment {
 
 func diff(t *testing.T, config, live *unstructured.Unstructured, options ...Option) *DiffResult {
 	t.Helper()
-	res, err := Diff(config, live, options...)
+	res, err := Diff(t.Context(), config, live, options...)
 	assert.NoError(t, err)
 	return res
 }
@@ -241,7 +241,7 @@ func TestDiffArraySame(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.False(t, diffResList.Modified)
 }
@@ -256,7 +256,7 @@ func TestDiffArrayAdditions(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.False(t, diffResList.Modified)
 }
@@ -272,7 +272,7 @@ func TestDiffArrayModification(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.True(t, diffResList.Modified)
 }
@@ -916,7 +916,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ServicePredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -941,7 +941,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.Deployment2PredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -966,7 +966,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -991,7 +991,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentNestedPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1022,7 +1022,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentApplyPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1049,7 +1049,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ServicePredictedLiveNoLabelJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1082,7 +1082,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOptsWithNormalizer(testdata.ServicePredictedLiveJSONSSD, normalizer)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1114,7 +1114,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentCompositeKeyPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1204,7 +1204,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1222,7 +1222,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ConfigMapPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1263,7 +1263,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "injected-by-webhook"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1283,7 +1283,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "new-value"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1306,7 +1306,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "x", "token": "y"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1325,7 +1325,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, desired)
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1388,7 +1388,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -2035,7 +2035,7 @@ spec:
 `), &liveResource); err != nil {
 		panic(err)
 	}
-	diff, err := Diff(&expectedResource, &liveResource, diffOptionsForTest()...)
+	diff, err := Diff(context.Background(), &expectedResource, &liveResource, diffOptionsForTest()...)
 	if err != nil {
 		panic(err)
 	}
@@ -2121,7 +2121,7 @@ spec:
 		}
 
 		// when
-		result, err := Diff(desiredService, liveService, opts...)
+		result, err := Diff(t.Context(), desiredService, liveService, opts...)
 		require.NoError(t, err)
 
 		// then
@@ -2189,7 +2189,7 @@ spec:
 		}
 
 		// when
-		result, err := Diff(configService, liveService, opts...)
+		result, err := Diff(t.Context(), configService, liveService, opts...)
 		require.NoError(t, err)
 
 		// then
