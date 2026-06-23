@@ -835,7 +835,7 @@ entries:
 
 	extractValues := func() string {
 		t.Helper()
-		path, closer, err := client.ExtractChart(chartName, chartVersion, false, math.MaxInt64, false)
+		path, closer, err := client.ExtractChart(t.Context(), chartName, chartVersion, false, math.MaxInt64, false)
 		require.NoError(t, err)
 		defer utilio.Close(closer)
 

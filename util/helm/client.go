@@ -228,39 +228,15 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 			}).Warn("error checking cached Helm chart; removing cached archive")
 			_ = os.RemoveAll(cachedChartPath)
 			exists = false
-		} else {
-			now := time.Now()
-			age := now.Sub(info.ModTime())
-
-			switch {
-			case age > c.helmChartCacheExpiration:
-				if err := os.RemoveAll(cachedChartPath); err != nil {
-					_ = os.RemoveAll(tempDir)
-					return "", nil, fmt.Errorf(
-						"error removing expired cached chart: %w",
-						err,
-					)
-				}
-				exists = false
-			case age < 0:
-				// Handle clock skew.
-				// If the cached chart has a modification time in the future, it is likely due to clock skew.
-				// In this case, remove the cached chart to allow it to be re-downloaded with a current timestamp.
-				log.WithFields(log.Fields{
-					"chart":   chart,
-					"version": version,
-					"mtime":   info.ModTime(),
-					"now":     now,
-				}).Warn("cached Helm chart has a future modification time; removing cached archive")
-				if err := os.RemoveAll(cachedChartPath); err != nil {
-					_ = os.RemoveAll(tempDir)
-					return "", nil, fmt.Errorf(
-						"error removing cached chart with future timestamp: %w",
-						err,
-					)
-				}
-				exists = false
+		} else if time.Since(info.ModTime()) > c.helmChartCacheExpiration {
+			if err := os.RemoveAll(cachedChartPath); err != nil {
+				_ = os.RemoveAll(tempDir)
+				return "", nil, fmt.Errorf(
+					"error removing expired cached chart: %w",
+					err,
+				)
 			}
+			exists = false
 		}
 	}
 
@@ -318,15 +294,6 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		err = os.Rename(chartFilePath, cachedChartPath)
 		if err != nil {
 			return "", nil, fmt.Errorf("error renaming file from %s to %s: %w", chartFilePath, cachedChartPath, err)
-		}
-
-		// Use the repo-server clock as the source of truth for the cache insertion
-		// time. The cached chart is not modified after it is stored.
-		now := time.Now()
-		if err := os.Chtimes(cachedChartPath, now, now); err != nil {
-			_ = os.RemoveAll(tempDir)
-			_ = os.RemoveAll(cachedChartPath)
-			return "", nil, fmt.Errorf("error normalizing downloaded chart timestamp: %w", err)
 		}
 	}
 
