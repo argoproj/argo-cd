@@ -349,13 +349,13 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
-	largeFiles, err := client.LsLargeFiles()
+	largeFiles, err := client.LsLargeFiles(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 
@@ -386,27 +386,27 @@ func TestVerifyCommitSignature(t *testing.T) {
 	require.NoError(t, err)
 
 	// Use shallow fetch to avoid timeout fetching the entire repo
-	err = client.Fetch("", 1)
+	err = client.Fetch(t.Context(), "", 1)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
 	// Fetch the specific commits needed for signature verification
 	signedCommit := "723b86e01bea11dcf72316cb172868fcbf05d69e"
 	unsignedCommit := "1ccdee0a611224ccc6b9ff7919fe7002f905436e"
-	err = client.Fetch(signedCommit, 1)
+	err = client.Fetch(t.Context(), signedCommit, 1)
 	require.NoError(t, err)
-	err = client.Fetch(unsignedCommit, 1)
+	err = client.Fetch(t.Context(), unsignedCommit, 1)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
 	// It doesn't matter whether we know the key or not at this stage
 	{
-		out, err := client.VerifyCommitSignature(signedCommit)
+		out, err := client.VerifyCommitSignature(t.Context(), signedCommit)
 		require.NoError(t, err)
 		assert.NotEmpty(t, out)
 		assert.Contains(t, out, "gpg: Signature made")
@@ -414,7 +414,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
 	{
-		out, err := client.VerifyCommitSignature(unsignedCommit)
+		out, err := client.VerifyCommitSignature(t.Context(), unsignedCommit)
 		require.NoError(t, err)
 		assert.Empty(t, out)
 	}
@@ -451,17 +451,17 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch(t.Context(), "", 0)
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("", 0)
+		err = client.Fetch(t.Context(), "", 0)
 		require.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true, true)
+		_, err = client.Checkout(t.Context(), commitSHA, true, true)
 		require.NoError(t, err)
 
-		revisionMetadata, err := client.RevisionMetadata(commitSHA)
+		revisionMetadata, err := client.RevisionMetadata(t.Context(), commitSHA)
 		require.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
@@ -469,7 +469,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 
-		commitSHA2, err := client.CommitSHA()
+		commitSHA2, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)
@@ -548,7 +548,7 @@ func TestLsFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lsResult, err := client.LsFiles(tt.pattern, tt.safeGlobbing)
+			lsResult, err := client.LsFiles(t.Context(), tt.pattern, tt.safeGlobbing)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, lsResult)
 		})
@@ -730,7 +730,7 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lsResult, err := client.LsFiles(tt.pattern, tt.isNewGlobbingEnabled)
+			lsResult, err := client.LsFiles(t.Context(), tt.pattern, tt.isNewGlobbingEnabled)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tt.expected, lsResult)
 		})
