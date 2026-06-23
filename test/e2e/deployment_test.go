@@ -18,7 +18,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/clusterauth"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
@@ -276,6 +279,14 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 // - username = name of Namespace the simulated user is able to deploy to
 // - clusterScopedSecrets = whether the Service Account is namespace-scoped or cluster-scoped.
 func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets bool) (string, string, string) {
+	return createNamespaceScopedUserWithRules(c, username, []rbacv1.PolicyRule{{
+		Verbs:     []string{"*"},
+		Resources: []string{"*"},
+		APIGroups: []string{"*"},
+	}}, clusterScopedSecrets)
+}
+
+func createNamespaceScopedUserWithRules(c *Context, username string, rules []rbacv1.PolicyRule, clusterScopedSecrets bool) (string, string, string) {
 	c.T().Helper()
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
@@ -300,11 +311,7 @@ func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets
 			Name:      DnsFriendly("allow-all", "-"+c.ShortID()),
 			Namespace: ns.Name,
 		},
-		Rules: []rbacv1.PolicyRule{{
-			Verbs:     []string{"*"},
-			Resources: []string{"*"},
-			APIGroups: []string{"*"},
-		}},
+		Rules: rules,
 	}
 	_, err = KubeClientset.RbacV1().Roles(role.Namespace).Create(c.T().Context(), &role, metav1.CreateOptions{})
 	require.NoError(c.T(), err)
@@ -386,6 +393,83 @@ func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets
 	_, err = KubeClientset.CoreV1().Secrets(secret.Namespace).Create(c.T().Context(), &secret, metav1.CreateOptions{})
 	require.NoError(c.T(), err)
 	return ns.Name, serviceAccountName, clusterName
+}
+
+var resourceActionWithEventsRules = []rbacv1.PolicyRule{
+	{
+		Verbs:     []string{"get", "patch", "update", "list", "watch"},
+		Resources: []string{"deployments", "deployments/status"},
+		APIGroups: []string{"apps"},
+	},
+	{
+		Verbs:     []string{"create"},
+		Resources: []string{"events"},
+		APIGroups: []string{""},
+	},
+}
+
+var resourceActionWithoutEventsRules = []rbacv1.PolicyRule{
+	{
+		Verbs:     []string{"get", "patch", "update", "list", "watch"},
+		Resources: []string{"deployments", "deployments/status"},
+		APIGroups: []string{"apps"},
+	},
+}
+
+func runGuestbookResourceAction(t *testing.T, app *Application, deploymentNamespace string) {
+	t.Helper()
+	closer, client, err := ArgoCDClientset.NewApplicationClient()
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+
+	_, err = client.RunResourceActionV2(t.Context(), &applicationpkg.ResourceActionRunRequestV2{
+		Name:         &app.Name,
+		Group:        new("apps"),
+		Kind:         new("Deployment"),
+		Version:      new("v1"),
+		Namespace:    new(deploymentNamespace),
+		ResourceName: new("guestbook-ui"),
+		Action:       new("sample"),
+	})
+	require.NoError(t, err)
+}
+
+func TestResourceActionAuditEventWithDestinationClusterCredentials(t *testing.T) {
+	ctx := Given(t)
+	ns, _, destName := createNamespaceScopedUserWithRules(ctx, "audit-user", resourceActionWithEventsRules, false)
+	require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}))
+
+	GivenWithSameState(ctx).
+		Name("e2e-resource-action-audit-"+ctx.ShortID()).
+		DestName(destName).
+		Path(guestbookPath).
+		When().
+		CreateWithNoNameSpace("--dest-namespace", ns).
+		Sync().
+		Then().
+		And(func(app *Application) {
+			runGuestbookResourceAction(t, app, ns)
+		}).
+		Expect(ResourceEvent(ns, "guestbook-ui", argo.EventReasonResourceActionRan, "ran action sample"))
+}
+
+func TestResourceActionAuditEventRBACDenied(t *testing.T) {
+	ctx := Given(t)
+	ns, _, destName := createNamespaceScopedUserWithRules(ctx, "audit-deny-user", resourceActionWithoutEventsRules, false)
+	require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}))
+
+	GivenWithSameState(ctx).
+		Name("e2e-resource-action-audit-deny-"+ctx.ShortID()).
+		DestName(destName).
+		Path(guestbookPath).
+		When().
+		CreateWithNoNameSpace("--dest-namespace", ns).
+		Sync().
+		Then().
+		And(func(app *Application) {
+			runGuestbookResourceAction(t, app, ns)
+			AssertResourceEventNotExistsT(t, ns, "guestbook-ui", argo.EventReasonResourceActionRan)
+		})
 }
 
 // extractKubeConfigValues returns contents of the local environment's kubeconfig, using standard path resolution mechanism.
