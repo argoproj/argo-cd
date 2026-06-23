@@ -20,12 +20,8 @@ func newOIDCCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "oidc",
 		Run: func(_ *cobra.Command, _ []string) {
-			if tokenFile == "" {
-				tokenFile = os.Getenv("ARGOCD_OIDC_TOKEN_FILE")
-			}
-			if tokenFile == "" {
-				argoerrors.CheckError(errors.New("token file must be set via --token-file or ARGOCD_OIDC_TOKEN_FILE"))
-			}
+			tokenFile, err := validateTokenFile(tokenFile)
+			argoerrors.CheckError(err)
 
 			raw, err := os.ReadFile(tokenFile)
 			argoerrors.CheckError(err)
@@ -39,6 +35,19 @@ func newOIDCCommand() *cobra.Command {
 	}
 	command.Flags().StringVar(&tokenFile, "token-file", "", "Path to a file containing the OIDC token (defaults to the ARGOCD_OIDC_TOKEN_FILE env var)")
 	return command
+}
+
+// validateTokenFile resolves the token file path, falling back to the ARGOCD_OIDC_TOKEN_FILE env var, and returns an error if none is set
+func validateTokenFile(tokenFile string) (string, error) {
+	if tokenFile == "" {
+		if envTokenFile, ok := os.LookupEnv("ARGOCD_OIDC_TOKEN_FILE"); ok {
+			tokenFile = envTokenFile
+		}
+	}
+	if tokenFile == "" {
+		return "", errors.New("token file must be set via --token-file or ARGOCD_OIDC_TOKEN_FILE")
+	}
+	return tokenFile, nil
 }
 
 // tokenExpiration reads the unverified exp claim, falling back to a short TTL so the rotated token is re-read soon
