@@ -73,6 +73,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
 const (
@@ -1238,14 +1239,8 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(destCluster *appv1
 
 func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Context, app *appv1.Application, projectClusters func(project string) ([]*appv1.Cluster, error)) (retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.finalizeApplicationDeletion")
-	span.SetAttributes(appTraceAttrs(app)...)
-	defer func() {
-		if retErr != nil {
-			span.SetStatus(otel_codes.Error, retErr.Error())
-			span.RecordError(retErr)
-		}
-		span.End()
-	}()
+	setAppTraceAttrs(span, app)
+	defer traceutil.EndSpan(span, &retErr)
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	// Get refreshed application info, since informer app copy might be stale
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
@@ -1481,7 +1476,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	// context, so context.Background() roots this operation's context tree.
 	ctx := context.Background()
 	ctx, span := tracer.Start(ctx, "controller.Operation")
-	span.SetAttributes(appTraceAttrs(app)...)
+	setAppTraceAttrs(span, app)
 	defer span.End()
 	var state *appv1.OperationState
 	// Recover from any unexpected panics and automatically set the status to be failed
@@ -1796,7 +1791,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// context, so context.Background() roots this reconciliation's context tree.
 	ctx := context.Background()
 	ctx, span := tracer.Start(ctx, "controller.Refresh")
-	span.SetAttributes(appTraceAttrs(origApp)...)
+	setAppTraceAttrs(span, origApp)
 	defer span.End()
 
 	startTime := time.Now()
@@ -2209,7 +2204,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	// NB: leaf span only — the status patch below deliberately stays on context.Background() so a
 	// canceled reconcile ctx never aborts a durable status write. The span just measures it.
 	_, span := tracer.Start(ctx, "controller.persistAppStatus")
-	span.SetAttributes(appTraceAttrs(orig)...)
+	setAppTraceAttrs(span, orig)
 	defer span.End()
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
@@ -2295,7 +2290,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 // autoSync will initiate a sync operation for an application configured with automated sync
 func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
 	_, span := tracer.Start(ctx, "controller.autoSync")
-	span.SetAttributes(appTraceAttrs(app)...)
+	setAppTraceAttrs(span, app)
 	defer span.End()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	ts := stats.NewTimingStats()

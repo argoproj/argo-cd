@@ -71,6 +71,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -632,7 +633,7 @@ func (s *Service) checkOutOfBoundsSymlinks(rootPath string, version string, noCa
 	return checker.(func() error)()
 }
 
-func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (res *apiclient.ManifestResponse, retErr error) {
 	// The otelgrpc server handler already created the RPC span as the parent; this names
 	// and annotates the manifest-generation work so it shows up in the reconcile trace.
 	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifest")
@@ -641,11 +642,10 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		attribute.String("argocd.revision", q.Revision),
 	)
 	if q.Repo != nil {
-		span.SetAttributes(attribute.String("argocd.repo.url", q.Repo.Repo))
+		span.SetAttributes(attribute.String("argocd.repo.url", sanitizeRepoURL(q.Repo.Repo)))
 	}
-	defer span.End()
+	defer traceutil.EndSpan(span, &retErr)
 
-	var res *apiclient.ManifestResponse
 	var err error
 
 	// Skip this path for ref only sources
@@ -1233,6 +1233,18 @@ func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
 }
 
+// sanitizeRepoURL strips any embedded userinfo (e.g. https://token@host/org/repo) from a
+// repository URL so credentials are not exported to the tracing backend as span attributes.
+// If the URL cannot be parsed it is returned unchanged.
+func sanitizeRepoURL(repoURL string) string {
+	u, err := url.Parse(repoURL)
+	if err != nil || u.User == nil {
+		return repoURL
+	}
+	u.User = nil
+	return u.String()
+}
+
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
@@ -1733,9 +1745,9 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 }
 
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (_ *apiclient.ManifestResponse, retErr error) {
 	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifests")
-	defer span.End()
+	defer traceutil.EndSpan(span, &retErr)
 
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
@@ -2966,10 +2978,10 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (goio.Closer, error) {
+func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (_ goio.Closer, retErr error) {
 	ctx, span := tracer.Start(ctx, "reposerver.checkoutRevision")
 	span.SetAttributes(attribute.String("argocd.revision", revision))
-	defer span.End()
+	defer traceutil.EndSpan(span, &retErr)
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, clean)
 	if err != nil {

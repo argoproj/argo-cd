@@ -29,6 +29,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otel_codes "go.opentelemetry.io/otel/codes"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -50,19 +51,25 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
 var ErrCompareStateRepo = errors.New("failed to get repo objects")
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/controller")
 
-// appTraceAttrs returns the standard argocd.app.* span attributes for an application.
-func appTraceAttrs(app *v1alpha1.Application) []attribute.KeyValue {
-	return []attribute.KeyValue{
+// setAppTraceAttrs sets the standard argocd.app.* span attributes (plus any extra attributes)
+// on span. It is a no-op when the span is not recording, so callers on hot reconcile paths do
+// not allocate attribute slices when tracing is disabled.
+func setAppTraceAttrs(span oteltrace.Span, app *v1alpha1.Application, extra ...attribute.KeyValue) {
+	if !span.IsRecording() {
+		return
+	}
+	span.SetAttributes(append([]attribute.KeyValue{
 		attribute.String("argocd.app.name", app.Name),
 		attribute.String("argocd.app.namespace", app.Namespace),
 		attribute.String("argocd.app.project", app.Spec.GetProject()),
-	}
+	}, extra...)...)
 }
 
 type resourceInfoProviderStub struct{}
@@ -221,7 +228,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	// This span is the parent the otelgrpc client handler propagates onto the repo-server
 	// GenerateManifest RPCs below, joining the repo-server trace to this reconcile.
 	ctx, span := tracer.Start(ctx, "controller.GetRepoObjs")
-	span.SetAttributes(appTraceAttrs(app)...)
+	setAppTraceAttrs(span, app)
 	defer span.End()
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
@@ -648,10 +655,10 @@ func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncOb
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (_ *comparisonResult, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.CompareAppState")
-	span.SetAttributes(appTraceAttrs(app)...)
-	defer span.End()
+	setAppTraceAttrs(span, app)
+	defer traceutil.EndSpan(span, &retErr)
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 

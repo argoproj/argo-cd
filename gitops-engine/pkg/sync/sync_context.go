@@ -1511,18 +1511,13 @@ func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, val
 }
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
-func (sc *syncContext) pruneObject(ctx context.Context, liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
+func (sc *syncContext) pruneObject(ctx context.Context, t *syncTask, prune, dryRun bool) (common.ResultCode, string) {
 	ctx, span := tracer.Start(ctx, "sync.prune")
-	gvk := liveObj.GroupVersionKind()
-	span.SetAttributes(
-		attribute.String("argocd.resource.group", gvk.Group),
-		attribute.String("argocd.resource.kind", gvk.Kind),
-		attribute.String("argocd.resource.namespace", liveObj.GetNamespace()),
-		attribute.String("argocd.resource.name", liveObj.GetName()),
-		attribute.Bool("argocd.sync.dry_run", dryRun),
-	)
+	span.SetAttributes(taskTraceAttrs(t)...)
+	span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
 	defer span.End()
 
+	liveObj := t.liveObj
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
 	} else if isPruningDisabled(liveObj, sc.defaultPruneOption) {
@@ -1708,7 +1703,7 @@ func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun boo
 			ss.Go(func(state runState) runState {
 				logCtx := sc.log.WithValues("dryRun", dryRun, "task", t)
 				logCtx.V(1).Info("Pruning")
-				result, message := sc.pruneObject(ctx, t.liveObj, sc.prune, dryRun)
+				result, message := sc.pruneObject(ctx, t, sc.prune, dryRun)
 				if result == common.ResultCodeSyncFailed {
 					state = failed
 					logCtx.WithValues("message", message).Info("Pruning failed")
