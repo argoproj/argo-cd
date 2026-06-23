@@ -2,13 +2,12 @@ package controller
 
 import (
 	"context"
-	cryptorand "crypto/rand"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"maps"
 	"math"
-	"math/big"
+	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -1079,9 +1078,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 			logCtx.WithError(err).Error("Failed to retrieve latest application state")
 			return processNext
 		}
-		if freshApp.Operation == nil {
-			return processNext
-		}
 		app = freshApp
 	}
 	ts.AddCheckpoint("get_fresh_app_ms")
@@ -2057,8 +2053,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 
-	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
+	softExpired := statusRefreshTimeout > 0 && app.Status.Expired(statusRefreshTimeout)
+	hardExpired := statusHardRefreshTimeout > 0 && app.Status.Expired(statusHardRefreshTimeout)
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		compareWith = CompareWithLatestForceResolve
@@ -2113,10 +2109,10 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 // processAppRefreshQueueItem, which remains the source of truth for deciding
 // comparison level and performing reconciliation.
 func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Application) bool {
-	if app.Status.Expired(ctrl.statusRefreshTimeout) {
+	if ctrl.statusRefreshTimeout > 0 && app.Status.Expired(ctrl.statusRefreshTimeout) {
 		return true
 	}
-	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && app.Status.Expired(ctrl.statusHardRefreshTimeout) {
+	if ctrl.statusHardRefreshTimeout > 0 && app.Status.Expired(ctrl.statusHardRefreshTimeout) {
 		return true
 	}
 	return false
@@ -2133,11 +2129,7 @@ func (ctrl *ApplicationController) resyncRefreshAfter() *time.Duration {
 	if nanos <= 0 {
 		return nil
 	}
-	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(nanos+1))
-	if err != nil {
-		return nil
-	}
-	d := time.Duration(n.Int64())
+	d := time.Duration(rand.Int63n(nanos + 1))
 	return &d
 }
 
@@ -2555,69 +2547,30 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
-// operationChanged reports whether the Application's requested sync operation (app.Operation)
-// was added or modified.
-func operationChanged(oldApp, newApp *appv1.Application) bool {
-	oldExists := oldApp.Operation != nil
-	newExists := newApp.Operation != nil
-
-	// Operation was added.
-	if !oldExists && newExists {
-		return true
-	}
-
-	// Operation was modified (both exist but differ).
-	if oldExists && newExists {
-		return !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation)
-	}
-
-	// No operation, or operation was removed (completion handled by the operation queue).
-	return false
-}
-
-// deletionTimestampChanged reports whether the Application deletion timestamp was set or updated.
-func deletionTimestampChanged(oldApp, newApp *appv1.Application) bool {
-	oldHasTimestamp := oldApp.DeletionTimestamp != nil
-	newHasTimestamp := newApp.DeletionTimestamp != nil
-
-	// Deletion was initiated.
-	if !oldHasTimestamp && newHasTimestamp {
-		return true
-	}
-
-	// Deletion timestamp was updated.
-	if oldHasTimestamp && newHasTimestamp {
-		return !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp)
-	}
-
-	return false
-}
-
-// noSpecOperationOrDeletionChange is true when Spec, Operation (sync op), and deletion timestamp semantics are
-// unchanged between oldApp and newApp. Labels, annotations, Application Status, ResourceVersion, etc. may differ;
-// applicationInformerProcessUpdate layers refresh/hydrate annotation and applicationComparisonExpired gates on top.
-func noSpecOperationOrDeletionChange(oldApp, newApp *appv1.Application) bool {
-	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+// onlyStatusChanged reports whether an informer update changed only Status (ignoring
+// ResourceVersion and ManagedFields). Returns false for deletion and any spec/metadata change.
+func onlyStatusChanged(oldApp, newApp *appv1.Application) bool {
+	if newApp.DeletionTimestamp != nil {
 		return false
 	}
-	if operationChanged(oldApp, newApp) {
-		return false
-	}
-	if newApp.DeletionTimestamp != nil || deletionTimestampChanged(oldApp, newApp) {
-		return false
-	}
-	return true
+
+	oldCopy := oldApp.DeepCopy()
+	newCopy := newApp.DeepCopy()
+
+	oldCopy.Status = appv1.ApplicationStatus{}
+	newCopy.Status = appv1.ApplicationStatus{}
+	oldCopy.ResourceVersion = ""
+	newCopy.ResourceVersion = ""
+	oldCopy.ManagedFields = nil
+	newCopy.ManagedFields = nil
+
+	return equality.Semantic.DeepEqual(oldCopy, newCopy)
 }
 
 // applicationInformerProcessUpdate handles Application informer updates and decides whether to
-// enqueue a refresh or skip it. It avoids unnecessary refreshes for updates where
-// spec/operation/deletion timestamp are unchanged (e.g. status- or metadata-only updates), while still
-// handling newly added refresh/hydrate annotations, comparison expiry, and automated sync.
+// enqueue a refresh or skip it. It avoids unnecessary refreshes for status-only updates, while still
+// handling metadata/spec/operation changes, comparison expiry, and automated sync.
 func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, oldApp *appv1.Application, newOK bool, newApp *appv1.Application, key string) {
-	if newOK && newApp.Operation != nil {
-		ctrl.appOperationQueue.AddRateLimited(key)
-	}
-
 	var compareWith *CompareWith
 	var delay *time.Duration
 
@@ -2634,45 +2587,16 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 			return
 		}
 
-		// Fast-path for updates where spec/operation/deletion are unchanged.
-		// We avoid enqueueing a full refresh unless:
-		//   - a refresh/hydrate annotation was just added (explicit user signal), or
-		//   - the comparison has expired (periodic reconciliation).
-		// If neither annotation was newly added and the app is not expired,
-		// we skip requestAppRefresh and only enqueue hydration work (if enabled),
-		// then return early.
-		// Otherwise (annotation edge or expiry), we fall through to the normal
-		// refresh path below.
-		if noSpecOperationOrDeletionChange(oldApp, newApp) {
-			oldAnnotations := oldApp.GetAnnotations()
-			newAnnotations := newApp.GetAnnotations()
-			oldRefreshAnnot, newRefreshAnnot := "", ""
-			if oldAnnotations != nil {
-				oldRefreshAnnot = oldAnnotations[appv1.AnnotationKeyRefresh]
-			}
-			if newAnnotations != nil {
-				newRefreshAnnot = newAnnotations[appv1.AnnotationKeyRefresh]
-			}
-			oldHydrateAnnot, newHydrateAnnot := "", ""
-			if oldAnnotations != nil {
-				oldHydrateAnnot = oldAnnotations[appv1.AnnotationKeyHydrate]
-			}
-			if newAnnotations != nil {
-				newHydrateAnnot = newAnnotations[appv1.AnnotationKeyHydrate]
-			}
-			refreshAnnotChanged := newRefreshAnnot != "" && oldRefreshAnnot != newRefreshAnnot
-			hydrateAnnotChanged := newHydrateAnnot != "" && oldHydrateAnnot != newHydrateAnnot
-
-			if !(refreshAnnotChanged || hydrateAnnotChanged || ctrl.applicationComparisonExpired(newApp)) {
+		// Fast-path for status-only updates: skip refresh unless comparison has expired.
+		if onlyStatusChanged(oldApp, newApp) {
+			if !ctrl.applicationComparisonExpired(newApp) {
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 				return
 			}
-			if !refreshAnnotChanged && !hydrateAnnotChanged && ctrl.applicationComparisonExpired(newApp) {
-				delay = ctrl.resyncRefreshAfter()
-			}
+			delay = ctrl.resyncRefreshAfter()
 		}
 
 		if automatedSyncEnabled(oldApp, newApp) {
@@ -2687,7 +2611,8 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 			ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 		}
 		ctrl.clusterSharding.UpdateApp(newApp)
-	} else {
+	}
+	if !newOK || (newOK && newApp.Operation != nil) {
 		ctrl.appOperationQueue.AddRateLimited(key)
 	}
 }

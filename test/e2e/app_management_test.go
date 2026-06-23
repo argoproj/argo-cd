@@ -2925,6 +2925,90 @@ func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 		})
 }
 
+// TestDefaultReconciliationTimeoutNoExcessiveRefreshes verifies that with default
+// reconciliation settings (timeout.reconciliation=120s, timeout.reconciliation.jitter=60s),
+// status-only controller updates do not trigger refreshes before the comparison window expires.
+func TestDefaultReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
+	ctx := t.Context()
+	namespace := fixture.TestNamespace()
+	const (
+		reconciliationTimeout       = "120s"
+		reconciliationTimeoutJitter = "60s"
+	)
+
+	Given(t).
+		Path(guestbookPath).
+		When().
+		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, reconciliationTimeout).
+		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, reconciliationTimeoutJitter).
+		And(func() {
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, reconciliationTimeout, configMap.Data[reconciliationTimeoutConfigKey])
+			require.Equal(t, reconciliationTimeoutJitter, configMap.Data[reconciliationTimeoutJitterConfigKey])
+			fixture.RestartApplicationController(t)
+		}).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(a *Application) {
+			time.Sleep(5 * time.Second)
+
+			appNS := a.Namespace
+			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			initialReconciledAt := app.Status.ReconciledAt
+			require.NotNil(t, initialReconciledAt)
+
+			// Shorter than timeout.reconciliation (120s) so comparison must not expire yet.
+			const observationPeriod = 90 * time.Second
+			const pollInterval = 2 * time.Second
+			refreshCount := 0
+			lastReconciledAt := initialReconciledAt.DeepCopy()
+			deadline := time.Now().Add(observationPeriod)
+
+			checkReconciledAt := func() {
+				observed, getErr := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
+				require.NoError(t, getErr)
+				reconciledAt := observed.Status.ReconciledAt
+				if reconciledAt == nil {
+					return
+				}
+				if !lastReconciledAt.Equal(reconciledAt) {
+					refreshCount++
+					lastReconciledAt = reconciledAt.DeepCopy()
+				}
+			}
+
+			// Trigger status-only informer updates to exercise the fast-path skip.
+			for i := range 10 {
+				time.Sleep(2 * time.Second)
+				patch := fmt.Sprintf(
+					`[{"op":"replace","path":"/status/summary/images","value":["test-image:v%d"]}]`,
+					i,
+				)
+				_, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Patch(
+					ctx,
+					a.Name,
+					types.JSONPatchType,
+					[]byte(patch),
+					metav1.PatchOptions{},
+				)
+				require.NoError(t, err)
+				checkReconciledAt()
+			}
+
+			for time.Now().Before(deadline) {
+				time.Sleep(pollInterval)
+				checkReconciledAt()
+			}
+
+			assert.Equal(t, 0, refreshCount, "application should not refresh from status-only updates before comparison expires with default timeout settings")
+		})
+}
+
 // TestStatusUpdateDoesNotTriggerRefresh verifies that status-only updates
 // (without spec/operation/deletion changes) do not trigger refreshes.
 func TestStatusUpdateDoesNotTriggerRefresh(t *testing.T) {
