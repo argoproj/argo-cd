@@ -11,7 +11,7 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.26.3' # Note: go-version must also be set in job argocd-image.with.go-version  
+  GOLANG_VERSION: '1.26.4' # Note: go-version must also be set in job argocd-image.with.go-version  
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
   
@@ -28,7 +28,7 @@ jobs:
       quay_image_name: ${{ needs.setup-variables.outputs.quay_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.26.3
+      go-version: 1.26.4
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -55,7 +55,7 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -131,7 +131,7 @@ jobs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -220,13 +220,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           package_json_file: ui/package.json
 
@@ -285,7 +285,7 @@ jobs:
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
 
       - name: Upload SBOM
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -321,7 +321,7 @@ jobs:
       TAG_STABLE: ${{ needs.setup-variables.outputs.is_latest_release }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}

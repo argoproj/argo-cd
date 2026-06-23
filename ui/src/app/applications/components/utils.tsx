@@ -959,6 +959,9 @@ export function syncStatusMessage(app: appModels.Application) {
     const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
     let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
+    if (source?.tagPrefix) {
+        message = source.tagPrefix + message;
+    }
     const suffix = revision && source ? getSyncRevisionLabelSuffix(source.repoURL, source.targetRevision, revision, source.chart) : '';
 
     if (suffix) {
@@ -1451,6 +1454,10 @@ export function getAppSetConditionCategory(condition: appModels.ApplicationSetCo
     if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
         return 'error';
     }
+    // InvalidRolloutConfig with status True = warning
+    if (type === 'InvalidRolloutConfig' && status === 'true') {
+        return 'warning';
+    }
     // Otherwise it's informational
     return 'info';
 }
@@ -1503,15 +1510,15 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     return getAppDefaultSource(app);
 }
 
-export function getHydratorSyncSourceRepoURL(sourceHydrator: appModels.SourceHydrator): string {
-    return sourceHydrator.syncSource?.repoURL || sourceHydrator.drySource?.repoURL || '';
+export function getHydratorSyncSourceRepoURL(sourceHydrator?: appModels.SourceHydrator): string {
+    return sourceHydrator?.syncSource?.repoURL || sourceHydrator?.drySource?.repoURL || '';
 }
 
-export function getAppHydratorSyncSource(sourceHydrator: appModels.SourceHydrator): appModels.ApplicationSource {
+export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
     return {
         repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
-        targetRevision: sourceHydrator.syncSource.targetBranch,
-        path: sourceHydrator.syncSource.path
+        targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
+        path: sourceHydrator?.syncSource?.path || ''
     };
 }
 

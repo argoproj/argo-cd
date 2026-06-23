@@ -9,6 +9,7 @@ import (
 )
 
 func TestIsHook(t *testing.T) {
+	t.Parallel()
 	assert.False(t, IsHook(testingutils.NewPod()))
 	assert.True(t, IsHook(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "anything")))
 	// helm calls "crd-install" a hook, but it really can't be treated as such

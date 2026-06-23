@@ -31,7 +31,7 @@ func NewInMemoryRedis() (*redis.Client, func()) {
 
 func TestCacheClient(t *testing.T) {
 	clientRedis, stopRedis := NewInMemoryRedis()
-	defer stopRedis()
+	t.Cleanup(stopRedis)
 	redisCache := NewRedisCache(clientRedis, 5*time.Second, RedisCompressionNone)
 	clientMemCache := NewInMemoryCache(60 * time.Second)
 	twoLevelClient := NewTwoLevelClient(redisCache, 5*time.Second)

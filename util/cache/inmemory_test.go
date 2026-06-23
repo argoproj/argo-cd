@@ -13,6 +13,7 @@ type foo struct {
 }
 
 func TestInMemoryCache(t *testing.T) {
+	t.Parallel()
 	cache := NewInMemoryCache(1 * time.Hour)
 	// https://stackoverflow.com/questions/46671636/gob-decode-giving-decodevalue-of-unassignable-value-error
 	obj := &foo{}

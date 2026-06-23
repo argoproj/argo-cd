@@ -676,3 +676,21 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestHelmOCIRegistryWithConstraintRevision(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		RepoURLType(fixture.RepoURLTypeHelmOCI).
+		Chart("helm-values").
+		Revision(">=1.0.0").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}

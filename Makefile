@@ -363,7 +363,7 @@ ifeq ($(DEV_IMAGE), true)
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .
-	GOOS=linux GOARCH=$(TARGET_ARCH:linux/%=%) GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
+	GOOS=linux GOARCH=$(TARGET_ARCH:linux/%=%) GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -gcflags="all=-N -l" -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
@@ -458,8 +458,8 @@ endif
 test-gitops-engine:
 # run if TEST_MODULE is empty or points to gitops-engine tests
 ifneq ($(if $(TEST_MODULE),,ALL)$(filter github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
-	mkdir -p $(PWD)/test-results
-	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results"
+	mkdir -p $(PWD)/test-results/gitops-engine
+	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results/gitops-engine"
 endif
 
 .PHONY: test-race

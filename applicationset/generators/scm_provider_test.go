@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -326,13 +325,13 @@ func TestNewSCMHTTPClient(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotNil(t, tr.Proxy)
 
-		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://github.com", http.NoBody)
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://github.com", http.NoBody)
 		u, err := tr.Proxy(req)
 		require.NoError(t, err)
 		assert.NotNil(t, u)
 		assert.Equal(t, "proxy.example.com:8080", u.Host)
 
-		reqNoProxy, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com", http.NoBody)
+		reqNoProxy, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.com", http.NoBody)
 		u, err = tr.Proxy(reqNoProxy)
 		require.NoError(t, err)
 		assert.Nil(t, u)
@@ -389,7 +388,7 @@ func TestGithubProvider_ProxyWithoutMetrics(t *testing.T) {
 		require.True(t, ok)
 		require.NotNil(t, tr.Proxy)
 
-		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://github.com", http.NoBody)
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://github.com", http.NoBody)
 		u, err := tr.Proxy(req)
 		require.NoError(t, err)
 		assert.Equal(t, "proxy.example.com:8080", u.Host)
