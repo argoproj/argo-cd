@@ -394,16 +394,17 @@ export const ApplicationCreatePanel = (props: {
                                                         field='metadata.namespace'
                                                         component={AutocompleteField}
                                                         componentProps={{
-                                                            items: selectedProjectDetails?.spec?.sourceNamespaces || [],
+                                                            items: (() => {
+                                                                const sourceNamespaces = selectedProjectDetails?.spec?.sourceNamespaces || [];
+                                                                // Don't show dropdown list for wildcard permissions
+                                                                if (sourceNamespaces.length === 1 && sourceNamespaces[0] === '*') {
+                                                                    return [];
+                                                                }
+                                                                return sourceNamespaces;
+                                                            })(),
                                                             filterSuggestions: true
                                                         }}
                                                     />
-                                                    {selectedProjectDetails?.spec?.sourceNamespaces?.length > 0 && (
-                                                        <p className='application-create-panel__ns-hint'>
-                                                            <i className='fa fa-info-circle' /> Allowed namespaces for project &quot;{formApp.spec.project}&quot;:{' '}
-                                                            {selectedProjectDetails.spec.sourceNamespaces.join(', ')}
-                                                        </p>
-                                                    )}
                                                 </div>
                                             )}
                                             <div className='argo-form-row'>

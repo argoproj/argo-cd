@@ -31,18 +31,6 @@
         margin-top: 0.75em;
     }
 
-    &__ns-hint {
-        margin-top: 0.25em;
-        font-size: 12px;
-        @include themify($themes) {
-            color: themed('text-2');
-        }
-
-        i {
-            margin-right: 4px;
-        }
-    }
-
     &__multi-source-block {
         margin-bottom: 0.5em;
 
