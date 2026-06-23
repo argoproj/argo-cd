@@ -129,43 +129,43 @@ type Client interface {
 	Root() string
 	RepoURL() string
 	Init() error
-	Fetch(revision string, depth int64) error
-	Submodule() error
-	Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error)
+	Fetch(ctx context.Context, revision string, depth int64) error
+	Submodule(ctx context.Context) error
+	Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
-	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
-	LsLargeFiles() ([]string, error)
-	CommitSHA() (string, error)
-	RevisionMetadata(revision string) (*RevisionMetadata, error)
+	LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error)
+	LsLargeFiles(ctx context.Context) ([]string, error)
+	CommitSHA(ctx context.Context) (string, error)
+	RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error)
 	// Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
-	VerifyCommitSignature(string) (string, error)
+	VerifyCommitSignature(ctx context.Context, revision string) (string, error)
 	// IsAnnotatedTag determines if the revision is, or resolves to an annotated tag.
-	IsAnnotatedTag(revision string) bool
+	IsAnnotatedTag(ctx context.Context, revision string) bool
 	// LsSignatures gets a list of revisions including their GPG signature info.
 	// If revision is an annotated tag or a semantic constraint matching an annotated tag, its signature is reported as well
 	// If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
 	// If deep==false, examines the revision only. Checking the annotated tag signature if the revision is an annotated tag, commit signature otherwise.
-	LsSignatures(revision string, deep bool) ([]RevisionSignatureInfo, string, error)
-	ChangedFiles(revision string, targetRevision string) ([]string, error)
-	IsRevisionPresent(revision string) bool
+	LsSignatures(ctx context.Context, revision string, deep bool) ([]RevisionSignatureInfo, string, error)
+	ChangedFiles(ctx context.Context, revision string, targetRevision string) ([]string, error)
+	IsRevisionPresent(ctx context.Context, revision string) bool
 	// SetAuthor sets the author name and email in the git configuration.
-	SetAuthor(name, email string) (string, error)
+	SetAuthor(ctx context.Context, name, email string) (string, error)
 	// CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
-	CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error)
+	CheckoutOrOrphan(ctx context.Context, branch string, submoduleEnabled bool) (string, error)
 	// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 	// the base branch.
-	CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error)
+	CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error)
 	// RemoveContents removes all files from the given paths in the git repository.
-	RemoveContents(paths []string) (string, error)
+	RemoveContents(ctx context.Context, paths []string) (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
-	CommitAndPush(branch, message string) (string, error)
+	CommitAndPush(ctx context.Context, branch, message string) (string, error)
 	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
-	GetCommitNote(sha string, namespace string) (string, error)
+	GetCommitNote(ctx context.Context, sha string, namespace string) (string, error)
 	// AddAndPushNote adds a note to a DRY sha and then pushes it.
-	AddAndPushNote(sha string, namespace string, note string) error
+	AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error
 	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
-	HasFileChanged(filePath string) (bool, error)
+	HasFileChanged(ctx context.Context, filePath string) (bool, error)
 }
 
 type EventHandlers struct {
@@ -585,12 +585,12 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
-func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
+func (m *nativeGitClient) IsRevisionPresent(ctx context.Context, revision string) bool {
 	if revision == "" {
 		return false
 	}
 
-	cmd := exec.CommandContext(context.Background(), "git", "cat-file", "-t", revision)
+	cmd := exec.CommandContext(ctx, "git", "cat-file", "-t", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out == "commit" && err == nil {
 		return true
@@ -672,12 +672,11 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string, depth int64) error {
+func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int64) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
-	ctx := context.Background()
 
 	err := m.fetch(ctx, revision, depth)
 	if err != nil {
@@ -687,7 +686,7 @@ func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles()
+		largeFiles, err := m.LsLargeFiles(ctx)
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
 			if err != nil {
@@ -700,7 +699,7 @@ func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 }
 
 // LsFiles lists the local working tree, including only files that are under source control
-func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
+func (m *nativeGitClient) LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error) {
 	if enableNewGitFileGlobbing {
 		// This is the new way with safer globbing
 
@@ -738,7 +737,6 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 		}
 		return files, nil
 	}
-	ctx := context.Background()
 	// This is the old and default way
 	out, err := m.runCmd(ctx, "ls-files", "--full-name", "-z", "--", path)
 	if err != nil {
@@ -750,8 +748,8 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
-func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
-	out, err := m.runCmd(context.Background(), "lfs", "ls-files", "-n")
+func (m *nativeGitClient) LsLargeFiles(ctx context.Context) ([]string, error) {
+	out, err := m.runCmd(ctx, "lfs", "ls-files", "-n")
 	if err != nil {
 		return nil, err
 	}
@@ -760,8 +758,7 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 }
 
 // Submodule embed other repositories into this repository
-func (m *nativeGitClient) Submodule() error {
-	ctx := context.Background()
+func (m *nativeGitClient) Submodule(ctx context.Context) error {
 	if err := m.runCredentialedCmd(ctx, "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
@@ -769,18 +766,17 @@ func (m *nativeGitClient) Submodule() error {
 }
 
 // Checkout checks out the specified revision
-func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error) {
+func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
-	ctx := context.Background()
 	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles()
+		largeFiles, err := m.LsLargeFiles(ctx)
 		if err != nil {
 			return "", fmt.Errorf("failed to list LFS files: %w", err)
 		}
@@ -792,7 +788,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, clean
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.Submodule(); err != nil {
+			if err := m.Submodule(ctx); err != nil {
 				return "", fmt.Errorf("failed to update submodules: %w", err)
 			}
 		}
@@ -1008,8 +1004,8 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) CommitSHA() (string, error) {
-	out, err := m.runCmd(context.Background(), "rev-parse", "HEAD")
+func (m *nativeGitClient) CommitSHA(ctx context.Context) (string, error) {
+	out, err := m.runCmd(ctx, "rev-parse", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -1017,8 +1013,7 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 }
 
 // RevisionMetadata returns the meta-data for the commit
-func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
-	ctx := context.Background()
+func (m *nativeGitClient) RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error) {
 	out, err := m.runCmd(ctx, "show", "-s", "--format=%an <%ae>%n%at%n%B", revision)
 	if err != nil {
 		return nil, err
@@ -1151,8 +1146,8 @@ func updateCommitMetadata(logCtx *log.Entry, relatedCommit *CommitMetadata, line
 // VerifyCommitSignature Runs verify-commit on a given revision and returns the output
 //
 // Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
-func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
-	cmd := m.cmdWithGPG(context.Background(), "git-verify-wrapper.sh", revision)
+func (m *nativeGitClient) VerifyCommitSignature(ctx context.Context, revision string) (string, error) {
+	cmd := m.cmdWithGPG(ctx, "git-verify-wrapper.sh", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
 		log.Errorf("error verifying commit signature: %v", err)
@@ -1232,8 +1227,7 @@ func gpgVerificationFromGitRevParse(oneLetter string) (GPGVerificationResult, er
 
 var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
 
-func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
-	ctx := context.Background()
+func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) (*RevisionSignatureInfo, error) {
 	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
 	// for RevisionSignatureInfo from 2 different git invocations.
 	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
@@ -1299,7 +1293,7 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 	return "", "", fmt.Errorf("unexpected `git verify-tag --raw` output: %q", tagGpgOut)
 }
 
-func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, string, error) {
+func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, string, error) {
 	legacyVerification := ""
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
@@ -1314,14 +1308,14 @@ func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]
 		}
 	}
 
-	legacyVerification, err := m.VerifyCommitSignature(unresolvedRevision)
+	legacyVerification, err := m.VerifyCommitSignature(ctx, unresolvedRevision)
 	if err != nil {
 		return nil, "", err
 	}
 
 	var signatures []RevisionSignatureInfo
-	if m.IsAnnotatedTag(unresolvedRevision) {
-		signature, err := m.tagSignature(unresolvedRevision)
+	if m.IsAnnotatedTag(ctx, unresolvedRevision) {
+		signature, err := m.tagSignature(ctx, unresolvedRevision)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1333,7 +1327,7 @@ func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]
 		}
 	}
 
-	commitSignaturesRawOut, err := m.listRawSignatures(deep)
+	commitSignaturesRawOut, err := m.listRawSignatures(ctx, deep)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1400,13 +1394,11 @@ func newRevisionSignatureInfo(revision string, verificationResult GPGVerificatio
 	}, nil
 }
 
-func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
-	revisionSha, err := m.CommitSHA()
+func (m *nativeGitClient) listRawSignatures(ctx context.Context, deep bool) (string, error) {
+	revisionSha, err := m.CommitSHA(ctx)
 	if err != nil {
 		return "", err
 	}
-
-	ctx := context.Background()
 
 	// This is using a two-step approach to solve the following problem: find all ancestors of a given revision in git history DAG,
 	// stopping on a signed seal commit, or an init commit. Note there might be multiple seal commits that separate the revision
@@ -1429,7 +1421,7 @@ func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
 			return "", err
 		}
 
-		commitFilterArgs, err = m.getSealRevListFilter(revisionSha, sealCommitsRawOut)
+		commitFilterArgs, err = m.getSealRevListFilter(ctx, revisionSha, sealCommitsRawOut)
 		if err != nil {
 			return "", err
 		}
@@ -1448,7 +1440,7 @@ func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
 }
 
 // getSealRevListFilter create arguments for `git rev-list` to search the history all the way until the seal commits found.
-func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOut string) ([]string, error) {
+func (m *nativeGitClient) getSealRevListFilter(ctx context.Context, revision string, sealCommitsRawOut string) ([]string, error) {
 	// Keep only seal commits with a valid signature
 	var sealCommits []string
 	for line := range strings.SplitSeq(sealCommitsRawOut, "\n") {
@@ -1465,7 +1457,7 @@ func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOu
 	}
 
 	// Resolve, in case revision is not a commit number
-	sha, err := m.CommitSHA()
+	sha, err := m.CommitSHA(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1479,8 +1471,8 @@ func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOu
 }
 
 // IsAnnotatedTag returns true if the revision is an annotated tag existing in the repository, and false for everything else.
-func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
-	cmd := exec.CommandContext(context.Background(), "git", "cat-file", "-t", revision)
+func (m *nativeGitClient) IsAnnotatedTag(ctx context.Context, revision string) bool {
+	cmd := exec.CommandContext(ctx, "git", "cat-file", "-t", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	// a lightweight tag returns "commit" - makes sense in the git world
 	if err == nil && out == "tag" {
@@ -1490,7 +1482,7 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 }
 
 // ChangedFiles returns a list of files changed between two revisions
-func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) ([]string, error) {
+func (m *nativeGitClient) ChangedFiles(ctx context.Context, revision string, targetRevision string) ([]string, error) {
 	if revision == targetRevision {
 		return []string{}, nil
 	}
@@ -1499,7 +1491,7 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 		return []string{}, errors.New("invalid revision provided, must be SHA")
 	}
 
-	out, err := m.runCmd(context.Background(), "diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
+	out, err := m.runCmd(ctx, "diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {
 		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
 	}
@@ -1523,8 +1515,7 @@ func (m *nativeGitClient) config(ctx context.Context, args ...string) (string, e
 }
 
 // SetAuthor sets the author name and email in the git configuration.
-func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
-	ctx := context.Background()
+func (m *nativeGitClient) SetAuthor(ctx context.Context, name, email string) (string, error) {
 	if name != "" {
 		out, err := m.config(ctx, "--local", "user.name", name)
 		if err != nil {
@@ -1541,14 +1532,13 @@ func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
 }
 
 // CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
-func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled, true)
+func (m *nativeGitClient) CheckoutOrOrphan(ctx context.Context, branch string, submoduleEnabled bool) (string, error) {
+	out, err := m.Checkout(ctx, branch, submoduleEnabled, true)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
 		}
-		ctx := context.Background()
 		out, err = m.runCmd(ctx, "switch", "--orphan", branch)
 		if err != nil {
 			return out, fmt.Errorf("failed to create orphan branch: %w", err)
@@ -1571,20 +1561,20 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 
 // CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 // the base branch.
-func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled, true)
+func (m *nativeGitClient) CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error) {
+	out, err := m.Checkout(ctx, branch, submoduleEnabled, true)
 	if err != nil {
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
 		}
 		// If the branch does not exist, create any empty branch based on the sync branch
 		// First, checkout the sync branch.
-		out, err = m.Checkout(base, submoduleEnabled, true)
+		out, err = m.Checkout(ctx, base, submoduleEnabled, true)
 		if err != nil {
 			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
 		}
 
-		out, err = m.runCmd(context.Background(), "checkout", "-b", branch)
+		out, err = m.runCmd(ctx, "checkout", "-b", branch)
 		if err != nil {
 			return out, fmt.Errorf("failed to create branch: %w", err)
 		}
@@ -1593,12 +1583,12 @@ func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bo
 }
 
 // RemoveContents removes all files from the path of git repository.
-func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
+func (m *nativeGitClient) RemoveContents(ctx context.Context, paths []string) (string, error) {
 	if len(paths) == 0 {
 		return "", nil
 	}
 	args := append([]string{"rm", "-r", "--ignore-unmatch", "--"}, paths...)
-	out, err := m.runCmd(context.Background(), args...)
+	out, err := m.runCmd(ctx, args...)
 	if err != nil {
 		return out, fmt.Errorf("failed to clear paths %v: %w", paths, err)
 	}
@@ -1606,8 +1596,7 @@ func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
 }
 
 // CommitAndPush commits and pushes changes to the target branch.
-func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) {
-	ctx := context.Background()
+func (m *nativeGitClient) CommitAndPush(ctx context.Context, branch, message string) (string, error) {
 	out, err := m.runCmd(ctx, "add", ".")
 	if err != nil {
 		return out, fmt.Errorf("failed to add files: %w", err)
@@ -1635,11 +1624,10 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 }
 
 // GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
-func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, error) {
+func (m *nativeGitClient) GetCommitNote(ctx context.Context, sha string, namespace string) (string, error) {
 	if strings.TrimSpace(namespace) == "" {
 		namespace = "commit"
 	}
-	ctx := context.Background()
 	// fetch first
 	// cli command: git fetch origin refs/notes/source-hydrator:refs/notes/source-hydrator
 	notesRef := "refs/notes/" + namespace
@@ -1658,11 +1646,10 @@ func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, e
 
 // AddAndPushNote adds a note to a DRY sha and then pushes it.
 // It uses a retry mechanism to handle concurrent note updates from multiple clients.
-func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note string) error {
+func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error {
 	if namespace == "" {
 		namespace = "commit"
 	}
-	ctx := context.Background()
 	ref := "--ref=" + namespace
 	notesRef := "refs/notes/" + namespace
 
@@ -1730,15 +1717,15 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 }
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
-func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
+func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (bool, error) {
 	// Step 1: Is it UNTRACKED? (file is new to git)
-	_, err := m.runCmd(context.Background(), "ls-files", "--error-unmatch", filePath)
+	_, err := m.runCmd(ctx, "ls-files", "--error-unmatch", filePath)
 	if err != nil {
 		// File is NOT tracked by git → means it's new/unadded
 		return true, nil
 	}
 	// use git diff --quiet and check exit code .. --cached is to consider files staged for deletion
-	_, err = m.runCmd(context.Background(), "diff", "--quiet", "--", filePath)
+	_, err = m.runCmd(ctx, "diff", "--quiet", "--", filePath)
 	if err == nil {
 		return false, nil // No changes
 	}
