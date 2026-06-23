@@ -43,8 +43,8 @@ argocd-application-controller [flags]
       --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
       --logformat string                                          Set the logging format. One of: json|text (default "json")
       --loglevel string                                           Set the logging level. One of: debug|info|warn|error (default "info")
-      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_application_conditions metric
-      --metrics-application-labels strings                        List of Application labels that will be added to the argocd_application_labels metric
+      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_app_condition metric
+      --metrics-application-labels strings                        List of Application labels that will be added to the argocd_app_labels metric
       --metrics-cache-expiration duration                         Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-cluster-labels strings                            List of Cluster labels that will be added to the argocd_cluster_labels metric
       --metrics-port int                                          Start metrics server on given port (default 8082)

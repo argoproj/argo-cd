@@ -18,5 +18,6 @@ import (
 // borrowed private function from k8s apiserver handler.
 func NewVersionConverter(gvkParser *managedfields.GvkParser, o runtime.ObjectConvertor, h schema.GroupVersion) merge.Converter {
 	tc := &typeConverter{parser: gvkParser}
-	return newVersionConverter(tc, o, h)
+	hub := schema.GroupVersion{Group: h.Group, Version: runtime.APIVersionInternal}
+	return newVersionConverter(tc, o, hub)
 }
