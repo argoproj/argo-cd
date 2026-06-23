@@ -15,6 +15,7 @@ type BitbucketCloudService struct {
 	client         *bitbucket.Client
 	owner          string
 	repositorySlug string
+	hints          *PRHintStore
 }
 
 type BitbucketCloudPullRequest struct {
@@ -75,7 +76,7 @@ func parseURL(uri string) (*url.URL, error) {
 	return url, nil
 }
 
-func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repositorySlug string, hints *PRHintStore) (PullRequestService, error) {
 	url, err := parseURL(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
@@ -91,10 +92,11 @@ func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repos
 		client:         bitbucketClient,
 		owner:          owner,
 		repositorySlug: repositorySlug,
+		hints:          hints,
 	}, nil
 }
 
-func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repositorySlug string, hints *PRHintStore) (PullRequestService, error) {
 	url, err := parseURL(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
@@ -106,15 +108,23 @@ func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repository
 	}
 	bitbucketClient.SetApiBaseURL(*url)
 
-	return &BitbucketCloudService{client: bitbucketClient, owner: owner, repositorySlug: repositorySlug}, nil
+	return &BitbucketCloudService{client: bitbucketClient, owner: owner, repositorySlug: repositorySlug, hints: hints}, nil
 }
 
-func NewBitbucketCloudServiceNoAuth(baseURL, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceNoAuth(baseURL, owner, repositorySlug string, hints *PRHintStore) (PullRequestService, error) {
 	// There is currently no method to explicitly not require auth
-	return NewBitbucketCloudServiceBearerToken(baseURL, "", owner, repositorySlug)
+	return NewBitbucketCloudServiceBearerToken(baseURL, "", owner, repositorySlug, hints)
 }
 
 func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) {
+	// Consume any PR injected directly from the webhook payload (bypasses the
+	// eventually-consistent Bitbucket Cloud list API on webhook-triggered reconciles).
+	if b.hints != nil {
+		if hinted := b.hints.Take(b.owner, b.repositorySlug); len(hinted) > 0 {
+			return hinted, nil
+		}
+	}
+
 	opts := &bitbucket.PullRequestsOptions{
 		Owner:    b.owner,
 		RepoSlug: b.repositorySlug,
