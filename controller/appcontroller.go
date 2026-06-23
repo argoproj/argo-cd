@@ -2663,7 +2663,7 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 			refreshAnnotChanged := newRefreshAnnot != "" && oldRefreshAnnot != newRefreshAnnot
 			hydrateAnnotChanged := newHydrateAnnot != "" && oldHydrateAnnot != newHydrateAnnot
 
-			if !refreshAnnotChanged && !hydrateAnnotChanged && !ctrl.applicationComparisonExpired(newApp) {
+			if !(refreshAnnotChanged || hydrateAnnotChanged || ctrl.applicationComparisonExpired(newApp)) {
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
