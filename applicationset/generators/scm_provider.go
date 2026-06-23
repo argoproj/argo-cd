@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
+	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -44,6 +45,10 @@ type SCMConfig struct {
 	tokenRefStrictMode     bool
 	scmProxyURL            string
 	scmNoProxy             string
+	// PRHints is a one-shot store populated by the webhook handler from the
+	// Bitbucket Cloud pullrequest:created/updated payload, bypassing the
+	// eventually-consistent list API for the triggering reconcile.
+	PRHints *pullrequest.PRHintStore
 }
 
 func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, opts ...SCMConfigOpts) SCMConfig {
@@ -54,6 +59,7 @@ func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMP
 		enableGitHubAPIMetrics: enableGitHubAPIMetrics,
 		GitHubApps:             gitHubApps,
 		tokenRefStrictMode:     tokenRefStrictMode,
+		PRHints:                &pullrequest.PRHintStore{},
 	}
 
 	for _, opt := range opts {

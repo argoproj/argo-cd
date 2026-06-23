@@ -37,6 +37,12 @@ func NewPullRequestGenerator(client client.Client, scmConfig SCMConfig) Generato
 	return g
 }
 
+// GetPRHints returns the shared hint store, allowing the webhook handler to inject
+// PR data from webhook payloads before the generator's List() call.
+func (g *PullRequestGenerator) GetPRHints() *pullrequest.PRHintStore {
+	return g.PRHints
+}
+
 func (g *PullRequestGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
 	// Return a requeue default of 30 minutes, if no default is specified.
 
@@ -195,15 +201,15 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
-			return pullrequest.NewBitbucketCloudServiceBearerToken(providerConfig.API, appToken, providerConfig.Owner, providerConfig.Repo)
+			return pullrequest.NewBitbucketCloudServiceBearerToken(providerConfig.API, appToken, providerConfig.Owner, providerConfig.Repo, g.PRHints)
 		} else if providerConfig.BasicAuth != nil {
 			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
-			return pullrequest.NewBitbucketCloudServiceBasicAuth(providerConfig.API, providerConfig.BasicAuth.Username, password, providerConfig.Owner, providerConfig.Repo)
+			return pullrequest.NewBitbucketCloudServiceBasicAuth(providerConfig.API, providerConfig.BasicAuth.Username, password, providerConfig.Owner, providerConfig.Repo, g.PRHints)
 		}
-		return pullrequest.NewBitbucketCloudServiceNoAuth(providerConfig.API, providerConfig.Owner, providerConfig.Repo)
+		return pullrequest.NewBitbucketCloudServiceNoAuth(providerConfig.API, providerConfig.Owner, providerConfig.Repo, g.PRHints)
 	}
 	if generatorConfig.AzureDevOps != nil {
 		providerConfig := generatorConfig.AzureDevOps
