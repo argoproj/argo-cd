@@ -1,39 +1,39 @@
-import * as renderer from 'react-test-renderer';
 import * as React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server.node';
 import {isSHA, Revision} from './revision';
 
+function renderJson(element: React.ReactElement) {
+    return renderToStaticMarkup(element);
+}
+
 test('Revision.SHA1.Children', () => {
-    const tree = renderer
-        .create(
-            <Revision repoUrl='http://github.com/my-org/my-repo' revision='24eb0b24099b2e9afff72558724e88125eaa0176'>
-                foo
-            </Revision>,
-        )
-        .toJSON();
+    const tree = renderJson(
+        <Revision repoUrl='http://github.com/my-org/my-repo' revision='24eb0b24099b2e9afff72558724e88125eaa0176'>
+            foo
+        </Revision>,
+    );
 
     expect(tree).toMatchSnapshot();
 });
 
 test('Revision.SHA1.NoChildren', () => {
-    const tree = renderer.create(<Revision repoUrl='http://github.com/my-org/my-repo' revision='24eb0b24099b2e9afff72558724e88125eaa0176' />).toJSON();
+    const tree = renderJson(<Revision repoUrl='http://github.com/my-org/my-repo' revision='24eb0b24099b2e9afff72558724e88125eaa0176' />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('Revision.Branch.Children', () => {
-    const tree = renderer
-        .create(
-            <Revision repoUrl='http://github.com/my-org/my-repo' revision='long-branch-name'>
-                foo
-            </Revision>,
-        )
-        .toJSON();
+    const tree = renderJson(
+        <Revision repoUrl='http://github.com/my-org/my-repo' revision='long-branch-name'>
+            foo
+        </Revision>,
+    );
 
     expect(tree).toMatchSnapshot();
 });
 
 test('Revision.Branch.NoChildren', () => {
-    const tree = renderer.create(<Revision repoUrl='http://github.com/my-org/my-repo' revision='long-branch-name' />).toJSON();
+    const tree = renderJson(<Revision repoUrl='http://github.com/my-org/my-repo' revision='long-branch-name' />);
 
     expect(tree).toMatchSnapshot();
 });

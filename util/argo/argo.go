@@ -23,8 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/v3/util/gpg"
-
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -239,7 +237,7 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrateType *argoappv1.HydrateType) (*argoappv1.Application, error) {
 	metadata := map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
@@ -247,8 +245,8 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 			},
 		},
 	}
-	if hydrate {
-		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(argoappv1.HydrateTypeNormal)
+	if hydrateType != nil {
+		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
 	}
 
 	var err error
@@ -478,10 +476,16 @@ func validateRepo(ctx context.Context,
 		}
 	}
 
+	kubeServerVersion := cluster.Info.ServerVersion
+	apiVersions := APIResourcesToStrings(apiGroups, true)
+
 	// If using the source hydrator, check the dry source instead of the sync source, since the sync source branch may
 	// not exist yet.
 	if app.Spec.SourceHydrator != nil {
 		sources = []argoappv1.ApplicationSource{app.Spec.SourceHydrator.GetDrySource()}
+		// For the dry source, we dont want to sendRuntimeState during the generation
+		kubeServerVersion = ""
+		apiVersions = nil
 	}
 
 	refSources, err := GetRefSources(ctx, sources, app.Spec.Project, db.GetRepository, []string{})
@@ -498,8 +502,8 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
-		cluster.Info.ServerVersion,
-		APIResourcesToStrings(apiGroups, true),
+		kubeServerVersion,
+		apiVersions,
 		permittedHelmCredentials,
 		permittedOCICredentials,
 		enabledSourceTypes,
@@ -538,8 +542,9 @@ func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources 
 // once (which would lead to ambiguous references).
 func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
-	if len(sources) > 1 {
-		// Validate first to avoid unnecessary DB calls.
+	if len(sources) > 0 {
+		// Validate first to avoid unnecessary DB calls. Use len(sources) > 0 (not > 1) so a sole source with ref:
+		// is populated; otherwise GetSyncedRefSources panics when spec.sources has one element (see #27759).
 		refKeys := make(map[string]bool)
 		for _, source := range sources {
 			if source.Ref == "" {
@@ -627,7 +632,7 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 	if hydrator.HydrateTo != nil && hydrator.HydrateTo.TargetBranch == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.path is required",
+			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.targetBranch is required",
 		})
 	}
 	return conditions
@@ -648,6 +653,13 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
+			})
+		}
+		syncSource := spec.SourceHydrator.GetSyncSource()
+		if syncSource.RepoURL != spec.SourceHydrator.DrySource.RepoURL && !proj.IsSourcePermitted(syncSource) {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("sync source repo %s is not permitted in project '%s'", syncSource.RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():
@@ -856,11 +868,6 @@ func verifyGenerateManifests(
 			continue
 		}
 
-		verifySignature := false
-		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
-			verifySignature = true
-		}
-
 		repos := helmRepos
 		helmRepoCreds := repositoryCredentials
 		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
@@ -881,7 +888,6 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
-			VerifySignature:                 verifySignature,
 			Repos:                           repos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
@@ -892,6 +898,8 @@ func verifyGenerateManifests(
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
+			SourceIntegrity:                 proj.EffectiveSourceIntegrity(),
+			VerifySignature:                 proj.EffectiveSourceIntegrity() != nil, // nolint:staticcheck
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
@@ -1190,6 +1198,8 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, globalProj.Spec.SourceRepos...)
 
 	proj.Spec.Destinations = append(proj.Spec.Destinations, globalProj.Spec.Destinations...)
+
+	proj.Spec.DestinationServiceAccounts = append(proj.Spec.DestinationServiceAccounts, globalProj.Spec.DestinationServiceAccounts...)
 
 	return proj
 }

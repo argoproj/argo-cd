@@ -1,14 +1,12 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:25.10@sha256:4a9232cc47bf99defcc8860ef6222c99773330367fcecbf21ba2edb0b810a31e
+ARG BASE_IMAGE=docker.io/library/ubuntu:26.04@sha256:f3d28607ddd78734bb7f71f117f3c6706c666b8b76cbff7c9ff6e5718d46ff64
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.26.1@sha256:5e69504bb541a36b859ee1c3daeb670b544b74b3dfd054aea934814e9107f6eb AS builder
+FROM docker.io/library/golang:1.26.4@sha256:792443b89f65105abba56b9bd5e97f680a80074ac62fc844a584212f8c8102c3 AS builder
 
 WORKDIR /tmp
-
-RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     openssh-server \
@@ -63,6 +61,9 @@ COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/git-lfs /usr/local/bin/git-lfs
 
+# Initialize git-lfs system configuration (/etc/gitconfig) so LFS filters are active
+RUN git lfs install --system
+
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
 
@@ -92,25 +93,27 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:23.0.0@sha256:9d09fa506f5b8465c5221cbd6f980e29ae0ce9a3119e2b9bc0842e6a3f37bb59 AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:24.14.1@sha256:80fc934952c8f1b2b4d39907af7211f8a9fff1a4c2cf673fb49099292c251cec AS argocd-ui
 
 WORKDIR /src
-COPY ["ui/package.json", "ui/yarn.lock", "./"]
+COPY ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
 
-RUN yarn install --network-timeout 200000 && \
-    yarn cache clean
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 
 COPY ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-ARG TARGETARCH
-RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
+# Note: the UI bundle is architecture-independent. Keep this stage free of any
+# per-target-arch inputs (e.g. TARGETARCH) so buildx builds it once and copies an
+# identical dist into every per-arch image. Otherwise the bundle's contenthash
+# diverges across archs and mixed-arch clusters serve mismatched asset filenames.
+RUN NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 pnpm build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26.1@sha256:5e69504bb541a36b859ee1c3daeb670b544b74b3dfd054aea934814e9107f6eb AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26.4@sha256:792443b89f65105abba56b9bd5e97f680a80074ac62fc844a584212f8c8102c3 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

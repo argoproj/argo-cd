@@ -1,6 +1,7 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
 	"math"
 	"net"
@@ -20,23 +21,26 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/reposerver"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/util/askpass"
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/profile"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
+
+	ctls "crypto/tls"
 )
 
 var (
@@ -63,7 +67,6 @@ func NewCommand() *cobra.Command {
 		tlsConfigCustomizer                tls.ConfigCustomizer
 		tlsConfigCustomizerSrc             func() (tls.ConfigCustomizer, error)
 		redisClient                        *redis.Client
-		disableTLS                         bool
 		maxCombinedDirectoryManifestsSize  string
 		cmpTarExcludedGlobs                []string
 		allowOutOfBoundsSymlinks           bool
@@ -78,6 +81,8 @@ func NewCommand() *cobra.Command {
 		cmpUseManifestGeneratePaths        bool
 		ociMediaTypes                      []string
 		enableBuiltinGitConfig             bool
+		clientCAPath                       string
+		disableTLS                         bool
 	)
 	command := cobra.Command{
 		Use:               common.CommandRepoServer,
@@ -135,6 +140,10 @@ func NewCommand() *cobra.Command {
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
+			if disableTLS && clientCAPath != "" {
+				return stderrors.New("--client-ca-path cannot be used when --disable-tls is enabled")
+			}
+
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
@@ -155,7 +164,7 @@ func NewCommand() *cobra.Command {
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
-			}, askPassServer)
+			}, askPassServer, clientCAPath, disableTLS)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {
@@ -173,13 +182,15 @@ func NewCommand() *cobra.Command {
 			listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
+			healthCheckTLSConfig := buildHealthCheckTLSConfig(server.GetHealthCheckClientCert(), disableTLS)
+
 			mux := http.NewServeMux()
 			healthz.ServeHealthCheck(mux, func(r *http.Request) error {
 				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-					// connect to itself to make sure repo server is able to serve connection
-					// used by liveness probe to auto restart repo server
+					// connect to itself to make sure the repo server is able to serve the connection
+					// used by liveness probe to auto-restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: disableTLS})
+					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, healthCheckTLSConfig)
 					if err != nil {
 						return err
 					}
@@ -201,13 +212,13 @@ func NewCommand() *cobra.Command {
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), mux)) }()
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
-			if gpg.IsGPGEnabled() {
+			if sourceintegrity.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
-				err = gpg.InitializeGnuPG()
+				err = sourceintegrity.InitializeGnuPG()
 				errors.CheckError(err)
 
 				log.Infof("Populating GnuPG keyring with keys from %s", gnuPGSourcePath)
-				added, removed, err := gpg.SyncKeyRingFromDirectory(gnuPGSourcePath)
+				added, removed, err := sourceintegrity.SyncKeyRingFromDirectory(gnuPGSourcePath)
 				errors.CheckError(err)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
@@ -251,7 +262,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_REPO_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_REPO_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
-	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
@@ -266,6 +276,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
+	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS for the repo-server gRPC endpoint")
+	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", "/app/config/reposerver/mtls/client-ca.crt"), "Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist.")
+
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
@@ -273,4 +286,17 @@ func NewCommand() *cobra.Command {
 		},
 	})
 	return &command
+}
+
+func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate, disableTLS bool) *tls.Configuration {
+	cfg := &tls.Configuration{
+		DisableTLS: disableTLS,
+		// InsecureSkipVerify=true: it is always a localhost connection, so no reason to re-verify the server
+		// certificate on every probe.
+		StrictValidation: false,
+	}
+	if healthCheckClientCert != nil {
+		cfg.ClientCertificates = []ctls.Certificate{*healthCheckClientCert}
+	}
+	return cfg
 }

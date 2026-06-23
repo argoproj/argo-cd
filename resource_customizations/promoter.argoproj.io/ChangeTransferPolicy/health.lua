@@ -1,3 +1,20 @@
+-- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#changetransferpolicy
+-- Promoter finalizers: https://gitops-promoter.readthedocs.io/en/latest/debugging/finalizers/
+
+local function formatDeletingWithFinalizers(base, finalizers, catalog)
+    if not finalizers then
+        return base
+    end
+    local parts = { base }
+    for _, f in ipairs(finalizers) do
+        local e = catalog[f]
+        if e then
+            table.insert(parts, f .. ": " .. e.wait .. " Risk if removed manually: " .. e.risk)
+        end
+    end
+    return table.concat(parts, " ")
+end
+
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing change transfer policy"
@@ -5,7 +22,16 @@ hs.message = "Initializing change transfer policy"
 -- Check for deletion timestamp
 if obj.metadata.deletionTimestamp then
     hs.status = "Progressing"
-    hs.message = "Change transfer policy is being deleted"
+    hs.message = formatDeletingWithFinalizers(
+        "Change transfer policy is being deleted.",
+        obj.metadata.finalizers,
+        {
+            ["changetransferpolicy.promoter.argoproj.io/finalizer"] = {
+                wait = "Waiting to clear related PullRequest finalizers and finish cleanup before this policy is removed.",
+                risk = "The 'changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer' finalizer may not be cleaned up from PullRequests owned by this ChangeTransferPolicy.",
+            },
+        }
+    )
     return hs
 end
 

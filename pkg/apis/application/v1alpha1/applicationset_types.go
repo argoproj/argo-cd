@@ -484,6 +484,8 @@ type SCMProviderGeneratorGitea struct {
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 	// Allow self-signed TLS / Certificates; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
@@ -498,6 +500,8 @@ type SCMProviderGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,4,opt,name=appSecretName"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
@@ -520,6 +524,8 @@ type SCMProviderGeneratorGitlab struct {
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
 	// ConfigMap key holding the trusted certificates
 	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
+	// Include repositories that are archived.
+	IncludeArchivedRepos bool `json:"includeArchivedRepos,omitempty" protobuf:"varint,10,opt,name=includeArchivedRepos"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -853,10 +859,11 @@ type ApplicationSetConditionType string
 
 // ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
 const (
-	ApplicationSetConditionErrorOccurred       ApplicationSetConditionType = "ErrorOccurred"
-	ApplicationSetConditionParametersGenerated ApplicationSetConditionType = "ParametersGenerated"
-	ApplicationSetConditionResourcesUpToDate   ApplicationSetConditionType = "ResourcesUpToDate"
-	ApplicationSetConditionRolloutProgressing  ApplicationSetConditionType = "RolloutProgressing"
+	ApplicationSetConditionErrorOccurred        ApplicationSetConditionType = "ErrorOccurred"
+	ApplicationSetConditionParametersGenerated  ApplicationSetConditionType = "ParametersGenerated"
+	ApplicationSetConditionResourcesUpToDate    ApplicationSetConditionType = "ResourcesUpToDate"
+	ApplicationSetConditionRolloutProgressing   ApplicationSetConditionType = "RolloutProgressing"
+	ApplicationSetConditionInvalidRolloutConfig ApplicationSetConditionType = "InvalidRolloutConfig"
 )
 
 type ApplicationSetReasonType string
@@ -865,7 +872,6 @@ const (
 	ApplicationSetReasonErrorOccurred                    = "ErrorOccurred"
 	ApplicationSetReasonApplicationSetUpToDate           = "ApplicationSetUpToDate"
 	ApplicationSetReasonParametersGenerated              = "ParametersGenerated"
-	ApplicationSetReasonApplicationGenerated             = "ApplicationGeneratedSuccessfully"
 	ApplicationSetReasonUpdateApplicationError           = "UpdateApplicationError"
 	ApplicationSetReasonApplicationParamsGenerationError = "ApplicationGenerationFromParamsError"
 	ApplicationSetReasonRenderTemplateParamsError        = "RenderTemplateParamsError"
@@ -875,7 +881,9 @@ const (
 	ApplicationSetReasonApplicationValidationError       = "ApplicationValidationError"
 	ApplicationSetReasonApplicationSetModified           = "ApplicationSetModified"
 	ApplicationSetReasonApplicationSetRolloutComplete    = "ApplicationSetRolloutComplete"
-	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
+	ApplicationSetReasonApplicationSetRolloutError       = "ApplicationSetRolloutError"
+	ApplicationSetReasonInvalidRolloutConfig             = "ApplicationSetInvalidRolloutConfig"
+	ApplicationSetReasonValidRolloutConfig               = "ApplicationSetValidRolloutConfig"
 )
 
 // Represents resource health status

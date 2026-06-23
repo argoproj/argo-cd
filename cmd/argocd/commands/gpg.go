@@ -151,7 +151,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			if len(resp.Skipped) > 0 {
 				fmt.Printf(", and %d key(s) were skipped because they exist already", len(resp.Skipped))
 			}
-			fmt.Printf(".\n")
+			fmt.Print(".\n")
 		},
 	}
 	command.Flags().StringVarP(&fromFile, "from", "f", "", "Path to the file that contains the GPG public key to import")
@@ -192,7 +192,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 // Print table of certificate info
 func printKeyTable(keys []appsv1.GnuPGPublicKey) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "KEYID\tTYPE\tIDENTITY\n")
+	fmt.Fprint(w, "KEYID\tTYPE\tIDENTITY\n")
 
 	for _, k := range keys {
 		fmt.Fprintf(w, "%s\t%s\t%s\n", k.KeyID, strings.ToUpper(k.SubType), k.Owner)

@@ -818,7 +818,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "$ref": "#/definitions/eventsEventList"
             }
           },
           "default": {
@@ -2291,7 +2291,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "$ref": "#/definitions/eventsEventList"
             }
           },
           "default": {
@@ -3126,7 +3126,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "$ref": "#/definitions/eventsEventList"
             }
           },
           "default": {
@@ -4039,6 +4039,30 @@
             "description": "Whether https should be disabled for an OCI repo.",
             "name": "insecureOciForceHttp",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Client ID.",
+            "name": "azureServicePrincipalClientId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Client Secret.",
+            "name": "azureServicePrincipalClientSecret",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Tenant ID.",
+            "name": "azureServicePrincipalTenantId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Active Directory Endpoint.",
+            "name": "azureActiveDirectoryEndpoint",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4946,6 +4970,30 @@
             "description": "Whether https should be disabled for an OCI repo.",
             "name": "insecureOciForceHttp",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Client ID.",
+            "name": "azureServicePrincipalClientId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Client Secret.",
+            "name": "azureServicePrincipalClientSecret",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Tenant ID.",
+            "name": "azureServicePrincipalTenantId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Active Directory Endpoint.",
+            "name": "azureActiveDirectoryEndpoint",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5760,6 +5808,143 @@
         }
       }
     },
+    "eventsEvent": {
+      "description": "Event mirrors corev1.Event and exposes the fields consumed by the Argo CD\nAPI and UI. Event is a report of an event somewhere in the cluster. Events\nhave a limited retention time and triggers and messages may evolve with\ntime. Event consumers should not rely on the timing of an event with a\ngiven Reason reflecting a consistent underlying trigger, or the continued\nexistence of events with that Reason. Events should be treated as\ninformative, best-effort, supplemental data.",
+      "type": "object",
+      "properties": {
+        "action": {
+          "description": "What action was taken/failed regarding to the Regarding object.",
+          "type": "string"
+        },
+        "count": {
+          "description": "The number of times this event has occurred.",
+          "type": "integer",
+          "format": "int32"
+        },
+        "eventTime": {
+          "$ref": "#/definitions/v1MicroTime"
+        },
+        "firstTimestamp": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "involvedObject": {
+          "$ref": "#/definitions/eventsObjectReference"
+        },
+        "lastTimestamp": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "description": "A human-readable description of the status of this operation.",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/definitions/v1ObjectMeta"
+        },
+        "reason": {
+          "description": "This should be a short, machine understandable string that gives the\nreason for the transition into the object's current status.",
+          "type": "string"
+        },
+        "related": {
+          "$ref": "#/definitions/eventsObjectReference"
+        },
+        "reportingComponent": {
+          "description": "Name of the controller that emitted this Event, e.g.\n`kubernetes.io/kubelet`.",
+          "type": "string"
+        },
+        "reportingInstance": {
+          "description": "ID of the controller instance, e.g. `kubelet-xyzf`.",
+          "type": "string"
+        },
+        "series": {
+          "$ref": "#/definitions/eventsEventSeries"
+        },
+        "source": {
+          "$ref": "#/definitions/eventsEventSource"
+        },
+        "type": {
+          "description": "Type of this event (Normal, Warning), new types could be added in the\nfuture.",
+          "type": "string"
+        }
+      }
+    },
+    "eventsEventList": {
+      "description": "EventList is a list of Argo CD Event messages. It mirrors corev1.EventList\nfield-for-field but is defined in Argo CD's apiclient package to avoid\npulling Kubernetes protobuf types into the public gRPC surface.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "description": "List of events.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/eventsEvent"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        }
+      }
+    },
+    "eventsEventSeries": {
+      "description": "EventSeries contain information on series of events, i.e. thing that was/is\nhappening continuously for some time.",
+      "type": "object",
+      "properties": {
+        "count": {
+          "description": "Number of occurrences in this series up to the last heartbeat time.",
+          "type": "integer",
+          "format": "int32"
+        },
+        "lastObservedTime": {
+          "$ref": "#/definitions/v1MicroTime"
+        }
+      }
+    },
+    "eventsEventSource": {
+      "description": "EventSource contains information for an event.",
+      "type": "object",
+      "properties": {
+        "component": {
+          "description": "Component from which the event is generated.",
+          "type": "string"
+        },
+        "host": {
+          "description": "Node name on which the event is generated.",
+          "type": "string"
+        }
+      }
+    },
+    "eventsObjectReference": {
+      "description": "ObjectReference contains enough information to let you inspect or modify\nthe referred object.",
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "API version of the referent.",
+          "type": "string"
+        },
+        "fieldPath": {
+          "description": "If referring to a piece of an object instead of an entire object, this\nstring should contain a valid JSON/Go field access statement, such as\ndesiredState.manifest.containers[2]. For example, if the object reference\nis to a container within a pod, this would take on a value like:\n\"spec.containers{name}\" (where \"name\" refers to the name of the container\nthat triggered the event) or if no container name is specified\n\"spec.containers[2]\" (container with index 2 in this pod).",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind of the referent.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of the referent.",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "Namespace of the referent.",
+          "type": "string"
+        },
+        "resourceVersion": {
+          "description": "Specific resourceVersion to which this reference is made, if any.",
+          "type": "string"
+        },
+        "uid": {
+          "description": "UID of the referent.",
+          "type": "string"
+        }
+      }
+    },
     "gpgkeyGnuPGPublicKeyCreateResponse": {
       "type": "object",
       "title": "Response to a public key creation request",
@@ -5781,7 +5966,7 @@
       "title": "Generic (empty) response for GPG public key CRUD requests"
     },
     "intstrIntOrString": {
-      "description": "+protobuf=true\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:openapi-gen=true",
+      "description": "+protobuf=true\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:openapi-gen=true\n+k8s:openapi-model-package=io.k8s.apimachinery.pkg.util.intstr",
       "type": "object",
       "title": "IntOrString is a type that can hold an int32 or a string.  When used in\nJSON or YAML marshalling and unmarshalling, it produces or consumes the\ninner type.  This allows you to have, for example, a JSON field that can\naccept a name or number.\nTODO: Rename to Int32OrString",
       "properties": {
@@ -6104,12 +6289,15 @@
         "server": {
           "type": "string"
         },
+        "sourceIntegrityResult": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityCheckResult"
+        },
         "sourceType": {
           "type": "string"
         },
         "verifyResult": {
-          "type": "string",
-          "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
+          "description": "Deprecated: Use sourceIntegrityResult for more detailed information. verifyResult will be removed with the next major version.",
+          "type": "string"
         }
       }
     },
@@ -6353,115 +6541,12 @@
         }
       }
     },
-    "v1Event": {
-      "description": "Event is a report of an event somewhere in the cluster.  Events\nhave a limited retention time and triggers and messages may evolve\nwith time.  Event consumers should not rely on the timing of an event\nwith a given Reason reflecting a consistent underlying trigger, or the\ncontinued existence of events with that Reason.  Events should be\ntreated as informative, best-effort, supplemental data.",
-      "type": "object",
-      "properties": {
-        "action": {
-          "type": "string",
-          "title": "What action was taken/failed regarding to the Regarding object.\n+optional"
-        },
-        "count": {
-          "type": "integer",
-          "format": "int32",
-          "title": "The number of times this event has occurred.\n+optional"
-        },
-        "eventTime": {
-          "$ref": "#/definitions/v1MicroTime"
-        },
-        "firstTimestamp": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "involvedObject": {
-          "$ref": "#/definitions/v1ObjectReference"
-        },
-        "lastTimestamp": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "message": {
-          "type": "string",
-          "title": "A human-readable description of the status of this operation.\nTODO: decide on maximum length.\n+optional"
-        },
-        "metadata": {
-          "$ref": "#/definitions/v1ObjectMeta"
-        },
-        "reason": {
-          "type": "string",
-          "title": "This should be a short, machine understandable string that gives the reason\nfor the transition into the object's current status.\nTODO: provide exact specification for format.\n+optional"
-        },
-        "related": {
-          "$ref": "#/definitions/v1ObjectReference"
-        },
-        "reportingComponent": {
-          "type": "string",
-          "title": "Name of the controller that emitted this Event, e.g. `kubernetes.io/kubelet`.\n+optional"
-        },
-        "reportingInstance": {
-          "type": "string",
-          "title": "ID of the controller instance, e.g. `kubelet-xyzf`.\n+optional"
-        },
-        "series": {
-          "$ref": "#/definitions/v1EventSeries"
-        },
-        "source": {
-          "$ref": "#/definitions/v1EventSource"
-        },
-        "type": {
-          "type": "string",
-          "title": "Type of this event (Normal, Warning), new types could be added in the future\n+optional"
-        }
-      }
-    },
-    "v1EventList": {
-      "description": "EventList is a list of events.",
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "title": "List of events",
-          "items": {
-            "$ref": "#/definitions/v1Event"
-          }
-        },
-        "metadata": {
-          "$ref": "#/definitions/v1ListMeta"
-        }
-      }
-    },
-    "v1EventSeries": {
-      "description": "EventSeries contain information on series of events, i.e. thing that was/is happening\ncontinuously for some time.",
-      "type": "object",
-      "properties": {
-        "count": {
-          "type": "integer",
-          "format": "int32",
-          "title": "Number of occurrences in this series up to the last heartbeat time"
-        },
-        "lastObservedTime": {
-          "$ref": "#/definitions/v1MicroTime"
-        }
-      }
-    },
-    "v1EventSource": {
-      "description": "EventSource contains information for an event.",
-      "type": "object",
-      "properties": {
-        "component": {
-          "type": "string",
-          "title": "Component from which the event is generated.\n+optional"
-        },
-        "host": {
-          "type": "string",
-          "title": "Node name on which the event is generated.\n+optional"
-        }
-      }
-    },
     "v1FieldsV1": {
-      "description": "FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:<name>', where <name> is the name of a field in a struct, or key in a map\n'v:<value>', where <value> is the exact json formatted value of a list item\n'i:<index>', where <index> is position of a item in a list\n'k:<keys>', where <keys> is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in sigs.k8s.io/structured-merge-diff\n+protobuf.options.(gogoproto.goproto_stringer)=false",
+      "description": "FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:<name>', where <name> is the name of a field in a struct, or key in a map\n'v:<value>', where <value> is the exact json formatted value of a list item\n'i:<index>', where <index> is position of a item in a list\n'k:<keys>', where <keys> is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in sigs.k8s.io/structured-merge-diff\n+k8s:deepcopy-gen=false\n+protobuf.options.marshal=false\n+protobuf.options.(gogoproto.goproto_stringer)=false",
       "type": "object",
       "properties": {
         "Raw": {
-          "description": "Raw is the underlying serialization of this object.",
+          "description": "Raw is the underlying serialization of this object.\n\nDeprecated: Direct access to this field is deprecated. Use GetRawBytes, GetRawString, SetRawBytes, SetRawString, GetRawReader, NewFieldsV1 instead.",
           "type": "string",
           "format": "byte"
         }
@@ -6551,6 +6636,9 @@
         "selfLink": {
           "type": "string",
           "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "shardInfo": {
+          "$ref": "#/definitions/v1ShardInfo"
         }
       }
     },
@@ -6768,40 +6856,6 @@
         }
       }
     },
-    "v1ObjectReference": {
-      "description": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\n\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+structType=atomic",
-      "type": "object",
-      "properties": {
-        "apiVersion": {
-          "type": "string",
-          "title": "API version of the referent.\n+optional"
-        },
-        "fieldPath": {
-          "type": "string",
-          "title": "If referring to a piece of an object instead of an entire object, this string\nshould contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].\nFor example, if the object reference is to a container within a pod, this would take on a value like:\n\"spec.containers{name}\" (where \"name\" refers to the name of the container that triggered\nthe event) or if no container name is specified \"spec.containers[2]\" (container with\nindex 2 in this pod). This syntax is chosen only to have some well-defined way of\nreferencing a part of an object.\nTODO: this design is not final and this field is subject to change in the future.\n+optional"
-        },
-        "kind": {
-          "type": "string",
-          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+optional"
-        },
-        "name": {
-          "type": "string",
-          "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names\n+optional"
-        },
-        "namespace": {
-          "type": "string",
-          "title": "Namespace of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/\n+optional"
-        },
-        "resourceVersion": {
-          "type": "string",
-          "title": "Specific resourceVersion to which this reference is made, if any.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
-        },
-        "uid": {
-          "type": "string",
-          "title": "UID of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids\n+optional"
-        }
-      }
-    },
     "v1OwnerReference": {
       "type": "object",
       "title": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.\n+structType=atomic",
@@ -6848,6 +6902,16 @@
         "protocol": {
           "type": "string",
           "title": "Protocol is the protocol of the service port of which status is recorded here\nThe supported values are: \"TCP\", \"UDP\", \"SCTP\""
+        }
+      }
+    },
+    "v1ShardInfo": {
+      "description": "ShardInfo describes the shard selector that was applied to produce a list response.\nIts presence on a list response indicates the list is a filtered subset.",
+      "type": "object",
+      "properties": {
+        "selector": {
+          "type": "string",
+          "title": "selector is the shard selector string from the request, echoed back so clients\ncan verify which shard they received and merge responses from multiple shards.\n+required"
         }
       }
     },
@@ -6987,11 +7051,15 @@
           }
         },
         "signatureKeys": {
+          "description": "Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.",
           "type": "array",
           "title": "SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync",
           "items": {
             "$ref": "#/definitions/v1alpha1SignatureKey"
           }
+        },
+        "sourceIntegrity": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrity"
         },
         "sourceNamespaces": {
           "type": "array",
@@ -7571,6 +7639,10 @@
           "type": "string",
           "title": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests"
         },
+        "tagPrefix": {
+          "description": "TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.\nThe prefix is stripped from tag names before comparison and re-added to the resolved version.\nFor example, with tagPrefix \"component-b/\" and targetRevision \"1.0.*\", tags like \"component-b/1.0.0\" and\n\"component-b/1.0.1\" are candidates, and the constraint resolves to \"component-b/1.0.1\".",
+          "type": "string"
+        },
         "targetRevision": {
           "description": "TargetRevision defines the revision of the source to sync the application to.\nIn case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.\nIn case of Helm, this is a semver tag for the Chart's version.",
           "type": "string"
@@ -7600,7 +7672,7 @@
     },
     "v1alpha1ApplicationSourceHelm": {
       "type": "object",
-      "title": "ApplicationSourceHelm holds helm specific options",
+      "title": "ApplicationSourceHelm holds helm specific options\n+protobuf.options.(gogoproto.goproto_stringer)=false",
       "properties": {
         "apiVersions": {
           "description": "APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,\nArgo CD uses the API versions of the target cluster. The format is [group/]version/kind.",
@@ -7981,6 +8053,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "isAppOfApps": {
+          "description": "IsAppOfApps holds true if the application has any application for child resource.",
+          "type": "boolean"
         }
       }
     },
@@ -8497,6 +8573,9 @@
           "type": "string",
           "title": "Command to execute"
         },
+        "config": {
+          "$ref": "#/definitions/runtimeRawExtension"
+        },
         "env": {
           "type": "object",
           "title": "Env defines additional environment variables to expose to the process",
@@ -8507,6 +8586,10 @@
         "installHint": {
           "type": "string",
           "title": "This text is shown to the user when the executable doesn't seem to be present"
+        },
+        "provideClusterInfo": {
+          "type": "boolean",
+          "title": "ProvideClusterInfo determines whether or not to provide cluster information,\nwhich could potentially contain very large CA data, to this exec plugin as a\npart of the KUBERNETES_EXEC_INFO environment variable.\nComment mirrored from k8s.io/client-go/tools/clientcmd/api.ExecConfig.ProvideClusterInfo"
         }
       }
     },
@@ -8750,7 +8833,7 @@
       }
     },
     "v1alpha1HydrateTo": {
-      "description": "HydrateTo specifies a location to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.",
+      "description": "HydrateTo specifies a branch to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. The repository and path are inherited from SyncSource.",
       "type": "object",
       "properties": {
         "targetBranch": {
@@ -9519,6 +9602,22 @@
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
+        "azureActiveDirectoryEndpoint": {
+          "type": "string",
+          "title": "AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com"
+        },
+        "azureServicePrincipalClientId": {
+          "type": "string",
+          "title": "AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo"
+        },
+        "azureServicePrincipalClientSecret": {
+          "type": "string",
+          "title": "AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo"
+        },
+        "azureServicePrincipalTenantId": {
+          "type": "string",
+          "title": "AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
@@ -9618,6 +9717,22 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
+        "azureActiveDirectoryEndpoint": {
+          "type": "string",
+          "title": "AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com"
+        },
+        "azureServicePrincipalClientId": {
+          "type": "string",
+          "title": "AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo"
+        },
+        "azureServicePrincipalClientSecret": {
+          "type": "string",
+          "title": "AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo"
+        },
+        "azureServicePrincipalTenantId": {
+          "type": "string",
+          "title": "AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
@@ -9727,6 +9842,10 @@
         "username": {
           "type": "string",
           "title": "Username contains the user name used for authenticating at the remote repository"
+        },
+        "webhookManifestCacheWarmDisabled": {
+          "description": "WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.\nWhen set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache\noperations for unaffected ones. Recommended for large monorepos with plain YAML manifests.",
+          "type": "boolean"
         }
       }
     },
@@ -10194,8 +10313,11 @@
           }
         },
         "signatureInfo": {
-          "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
+          "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.\n\nDeprecated: Use SourceIntegrityResult for more detailed information. SignatureInfo will be removed with the next major version.",
           "type": "string"
+        },
+        "sourceIntegrityResult": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityCheckResult"
         },
         "tags": {
           "type": "array",
@@ -10414,6 +10536,10 @@
           "description": "The Gitea URL to talk to. For example https://gitea.mydomain.com/.",
           "type": "string"
         },
+        "excludeArchivedRepos": {
+          "description": "Exclude repositories that are archived.",
+          "type": "boolean"
+        },
         "insecure": {
           "type": "boolean",
           "title": "Allow self-signed TLS / Certificates; default: false"
@@ -10443,6 +10569,10 @@
           "description": "AppSecretName is a reference to a GitHub App repo-creds secret.",
           "type": "string"
         },
+        "excludeArchivedRepos": {
+          "description": "Exclude repositories that are archived.",
+          "type": "boolean"
+        },
         "organization": {
           "description": "GitHub org to scan. Required.",
           "type": "string"
@@ -10470,6 +10600,10 @@
         "group": {
           "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.",
           "type": "string"
+        },
+        "includeArchivedRepos": {
+          "description": "Include repositories that are archived.",
+          "type": "boolean"
         },
         "includeSharedProjects": {
           "type": "boolean",
@@ -10505,6 +10639,7 @@
       }
     },
     "v1alpha1SignatureKey": {
+      "description": "Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.",
       "type": "object",
       "title": "SignatureKey is the specification of a key required to verify commit signatures with",
       "properties": {
@@ -10536,8 +10671,100 @@
         "currentOperation": {
           "$ref": "#/definitions/v1alpha1HydrateOperation"
         },
+        "lastComparedDryRevision": {
+          "description": "LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.\nThis is updated on every evaluation, even when hydration is skipped due to no changes.",
+          "type": "string"
+        },
         "lastSuccessfulOperation": {
           "$ref": "#/definitions/v1alpha1SuccessfulHydrateOperation"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrity": {
+      "type": "object",
+      "properties": {
+        "git": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityGit"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityCheckResult": {
+      "description": "SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.\nEach check performed on a source(es), holds a check item representing all checks performed.",
+      "type": "object",
+      "properties": {
+        "checks": {
+          "description": "Checks holds a list of checks performed, with their eventual problems. If a check is not specified here,\nit means it was not performed.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityCheckResultItem"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityCheckResultItem": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name of the check that is human-understandable pointing out to the kind of verification performed.",
+          "type": "string"
+        },
+        "problems": {
+          "description": "Problems is a list of messages explaining why the check failed. Empty list means the check has succeeded.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityGit": {
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicy"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityGitPolicy": {
+      "type": "object",
+      "properties": {
+        "gpg": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicyGPG"
+        },
+        "repos": {
+          "type": "array",
+          "title": "List of repository criteria restricting repositories the policy will apply to",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicyRepo"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityGitPolicyGPG": {
+      "description": "SourceIntegrityGitPolicyGPG verifies that the commit(s) are both correctly signed by a key in the repo-server keyring,\nand that they are signed by one of the key listed in Keys.\n\nThis policy can be deactivated through the ARGOCD_GPG_ENABLED environment variable.\n\nNote the listing of problematic commits/signatures reported when \"strict\" mode validation fails may not be complete.\nThis means that a user that has addressed all problems reported by source integrity check can run into\nfurther problematic signatures on a subsequent attempt. That happens namely when history contains seal commits signed\nwith gpg keys that are in the keyring, but not listed in Keys.",
+      "type": "object",
+      "properties": {
+        "keys": {
+          "description": "List of key IDs to trust. The keys need to be in the repository server keyring.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mode": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityGitPolicyRepo": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "URL specifier, glob.",
+          "type": "string"
         }
       }
     },
@@ -10722,11 +10949,15 @@
       }
     },
     "v1alpha1SyncSource": {
-      "description": "SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the\nassociated DrySource config in the SourceHydrator.",
+      "description": "SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed\nto be the same as the associated DrySource config in the SourceHydrator.",
       "type": "object",
       "properties": {
         "path": {
           "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which\nhydrated manifests will be synced.\n\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1\n+kubebuilder:validation:Pattern=`^.{2,}|[^./]$`",
+          "type": "string"
+        },
+        "repoURL": {
+          "description": "RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to\nthe DrySource.RepoURL.",
           "type": "string"
         },
         "targetBranch": {
@@ -10838,6 +11069,10 @@
         "schedule": {
           "type": "string",
           "title": "Schedule is the time the window will begin, specified in cron format"
+        },
+        "syncOverrun": {
+          "type": "boolean",
+          "title": "SyncOverrun allows ongoing syncs to continue in two scenarios:\nFor deny windows: allows syncs that started before the deny window became active to continue running\nFor allow windows: allows syncs that started during the allow window to continue after the window ends"
         },
         "timeZone": {
           "type": "string",

@@ -128,6 +128,9 @@ func NewFakeSecret() *corev1.Secret {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: FakeArgoCDNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
 		},
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
