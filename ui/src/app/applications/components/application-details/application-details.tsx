@@ -1171,7 +1171,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             <SlidingPanel isShown={groupedResources.length > 0} onClose={() => closeGroupedNodesPanel()}>
                                                 <div className='application-details__sliding-panel-pagination-wrap'>
                                                     {(pref.view === 'tree' || pref.view === 'network') && (
-                                                        <ApplicationResourceParentRef resources={state.groupedResources} tree={tree} />
+                                                        <ApplicationResourceParentRef resources={groupedResources} tree={tree} />
                                                     )}
                                                     <Paginate
                                                         page={state.slidingPanelPage}
