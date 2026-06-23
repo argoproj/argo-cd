@@ -64,11 +64,10 @@ type Dependencies interface {
 }
 
 type Manager struct {
-	Client       client.Client
-	AppClientset appclientset.Interface
+	Client           client.Client
+	AppClientset     appclientset.Interface
 	dependencies     Dependencies
 	validationIssues *ValidationIssues // collected during progressive sync execution
-
 }
 
 // NewManager creates a new manager with dependencies

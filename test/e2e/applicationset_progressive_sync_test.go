@@ -560,7 +560,7 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		// Since applications were already healthy, before checking the progressive sync status of all applications, check if all applications were reconciled after changeTime
 		// ensureApplicationsReconciled adds refresh annotations to applications, but processing that annotation happens asynchronously by app controller and thus difficult to check deterministically in e2e tests
 		ExpectWithDuration(CheckApplicationsReconciledAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime), TransitionTimeout*4).
-		Expect(CheckApplicationsNotReconciledAfter([]string{"refresh-dev-app1"}, changeTime)). // Check application with skip-reconcile was not reconciled
+		Expect(CheckApplicationsNotReconciledAfter([]string{"refresh-dev-app1"}, changeTime)).                               // Check application with skip-reconcile was not reconciled
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectProgressiveSyncBlocked), TransitionTimeout*3). // This ensures that applications do not sync out of order
 		Expect(AppsTransitionedAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
 		// removing the skip reconcile, apps allowed to sync
