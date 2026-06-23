@@ -1101,7 +1101,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1153,7 +1153,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1187,7 +1187,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1217,7 +1217,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
 			require.NoError(t, err)
@@ -1260,7 +1260,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1304,7 +1304,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1346,7 +1346,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1386,7 +1386,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1429,7 +1429,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1470,7 +1470,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1517,7 +1517,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1588,7 +1588,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		})
 
 		// Execute deletion
-		err = ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err = ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1672,7 +1672,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f := setup(test.FakeDestNamespace, "")
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1686,7 +1686,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f := setup(test.FakeDestNamespace, "test-sa")
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1701,7 +1701,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f.application.Spec.Destination.Name = "invalid"
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1879,7 +1879,7 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 		patched = true
 		return true, &v1alpha1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
 	})
-	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
+	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 }
 
@@ -1899,7 +1899,7 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
-	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
+	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 	require.GreaterOrEqual(t, len(hook.Entries), 1)
 	entry := hook.Entries[0]
@@ -2182,7 +2182,7 @@ func TestRefreshAppConditions(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
 		assert.False(t, hasErrors)
 		assert.Empty(t, app.Status.Conditions)
 	})
@@ -2193,7 +2193,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
@@ -2206,7 +2206,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
 		assert.True(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
