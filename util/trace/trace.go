@@ -17,7 +17,14 @@ import (
 )
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
-func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string) (func(), error) {
+//
+// sampleRatio controls head-based sampling: 1.0 samples every trace, 0.0 samples
+// none, and values in between sample that fraction of traces. The sampler is
+// parent-based, so a sampling decision made upstream (e.g. the controller) is
+// honored by every downstream service the trace context propagates to
+// (repo-server, commit-server, ...), keeping each trace whole rather than
+// partially sampled across process boundaries.
+func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string, sampleRatio float64) (func(), error) {
 	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
 	for i := range otlpAttrs {
 		attr := otlpAttrs[i]
@@ -61,7 +68,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(sampleRatio))),
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)

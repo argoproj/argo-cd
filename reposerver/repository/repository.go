@@ -38,6 +38,8 @@ import (
 	"github.com/google/uuid"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -82,6 +84,8 @@ const (
 )
 
 var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+
+var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/reposerver/repository")
 
 // Service implements ManifestService interface
 type Service struct {
@@ -629,6 +633,18 @@ func (s *Service) checkOutOfBoundsSymlinks(rootPath string, version string, noCa
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+	// The otelgrpc server handler already created the RPC span as the parent; this names
+	// and annotates the manifest-generation work so it shows up in the reconcile trace.
+	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifest")
+	span.SetAttributes(
+		attribute.String("argocd.app.name", q.AppName),
+		attribute.String("argocd.revision", q.Revision),
+	)
+	if q.Repo != nil {
+		span.SetAttributes(attribute.String("argocd.repo.url", q.Repo.Repo))
+	}
+	defer span.End()
+
 	var res *apiclient.ManifestResponse
 	var err error
 
@@ -1718,6 +1734,9 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifests")
+	defer span.End()
+
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
 
@@ -1729,6 +1748,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
+	span.SetAttributes(attribute.String("argocd.app.source_type", string(appSourceType)))
 	repoURL := ""
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
@@ -2947,6 +2967,9 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (goio.Closer, error) {
+	ctx, span := tracer.Start(ctx, "reposerver.checkoutRevision")
+	span.SetAttributes(attribute.String("argocd.revision", revision))
+	defer span.End()
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, clean)
 	if err != nil {

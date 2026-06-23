@@ -11,6 +11,8 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -94,7 +96,16 @@ func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
 }
 
 // executeHooks is a generic function to execute hooks of a specified type
-func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
+	ctx, span := tracer.Start(ctx, "controller.executeHooks")
+	span.SetAttributes(append(appTraceAttrs(app), attribute.String("argocd.hook.type", string(hookType)))...)
+	defer func() {
+		if retErr != nil {
+			span.SetStatus(otel_codes.Error, retErr.Error())
+			span.RecordError(retErr)
+		}
+		span.End()
+	}()
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return false, err
@@ -236,7 +247,16 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 }
 
 // cleanupHooks is a generic function to clean up hooks of a specified type
-func (ctrl *ApplicationController) cleanupHooks(ctx context.Context, hookType HookType, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) cleanupHooks(ctx context.Context, hookType HookType, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
+	ctx, span := tracer.Start(ctx, "controller.cleanupHooks")
+	span.SetAttributes(attribute.String("argocd.hook.type", string(hookType)))
+	defer func() {
+		if retErr != nil {
+			span.SetStatus(otel_codes.Error, retErr.Error())
+			span.RecordError(retErr)
+		}
+		span.End()
+	}()
 	resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return false, err

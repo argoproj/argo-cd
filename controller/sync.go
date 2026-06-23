@@ -99,6 +99,9 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 }
 
 func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	ctx, span := tracer.Start(ctx, "controller.SyncAppState")
+	span.SetAttributes(appTraceAttrs(app)...)
+	defer span.End()
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError

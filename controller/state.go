@@ -26,6 +26,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -50,6 +53,17 @@ import (
 )
 
 var ErrCompareStateRepo = errors.New("failed to get repo objects")
+
+var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/controller")
+
+// appTraceAttrs returns the standard argocd.app.* span attributes for an application.
+func appTraceAttrs(app *v1alpha1.Application) []attribute.KeyValue {
+	return []attribute.KeyValue{
+		attribute.String("argocd.app.name", app.Name),
+		attribute.String("argocd.app.namespace", app.Namespace),
+		attribute.String("argocd.app.project", app.Spec.GetProject()),
+	}
+}
 
 type resourceInfoProviderStub struct{}
 
@@ -204,6 +218,11 @@ func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
 func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+	// This span is the parent the otelgrpc client handler propagates onto the repo-server
+	// GenerateManifest RPCs below, joining the repo-server trace to this reconcile.
+	ctx, span := tracer.Start(ctx, "controller.GetRepoObjs")
+	span.SetAttributes(appTraceAttrs(app)...)
+	defer span.End()
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
@@ -630,6 +649,9 @@ func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncOb
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
+	ctx, span := tracer.Start(ctx, "controller.CompareAppState")
+	span.SetAttributes(appTraceAttrs(app)...)
+	defer span.End()
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
@@ -914,13 +936,17 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
 	diffConfig, _ := diffConfigBuilder.Build()
 
-	diffResults, err := argodiff.StateDiffs(ctx, reconciliation.Live, reconciliation.Target, diffConfig)
+	diffCtx, diffSpan := tracer.Start(ctx, "controller.diff")
+	diffResults, err := argodiff.StateDiffs(diffCtx, reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {
+		diffSpan.SetStatus(otel_codes.Error, err.Error())
+		diffSpan.RecordError(err)
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
 		msg := "Failed to compare desired state to live state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
+	diffSpan.End()
 	ts.AddCheckpoint("diff_ms")
 
 	syncCode := v1alpha1.SyncStatusCodeSynced
