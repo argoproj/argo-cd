@@ -2195,8 +2195,8 @@ func getResourceStates(app *argoappv1.Application, selectedResources []*argoappv
 	}
 	// filter out not selected resources
 	if len(selectedResources) > 0 {
-		for i := len(states) - 1; i >= 0; i-- {
-			res := states[i]
+		for i, v := range slices.Backward(states) {
+			res := v
 			if !argo.IncludeResource(res.Name, res.Namespace, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, selectedResources) {
 				states = append(states[:i], states[i+1:]...)
 			}
