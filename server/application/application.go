@@ -15,6 +15,7 @@ import (
 	"time"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	kubecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
@@ -42,6 +43,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
@@ -50,6 +52,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/broadcast"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
+	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
@@ -465,7 +468,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
-	ociRepos, err := s.db.ListOCIRepositories(context.Background())
+	ociRepos, err := s.db.ListOCIRepositories(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list OCI repositories: %w", err)
 	}
@@ -473,7 +476,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("failed to get permitted OCI repositories for project %q: %w", proj.Name, err)
 	}
-	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(context.Background())
+	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get OCI credentials: %w", err)
 	}
@@ -535,7 +538,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			}
 			sources = appSpec.GetSources()
 		} else {
-			source := a.Spec.GetSource()
+			// For sourceHydrator applications, use the dry source to generate manifests
+			var source v1alpha1.ApplicationSource
+			if a.Spec.SourceHydrator != nil {
+				source = a.Spec.SourceHydrator.GetDrySource()
+			} else {
+				source = a.Spec.GetSource()
+			}
+
 			if q.GetRevision() != "" {
 				source.TargetRevision = q.GetRevision()
 			}
@@ -543,7 +553,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{})
+		refSources, err := argo.GetRefSources(ctx, sources, appSpec.Project, s.db.GetRepository, []string{})
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -706,7 +716,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Repo:                            repo,
 			Revision:                        source.TargetRevision,
 			AppLabelKey:                     appInstanceLabelKey,
-			AppName:                         a.Name,
+			AppName:                         a.InstanceName(s.ns),
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
@@ -806,7 +816,16 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	})
 	defer unsubscribe()
 
-	app, err := argo.RefreshApp(appIf, appName, refreshType, true)
+	var hydrateType *v1alpha1.HydrateType
+	if refreshType == v1alpha1.RefreshTypeHard {
+		ht := v1alpha1.HydrateTypeHard
+		hydrateType = &ht
+	} else {
+		ht := v1alpha1.HydrateTypeNormal
+		hydrateType = &ht
+	}
+
+	app, err := argo.RefreshApp(appIf, appName, refreshType, hydrateType)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}
@@ -878,7 +897,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 }
 
 // ListResourceEvents returns a list of event resources
-func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*corev1.EventList, error) {
+func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*eventspb.EventList, error) {
 	a, p, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
@@ -938,7 +957,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return list.DeepCopy(), nil
+	return serverevents.K8sEventListToAPIEventList(list), nil
 }
 
 // validateAndUpdateApp validates and updates the application. currentProject is the name of the project the app
@@ -1167,7 +1186,10 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		if policyFinalizer == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid propagation policy: %s", *q.PropagationPolicy)
 		}
-		if !a.IsFinalizerPresent(policyFinalizer) {
+		// Kubernetes forbids adding finalizers to an object that is already being deleted,
+		// so skip the patch if the app is mid-deletion. The underlying Delete call below is
+		// still issued to keep the RPC idempotent for callers retrying a cascade delete.
+		if !a.IsFinalizerPresent(policyFinalizer) && a.DeletionTimestamp == nil {
 			a.SetCascadedDeletion(policyFinalizer)
 			patchFinalizer = true
 		}
@@ -1626,7 +1648,8 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
-	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	// Read via the client instead of the informer cache to avoid "revision history not found" errors due to stale informer cache
+	a, proj, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -1645,10 +1668,13 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer utilio.Close(conn)
+	sourceIntegrity := proj.EffectiveSourceIntegrity()
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           repo,
-		Revision:       q.GetRevision(),
-		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+		Repo:            repo,
+		Revision:        q.GetRevision(),
+		SourceIntegrity: sourceIntegrity,
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		CheckSignature: sourceIntegrity != nil, // nolint:staticcheck
 	})
 }
 
@@ -2049,7 +2075,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true, nil)
 	if err != nil {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
 	}
@@ -2095,9 +2121,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
 	}
 
-	// We cannot use local manifests if we're only allowed to sync to signed commits
-	if syncReq.Manifests != nil && len(proj.Spec.SignatureKeys) > 0 {
-		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
+	if syncReq.Manifests != nil && sourceintegrity.HasCriteria(proj.EffectiveSourceIntegrity(), a.Spec.GetSources()...) {
+		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local manifests when source integrity is enforced")
 	}
 
 	resources := []v1alpha1.SyncOperationResource{}
@@ -2452,11 +2477,13 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		}
 	}
 
+	// Do not use cache for revision resolution since this is a user triggered operation
 	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,
 		SourceIndex:       int64(sourceIndex),
+		NoRevisionCache:   true,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)
@@ -2685,7 +2712,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
-		err := s.verifyResourcePermitted(destCluster, proj, newObj)
+		err := s.verifyResourcePermitted(ctx, destCluster, proj, newObj)
 		if err != nil {
 			return nil, err
 		}
@@ -2777,9 +2804,9 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) verifyResourcePermitted(destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
+func (s *Server) verifyResourcePermitted(ctx context.Context, destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
 	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetName(), obj.GetNamespace(), destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
-		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
+		clusters, err := s.db.GetProjectClusters(ctx, project)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get project clusters: %w", err)
 		}
@@ -2843,7 +2870,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync, err := windows.CanSync(true)
+	sync, err := windows.CanSync(true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}
@@ -2970,12 +2997,12 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	}
 
 	// Create server-side diff dry run applier
-	openAPISchema, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
+	_, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, openAPISchema, func(_ string) (kube.CleanupFunc, error) {
+	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, func(_ string) (kube.CleanupFunc, error) {
 		return func() {}, nil
 	})
 	if err != nil {
@@ -3006,6 +3033,14 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error building diff config: %w", err)
 	}
 
+	managedResources := make([]*v1alpha1.ResourceDiff, 0)
+	err = s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &managedResources)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting managed resources: %w", err)
+	}
+
 	// Convert live resources to unstructured objects
 	liveObjs := make([]*unstructured.Unstructured, 0, len(q.GetLiveResources()))
 	for _, liveResource := range q.GetLiveResources() {
@@ -3014,6 +3049,29 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			err := json.Unmarshal([]byte(liveResource.LiveState), liveObj)
 			if err != nil {
 				return nil, fmt.Errorf("error unmarshaling live state for %s/%s: %w", liveResource.Kind, liveResource.Name, err)
+			}
+			if liveObj.GetName() != liveResource.Name {
+				return nil, status.Errorf(codes.InvalidArgument, "name mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Name, liveObj.GetName(), liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GetNamespace() != liveResource.Namespace {
+				return nil, status.Errorf(codes.InvalidArgument, "namespace mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Namespace, liveObj.GetNamespace(), liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GroupVersionKind().Group != liveResource.Group {
+				return nil, status.Errorf(codes.InvalidArgument, "group mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Group, liveObj.GroupVersionKind().Group, liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GroupVersionKind().Kind != liveResource.Kind {
+				return nil, status.Errorf(codes.InvalidArgument, "kind mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Kind, liveObj.GroupVersionKind().Kind, liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			// Validate permissions for the requested live object. It has to be part of the application's managed resources.
+			found := false
+			for _, item := range managedResources {
+				if item.Kind == liveResource.Kind && item.Group == liveResource.Group && item.Namespace == liveResource.Namespace && item.Name == liveResource.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, status.Errorf(codes.PermissionDenied, "%s/%s %s not found as part of application %s", liveResource.Group, liveResource.Kind, liveResource.Name, a.Name)
 			}
 			liveObjs = append(liveObjs, liveObj)
 		} else {
@@ -3031,7 +3089,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetObjs = append(targetObjs, obj)
 	}
 
-	diffResults, err := argodiff.StateDiffs(liveObjs, targetObjs, diffConfig)
+	diffResults, err := argodiff.StateDiffs(ctx, liveObjs, targetObjs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error performing state diffs: %w", err)
 	}
@@ -3080,13 +3138,50 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		// Create ResourceDiff with StateDiffs results
 		// TargetState = PredictedLive (what the target should be after applying)
 		// LiveState = NormalizedLive (current normalized live state)
+		targetState := string(diffRes.PredictedLive)
+		liveState := string(diffRes.NormalizedLive)
+
+		if kind == kube.SecretKind && group == "" {
+			var targetObj, liveObj *unstructured.Unstructured
+			if len(diffRes.PredictedLive) > 0 && string(diffRes.PredictedLive) != "null" {
+				targetObj = &unstructured.Unstructured{}
+				if err := json.Unmarshal(diffRes.PredictedLive, targetObj); err != nil {
+					return nil, fmt.Errorf("error unmarshaling predicted live for secret masking: %w", err)
+				}
+			}
+			if len(diffRes.NormalizedLive) > 0 && string(diffRes.NormalizedLive) != "null" {
+				liveObj = &unstructured.Unstructured{}
+				if err := json.Unmarshal(diffRes.NormalizedLive, liveObj); err != nil {
+					return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
+				}
+			}
+			maskedTarget, maskedLive, err := diff.HideSecretData(targetObj, liveObj, s.settingsMgr.GetSensitiveAnnotations())
+			if err != nil {
+				return nil, fmt.Errorf("error masking secret data: %w", err)
+			}
+			if maskedTarget != nil {
+				data, err := json.Marshal(maskedTarget)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling masked target state: %w", err)
+				}
+				targetState = string(data)
+			}
+			if maskedLive != nil {
+				data, err := json.Marshal(maskedLive)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling masked live state: %w", err)
+				}
+				liveState = string(data)
+			}
+		}
+
 		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
 			Group:           group,
 			Kind:            kind,
 			Namespace:       namespace,
 			Name:            name,
-			TargetState:     string(diffRes.PredictedLive),
-			LiveState:       string(diffRes.NormalizedLive),
+			TargetState:     targetState,
+			LiveState:       liveState,
 			Diff:            "", // Diff string is generated client-side
 			Hook:            hook,
 			Modified:        diffRes.Modified,

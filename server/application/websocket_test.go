@@ -64,6 +64,7 @@ func reconnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestReconnect(t *testing.T) {
+	t.Parallel()
 	s := httptest.NewServer(http.HandlerFunc(reconnect))
 	defer s.Close()
 
@@ -110,6 +111,7 @@ func testServerConnection(t *testing.T, testFunc func(w http.ResponseWriter, r *
 }
 
 func TestVerifyAndReconnectDisableAuthTrue(t *testing.T) {
+	t.Parallel()
 	validate := func(w http.ResponseWriter, r *http.Request) {
 		ts := newTestTerminalSession(w, r)
 		// Currently testing only the usecase of disableAuth: true since the disableAuth: false case
@@ -126,6 +128,7 @@ func TestVerifyAndReconnectDisableAuthTrue(t *testing.T) {
 }
 
 func TestValidateWithAdminPermissions(t *testing.T) {
+	t.Parallel()
 	validate := func(w http.ResponseWriter, r *http.Request) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -146,6 +149,7 @@ func TestValidateWithAdminPermissions(t *testing.T) {
 }
 
 func TestValidateWithoutPermissions(t *testing.T) {
+	t.Parallel()
 	validate := func(w http.ResponseWriter, r *http.Request) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -167,6 +171,7 @@ func TestValidateWithoutPermissions(t *testing.T) {
 }
 
 func TestTerminalSession_Write(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upgrader := websocket.Upgrader{}
 		conn, err := upgrader.Upgrade(w, r, nil)
