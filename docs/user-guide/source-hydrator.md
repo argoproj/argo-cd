@@ -587,7 +587,7 @@ The annotation takes one of two values:
 | `hard`   | Forces hydration unconditionally, even if the dry source revision hasn't changed since the last hydration.                |
 
 > [!NOTE]
-> Only the exact value `hard` is special-cased. Any other value is treated the  as `normal`.
+> Only the exact value `hard` is special-cased. Any other value is treated as `normal`.
 
 Argo CD sets this annotation automatically in a few situations:
 
