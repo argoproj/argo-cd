@@ -30,6 +30,16 @@ func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
+	argoCDCmdCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cmd-params-cm",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
 	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
@@ -58,7 +68,7 @@ func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 	staleApp.Spec.Destination.Server = "https://removed-cluster.example.com"
 	staleApp.Spec.Destination.Namespace = "stale"
 	ctx := t.Context()
-	kubeClient := fake.NewClientset(argoCDCM, argoCDSecret)
+	kubeClient := fake.NewClientset(argoCDCM, argoCDCmdCM, argoCDSecret)
 	appClient := fakeapps.NewSimpleClientset(app, staleApp)
 	oldHooks := log.StandardLogger().ReplaceHooks(log.LevelHooks{})
 	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(oldHooks) })
