@@ -2,6 +2,7 @@ package generators
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -2530,4 +2531,52 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			assert.Equal(t, testCase.expected, got)
 		}
 	}
+}
+
+// TestGitGenerateParamsRepoURLAppearsOnceInChainedError guards the dedup fix:
+// the outer wrapper at GenerateParams already prefixes the repo URL, so the
+// inner per-file wrapper must not include it again. Without this, the URL
+// shows up twice in the chained error string, which is what the original
+// reviewer flagged.
+func TestGitGenerateParamsRepoURLAppearsOnceInChainedError(t *testing.T) {
+	t.Parallel()
+
+	const repoURL = "https://example.com/some/repo.git"
+
+	argoCDServiceMock := mocks.NewRepos(t)
+	argoCDServiceMock.EXPECT().
+		GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(map[string][]byte{
+			"cluster-config/production/config.json": []byte(`invalid json file`),
+		}, nil)
+
+	gitGenerator := NewGitGenerator(argoCDServiceMock, "")
+	applicationSetInfo := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set"},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{{
+				Git: &v1alpha1.GitGenerator{
+					RepoURL:  repoURL,
+					Revision: "Revision",
+					Files:    []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+				},
+			}},
+		},
+	}
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	appProject := v1alpha1.AppProject{}
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+	_, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
+	require.Error(t, err)
+
+	// The chained error walks through generateParamsFromGitFile ->
+	// generateParamsForGitFiles -> GenerateParams. Only the outermost wrap
+	// should mention the repo URL.
+	got := err.Error()
+	assert.Equalf(t, 1, strings.Count(got, repoURL),
+		"repo URL should appear exactly once in the chained error, got: %q", got)
+	assert.Contains(t, got, repoURL, "outer error must still surface the repo URL")
 }
