@@ -390,6 +390,7 @@ jobs:
           gh pr create \
             --title "chore: Bump version in master" \
             --body "All images built from master should indicate which version we are on track for." \
+            --head "$BRANCH" \
             --base master
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
