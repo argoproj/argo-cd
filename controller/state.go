@@ -225,12 +225,12 @@ func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) (_ []*unstructured.Unstructured, _ []*apiclient.ManifestResponse, _ bool, retErr error) {
 	// This span is the parent the otelgrpc client handler propagates onto the repo-server
 	// GenerateManifest RPCs below, joining the repo-server trace to this reconcile.
 	ctx, span := tracer.Start(ctx, "controller.GetRepoObjs")
 	setAppTraceAttrs(span, app)
-	defer span.End()
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
@@ -345,12 +345,14 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		// indicating which source each belongs to. The closure scopes srcCtx (the parent the
 		// otelgrpc client handler propagates onto the RPC) and ends the span per iteration.
 		srcCtx, srcSpan := tracer.Start(ctx, "controller.GetRepoObjs.source")
-		srcSpan.SetAttributes(
-			attribute.Int("argocd.source.index", i),
-			attribute.String("argocd.source.name", source.Name),
-			attribute.String("argocd.source.repo_url", git.SanitizeRepoURL(source.RepoURL)),
-			attribute.String("argocd.revision", revision),
-		)
+		if srcSpan.IsRecording() {
+			srcSpan.SetAttributes(
+				attribute.Int("argocd.source.index", i),
+				attribute.String("argocd.source.name", source.Name),
+				attribute.String("argocd.source.repo_url", git.SanitizeRepoURL(source.RepoURL)),
+				attribute.String("argocd.revision", revision),
+			)
+		}
 		if err := func() (retErr error) {
 			defer func() { traceutil.EndSpan(srcSpan, retErr) }()
 

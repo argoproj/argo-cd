@@ -1416,8 +1416,10 @@ func (sc *syncContext) performCSAUpgradeMigration(ctx context.Context, liveObj *
 
 func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
 	ctx, span := tracer.Start(ctx, "sync.apply")
-	span.SetAttributes(taskTraceAttrs(t)...)
-	span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
+	if span.IsRecording() {
+		span.SetAttributes(taskTraceAttrs(t)...)
+		span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
+	}
 	defer span.End()
 
 	dryRunStrategy := cmdutil.DryRunNone
@@ -1513,8 +1515,10 @@ func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, val
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
 func (sc *syncContext) pruneObject(ctx context.Context, t *syncTask, prune, dryRun bool) (common.ResultCode, string) {
 	ctx, span := tracer.Start(ctx, "sync.prune")
-	span.SetAttributes(taskTraceAttrs(t)...)
-	span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
+	if span.IsRecording() {
+		span.SetAttributes(taskTraceAttrs(t)...)
+		span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
+	}
 	defer span.End()
 
 	liveObj := t.liveObj
@@ -1651,10 +1655,12 @@ func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun boo
 	dryRun = dryRun || sc.dryRun
 
 	ctx, span := tracer.Start(ctx, "sync.runTasks")
-	span.SetAttributes(
-		attribute.Bool("argocd.sync.dry_run", dryRun),
-		attribute.Int("argocd.sync.num_tasks", len(tasks)),
-	)
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.Bool("argocd.sync.dry_run", dryRun),
+			attribute.Int("argocd.sync.num_tasks", len(tasks)),
+		)
+	}
 	defer span.End()
 
 	sc.log.WithValues("numTasks", len(tasks), "dryRun", dryRun).V(1).Info("Running tasks")

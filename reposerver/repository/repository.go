@@ -639,12 +639,14 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	// The otelgrpc server handler already created the RPC span as the parent; this names
 	// and annotates the manifest-generation work so it shows up in the reconcile trace.
 	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifest")
-	span.SetAttributes(
-		attribute.String("argocd.app.name", q.AppName),
-		attribute.String("argocd.revision", q.Revision),
-	)
-	if q.Repo != nil {
-		span.SetAttributes(attribute.String("argocd.repo.url", git.SanitizeRepoURL(q.Repo.Repo)))
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String("argocd.app.name", q.AppName),
+			attribute.String("argocd.revision", q.Revision),
+		)
+		if q.Repo != nil {
+			span.SetAttributes(attribute.String("argocd.repo.url", git.SanitizeRepoURL(q.Repo.Repo)))
+		}
 	}
 	defer func() { traceutil.EndSpan(span, retErr) }()
 

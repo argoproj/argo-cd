@@ -1477,8 +1477,16 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ctx := context.Background()
 	ctx, span := tracer.Start(ctx, "controller.Operation")
 	setAppTraceAttrs(span, app)
-	defer span.End()
 	var state *appv1.OperationState
+	// Registered first so it runs last: after the panic-recovery and timing defers below have
+	// finalized state. The operation reports failure via state.Phase (not a return value), so map
+	// a terminal failed phase onto the span status; panics are handled by the recovery defer.
+	defer func() {
+		if state != nil && state.Phase.Failed() {
+			span.SetStatus(otel_codes.Error, state.Message)
+		}
+		span.End()
+	}()
 	// Recover from any unexpected panics and automatically set the status to be failed
 	defer func() {
 		if r := recover(); r != nil {
