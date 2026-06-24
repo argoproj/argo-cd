@@ -22,8 +22,8 @@ func TestAddCacheFlagsToCmd(t *testing.T) {
 }
 
 func TestAddCacheFlagsToCmd_SentinelEnvDefaults(t *testing.T) {
-	t.Setenv("REDIS_SENTINEL", "redis1:26379,redis2:26379")
-	t.Setenv("REDIS_SENTINELMASTER", "mymaster")
+	t.Setenv("REDIS_SENTINEL_HOSTS", "redis1:26379,redis2:26379")
+	t.Setenv("REDIS_SENTINEL_MASTER", "mymaster")
 
 	cmd := &cobra.Command{}
 	AddCacheFlagsToCmd(cmd)
@@ -42,8 +42,8 @@ func TestAddCacheFlagsToCmd_SentinelEnvDefaults(t *testing.T) {
 }
 
 func TestAddCacheFlagsToCmd_SentinelFlagOverridesEnv(t *testing.T) {
-	t.Setenv("REDIS_SENTINELMASTER", "env-master")
-	t.Setenv("REDIS_SENTINEL", "env1:26379")
+	t.Setenv("REDIS_SENTINEL_MASTER", "env-master")
+	t.Setenv("REDIS_SENTINEL_HOSTS", "env1:26379")
 
 	cmd := &cobra.Command{}
 	AddCacheFlagsToCmd(cmd)

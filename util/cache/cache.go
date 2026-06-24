@@ -230,7 +230,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		&sentinelAddresses,
 		opt.FlagPrefix+"sentinel",
 		env.StringsFromEnv(
-			opt.getEnvPrefix()+"REDIS_SENTINEL",
+			opt.getEnvPrefix()+"REDIS_SENTINEL_HOSTS",
 			[]string{},
 			",",
 		),
