@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -100,13 +99,10 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 }
 
 func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
-	newAnnotations := make(map[string]string)
-	maps.Copy(newAnnotations, orig.GetAnnotations())
-	delete(newAnnotations, appv1.AnnotationKeyHydrate)
+	ctrl.handleRefreshAnnotation(orig, appv1.AnnotationKeyHydrate, appv1.AnnotationKeyHydrateTimestamp)
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	// PersistHydrationStatus has no request context; the status write roots its own trace.
-	ctrl.persistAppStatus(context.Background(), orig, status, newAnnotations)
+	ctrl.persistAppStatus(context.Background(), orig, status)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
