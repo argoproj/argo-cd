@@ -1429,6 +1429,115 @@ func isArgoCDConfigMap(obj any) bool {
 	return false
 }
 
+// argoCDConfigMapEventHandler returns the informer event handlers for the argocd-cm
+// ConfigMap. Only argocd-cm carries settings that affect project cache validity (the
+// "globalProjects" key), so any add/update/delete of it invalidates the project cache
+// via onRepoOrClusterChanged. DeleteFunc unwraps cache.DeletedFinalStateUnknown
+// tombstones, and objects that are not argocd-cm (per isArgoCDConfigMap) are ignored.
+func (mgr *SettingsManager) argoCDConfigMapEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, obj any) {
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		AddFunc: func(obj any) {
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+	}
+}
+
+// repositorySecretEventHandler returns the informer event handlers for repository
+// credential secrets. Only repository secrets (per isRepositorySecret) affect
+// project-repo bindings and need to invalidate the project cache via
+// onRepoOrClusterChanged. DeleteFunc unwraps cache.DeletedFinalStateUnknown
+// tombstones, and non-repository or unexpected objects are ignored.
+func (mgr *SettingsManager) repositorySecretEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, obj any) {
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		AddFunc: func(obj any) {
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+	}
+}
+
+// clusterSecretEventHandler returns the informer event handlers for cluster credential
+// secrets. The cluster informer is already filtered to secret-type=cluster, so every
+// event represents a cluster credential change and always warrants a settings reload
+// via onRepoOrClusterChanged. DeleteFunc unwraps cache.DeletedFinalStateUnknown
+// tombstones for consistency, although the unwrapped object is not otherwise inspected.
+func (mgr *SettingsManager) clusterSecretEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, _ any) { mgr.onRepoOrClusterChanged() },
+		AddFunc:    func(_ any) { mgr.onRepoOrClusterChanged() },
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				//nolint:ineffassign,staticcheck // obj unwrapped for consistency but not used
+				obj = tombstone.Obj
+			}
+			mgr.onRepoOrClusterChanged()
+		},
+	}
+}
+
+// settingsNotificationEventHandler returns the informer event handlers that notify
+// settings subscribers (via tryNotify) of changes. It is guarded by isSettingsObject so
+// that only changes to app.kubernetes.io/part-of=argocd objects (the documented contract
+// for secrets/configmaps that participate in ArgoCD settings) trigger a full
+// GetSettings() reload. AddFunc only notifies for objects created after now, and
+// UpdateFunc only when the resource version actually changed; this prevents spurious
+// reloads caused by the informer resync period delivering synthetic events. Objects that
+// do not implement the expected metadata interfaces are ignored.
+func settingsNotificationEventHandler(now time.Time, tryNotify func()) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if isSettingsObject(obj) {
+				if metaObj, ok := obj.(metav1.Object); ok {
+					if metaObj.GetCreationTimestamp().After(now) {
+						tryNotify()
+					}
+				}
+			}
+		},
+		UpdateFunc: func(oldObj, newObj any) {
+			if isSettingsObject(newObj) {
+				oldMeta, oldOk := oldObj.(metav1.Common)
+				newMeta, newOk := newObj.(metav1.Common)
+				if oldOk && newOk && oldMeta.GetResourceVersion() != newMeta.GetResourceVersion() {
+					tryNotify()
+				}
+			}
+		},
+	}
+}
+
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
@@ -1454,27 +1563,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	// key controls which AppProjects are treated as global (merged into virtual projects via
 	// GetGlobalProjectsSettings). Other part-of=argocd configmaps (argocd-rbac-cm, etc.) have
 	// no path into project cache construction and don't need to trigger invalidation.
-	_, err = cmInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(_, obj any) {
-			if isArgoCDConfigMap(obj) {
-				mgr.onRepoOrClusterChanged()
-			}
-		},
-		AddFunc: func(obj any) {
-			if isArgoCDConfigMap(obj) {
-				mgr.onRepoOrClusterChanged()
-			}
-		},
-		DeleteFunc: func(obj any) {
-			// Unwrap DeletedFinalStateUnknown tombstones
-			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-				obj = tombstone.Obj
-			}
-			if isArgoCDConfigMap(obj) {
-				mgr.onRepoOrClusterChanged()
-			}
-		},
-	})
+	_, err = cmInformer.AddEventHandler(mgr.argoCDConfigMapEventHandler())
 	if err != nil {
 		log.Error(err)
 	}
@@ -1483,27 +1572,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	// so cluster secrets are excluded (handled by the cluster informer below).
 	// Only repository credential changes affect project-repo bindings and need
 	// to invalidate the project cache.
-	_, err = secretsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(_, obj any) {
-			if isRepositorySecret(obj) {
-				mgr.onRepoOrClusterChanged()
-			}
-		},
-		AddFunc: func(obj any) {
-			if isRepositorySecret(obj) {
-				mgr.onRepoOrClusterChanged()
-			}
-		},
-		DeleteFunc: func(obj any) {
-			// Unwrap DeletedFinalStateUnknown tombstones
-			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-				obj = tombstone.Obj
-			}
-			if isRepositorySecret(obj) {
-				mgr.onRepoOrClusterChanged()
-			}
-		},
-	})
+	_, err = secretsInformer.AddEventHandler(mgr.repositorySecretEventHandler())
 	if err != nil {
 		log.Error(err)
 	}
@@ -1511,18 +1580,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	// Cluster informer: filtered to argocd.argoproj.io/secret-type=cluster,
 	// so every event represents a cluster credential change, which always
 	// warrants a settings reload.
-	_, err = clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(_, _ any) { mgr.onRepoOrClusterChanged() },
-		AddFunc:    func(_ any) { mgr.onRepoOrClusterChanged() },
-		DeleteFunc: func(obj any) {
-			// Unwrap DeletedFinalStateUnknown tombstones
-			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-				//nolint:ineffassign,staticcheck // obj unwrapped for consistency but not used
-				obj = tombstone.Obj
-			}
-			mgr.onRepoOrClusterChanged()
-		},
-	})
+	_, err = clusterInformer.AddEventHandler(mgr.clusterSecretEventHandler())
 	if err != nil {
 		log.Error(err)
 	}
@@ -1559,31 +1617,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		}
 	}
 	now := time.Now()
-	// handler notifies subscribers of settings changes. Guarded by isSettingsObject
-	// so that only changes to app.kubernetes.io/part-of=argocd objects (the documented
-	// contract for secrets/configmaps that participate in ArgoCD settings) trigger a
-	// full GetSettings() reload. This prevents spurious reloads caused by the informer
-	// resync period delivering synthetic UPDATE events for unrelated objects.
-	handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			if isSettingsObject(obj) {
-				if metaObj, ok := obj.(metav1.Object); ok {
-					if metaObj.GetCreationTimestamp().After(now) {
-						tryNotify()
-					}
-				}
-			}
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			if isSettingsObject(newObj) {
-				oldMeta, oldOk := oldObj.(metav1.Common)
-				newMeta, newOk := newObj.(metav1.Common)
-				if oldOk && newOk && oldMeta.GetResourceVersion() != newMeta.GetResourceVersion() {
-					tryNotify()
-				}
-			}
-		},
-	}
+	handler := settingsNotificationEventHandler(now, tryNotify)
 	_, err = secretsInformer.AddEventHandler(handler)
 	if err != nil {
 		log.Error(err)
