@@ -237,18 +237,23 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
+// and sets the refresh-timestamp annotations that lets the controller detect refresh requests that
+// came during refresh
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrateType *argoappv1.HydrateType) (*argoappv1.Application, error) {
-	metadata := map[string]any{
-		"metadata": map[string]any{
-			"annotations": map[string]string{
-				argoappv1.AnnotationKeyRefresh: string(refreshType),
-			},
-		},
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	annotations := map[string]string{
+		argoappv1.AnnotationKeyRefresh:          string(refreshType),
+		argoappv1.AnnotationKeyRefreshTimestamp: timestamp,
 	}
 	if hydrateType != nil {
-		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
+		annotations[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
+		annotations[argoappv1.AnnotationKeyHydrateTimestamp] = timestamp
 	}
-
+	metadata := map[string]any{
+		"metadata": map[string]any{
+			"annotations": annotations,
+		},
+	}
 	var err error
 	patch, err := json.Marshal(metadata)
 	if err != nil {

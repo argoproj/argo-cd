@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"strconv"
 	"strings"
 	"testing"
@@ -3376,7 +3375,7 @@ func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T
 		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}
 
-	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+	ctrl.persistAppStatus(app, newStatus /*, app.GetAnnotations() */)
 
 	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
 
@@ -3419,7 +3418,7 @@ func TestApplicationController_PersistAppStatus_NonSizeLimitErrorNoFallback(t *t
 	newStatus := app.Status.DeepCopy()
 	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
 
-	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+	ctrl.persistAppStatus(app, newStatus /*app.GetAnnotations()*/)
 
 	assert.Equal(t, 1, patchCalls, "non-size-limit errors should NOT trigger fallback patch")
 }
@@ -3455,7 +3454,7 @@ func TestApplicationController_PersistAppStatus_FallbackMessageContainsUserGuida
 		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}
 
-	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+	ctrl.persistAppStatus(app, newStatus /*, app.GetAnnotations()*/)
 
 	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
 
@@ -3512,7 +3511,7 @@ func TestApplicationController_PersistAppStatus_FallbackPatchAlsoFails(t *testin
 	// Must not panic or block when the fallback patch also fails — the error
 	// should be logged and persistAppStatus should return normally.
 	assert.NotPanics(t, func() {
-		ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+		ctrl.persistAppStatus(app, newStatus /*, app.GetAnnotations()*/)
 	})
 
 	assert.Equal(t, 2, patchCalls, "fallback patch should be attempted exactly once after initial size-limit failure")
@@ -4095,44 +4094,45 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		assert.Equal(t, "other-value", otherValue)
 	})
 
-	t.Run("persistAppStatus with explicit annotations", func(t *testing.T) {
-		app := newFakeApp()
-		app.Annotations = map[string]string{
-			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
-			v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
-			"other-annotation":            "other-value",
-		}
-		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
-		app.Status.Health.Status = health.HealthStatusHealthy
+	//  FIXME: persistAppStatus does not manage annotations any more
+	//    t.Run("persistAppStatus with explicit annotations", func(t *testing.T) {
+	// 	app := newFakeApp()
+	// 	app.Annotations = map[string]string{
+	// 		v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+	// 		v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
+	// 		"other-annotation":            "other-value",
+	// 	}
+	// 	app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+	// 	app.Status.Health.Status = health.HealthStatusHealthy
 
-		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	// 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
-		origApp := app.DeepCopy()
-		newStatus := app.Status.DeepCopy()
+	// 	origApp := app.DeepCopy()
+	// 	newStatus := app.Status.DeepCopy()
 
-		// Create annotations that delete hydrate but keep refresh
-		newAnnotations := make(map[string]string)
-		maps.Copy(newAnnotations, origApp.Annotations)
-		delete(newAnnotations, v1alpha1.AnnotationKeyHydrate)
+	// 	// Create annotations that delete hydrate but keep refresh
+	// 	newAnnotations := make(map[string]string)
+	// 	maps.Copy(newAnnotations, origApp.Annotations)
+	// 	delete(newAnnotations, v1alpha1.AnnotationKeyHydrate)
 
-		ctrl.persistAppStatus(origApp, newStatus, newAnnotations)
+	// 	ctrl.persistAppStatus(origApp, newStatus /*, newAnnotations*/)
 
-		// Verify the patch was created correctly
-		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
-		require.NoError(t, err)
+	// 	// Verify the patch was created correctly
+	// 	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	// 	require.NoError(t, err)
 
-		// Hydrate annotation should be deleted
-		_, hasHydrate := patchedApp.Annotations[v1alpha1.AnnotationKeyHydrate]
-		assert.False(t, hasHydrate, "hydrate annotation should be deleted")
+	// 	// Hydrate annotation should be deleted
+	// 	_, hasHydrate := patchedApp.Annotations[v1alpha1.AnnotationKeyHydrate]
+	// 	assert.False(t, hasHydrate, "hydrate annotation should be deleted")
 
-		// Refresh annotation should still exist
-		refreshValue, hasRefresh := patchedApp.Annotations[v1alpha1.AnnotationKeyRefresh]
-		assert.True(t, hasRefresh, "refresh annotation should still exist")
-		assert.Equal(t, string(v1alpha1.RefreshTypeNormal), refreshValue)
+	// 	// Refresh annotation should still exist
+	// 	refreshValue, hasRefresh := patchedApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+	// 	assert.True(t, hasRefresh, "refresh annotation should still exist")
+	// 	assert.Equal(t, string(v1alpha1.RefreshTypeNormal), refreshValue)
 
-		// Other annotations should be preserved
-		otherValue, hasOther := patchedApp.Annotations["other-annotation"]
-		assert.True(t, hasOther, "other annotations should be preserved")
-		assert.Equal(t, "other-value", otherValue)
-	})
+	// 	// Other annotations should be preserved
+	// 	otherValue, hasOther := patchedApp.Annotations["other-annotation"]
+	// 	assert.True(t, hasOther, "other annotations should be preserved")
+	// 	assert.Equal(t, "other-value", otherValue)
+	// })
 }
