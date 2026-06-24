@@ -92,6 +92,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_CMP_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_CMP_SERVER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_CMP_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
-	command.Flags().Float64Var(&otlpSampleRatio, "otlp-sample-ratio", env.ParseFloat64FromEnv("ARGOCD_CMP_SERVER_OTLP_SAMPLE_RATIO", 1.0, 0.0, 1.0), "Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision")
+	cli.BoundedFloat64Var(command.Flags(), &otlpSampleRatio, "otlp-sample-ratio", env.ParseFloat64FromEnv("ARGOCD_CMP_SERVER_OTLP_SAMPLE_RATIO", 1.0, 0.0, 1.0), 0.0, 1.0, "Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision")
 	return &command
 }
