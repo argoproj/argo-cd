@@ -70,25 +70,25 @@ local function getProposedDrySha(env)
 end
 
 -- Make sure there's a fully-populated status for both active and proposed commits in all environments. If anything is
--- missing or empty, return a Healthy status while waiting for hydration.
+-- missing or empty, return a Progressing status while waiting for hydration.
 for _, env in ipairs(obj.status.environments) do
     if not env.active or not env.active.dry or not env.active.dry.sha or env.active.dry.sha == "" then
-        hs.status = "Healthy"
+        hs.status = "Progressing"
         hs.message = "The active commit DRY SHA is missing or empty in environment '" .. env.branch .. "'."
         return hs
     end
     if not getProposedDrySha(env) then
-        hs.status = "Healthy"
+        hs.status = "Progressing"
         hs.message = "The proposed commit DRY SHA is missing or empty in environment '" .. env.branch .. "'."
         return hs
     end
 end
 
--- Check if all the proposed environments have the same proposed commit dry sha. If not, return a Healthy status.
+-- Check if all the proposed environments have the same proposed commit dry sha. If not, return a Progressing status.
 local proposedSha = getProposedDrySha(obj.status.environments[1])  -- Don't panic, Lua is 1-indexed.
 for _, env in ipairs(obj.status.environments) do
     if getProposedDrySha(env) ~= proposedSha then
-        hs.status = "Healthy"
+        hs.status = "Progressing"
         hs.message = "Not all environments have the same proposed commit SHA. This likely means the hydrator has not run for all environments yet."
         return hs
     end

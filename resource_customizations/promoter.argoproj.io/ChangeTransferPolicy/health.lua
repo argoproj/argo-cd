@@ -75,12 +75,12 @@ if not hasReadyCondition then
 end
 
 if not obj.status.active or not obj.status.active.dry or not obj.status.active.dry.sha or obj.status.active.dry.sha == "" then
-    hs.status = "Healthy"
+    hs.status = "Progressing"
     hs.message = "The active commit DRY SHA is missing or empty."
     return hs
 end
 if not obj.status.proposed or not obj.status.proposed.dry or not obj.status.proposed.dry.sha or obj.status.proposed.dry.sha == "" then
-    hs.status = "Healthy"
+    hs.status = "Progressing"
     hs.message = "The proposed commit DRY SHA is missing or empty."
     return hs
 end

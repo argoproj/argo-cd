@@ -24,11 +24,11 @@ tests:
     message: Promotion strategy has no environments configured
   inputPath: testdata/no-environments.yaml
 - healthStatus:
-    status: Healthy
+    status: Progressing
     message: The active commit DRY SHA is missing or empty in environment 'dev'.
   inputPath: testdata/active-dry-sha-missing.yaml
 - healthStatus:
-    status: Healthy
+    status: Progressing
     message: "The proposed commit DRY SHA is missing or empty in environment 'dev'."
   inputPath: testdata/proposed-dry-sha-missing.yaml
 - healthStatus:
@@ -40,7 +40,7 @@ tests:
     message: All environments are up-to-date on commit 'abc1234'. Hydrator has processed dry commit 'abc1234'.
   inputPath: testdata/all-healthy.yaml
 - healthStatus:
-    status: Healthy
+    status: Progressing
     message: Not all environments have the same proposed commit SHA. This likely means the hydrator has not run for all environments yet.
   inputPath: testdata/different-proposed-commits.yaml
 - healthStatus:
