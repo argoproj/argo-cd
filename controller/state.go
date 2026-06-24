@@ -387,7 +387,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 			repo, err := m.db.GetRepository(srcCtx, source.RepoURL, proj.Name)
 			if err != nil {
-				return fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
+				return fmt.Errorf("failed to get repo %q: %w", git.SanitizeRepoURL(source.RepoURL), err)
 			}
 
 			log.Debugf("Generating Manifest for source %s revision %s", source, revision)
@@ -499,7 +499,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 	}
 	repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
 	if err != nil {
-		return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
+		return "", false, fmt.Errorf("failed to get repo %q: %w", git.SanitizeRepoURL(source.RepoURL), err)
 	}
 
 	keyManifestGenerateAnnotationVal := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
