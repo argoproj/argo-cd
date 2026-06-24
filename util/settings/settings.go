@@ -2314,44 +2314,51 @@ func replaceStringSecret(val string, secretValues map[string]string, trimmer fun
 	return trimmer(secretVal)
 }
 
-// EscapeDollarSignsInMap recursively walks the given config map and escapes any
-// literal '$' characters in string values as '$$'. This should be called on a
-// connector's config sub-map after secret references have been resolved by
-// ReplaceMapSecrets. It protects resolved values from Dex's os.ExpandEnv
-// expansion (controlled by DEX_EXPAND_ENV, enabled by default), which is applied
-// to every string field in each connector's config block during unmarshalling.
-//
-// Scoped to connector configs only — Dex does NOT apply ExpandEnv to top-level
-// fields like issuer, web, oauth2, staticClients, logger, etc.
-//
-// See: https://github.com/argoproj/argo-cd/issues/27803
-func EscapeDollarSignsInMap(obj map[string]any) map[string]any {
+// EscapeDollarSignsInConnectorConfig escapes dollar signs in string values, ONLY if they are resolved from the
+// secrets map. This skips unresolved environment variable references from being escaped.
+// It protects resolved secret values from Dex's os.ExpandEnv expansion.
+func EscapeDollarSignsInConnectorConfig(obj map[string]any, secretValues map[string]string) map[string]any {
 	newObj := make(map[string]any, len(obj))
 	for k, v := range obj {
-		newObj[k] = escapeDollarSignsValue(v)
+		newObj[k] = escapeDollarSignsValueConsideringSecrets(v, secretValues)
 	}
 	return newObj
 }
 
-func escapeDollarSignsValue(v any) any {
+func escapeDollarSignsValueConsideringSecrets(v any, secretValues map[string]string) any {
 	switch val := v.(type) {
 	case map[string]any:
-		return EscapeDollarSignsInMap(val)
+		return EscapeDollarSignsInConnectorConfig(val, secretValues)
 	case []any:
-		return escapeDollarSignsInList(val)
+		return escapeDollarSignsInListConsideringSecrets(val, secretValues)
 	case string:
-		return strings.ReplaceAll(val, "$", "$$")
+		if !isUnresolvedEnvVarReference(val, secretValues) {
+			return strings.ReplaceAll(val, "$", "$$")
+		}
+		return val
 	default:
 		return val
 	}
 }
 
-func escapeDollarSignsInList(obj []any) []any {
+func escapeDollarSignsInListConsideringSecrets(obj []any, secretValues map[string]string) []any {
 	newObj := make([]any, len(obj))
 	for i, v := range obj {
-		newObj[i] = escapeDollarSignsValue(v)
+		newObj[i] = escapeDollarSignsValueConsideringSecrets(v, secretValues)
 	}
 	return newObj
+}
+
+func isUnresolvedEnvVarReference(val string, secretValues map[string]string) bool {
+	if !strings.HasPrefix(val, "$") {
+		return false
+	}
+	envVarName := val[1:]
+	if envVarName == "" {
+		return false
+	}
+	_, found := secretValues[envVarName]
+	return !found
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap

@@ -2441,6 +2441,7 @@ func TestGettersRaceWithResyncInformers(t *testing.T) {
 	wg.Wait()
 }
 
+<<<<<<< HEAD
 func TestEscapeDollarSignsInMap(t *testing.T) {
 	t.Run("dollar sign in string value is escaped", func(t *testing.T) {
 		input := map[string]any{"bindPW": "test$test"}
