@@ -242,7 +242,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		&sentinelMaster,
 		opt.FlagPrefix+"sentinelmaster",
 		env.StringFromEnv(
-			opt.getEnvPrefix()+"REDIS_SENTINELMASTER",
+			opt.getEnvPrefix()+"REDIS_SENTINEL_MASTER",
 			"master",
 		),
 		"Redis sentinel master group name.",
