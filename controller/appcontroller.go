@@ -2157,7 +2157,7 @@ func (ctrl *ApplicationController) persistReconciliationStatus(orig *appv1.Appli
 func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	origAnnotations := orig.GetAnnotations()
-	err, patchDuration := ctrl.patchAnnotations(orig, annotation, timestampAnnotation)
+	patchDuration, err := ctrl.patchAnnotations(orig, annotation, timestampAnnotation)
 	if err != nil {
 		var status apierrors.APIStatus
 		// ensure that the error comes from the timestamp annotation
@@ -2167,11 +2167,12 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Applicati
 			status.Status().Code == http.StatusUnprocessableEntity {
 			// If JSONPatch test operation fails the API server returns status code 422
 			// - Unprocessable entity, but there is no way to be 100% from the error
-			// that it happened beacuse of the timestamp value mismatch in test, so we
+			// that it happened because of the timestamp value mismatch in test, so we
 			// get the value and compare. We get the application directly, because
 			// Informer might still have the old version
 			newApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.GetNamespace()).Get(context.Background(), orig.GetName(), metav1.GetOptions{})
-			if nil != getErr {
+			if getErr != nil {
+				logCtx.Errorf("Unexpected error getting application %s/%s: %v", orig.GetNamespace(), orig.GetName(), getErr)
 				return
 			}
 			newAnnotations := newApp.GetAnnotations()
@@ -2185,14 +2186,15 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Applicati
 				} else {
 					// there was some other change (like deleted refresh annotation)
 					// retry the operation with the updated annotations
-					retryErr, retryDuration := ctrl.patchAnnotations(newApp, annotation, timestampAnnotation)
-					logCtx.Error("Unexpected error retrying annotations update: %v", retryErr)
+					retryDuration, retryErr := ctrl.patchAnnotations(newApp, annotation, timestampAnnotation)
+					if retryErr != nil {
+						logCtx.Errorf("Unexpected error retrying annotations update: %v", retryErr)
+					}
 					patchDuration += retryDuration
-
 				}
 			}
 		} else {
-			logCtx.Error("Unexpected error updating annotations %s, %s, %v", annotation, timestampAnnotation, err)
+			logCtx.Errorf("Unexpected error updating annotations %s, %s, %v", annotation, timestampAnnotation, err)
 		}
 	}
 	return
@@ -2200,20 +2202,20 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Applicati
 
 var rfc6901Encoder = strings.NewReplacer("/", "~1", "~", "~0")
 
-func (ctrl *ApplicationController) patchAnnotations(app *appv1.Application, annotation, timestampAnnotation string) (err error, patchDuration time.Duration) {
+func (ctrl *ApplicationController) patchAnnotations(app *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration, err error) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	annotations := app.GetAnnotations()
-	jsonPatch := []map[string]interface{}{}
+	jsonPatch := []map[string]any{}
 	if _, ok := annotations[annotation]; ok {
 		annotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(appv1.AnnotationKeyRefresh)
-		jsonPatch = append(jsonPatch, map[string]interface{}{
+		jsonPatch = append(jsonPatch, map[string]any{
 			"op":   "remove",
 			"path": annotationPath,
 		})
 	}
 	if refreshTS, ok := annotations[timestampAnnotation]; ok {
 		timestampAnnotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(timestampAnnotation)
-		jsonPatch = append(jsonPatch, []map[string]interface{}{
+		jsonPatch = append(jsonPatch, []map[string]any{
 			{
 				"op":    "test",
 				"path":  timestampAnnotationPath,
