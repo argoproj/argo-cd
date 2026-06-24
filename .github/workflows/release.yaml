@@ -342,8 +342,10 @@ jobs:
       - name: Update stable tag to latest version
         run: |
           git tag -f stable ${GITHUB_REF_NAME}
-          git push -f origin stable
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" -f stable
         if: ${{ env.TAG_STABLE == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check to see if VERSION should be updated on master branch
         run: |
