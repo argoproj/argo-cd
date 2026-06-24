@@ -106,6 +106,12 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 	// empty SyncPolicy). obj.Spec is already normalized by the caller; only the live side needs it.
 	normalizedLive.Spec = *argo.NormalizeApplicationSpec(&normalizedLive.Spec)
 
+	// Preserve an unmodified copy of the desired object before applyIgnoreDifferences
+	// strips ignored fields in place. This copy still carries the ResourceVersion from
+	// the live read above and is used by the null-values fallback below, so that a full
+	// Update does not clear ignored fields on the live resource.
+	desiredOriginal := obj.DeepCopy()
+
 	// Apply ignoreApplicationDifferences rules to remove ignored fields from both the live and the desired state. This
 	// prevents those differences from appearing in the diff and therefore in the patch.
 	err := applyIgnoreDifferences(diffConfig, normalizedLive, obj)
@@ -121,10 +127,17 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 	// valuesObject contains null entries (used by Helm to unset chart defaults), a
 	// merge patch would silently strip them. Fall back to a full Update in that case
 	// so the null values are preserved as-is in the stored object.
-	if helmSourcesHaveNullValues(obj) {
-		if err := c.Update(ctx, obj); err != nil {
+	//
+	// Use desiredOriginal here. obj has had ignored fields stripped by
+	// applyIgnoreDifferences, so sending it to Update would clear those fields on the
+	// live resource and violate ignoreDifferences semantics.
+	if helmSourcesHaveNullValues(desiredOriginal) {
+		if err := c.Update(ctx, desiredOriginal); err != nil {
 			return controllerutil.OperationResultNone, err
 		}
+		// Keep obj in sync with what was written so callers observing it see the
+		// post-update state, matching the patch path's behavior.
+		desiredOriginal.DeepCopyInto(obj)
 		return controllerutil.OperationResultUpdated, nil
 	}
 

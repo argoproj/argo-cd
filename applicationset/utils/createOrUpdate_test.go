@@ -3,11 +3,14 @@ package utils
 import (
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
@@ -387,4 +390,114 @@ func Test_jsonContainsNull(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// TestCreateOrUpdate_IgnoreDifferencesWithNullValuesObject exercises the interaction
+// between ignoreDifferences and the null-values fallback path. applyIgnoreDifferences
+// mutates the desired object in place to strip ignored fields; if that mutated object
+// is then sent to a full Update (the fallback used when valuesObject contains nulls),
+// ignored fields are cleared on the live resource and ignoreDifferences semantics are
+// violated. CreateOrUpdate must preserve a pre-ignore copy of the desired object and
+// use that copy on the Update path.
+func TestCreateOrUpdate_IgnoreDifferencesWithNullValuesObject(t *testing.T) {
+	t.Parallel()
+
+	appMeta := metav1.TypeMeta{
+		APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+		Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+	}
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	// Both the live and the generated app carry a value for an ignored label. The
+	// generated valuesObject contains a null entry, forcing the Update fallback. Without
+	// the fix, applyIgnoreDifferences strips the label from the desired object in
+	// place; the subsequent Update would then write a label-less object and clear the
+	// label on the live resource. With the fix, the pre-ignore copy of the desired
+	// object is used for the Update so the label is written through.
+	live := &v1alpha1.Application{
+		TypeMeta: appMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"team": "platform-live",
+			},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://example.com/chart",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`{"replicas":1}`),
+					},
+				},
+			},
+		},
+	}
+
+	desired := &v1alpha1.Application{
+		TypeMeta: appMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"team": "platform-desired",
+			},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://example.com/chart",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`{"replicas":2,"resources":{"limits":{"cpu":null}}}`),
+					},
+				},
+			},
+		},
+	}
+
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(live).Build()
+
+	ignoreDifferences := v1alpha1.ApplicationSetIgnoreDifferences{
+		{JSONPointers: []string{"/metadata/labels/team"}},
+	}
+	diffConfig, err := BuildIgnoreDiffConfig(ignoreDifferences, normalizers.IgnoreNormalizerOpts{})
+	require.NoError(t, err)
+
+	target := &v1alpha1.Application{
+		TypeMeta:   appMeta,
+		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+	}
+	logCtx := log.NewEntry(log.New())
+	result, err := CreateOrUpdate(t.Context(), logCtx, c, diffConfig, target, func() error {
+		// c.Get clears TypeMeta on the fake client. Restore it so the diff/normalize
+		// machinery in applyIgnoreDifferences resolves the IgnoreDifferences rule for
+		// this Kind/Group; otherwise the rule silently no-ops and the test would not
+		// actually exercise the in-place mutation that this fix protects against.
+		target.TypeMeta = appMeta
+		target.Labels = map[string]string{}
+		for k, v := range desired.Labels {
+			target.Labels[k] = v
+		}
+		desired.Spec.DeepCopyInto(&target.Spec)
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "updated", string(result))
+
+	// Read the live object back. The label that ignoreDifferences ignores must NOT
+	// have been cleared by the Update fallback (it should hold the desired value), and
+	// the null entry in valuesObject must survive on the live resource.
+	got := &v1alpha1.Application{}
+	require.NoError(t, c.Get(t.Context(), types.NamespacedName{Name: "test-app", Namespace: "argocd"}, got))
+
+	assert.NotEmpty(t, got.Labels["team"],
+		"ignored label must not be cleared by the null-values Update fallback")
+	require.NotNil(t, got.Spec.Source)
+	require.NotNil(t, got.Spec.Source.Helm)
+	require.NotNil(t, got.Spec.Source.Helm.ValuesObject)
+	assert.Contains(t, string(got.Spec.Source.Helm.ValuesObject.Raw), "null",
+		"null entry in valuesObject must be preserved on the live resource")
 }
