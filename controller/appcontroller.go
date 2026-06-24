@@ -2213,7 +2213,11 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	// canceled reconcile ctx never aborts a durable status write. The span just measures it.
 	_, span := tracer.Start(ctx, "controller.persistAppStatus")
 	setAppTraceAttrs(span, orig)
-	defer span.End()
+	// spanErr records a failed status write on the span so a trace doesn't look successful when
+	// the patch below failed. These are Kubernetes API/merge-patch errors, not repo URLs, so
+	// recording the message via EndSpan does not risk leaking credentials.
+	var spanErr error
+	defer func() { traceutil.EndSpan(span, spanErr) }()
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
@@ -2235,6 +2239,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
+		spanErr = err
 		logCtx.WithError(err).Error("Error constructing app status patch")
 		return patchDuration
 	}
@@ -2249,6 +2254,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	}()
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
+		spanErr = err
 		if apierrors.IsRequestEntityTooLargeError(err) {
 			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
 			fallbackStatus := orig.Status.DeepCopy()
