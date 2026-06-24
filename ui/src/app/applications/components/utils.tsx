@@ -1454,6 +1454,10 @@ export function getAppSetConditionCategory(condition: appModels.ApplicationSetCo
     if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
         return 'error';
     }
+    // InvalidRolloutConfig with status True = warning
+    if (type === 'InvalidRolloutConfig' && status === 'true') {
+        return 'warning';
+    }
     // Otherwise it's informational
     return 'info';
 }

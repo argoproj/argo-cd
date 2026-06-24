@@ -4,7 +4,7 @@
     display: grid;
     gap: 24px;
     grid-template-columns: repeat(auto-fill,minmax(370px,1fr));
-    padding: 0 12px;
+    padding: 0;
 
     &__wrapper {
         // <a> defaults to display: inline; we need block-level layout for height:100%
@@ -73,6 +73,10 @@
         button {
             pointer-events: auto;
         }
+
+      .applications-list__entry--actions {
+        overflow: visible;
+      }
     }
 
     .argo-table-list__row {

@@ -10,23 +10,13 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         padding-top: 4px;
         padding-bottom: 4px;
         padding-left: 2em;
-
-        .columns:last-child {
-            .argo-dropdown {
-                position: absolute;
-                right: 0;
-                top: 50%;
-                transform: translateY(-50%);
-            }
-        }
     }
 
     .applications-list__table-row {
         // No `position: relative` here on purpose: the overlay link anchors to the already-positioned
-        // outer `.argo-table-list__row` (argo-ui sets it `position: relative`). Making this inner
-        // Foundation `.row` a containing block would re-parent the absolutely-positioned third-column
-        // `.argo-dropdown` (which uses `right:0; top:50%`) onto the narrower max-width row, shifting
-        // the `…` action menu away from where the shared rule places it.
+        // outer `.argo-table-list__row` (argo-ui sets it `position: relative`), so it spans the full
+        // row including that element's left padding. Making this inner Foundation `.row` a containing
+        // block would shrink the overlay to the narrower inner row instead.
 
         // Lift interactive and tooltip-bearing descendants above the overlay link so they
         // receive their own clicks and so native `title` / Tippy hover fires on them. The
@@ -43,9 +33,8 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         }
 
         // `.argo-dropdown` is `position: static` by default (argo-ui dropdown.scss), so
-        // z-index alone wouldn't lift it. Promote it to positioned. The third-column
-        // action menu has a more-specific `position: absolute` rule above which wins,
-        // leaving its absolute layout intact while still getting the z-index lift.
+        // z-index alone wouldn't lift it above the overlay link. Promote it to positioned
+        // so the `…` action menu still receives its own clicks.
         .argo-dropdown {
             position: relative;
             z-index: 2;
