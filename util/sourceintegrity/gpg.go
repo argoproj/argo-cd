@@ -816,9 +816,9 @@ func parseGitCommitVerification(signature string) pgpVerifyResult {
 }
 
 // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
-func CommitSignatureError(verifyCommit bool, gitClient git.Client, revision string, repo *appsv1.Repository) error {
+func CommitSignatureError(ctx context.Context, verifyCommit bool, gitClient git.Client, revision string, repo *appsv1.Repository) error {
 	if IsGPGEnabled() && verifyCommit {
-		cs, err := gitClient.VerifyCommitSignature(revision) // nolint:staticcheck
+		cs, err := gitClient.VerifyCommitSignature(ctx, revision) // nolint:staticcheck
 		if err != nil {
 			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, repo.Repo, err)
 			return err

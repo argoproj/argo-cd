@@ -470,39 +470,50 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *corev
 
 func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) {
 	cmInformer := e.newInformer()
-	_, err := cmInformer.AddEventHandler(
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				if cm, ok := obj.(*corev1.ConfigMap); ok {
-					err := e.syncUpdate(cm, onUpdated)
-					if err != nil {
-						log.Error(err)
-					} else {
-						log.Infof("RBAC ConfigMap '%s' added", e.configmap)
-					}
-				}
-			},
-			UpdateFunc: func(old, new any) {
-				oldCM := old.(*corev1.ConfigMap)
-				newCM := new.(*corev1.ConfigMap)
-				if oldCM.ResourceVersion == newCM.ResourceVersion {
-					return
-				}
-				err := e.syncUpdate(newCM, onUpdated)
-				if err != nil {
-					log.Error(err)
-				} else {
-					log.Infof("RBAC ConfigMap '%s' updated", e.configmap)
-				}
-			},
-		},
-	)
+	_, err := cmInformer.AddEventHandler(e.rbacConfigMapEventHandler(onUpdated))
 	if err != nil {
 		log.Error(err)
 	}
 	log.Info("Starting rbac config informer")
 	cmInformer.Run(ctx.Done())
 	log.Info("rbac configmap informer cancelled")
+}
+
+// rbacConfigMapEventHandler returns the informer event handlers for the RBAC ConfigMap.
+// Add and update events resync the enforcer's policy from the ConfigMap via syncUpdate.
+// Updates whose ResourceVersion is unchanged (e.g. informer resyncs) are skipped. The
+// type assertions are guarded so that unexpected object types (including
+// cache.DeletedFinalStateUnknown tombstones, which carry no UpdateFunc) are safely
+// ignored rather than causing a panic.
+func (e *Enforcer) rbacConfigMapEventHandler(onUpdated func(cm *corev1.ConfigMap) error) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if cm, ok := obj.(*corev1.ConfigMap); ok {
+				err := e.syncUpdate(cm, onUpdated)
+				if err != nil {
+					log.Error(err)
+				} else {
+					log.Infof("RBAC ConfigMap '%s' added", e.configmap)
+				}
+			}
+		},
+		UpdateFunc: func(old, new any) {
+			oldCM, oldOK := old.(*corev1.ConfigMap)
+			newCM, newOK := new.(*corev1.ConfigMap)
+			if !oldOK || !newOK {
+				return
+			}
+			if oldCM.ResourceVersion == newCM.ResourceVersion {
+				return
+			}
+			err := e.syncUpdate(newCM, onUpdated)
+			if err != nil {
+				log.Error(err)
+			} else {
+				log.Infof("RBAC ConfigMap '%s' updated", e.configmap)
+			}
+		},
+	}
 }
 
 // PolicyCSV will generate the final policy csv to be used

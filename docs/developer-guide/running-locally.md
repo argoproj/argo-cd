@@ -12,7 +12,7 @@ After you have tested locally, you can move to the second phase of building a do
 
 For both cases, you will need a working K8s cluster, where Argo CD will store all of its resources and configuration.
 
-In order to have all the required resources in your cluster, you will deploy Argo CD from your development branch and then scale down all it's instances.
+In order to have all the required resources in your cluster, you will deploy Argo CD from your development branch and then scale down all its instances.
 This will ensure you have all the relevant configuration (such as Argo CD Config Maps and CRDs) in the cluster while the instances themselves are stopped.
 
 ### Deploy Argo CD resources to your cluster
