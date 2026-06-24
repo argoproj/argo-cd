@@ -137,7 +137,7 @@ func TestDeployToKubernetesAPIURLWithQueryParameter(t *testing.T) {
 		users := []string{"user1", "user2"}
 
 		for _, username := range users {
-			ns, _, destName := createNamespaceScopedUser(ctx, username, clusterScoped)
+			ns, _, destName, _ := createNamespaceScopedUser(ctx, username, clusterScoped)
 
 			GivenWithSameState(ctx).
 				Name("e2e-test-app-"+username).
@@ -174,7 +174,7 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 		})
 
 		for _, username := range users {
-			ns, sa, destName := createNamespaceScopedUser(ctx, username, clusterScoped)
+			ns, sa, destName, _ := createNamespaceScopedUser(ctx, username, clusterScoped)
 			nsInfo[username] = struct {
 				namespace      string
 				serviceAccount string
@@ -278,7 +278,7 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 // createNamespaceScopedUser
 // - username = name of Namespace the simulated user is able to deploy to
 // - clusterScopedSecrets = whether the Service Account is namespace-scoped or cluster-scoped.
-func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets bool) (string, string, string) {
+func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets bool) (namespace, serviceAccount, clusterName, roleName string) {
 	return createNamespaceScopedUserWithRules(c, username, []rbacv1.PolicyRule{{
 		Verbs:     []string{"*"},
 		Resources: []string{"*"},
@@ -286,7 +286,7 @@ func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets
 	}}, clusterScopedSecrets)
 }
 
-func createNamespaceScopedUserWithRules(c *Context, username string, rules []rbacv1.PolicyRule, clusterScopedSecrets bool) (string, string, string) {
+func createNamespaceScopedUserWithRules(c *Context, username string, rules []rbacv1.PolicyRule, clusterScopedSecrets bool) (namespace, serviceAccount, clusterName, roleName string) {
 	c.T().Helper()
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
@@ -385,27 +385,14 @@ func createNamespaceScopedUserWithRules(c *Context, username string, rules []rba
 
 	// We create an Argo CD cluster Secret declaratively, using the K8s client, rather than via CLI, as the CLI doesn't currently
 	// support Kubernetes API server URLs with query parameters.
-	clusterName := DnsFriendly("test-"+username, "-"+c.ShortID())
+	clusterName = DnsFriendly("test-"+username, "-"+c.ShortID())
 	secret := buildArgoCDClusterSecret(clusterName, ArgoCDNamespace, clusterName, apiURL+"?user="+username,
 		string(jsonStringBytes), clusterResourcesField, namespacesField)
 
 	// Finally, create the Cluster secret in the Argo CD E2E namespace
 	_, err = KubeClientset.CoreV1().Secrets(secret.Namespace).Create(c.T().Context(), &secret, metav1.CreateOptions{})
 	require.NoError(c.T(), err)
-	return ns.Name, serviceAccountName, clusterName
-}
-
-var resourceActionWithEventsRules = []rbacv1.PolicyRule{
-	{
-		Verbs:     []string{"get", "patch", "update", "list", "watch"},
-		Resources: []string{"deployments", "deployments/status"},
-		APIGroups: []string{"apps"},
-	},
-	{
-		Verbs:     []string{"create"},
-		Resources: []string{"events"},
-		APIGroups: []string{""},
-	},
+	return ns.Name, serviceAccountName, clusterName, role.Name
 }
 
 var resourceActionWithoutEventsRules = []rbacv1.PolicyRule{
@@ -434,9 +421,18 @@ func runGuestbookResourceAction(t *testing.T, app *Application, deploymentNamesp
 	require.NoError(t, err)
 }
 
+func updateNamespaceRoleRules(t *testing.T, namespace, roleName string, rules []rbacv1.PolicyRule) {
+	t.Helper()
+	role, err := KubeClientset.RbacV1().Roles(namespace).Get(t.Context(), roleName, metav1.GetOptions{})
+	require.NoError(t, err)
+	role.Rules = rules
+	_, err = KubeClientset.RbacV1().Roles(namespace).Update(t.Context(), role, metav1.UpdateOptions{})
+	require.NoError(t, err)
+}
+
 func TestResourceActionAuditEventWithDestinationClusterCredentials(t *testing.T) {
 	ctx := Given(t)
-	ns, _, destName := createNamespaceScopedUserWithRules(ctx, "audit-user", resourceActionWithEventsRules, false)
+	ns, _, destName, _ := createNamespaceScopedUser(ctx, "audit-user", false)
 	require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}))
 
 	GivenWithSameState(ctx).
@@ -455,7 +451,7 @@ func TestResourceActionAuditEventWithDestinationClusterCredentials(t *testing.T)
 
 func TestResourceActionAuditEventRBACDenied(t *testing.T) {
 	ctx := Given(t)
-	ns, _, destName := createNamespaceScopedUserWithRules(ctx, "audit-deny-user", resourceActionWithoutEventsRules, false)
+	ns, _, destName, roleName := createNamespaceScopedUser(ctx, "audit-deny-user", false)
 	require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}))
 
 	GivenWithSameState(ctx).
@@ -467,6 +463,7 @@ func TestResourceActionAuditEventRBACDenied(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
+			updateNamespaceRoleRules(t, ns, roleName, resourceActionWithoutEventsRules)
 			runGuestbookResourceAction(t, app, ns)
 			AssertResourceEventNotExistsT(t, ns, "guestbook-ui", argo.EventReasonResourceActionRan)
 		})
