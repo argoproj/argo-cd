@@ -20,6 +20,10 @@ tests:
     message: "Listener: Listener has an unsupported protocol"
   inputPath: testdata/degraded_conflicted_accepted.yaml
 - healthStatus:
+    status: Degraded
+    message: "Listener: Listener conflicts with at least one other port 80 listener attached to the same Gateway because it uses the same hostname."
+  inputPath: testdata/degraded_listener_conflicted.yaml
+- healthStatus:
     status: Progressing
     message: "ListenerSet is waiting to get programmed, check Gateway status condition Programmed for further details."
   inputPath: testdata/progressing.yaml

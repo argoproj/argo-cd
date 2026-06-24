@@ -1,14 +1,5 @@
 local hs = { status = "Progressing", message = "Waiting for ListenerSet status"}
 
-function checkConditions(conditions, conditionType)
-  for _, condition in ipairs(conditions) do
-    if condition.type == conditionType and condition.status == "False" then
-      return false, condition.message or ("Failed condition: " .. conditionType)
-    end
-  end
-  return true
-end
-
 if obj.status ~= nil then
   if obj.metadata.generation ~= nil then
     if obj.status.conditions ~= nil then
@@ -22,43 +13,57 @@ if obj.status ~= nil then
     end
   end
 
-  local acceptedFalse, acceptedMsg = checkConditions(obj.status.conditions, "Accepted")
-  if not acceptedFalse then
-    hs.status = "Degraded"
-    hs.message = acceptedMsg
-    return hs
-  end
-
+  local isProgressing = false
   for _, condition in ipairs(obj.status.conditions) do
-    if condition.type == "Programmed" and condition.status ~= "True" then
-      hs.status = "Progressing"
-      hs.message =  condition.message or "ListenerSet is still being programmed"
+    if condition.type == "Accepted" and condition.status == "False" then
+      hs.status = "Degraded"
+      hs.message = condition.message or ("Failed condition: " .. conditionType)
       return hs
     end
+
+    if condition.type == "Programmed" and condition.status ~= "True" then
+      isProgressing = true
+      hs.status = "Progressing"
+      hs.message =  condition.message or "ListenerSet is still being programmed"
+    end
+  end
+
+  if isProgressing then
+    return hs
   end
 
   if obj.status.listeners ~= nil and #obj.status.listeners > 0 then
     for _, listener in ipairs(obj.status.listeners) do
       if listener.conditions ~= nil then
-        local resolvedRefsFalse, resolvedRefsMsg = checkConditions(listener.conditions, "ResolvedRefs")
-        if not resolvedRefsFalse then
-          hs.status = "Degraded"
-          hs.message = "Listener: " .. resolvedRefsMsg
-          return hs
+        local isProgressing = false
+        for _, condition in ipairs(listener.conditions) do
+            if condition.type == "ResolvedRefs" and condition.status == "False" then
+              hs.status = "Degraded"
+              hs.message = "Listener: " .. (condition.message or ("Failed condition: " .. conditionType))
+              return hs
+            end
+
+            if condition.type == "Conflicted" and condition.status == "True" then
+              hs.status = "Degraded"
+              hs.message = "Listener: " .. (condition.message or "Listener is conflicted")
+              return hs
+            end
+
+            if condition.type == "Accepted" and condition.status == "False" then
+              hs.status = "Degraded"
+              hs.message = "Listener: " .. (condition.message or ("Failed condition: " .. conditionType))
+              return hs
+            end
+
+            if condition.type == "Programmed" and condition.status ~= "True" then
+                isProgressing = true
+                hs.status = "Progressing"
+                hs.message = "Listener: " .. (condition.message or "Listener is still being programmed")
+            end
         end
 
-        local acceptedFalse, acceptedMsg = checkConditions(listener.conditions, "Accepted")
-        if not acceptedFalse then
-          hs.status = "Degraded"
-          hs.message = "Listener: " .. acceptedMsg
+        if isProgressing then
           return hs
-        end
-        for _, condition in ipairs(listener.conditions) do
-          if condition.type == "Programmed" and condition.status ~= "True" then
-            hs.status = "Progressing"
-            hs.message = "Listener: " .. condition.message or "Listener is still being programmed"
-            return hs
-          end
         end
       end
     end
