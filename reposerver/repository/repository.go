@@ -644,7 +644,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		attribute.String("argocd.revision", q.Revision),
 	)
 	if q.Repo != nil {
-		span.SetAttributes(attribute.String("argocd.repo.url", sanitizeRepoURL(q.Repo.Repo)))
+		span.SetAttributes(attribute.String("argocd.repo.url", git.SanitizeRepoURL(q.Repo.Repo)))
 	}
 	defer func() { traceutil.EndSpan(span, retErr) }()
 
@@ -1233,18 +1233,6 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 
 func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
-}
-
-// sanitizeRepoURL strips any embedded userinfo (e.g. https://token@host/org/repo) from a
-// repository URL so credentials are not exported to the tracing backend as span attributes.
-// If the URL cannot be parsed it is returned unchanged.
-func sanitizeRepoURL(repoURL string) string {
-	u, err := url.Parse(repoURL)
-	if err != nil || u.User == nil {
-		return repoURL
-	}
-	u.User = nil
-	return u.String()
 }
 
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once

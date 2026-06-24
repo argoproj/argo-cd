@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
@@ -339,90 +340,109 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		}
 		revision := revisions[i]
 
-		// Use evaluateRevisionChanges to check for changes and get resolved revision
-		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, app, source, i, revision, refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
-		}
+		// Per-source span so the repo-server hop is attributed: a multi-source app otherwise
+		// produces one parent span plus N anonymous GenerateManifest RPC spans with nothing
+		// indicating which source each belongs to. The closure scopes srcCtx (the parent the
+		// otelgrpc client handler propagates onto the RPC) and ends the span per iteration.
+		srcCtx, srcSpan := tracer.Start(ctx, "controller.GetRepoObjs.source")
+		srcSpan.SetAttributes(
+			attribute.Int("argocd.source.index", i),
+			attribute.String("argocd.source.name", source.Name),
+			attribute.String("argocd.source.repo_url", git.SanitizeRepoURL(source.RepoURL)),
+			attribute.String("argocd.revision", revision),
+		)
+		if err := func() (retErr error) {
+			defer func() { traceutil.EndSpan(srcSpan, retErr) }()
 
-		if hasChanges {
-			revisionsMayHaveChanges = true
-		}
-
-		// Use the resolved revision from evaluateRevisionChanges
-		revision = resolvedRevision
-		revisions[i] = resolvedRevision
-
-		appNamespace := app.Spec.Destination.Namespace
-
-		repos := permittedHelmRepos
-		helmRepoCreds := permittedHelmCredentials
-		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
-		// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
-		// list.
-		if source.IsOCI() {
-			repos = slices.Clone(permittedHelmRepos)
-			helmRepoCreds = slices.Clone(permittedHelmCredentials)
-			repos = append(repos, permittedOCIRepos...)
-			helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
-		}
-
-		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
-		}
-
-		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
-		manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
-			Repo:                            repo,
-			Repos:                           repos,
-			Revision:                        revision,
-			NoCache:                         noCache,
-			NoRevisionCache:                 noRevisionCache,
-			AppLabelKey:                     appLabelKey,
-			AppName:                         app.InstanceName(m.namespace),
-			Namespace:                       appNamespace,
-			ApplicationSource:               &source,
-			KustomizeOptions:                kustomizeSettings,
-			KubeVersion:                     serverVersion,
-			ApiVersions:                     apiVersions,
-			SourceIntegrity:                 sourceIntegrity,
-			VerifySignature:                 sourceIntegrity != nil, // nolint:staticcheck
-			HelmRepoCreds:                   helmRepoCreds,
-			TrackingMethod:                  trackingMethod,
-			EnabledSourceTypes:              enabledSourceTypes,
-			HelmOptions:                     helmOptions,
-			HasMultipleSources:              app.Spec.HasMultipleSources(),
-			RefSources:                      refSources,
-			ProjectName:                     proj.Name,
-			ProjectSourceRepos:              proj.Spec.SourceRepos,
-			AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
-			InstallationID:                  installationID,
-		})
-		if err != nil {
-			genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
-			if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
-				genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
+			// Use evaluateRevisionChanges to check for changes and get resolved revision
+			resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(srcCtx, app, source, i, revision, refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient)
+			if err != nil {
+				return fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
 			}
-			return nil, nil, false, genErr
-		}
 
-		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
-		}
-		targetObjs = append(targetObjs, targetObj...)
-		manifestInfos = append(manifestInfos, manifestInfo)
-
-		// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
-		if len(sources) > 1 {
-			var sourceId string
-			if source.Name != "" {
-				sourceId = "source " + source.Name
-			} else {
-				sourceId = fmt.Sprintf("source %d of %d", i+1, len(sources))
+			if hasChanges {
+				revisionsMayHaveChanges = true
 			}
-			manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
+
+			// Use the resolved revision from evaluateRevisionChanges
+			revision = resolvedRevision
+			revisions[i] = resolvedRevision
+			srcSpan.SetAttributes(attribute.String("argocd.resolved_revision", revision))
+
+			appNamespace := app.Spec.Destination.Namespace
+
+			repos := permittedHelmRepos
+			helmRepoCreds := permittedHelmCredentials
+			// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
+			// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
+			// list.
+			if source.IsOCI() {
+				repos = slices.Clone(permittedHelmRepos)
+				helmRepoCreds = slices.Clone(permittedHelmCredentials)
+				repos = append(repos, permittedOCIRepos...)
+				helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
+			}
+
+			repo, err := m.db.GetRepository(srcCtx, source.RepoURL, proj.Name)
+			if err != nil {
+				return fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
+			}
+
+			log.Debugf("Generating Manifest for source %s revision %s", source, revision)
+			manifestInfo, err := repoClient.GenerateManifest(srcCtx, &apiclient.ManifestRequest{
+				Repo:                            repo,
+				Repos:                           repos,
+				Revision:                        revision,
+				NoCache:                         noCache,
+				NoRevisionCache:                 noRevisionCache,
+				AppLabelKey:                     appLabelKey,
+				AppName:                         app.InstanceName(m.namespace),
+				Namespace:                       appNamespace,
+				ApplicationSource:               &source,
+				KustomizeOptions:                kustomizeSettings,
+				KubeVersion:                     serverVersion,
+				ApiVersions:                     apiVersions,
+				SourceIntegrity:                 sourceIntegrity,
+				VerifySignature:                 sourceIntegrity != nil, // nolint:staticcheck
+				HelmRepoCreds:                   helmRepoCreds,
+				TrackingMethod:                  trackingMethod,
+				EnabledSourceTypes:              enabledSourceTypes,
+				HelmOptions:                     helmOptions,
+				HasMultipleSources:              app.Spec.HasMultipleSources(),
+				RefSources:                      refSources,
+				ProjectName:                     proj.Name,
+				ProjectSourceRepos:              proj.Spec.SourceRepos,
+				AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
+				InstallationID:                  installationID,
+			})
+			if err != nil {
+				genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+				if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
+					genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
+				}
+				return genErr
+			}
+
+			targetObj, err := unmarshalManifests(manifestInfo.Manifests)
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+			}
+			targetObjs = append(targetObjs, targetObj...)
+			manifestInfos = append(manifestInfos, manifestInfo)
+
+			// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
+			if len(sources) > 1 {
+				var sourceId string
+				if source.Name != "" {
+					sourceId = "source " + source.Name
+				} else {
+					sourceId = fmt.Sprintf("source %d of %d", i+1, len(sources))
+				}
+				manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
+			}
+			return nil
+		}(); err != nil {
+			return nil, nil, false, err
 		}
 	}
 

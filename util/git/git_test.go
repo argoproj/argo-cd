@@ -145,6 +145,27 @@ func TestSameURL(t *testing.T) {
 	}
 }
 
+func TestSanitizeRepoURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"no credentials", "https://github.com/argoproj/argo-cd.git", "https://github.com/argoproj/argo-cd.git"},
+		{"strips user and password", "https://user:p@ss@github.com/argoproj/argo-cd.git", "https://github.com/argoproj/argo-cd.git"},
+		{"strips token-only userinfo", "https://token@github.com/org/repo", "https://github.com/org/repo"},
+		{"scp-style ssh left unchanged", "git@github.com:argoproj/argo-cd.git", "git@github.com:argoproj/argo-cd.git"},
+		{"unparseable returned unchanged", "://not a url", "://not a url"},
+		{"empty returned unchanged", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, SanitizeRepoURL(tt.in))
+		})
+	}
+}
+
 func TestCustomHTTPClient(t *testing.T) {
 	proxy.UseTestingProxyCallback()
 
