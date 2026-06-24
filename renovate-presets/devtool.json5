@@ -57,6 +57,16 @@
       "enabled": true
     },
     {
+      "description": "Disable digest-only docker updates; refresh digests when the image tag changes",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Group golang-version packages",
       "groupName": "group golang",
       "matchDatasources": [
