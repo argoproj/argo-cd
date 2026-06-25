@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,6 +81,78 @@ func TestValues_SetString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplicationSourceHelm_Equals(t *testing.T) {
+	t.Run("nil == nil", func(t *testing.T) {
+		var a, b *ApplicationSourceHelm
+		assert.True(t, a.Equals(b))
+	})
+
+	t.Run("nil != non-nil", func(t *testing.T) {
+		var a *ApplicationSourceHelm
+		b := &ApplicationSourceHelm{}
+		assert.False(t, a.Equals(b))
+		assert.False(t, b.Equals(a))
+	})
+
+	t.Run("identical structs are equal", func(t *testing.T) {
+		h := &ApplicationSourceHelm{
+			ReleaseName:  "my-release",
+			ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo":"bar"}`)},
+		}
+		assert.True(t, h.Equals(h.DeepCopy()))
+	})
+
+	t.Run("HTML-escaped and unescaped ValuesObject are equal", func(t *testing.T) {
+		// The Kubernetes API server serves '&' unescaped, while encoding/json HTML-escapes it
+		// to &. Equals must treat these as identical.
+		escaped, err := json.Marshal(map[string]string{"foo": "&"})
+		require.NoError(t, err)
+		require.NotEqual(t, `{"foo":"&"}`, string(escaped)) // sanity: inputs really differ
+
+		a := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo":"&"}`)}}
+		b := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: escaped}}
+		assert.True(t, a.Equals(b))
+		assert.True(t, b.Equals(a))
+	})
+
+	t.Run("different key ordering in ValuesObject is equal", func(t *testing.T) {
+		a := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`{"a":1,"b":2}`)}}
+		b := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`{"b":2,"a":1}`)}}
+		assert.True(t, a.Equals(b))
+	})
+
+	t.Run("genuinely different ValuesObject are not equal", func(t *testing.T) {
+		a := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo":"&"}`)}}
+		b := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo":"bar"}`)}}
+		assert.False(t, a.Equals(b))
+	})
+
+	t.Run("invalid JSON falls back to byte comparison", func(t *testing.T) {
+		raw := []byte(`not json`)
+		a := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: raw}}
+		b := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: raw}}
+		assert.True(t, a.Equals(b))
+	})
+
+	t.Run("does not mutate input", func(t *testing.T) {
+		escaped, err := json.Marshal(map[string]string{"foo": "&"})
+		require.NoError(t, err)
+		a := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo":"&"}`)}}
+		b := &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: escaped}}
+		origA := string(a.ValuesObject.Raw)
+		origB := string(b.ValuesObject.Raw)
+		a.Equals(b)
+		assert.Equal(t, origA, string(a.ValuesObject.Raw))
+		assert.Equal(t, origB, string(b.ValuesObject.Raw))
+	})
+
+	t.Run("non-ValuesObject fields are compared", func(t *testing.T) {
+		a := &ApplicationSourceHelm{ReleaseName: "release-a"}
+		b := &ApplicationSourceHelm{ReleaseName: "release-b"}
+		assert.False(t, a.Equals(b))
+	})
 }
 
 func TestApplicationSourceHelm_String(t *testing.T) {

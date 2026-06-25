@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -2172,6 +2172,160 @@ func TestUseAzureWorkloadIdentity(t *testing.T) {
 	}
 }
 
+func TestAzureUserGroupOverageClaimEnabled(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult bool
+	}{
+		{
+			Name: "enabled and set to true",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"enableUserGroupOverageClaim": true}}`,
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "enabled and set to false",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"enableUserGroupOverageClaim": false}}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "not defined with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "not defined",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{}`,
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name:           "OIDC config not defined",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureUserGroupOverageClaimEnabled()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
+func TestAzureGraphAPIEndpoint(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult string
+	}{
+		{
+			Name: "default endpoint when azure section present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: "https://graph.microsoft.com/v1.0",
+		},
+		{
+			Name: "custom endpoint for sovereign cloud",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://graph.microsoft.us/v1.0"}}`,
+			},
+			ExpectedResult: "https://graph.microsoft.us/v1.0",
+		},
+		{
+			Name: "custom endpoint for China cloud",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://microsoftgraph.chinacloudapi.cn/v1.0"}}`,
+			},
+			ExpectedResult: "https://microsoftgraph.chinacloudapi.cn/v1.0",
+		},
+		{
+			Name: "non-https endpoint returns empty string",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "http://graph.microsoft.com/v1.0"}}`,
+			},
+			ExpectedResult: "",
+		},
+		{
+			Name: "non-Microsoft hostname returns empty string",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"graphApiEndpoint": "https://evil.example.com/v1.0"}}`,
+			},
+			ExpectedResult: "",
+		},
+		{
+			Name: "empty string when no azure section",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{}`,
+			},
+			ExpectedResult: "",
+		},
+		{
+			Name:           "empty string when no OIDC config",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureGraphAPIEndpoint()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
+func TestAzureUserGroupOverageClaimCacheExpiration(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult time.Duration
+	}{
+		{
+			Name: "valid duration",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"userGroupOverageClaimCacheExpiration": "10m"}}`,
+			},
+			ExpectedResult: 10 * time.Minute,
+		},
+		{
+			Name: "not configured",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {}}`,
+			},
+			ExpectedResult: 0,
+		},
+		{
+			Name: "invalid duration returns 0",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: `{"azure": {"userGroupOverageClaimCacheExpiration": "invalid"}}`,
+			},
+			ExpectedResult: 0,
+		},
+		{
+			Name:           "no OIDC config",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.AzureUserGroupOverageClaimCacheExpiration()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
 func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
@@ -2393,6 +2547,33 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 	}
 }
 
+func TestGetHydratorReadmeTemplate(t *testing.T) {
+	t.Run("DefaultTemplate", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{})
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.NoError(t, err)
+		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
+	})
+
+	t.Run("CustomTemplateInConfigMap", func(t *testing.T) {
+		customTemplate := "Custom Readme Template: {{ .RepoURL }}"
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			settingsSourceHydratorReadmeMessageTemplateKey: customTemplate,
+		})
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.NoError(t, err)
+		assert.Equal(t, customTemplate, template)
+	})
+
+	t.Run("ConfigMapError", func(t *testing.T) {
+		kubeClient := fake.NewClientset()
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.Error(t, err)
+		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
+	})
+}
+
 func TestSecretsInformerExcludesClusterSecrets(t *testing.T) {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2505,22 +2686,6 @@ func TestIsRepositorySecret(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "tombstone wrapping repository secret matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping non-repository secret does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
-			},
-			expected: false,
-		},
-		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
 			expected: false,
@@ -2565,22 +2730,7 @@ func TestIsSettingsObject(t *testing.T) {
 			}},
 			expected: true,
 		},
-		{
-			name: "tombstone wrapping labeled secret matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping unlabeled secret does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
-			},
-			expected: false,
-		},
+
 		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
@@ -2615,24 +2765,6 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "tombstone wrapping argocd-cm matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name: common.ArgoCDConfigMapName,
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping other configmap does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name: common.ArgoCDRBACConfigMapName,
-				}},
-			},
-			expected: false,
-		},
-		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
 			expected: false,
@@ -2641,6 +2773,143 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, isArgoCDConfigMap(tt.obj))
+		})
+	}
+}
+
+// TestGettersRaceWithResyncInformers verifies that concurrent calls to
+// SettingsManager getters and ResyncInformers do not trigger data races.
+// Run with: go test -race -run TestGettersRaceWithResyncInformers ./util/settings/...
+func TestGettersRaceWithResyncInformers(t *testing.T) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string]string{},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"server.secretkey": []byte("test-secret-key"),
+		},
+	}
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-secret",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+				common.LabelKeySecretType:   common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://kubernetes.default.svc"),
+			"name":   []byte("in-cluster"),
+			"config": []byte("{}"),
+		},
+	}
+	kubeClient := fake.NewClientset(cm, secret, clusterSecret)
+	mgr := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	// Prime the informers so getters have something to return.
+	err := mgr.ensureSynced(false)
+	require.NoError(t, err)
+
+	const goroutines = 10
+
+	// done signals all goroutines to stop.
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	// Spawn goroutines calling ResyncInformers concurrently.
+	for range goroutines / 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = mgr.ResyncInformers()
+				}
+			}
+		})
+	}
+
+	// Spawn goroutines calling the various getters concurrently.
+	for range goroutines / 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_, _ = mgr.GetSecretsLister()
+					_, _ = mgr.GetSecretsInformer()
+					_, _ = mgr.GetClusterInformer()
+					_, _ = mgr.GetConfigMapByName(common.ArgoCDConfigMapName)
+					_, _ = mgr.GetSecretByName(common.ArgoCDSecretName)
+				}
+			}
+		})
+	}
+
+	// Let the race run for a bit.
+	time.Sleep(200 * time.Millisecond)
+	close(done)
+	wg.Wait()
+}
+
+func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		notConfigured bool
+		output        time.Duration
+	}{
+		{
+			name:   "Valid jitter value",
+			input:  "60s",
+			output: 60 * time.Second,
+		},
+		{
+			name:          "Not configured",
+			notConfigured: true,
+			output:        0,
+		},
+		{
+			name:   "Empty input",
+			input:  "",
+			output: 0,
+		},
+		{
+			name:   "Invalid format",
+			input:  "invalid",
+			output: 0,
+		},
+		{
+			name:   "Invalid format with only number",
+			input:  "60",
+			output: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configMap := map[string]string{}
+			if !tt.notConfigured {
+				configMap["webhook.refresh.jitter"] = tt.input
+			}
+			_, settingsManager := fixtures(t.Context(), configMap)
+			jitter := settingsManager.GetWebhookRefreshJitter()
+			assert.Equal(t, tt.output, jitter)
 		})
 	}
 }

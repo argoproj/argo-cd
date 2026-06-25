@@ -52,7 +52,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
@@ -98,7 +98,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.syncPolicy.managedNamespaceMetadata into sync result
 	assert.Equal(t, app.Spec.SyncPolicy.ManagedNamespaceMetadata, opState.SyncResult.ManagedNamespaceMetadata)
 }
@@ -141,7 +141,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 			Source: &source,
 		},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
@@ -187,7 +187,7 @@ func TestSyncComparisonError(t *testing.T) {
 		Sync: &v1alpha1.SyncOperation{},
 	}}
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 
 	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
 	assert.NotEmpty(t, conditions)
@@ -276,7 +276,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		}}
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
@@ -348,7 +348,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationRunning, opState.Phase)
@@ -397,6 +397,31 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.Len(t, targets, 1)
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "2.0", iksmVersion)
+	})
+	t.Run("will not copy live status into the apply target", func(t *testing.T) {
+		// given: status is configured as an ignored field (equivalent to the
+		// default ignoreResourceStatusField=crd behavior) and the live resource
+		// has an in-flight operationState.
+		ignore := v1alpha1.ResourceIgnoreDifferences{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/status"},
+		}
+		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{ignore})
+		live := f.comparisonResult.reconciliationResult.Live[0]
+		require.NoError(t, unstructured.SetNestedField(
+			live.Object, "Running", "status", "operationState", "phase"))
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then: live status must not be merged into the target that gets applied,
+		// otherwise the SSA sync manager co-owns and freezes operationState.phase.
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		_, found, err := unstructured.NestedMap(targets[0].Object, "status")
+		require.NoError(t, err)
+		assert.False(t, found, "live status must not be merged into the apply target")
 	})
 	t.Run("will not modify target resource if ignore difference is not configured", func(t *testing.T) {
 		// given
@@ -1440,7 +1465,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then, app sync should fail with expected error message in operation state
 		assert.Equal(t, synccommon.OperationError, opState.Phase)
@@ -1461,7 +1486,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should fail with expected error message in operation state
 		assert.Equal(t, synccommon.OperationError, opState.Phase)
@@ -1482,7 +1507,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1503,7 +1528,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then application sync should pass using the control plane service account
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1528,7 +1553,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		f.application.Spec.Destination.Name = "minikube"
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1598,7 +1623,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1616,7 +1641,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1634,7 +1659,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)

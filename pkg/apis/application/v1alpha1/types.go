@@ -216,6 +216,11 @@ type ApplicationSource struct {
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
 	// Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
 	Name string `json:"name,omitempty" protobuf:"bytes,14,opt,name=name"`
+	// TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+	// The prefix is stripped from tag names before comparison and re-added to the resolved version.
+	// For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+	// "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+	TagPrefix string `json:"tagPrefix,omitempty" protobuf:"bytes,15,opt,name=tagPrefix"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
@@ -2114,6 +2119,8 @@ type ApplicationSummary struct {
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
 	// Images holds all images of application child resources.
 	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
+	// IsAppOfApps holds true if the application has any application for child resource.
+	IsAppOfApps bool `json:"isAppOfApps,omitempty" protobuf:"bytes,3,opt,name=isAppOfApps"`
 }
 
 // FindNode searches for a resource node in the application tree.
@@ -2136,11 +2143,14 @@ func (t *ApplicationTree) FindNode(group string, kind string, namespace string, 
 // - It extracts container images referenced in the application's resources.
 // - Additionally, it includes links from application annotations that start with `common.AnnotationKeyLinkPrefix`.
 // - The collected URLs and images are sorted alphabetically before being returned.
+// - It also determines if the Application is managing other Applications (App of Apps pattern)
 //
-// Returns an `ApplicationSummary` containing a list of unique external URLs and container images.
+// Returns an `ApplicationSummary` containing a list of unique external URLs, container images,
+// and metadata such as app of apps pattern.
 func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	urlsSet := make(map[string]bool)
 	imagesSet := make(map[string]bool)
+	appOfApps := false
 
 	// Collect external URLs and container images from application nodes
 	for _, node := range t.Nodes {
@@ -2151,6 +2161,9 @@ func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 		}
 		for _, image := range node.Images {
 			imagesSet[image] = true
+		}
+		if node.Group == "argoproj.io" && node.Kind == "Application" {
+			appOfApps = true
 		}
 	}
 
@@ -2173,7 +2186,7 @@ func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	}
 	sort.Strings(images)
 
-	return ApplicationSummary{ExternalURLs: urls, Images: images}
+	return ApplicationSummary{ExternalURLs: urls, Images: images, IsAppOfApps: appOfApps}
 }
 
 // ResourceRef includes fields which uniquely identify a resource
@@ -3780,10 +3793,15 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	}
 	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
 	// not considered in the DeepEqual comparison.
+	if !source.Helm.Equals(other.Helm) {
+		return false
+	}
 	sourceCopy := source.DeepCopy()
 	otherCopy := other.DeepCopy()
 	sourceCopy.Plugin = nil
 	otherCopy.Plugin = nil
+	sourceCopy.Helm = nil
+	otherCopy.Helm = nil
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 

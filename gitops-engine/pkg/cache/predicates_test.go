@@ -16,6 +16,7 @@ import (
 )
 
 func TestResourceOfGroupKind(t *testing.T) {
+	t.Parallel()
 	deploy := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -45,6 +46,7 @@ func TestResourceOfGroupKind(t *testing.T) {
 }
 
 func TestGetNamespaceResources(t *testing.T) {
+	t.Parallel()
 	defaultNamespaceTopLevel1 := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",

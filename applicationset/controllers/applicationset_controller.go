@@ -201,11 +201,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		logCtx.Errorf("unable to generate applications: %v", err)
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
-			argov1alpha1.ApplicationSetCondition{
-				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: err.Error(),
-				Reason:  string(applicationSetReason),
-				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+			[]argov1alpha1.ApplicationSetCondition{
+				{
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+					Message: err.Error(),
+					Reason:  string(applicationSetReason),
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			}, parametersGenerated,
 		)
 		// In order for the controller SDK to respect RequeueAfter, the error must be nil
@@ -227,11 +229,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
-			argov1alpha1.ApplicationSetCondition{
-				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: err.Error(),
-				Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
-				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+			[]argov1alpha1.ApplicationSetCondition{
+				{
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+					Message: err.Error(),
+					Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			}, parametersGenerated,
 		)
 		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
@@ -255,6 +259,21 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
 		} else if progressivesync.IsRollingSyncStrategy(&applicationSetInfo) {
+			// before starting progressive sync, checks if steps
+			if progressivesync.IsStepsEmpty(&applicationSetInfo) {
+				_ = r.setApplicationSetStatusCondition(ctx,
+					&applicationSetInfo,
+					[]argov1alpha1.ApplicationSetCondition{
+						{
+							Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+							Message: "No steps defined for rollout",
+							Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutError,
+							Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+						},
+					}, parametersGenerated,
+				)
+				return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
+			}
 			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
@@ -290,11 +309,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
-			argov1alpha1.ApplicationSetCondition{
-				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: message,
-				Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
-				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+			[]argov1alpha1.ApplicationSetCondition{
+				{
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+					Message: message,
+					Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			}, parametersGenerated,
 		)
 	}
@@ -323,11 +344,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
-				argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-					Message: err.Error(),
-					Reason:  argov1alpha1.ApplicationSetReasonUpdateApplicationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+				[]argov1alpha1.ApplicationSetCondition{
+					{
+						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message: err.Error(),
+						Reason:  argov1alpha1.ApplicationSetReasonUpdateApplicationError,
+						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					},
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -337,11 +360,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
-				argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-					Message: err.Error(),
-					Reason:  argov1alpha1.ApplicationSetReasonCreateApplicationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+				[]argov1alpha1.ApplicationSetCondition{
+					{
+						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message: err.Error(),
+						Reason:  argov1alpha1.ApplicationSetReasonCreateApplicationError,
+						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					},
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -354,11 +379,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
-				argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-					Message: err.Error(),
-					Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+				[]argov1alpha1.ApplicationSetCondition{
+					{
+						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message: err.Error(),
+						Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
+						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					},
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -382,11 +409,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			logCtx.Warnf("error occurred while updating ApplicationSet: %v", err)
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
-				argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-					Message: err.Error(),
-					Reason:  argov1alpha1.ApplicationSetReasonRefreshApplicationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+				[]argov1alpha1.ApplicationSetCondition{
+					{
+						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message: err.Error(),
+						Reason:  argov1alpha1.ApplicationSetReasonRefreshApplicationError,
+						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					},
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -398,11 +427,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if len(validateErrors) == 0 {
 		if err := r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
-			argov1alpha1.ApplicationSetCondition{
-				Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "All applications have been generated successfully",
-				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+			[]argov1alpha1.ApplicationSetCondition{
+				{
+					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "All applications have been generated successfully",
+					Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			}, parametersGenerated,
 		); err != nil {
 			return ctrl.Result{}, err
@@ -439,56 +470,77 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 	return parametersGeneratedCondition
 }
 
-func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition argov1alpha1.ApplicationSetCondition, parametersGenerated bool) error {
+func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool) error {
 	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
-		argov1alpha1.ApplicationSetConditionParametersGenerated: true,
-		argov1alpha1.ApplicationSetConditionErrorOccurred:       false,
-		argov1alpha1.ApplicationSetConditionResourcesUpToDate:   false,
-		argov1alpha1.ApplicationSetConditionRolloutProgressing:  false,
+		argov1alpha1.ApplicationSetConditionParametersGenerated:  true,
+		argov1alpha1.ApplicationSetConditionErrorOccurred:        false,
+		argov1alpha1.ApplicationSetConditionResourcesUpToDate:    false,
+		argov1alpha1.ApplicationSetConditionRolloutProgressing:   false,
+		argov1alpha1.ApplicationSetConditionInvalidRolloutConfig: false,
 	}
-	// Evaluate current condition
-	evaluatedTypes[condition.Type] = true
-	newConditions := []argov1alpha1.ApplicationSetCondition{condition}
 
 	if !progressivesync.IsRollingSyncStrategy(applicationSet) {
 		// Progressing sync is always evaluated so conditions are removed when it is not enabled
+		evaluatedTypes[argov1alpha1.ApplicationSetConditionInvalidRolloutConfig] = true
 		evaluatedTypes[argov1alpha1.ApplicationSetConditionRolloutProgressing] = true
 	}
 
-	// Evaluate ParametersGenerated since it is always provided
-	if condition.Type != argov1alpha1.ApplicationSetConditionParametersGenerated {
-		newConditions = append(newConditions, getParametersGeneratedCondition(parametersGenerated, condition.Message))
+	var newConditions []argov1alpha1.ApplicationSetCondition
+	hasParamsGenerated := false
+	paramsMsg := "progressive sync"
+	for _, condition := range conditions {
+		if condition.Type == argov1alpha1.ApplicationSetConditionParametersGenerated {
+			hasParamsGenerated = true
+			break
+		}
+		if condition.Type == argov1alpha1.ApplicationSetConditionErrorOccurred {
+			paramsMsg = condition.Message
+		}
 	}
+	// Evaluate ParametersGenerated since it is always provided
+	if !hasParamsGenerated {
+		newConditions = append(newConditions, getParametersGeneratedCondition(parametersGenerated, paramsMsg))
+	}
+	for _, condition := range conditions {
+		// Evaluate current condition
+		evaluatedTypes[condition.Type] = true
+		newConditions = append(newConditions, condition)
 
-	// Evaluate dependencies between conditions.
-	switch condition.Type {
-	case argov1alpha1.ApplicationSetConditionResourcesUpToDate:
-		if condition.Status == argov1alpha1.ApplicationSetConditionStatusTrue {
-			// If the resources are up to date, we know there was no errors
-			evaluatedTypes[argov1alpha1.ApplicationSetConditionErrorOccurred] = true
-			newConditions = append(newConditions, argov1alpha1.ApplicationSetCondition{
-				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-				Reason:  condition.Reason,
-				Message: condition.Message,
-			})
-		}
-	case argov1alpha1.ApplicationSetConditionErrorOccurred:
-		if condition.Status == argov1alpha1.ApplicationSetConditionStatusTrue {
-			// If there is an error anywhere in the reconciliation, we cannot consider the resources up to date
-			evaluatedTypes[argov1alpha1.ApplicationSetConditionResourcesUpToDate] = true
-			newConditions = append(newConditions, argov1alpha1.ApplicationSetCondition{
-				Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-				Reason:  argov1alpha1.ApplicationSetReasonErrorOccurred,
-				Message: condition.Message,
-			})
-		}
-	case argov1alpha1.ApplicationSetConditionRolloutProgressing:
-		if !progressivesync.IsRollingSyncStrategy(applicationSet) {
-			// if the condition is a rolling sync and it is disabled, ignore it
-			evaluatedTypes[condition.Type] = false
+		// Evaluate dependencies between conditions.
+		switch condition.Type {
+		case argov1alpha1.ApplicationSetConditionResourcesUpToDate:
+			if condition.Status == argov1alpha1.ApplicationSetConditionStatusTrue {
+				// If the resources are up to date, we know there was no errors
+				evaluatedTypes[argov1alpha1.ApplicationSetConditionErrorOccurred] = true
+				newConditions = append(newConditions, argov1alpha1.ApplicationSetCondition{
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
+					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+					Reason:  condition.Reason,
+					Message: condition.Message,
+				})
+			}
+		case argov1alpha1.ApplicationSetConditionErrorOccurred:
+			if condition.Status == argov1alpha1.ApplicationSetConditionStatusTrue {
+				// If there is an error anywhere in the reconciliation, we cannot consider the resources up to date
+				evaluatedTypes[argov1alpha1.ApplicationSetConditionResourcesUpToDate] = true
+				newConditions = append(newConditions, argov1alpha1.ApplicationSetCondition{
+					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+					Reason:  argov1alpha1.ApplicationSetReasonErrorOccurred,
+					Message: condition.Message,
+				})
+			}
+		case argov1alpha1.ApplicationSetConditionRolloutProgressing:
+			if !progressivesync.IsRollingSyncStrategy(applicationSet) {
+				// if the condition is a rolling sync and it is disabled, ignore it
+				evaluatedTypes[condition.Type] = false
+			}
+
+		case argov1alpha1.ApplicationSetConditionInvalidRolloutConfig:
+			if !progressivesync.IsRollingSyncStrategy(applicationSet) {
+				evaluatedTypes[condition.Type] = false
+			}
 		}
 	}
 

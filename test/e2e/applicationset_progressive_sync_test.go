@@ -507,9 +507,9 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 	expectedConditions := []v1alpha1.ApplicationSetCondition{
 		{
 			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: "All applications have been generated successfully",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: "No steps defined for rollout",
+			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutError,
 		},
 		{
 			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
@@ -519,15 +519,9 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		},
 		{
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: "All applications have been generated successfully",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: "ApplicationSet Rollout has completed",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
+			Message: "No steps defined for rollout",
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 
@@ -540,7 +534,7 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		When().
 		Create(appSetInvalidStepConfiguration).
 		Then().
-		Expect(ApplicationSetHasConditions(expectedConditions)). // TODO: when no steps created, condition should reflect that.
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().

@@ -22,8 +22,10 @@ const config = {
     output: {
         filename: '[name].[contenthash].js',
         chunkFilename: '[name].[contenthash].chunk.js',
-        path: __dirname + '/../../dist/app'
+        path: __dirname + '/../../dist/app',
+        clean: true
     },
+    cache: { type: 'filesystem' },
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
@@ -48,6 +50,12 @@ const config = {
             },
             {
                 enforce: 'pre',
+                test: /\.js$/,
+                exclude: [/node_modules\/react-paginate/, /node_modules\/monaco-editor/],
+                use: ['source-map-loader'],
+            },
+            {
+                enforce: 'pre',
                 exclude: [/node_modules\/react-paginate/, /node_modules\/monaco-editor/],
                 test: /\.js$/,
                 use: ['esbuild-loader'],
@@ -56,14 +64,17 @@ const config = {
                 test: /\.scss$/,
                 use: [
                     'style-loader',
-                    'raw-loader',
+                    {
+                        loader: 'css-loader',
+                        options: { url: false, import: false }
+                    },
                     {
                         loader: 'sass-loader',
                         options: {
                             sassOptions: {
                                 includePaths: ['node_modules'],
                                 quietDeps: true,
-                                silenceDeprecations: ['import', 'legacy-js-api', 'global-builtin', 'color-functions', 'mixed-decls']
+                                silenceDeprecations: ['import', 'legacy-js-api', 'global-builtin', 'color-functions']
                             }
                         }
                     }
@@ -71,7 +82,13 @@ const config = {
             },
             {
                 test: /\.css$/,
-                use: ['style-loader', 'raw-loader']
+                use: [
+                    'style-loader',
+                    {
+                        loader: 'css-loader',
+                        options: { url: false, import: false }
+                    }
+                ]
             }
         ]
     },
@@ -79,7 +96,6 @@ const config = {
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
-            'process.env.HOST_ARCH': JSON.stringify(process.env.HOST_ARCH || 'amd64'),
             'process.platform': JSON.stringify('browser'),
             'SYSTEM_INFO': JSON.stringify({
                 version: process.env.ARGO_VERSION || 'latest'
@@ -111,7 +127,7 @@ const config = {
         }),
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
-            languages: ['yaml']
+            languages: ['yaml', 'json']
         }),
         codecovWebpackPlugin({
             enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
@@ -142,17 +158,17 @@ const config = {
                 }
             }
         },
-        proxy: {
-            '/extensions': proxyConf,
-            '/api': proxyConf,
-            '/auth': proxyConf,
-            '/terminal': {
-              target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
-              ws: true,
+        proxy: [
+            {
+                context: ['/extensions', '/api', '/auth', '/swagger-ui', '/swagger.json', '/download'],
+                ...proxyConf
             },
-            '/swagger-ui': proxyConf,
-            '/swagger.json': proxyConf
-        }
+            {
+                context: ['/terminal'],
+                target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
+                ws: true,
+            }
+        ]
     }
 };
 
@@ -165,8 +181,6 @@ if (isProd) {
     };
 }
 
-if (! isProd) {
-    config.devtool = 'eval-source-map';
-}
+config.devtool = isProd ? 'source-map' : 'eval-source-map';
 
 module.exports = config;
