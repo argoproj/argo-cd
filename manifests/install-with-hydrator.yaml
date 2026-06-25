@@ -7107,6 +7107,10 @@ spec:
         - metadata
         - spec
         type: object
+    selectableFields:
+    - jsonPath: .status.health.status
+    - jsonPath: .status.sync.status
+    - jsonPath: .spec.project
     served: true
     storage: true
     subresources: {}

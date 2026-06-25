@@ -65,6 +65,9 @@ import (
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
+// +kubebuilder:selectablefield:JSONPath=".status.health.status"
+// +kubebuilder:selectablefield:JSONPath=".status.sync.status"
+// +kubebuilder:selectablefield:JSONPath=".spec.project"
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`                                       // Common: shared with ApplicationSet
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"` // Common: shared with ApplicationSet

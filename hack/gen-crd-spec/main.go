@@ -26,7 +26,7 @@ var kindToCRDPath = map[string]string{
 func getCustomResourceDefinitions(ctx context.Context) map[string]*apiextensionsv1.CustomResourceDefinition {
 	crdYamlBytes, err := exec.CommandContext(ctx,
 		"controller-gen",
-		"paths=./pkg/apis/application/...",
+		"paths=./pkg/apis/application/v1alpha1/...",
 		"crd:crdVersions=v1",
 		"output:crd:stdout",
 	).Output()
