@@ -66,6 +66,12 @@ export const ApplicationSetStatusPanel = ({appSet, showConditions}: Props) => {
                                 <i className='fa fa-info-circle application-status-panel__item-value__status-button' /> {conditionCounts.info} Info
                             </a>
                         )}
+                        {conditionCounts.warning > 0 && (
+                            <a className='warning'>
+                                <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' /> {conditionCounts.warning} Warning
+                                {conditionCounts.warning !== 1 && 's'}
+                            </a>
+                        )}
                         {conditionCounts.error > 0 && (
                             <a className='error'>
                                 <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' /> {conditionCounts.error} Error

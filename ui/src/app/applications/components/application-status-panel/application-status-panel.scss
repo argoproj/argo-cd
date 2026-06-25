@@ -45,8 +45,9 @@
         justify-content: center;
         line-height: 1.5em;
         a {
-            display: block;
+            display: flex;
             margin-right: 12px;
+            align-items: center;
         }
     }
 
