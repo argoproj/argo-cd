@@ -48,6 +48,7 @@ func (g *generatorMock) GetRequeueAfter(_ *v1alpha1.ApplicationSetGenerator) tim
 }
 
 func TestWebhookHandler(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
 		desc               string
 		headerKey          string
@@ -205,6 +206,7 @@ func TestWebhookHandler(t *testing.T) {
 
 	for _, test := range tt {
 		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
 			fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithGitGenerator("git-github-copy", namespace, "https://github.com/org/repo-copy"),
@@ -324,6 +326,7 @@ func mockGenerators() map[string]generators.Generator {
 }
 
 func TestGenRevisionHasChanged(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		gen         *v1alpha1.GitGenerator
 		revision    string
@@ -377,6 +380,7 @@ func TestGenRevisionHasChanged(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equalf(t, tt.want, genRevisionHasChanged(tt.args.gen, tt.args.revision, tt.args.touchedHead), "genRevisionHasChanged(%v, %v, %v)", tt.args.gen, tt.args.revision, tt.args.touchedHead)
 		})
 	}

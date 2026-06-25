@@ -94,7 +94,7 @@ func (r *Render) deeplyReplaceWithFilter(destination, original reflect.Value, re
 	switch original.Kind() {
 	// The first cases handle nested structures and translate them recursively
 	// If it is a pointer we need to unwrap and call once again
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// To get the actual value of the original we have to call Elem()
 		// At the same time this unwraps the pointer so we don't end up in
 		// an infinite recursion
@@ -313,7 +313,7 @@ func getFilteredGeneratorTypes() map[string]bool {
 	t := reflect.TypeFor[argoappsv1.ApplicationSetGenerator]()
 	for field := range t.Fields() {
 		genPtrType := field.Type
-		if genPtrType.Kind() == reflect.Ptr && strings.HasSuffix(genPtrType.String(), "Generator") {
+		if genPtrType.Kind() == reflect.Pointer && strings.HasSuffix(genPtrType.String(), "Generator") {
 			genType := genPtrType.Elem()
 			for field := range genType.Fields() {
 				if field.Name == "Values" && field.Type.String() == "map[string]string" {
@@ -323,6 +323,15 @@ func getFilteredGeneratorTypes() map[string]bool {
 		}
 	}
 	return result
+}
+
+func isMissingKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "map has no entry for key") ||
+		strings.Contains(msg, "can't evaluate field")
 }
 
 func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.ApplicationSetGenerator, error) {
@@ -337,16 +346,46 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 	original := reflect.ValueOf(gen)
 	destination := reflect.New(original.Type()).Elem()
 
+	resolveOptions := goTemplateOptions
+	if useGoTemplate {
+		stripped := make([]string, 0, len(goTemplateOptions))
+		for _, opt := range goTemplateOptions {
+			if !strings.HasPrefix(opt, "missingkey=") {
+				stripped = append(stripped, opt)
+			}
+		}
+		resolveOptions = append(stripped, "missingkey=error")
+	}
+
 	filter := func(destination, original, parent reflect.Value, field reflect.StructField) (bool, error) {
 		if field.Name == "Values" && field.Type.String() == "map[string]string" && filteredGeneratorTypes[parent.Type().Name()] {
 			if !destination.CanSet() {
-				return false, fmt.Errorf("cannot copy %s.Values, this cannot happen", parent.Type().Name())
+				return true, fmt.Errorf("cannot copy %s.Values, this cannot happen", parent.Type().Name())
 			}
-			destination.Set(original)
+			if original.IsNil() {
+				destination.Set(original)
+				return true, nil
+			}
+			originalMap := original.Interface().(map[string]string)
+			resolvedMap := make(map[string]string, len(originalMap))
+
+			for k, v := range originalMap {
+				resolved, err := r.Replace(v, params, useGoTemplate, resolveOptions)
+				if err != nil {
+					if isMissingKeyError(err) {
+						resolvedMap[k] = v
+						continue
+					}
+					return true, fmt.Errorf("failed to pre-resolve Values key %q: %w", k, err)
+				}
+				resolvedMap[k] = resolved
+			}
+			destination.Set(reflect.ValueOf(resolvedMap))
 			return true, nil
 		}
 		return false, nil
 	}
+
 	if err := r.deeplyReplaceWithFilter(destination, original, params, useGoTemplate, goTemplateOptions, filter); err != nil {
 		return nil, fmt.Errorf("failed to replace parameters in generator: %w", err)
 	}

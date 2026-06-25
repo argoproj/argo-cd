@@ -1,9 +1,7 @@
-import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
+import {DataLoader, Page as ArgoPage, Toolbar} from 'argo-ui';
 import * as React from 'react';
 import {BehaviorSubject, Observable} from 'rxjs';
-import {map} from 'rxjs/operators';
 
-import {Context, ContextApis} from '../../context';
 import {services} from '../../services';
 import requests from '../../services/requests';
 
@@ -16,55 +14,55 @@ function isLoggedIn(): Observable<boolean> {
     return mostRecentLoggedIn;
 }
 
-export const AddAuthToToolbar = (init: Toolbar | Observable<Toolbar>, ctx: ContextApis): Observable<Toolbar> => {
-    return Utils.toObservable(init).pipe(
-        map(toolbar => {
-            const base = toolbar || {};
-            return {
-                ...base,
-                tools: [
-                    base.tools,
-                    <DataLoader key='loginPanel' load={() => isLoggedIn()}>
-                        {loggedIn =>
-                            loggedIn ? (
-                                <button className='login-logout-button' key='logout' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
-                                    Log out
-                                </button>
-                            ) : (
-                                <button className='login-logout-button' key='login' onClick={() => ctx.navigation.goto(`/login?return_url=${encodeURIComponent(location.href)}`)}>
-                                    Log in
-                                </button>
-                            )
-                        }
-                    </DataLoader>
-                ]
-            };
-        })
+export const AuthOption: React.FC = () => {
+    return (
+        <DataLoader load={() => isLoggedIn()}>
+            {loggedIn =>
+                loggedIn ? (
+                    <button className='login-logout-button' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
+                        Log out
+                    </button>
+                ) : (
+                    <button className='login-logout-button' onClick={() => (window.location.href = `/login?return_url=${encodeURIComponent(location.href)}`)}>
+                        Log in
+                    </button>
+                )
+            }
+        </DataLoader>
     );
 };
 
 interface PageProps {
     title: string;
-    hideAuth?: boolean;
     toolbar?: Toolbar | Observable<Toolbar>;
     topBarTitle?: string;
     useTitleOnly?: boolean;
     children?: React.ReactNode;
 }
 
+// Check if toolbar has content (tools or actionMenu)
+const hasToolbarContent = (toolbar: Toolbar | Observable<Toolbar> | undefined): boolean => {
+    if (!toolbar) {
+        return false;
+    }
+
+    // If it's an Observable, we can't check synchronously, so assume it has content
+    if (toolbar instanceof Observable) {
+        return true;
+    }
+
+    // Check if toolbar has tools or actionMenu with items
+    return !!(toolbar.tools || (toolbar.actionMenu && toolbar.actionMenu.items && toolbar.actionMenu.items.length > 0));
+};
+
 export const Page = (props: PageProps) => {
-    const ctx = React.useContext(Context);
+    const applyPageWrapper = !hasToolbarContent(props.toolbar);
+
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => (
-                <div className={`${props.hideAuth ? 'page-wrapper' : ''} ${pref.hideSidebar ? 'sb-page-wrapper__sidebar-collapsed' : 'sb-page-wrapper'}`}>
-                    <ArgoPage
-                        title={props.title}
-                        children={props.children}
-                        topBarTitle={props.topBarTitle}
-                        useTitleOnly={props.useTitleOnly}
-                        toolbar={!props.hideAuth ? AddAuthToToolbar(props.toolbar, ctx) : props.toolbar}
-                    />
+                <div className={`${applyPageWrapper ? 'page-wrapper' : ''} ${pref.hideSidebar ? 'sb-page-wrapper__sidebar-collapsed' : 'sb-page-wrapper'}`}>
+                    <ArgoPage title={props.title} children={props.children} topBarTitle={props.topBarTitle} useTitleOnly={props.useTitleOnly} toolbar={props.toolbar} />
                 </div>
             )}
         </DataLoader>

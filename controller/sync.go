@@ -98,7 +98,7 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 	return syncRes
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -139,7 +139,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
+	compareResult, err := m.CompareAppState(ctx, app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -169,7 +169,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		return
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to get destination cluster: %v", err)
@@ -283,7 +283,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
 			return validateSyncPermissions(project, destCluster, func(proj string) ([]*v1alpha1.Cluster, error) {
-				return m.db.GetProjectClusters(context.TODO(), proj)
+				return m.db.GetProjectClusters(ctx, proj)
 			}, un, res)
 		}),
 		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
@@ -336,9 +336,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	start := time.Now()
 
 	if state.Phase == common.OperationTerminating {
-		syncCtx.Terminate()
+		syncCtx.Terminate(ctx)
 	} else {
-		syncCtx.Sync()
+		syncCtx.Sync(ctx)
 	}
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
@@ -425,7 +425,24 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			lookupPatchMeta = &meta
 		}
 
-		livePatch, err := getMergePatch(normalized.Lives[idx], live, lookupPatchMeta)
+		// RespectIgnoreDifferences preserves ignored fields by copying their live
+		// values into the target that is applied during sync. `status` must be
+		// excluded from that copy: it is owned by the resource's own controller,
+		// never by the sync. Merging live `status` into the apply makes the sync
+		// field manager (ArgoCDSSAManager, "argocd-controller") a co-owner of
+		// `status` under server-side apply. For resources without a /status
+		// subresource (e.g. argoproj.io/Application) this freezes a stale
+		// status.operationState.phase that the controller can no longer correct.
+		liveForPatch, normalizedLiveForPatch := live, normalized.Lives[idx]
+		liveForPatch = liveForPatch.DeepCopy()
+		unstructured.RemoveNestedField(liveForPatch.Object, "status")
+
+		if normalizedLiveForPatch != nil {
+			normalizedLiveForPatch = normalizedLiveForPatch.DeepCopy()
+			unstructured.RemoveNestedField(normalizedLiveForPatch.Object, "status")
+		}
+
+		livePatch, err := getMergePatch(normalizedLiveForPatch, liveForPatch, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}

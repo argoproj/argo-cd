@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="79 known vulnerabilities found in 232 vulnerable dependency paths.">
+  <meta name="description" content="80 known vulnerabilities found in 234 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 31st 2026, 1:02:06 am (UTC+00:00)</p>
+                <p class="timestamp">June 21st 2026, 1:09:45 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>79</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>232 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>80</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>234 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1134</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -754,6 +754,92 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPC-15691172">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Improper Authentication</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--critical">
+                        <span class="label__text">critical severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/idna
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/net/idna@v0.32.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/idna@v0.32.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/idna@v0.40.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Authentication via the <code>ToASCII</code> and <code>ToUnicode</code> functions. An attacker can bypass hostname validation by submitting Punycode-encoded labels that decode to ASCII-only labels, potentially leading to privilege escalation in applications that rely on these functions for security checks.</p>
+        <p><strong>Note:</strong> The fix depends on the Go toolchain in use having Unicode version 16 or later, which is planned for the 1.27 release.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/idna</code> to version 0.54.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/8c4c965e028475082408749b50ed7a686df0d265">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5026">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/767220">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/78760">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETIDNA-17116876">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -6071,6 +6157,7 @@
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-089022.html">https://cert-portal.siemens.com/productcert/html/ssa-089022.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-265688.html">https://cert-portal.siemens.com/productcert/html/ssa-265688.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-485750.html">https://cert-portal.siemens.com/productcert/html/ssa-485750.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
         </ul>
         
               <hr/>
@@ -6230,6 +6317,7 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2026/05/11/11">http://www.openwall.com/lists/oss-security/2026/05/11/11</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-032379.html">https://cert-portal.siemens.com/productcert/html/ssa-032379.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-089022.html">https://cert-portal.siemens.com/productcert/html/ssa-089022.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
         </ul>
         
               <hr/>
@@ -6395,6 +6483,7 @@
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-082556.html">https://cert-portal.siemens.com/productcert/html/ssa-082556.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-089022.html">https://cert-portal.siemens.com/productcert/html/ssa-089022.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-485750.html">https://cert-portal.siemens.com/productcert/html/ssa-485750.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
         </ul>
         
               <hr/>
@@ -7358,6 +7447,7 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2026/01/27/10">http://www.openwall.com/lists/oss-security/2026/01/27/10</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2026/02/25/6">http://www.openwall.com/lists/oss-security/2026/02/25/6</a></li>
         <li><a href="https://github.com/guiimoraes/CVE-2025-15467">https://github.com/guiimoraes/CVE-2025-15467</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-434797.html">https://cert-portal.siemens.com/productcert/html/ssa-434797.html</a></li>
         </ul>
         
               <hr/>
@@ -8605,6 +8695,7 @@
         <li><a href="https://www.busybox.net/downloads/">https://www.busybox.net/downloads/</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/04/23/5">http://www.openwall.com/lists/oss-security/2025/04/23/5</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/04/24/3">http://www.openwall.com/lists/oss-security/2025/04/24/3</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
         </ul>
         
               <hr/>
