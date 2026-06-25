@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -90,7 +91,6 @@ func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 		// This changes, nil it to avoid testing it.
 		clusters[i].Info.ConnectionState.ModifiedAt = nil
 	}
-
 	expected := []ClusterWithInfo{{
 		Cluster: v1alpha1.Cluster{
 			ID:     "",
@@ -107,4 +107,97 @@ func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 		Namespaces: []string{"test"},
 	}}
 	assert.Equal(t, expected, clusters)
+}
+
+func Test_loadClusters_ShardingAlgorithm(t *testing.T) {
+	var logOutput bytes.Buffer
+	originalOutput := log.StandardLogger().Out
+	log.SetOutput(&logOutput)
+	defer log.SetOutput(originalOutput)
+
+	originalLevel := log.GetLevel()
+	log.SetLevel(log.DebugLevel)
+	defer log.SetLevel(originalLevel)
+
+	argoCDCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDCmdCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cmd-params-cm",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: "argocd",
+		},
+		Data: map[string][]byte{
+			"server.secretkey": []byte("test"),
+		},
+	}
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "test",
+			},
+		},
+	}
+
+	t.Run("argocd-cmd-params-cm is missing", func(t *testing.T) {
+		ctx := t.Context()
+		kubeClient := fake.NewClientset(argoCDCM, argoCDSecret)
+		appClient := fakeapps.NewSimpleClientset(app)
+		cacheSrc := func() (*appstate.Cache, error) {
+			return appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), nil
+		}
+		_, err := loadClusters(ctx, kubeClient, appClient, 3, "", "argocd", false, cacheSrc, 0, "", "", "")
+		require.NoError(t, err)
+		require.True(t, strings.Contains(logOutput.String(), "Using filter function:  legacy"))
+	})
+
+	t.Run("argocd-cmd-params-cm has non-default value", func(t *testing.T) {
+		cmdParamsCopy := argoCDCmdCM.DeepCopy()
+		cmdParamsCopy.Data["controller.sharding.algorithm"] = "round-robin"
+
+		ctx := t.Context()
+		kubeClient := fake.NewClientset(argoCDCM, cmdParamsCopy, argoCDSecret)
+		appClient := fakeapps.NewSimpleClientset(app)
+		cacheSrc := func() (*appstate.Cache, error) {
+			return appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), nil
+		}
+		_, err := loadClusters(ctx, kubeClient, appClient, 3, "", "argocd", false, cacheSrc, 0, "", "", "")
+		require.NoError(t, err)
+		require.True(t, strings.Contains(logOutput.String(), "Using filter function:  round-robin"))
+	})
+
+	t.Run("argocd-cmd-params-cm does not contain controller.sharding.algorithm key", func(t *testing.T) {
+		ctx := t.Context()
+		kubeClient := fake.NewClientset(argoCDCM, argoCDCmdCM, argoCDSecret)
+		appClient := fakeapps.NewSimpleClientset(app)
+		cacheSrc := func() (*appstate.Cache, error) {
+			return appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), nil
+		}
+		_, err := loadClusters(ctx, kubeClient, appClient, 3, "", "argocd", false, cacheSrc, 0, "", "", "")
+		require.NoError(t, err)
+		require.True(t, strings.Contains(logOutput.String(), "Using filter function:  legacy"))
+	})
 }
