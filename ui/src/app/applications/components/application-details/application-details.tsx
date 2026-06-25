@@ -302,7 +302,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 });
             }
         },
-        [props.match.params.name, getAppNamespace, appContext, objectListKind]
+        [props.match.params.name, getAppNamespace, appContext, objectListKind, appChanged, setRollbackPanelVisible]
     );
 
     const getPageTitle = useCallback((view: string) => {
@@ -1430,7 +1430,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 } as SplitButtonAction
             ];
         },
-        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind]
+        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind, appChanged]
     );
 
     const filterTreeNode = useCallback(
@@ -1516,7 +1516,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 .pipe(filter(([application, tree]) => !!application && !!tree))
                 .pipe(map(([application, tree]) => ({application, tree})));
         },
-        [onAppDeleted, objectListKind]
+        [onAppDeleted, objectListKind, appChanged]
     );
 
     const updateApp = useCallback(
@@ -1528,7 +1528,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             const updatedApp = await services.applications.update(latestApp, query);
             appChanged.next(updatedApp);
         },
-        [objectListKind]
+        [objectListKind, appChanged]
     );
 
     const groupAppNodesByKey = useCallback((application: appModels.Application, tree: appModels.ApplicationTree) => {

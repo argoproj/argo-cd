@@ -22,7 +22,7 @@ interface SearchBarProps {
 export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholder = 'Search...', disableKeyboardShortcuts = false, autocomplete}) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const searchBarRef = React.useRef<HTMLDivElement>(null);
-    const {useKeybinding} = React.useContext(KeybindingContext);
+    const {registerKeybinding} = React.useContext(KeybindingContext);
     const [isFocused, setFocus] = React.useState(false);
     const [localValue, setLocalValue] = React.useState(value);
     const [prevValue, setPrevValue] = React.useState(value);
@@ -55,28 +55,32 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
         setFocus(false);
     };
 
-    // Register global slash keybinding to focus search
-    useKeybinding({
-        keys: Key.SLASH,
-        action: () => {
-            if (disableKeyboardShortcuts || isFocused) {
-                return false;
+    // Register global keybindings as a side effect. Registration mutates shared
+    // keybinding state and the actions read refs, so it must run outside render.
+    React.useEffect(() => {
+        // Register global slash keybinding to focus search
+        registerKeybinding({
+            keys: Key.SLASH,
+            action: () => {
+                if (disableKeyboardShortcuts || isFocused) {
+                    return false;
+                }
+                focusInput();
+                return true;
             }
-            focusInput();
-            return true;
-        }
-    });
+        });
 
-    // Register global escape keybinding to blur search
-    useKeybinding({
-        keys: Key.ESCAPE,
-        action: () => {
-            if (disableKeyboardShortcuts || !isFocused) {
-                return false;
+        // Register global escape keybinding to blur search
+        registerKeybinding({
+            keys: Key.ESCAPE,
+            action: () => {
+                if (disableKeyboardShortcuts || !isFocused) {
+                    return false;
+                }
+                blurInput();
+                return true;
             }
-            blurInput();
-            return true;
-        }
+        });
     });
 
     // If autocomplete is provided, use Autocomplete component
