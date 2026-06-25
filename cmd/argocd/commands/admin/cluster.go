@@ -93,12 +93,14 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 
 	if shardingAlgorithm == "" {
 		cm, err := settingsMgr.GetConfigMapByName(common.ArgoCDCmdParamsConfigMapName)
-		if err != nil {
-			return nil, err
-		}
-		var exists bool
-		shardingAlgorithm, exists = cm.Data["controller.sharding.algorithm"]
-		if !exists {
+		if err == nil {
+			var exists bool
+			shardingAlgorithm, exists = cm.Data["controller.sharding.algorithm"]
+			if !exists {
+				shardingAlgorithm = common.DefaultShardingAlgorithm
+			}
+		} else {
+			log.Warnf("%s was not found in namespace %s, using default sharding algorithm of legacy", common.ArgoCDCmdParamsConfigMapName, namespace)
 			shardingAlgorithm = common.DefaultShardingAlgorithm
 		}
 	}
@@ -211,7 +213,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
 			appClient := versioned.NewForConfigOrDie(clientCfg)
 
-			if replicas == 0 {
+			if replicas <= 0 {
 				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, clientOpts.AppControllerName)
 				errors.CheckError(err)
 			}
@@ -507,7 +509,7 @@ argocd admin cluster stats target-cluster`,
 
 			kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
 			appClient := versioned.NewForConfigOrDie(clientCfg)
-			if replicas == 0 {
+			if replicas <= 0 {
 				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, clientOpts.AppControllerName)
 				errors.CheckError(err)
 			}
