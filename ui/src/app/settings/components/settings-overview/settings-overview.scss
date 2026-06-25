@@ -21,7 +21,10 @@
 
         &:hover {
             @include themify($themes) {
-                background-color: themed('light-argo-teal-1');                               
+                background-color: themed('light-argo-teal-1');
+            }
+            .theme-dark & {
+                background-color: rgba($argo-color-teal-5, 0.1);
             }
         }
 
