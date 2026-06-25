@@ -4,6 +4,7 @@ import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
+import {ActionMenuButton, EditablePanel} from '../../../shared/components';
 import {
     ComparisonStatusIcon,
     HealthStatusIcon,
@@ -31,6 +32,44 @@ export interface ApplicationResourceListProps {
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     tree?: models.ApplicationTree;
 }
+
+export interface ApplicationResourceParentRefProps {
+    resources: models.ResourceStatus[];
+    tree?: models.ApplicationTree;
+}
+
+export const ApplicationResourceParentRef = (props: ApplicationResourceParentRefProps) => {
+    const nodeByKey = new Map<string, models.ResourceNode>();
+    props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
+
+    const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
+    const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)));
+
+    if (!isSameParent) {
+        return null;
+    }
+
+    return (
+        <EditablePanel
+            title='PARENT NODE'
+            values={firstParentNode}
+            items={[
+                {
+                    title: 'KIND',
+                    view: firstParentNode.kind
+                },
+                {
+                    title: 'NAME',
+                    view: firstParentNode.name
+                },
+                {
+                    title: 'NAMESPACE',
+                    view: firstParentNode.namespace
+                }
+            ]}
+        />
+    );
+};
 
 export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
     const nodeByKey = new Map<string, models.ResourceNode>();
@@ -119,37 +158,11 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
         return resourcesToSort;
     }, [props.resources, sortConfig]);
 
-    const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
-    const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)));
     const isSameKind = props.resources?.every(x => x.group === props.resources[0].group && x.kind === props.resources[0].kind);
-    const view = props.pref.view;
 
-    const ParentRefDetails = () => {
-        return isSameParent ? (
-            <div className='resource-parent-node-info-title'>
-                <div>Parent Node Info</div>
-                <div className='resource-parent-node-info-title__label'>
-                    <div>Name:</div>
-                    <div>{firstParentNode.name}</div>
-                </div>
-                <div className='resource-parent-node-info-title__label'>
-                    <div>Kind:</div>
-                    <div>{firstParentNode.kind}</div>
-                </div>
-            </div>
-        ) : (
-            <div />
-        );
-    };
     return (
         props.resources.length > 0 && (
             <div>
-                {/* Display only when the view is set to  or network */}
-                {(view === 'tree' || view === 'network') && (
-                    <div className='resource-details__header' style={{paddingTop: '20px'}}>
-                        <ParentRefDetails />
-                    </div>
-                )}
                 <div className='application-resource-list argo-table-list argo-table-list--clickable'>
                     <div className='argo-table-list__head'>
                         <div className='row'>
@@ -245,7 +258,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                     </Tooltip>
                                     {isSameKind &&
                                         res.kind === 'ReplicaSet' &&
-                                        ((nodeByKey.get(nodeKey(res)) as ResourceNode).info || [])
+                                        (((nodeByKey.get(nodeKey(res)) as ResourceNode | undefined)?.info || (res as unknown as ResourceNode).info || []) as models.InfoItem[])
                                             .filter(tag => !tag.name.includes('Node'))
                                             .slice(0, 4)
                                             .map((tag, i) => {
@@ -276,25 +289,17 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                         {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true} />}
                                         {res.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                         {props.nodeMenu && (
-                                            <div className='application-details__node-menu'>
-                                                <DropDown
-                                                    isMenu={true}
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
-                                                    )}>
-                                                    {() => {
-                                                        const node = nodeByKey.get(nodeKey(res));
-                                                        if (node) {
-                                                            return props.nodeMenu(node);
-                                                        } else {
-                                                            // For orphaned resources, create a ResourceNode-like object to prevent errors
-                                                            return props.nodeMenu(resourceStatusToResourceNode(res));
-                                                        }
-                                                    }}
-                                                </DropDown>
-                                            </div>
+                                            <DropDown isMenu={true} anchor={ActionMenuButton}>
+                                                {() => {
+                                                    const node = nodeByKey.get(nodeKey(res));
+                                                    if (node) {
+                                                        return props.nodeMenu(node);
+                                                    } else {
+                                                        // For orphaned resources, create a ResourceNode-like object to prevent errors
+                                                        return props.nodeMenu(resourceStatusToResourceNode(res));
+                                                    }
+                                                }}
+                                            </DropDown>
                                         )}
                                     </div>
                                 </div>

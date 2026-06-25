@@ -44,14 +44,14 @@ jobs:
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # 6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
 
       # Renovate do not pin their docker image versions to SHA, so
       # when bumping renovate action version please check if renovate image
       # has been updated (see it's numeric version in action.yaml)
       # and update `renovate-version` parameter accordingly
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@8217b3fc286df088d7c27f3255fe8414463bc0fd #46.1.15
+        uses: renovatebot/github-action@6d859fc95779be83a0335ca704879b47e5d79641 #46.1.16
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'

@@ -117,12 +117,6 @@ $header: 120px;
         }
     }
 
-    &__node-menu {
-        position: absolute;
-        right: 0;
-        top: 0;
-    }
-
     &__external_link {
         margin-left: 5px;
     }
@@ -414,31 +408,6 @@ $header: 120px;
             height: 14px;
             vertical-align: middle;
             flex-shrink: 0;
-        }
-    }
-}
-
-.resource-parent-node-info-title {
-    flex-direction: column;
-    color: $argo-color-gray-6;
-
-    &__label {
-        display: flex;
-        margin-bottom: 0.25em;
-        flex-shrink: 1;
-        div:first-child {
-            margin-right: 10px;
-            width: 60px;
-            text-align: right;
-        }
-        div:last-child {
-            font-weight: 500;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-align: left;
-
         }
     }
 }
