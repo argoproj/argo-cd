@@ -2,7 +2,6 @@ package admin
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 	"time"
 
@@ -154,7 +153,7 @@ func Test_loadClusters_ShardingAlgorithm(t *testing.T) {
 		}
 		_, err := loadClusters(ctx, kubeClient, appClient, 3, "", "argocd", false, cacheSrc, 0, "", "", "")
 		require.NoError(t, err)
-		require.True(t, strings.Contains(logOutput.String(), "Using filter function:  legacy"))
+		require.Contains(t, logOutput.String(), "Using filter function:  legacy")
 	})
 
 	t.Run("argocd-cmd-params-cm has non-default value", func(t *testing.T) {
@@ -169,7 +168,7 @@ func Test_loadClusters_ShardingAlgorithm(t *testing.T) {
 		}
 		_, err := loadClusters(ctx, kubeClient, appClient, 3, "", "argocd", false, cacheSrc, 0, "", "", "")
 		require.NoError(t, err)
-		require.True(t, strings.Contains(logOutput.String(), "Using filter function:  round-robin"))
+		require.Contains(t, logOutput.String(), "Using filter function:  round-robin")
 	})
 
 	t.Run("argocd-cmd-params-cm does not contain controller.sharding.algorithm key", func(t *testing.T) {
@@ -181,6 +180,6 @@ func Test_loadClusters_ShardingAlgorithm(t *testing.T) {
 		}
 		_, err := loadClusters(ctx, kubeClient, appClient, 3, "", "argocd", false, cacheSrc, 0, "", "", "")
 		require.NoError(t, err)
-		require.True(t, strings.Contains(logOutput.String(), "Using filter function:  legacy"))
+		require.Contains(t, logOutput.String(), "Using filter function:  legacy")
 	})
 }
