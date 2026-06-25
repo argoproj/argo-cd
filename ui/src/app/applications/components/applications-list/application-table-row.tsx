@@ -145,7 +145,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     <div className='applications-list__meta-rows'>
                         <div className='applications-list__meta-row'>
                             <div className='show-for-xxlarge applications-list__meta-label'>Source:</div>
-                            <div className='applications-list__meta-value applications-table-source' style={{position: 'relative'}}>
+                            <div className='applications-list__meta-value applications-table-source'>
                                 <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>
                                     <ApplicationsSource source={source} />
                                 </CellLink>

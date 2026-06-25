@@ -40,8 +40,8 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
             z-index: 2;
         }
 
-        // Visual reset for the name: it's a plain <span> styled to read like text, since
-        // the row's link semantics live on the overlay anchor.
+        // Visual reset for the name: it's an <a> (tabIndex=-1) styled to read like plain text,
+        // since the row's primary link semantics live on the overlay anchor.
         .applications-list__table-row-name {
             color: inherit;
             text-decoration: none;
