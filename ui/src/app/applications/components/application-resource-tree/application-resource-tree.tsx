@@ -1113,7 +1113,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         predicate: (node: ResourceTreeNode) => boolean
     ) {
         const appKey = appNodeKey(app);
-        let filtered = 0;
+        const filteredNodeIds: string[] = [];
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
@@ -1129,7 +1129,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (node.root != null && !shouldKeepNode() && appKey !== nodeId) {
                 const childIds = graphNodesFilter.successors(nodeId);
                 graphNodesFilter.removeNode(nodeId);
-                filtered++;
+                filteredNodeIds.push(nodeId);
                 childIds.forEach((childId: any) => {
                     parentIds.forEach((parentId: any) => {
                         graphNodesFilter.setEdge(parentId, childId);
@@ -1140,11 +1140,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             }
         });
 
-        if (filtered) {
+        if (filteredNodeIds.length) {
             graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {
                 height: NODE_HEIGHT,
                 width: NODE_WIDTH,
-                count: filtered,
+                count: filteredNodeIds.length,
                 type: NODE_TYPES.filteredIndicator
             });
             graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
