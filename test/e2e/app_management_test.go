@@ -451,17 +451,17 @@ func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string
 		When().
 		CreateApp()
 	if isBig {
-		for i := 0; i < 16; i++ {
+		for i := range 16 {
 			// add some long fields so manifest size will be more that 256KiB: that would make it fail on a
 			// client-side kubectl operation because the entite manifest won't fit into the
 			// last-applied-configuration annotation
 			descr := strings.Repeat("A", 16*1024)
 			var patch string
 			if manifest == "cm.yaml" {
-				patch = fmt.Sprintf(`[{"op": "add", "path": "/data/field%d", "value": "%s" }]`, i, descr)
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/data/field%d", "value": %q }]`, i, descr)
 			} else {
 				// crd
-				patch = fmt.Sprintf(`[{"op": "add", "path": "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/field%d", "value": { "type" : "string", "description" : "%s" }}]`, i, descr)
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/field%d", "value": { "type" : "string", "description" : %q }}]`, i, descr)
 			}
 			acts = acts.PatchFile(manifest, patch)
 		}
