@@ -6013,11 +6013,11 @@ func TestHelmSourceIntegrity_SkippedWhenNoPolicyMatches(t *testing.T) {
 func TestHelmSourceIntegrity_GetChartTgzPathFails(t *testing.T) {
 	root := t.TempDir()
 	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
-		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+		helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
 			"my-chart": {{Version: "1.1.0"}},
 		}}, nil)
-		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
-		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart(mock.Anything, "my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
 		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
 		helmClient.EXPECT().GetChartTgzPath("my-chart", "1.1.0").Return("", errors.New("chart tgz not cached"))
 		ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
@@ -6048,11 +6048,11 @@ func TestHelmSourceIntegrity_FetchProvenanceFails(t *testing.T) {
 	chartTgzPath := filepath.Join(root, "my-chart-1.1.0.tgz")
 	require.NoError(t, os.WriteFile(chartTgzPath, []byte("chart-bytes"), 0o600))
 	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
-		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+		helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
 			"my-chart": {{Version: "1.1.0"}},
 		}}, nil)
-		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
-		helmClient.EXPECT().ExtractChart("my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart(mock.Anything, "my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
 		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
 		helmClient.EXPECT().GetChartTgzPath("my-chart", "1.1.0").Return(chartTgzPath, nil)
 		helmClient.EXPECT().FetchProvenance(mock.Anything, "my-chart", "1.1.0").Return(nil, "", errors.New("provenance fetch returned 404 Not Found"))

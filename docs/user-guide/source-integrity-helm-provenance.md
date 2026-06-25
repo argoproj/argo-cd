@@ -2,13 +2,22 @@
 
 ## Overview
 
-Source integrity Helm policies verify Helm provenance for **traditional Helm repositories** — HTTP/HTTPS chart repos (`repoURL` + `chart`).
+Source integrity Helm policies verify Helm chart signatures for **traditional Helm repositories** — HTTP/HTTPS chart repos (`repoURL` + `chart`). This is [Helm chart provenance](https://helm.sh/docs/topics/provenance/) verification.
 
-Argo CD:
+This verification is equivalent to running:
 
-1. Fetches chart bytes and `.prov` bytes from the Helm repo index and mirrors
-2. Verifies the PGP signature with keys from `provenance.keys`
-3. Checks the chart SHA256 digest matches the signed provenance
+```bash
+helm pull <repo>/mychart --version 1.0.0 --prov
+gpg --verify mychart-1.0.0.tgz.prov
+```
+
+Argo CD automatically performs these steps during sync:
+
+1. Fetches the chart and its `.prov` signature file from the Helm repository
+2. Verifies the PGP signature using keys configured in `provenance.keys`
+3. Ensures the chart contents match the cryptographically signed digest
+
+For implementation details (mirror fallback, digest checks, sync errors), see [What Argo CD verifies](#what-argo-cd-verifies) below.
 
 > [!NOTE]
 > **OCI Helm charts**
