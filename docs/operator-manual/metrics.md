@@ -167,13 +167,13 @@ argocd_cluster_labels{label_environment="staging",label_team_name="team2",name="
 argocd_cluster_labels{label_environment="production",label_team_name="team3",name="cluster3",server="server3"} 1
 ```
 
-## Application Set Controller metrics
+## ApplicationSet Controller metrics
 
-The Application Set controller exposes the following metrics for application sets.
+Metrics about ApplicationSets. Scraped at the `argocd-applicationset-controller-metrics:8080/metrics` endpoint.
 
 | Metric                                            |   Type    | Description                                                                                                                                                                                |
 | ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `argocd_appset_info`                              |   gauge   | Information about Application Sets. It contains labels for the name and namespace of an application set as well as `Resource_update_status` that reflects the `ResourcesUpToDate` property |
+| `argocd_appset_info`                              |   gauge   | Information about applicationsets. It contains labels for the name and namespace of an applicationset as well as `Resource_update_status` that reflects the `ResourcesUpToDate` property |
 | `argocd_appset_reconcile`                         | histogram | Application reconciliation performance in seconds. It contains labels for the name and namespace of an applicationset                                                                      |
 | `argocd_appset_labels`                            |   gauge   | Applicationset labels translated to Prometheus labels. Disabled by default                                                                                                                 |
 | `argocd_appset_owned_applications`                |   gauge   | Number of applications owned by the applicationset. It contains labels for the name and namespace of an applicationset.                                                                    |
@@ -194,7 +194,7 @@ Similar to the same metric in application controller (`argocd_app_labels`) the m
 Once enabled it works exactly the same as application controller metrics (label\_ appended to normalized label name).
 Available labels include Name, Namespace + all labels enabled by the command line options and their value (exactly like application controller metrics described in the previous section). |
 
-### Application Set GitHub API metrics
+### ApplicationSet GitHub API metrics
 
 All the following `argocd_github_api_*` metrics can be enabled upon setting `applicationsetcontroller.enable.github.api.metrics: true` in `argocd-cmd-params-cm` ConfigMap. Note that they are disabled by default.
 
@@ -215,8 +215,8 @@ All the following `argocd_github_api_*` metrics can be enabled upon setting `app
 | code        | 200           | HTTP status code returned by the request or exit code of a command.                                                                           |
 | host        | example.com   | Hostname of the Kubernetes API to which the request was made.                                                                                 |
 | method      | GET           | HTTP method used for the request. Possible values are: GET, DELETE, PATCH, POST, PUT.                                                         |
-| name        | my-app        | Name of an ApplicationSet.                                                                                                                    |
-| namespace   | default       | Namespace of an ApplicationSet (namespace where the ApplicationSet CR is located, not the destination namespace).                             |
+| name        | my-app        | Name of an applicationset.                                                                                                                    |
+| namespace   | default       | Namespace of an applicationset (namespace where the applicationset CR is located, not the destination namespace).                             |
 | result      | hit           | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.            |
 | verb        | List          | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                |
 
