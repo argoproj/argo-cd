@@ -2291,28 +2291,29 @@ func TestApplicationComparisonExpired(t *testing.T) {
 		app := newFakeApp()
 		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
 		app.Status.ReconciledAt = &past
-		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-		ctrl.statusRefreshTimeout = time.Hour
+		ctrl := &ApplicationController{statusRefreshTimeout: time.Hour}
 		assert.True(t, ctrl.applicationComparisonExpired(app))
 	})
 
 	t.Run("hard expired when hard timeout configured and shorter than soft window", func(t *testing.T) {
 		app := newFakeApp()
-		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-		ctrl.statusRefreshTimeout = 2 * time.Hour
-		ctrl.statusHardRefreshTimeout = time.Minute
 		past := metav1.NewTime(time.Now().UTC().Add(-10 * time.Minute))
 		app.Status.ReconciledAt = &past
+		ctrl := &ApplicationController{
+			statusRefreshTimeout:     2 * time.Hour,
+			statusHardRefreshTimeout: time.Minute,
+		}
 		assert.True(t, ctrl.applicationComparisonExpired(app))
 	})
 
 	t.Run("neither soft nor hard expired", func(t *testing.T) {
 		app := newFakeApp()
-		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-		ctrl.statusRefreshTimeout = 2 * time.Hour
-		ctrl.statusHardRefreshTimeout = time.Minute
 		recent := metav1.NewTime(time.Now().UTC().Add(-30 * time.Second))
 		app.Status.ReconciledAt = &recent
+		ctrl := &ApplicationController{
+			statusRefreshTimeout:     2 * time.Hour,
+			statusHardRefreshTimeout: time.Minute,
+		}
 		assert.False(t, ctrl.applicationComparisonExpired(app))
 	})
 
@@ -2320,9 +2321,10 @@ func TestApplicationComparisonExpired(t *testing.T) {
 		app := newFakeApp()
 		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
 		app.Status.ReconciledAt = &past
-		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-		ctrl.statusRefreshTimeout = 0
-		ctrl.statusHardRefreshTimeout = 0
+		ctrl := &ApplicationController{
+			statusRefreshTimeout:     0,
+			statusHardRefreshTimeout: 0,
+		}
 		assert.False(t, ctrl.applicationComparisonExpired(app))
 	})
 }

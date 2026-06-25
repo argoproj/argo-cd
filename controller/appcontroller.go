@@ -2090,14 +2090,9 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-// applicationComparisonExpired reports whether the app's last comparison is past the
-// configured soft/hard refresh windows (based on Status.Expired).
-// This is used as a lightweight check in the informer update path to avoid enqueueing
-// a full refresh on every update. If the comparison is expired, we allow the update
-// to fall through and trigger a refresh; otherwise we can take the fast path.
-// This does not replace needRefreshAppStatus or the refresh logic in
-// processAppRefreshQueueItem, which remains the source of truth for deciding
-// comparison level and performing reconciliation.
+// applicationComparisonExpired returns true if the app's last reconciliation has exceeded
+// the configured soft or hard refresh timeout. Used by the informer to skip unnecessary refreshes on
+// status-only updates while still applying periodic reconciliation.
 func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Application) bool {
 	if ctrl.statusRefreshTimeout > 0 && app.Status.Expired(ctrl.statusRefreshTimeout) {
 		return true
@@ -2108,9 +2103,8 @@ func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Appli
 	return false
 }
 
-// resyncRefreshAfter returns a random delay in the range [0, appResyncJitter]
-// to spread out refresh enqueues during relist-heavy events.
-// If jitter is disabled (<= 0), it returns nil so callers can proceed without delay.
+// resyncRefreshAfter returns a random delay up to appResyncJitter to spread out refresh
+// requests during informer resyncs, or nil if jitter is disabled.
 func (ctrl *ApplicationController) resyncRefreshAfter() *time.Duration {
 	if ctrl.appResyncJitter <= 0 {
 		return nil
