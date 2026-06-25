@@ -7,11 +7,11 @@ import './flex-top-bar.scss';
 
 type ActionMenuItem = NonNullable<Toolbar['actionMenu']>['items'][number];
 
-function getTooltipContent(title: ActionMenuItem['title']): string | undefined {
+export function getTooltipContent(title: ActionMenuItem['title']): string | undefined {
     return typeof title === 'string' ? title : undefined;
 }
 
-function renderActionMenuLabel(title: ActionMenuItem['title']): string | React.ReactElement {
+export function renderActionMenuLabel(title: ActionMenuItem['title']): string | React.ReactElement {
     if (typeof title === 'string') {
         return <span className='show-for-large'>{title}</span>;
     }
