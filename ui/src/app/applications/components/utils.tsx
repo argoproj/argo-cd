@@ -1959,7 +1959,7 @@ export function getAppListLink(ctx: ContextApis, app: appModels.AbstractApplicat
         path,
         href: `${ctx.baseHref}${url}${view ? `?view=${encodeURIComponent(view)}` : ''}`,
         onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
-            if (e.metaKey || e.ctrlKey || e.shiftKey) {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
                 return;
             }
             e.preventDefault();
