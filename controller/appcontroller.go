@@ -1604,6 +1604,9 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
+	if state.Operation.Sync != nil {
+		state.Operation.Sync.Manifests = nil
+	}
 	patch := map[string]any{
 		"status": map[string]any{
 			"operationState": state,
@@ -1822,7 +1825,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	var localManifests []string
-	if opState := app.Status.OperationState; opState != nil && opState.Operation.Sync != nil {
+	if app.Operation != nil && app.Operation.Sync != nil {
+		localManifests = app.Operation.Sync.Manifests
+	} else if opState := app.Status.OperationState; opState != nil && opState.Operation.Sync != nil {
 		localManifests = opState.Operation.Sync.Manifests
 	}
 

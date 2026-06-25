@@ -696,6 +696,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := "Failed to load target state: " + err.Error()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			if hasMultipleSources {
+				syncStatus.Revisions = revisions
+			} else if len(revisions) > 0 {
+				syncStatus.Revision = revisions[0]
+			}
 			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
 				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
 					// if first seen is less than grace period and it's not a Level 3 comparison,

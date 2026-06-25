@@ -113,7 +113,12 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		return
 	}
 
-	syncOp := *state.Operation.Sync
+	var syncOp v1alpha1.SyncOperation
+	if app.Operation != nil && app.Operation.Sync != nil {
+		syncOp = *app.Operation.Sync
+	} else {
+		syncOp = *state.Operation.Sync
+	}
 
 	if state.SyncResult == nil {
 		state.SyncResult = newSyncOperationResult(app, syncOp)
