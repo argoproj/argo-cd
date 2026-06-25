@@ -197,6 +197,11 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			c.AuthToken = configCtx.User.AuthToken
 			c.RefreshToken = configCtx.User.RefreshToken
 			ctxName = configCtx.Name
+			// Apply saved port-forward settings if not explicitly set via CLI
+			if !opts.PortForward && opts.PortForwardNamespace == "" {
+				opts.PortForward = configCtx.Server.PortForward
+				opts.PortForwardNamespace = configCtx.Server.PortForwardNamespace
+			}
 		}
 	}
 	if opts.UserAgent != "" {
