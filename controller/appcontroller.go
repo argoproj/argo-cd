@@ -233,37 +233,7 @@ func NewApplicationController(
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
 	var err error
-	_, err = projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
-				ctrl.projectRefreshQueue.AddRateLimited(key)
-				if projMeta, ok := obj.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-		UpdateFunc: func(_, new any) {
-			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
-				ctrl.projectRefreshQueue.AddRateLimited(key)
-				if projMeta, ok := new.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-		DeleteFunc: func(obj any) {
-			// Unwrap DeletedFinalStateUnknown tombstones
-			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-				obj = tombstone.Obj
-			}
-			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
-				// immediately push to queue for deletes
-				ctrl.projectRefreshQueue.Add(key)
-				if projMeta, ok := obj.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-	})
+	_, err = projInformer.AddEventHandler(ctrl.appProjectEventHandlerFuncs())
 	if err != nil {
 		return nil, err
 	}
@@ -2594,6 +2564,11 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 	var compareWith *CompareWith
 	var delay *time.Duration
 
+	// Enqueue before any early return so status-only fast-path cannot skip operation processing.
+	if !newOK || (newOK && (newApp.Operation != nil || isOperationInProgress(newApp))) {
+		ctrl.appOperationQueue.AddRateLimited(key)
+	}
+
 	if oldOK && newOK {
 		if oldApp.ResourceVersion == newApp.ResourceVersion {
 			if ctrl.hydrator != nil {
@@ -2608,7 +2583,9 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 		}
 
 		// Fast-path for status-only updates: skip refresh unless comparison has expired.
-		if onlyStatusChanged(oldApp, newApp) {
+		// Do not fast-path while a sync operation is active; status updates during sync
+		// must still refresh and enqueue the operation queue.
+		if onlyStatusChanged(oldApp, newApp) && newApp.Operation == nil && !isOperationInProgress(newApp) {
 			if !ctrl.applicationComparisonExpired(newApp) {
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
@@ -2631,9 +2608,6 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 			ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 		}
 		ctrl.clusterSharding.UpdateApp(newApp)
-	}
-	if !newOK || (newOK && newApp.Operation != nil) {
-		ctrl.appOperationQueue.AddRateLimited(key)
 	}
 }
 
@@ -2717,62 +2691,108 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	lister := applisters.NewApplicationLister(informer.GetIndexer())
-	_, err := informer.AddEventHandler(
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				if !ctrl.canProcessApp(obj) {
-					return
-				}
-				key, err := cache.MetaNamespaceKeyFunc(obj)
-				if err == nil {
-					ctrl.appRefreshQueue.AddRateLimited(key)
-				}
-				newApp, newOK := obj.(*appv1.Application)
-				if err == nil && newOK {
-					ctrl.clusterSharding.AddApp(newApp)
-				}
-			},
-			UpdateFunc: func(old, new any) {
-				if !ctrl.canProcessApp(new) {
-					return
-				}
-
-				key, err := cache.MetaNamespaceKeyFunc(new)
-				if err != nil {
-					return
-				}
-
-				oldApp, oldOK := old.(*appv1.Application)
-				newApp, newOK := new.(*appv1.Application)
-
-				ctrl.applicationInformerProcessUpdate(oldOK, oldApp, newOK, newApp, key)
-			},
-			DeleteFunc: func(obj any) {
-				// Unwrap DeletedFinalStateUnknown tombstones
-				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-					obj = tombstone.Obj
-				}
-				if !ctrl.canProcessApp(obj) {
-					return
-				}
-				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-				// Key function.
-				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-				if err == nil {
-					// for deletes, we immediately add to the refresh queue
-					ctrl.appRefreshQueue.Add(key)
-				}
-				delApp, delOK := obj.(*appv1.Application)
-				if err == nil && delOK {
-					ctrl.clusterSharding.DeleteApp(delApp)
-				}
-			},
-		},
-	)
+	_, err := informer.AddEventHandler(ctrl.applicationEventHandlerFuncs())
 	if err != nil {
 		return nil, nil
 	}
 	return informer, lister
+}
+
+// appProjectEventHandlerFuncs returns the informer event handlers for AppProject
+// objects. Adds and updates are rate-limited onto the project refresh queue, while
+// deletes are enqueued immediately; in all cases the project cache is invalidated.
+// DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones, and objects that do
+// not implement metav1.Object are skipped for cache invalidation.
+func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
+				ctrl.projectRefreshQueue.AddRateLimited(key)
+				if projMeta, ok := obj.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+		UpdateFunc: func(_, new any) {
+			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
+				ctrl.projectRefreshQueue.AddRateLimited(key)
+				if projMeta, ok := new.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
+				// immediately push to queue for deletes
+				ctrl.projectRefreshQueue.Add(key)
+				if projMeta, ok := obj.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+	}
+}
+
+// applicationEventHandlerFuncs returns the informer event handlers for Application
+// objects. Events for applications this controller cannot process (per canProcessApp)
+// are ignored. DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones and
+// immediately enqueues a refresh, while add/update use the rate-limited queues. The
+// cluster sharding cache is updated to reflect the application's lifecycle.
+func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if !ctrl.canProcessApp(obj) {
+				return
+			}
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err == nil {
+				ctrl.appRefreshQueue.AddRateLimited(key)
+			}
+			newApp, newOK := obj.(*appv1.Application)
+			if err == nil && newOK {
+				ctrl.clusterSharding.AddApp(newApp)
+			}
+		},
+		UpdateFunc: func(old, new any) {
+			if !ctrl.canProcessApp(new) {
+				return
+			}
+
+			key, err := cache.MetaNamespaceKeyFunc(new)
+			if err != nil {
+				return
+			}
+
+			oldApp, oldOK := old.(*appv1.Application)
+			newApp, newOK := new.(*appv1.Application)
+
+			ctrl.applicationInformerProcessUpdate(oldOK, oldApp, newOK, newApp, key)
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if !ctrl.canProcessApp(obj) {
+				return
+			}
+			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+			// key function.
+			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+			if err == nil {
+				// for deletes, we immediately add to the refresh queue
+				ctrl.appRefreshQueue.Add(key)
+			}
+			delApp, delOK := obj.(*appv1.Application)
+			if err == nil && delOK {
+				ctrl.clusterSharding.DeleteApp(delApp)
+			}
+		},
+	}
 }
 
 func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1.Application) appv1.ApplicationCondition {
