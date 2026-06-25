@@ -29,7 +29,7 @@
             flex-wrap: wrap;
         }
     }
-    
+
     &__tools-left {
         display: flex;
         align-items: center;
@@ -38,7 +38,7 @@
             flex-wrap: wrap;
         }
     }
-    
+
     &__tools-right {
         display: flex;
         align-items: center;
@@ -50,5 +50,15 @@
         @include breakpoint(medium down) {
             height: 150px;
         }
+    }
+
+    &__tooltip-anchor {
+        display: inline-flex;
+    }
+}
+
+@media screen and (min-width: calc(map-get($breakpoints, large) - 1px)) {
+    .custom-tooltip {
+        display: none !important;
     }
 }
