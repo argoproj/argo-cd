@@ -581,6 +581,100 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, int64(1), replicas)
 	})
+	t.Run("will not corrupt CRD target when ignoreDifferences rule does not match resource", func(t *testing.T) {
+		// given - a CRD resource (Argo Rollout) and an ignoreDifferences rule
+		// targeting an unrelated kind (apps/Deployment). This is the second
+		// repro case from issue #26588 reported by @ogierussell: the bug
+		// reproduces even when ignoreDifferences is configured, as long as no
+		// rule matches the resource being synced.
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, false, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		cr := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+
+		// when
+		targets, err := normalizeTargetResources(cr)
+
+		// then - the Rollout target should be untouched. Specifically, the
+		// updated env value must survive (no JSON-merge-patch array corruption).
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Len(t, containers, 1)
+
+		env := containers[0].(map[string]any)["env"].([]any)
+		require.Len(t, env, 2)
+		assert.Equal(t, "ENV_VAR_1", env[0].(map[string]any)["name"])
+		assert.Equal(t, "value-1-updated", env[0].(map[string]any)["value"])
+		assert.Equal(t, "ENV_VAR_2", env[1].(map[string]any)["name"])
+		assert.Equal(t, "value-2", env[1].(map[string]any)["value"])
+	})
+	t.Run("will treat ignoreDifferences entries with no effective fields as no-op", func(t *testing.T) {
+		// given - an ignoreDifferences entry that matches the resource but has
+		// no JSONPointers / JQPathExpressions / ManagedFieldsManagers. Such an
+		// entry has nothing to remove from the live state, so it should not
+		// drag the resource through the merge-patch path. This guards Qodo's
+		// finding that `len(Ignores()) == 0` did not distinguish empty entries
+		// from real rules.
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group: "argoproj.io",
+				Kind:  "Rollout",
+			},
+		}
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, false, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		cr := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+
+		// when
+		targets, err := normalizeTargetResources(cr)
+
+		// then - same expectation as the "no rules configured" case: the env
+		// array stays intact.
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Len(t, containers, 1)
+
+		env := containers[0].(map[string]any)["env"].([]any)
+		require.Len(t, env, 2)
+		assert.Equal(t, "value-1-updated", env[0].(map[string]any)["value"])
+		assert.Equal(t, "value-2", env[1].(map[string]any)["value"])
+	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
 		t.Skip("limitation in the current implementation")
 		// given

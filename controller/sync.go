@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -31,6 +32,7 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
@@ -404,14 +406,13 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		return nil, err
 	}
 
-	// If there are no ignore differences rules configured, return the normalized targets
-	// directly without applying the live-to-normalized merge patch. The merge patch
-	// computation falls back to JSON merge patch for CRDs that lack a registered
-	// Kubernetes scheme (e.g., Argo Rollouts), which incorrectly handles arrays and
-	// can corrupt target resources.
-	if len(cr.diffConfig.Ignores()) == 0 {
-		return normalized.Targets, nil
-	}
+	// Pre-compute the set of effective ignore rules once. A rule is "effective"
+	// when it sets at least one of JSONPointers / JQPathExpressions /
+	// ManagedFieldsManagers. Entries with all three empty have nothing to remove
+	// from the live state and so contribute no fields to preserve. We also pull
+	// in system-level ResourceOverrides since the diff normalizer treats them as
+	// additional ignore rules keyed by group/kind.
+	effectiveIgnores := collectEffectiveIgnoreRules(cr.diffConfig.Ignores(), cr.diffConfig.Overrides())
 
 	patchedTargets := []*unstructured.Unstructured{}
 	for idx, live := range cr.reconciliationResult.Live {
@@ -423,6 +424,17 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		originalTarget := cr.reconciliationResult.Target[idx]
 		if live == nil {
 			patchedTargets = append(patchedTargets, originalTarget)
+			continue
+		}
+
+		// Skip the live-to-normalized merge patch when no effective ignore rule
+		// matches this resource. The merge patch falls back to JSON merge patch
+		// for CRDs that lack a registered Kubernetes scheme (e.g. Argo Rollouts),
+		// which mishandles array fields and can corrupt the target. If nothing
+		// is being ignored for this resource there is also nothing to copy from
+		// live, so the normalized target is already what we want to apply.
+		if !resourceMatchesAnyEffectiveIgnore(normalizedTarget, effectiveIgnores) {
+			patchedTargets = append(patchedTargets, normalizedTarget)
 			continue
 		}
 
@@ -466,6 +478,83 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
 	return patchedTargets, nil
+}
+
+// collectEffectiveIgnoreRules returns the union of application-level
+// ignoreDifferences entries and system-level ResourceOverride.ignoreDifferences
+// entries that actually carry at least one field to ignore (JSONPointers,
+// JQPathExpressions, or ManagedFieldsManagers). Entries with all three empty
+// are filtered out because they do not preserve any live fields and so should
+// not force the merge-patch path to run for a resource.
+func collectEffectiveIgnoreRules(ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) []v1alpha1.ResourceIgnoreDifferences {
+	effective := make([]v1alpha1.ResourceIgnoreDifferences, 0, len(ignores))
+	for _, rule := range ignores {
+		if len(rule.JSONPointers)+len(rule.JQPathExpressions)+len(rule.ManagedFieldsManagers) > 0 {
+			effective = append(effective, rule)
+		}
+	}
+	for key, override := range overrides {
+		ignoreDiff := override.IgnoreDifferences
+		if len(ignoreDiff.JSONPointers)+len(ignoreDiff.JQPathExpressions)+len(ignoreDiff.ManagedFieldsManagers) == 0 {
+			continue
+		}
+		group, kind := splitOverrideKey(key)
+		effective = append(effective, v1alpha1.ResourceIgnoreDifferences{
+			Group:                 group,
+			Kind:                  kind,
+			JSONPointers:          ignoreDiff.JSONPointers,
+			JQPathExpressions:     ignoreDiff.JQPathExpressions,
+			ManagedFieldsManagers: ignoreDiff.ManagedFieldsManagers,
+		})
+	}
+	return effective
+}
+
+// splitOverrideKey parses a ResourceOverride map key. The key follows the
+// "<group>/<kind>" format used elsewhere in argo-cd (see
+// util/argo/normalizers/util.go), with bare "<kind>" treated as the core API
+// group. Malformed keys collapse to empty strings; the glob match below will
+// then fail to match any real resource, which is the safe default.
+func splitOverrideKey(key string) (group, kind string) {
+	parts := strings.Split(key, "/")
+	switch len(parts) {
+	case 2:
+		return parts[0], parts[1]
+	case 1:
+		return "", parts[0]
+	default:
+		return "", ""
+	}
+}
+
+// resourceMatchesAnyEffectiveIgnore reports whether any of the supplied
+// effective ignore rules selects the given resource. Matching mirrors the
+// ignoreNormalizer logic in util/argo/normalizers/diff_normalizer.go: group
+// and kind use glob.Match (so "*" wildcards work) and name/namespace match
+// exactly when set or are ignored when empty.
+func resourceMatchesAnyEffectiveIgnore(un *unstructured.Unstructured, rules []v1alpha1.ResourceIgnoreDifferences) bool {
+	if un == nil || len(rules) == 0 {
+		return false
+	}
+	gk := un.GroupVersionKind().GroupKind()
+	name := un.GetName()
+	namespace := un.GetNamespace()
+	for _, rule := range rules {
+		if !glob.Match(rule.Group, gk.Group) {
+			continue
+		}
+		if !glob.Match(rule.Kind, gk.Kind) {
+			continue
+		}
+		if rule.Name != "" && rule.Name != name {
+			continue
+		}
+		if rule.Namespace != "" && rule.Namespace != namespace {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // getMergePatch calculates and returns the patch between the original and the
