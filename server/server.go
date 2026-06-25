@@ -587,7 +587,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
 	// OIDC config needs to be refreshed at each server restart
-	ssoClientApp, err := oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	ssoClientApp, err := oidc.NewClientApp(server.settingsMgr, server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
 	errorsutil.CheckError(err)
 	server.ssoClientApp = ssoClientApp
 
