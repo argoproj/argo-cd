@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Challenge is valid"
+    inputPath: testdata/valid.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for DNS-01 challenge propagation: could not determine authoritative nameservers"
+    inputPath: testdata/pending.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Error accepting authorization: acme: authorization error for example.com: 403 urn:ietf:params:acme:error:unauthorized"
+    inputPath: testdata/errored.yaml
