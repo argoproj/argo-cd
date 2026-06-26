@@ -129,7 +129,7 @@ Goreman is used to start all needed processes to get a working Argo CD developme
 
 #### Production binary versions
 
-Helm, Kustomize, and git-lfs versions shipped in the Argo CD image are pinned in [`hack/tool-versions.sh`](../../hack/tool-versions.sh). The git package is pinned in Dockerfiles. Renovate proposes updates via PRs labeled `production-binary`; downloaded binary checksums are refreshed automatically. Maintainers must review and merge those PRs before they land on `master`.
+Helm, Kustomize, and git-lfs versions shipped in the Argo CD image are pinned in `hack/tool-versions.sh`. The git package is pinned in Dockerfiles. Renovate proposes updates via PRs labeled `production-binary`; downloaded binary checksums are refreshed automatically. Maintainers must review and merge those PRs before they land on `master`.
 
 #### Install required dependencies and build-tools
 
