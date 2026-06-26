@@ -2473,6 +2473,20 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	}
 
 	res.Helm = &apiclient.HelmAppSpec{ValueFiles: availableValueFiles}
+
+	chartData, err := os.ReadFile(filepath.Join(appPath, "Chart.yaml"))
+	if err == nil {
+		var chart struct {
+			Name string `yaml:"name"`
+		}
+		if err := yaml.Unmarshal(chartData, &chart); err == nil {
+			res.Helm.Name = chart.Name
+		} else {
+			log.Warnf("failed to parse chart metadata: %v", err)
+		}
+	} else {
+		log.Warnf("failed to read chart metadata: %v", err)
+	}
 	var version string
 	var passCredentials bool
 	if q.Source.Helm != nil {
