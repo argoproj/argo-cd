@@ -3781,6 +3781,13 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	if !source.Plugin.Equals(other.Plugin) {
 		return false
 	}
+	// helm source can't be compared directly because raw value sometime
+	// get html escaped and creating a diff
+	if source.Helm != nil && other.Helm != nil {
+		if source.Helm.ValuesString() != other.Helm.ValuesString() {
+			return false
+		}
+	}
 	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
 	// not considered in the DeepEqual comparison.
 	if !source.Helm.Equals(other.Helm) {
