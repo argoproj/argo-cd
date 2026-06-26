@@ -1593,6 +1593,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		resources    []string
 		output       string
 		appNamespace string
+		pollInterval time.Duration
 	)
 	command := &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1645,7 +1646,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if appNamespace != "" && !strings.Contains(appName, "/") {
 					appName = appNamespace + "/" + appName
 				}
-				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output, pollInterval)
 				if err != nil {
 					if isContextCanceledErr(err) {
 						log.Fatalf("timed out (%ds) waiting for app %q to match the expected conditions", timeout, appName)
@@ -1667,6 +1668,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only wait for an application  in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
+	command.Flags().DurationVar(&pollInterval, "app-wait-poll-interval", appWaitPollInterval, "Fallback re-fetch cadence for the watch loop, used when the watch goes quiet (e.g. competing operations). Defaults to ARGOCD_APP_WAIT_POLL_INTERVAL or 5s.")
 	return command
 }
 
@@ -2039,7 +2041,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output, appWaitPollInterval)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -2352,21 +2354,21 @@ func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selecte
 	return ready, operationInProgress
 }
 
-// appWaitPollInterval controls how often waitOnApplicationStatus re-fetches the
-// application as a fallback when the watch event stream goes quiet (e.g. two
-// overlapping sync operations where the terminal event is never delivered).
-// The watch still drives the common case (it returns as soon as an event
-// satisfies the conditions), so this only bounds how quickly the fallback
-// notices a terminal transition that was never delivered as an event — it does
-// not slow down a normal wait. Configurable via ARGOCD_APP_WAIT_POLL_INTERVAL
-// (e.g. "10s") for installations that want a different cadence; overridable in
-// tests.
+// appWaitPollInterval is the default poll cadence for the waitOnApplicationStatus
+// fallback re-fetch — used when the watch event stream goes quiet (e.g. two
+// overlapping sync operations where the terminal event is never delivered). The
+// watch still drives the common case (it returns as soon as an event satisfies
+// the conditions), so this only bounds how quickly the fallback notices a
+// terminal transition that was never delivered as an event — it does not slow
+// down a normal wait. Configurable installation-wide via
+// ARGOCD_APP_WAIT_POLL_INTERVAL (e.g. "10s") or per-invocation via the
+// `--app-wait-poll-interval` flag on `argocd app wait`.
 var appWaitPollInterval = env.ParseDurationFromEnv("ARGOCD_APP_WAIT_POLL_INTERVAL", 5*time.Second, 1*time.Second, 1*time.Hour)
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string, pollInterval time.Duration) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -2556,7 +2558,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// return conditions independently of the event stream; it only checks for
 	// completion and never prints, so progress output stays watch-event driven.
 	// Follow-up to #12211.
-	pollTicker := time.NewTicker(appWaitPollInterval)
+	pollTicker := time.NewTicker(pollInterval)
 	defer pollTicker.Stop()
 
 	for {
@@ -2828,7 +2830,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
-			}, nil, output)
+			}, nil, output, appWaitPollInterval)
 			errors.CheckError(err)
 		},
 	}

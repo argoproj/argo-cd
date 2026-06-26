@@ -1863,7 +1863,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 
 	output, err := captureOutput(
 		func() error {
-			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", appWaitPollInterval)
 			return nil
 		},
 	)
@@ -1871,7 +1871,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	assert.True(t, json.Valid([]byte(output)))
 
 	output, err = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml", appWaitPollInterval)
 		return nil
 	})
 
@@ -1880,7 +1880,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	output, _ = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "", appWaitPollInterval)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
@@ -1949,7 +1949,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 	watch = getWatchOpts(watch)
 
 	output, _ := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "", appWaitPollInterval)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
@@ -2157,7 +2157,7 @@ func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *
 	}
 
 	start := time.Now()
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", appWaitPollInterval)
 	elapsed := time.Since(start)
 
 	require.NoError(t, err)
@@ -2173,7 +2173,7 @@ func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 	ctx := t.Context()
 	watch := watchOpts{delete: true}
 
-	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "")
+	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "", appWaitPollInterval)
 	require.NoError(t, err)
 	assert.Nil(t, app)
 	assert.Nil(t, opState)
@@ -2188,7 +2188,7 @@ func TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesCondition
 	ctx := t.Context()
 	watch := watchOpts{sync: true, health: true}
 
-	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json")
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json", appWaitPollInterval)
 	require.NoError(t, err)
 	// The function returns via the readiness path inside the watch loop.
 	// The returned app may be re-fetched by printFinalStatus so we only
@@ -2741,16 +2741,12 @@ func TestIsContextCanceledErr(t *testing.T) {
 // eventually observes the desired Synced+Healthy state. Without the poll
 // fallback, waitOnApplicationStatus would block until the timeout.
 func TestWaitOnApplicationStatus_PollFallbackReturnsWhenWatchGoesQuiet(t *testing.T) {
-	orig := appWaitPollInterval
-	appWaitPollInterval = 10 * time.Millisecond
-	t.Cleanup(func() { appWaitPollInterval = orig })
-
 	acdClient := &pollFallbackAcdClient{&fakeAcdClient{}}
 	ctx := t.Context()
 	watchOpts := watchOpts{sync: true, health: true, operation: true}
 
 	start := time.Now()
-	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 3, watchOpts, nil, "json")
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 3, watchOpts, nil, "json", 10*time.Millisecond)
 	elapsed := time.Since(start)
 
 	require.NoError(t, err)
@@ -2827,7 +2823,7 @@ func TestWaitOnApplicationStatus_HealthDegradedTransitionReturnsError(t *testing
 	ctx := t.Context()
 	wo := watchOpts{sync: true, health: true}
 
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, wo, nil, "")
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, wo, nil, "", appWaitPollInterval)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "health state has transitioned")
 }
@@ -2878,15 +2874,11 @@ func (c *healthDegradedAcdClient) NewSettingsClientOrDie() (io.Closer, settingsp
 // poll fallback skips a failed re-fetch (transient API error) and returns once a
 // later poll observes the desired state.
 func TestWaitOnApplicationStatus_PollFallbackToleratesTransientGetError(t *testing.T) {
-	orig := appWaitPollInterval
-	appWaitPollInterval = 10 * time.Millisecond
-	t.Cleanup(func() { appWaitPollInterval = orig })
-
 	acdClient := &pollErrorAcdClient{&fakeAcdClient{}}
 	ctx := t.Context()
 	wo := watchOpts{sync: true, health: true, operation: true}
 
-	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 3, wo, nil, "json")
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 3, wo, nil, "json", 10*time.Millisecond)
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 }
@@ -2965,11 +2957,7 @@ func (c *erroringFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.
 // poll fallback observes the app is gone (NotFound), a --delete wait returns
 // successfully — the symmetric quiet-watch case for deletions.
 func TestWaitOnApplicationStatus_PollNotFoundDeleteSucceeds(t *testing.T) {
-	orig := appWaitPollInterval
-	appWaitPollInterval = 10 * time.Millisecond
-	t.Cleanup(func() { appWaitPollInterval = orig })
-
-	app, _, err := waitOnApplicationStatus(t.Context(), &pollNotFoundAcdClient{&fakeAcdClient{}}, "app-name", 3, watchOpts{delete: true}, nil, "")
+	app, _, err := waitOnApplicationStatus(t.Context(), &pollNotFoundAcdClient{&fakeAcdClient{}}, "app-name", 3, watchOpts{delete: true}, nil, "", 10*time.Millisecond)
 	require.NoError(t, err)
 	assert.Nil(t, app)
 }
@@ -2978,11 +2966,7 @@ func TestWaitOnApplicationStatus_PollNotFoundDeleteSucceeds(t *testing.T) {
 // poll fallback observes the app is gone (NotFound) on a non-delete wait, it
 // stops early with a "not found" error instead of looping until the timeout.
 func TestWaitOnApplicationStatus_PollNotFoundReturnsError(t *testing.T) {
-	orig := appWaitPollInterval
-	appWaitPollInterval = 10 * time.Millisecond
-	t.Cleanup(func() { appWaitPollInterval = orig })
-
-	_, _, err := waitOnApplicationStatus(t.Context(), &pollNotFoundAcdClient{&fakeAcdClient{}}, "app-name", 3, watchOpts{sync: true, health: true}, nil, "")
+	_, _, err := waitOnApplicationStatus(t.Context(), &pollNotFoundAcdClient{&fakeAcdClient{}}, "app-name", 3, watchOpts{sync: true, health: true}, nil, "", 10*time.Millisecond)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
