@@ -20,11 +20,12 @@ import (
 
 func NewCommand() *cobra.Command {
 	var (
-		configFilePath string
-		otlpAddress    string
-		otlpInsecure   bool
-		otlpHeaders    map[string]string
-		otlpAttrs      []string
+		configFilePath    string
+		otlpAddress       string
+		otlpInsecure      bool
+		otlpHeaders       map[string]string
+		otlpAttrs         []string
+		otlpSamplingRatio float64
 	)
 	command := cobra.Command{
 		Use:               common.CommandCMPServer,
@@ -61,7 +62,7 @@ func NewCommand() *cobra.Command {
 			if otlpAddress != "" {
 				var closer func()
 				var err error
-				closer, err = traceutil.InitTracer(ctx, "argocd-cmp-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
+				closer, err = traceutil.InitTracer(ctx, "argocd-cmp-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs, otlpSamplingRatio)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
@@ -91,5 +92,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_CMP_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_CMP_SERVER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_CMP_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
+	command.Flags().Float64Var(&otlpSamplingRatio, "otlp-sampling-ratio", env.ParseFloat64FromEnv("ARGOCD_CMP_SERVER_OTLP_SAMPLING_RATIO", 1.0, 0.0, 1.0), "Fraction of traces to sample, between 0.0 and 1.0. 1.0 samples every trace (default), 0.0 disables sampling")
 	return &command
 }

@@ -30,6 +30,8 @@ data:
   otlp.headers: ""
   # Open-Telemetry collector attrs: (e.g. "key1:value1,key2:value2")
   otlp.attrs: ""
+  # Open-Telemetry trace sampling ratio between 0.0 and 1.0: (e.g. "0.1")
+  otlp.sampling.ratio: "1.0"
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always

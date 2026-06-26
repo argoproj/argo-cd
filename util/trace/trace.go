@@ -17,7 +17,11 @@ import (
 )
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
-func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string) (func(), error) {
+//
+// otlpSamplingRatio controls the fraction of traces that are sampled. A value
+// >= 1.0 samples every trace (the historical default), <= 0.0 samples none, and
+// any value in between is applied as a parent-based TraceIDRatioBased sampler.
+func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string, otlpSamplingRatio float64) (func(), error) {
 	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
 	for i := range otlpAttrs {
 		attr := otlpAttrs[i]
@@ -61,7 +65,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithSampler(newSampler(otlpSamplingRatio)),
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
@@ -75,4 +79,19 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 			log.Errorf("failed to stop exporter: %v", err)
 		}
 	}, nil
+}
+
+// newSampler returns a trace sampler for the given ratio. A ratio >= 1.0 keeps
+// the historical always-sample behavior, <= 0.0 disables sampling entirely, and
+// anything in between is wrapped in a parent-based TraceIDRatioBased sampler so
+// that sampling decisions made upstream are respected.
+func newSampler(ratio float64) sdktrace.Sampler {
+	switch {
+	case ratio >= 1.0:
+		return sdktrace.AlwaysSample()
+	case ratio <= 0.0:
+		return sdktrace.NeverSample()
+	default:
+		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(ratio))
+	}
 }

@@ -1617,6 +1617,12 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_SAMPLING_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sampling.ratio
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -2172,6 +2178,12 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_OTLP_SAMPLING_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sampling.ratio
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -2685,6 +2697,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLING_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sampling.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
