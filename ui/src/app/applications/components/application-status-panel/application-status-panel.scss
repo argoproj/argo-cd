@@ -42,12 +42,12 @@
             display: flex;
             max-width: 250px;
             flex-wrap: wrap;
-            justify-content: center;
+            justify-content: flex-start;
             line-height: 1.5em;
             a {
                 display: flex;
                 margin-right: 12px;
-                align-items: left;
+                align-items: center;
             }
             .sync-condition-details {
                 padding-left: 0.2em;
