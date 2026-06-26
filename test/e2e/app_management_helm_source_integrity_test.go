@@ -208,6 +208,7 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T)
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key")).
 		Expect(Condition(ApplicationConditionComparisonError, "key_id="+fixture.GpgGoodKeyID))
 }
 

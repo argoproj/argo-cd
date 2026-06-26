@@ -84,33 +84,6 @@ kubectl exec -it <argocd-repo-server-pod> -- \
   sh -c 'GNUPGHOME=/app/config/gpg/keys gpg --list-keys'
 ```
 
-## Helm provenance file structure
-
-A Helm `.prov` file is a PGP cleartext-signed message. Helm (and Argo CD) expect this layout:
-
-```text
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA512
-
-apiVersion: v2
-name: mychart
-version: 1.0.0
-...
-
-files:
-  mychart-1.0.0.tgz: sha256:<64-hex-char-digest>
------BEGIN PGP SIGNATURE-----
-...
------END PGP SIGNATURE-----
-```
-
-| Part | Role |
-|------|------|
-| Signed plaintext | YAML metadata plus a `files:` section naming the chart archive and its `sha256` digest |
-| PGP signature | Proves the plaintext was signed by the maintainer's private key |
-
-The chart archive itself (`.tgz` bytes) is verified separately against the digest in that `files:` entry.
-
 ## What Argo CD verifies
 
 Once `.prov` bytes and chart `.tgz` bytes are loaded, Argo CD runs these steps (check name `HELM/PROVENANCE`):
@@ -123,27 +96,6 @@ Once `.prov` bytes and chart `.tgz` bytes are loaded, Argo CD runs these steps (
 | 4. Files digest | Find `files.<chart-filename>: sha256:...` in the signed body and compare to SHA256 of the chart `.tgz` |
 
 If any step fails, sync is blocked with a `ResourceComparison` error.
-
-## How provenance is loaded
-
-```text
-Helm repo index.yaml
-    └── chart version entry
-            └── urls: [ mirror-a/chart-1.0.0.tgz, mirror-b/chart-1.0.0.tgz, ... ]
-                    └── for each URL (in order):
-                            fetch <url>.prov  ──►  .prov bytes
-                    └── chart .tgz (cached after helm pull)  ──►  chart bytes
-```
-
-Argo CD:
-
-1. Loads `index.yaml` for the chart version.
-2. Resolves chart download URL(s) from the index (including mirrors).
-3. Fetches `<chart-url>.prov` from each URL in order until one succeeds:
-   - First URL returns a `.prov` file → Argo CD uses it and verifies.
-   - First URL fails (404, timeout, etc.) → tries the next URL in the list.
-   - All URLs fail → sync is blocked with a provenance fetch error (before signature checks).
-4. Reads the cached chart `.tgz` and runs [What Argo CD verifies](#what-argo-cd-verifies).
 
 ## Policies for Helm provenance verification
 
@@ -231,10 +183,6 @@ argocd gpg list
 Create a test `AppProject` and application that point at a signed chart whose key is in `provenance.keys`, then sync and confirm `Application.status` has no comparison errors and `sourceIntegrityResult` shows a passing `HELM/PROVENANCE` check.
 
 ## Troubleshooting
-
-### Disabling verification
-
-Set `ARGOCD_GPG_ENABLED=false` on repo-server (and related pods) to disable GnuPG globally, including Helm provenance. See [Git GnuPG troubleshooting](./source-integrity-git-gpg.md#disabling-the-feature).
 
 ### Key not trusted
 
