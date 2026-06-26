@@ -1,0 +1,16 @@
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: daily-backup-20260627
+  namespace: velero
+spec:
+  includedNamespaces:
+  - '*'
+  storageLocation: default
+  ttl: 720h0m0s
+status:
+  phase: Failed
+  failureReason: "found a backup with a missing volume snapshot"
+  startTimestamp: "2026-06-27T01:00:00Z"
+  completionTimestamp: "2026-06-27T01:01:05Z"
+  formatVersion: 1.1.0
