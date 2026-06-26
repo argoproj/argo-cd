@@ -41,11 +41,11 @@ func (_m *AWSCodeCommitClient) EXPECT() *AWSCodeCommitClient_Expecter {
 // GetFolder provides a mock function for the type AWSCodeCommitClient
 func (_mock *AWSCodeCommitClient) GetFolder(context1 context.Context, getFolderInput *codecommit.GetFolderInput, fns ...func(*codecommit.Options)) (*codecommit.GetFolderOutput, error) {
 	// func(*codecommit.Options)
-	_va := make([]interface{}, len(fns))
+	_va := make([]any, len(fns))
 	for _i := range fns {
 		_va[_i] = fns[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, context1, getFolderInput)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -83,9 +83,9 @@ type AWSCodeCommitClient_GetFolder_Call struct {
 //   - context1 context.Context
 //   - getFolderInput *codecommit.GetFolderInput
 //   - fns ...func(*codecommit.Options)
-func (_e *AWSCodeCommitClient_Expecter) GetFolder(context1 interface{}, getFolderInput interface{}, fns ...interface{}) *AWSCodeCommitClient_GetFolder_Call {
+func (_e *AWSCodeCommitClient_Expecter) GetFolder(context1 any, getFolderInput any, fns ...any) *AWSCodeCommitClient_GetFolder_Call {
 	return &AWSCodeCommitClient_GetFolder_Call{Call: _e.mock.On("GetFolder",
-		append([]interface{}{context1, getFolderInput}, fns...)...)}
+		append([]any{context1, getFolderInput}, fns...)...)}
 }
 
 func (_c *AWSCodeCommitClient_GetFolder_Call) Run(run func(context1 context.Context, getFolderInput *codecommit.GetFolderInput, fns ...func(*codecommit.Options))) *AWSCodeCommitClient_GetFolder_Call {
@@ -128,11 +128,11 @@ func (_c *AWSCodeCommitClient_GetFolder_Call) RunAndReturn(run func(context1 con
 // GetRepository provides a mock function for the type AWSCodeCommitClient
 func (_mock *AWSCodeCommitClient) GetRepository(context1 context.Context, getRepositoryInput *codecommit.GetRepositoryInput, fns ...func(*codecommit.Options)) (*codecommit.GetRepositoryOutput, error) {
 	// func(*codecommit.Options)
-	_va := make([]interface{}, len(fns))
+	_va := make([]any, len(fns))
 	for _i := range fns {
 		_va[_i] = fns[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, context1, getRepositoryInput)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -170,9 +170,9 @@ type AWSCodeCommitClient_GetRepository_Call struct {
 //   - context1 context.Context
 //   - getRepositoryInput *codecommit.GetRepositoryInput
 //   - fns ...func(*codecommit.Options)
-func (_e *AWSCodeCommitClient_Expecter) GetRepository(context1 interface{}, getRepositoryInput interface{}, fns ...interface{}) *AWSCodeCommitClient_GetRepository_Call {
+func (_e *AWSCodeCommitClient_Expecter) GetRepository(context1 any, getRepositoryInput any, fns ...any) *AWSCodeCommitClient_GetRepository_Call {
 	return &AWSCodeCommitClient_GetRepository_Call{Call: _e.mock.On("GetRepository",
-		append([]interface{}{context1, getRepositoryInput}, fns...)...)}
+		append([]any{context1, getRepositoryInput}, fns...)...)}
 }
 
 func (_c *AWSCodeCommitClient_GetRepository_Call) Run(run func(context1 context.Context, getRepositoryInput *codecommit.GetRepositoryInput, fns ...func(*codecommit.Options))) *AWSCodeCommitClient_GetRepository_Call {
@@ -215,11 +215,11 @@ func (_c *AWSCodeCommitClient_GetRepository_Call) RunAndReturn(run func(context1
 // ListBranches provides a mock function for the type AWSCodeCommitClient
 func (_mock *AWSCodeCommitClient) ListBranches(context1 context.Context, listBranchesInput *codecommit.ListBranchesInput, fns ...func(*codecommit.Options)) (*codecommit.ListBranchesOutput, error) {
 	// func(*codecommit.Options)
-	_va := make([]interface{}, len(fns))
+	_va := make([]any, len(fns))
 	for _i := range fns {
 		_va[_i] = fns[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, context1, listBranchesInput)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -257,9 +257,9 @@ type AWSCodeCommitClient_ListBranches_Call struct {
 //   - context1 context.Context
 //   - listBranchesInput *codecommit.ListBranchesInput
 //   - fns ...func(*codecommit.Options)
-func (_e *AWSCodeCommitClient_Expecter) ListBranches(context1 interface{}, listBranchesInput interface{}, fns ...interface{}) *AWSCodeCommitClient_ListBranches_Call {
+func (_e *AWSCodeCommitClient_Expecter) ListBranches(context1 any, listBranchesInput any, fns ...any) *AWSCodeCommitClient_ListBranches_Call {
 	return &AWSCodeCommitClient_ListBranches_Call{Call: _e.mock.On("ListBranches",
-		append([]interface{}{context1, listBranchesInput}, fns...)...)}
+		append([]any{context1, listBranchesInput}, fns...)...)}
 }
 
 func (_c *AWSCodeCommitClient_ListBranches_Call) Run(run func(context1 context.Context, listBranchesInput *codecommit.ListBranchesInput, fns ...func(*codecommit.Options))) *AWSCodeCommitClient_ListBranches_Call {
@@ -302,11 +302,11 @@ func (_c *AWSCodeCommitClient_ListBranches_Call) RunAndReturn(run func(context1 
 // ListRepositories provides a mock function for the type AWSCodeCommitClient
 func (_mock *AWSCodeCommitClient) ListRepositories(context1 context.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, fns ...func(*codecommit.Options)) (*codecommit.ListRepositoriesOutput, error) {
 	// func(*codecommit.Options)
-	_va := make([]interface{}, len(fns))
+	_va := make([]any, len(fns))
 	for _i := range fns {
 		_va[_i] = fns[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, context1, listRepositoriesInput)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -344,9 +344,9 @@ type AWSCodeCommitClient_ListRepositories_Call struct {
 //   - context1 context.Context
 //   - listRepositoriesInput *codecommit.ListRepositoriesInput
 //   - fns ...func(*codecommit.Options)
-func (_e *AWSCodeCommitClient_Expecter) ListRepositories(context1 interface{}, listRepositoriesInput interface{}, fns ...interface{}) *AWSCodeCommitClient_ListRepositories_Call {
+func (_e *AWSCodeCommitClient_Expecter) ListRepositories(context1 any, listRepositoriesInput any, fns ...any) *AWSCodeCommitClient_ListRepositories_Call {
 	return &AWSCodeCommitClient_ListRepositories_Call{Call: _e.mock.On("ListRepositories",
-		append([]interface{}{context1, listRepositoriesInput}, fns...)...)}
+		append([]any{context1, listRepositoriesInput}, fns...)...)}
 }
 
 func (_c *AWSCodeCommitClient_ListRepositories_Call) Run(run func(context1 context.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, fns ...func(*codecommit.Options))) *AWSCodeCommitClient_ListRepositories_Call {

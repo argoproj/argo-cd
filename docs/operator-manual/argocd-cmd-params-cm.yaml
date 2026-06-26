@@ -68,6 +68,13 @@ data:
   controller.log.level: "info"
   # Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
   controller.metrics.cache.expiration: "24h0m0s"
+  # High-cardinality label/condition values can degrade Prometheus performance; use sparingly.
+  # List of Application labels added to the argocd_app_labels metric (comma separated)
+  controller.metrics.application.labels: "team,env"
+  # List of Application conditions added to the argocd_app_conditions metric (comma separated)
+  controller.metrics.application.conditions: "OrphanedResourceWarning"
+  # List of Cluster labels added to the argocd_cluster_labels metric (comma separated)
+  controller.metrics.cluster.labels: "environment"
   # Specifies timeout between application self heal attempts
   controller.self.heal.timeout.seconds: "0"
   # Specifies exponential backoff timeout parameters between application self heal attempts

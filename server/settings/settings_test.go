@@ -100,6 +100,16 @@ func TestSettingsServer(t *testing.T) {
 		assert.Equal(t, "instance", resp.AppLabelKey)
 	})
 
+	t.Run("TestGetLoginButtonTextNotLoggedIn", func(t *testing.T) {
+		t.Parallel()
+		settingsServer := newServer(map[string]string{
+			"ui.loginButtonText": "Sign in with SSO",
+		})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "Sign in with SSO", resp.UiLoginButtonText)
+	})
+
 	t.Run("TestGetResourceOverridesNotLoggedIn", func(t *testing.T) {
 		t.Parallel()
 		settingsServer := newServer(map[string]string{

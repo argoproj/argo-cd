@@ -793,6 +793,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			return err
 		},
 		func() error {
+			// delete old aggregated APIServices created by tests. A dangling APIService
+			// backed by a deleted extension apiserver degrades cluster discovery.
+			_, err := Run("", "kubectl", "delete", "apiservice", "-l", TestingLabel+"=true", "--wait=false")
+			return err
+		},
+		func() error {
 			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
