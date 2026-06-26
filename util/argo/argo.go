@@ -1087,19 +1087,22 @@ type ClusterGetter interface {
 // directly (normalized). For name based destinations GetClusterServersByName is called.
 // An error is returned if the name is ambiguous or missing.
 func GetDestinationServer(ctx context.Context, destination argoappv1.ApplicationDestination, db ClusterGetter) (string, error) {
-	if destination.Name != "" && destination.Server != "" {
-		return "", fmt.Errorf("application destination can't have both name and server defined: %s %s", destination.Name, destination.Server)
+	name := strings.TrimSpace(destination.Name)
+	server := strings.TrimSpace(destination.Server)
+
+	if name != "" && server != "" {
+		return "", fmt.Errorf("application destination can't have both name and server defined: %s %s", name, server)
 	}
-	if destination.Server != "" {
-		return strings.TrimRight(destination.Server, "/"), nil
+	if server != "" {
+		return strings.TrimRight(server, "/"), nil
 	}
-	if destination.Name != "" {
-		clusterURLs, err := db.GetClusterServersByName(ctx, destination.Name)
+	if name != "" {
+		clusterURLs, err := db.GetClusterServersByName(ctx, name)
 		if err != nil {
-			return "", fmt.Errorf("error getting cluster by name %q: %w", destination.Name, err)
+			return "", fmt.Errorf("error getting cluster by name %q: %w", name, err)
 		}
 		if len(clusterURLs) == 0 {
-			return "", fmt.Errorf("there are no clusters with this name: %s", destination.Name)
+			return "", fmt.Errorf("there are no clusters with this name: %s", name)
 		}
 		if len(clusterURLs) > 1 {
 			return "", fmt.Errorf("there are %d clusters with the same name: [%s]", len(clusterURLs), strings.Join(clusterURLs, " "))
