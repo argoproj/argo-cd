@@ -28,7 +28,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otel_codes "go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -965,17 +964,21 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
 	diffConfig, _ := diffConfigBuilder.Build()
 
-	diffCtx, diffSpan := tracer.Start(ctx, "controller.diff")
-	diffResults, err := argodiff.StateDiffs(diffCtx, reconciliation.Live, reconciliation.Target, diffConfig)
+	// Scope the diff span with a closure so it ends even if StateDiffs panics, while keeping
+	// it attributed to just the diff rather than the rest of CompareAppState.
+	var diffResults *diff.DiffResultList
+	err = func() (retErr error) {
+		_, diffSpan := tracer.Start(ctx, "controller.diff")
+		defer func() { traceutil.EndSpan(diffSpan, retErr) }()
+		diffResults, retErr = argodiff.StateDiffs(ctx, reconciliation.Live, reconciliation.Target, diffConfig)
+		return retErr
+	}()
 	if err != nil {
-		diffSpan.SetStatus(otel_codes.Error, err.Error())
-		diffSpan.RecordError(err)
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
 		msg := "Failed to compare desired state to live state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
-	diffSpan.End()
 	ts.AddCheckpoint("diff_ms")
 
 	syncCode := v1alpha1.SyncStatusCodeSynced
