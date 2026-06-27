@@ -21,6 +21,7 @@ type MetricsServer struct {
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
 	loginRequestCounter      *prometheus.CounterVec
+	dailyActiveUsersGauge    prometheus.Gauge
 	PrometheusRegistry       *prometheus.Registry
 }
 
@@ -62,6 +63,12 @@ var (
 		},
 		[]string{"status"},
 	)
+	dailyActiveUsersGauge = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "argocd_daily_active_users",
+			Help: "Number of distinct active users in the last 24 hours.",
+		},
+	)
 	argoVersion = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "argocd_info",
@@ -88,6 +95,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(extensionRequestCounter)
 	registry.MustRegister(extensionRequestDuration)
 	registry.MustRegister(loginRequestCounter)
+	registry.MustRegister(dailyActiveUsersGauge)
 	registry.MustRegister(argoVersion)
 
 	kubectl.RegisterWithClientGo()
@@ -104,6 +112,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		extensionRequestDuration: extensionRequestDuration,
 		loginRequestCounter:      loginRequestCounter,
 		PrometheusRegistry:       registry,
+		dailyActiveUsersGauge:    dailyActiveUsersGauge,
 	}
 }
 
@@ -128,4 +137,9 @@ func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, durati
 // status can be "success" or "failure"
 func (m *MetricsServer) IncLoginRequestCounter(status string) {
 	m.loginRequestCounter.WithLabelValues(status).Inc()
+}
+
+// SetDailyActiveUsers sets the daily active users gauge
+func (m *MetricsServer) SetDailyActiveUsers(count float64) {
+	m.dailyActiveUsersGauge.Set(count)
 }
