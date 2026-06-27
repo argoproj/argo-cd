@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/sandbox"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
@@ -63,9 +64,15 @@ var redactor = func(text string) string {
 }
 
 func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
-	cmd := exec.CommandContext(ctx, "helm", args...)
+	// cmd := exec.CommandContext(ctx, "helm", args...)
+	// FIXME run this only  when the tool is enabled!
+	sandboxRunOpts := c.makeSandboxRunOpts(args...)
+	cmd, err := sandbox.CommandContextEnv(ctx, os.Environ(), sandboxRunOpts, "helm", args...)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create command context for helm: %w", err)
+	}
 	cmd.Dir = c.WorkDir
-	cmd.Env = os.Environ()
+	// cmd.Env = os.Environ()
 	if !c.IsLocal {
 		cmd.Env = append(cmd.Env,
 			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
