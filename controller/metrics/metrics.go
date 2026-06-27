@@ -32,6 +32,11 @@ import (
 
 type MetricsServer struct {
 	*http.Server
+	// appLabels holds the white-listed app manifest labels that should be emitted as metric labels
+	appLabels              []string
+	emitLabelsOnAllMetrics bool
+	// Follow Prometheus naming practices
+	// https://prometheus.io/docs/practices/naming/
 	syncCounter                       *prometheus.CounterVec
 	syncDuration                      *prometheus.CounterVec
 	kubectlExecCounter                *prometheus.CounterVec
@@ -54,14 +59,9 @@ const (
 	MetricsPath = "/metrics"
 )
 
-// Follow Prometheus naming practices
-// https://prometheus.io/docs/practices/naming/
 var (
-	// metric label is a label that is set on a metric
+	// defaultMetricLabels is tightly couple with getMetricLabelValues if this list changes it has to be added there as well
 	defaultMetricLabels = []string{"namespace", "name", "project"}
-	// app label is a label on the app manifest
-	allowedAppLabels          []string
-	emitLabelsOnAllAppMetrics bool
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -71,8 +71,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		return nil, err
 	}
 
-	allowedAppLabels = appLabels
-	emitLabelsOnAllAppMetrics = emitLabelsOnAllMetrics
 	metricLabels := make([]string, len(defaultMetricLabels))
 	copy(metricLabels, defaultMetricLabels)
 
@@ -214,7 +212,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db, descAppLabels, descAppConditions, descAppInfo))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, metricLabels, emitLabelsOnAllMetrics, appConditions, db, descAppLabels, descAppConditions, descAppInfo))
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
@@ -237,6 +235,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 			Addr:    addr,
 			Handler: mux,
 		},
+		appLabels:                         appLabels,
+		emitLabelsOnAllMetrics:            emitLabelsOnAllMetrics,
 		syncCounter:                       syncCounter,
 		syncDuration:                      syncDuration,
 		k8sRequestCounter:                 k8sRequestCounter,
@@ -271,7 +271,7 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, destServer string, s
 	}
 	isDryRun := app.Operation != nil && app.Operation.DryRun()
 	values := append(
-		getMetricLabelValues(app, emitLabelsOnAllAppMetrics),
+		getMetricLabelValues(app, m.appLabels, m.emitLabelsOnAllMetrics),
 		destServer,
 		string(state.Phase),
 		strconv.FormatBool(isDryRun))
@@ -282,7 +282,7 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, destServer string, s
 func (m *MetricsServer) IncAppSyncDuration(app *argoappv1.Application, destServer string, state *argoappv1.OperationState) {
 	if state.FinishedAt != nil {
 		values := append(
-			getMetricLabelValues(app, emitLabelsOnAllAppMetrics),
+			getMetricLabelValues(app, m.appLabels, m.emitLabelsOnAllMetrics),
 			destServer)
 		m.syncDuration.WithLabelValues(values...).
 			Add(float64(time.Duration(state.FinishedAt.Unix() - state.StartedAt.Unix())))
@@ -302,7 +302,7 @@ func (m *MetricsServer) DecKubectlExecPending(command string) {
 }
 
 func (m *MetricsServer) SetOrphanedResourcesMetric(app *argoappv1.Application, numOrphanedResources int) {
-	m.orphanedResourcesGauge.WithLabelValues(getMetricLabelValues(app, emitLabelsOnAllAppMetrics)...).Set(float64(numOrphanedResources))
+	m.orphanedResourcesGauge.WithLabelValues(getMetricLabelValues(app, m.appLabels, m.emitLabelsOnAllMetrics)...).Set(float64(numOrphanedResources))
 }
 
 // IncClusterEventsCount increments the number of cluster events
@@ -317,7 +317,7 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 		isDryRun = app.Operation != nil && app.Operation.DryRun()
 	}
 	values := append(
-		getMetricLabelValues(app, emitLabelsOnAllAppMetrics),
+		getMetricLabelValues(app, m.appLabels, m.emitLabelsOnAllMetrics),
 		server,
 		statusCode,
 		verb,
@@ -383,27 +383,29 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 }
 
 type appCollector struct {
-	store             applister.ApplicationLister
-	appFilter         func(obj any) bool
-	appLabels         []string
-	appConditions     []string
-	db                db.ArgoDB
-	descAppLabels     *prometheus.Desc
-	descAppConditions *prometheus.Desc
-	descAppInfo       *prometheus.Desc
+	store                  applister.ApplicationLister
+	appFilter              func(obj any) bool
+	appLabels              []string
+	emitLabelsOnAllMetrics bool
+	appConditions          []string
+	db                     db.ArgoDB
+	descAppLabels          *prometheus.Desc
+	descAppConditions      *prometheus.Desc
+	descAppInfo            *prometheus.Desc
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB, descAppLabels *prometheus.Desc, descAppConditions *prometheus.Desc, descAppInfo *prometheus.Desc) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, emitLabelsOnAllMetrics bool, appConditions []string, db db.ArgoDB, descAppLabels *prometheus.Desc, descAppConditions *prometheus.Desc, descAppInfo *prometheus.Desc) prometheus.Collector {
 	return &appCollector{
-		store:             appLister,
-		appFilter:         appFilter,
-		appLabels:         appLabels,
-		appConditions:     appConditions,
-		db:                db,
-		descAppLabels:     descAppLabels,
-		descAppConditions: descAppConditions,
-		descAppInfo:       descAppInfo,
+		store:                  appLister,
+		appFilter:              appFilter,
+		appLabels:              appLabels,
+		emitLabelsOnAllMetrics: emitLabelsOnAllMetrics,
+		appConditions:          appConditions,
+		db:                     db,
+		descAppLabels:          descAppLabels,
+		descAppConditions:      descAppConditions,
+		descAppInfo:            descAppInfo,
 	}
 }
 
@@ -473,7 +475,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 
 	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
-	labelValues := getMetricLabelValues(app, emitLabelsOnAllAppMetrics)
+	labelValues := getMetricLabelValues(app, c.appLabels, c.emitLabelsOnAllMetrics)
 
 	addGauge(c.descAppInfo, 1,
 		append(
@@ -487,7 +489,9 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			operation)...)
 
 	if len(c.appLabels) > 0 {
-		addGauge(c.descAppLabels, 1, getMetricLabelValues(app, true)...)
+		// app labels metrics by definition will always emit those labels as long as the list is not empty
+		// other metrics depend on the flag to emit those app labels.
+		addGauge(c.descAppLabels, 1, getMetricLabelValues(app, c.appLabels, true)...)
 	}
 
 	if len(c.appConditions) > 0 {
@@ -505,7 +509,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 }
 
 // getMetricLabelValues returns the base label values for app metrics and appends the whitelisted labels if enabled
-func getMetricLabelValues(app *argoappv1.Application, appendAllowedAppLabels bool) []string {
+func getMetricLabelValues(app *argoappv1.Application, allowedAppLabels []string, appendAllowedAppLabels bool) []string {
 	// get the default metric label values
 	var namespace, name, project string
 	if app != nil {
