@@ -83,28 +83,16 @@ func (r *ValueFileResolver) resolveReferencedValueFile(
 	var resolvedPath pathutil.ResolvedFilePath
 	var err error
 
-	if referencedSource.Repo.IsOCI() {
-		resolvedPath, err = getResolvedOCIRefValueFile(
-			rawValueFile,
-			r.env,
-			r.allowedValueFilesSchemas,
-			referencedSource.Repo.Repo,
-			r.ociPaths,
-		)
-		if err != nil {
-			return "", false, fmt.Errorf("error resolving OCI value file path: %w", err)
-		}
-	} else {
-		resolvedPath, err = getResolvedRefValueFile(
-			rawValueFile,
-			r.env,
-			r.allowedValueFilesSchemas,
-			referencedSource.Repo.Repo,
-			r.gitRepoPaths,
-		)
-		if err != nil {
-			return "", false, fmt.Errorf("error resolving value file path: %w", err)
-		}
+	resolvedPath, err = getResolvedRefValueFile(
+		rawValueFile,
+		r.env,
+		r.allowedValueFilesSchemas,
+		referencedSource.Repo.Repo,
+		r.gitRepoPaths,
+		r.ociPaths,
+	)
+	if err != nil {
+		return "", false, fmt.Errorf("error resolving value file path: %w", err)
 	}
 
 	return resolvedPath, false, nil

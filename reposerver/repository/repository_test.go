@@ -3583,7 +3583,7 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	}
 	appPath, err := filepath.Abs("./testdata/values-files/")
 	require.NoError(t, err)
-	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths)
+	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 5)
@@ -3883,7 +3883,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			appPath, err = filepath.Abs(repoRoot)
 			require.NoError(t, err)
 			res = apiclient.RepoAppDetailsResponse{}
-			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths)
+			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths, service.ociPaths)
 			tc.testResults(t)
 		})
 	}
@@ -3896,7 +3896,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths, emptyTempPaths)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res.Helm.Values)
 		assert.NotEmpty(t, res.Helm.Parameters)
@@ -3905,7 +3905,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("out of bounds", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths, emptyTempPaths)
 		require.NoError(t, err)
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)
@@ -4144,7 +4144,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false)
+			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, paths, false)
 			if !tcc.expectedErr {
 				require.NoError(t, err)
 				require.Len(t, resolvedPaths, 1)
@@ -4367,7 +4367,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			repoPath := path.Join(tempDir, "main-repo")
-			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, tt.ignoreMissingValueFiles)
+			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, paths, tt.ignoreMissingValueFiles)
 			if tt.expectedErr {
 				require.Error(t, err)
 				return
@@ -4394,7 +4394,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"envs/*.yaml", // glob - z.yaml is explicit so skipped; only a.yaml added
 				"envs/z.yaml", // explicit - placed last, highest precedence
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4412,7 +4412,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/a.yaml", // explicit locks in position 0
 				"prod/*.yaml", // glob - a.yaml already seen, only b.yaml is new
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4430,7 +4430,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/*.yaml", // glob - a.yaml is explicit so skipped; only b.yaml added (pos 0)
 				"prod/a.yaml", // explicit - placed here at pos 1 (highest precedence)
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4448,7 +4448,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/*.yaml",    // adds a.yaml, b.yaml
 				"prod/**/*.yaml", // a.yaml, b.yaml already seen; adds nested/c.yaml, nested/d.yaml
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 4)
@@ -4471,7 +4471,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/**/*.yaml",     // a.yaml, b.yaml, nested/c.yaml all explicit and skipped; nested/d.yaml added - pos 2
 				"prod/nested/c.yaml", // explicit - pos 3
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 4)
@@ -4594,7 +4594,7 @@ func Test_getResolvedValueFiles_glob_symlink_escape(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(outsideDir, "secret.yaml"), []byte("password: hunter2"), 0o644))
 	require.NoError(t, os.Symlink(filepath.Join(outsideDir, "secret.yaml"), filepath.Join(repoDir, "values", "escape.yaml")))
 
-	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, paths, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "resolved to outside repository root")
 }

@@ -1409,12 +1409,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			var resolvedPath pathutil.ResolvedFilePath
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
-				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				if referencedSource.Repo.IsOCI() {
-					resolvedPath, err = getResolvedOCIRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, ociPaths)
-				} else {
-					resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
-				}
+
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, ociPaths)
+
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1524,6 +1521,7 @@ func getResolvedValueFiles(
 	rawValueFiles []string,
 	refSources map[string]*v1alpha1.RefTarget,
 	gitRepoPaths utilio.TempPaths,
+	ociRepoPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
 ) ([]pathutil.ResolvedFilePath, error) {
 	// Pre-collect resolved paths for all explicit (non-glob) entries. This allows glob
@@ -1536,7 +1534,7 @@ func getResolvedValueFiles(
 		var resolved pathutil.ResolvedFilePath
 		var err error
 		if referencedSource != nil {
-			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, ociRepoPaths)
 		} else {
 			resolved, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
 		}
@@ -1568,7 +1566,7 @@ func getResolvedValueFiles(
 		effectiveRoot := repoRoot
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, ociRepoPaths)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
@@ -1663,14 +1661,13 @@ func getResolvedRefValueFile(
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths utilio.TempPaths,
+	ociPaths utilio.TempPaths,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
 
 	// Check if the reference source is an OCI repository
 	if v1alpha1.IsOCIURL(refSourceRepo) {
-		// Since this function doesn't have access to the OCI client or revision info,
-		// we need to return an error that indicates this needs to be handled at a higher level
-		return "", errors.New("OCI ref values require OCI client and revision information - not implemented in this context")
+		return getResolvedOCIRefValueFile(rawValueFile, env, allowedValueFilesSchemas, refSourceRepo, ociPaths)
 	}
 
 	// Original Git repository handling
@@ -2573,7 +2570,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		switch appSourceType {
 		case v1alpha1.ApplicationSourceTypeHelm:
-			if err := s.populateHelmAppDetails(ctx, res, opContext.appPath, repoRoot, commitSHA, revision, q, s.gitRepoPaths); err != nil {
+			if err := s.populateHelmAppDetails(ctx, res, opContext.appPath, repoRoot, commitSHA, revision, q, s.gitRepoPaths, s.ociPaths); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
@@ -2612,7 +2609,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
-func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath, repoRoot, commitSHA, revision string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
+func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath, repoRoot, commitSHA, revision string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths, ociRepoPaths utilio.TempPaths) error {
 	var selectedValueFiles []string
 	var availableValueFiles []string
 
@@ -2705,7 +2702,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	if q.Source.Helm != nil {
 		ignoreMissingValueFiles = q.Source.Helm.IgnoreMissingValueFiles
 	}
-	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ignoreMissingValueFiles)
+	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ociRepoPaths, ignoreMissingValueFiles)
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
