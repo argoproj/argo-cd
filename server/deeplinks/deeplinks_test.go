@@ -5,14 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -82,11 +81,11 @@ func TestDeepLinks(t *testing.T) {
 			inputLinks: []settings.DeepLink{{
 				Title:     "link",
 				URL:       "http://example.com/{{ .application.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
-				Condition: ptr.To(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
+				Condition: new(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
-				Title: ptr.To("link"),
-				Url:   ptr.To("http://example.com/test&value1&test-repo.git&test-cluster"),
+				Title: new("link"),
+				Url:   new("http://example.com/test&value1&test-repo.git&test-cluster"),
 			}},
 			error: []string{},
 		},
@@ -99,11 +98,11 @@ func TestDeepLinks(t *testing.T) {
 			inputLinks: []settings.DeepLink{{
 				Title:     "link",
 				URL:       "http://example.com/{{ .app.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
-				Condition: ptr.To(`app.metadata.name == "test" && project.metadata.name == "test-project"`),
+				Condition: new(`app.metadata.name == "test" && project.metadata.name == "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
-				Title: ptr.To("link"),
-				Url:   ptr.To("http://example.com/test&value1&test-repo.git&test-cluster"),
+				Title: new("link"),
+				Url:   new("http://example.com/test&value1&test-repo.git&test-cluster"),
 			}},
 			error: []string{},
 		},
@@ -116,22 +115,22 @@ func TestDeepLinks(t *testing.T) {
 				{
 					Title:     "link",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: ptr.To(`application.metadata.name matches "test"`),
+					Condition: new(`application.metadata.name matches "test"`),
 				},
 				{
 					Title:     "link1",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: ptr.To(`application.metadata.name matches "test1"`),
+					Condition: new(`application.metadata.name matches "test1"`),
 				},
 				{
 					Title:     "link2",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: ptr.To(`application.metadata.test matches "test"`),
+					Condition: new(`application.metadata.test matches "test"`),
 				},
 			},
 			outputLinks: []*application.LinkInfo{{
-				Title: ptr.To("link"),
-				Url:   ptr.To("http://example.com/test&testns"),
+				Title: new("link"),
+				Url:   new("http://example.com/test&testns"),
 			}},
 			error: []string{},
 		},
@@ -144,17 +143,17 @@ func TestDeepLinks(t *testing.T) {
 				{
 					Title:     "link",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: ptr.To(`application.metadata.name matches "test"`),
+					Condition: new(`application.metadata.name matches "test"`),
 				},
 				{
 					Title:     "link1",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: ptr.To(`1 + 1`),
+					Condition: new(`1 + 1`),
 				},
 			},
 			outputLinks: []*application.LinkInfo{{
-				Title: ptr.To("link"),
-				Url:   ptr.To("http://example.com/test&testns"),
+				Title: new("link"),
+				Url:   new("http://example.com/test&testns"),
 			}},
 			error: []string{"link condition '1 + 1' evaluated to non-boolean value for resource test"},
 		},
@@ -167,11 +166,11 @@ func TestDeepLinks(t *testing.T) {
 			inputLinks: []settings.DeepLink{{
 				Title:     "link",
 				URL:       "http://example.com/{{ .cluster.name | replace \"-\" \"_\" }}&{{ first .project.spec.sourceRepos }}",
-				Condition: ptr.To(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
+				Condition: new(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
-				Title: ptr.To("link"),
-				Url:   ptr.To("http://example.com/test_cluster&test-repo.git"),
+				Title: new("link"),
+				Url:   new("http://example.com/test_cluster&test-repo.git"),
 			}},
 			error: []string{},
 		},
@@ -184,12 +183,12 @@ func TestDeepLinks(t *testing.T) {
 				{
 					Title:     "link",
 					URL:       "http://not-evaluated.com/{{ index \"invalid\" .application.metadata.labels }}",
-					Condition: ptr.To(`false`),
+					Condition: new(`false`),
 				},
 				{
 					Title:     "link",
 					URL:       "http://evaluated.com/{{ index \"invalid\" .application.metadata.labels }}",
-					Condition: ptr.To(`true`),
+					Condition: new(`true`),
 				},
 			},
 			outputLinks: []*application.LinkInfo{},
@@ -236,6 +235,29 @@ func TestManagedByURLAnnotation(t *testing.T) {
 
 		// Verify that the managed-by-url is included
 		assert.Equal(t, managedByURL, deeplinksObj[ManagedByURLKey])
+	})
+
+	t.Run("application with invalid managed-by-url annotation is omitted", func(t *testing.T) {
+		// Non http(s) protocols are invalid and should not be used in deep link generation.
+		managedByURL := "ftp://localhost:8081"
+
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-app",
+				Annotations: map[string]string{
+					v1alpha1.AnnotationKeyManagedByURL: managedByURL,
+				},
+			},
+		}
+
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+		require.NoError(t, err)
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+
+		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
+
+		_, exists := deeplinksObj[ManagedByURLKey]
+		assert.False(t, exists)
 	})
 
 	t.Run("application without managed-by-url annotation", func(t *testing.T) {

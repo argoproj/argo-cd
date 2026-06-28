@@ -131,7 +131,7 @@ func TestListMatrixGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestClusterMatrixGenerator(t *testing.T) {
@@ -254,7 +254,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
@@ -392,7 +392,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 			})
 		}).Then().Expect(ApplicationsExist(expectedApps)).Expect(ApplicationsDoNotExist(excludedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
@@ -530,5 +530,5 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 			})
 		}).Then().Expect(ApplicationsExist(expectedApps)).Expect(ApplicationsDoNotExist(excludedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
 }

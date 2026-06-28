@@ -3,8 +3,8 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -43,6 +43,7 @@ func TestOCIWithOCIHelmRegistryDependencies(t *testing.T) {
 		PushImageToOCIRegistry("testdata/helm-oci-with-dependencies", "1.0.0").
 		OCIRegistry(fixture.OCIHostURL).
 		OCIRepoAdded("helm-oci-with-dependencies", "helm-oci-with-dependencies").
+		OCIRepoAdded("helm-values", "myrepo").
 		OCIRegistryPath("helm-oci-with-dependencies").
 		Revision("1.0.0").
 		Path(".").
@@ -120,10 +121,10 @@ func TestMultiSourceAppWithOCIRefValues(t *testing.T) {
 		OCIRegistryPath("oci-ref-values").
 		Sources(sources).
 		When().
-		CreateMultiSourceAppFromFile().
+		CreateMultiSourceAppFromFile(func(_ *Application) {}).
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, fixture.Name(), app.Name)
+			assert.Equal(t, ctx.GetName(), app.Name)
 			assert.Len(t, app.Spec.GetSources(), 2)
 
 			// Verify first source (Helm chart)
@@ -144,7 +145,7 @@ func TestMultiSourceAppWithOCIRefValues(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("app", "list")
 			require.NoError(t, err)
-			assert.Contains(t, output, fixture.Name())
+			assert.Contains(t, output, ctx.GetName())
 		}).
 		Expect(Success("")).
 		Given().Timeout(60).
@@ -159,7 +160,7 @@ func TestMultiSourceAppWithOCIRefValues(t *testing.T) {
 			assert.Equal(t, SyncStatusCodeSynced, statusByName["guestbook-ui"])
 
 			// Confirm that the deployment has 3 replicas (from OCI ref values)
-			output, err := fixture.Run("", "kubectl", "get", "deployment", "guestbook-ui", "-n", fixture.DeploymentNamespace(), "-o", "jsonpath={.spec.replicas}")
+			output, err := fixture.Run("", "kubectl", "get", "deployment", "guestbook-ui", "-n", ctx.DeploymentNamespace(), "-o", "jsonpath={.spec.replicas}")
 			require.NoError(t, err)
 			assert.Equal(t, "3", output, "Expected 3 replicas for the helm-guestbook deployment from OCI ref values")
 		})

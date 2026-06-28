@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -332,10 +333,8 @@ func (proj *AppProject) AddGroupToRole(roleName, group string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	for _, roleGroup := range role.Groups {
-		if group == roleGroup {
-			return false, nil
-		}
+	if slices.Contains(role.Groups, group) {
+		return false, nil
 	}
 	role.Groups = append(role.Groups, group)
 	proj.Spec.Roles[roleIndex] = *role

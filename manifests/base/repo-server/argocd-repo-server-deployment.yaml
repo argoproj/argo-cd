@@ -101,6 +101,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.tls.ciphers
                   optional: true
+          - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.client.ca.path
+                optional: true
           - name: ARGOCD_REPO_CACHE_EXPIRATION
             valueFrom:
                 configMapKeyRef:
@@ -124,6 +130,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: redis.db
+                  optional: true
+          - name: ARGOCD_REDIS_KEY_PREFIX
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.key.prefix
                   optional: true
           - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
             valueFrom:
@@ -312,6 +324,8 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
+        - name: argocd-repo-server-mtls
+          mountPath: /app/config/reposerver/mtls
         - name: tmp
           mountPath: /tmp
         - mountPath: /helm-working-dir
@@ -320,7 +334,7 @@ spec:
           name: plugins
       initContainers:
       - args:
-          - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+          - /bin/cp /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -sf /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
         command:
           - sh
           - '-c'
@@ -365,10 +379,24 @@ spec:
               path: tls.key
             - key: ca.crt
               path: ca.crt
+        - name: argocd-repo-server-mtls
+          secret:
+            secretName: argocd-repo-server-mtls
+            optional: true
+            items:
+            - key: client-ca.crt
+              path: client-ca.crt
         - emptyDir: {}
           name: var-files
         - emptyDir: {}
           name: plugins
+        - name: argocd-cmd-params-cm
+          configMap:
+            optional: true
+            name: argocd-cmd-params-cm
+            items:
+              - key: reposerver.profile.enabled
+                path: profiler.enabled
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

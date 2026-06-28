@@ -151,9 +151,9 @@ spec:
 func newFakeAppsets(fakeAppsetYAML string) []argoappv1.ApplicationSet {
 	var results []argoappv1.ApplicationSet
 
-	appsetRawYamls := strings.Split(fakeAppsetYAML, "---")
+	appsetRawYamls := strings.SplitSeq(fakeAppsetYAML, "---")
 
-	for _, appsetRawYaml := range appsetRawYamls {
+	for appsetRawYaml := range appsetRawYamls {
 		var appset argoappv1.ApplicationSet
 		err := yaml.Unmarshal([]byte(appsetRawYaml), &appset)
 		if err != nil {

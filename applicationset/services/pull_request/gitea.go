@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"code.gitea.io/sdk/gitea"
+
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GiteaService struct {
@@ -19,21 +21,21 @@ type GiteaService struct {
 
 var _ PullRequestService = (*GiteaService)(nil)
 
-func NewGiteaService(token, url, owner, repo string, labels []string, insecure bool) (PullRequestService, error) {
+func NewGiteaService(token, url, owner, repo string, labels []string, insecure bool, proxyURL, noProxy string) (PullRequestService, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
-	httpClient := &http.Client{}
+	cookieJar, _ := cookiejar.New(nil)
+
+	tr := http.DefaultTransport.(*http.Transport).Clone()
 	if insecure {
-		cookieJar, _ := cookiejar.New(nil)
-
-		tr := http.DefaultTransport.(*http.Transport).Clone()
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	tr.Proxy = proxy.GetCallback(proxyURL, noProxy)
 
-		httpClient = &http.Client{
-			Jar:       cookieJar,
-			Transport: tr,
-		}
+	httpClient := &http.Client{
+		Jar:       cookieJar,
+		Transport: tr,
 	}
 	client, err := gitea.NewClient(url, gitea.SetToken(token), gitea.SetHTTPClient(httpClient))
 	if err != nil {
@@ -83,7 +85,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 // containLabels returns true if gotLabels contains expectedLabels
 func giteaContainLabels(expectedLabels []string, gotLabels []*gitea.Label) bool {
 	gotLabelNamesMap := make(map[string]bool)
-	for i := 0; i < len(gotLabels); i++ {
+	for i := range gotLabels {
 		gotLabelNamesMap[gotLabels[i].Name] = true
 	}
 	for _, expected := range expectedLabels {

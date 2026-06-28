@@ -13,8 +13,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/db/mocks"
 
-	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	gitopsCache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +28,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -252,6 +253,7 @@ func init() {
 	// Create a fake controller so we initialize the internal controller metrics.
 	// https://github.com/kubernetes-sigs/controller-runtime/blob/4000e996a202917ad7d40f02ed8a2079a9ce25e9/pkg/internal/controller/metrics/metrics.go
 	_, _ = controller.New("test-controller", mgr, controller.Options{})
+	settings_util.ConfigureGoClientFeatures()
 }
 
 func newFakeApp(fakeAppYAML string) *argoappv1.Application {
@@ -410,7 +412,6 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.description, func(t *testing.T) {
 			testMetricServer(t, c.applications, c.responseContains, c.metricLabels, []string{})
 		})
@@ -464,7 +465,6 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.description, func(t *testing.T) {
 			testMetricServer(t, c.applications, c.responseContains, []string{}, c.metricConditions)
 		})
@@ -506,7 +506,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 // assertMetricsPrinted asserts every line in the expected lines appears in the body
 func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 	t.Helper()
-	for _, line := range strings.Split(expectedLines, "\n") {
+	for line := range strings.SplitSeq(expectedLines, "\n") {
 		if line == "" {
 			continue
 		}
@@ -517,7 +517,7 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 // assertMetricsNotPrinted
 func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 	t.Helper()
-	for _, line := range strings.Split(expectedLines, "\n") {
+	for line := range strings.SplitSeq(expectedLines, "\n") {
 		if line == "" {
 			continue
 		}

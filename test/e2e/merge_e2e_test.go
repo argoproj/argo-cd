@@ -130,7 +130,7 @@ func TestListMergeGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestClusterMergeGenerator(t *testing.T) {
@@ -271,7 +271,7 @@ func TestClusterMergeGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
@@ -410,7 +410,7 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 			})
 		}).Then().Expect(ApplicationsExist(expectedApps)).Expect(ApplicationsDoNotExist(excludedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func toAPIExtensionsJSON(t *testing.T, g any) *apiextensionsv1.JSON {

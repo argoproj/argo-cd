@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -107,7 +107,6 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 
 func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	t.Parallel()
-
 	testData := []struct {
 		name        string
 		projDest    []ApplicationDestination
@@ -226,10 +225,8 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	}
 
 	for _, data := range testData {
-		data := data
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
-
 			proj := AppProject{
 				Spec: AppProjectSpec{
 					Destinations: data.projDest,
@@ -1087,9 +1084,74 @@ func TestAppSourceEquality(t *testing.T) {
 	assert.False(t, left.Equals(right))
 }
 
+// TestAppSourceEquality_HelmValuesObject verifies that two semantically identical Helm valuesObject
+// values compare equal even when their raw JSON byte representations differ. This happens in practice
+// because the Kubernetes API server serializes the stored spec without HTML-escaping characters such as
+// '&', '<' and '>', whereas a source supplied in a request is typically parsed with encoding/json, which
+// does escape them. Without normalization this byte-level mismatch made GetAppDetails reject valid
+// requests with a 403 (see isSourceInHistory).
+func TestAppSourceEquality_HelmValuesObject(t *testing.T) {
+	// jsonEscaped returns the JSON encoding that encoding/json produces, which HTML-escapes '&', '<' and
+	// '>' into their \uXXXX form. This mirrors how a source supplied in a request is encoded, and differs
+	// byte-for-byte from the unescaped JSON served by the Kubernetes API server.
+	jsonEscaped := func(v any) []byte {
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		return b
+	}
+
+	tests := []struct {
+		name     string
+		a        []byte
+		b        []byte
+		expected bool
+	}{
+		{
+			name:     "unescaped vs unicode-escaped ampersand",
+			a:        []byte(`{"foo":"&"}`),                      // as served by the Kubernetes API server
+			b:        jsonEscaped(map[string]string{"foo": "&"}), // {"foo":"&"} as encoded by a request
+			expected: true,
+		},
+		{
+			name:     "unescaped vs unicode-escaped angle brackets",
+			a:        []byte(`{"k":"<a>"}`),
+			b:        jsonEscaped(map[string]string{"k": "<a>"}), // {"k":"<a>"}
+			expected: true,
+		},
+		{
+			name:     "different map key ordering",
+			a:        []byte(`{"a":1,"b":2}`),
+			b:        []byte(`{"b":2,"a":1}`),
+			expected: true,
+		},
+		{
+			name:     "genuinely different values",
+			a:        []byte(`{"foo":"&"}`),
+			b:        []byte(`{"foo":"bar"}`),
+			expected: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			left := &ApplicationSource{
+				RepoURL: "https://example.com/repo.git",
+				Helm:    &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: tc.a}},
+			}
+			right := &ApplicationSource{
+				RepoURL: "https://example.com/repo.git",
+				Helm:    &ApplicationSourceHelm{ValuesObject: &runtime.RawExtension{Raw: tc.b}},
+			}
+			assert.Equal(t, tc.expected, left.Equals(right))
+			// Equals must be symmetric and must not mutate its operands.
+			assert.Equal(t, tc.expected, right.Equals(left))
+			assert.Equal(t, string(tc.a), string(left.Helm.ValuesObject.Raw))
+			assert.Equal(t, string(tc.b), string(right.Helm.ValuesObject.Raw))
+		})
+	}
+}
+
 func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
 	t.Parallel()
-
 	defaultKV := "999.999.999"
 	cases := []struct {
 		name   string
@@ -1140,7 +1202,6 @@ func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
 
 func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
 	t.Parallel()
-
 	defaultAPIVersions := []string{"v1", "v2"}
 	cases := []struct {
 		name   string
@@ -1191,7 +1252,6 @@ func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
 
 func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
 	t.Parallel()
-
 	defaultNS := "default"
 	cases := []struct {
 		name   string
@@ -1882,7 +1942,8 @@ func TestEnv_Envsubst(t *testing.T) {
 	assert.Equal(t, "FOO", env.Envsubst("${FOO"))
 	assert.Empty(t, env.Envsubst("$BAR"))
 	assert.Empty(t, env.Envsubst("${BAR}"))
-	assert.Equal(t,
+	assert.Equal(
+		t,
 		"echo bar; echo ; echo bar; echo ; echo FOO",
 		env.Envsubst("echo $FOO; echo $BAR; echo ${FOO}; echo ${BAR}; echo ${FOO"),
 	)
@@ -1891,7 +1952,8 @@ func TestEnv_Envsubst(t *testing.T) {
 func TestEnv_Envsubst_Overlap(t *testing.T) {
 	env := Env{&EnvEntry{"ARGOCD_APP_NAMESPACE", "default"}, &EnvEntry{"ARGOCD_APP_NAME", "guestbook"}}
 
-	assert.Equal(t,
+	assert.Equal(
+		t,
 		"namespace: default; name: guestbook",
 		env.Envsubst("namespace: $ARGOCD_APP_NAMESPACE; name: $ARGOCD_APP_NAME"),
 	)
@@ -2367,18 +2429,77 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description))
+				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description, false))
 			case "noError":
-				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description))
+				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description, false))
 				require.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
 	}
 }
 
+func TestAppProject_EffectiveSourceIntegrity(t *testing.T) {
+	sourceIntegrity := func(repo string, mode SourceIntegrityGitPolicyGPGMode, keys ...string) *SourceIntegrity {
+		return &SourceIntegrity{
+			Git: &SourceIntegrityGit{
+				Policies: []*SourceIntegrityGitPolicy{{
+					Repos: []SourceIntegrityGitPolicyRepo{{URL: repo}},
+					GPG: &SourceIntegrityGitPolicyGPG{
+						Mode: mode,
+						Keys: keys,
+					},
+				}},
+			},
+		}
+	}
+	tests := []struct {
+		name     string
+		spec     AppProjectSpec
+		expected *SourceIntegrity
+	}{
+		{
+			name:     "no old, no new",
+			spec:     AppProjectSpec{},
+			expected: nil,
+		}, {
+			name: "no old, new unchanged",
+			spec: AppProjectSpec{
+				SourceIntegrity: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "FOO"),
+			},
+			expected: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "FOO"),
+		}, {
+			name: "old, no new",
+			spec: AppProjectSpec{
+				SignatureKeys: []SignatureKey{{"LEGACY"}, {"KEYS"}, {"FOUND"}},
+			},
+			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeHead, "LEGACY", "KEYS", "FOUND"),
+		}, {
+			name: "old ignored, replaced",
+			spec: AppProjectSpec{
+				SignatureKeys:   []SignatureKey{{"LEGACY"}, {"KEYS"}, {"FOUND"}},
+				SourceIntegrity: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
+			},
+			expected: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
+		}, {
+			name: "old, not using Git checks",
+			spec: AppProjectSpec{
+				SignatureKeys:   []SignatureKey{{KeyID: "LEGACY_KEY"}},
+				SourceIntegrity: &SourceIntegrity{}, // Once something non-git is supported, needs checking they merge
+			},
+			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeHead, "LEGACY_KEY"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			appProj := &AppProject{Spec: tt.spec, ObjectMeta: metav1.ObjectMeta{Name: "sut"}}
+			assert.Equal(t, tt.expected, appProj.EffectiveSourceIntegrity())
+		})
+	}
+}
+
 func TestAppProjectSpecWindowWithDescription(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
-	require.NoError(t, proj.Spec.AddWindow("allow", "* * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, "Ticket AAAAA"))
+	require.NoError(t, proj.Spec.AddWindow("allow", "* * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, "Ticket AAAAA", false))
 	require.Equal(t, "Ticket AAAAA", proj.Spec.SyncWindows[1].Description)
 
 	require.NoError(t, proj.Spec.SyncWindows[1].Update("", "", []string{}, []string{}, []string{}, "", "Ticket BBBBB"))
@@ -2612,15 +2733,12 @@ func TestSyncWindows_Matches_AND_Operator(t *testing.T) {
 }
 
 func TestSyncWindows_CanSync(t *testing.T) {
-	t.Parallel()
-
 	t.Run("will allow manual sync if inactive-deny-window set with manual true", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().withInactiveDenyWindow(true).build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2628,11 +2746,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync if inactive-deny-window set with manual false", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().withInactiveDenyWindow(false).build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2640,14 +2757,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync if one inactive-allow-windows set with manual false", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(true).
 			withInactiveAllowWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2655,13 +2771,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual true", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(true).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2669,13 +2784,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual false", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2683,13 +2797,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow auto sync if on active-allow-window", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2697,14 +2810,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync active-allow and inactive-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withInactiveDenyWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2712,14 +2824,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow auto sync active-allow and inactive-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withInactiveDenyWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2727,13 +2838,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync inactive-allow", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2741,13 +2851,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync inactive-allow", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2755,13 +2864,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync inactive-allow with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(true).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2769,13 +2877,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync inactive-allow with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(true).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2783,14 +2890,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync with inactive-allow and inactive-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(false).
 			withInactiveDenyWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2798,14 +2904,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with inactive-allow and inactive-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInactiveAllowWindow(false).
 			withInactiveDenyWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2813,14 +2918,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withInactiveAllowWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2828,13 +2932,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2842,13 +2945,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with active-deny", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2856,13 +2958,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync with active-deny with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(true).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2870,13 +2971,12 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with active-deny with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(true).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2884,7 +2984,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(true).
 			withActiveDenyWindow(true).
@@ -2893,7 +2992,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2901,7 +3000,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveDenyWindow(true).
 			withActiveDenyWindow(true).
@@ -2910,7 +3008,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2918,14 +3016,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny manual sync with active-deny and active-allow windows with ManualSync disabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withActiveDenyWindow(false).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2933,14 +3030,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will allow manual sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withActiveDenyWindow(true).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2948,14 +3044,13 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny auto sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withActiveAllowWindow(false).
 			withActiveDenyWindow(true).
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2963,16 +3058,61 @@ func TestSyncWindows_CanSync(t *testing.T) {
 	})
 	t.Run("will deny and return error with invalid windows", func(t *testing.T) {
 		// given
-		t.Parallel()
 		proj := newProjectBuilder().
 			withInvalidWindows().
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.Error(t, err)
+		assert.False(t, canSync)
+	})
+	t.Run("will return error when inactive-allow has invalid schedule", func(t *testing.T) {
+		// given
+		proj := newTestProject()
+		// Add an inactive allow window with invalid cron schedule
+		invalidWindow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     "invalid-cron-schedule",
+			Duration:     "1h",
+			Applications: []string{"app1"},
+			Namespaces:   []string{"public"},
+			ManualSync:   false,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, invalidWindow)
+
+		// when
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
+
+		// then
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid sync windows")
+		assert.Contains(t, err.Error(), "cannot parse schedule")
+		assert.False(t, canSync)
+	})
+	t.Run("will return error when inactive-allow has invalid duration", func(t *testing.T) {
+		// given
+		proj := newTestProject()
+		// Add an inactive allow window with invalid duration
+		invalidWindow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     inactiveCronSchedule(),
+			Duration:     "invalid-duration",
+			Applications: []string{"app1"},
+			Namespaces:   []string{"public"},
+			ManualSync:   false,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, invalidWindow)
+
+		// when
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
+
+		// then
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid sync windows")
+		assert.Contains(t, err.Error(), "cannot parse duration")
 		assert.False(t, canSync)
 	})
 }
@@ -3260,7 +3400,8 @@ func (b *projectBuilder) withInactiveDenyWindow(allowManual bool) *projectBuilde
 }
 
 func (b *projectBuilder) withInvalidWindows() *projectBuilder {
-	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows,
+	b.proj.Spec.SyncWindows = append(
+		b.proj.Spec.SyncWindows,
 		newSyncWindow("allow", "* 10 * * 7", false, false),
 		newSyncWindow("deny", "* 10 * * 7", false, false),
 		newSyncWindow("allow", "* 10 * * 7", true, false),
@@ -3649,7 +3790,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      ptr.To(int64(3)),
+			Factor:      new(int64(3)),
 			MaxDuration: "1m",
 		},
 	}
@@ -3670,7 +3811,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 }
 
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
-	t.Run("Has NameSuffix", func(t *testing.T) {
+	t.Run("no params", func(t *testing.T) {
 		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
 			NameSuffix: "test",
 		}}
@@ -3715,7 +3856,7 @@ func TestUnSetCascadedDeletion(t *testing.T) {
 }
 
 func TestRemoveEnvEntry(t *testing.T) {
-	t.Run("Remove element from the list", func(t *testing.T) {
+	t.Run("remove an env entry from empty list", func(t *testing.T) {
 		plugins := &ApplicationSourcePlugin{
 			Name: "test",
 			Env: Env{
@@ -3758,10 +3899,10 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = ptr.To(false)
+	settings.Warn = new(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = ptr.To(true)
+	settings.Warn = new(true)
 	assert.True(t, settings.IsWarn())
 }
 
@@ -4159,11 +4300,34 @@ func TestGetSummary(t *testing.T) {
 	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
+func TestGetAppOfAppSummary(t *testing.T) {
+	app := newTestApp()
+	standardTree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service"}},
+		},
+	}
+
+	summary := standardTree.GetSummary(app)
+	assert.Empty(t, summary.ExternalURLs)
+	assert.Empty(t, summary.Images)
+	assert.False(t, summary.IsAppOfApps)
+
+	appOfAppsTree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "children-app", Kind: "Application", Group: "argoproj.io"}},
+			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service", Group: ""}},
+		},
+	}
+	summary = appOfAppsTree.GetSummary(app)
+	assert.True(t, summary.IsAppOfApps)
+}
+
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: ptr.To("1.2.3"),
+			String_: new("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -4220,7 +4384,7 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: ptr.To("1.2.3"),
+			String_: new("1.2.3"),
 			OptionalArray: &OptionalArray{
 				Array: []string{"redis", "minio"},
 			},
@@ -4260,8 +4424,6 @@ func getApplicationSpec() *ApplicationSpec {
 }
 
 func TestGetSource(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name           string
 		hasSources     bool
@@ -4277,7 +4439,6 @@ func TestGetSource(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
 			if !testCopy.hasSources {
 				testCopy.appSpec.Sources = nil
 			}
@@ -4291,8 +4452,6 @@ func TestGetSource(t *testing.T) {
 }
 
 func TestGetSources(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name            string
 		hasSources      bool
@@ -4316,7 +4475,6 @@ func TestGetSources(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
 			if !testCopy.hasSources {
 				testCopy.appSpec.Sources = nil
 			}
@@ -4330,8 +4488,6 @@ func TestGetSources(t *testing.T) {
 }
 
 func TestOptionalArrayEquality(t *testing.T) {
-	t.Parallel()
-
 	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
 	// to an empty array.
 	presentButEmpty := `{"array":[]}`
@@ -4368,15 +4524,12 @@ func TestOptionalArrayEquality(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
 }
 
 func TestOptionalMapEquality(t *testing.T) {
-	t.Parallel()
-
 	// Demonstrate that the JSON unmarshalling of an empty map parameter is an OptionalMap with the map field set
 	// to an empty map.
 	presentButEmpty := `{"map":{}}`
@@ -4413,7 +4566,6 @@ func TestOptionalMapEquality(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
@@ -4455,6 +4607,72 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			},
 			sourceIndex: 0,
 			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+		},
+		{
+			name: "HasSourceHydrator_NegativeIndex_ReturnsDrySource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: -1,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "dry-path",
+				TargetRevision: "main",
+			},
+		},
+		{
+			name: "HasSourceHydrator_ZeroIndex_ReturnsSyncSource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: 0,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "sync-path",
+				TargetRevision: "hydrated",
+			},
+		},
+		{
+			name: "HasSourceHydrator_PositiveIndex_ReturnsSyncSource",
+			application: ApplicationSpec{
+				SourceHydrator: &SourceHydrator{
+					DrySource: DrySource{
+						RepoURL:        "https://github.com/argoproj/dry.git",
+						Path:           "dry-path",
+						TargetRevision: "main",
+					},
+					SyncSource: SyncSource{
+						Path:         "sync-path",
+						TargetBranch: "hydrated",
+					},
+				},
+			},
+			sourceIndex: 1,
+			expected: &ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/dry.git",
+				Path:           "sync-path",
+				TargetRevision: "hydrated",
+			},
 		},
 	}
 
@@ -4935,8 +5153,6 @@ func TestSanitized(t *testing.T) {
 }
 
 func TestSourceHydrator_Equals(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name     string
 		a        SourceHydrator
@@ -4950,16 +5166,74 @@ func TestSourceHydrator_Equals(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
-
 			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
 		})
 	}
 }
 
-func TestIgnoreDifferences_Equals(t *testing.T) {
-	t.Parallel()
+func TestSourceHydrator_GetSyncSource(t *testing.T) {
+	hydrator := SourceHydrator{
+		DrySource: DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "dry",
+		},
+		SyncSource: SyncSource{
+			RepoURL:      "https://example.com/sync-repo",
+			TargetBranch: "hydrated",
+			Path:         "sync-path",
+		},
+	}
 
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/sync-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+func TestSourceHydrator_GetSyncSource_DefaultRepoURL(t *testing.T) {
+	hydrator := SourceHydrator{
+		DrySource: DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "dry",
+		},
+		SyncSource: SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "sync-path",
+		},
+	}
+
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+func TestApplicationSpec_GetHydrateToSource_UsesSyncSourceRepo(t *testing.T) {
+	spec := ApplicationSpec{
+		SourceHydrator: &SourceHydrator{
+			DrySource: DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "dry",
+			},
+			SyncSource: SyncSource{
+				RepoURL:      "https://example.com/sync-repo",
+				TargetBranch: "hydrated",
+				Path:         "sync-path",
+			},
+			HydrateTo: &HydrateTo{TargetBranch: "staging"},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/sync-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "staging", source.TargetRevision)
+}
+
+func TestIgnoreDifferences_Equals(t *testing.T) {
 	tests := []struct {
 		name     string
 		a        IgnoreDifferences
@@ -5019,9 +5293,940 @@ func TestIgnoreDifferences_Equals(t *testing.T) {
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
-			t.Parallel()
-
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+// TestSyncPolicyAutomatedSerialisation verifies that prune, selfHeal, and
+// allowEmpty are serialised correctly as pointer types.  Nil pointers are
+// omitted from JSON (no opinion), while explicit false or true are always
+// present.  This is the key regression guard: before this fix the fields were
+// plain bool with omitempty, so an explicit false was dropped from JSON merge
+// patches, making it impossible to reset them from true back to false via GitOps.
+func TestSyncPolicyAutomatedSerialisation(t *testing.T) {
+	tests := []struct {
+		name        string
+		automated   SyncPolicyAutomated
+		wantPresent map[string]bool // which keys must be present in JSON
+		wantValues  map[string]bool // expected value for each present key
+	}{
+		{
+			name:        "nil pointers omit all fields",
+			automated:   SyncPolicyAutomated{Prune: nil, SelfHeal: nil, AllowEmpty: nil},
+			wantPresent: map[string]bool{"prune": false, "selfHeal": false, "allowEmpty": false},
+		},
+		{
+			name:        "explicit false is serialised",
+			automated:   SyncPolicyAutomated{Prune: new(false), SelfHeal: new(false), AllowEmpty: new(false)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": false, "selfHeal": false, "allowEmpty": false},
+		},
+		{
+			name:        "explicit true is serialised",
+			automated:   SyncPolicyAutomated{Prune: new(true), SelfHeal: new(true), AllowEmpty: new(true)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+		},
+		{
+			name:        "mixed - each field independently controlled",
+			automated:   SyncPolicyAutomated{Prune: new(true), SelfHeal: nil, AllowEmpty: new(false)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": false, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": true, "allowEmpty": false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.automated)
+			require.NoError(t, err)
+
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(data, &raw))
+
+			for field, shouldBePresent := range tt.wantPresent {
+				_, present := raw[field]
+				assert.Equal(t, shouldBePresent, present, "field %q presence mismatch in JSON: %s", field, string(data))
+				if shouldBePresent {
+					assert.Equal(t, tt.wantValues[field], raw[field], "field %q value mismatch in JSON: %s", field, string(data))
+				}
+			}
+
+			// Round-trip: unmarshal back and confirm pointer semantics are preserved.
+			var got SyncPolicyAutomated
+			require.NoError(t, json.Unmarshal(data, &got))
+			assert.Equal(t, tt.automated.Prune, got.Prune)
+			assert.Equal(t, tt.automated.SelfHeal, got.SelfHeal)
+			assert.Equal(t, tt.automated.AllowEmpty, got.AllowEmpty)
+		})
+	}
+}
+
+func TestSyncWindows_SyncOverrun(t *testing.T) {
+	t.Run("DenyWindowWithoutOverrunBlocksContinuingSync", func(t *testing.T) {
+		// given - a deny window without allowSyncOverrun
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     "* * * * *",
+			Duration:     "1h",
+			Applications: []string{"*"},
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+
+		// Operation started 5 minutes ago
+		operationStartTime := time.Now().Add(-5 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be blocked
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("DenyWindowWithOverrunBlocksNewSync", func(t *testing.T) {
+		// given - a deny window with allowSyncOverrun enabled
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     "* * * * *",
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+
+		// when - checking if new sync can start (no operation start time)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
+
+		// then - new sync should be blocked
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("DenyWindowWithOverrunBlocksSyncThatStartedDuringDeny", func(t *testing.T) {
+		// given - a deny window with allowSyncOverrun enabled
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     "* * * * *", // Always active
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+
+		// Operation started 5 minutes ago (during the deny window, which was already active)
+		operationStartTime := time.Now().Add(-5 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be blocked because it wasn't allowed when it started
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("AllowsOverrunWhenAllDenyWindowsHaveIt", func(t *testing.T) {
+		// given - all deny windows have syncOverrun enabled
+		windows := SyncWindows{
+			&SyncWindow{Kind: "deny", SyncOverrun: true},
+			&SyncWindow{Kind: "deny", SyncOverrun: true},
+		}
+
+		// when - checking if overrun is allowed
+		denyAllowsOverrun := windows.denyAllowsOverrun()
+
+		// then - should return true (all deny windows allow it)
+		assert.True(t, denyAllowsOverrun)
+	})
+
+	t.Run("DisallowsOverrunWhenOneDenyWindowDoesntHaveIt", func(t *testing.T) {
+		// given - mixed deny windows, one without syncOverrun
+		windows := SyncWindows{
+			&SyncWindow{Kind: "deny", SyncOverrun: false},
+			&SyncWindow{Kind: "deny", SyncOverrun: true},
+		}
+
+		// when - checking if overrun is allowed
+		denyAllowsOverrun := windows.denyAllowsOverrun()
+
+		// then - should return false (not all deny windows allow it)
+		assert.False(t, denyAllowsOverrun)
+	})
+
+	t.Run("DisallowsOverrunWhenNoDenyWindowsHaveIt", func(t *testing.T) {
+		// given - deny windows without syncOverrun
+		windows := SyncWindows{
+			&SyncWindow{Kind: "deny", SyncOverrun: false},
+		}
+
+		// when - checking if overrun is allowed
+		denyAllowsOverrun := windows.denyAllowsOverrun()
+
+		// then - should return false
+		assert.False(t, denyAllowsOverrun)
+	})
+
+	t.Run("AllowsOverrunIgnoresAllowWindows", func(t *testing.T) {
+		// given - deny window with syncOverrun and allow windows
+		windows := SyncWindows{
+			&SyncWindow{Kind: "allow", SyncOverrun: false},
+			&SyncWindow{Kind: "deny", SyncOverrun: true},
+		}
+
+		// when - checking if overrun is allowed
+		denyAllowsOverrun := windows.denyAllowsOverrun()
+
+		// then - should return true (only deny windows matter)
+		assert.True(t, denyAllowsOverrun)
+	})
+
+	t.Run("AllowsSyncToContinueWhenStartedBeforeDenyWindowWithOverrun", func(t *testing.T) {
+		// given - a deny window with syncOverrun that became active after operation started
+		proj := newTestProjectWithSyncWindows() // Has an always-active allow window
+
+		// Create a deny window that's currently active
+		// Using current time to create a schedule that's active now
+		now := time.Now().In(time.UTC)
+		// Duration of 15 minutes means it will be active for 15 minutes starting from this minute
+		schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     schedule,
+			Duration:     "15m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+
+		// Operation started 25 minutes ago, before this deny window became active
+		operationStartTime := now.Add(-25 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed to continue (overrun)
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("DeniesSyncThatStartedWhenInactiveAllowsBlockedIt", func(t *testing.T) {
+		// given - a deny window with syncOverrun that's currently active
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window that's currently INACTIVE (was active 2 hours ago)
+		// This creates a scenario where at operation start time (1 hour ago),
+		// there were no active windows but inactive allows were present
+		inactiveAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-3*time.Hour).Hour())
+		inactiveAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     inactiveAllowSchedule,
+			Duration:     "30m", // Was active 3 hours ago for 30 minutes
+			Applications: []string{"*"},
+			ManualSync:   false,
+		}
+
+		// Create a deny window that's currently active (just started)
+		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeDeny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     activeDenySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, inactiveAllow, activeDeny)
+
+		// Operation started 1 hour ago, when there were no active windows
+		// but inactive allows were created after sync was started (which blocks syncs)
+		operationStartTime := now.Add(-1 * time.Hour)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be denied because it was blocked by inactive allows
+		// after it started (even though overrun is enabled)
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("AllowsSyncWhenStartedDuringAllowWindowWithOverrun", func(t *testing.T) {
+		// given - an allow window with syncOverrun that's currently active
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window with manual sync enabled that's was ACTIVE 1h ago
+		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow)
+
+		// Operation started 45 minutes ago during allow
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed (allow with overrun enabled)
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("DeniesSyncWhenStartedDuringAllowWindowWithoutOverrun", func(t *testing.T) {
+		// given - an allow window with syncOverrun that's currently active
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window with manual sync enabled that's was ACTIVE 1h ago
+		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow)
+
+		// Operation started 45 minutes ago during allow
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be denied (allow without overrun enabled)
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("DeniesSyncStartedInAllowWithOverrunWhenTransitionsToDenyWithoutOverrun", func(t *testing.T) {
+		// Scenario: Sync starts during an allow window with overrun enabled,
+		// then a deny window WITHOUT overrun becomes active.
+		// Expected: Sync is DENIED because the current deny window doesn't allow overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window that WAS active 1 hour ago for 30 minutes, with overrun
+		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Create a deny window that's currently ACTIVE (without overrun)
+		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     denySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow, deny)
+
+		// Sync started 45 minutes ago during the allow window
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be denied because current deny window doesn't allow overrun
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("AllowsSyncStartedInAllowWithoutOverrunWhenTransitionsToDenyWithOverrun", func(t *testing.T) {
+		// Scenario: Sync starts during an allow window WITHOUT overrun enabled,
+		// then a deny window WITH overrun becomes active.
+		// Expected: Sync is ALLOWED because the current deny window allows overrun,
+		// and the sync was permitted when it started (even though the original allow didn't have overrun).
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window that WAS active 1 hour ago for 30 minutes (no overrun)
+		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+		}
+
+		// Create a deny window that's currently ACTIVE (with overrun)
+		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     denySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow, deny)
+
+		// Sync started 45 minutes ago during the allow window
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed because current deny window allows overrun
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("AllowsSyncStartedInAllowWithOverrunWhenTransitionsToDenyWithOverrun", func(t *testing.T) {
+		// Scenario: Sync starts during an allow window WITH overrun enabled,
+		// then a deny window WITH overrun becomes active.
+		// Expected: Sync is ALLOWED because both windows support overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window that WAS active 1 hour ago for 30 minutes (with overrun)
+		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Create a deny window that's currently ACTIVE (with overrun)
+		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     denySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow, deny)
+
+		// Sync started 45 minutes ago during the allow window
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be ALLOWED because both windows allow overrun
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("DeniesSyncStartedInAllowWithoutOverrunWhenTransitionsToDenyWithoutOverrun", func(t *testing.T) {
+		// Scenario: Sync starts during an allow window WITHOUT overrun enabled,
+		// then a deny window WITHOUT overrun becomes active.
+		// Expected: Sync is DENIED because neither window supports overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window that WAS active 1 hour ago for 30 minutes (no overrun)
+		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+		}
+
+		// Create a deny window that's currently ACTIVE (without overrun)
+		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     denySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow, deny)
+
+		// Sync started 45 minutes ago during the allow window
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be denied because neither window allows overrun
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("AllowsSyncStartedInAllowWhenMultipleConcurrentDenyWindowsAllHaveOverrun", func(t *testing.T) {
+		// Scenario: Sync starts during an allow window,
+		// then multiple deny windows become active simultaneously, ALL with overrun enabled.
+		// Expected: Sync is ALLOWED because all currently active deny windows support overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window that WAS active 1 hour ago
+		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Create first deny window that's currently ACTIVE with overrun
+		deny1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny1 := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     deny1Schedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Create second deny window that's also currently ACTIVE with overrun
+		deny2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny2 := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     deny2Schedule,
+			Duration:     "2h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow, deny1, deny2)
+
+		// Sync started 45 minutes ago during the allow window
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed because ALL active deny windows allow overrun
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("DeniesSyncStartedInAllowWhenOneConcurrentDenyWindowLacksOverrun", func(t *testing.T) {
+		// Scenario: Sync starts during an allow window,
+		// then multiple deny windows become active, but ONE lacks overrun.
+		// Expected: Sync is DENIED because not all deny windows support overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create an allow window that WAS active 1 hour ago
+		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Create first deny window that's currently ACTIVE with overrun
+		deny1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny1 := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     deny1Schedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Create second deny window that's also currently ACTIVE WITHOUT overrun
+		deny2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny2 := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     deny2Schedule,
+			Duration:     "2h",
+			Applications: []string{"*"},
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow, deny1, deny2)
+
+		// Sync started 45 minutes ago during the allow window
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be denied because not all deny windows allow overrun
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("DeniesSyncWhenLeavingMultipleAllowWindowsWhereOneLacksOverrun", func(t *testing.T) {
+		// Scenario: Sync starts during allow windows (multiple are active),
+		// then all allow windows end, but ONE allow window does NOT have overrun enabled.
+		// Expected: Sync is DENIED because ALL inactive allow windows must support overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create first allow window that WAS active 1 hour ago WITH overrun
+		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow1 := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allow1Schedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true, // Has overrun
+		}
+
+		// Create second allow window that WAS active 1 hour ago WITHOUT overrun
+		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow2 := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allow2Schedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow1, allow2)
+
+		// Sync started 45 minutes ago during the allow windows
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be denied because not all inactive allow windows have overrun
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("AllowsSyncWhenLeavingMultipleAllowWindowsWhereAllHaveOverrun", func(t *testing.T) {
+		// Scenario: Sync starts during allow windows (multiple are active),
+		// then all allow windows end, and ALL allow windows have overrun enabled.
+		// Expected: Sync is ALLOWED because ALL inactive allow windows support overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create first allow window that WAS active 1 hour ago WITH overrun
+		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow1 := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allow1Schedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true, // Has overrun
+		}
+
+		// Create second allow window that WAS active 1 hour ago WITH overrun
+		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow2 := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allow2Schedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true, // Also has overrun
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow1, allow2)
+
+		// Sync started 45 minutes ago during the allow windows
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue=
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed because all inactive allow windows have overrun
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("AllowsSyncInMultipleActiveAllowWindowsWhenOneLacksOverrunAndEnds", func(t *testing.T) {
+		// Scenario: Sync starts during multiple ACTIVE allow windows (one with overrun, one without).
+		// One window (without overrun) ends while the other (with overrun) is still active.
+		// Expected: Sync is ALLOWED because there's still an active allow window.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create first allow window that WAS active 1 hour ago and ended (WITHOUT overrun)
+		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow1 := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allow1Schedule,
+			Duration:     "30m", // Ended 30 minutes ago
+			Applications: []string{"*"},
+			SyncOverrun:  false, // No overrun
+		}
+
+		// Create second allow window that's still ACTIVE (WITH overrun)
+		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow2 := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allow2Schedule,
+			Duration:     "90m", // Still active for another 30 minutes
+			Applications: []string{"*"},
+			SyncOverrun:  true, // Has overrun
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow1, allow2)
+
+		// Sync started 45 minutes ago when both windows were active
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue (allow2 still active, allow1 ended)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed because allow2 is still active
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("DeniesSyncWhenBothDenyAndAllowWindowsActiveAndDenyLacksOverrun", func(t *testing.T) {
+		// Scenario: Multiple allow AND deny windows are simultaneously active.
+		// Sync started during an earlier allow window.
+		// Expected: Sync is DENIED if any active deny window lacks overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Sync started 2 hours ago during this allow window (which has since ended)
+		pastAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-2*time.Hour).Hour())
+		pastAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     pastAllowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Currently active allow window (WITH overrun)
+		activeAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     activeAllowSchedule,
+			Duration:     "2h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Currently active deny window (WITHOUT overrun)
+		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeDeny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     activeDenySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  false, // No overrun
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, pastAllow, activeAllow, activeDeny)
+
+		// Sync started 1 hour 45 minutes ago during pastAllow
+		operationStartTime := now.Add(-105 * time.Minute)
+
+		// when - checking if sync can continue (both allow and deny are active)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be denied because deny window is active and lacks overrun
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("AllowsSyncWhenBothDenyAndAllowWindowsActiveAndDenyHasOverrun", func(t *testing.T) {
+		// Scenario: Multiple allow AND deny windows are simultaneously active.
+		// Sync started before the deny window became active.
+		// Expected: Sync is ALLOWED if all active deny windows have overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Sync started 2 hours ago during this allow window (which has since ended)
+		pastAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-2*time.Hour).Hour())
+		pastAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     pastAllowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Currently active allow window (WITH overrun)
+		activeAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     activeAllowSchedule,
+			Duration:     "2h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Currently active deny window (WITH overrun)
+		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeDeny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     activeDenySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true, // Has overrun
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, pastAllow, activeAllow, activeDeny)
+
+		// Sync started 1 hour 45 minutes ago during pastAllow (before deny became active)
+		operationStartTime := now.Add(-105 * time.Minute)
+
+		// when - checking if sync can continue (both allow and deny are active, deny has overrun)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed because deny window has overrun enabled
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+}
+
+func TestGetDrySource_PreservesAllFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		hydrator   SourceHydrator
+		wantNil    []string
+		wantNotNil []string
+	}{
+		{
+			name: "preserves Helm configuration",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           "charts",
+					TargetRevision: "main",
+					Helm: &ApplicationSourceHelm{
+						ValueFiles:  []string{"values.yaml"},
+						ReleaseName: "my-release",
+					},
+				},
+			},
+			wantNotNil: []string{"Helm"},
+			wantNil:    []string{"Kustomize", "Directory", "Plugin"},
+		},
+		{
+			name: "preserves Kustomize configuration",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           "overlays/prod",
+					TargetRevision: "main",
+					Kustomize: &ApplicationSourceKustomize{
+						NamePrefix: "prod-",
+						Images:     KustomizeImages{"nginx=nginx:1.21"},
+					},
+				},
+			},
+			wantNotNil: []string{"Kustomize"},
+			wantNil:    []string{"Helm", "Directory", "Plugin"},
+		},
+		{
+			name: "preserves Directory configuration",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           "manifests",
+					TargetRevision: "main",
+					Directory: &ApplicationSourceDirectory{
+						Recurse: true,
+						Jsonnet: ApplicationSourceJsonnet{
+							ExtVars: []JsonnetVar{{Name: "env", Value: "prod"}},
+						},
+					},
+				},
+			},
+			wantNotNil: []string{"Directory"},
+			wantNil:    []string{"Helm", "Kustomize", "Plugin"},
+		},
+		{
+			name: "preserves Plugin configuration",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           ".",
+					TargetRevision: "main",
+					Plugin: &ApplicationSourcePlugin{
+						Name: "my-plugin",
+						Env:  Env{{Name: "FOO", Value: "bar"}},
+					},
+				},
+			},
+			wantNotNil: []string{"Plugin"},
+			wantNil:    []string{"Helm", "Kustomize", "Directory"},
+		},
+		{
+			name: "preserves multiple source types",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           ".",
+					TargetRevision: "main",
+					Helm: &ApplicationSourceHelm{
+						ValueFiles: []string{"values.yaml"},
+					},
+					Kustomize: &ApplicationSourceKustomize{
+						NamePrefix: "test-",
+					},
+				},
+			},
+			wantNotNil: []string{"Helm", "Kustomize"},
+			wantNil:    []string{"Directory", "Plugin"},
+		},
+		{
+			name: "handles nil source types",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           ".",
+					TargetRevision: "main",
+				},
+			},
+			wantNil: []string{"Helm", "Kustomize", "Directory", "Plugin"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := tt.hydrator.GetDrySource()
+
+			// Verify basic fields are always copied
+			assert.Equal(t, tt.hydrator.DrySource.RepoURL, source.RepoURL)
+			assert.Equal(t, tt.hydrator.DrySource.Path, source.Path)
+			assert.Equal(t, tt.hydrator.DrySource.TargetRevision, source.TargetRevision)
+
+			// Verify source type fields are preserved
+			fieldMap := map[string]any{
+				"Helm":      source.Helm,
+				"Kustomize": source.Kustomize,
+				"Directory": source.Directory,
+				"Plugin":    source.Plugin,
+			}
+
+			for _, field := range tt.wantNotNil {
+				assert.NotNil(t, fieldMap[field], "expected %s to be preserved", field)
+			}
+
+			for _, field := range tt.wantNil {
+				assert.Nil(t, fieldMap[field], "expected %s to be nil", field)
+			}
+
+			// Verify exact equality for non-nil fields
+			if tt.hydrator.DrySource.Helm != nil {
+				assert.Equal(t, tt.hydrator.DrySource.Helm, source.Helm)
+			}
+			if tt.hydrator.DrySource.Kustomize != nil {
+				assert.Equal(t, tt.hydrator.DrySource.Kustomize, source.Kustomize)
+			}
+			if tt.hydrator.DrySource.Directory != nil {
+				assert.Equal(t, tt.hydrator.DrySource.Directory, source.Directory)
+			}
+			if tt.hydrator.DrySource.Plugin != nil {
+				assert.Equal(t, tt.hydrator.DrySource.Plugin, source.Plugin)
+			}
 		})
 	}
 }

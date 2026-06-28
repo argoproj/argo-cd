@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/itchyny/gojq"
 	log "github.com/sirupsen/logrus"
@@ -210,7 +210,13 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 		patchedDocData, err := patch.Apply(docData)
 		if err != nil {
 			if shouldLogError(err) {
-				log.Debugf("Failed to apply normalization: %v", err)
+				gvk := un.GroupVersionKind()
+				log.WithFields(log.Fields{
+					"group":     gvk.Group,
+					"kind":      gvk.Kind,
+					"name":      un.GetName(),
+					"namespace": un.GetNamespace(),
+				}).Debugf("Failed to apply normalization patch: %v", err)
 			}
 			continue
 		}
