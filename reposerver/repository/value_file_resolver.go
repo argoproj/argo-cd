@@ -3,10 +3,12 @@ package repository
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 )
@@ -130,4 +132,69 @@ func (r *ValueFileResolver) checkFileExists(resolvedPath pathutil.ResolvedFilePa
 		}
 	}
 	return false
+}
+
+func getResolvedRefValueFile(
+	rawValueFile string,
+	env *v1alpha1.Env,
+	allowedValueFilesSchemas []string,
+	refSourceRepo string,
+	gitRepoPaths utilio.TempPaths,
+	ociPaths utilio.TempPaths,
+) (pathutil.ResolvedFilePath, error) {
+	pathStrings := strings.Split(rawValueFile, "/")
+
+	// Check if the reference source is an OCI repository
+	if v1alpha1.IsOCIURL(refSourceRepo) {
+		return getResolvedOCIRefValueFile(rawValueFile, env, allowedValueFilesSchemas, refSourceRepo, ociPaths)
+	}
+
+	// Original Git repository handling
+	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+	if repoPath == "" {
+		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
+	}
+	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
+	substitutedPath := strings.Join(pathStrings, "/")
+
+	// Resolve the path relative to the referenced repo and block any attempt at traversal.
+	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
+	if err != nil {
+		return "", fmt.Errorf("error resolving value file path: %w", err)
+	}
+	return resolvedPath, nil
+}
+
+// getResolvedOCIRefValueFile handles OCI ref values by using the already extracted OCI content
+func getResolvedOCIRefValueFile(
+	rawValueFile string,
+	env *v1alpha1.Env,
+	allowedValueFilesSchemas []string,
+	refSourceRepo string,
+	ociPaths utilio.TempPaths,
+) (pathutil.ResolvedFilePath, error) {
+	// Get the OCI path from the ociPaths
+	ociPath := ociPaths.GetPathIfExists(refSourceRepo)
+	if ociPath == "" {
+		return "", fmt.Errorf("failed to find OCI repo %q", refSourceRepo)
+	}
+
+	// Remove first segment (the ref variable name) and resolve the path
+	pathStrings := strings.Split(rawValueFile, "/")
+	if len(pathStrings) == 0 {
+		return "", fmt.Errorf("invalid OCI value file path %q: path is empty", rawValueFile)
+	}
+	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
+	substitutedPath := strings.Join(pathStrings, "/")
+
+	// Remove leading slash if present (OCI paths are relative to the archive root)
+	substitutedPath = strings.TrimPrefix(substitutedPath, "/")
+
+	// Resolve the path relative to the extracted OCI content
+	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(ociPath, ociPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
+	if err != nil {
+		return "", fmt.Errorf("error resolving OCI value file path: %w", err)
+	}
+
+	return resolvedPath, nil
 }
