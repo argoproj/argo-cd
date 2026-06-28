@@ -1,0 +1,54 @@
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: Cluster
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: 0.3.11
+    argocd.argoproj.io/instance: test
+    cluster.x-k8s.io/cluster-name: test
+  name: test
+  namespace: test
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 10.20.10.0/19
+    services:
+      cidrBlocks:
+        - 10.10.10.0/19
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    kind: KubeadmControlPlane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: VSphereCluster
+status:
+  conditions:
+    - lastTransitionTime: '2022-12-14T07:45:14Z'
+      message: >-
+        Post "https://tvc01.foo.bar/sdk": host "tvc01.foo.bar:443"
+        thumbprint does not match
+        "0A:21:BD:FC:71:40:BD:96"
+      reason: VCenterUnreachable
+      severity: Error
+      status: 'False'
+      type: Ready
+    - lastTransitionTime: '2022-11-30T12:04:22Z'
+      status: 'True'
+      type: ControlPlaneInitialized
+    - lastTransitionTime: '2022-11-30T12:10:30Z'
+      status: 'True'
+      type: ControlPlaneReady
+    - lastTransitionTime: '2022-12-14T07:45:14Z'
+      message: >-
+        Post "https://tvc01.foo.bar/sdk": host "tvc01.foo.bar:443"
+        thumbprint does not match
+        "0A:21:BD:FC:71:40:BD:96"
+      reason: VCenterUnreachable
+      severity: Error
+      status: 'False'
+      type: InfrastructureReady
+  controlPlaneReady: true
+  infrastructureReady: true
+  observedGeneration: 2
+  phase: Provisioned

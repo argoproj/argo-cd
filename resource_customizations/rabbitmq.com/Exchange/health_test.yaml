@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: RabbitMQ exchange failed to be created or updated
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Unknown
+    message: RabbitMQ exchange status is unknown
+  inputPath: testdata/unknown.yaml
+- healthStatus:
+    status: Healthy
+    message: RabbitMQ exchange ready
+  inputPath: testdata/healthy.yaml

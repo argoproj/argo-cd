@@ -1,0 +1,24 @@
+apiVersion: core.humio.com/v1alpha1
+kind: HumioRepository
+metadata:
+  annotations:
+  creationTimestamp: '2022-12-08T02:03:07Z'
+  finalizers:
+    - core.humio.com/finalizer
+  generation: 3
+  labels:
+    app.kubernetes.io/instance: humio-deploy
+  name: example-repo-1
+  namespace: humio
+  resourceVersion: '10768154'
+  uid: bb626adb-1cdd-4db2-baa8-ae5e30132603
+spec:
+  description: example description
+  managedClusterName: example-humiocluster
+  name: example-repo
+  retention:
+    ingestSizeInGB: 4
+    storageSizeInGB: 50
+    timeInDays: 730
+status:
+  state: Unknown

@@ -1,0 +1,32 @@
+apiVersion: notification.toolkit.fluxcd.io/v1
+kind: Receiver
+metadata:
+  name: github-receiver
+  namespace: flux-system
+spec:
+  type: github
+  events:
+    - "ping"
+    - "push"
+  secretRef:
+    name: receiver-token
+  resources:
+    - apiVersion: source.toolkit.fluxcd.io/v1
+      kind: GitRepository
+      name: flux-system
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Helm install succeeded for release flux-system/github-receiver.v1 with
+      chart podinfo@6.5.4
+    observedGeneration: 2
+    reason: InstallSucceeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Helm install succeeded for release flux-system/github-receiver.v1 with
+      chart podinfo@6.5.4
+    observedGeneration: 1
+    reason: InstallSucceeded
+    status: "True"
+    type: Released

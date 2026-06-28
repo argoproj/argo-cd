@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: NotAList
+items:
+spec:
+  foo: bar
+--- 
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-operator-operator

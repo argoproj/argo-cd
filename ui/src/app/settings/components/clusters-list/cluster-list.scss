@@ -1,0 +1,33 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+@import '../../../shared/config.scss';
+
+.clusters-list {
+    &__info-banner {
+        position: fixed;
+        left: $sidebar-width;
+        right: 0;
+        top: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f7f7f7;
+        border-bottom: 1px solid #ddd;
+        padding: 0.5em 15px;
+        font-size: 0.85em;
+        color: #666;
+        z-index: 4;
+
+        i.fa-info-circle {
+            margin-right: 0.5em;
+        }
+
+        a {
+            color: #0dadea;
+        }
+    }
+
+    &__banner-spacer {
+        height: 35px;
+    }
+}

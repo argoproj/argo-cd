@@ -1,0 +1,22 @@
+application:
+  samples: 300
+  source:
+    strategy: Random
+  destination:
+    strategy: Random
+
+
+cluster:
+  samples: 2
+  namespacePrefix: vcluster
+  valuesFilePath: /Users/argocd/.kube/util/values.yaml
+  destinationNamespace: argocd
+  clusterNamePrefix: test
+
+repository:
+  samples: 100
+
+project:
+  samples: 15
+
+namespace: argocd

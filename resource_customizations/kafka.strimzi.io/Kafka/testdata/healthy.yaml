@@ -1,0 +1,61 @@
+apiVersion: kafka.strimzi.io/v1beta1
+kind: Kafka
+metadata:
+  creationTimestamp: "2021-02-22T15:59:14Z"
+  generation: 1
+  name: my-cluster
+  namespace: default
+  resourceVersion: "134745509"
+  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/default/kafkas/my-cluster
+  uid: 69de4987-371b-4300-a3cc-545bfab1dc87
+spec:
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+  kafka:
+    config:
+      inter.broker.protocol.version: "2.7"
+      log.message.format.version: "2.7"
+      offsets.topics.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      transaction.state.log.replication.factor: 1
+    listeners:
+    - name: plain
+      port: 9092
+      tls: false
+      type: internal
+    - name: tls
+      port: 9093
+      tls: false
+      type: internal
+    replicas: 1
+    storage:
+      type: ephemeral
+  zookeeper:
+    replicas: 1
+    storage:
+      type: ephemeral
+status:
+  clusterId: 463lY141TCqd6DDvPj5EDw
+  conditions:
+  - lastTransitionTime: 2021-02-22T16:05:43+0000
+    message: A Kafka cluster with a single replica and ephemeral storage will lose
+      topic messages after any restart or rolling update
+    reason: KafkaStorage
+    status: "True"
+    type: Warning
+  - lastTransitionTime: 2021-02-22T16:05:47+0000
+    status: "True"
+    type: Ready
+  listeners:
+  - addresses:
+    - host: my-cluster-kafka-bootstrap.default.svc
+      port: 9092
+    bootstrapServers: my-cluster-kafka-bootstrap.default.svc:9092
+    type: plain
+  - addresses:
+    - host: my-cluster-kafka-bootstrap.default.svc
+      port: 9093
+    bootstrapServers: my-cluster-kafka-bootstrap.default.svc:9093
+    type: tls
+  observedGeneration: 1

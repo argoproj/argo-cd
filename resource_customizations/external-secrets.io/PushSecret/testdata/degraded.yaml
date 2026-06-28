@@ -1,0 +1,33 @@
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  creationTimestamp: '2023-07-05T20:49:16Z'
+  generation: 1
+  name: test-degraded
+  namespace: external-secret
+  resourceVersion: '777692391'
+  uid: 88cb613a-07b0-4fb2-8fdb-d5a5a9c2c917
+spec:
+  data:
+    - match:
+        remoteRef:
+          property: test
+          remoteKey: remote/path
+        secretKey: test
+  deletionPolicy: None
+  refreshInterval: 5m
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: my-store
+  selector:
+    secret:
+      name: existing-secret
+status:
+  conditions:
+    - lastTransitionTime: '2023-07-05T20:49:16Z'
+      message: 'set secret failed: could not write remote ref test to target secretstore my-store: Error making API request.'
+      reason: Errored
+      status: 'False'
+      type: Ready
+  syncedPushSecrets:
+    ClusterSecretStore/my-store: {}

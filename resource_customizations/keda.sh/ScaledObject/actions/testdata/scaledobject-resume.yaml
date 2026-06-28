@@ -1,0 +1,12 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: test-scaledobject
+spec:
+  scaleTargetRef:
+    name: test-deployment
+  triggers:
+    - type: cpu
+      metadata:
+        type: Utilization
+        value: "50"

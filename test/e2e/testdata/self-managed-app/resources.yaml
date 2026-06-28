@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-self-managed-apps
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/argoproj/argo-cd.git
+    targetRevision: HEAD
+    path: self-managed-app
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd-e2e

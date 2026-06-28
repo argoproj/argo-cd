@@ -1,0 +1,3 @@
+# This is an invalid kustomization file
+resources:
+  - ./deployment.yaml

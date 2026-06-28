@@ -1,0 +1,260 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  annotations:
+  name: sample-policy
+  namespace: test-namespace
+spec: {}
+status:
+  autogen:
+    rules:
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - DaemonSet
+          - Deployment
+          - Job
+          - StatefulSet
+          - ReplicaSet
+          - ReplicationController
+      mutate: {}
+      name: autogen-require-label-app
+      skipBackgroundRequests: true
+      validate:
+        message: An `app` label is required.
+        pattern:
+          spec:
+            template:
+              metadata:
+                labels:
+                  app: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - CronJob
+      mutate: {}
+      name: autogen-cronjob-require-label-app
+      skipBackgroundRequests: true
+      validate:
+        message: An `app` label is required.
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  metadata:
+                    labels:
+                      app: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - DaemonSet
+          - Deployment
+          - Job
+          - StatefulSet
+          - ReplicaSet
+          - ReplicationController
+      mutate: {}
+      name: autogen-require-label-environment
+      skipBackgroundRequests: true
+      validate:
+        message: An `environment` label is required.
+        pattern:
+          spec:
+            template:
+              metadata:
+                labels:
+                  environment: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - CronJob
+      mutate: {}
+      name: autogen-cronjob-require-label-environment
+      skipBackgroundRequests: true
+      validate:
+        message: An `environment` label is required.
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  metadata:
+                    labels:
+                      environment: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - DaemonSet
+          - Deployment
+          - Job
+          - StatefulSet
+          - ReplicaSet
+          - ReplicationController
+      mutate: {}
+      name: autogen-require-annotation-version
+      skipBackgroundRequests: true
+      validate:
+        message: A `version` annotation is required.
+        pattern:
+          spec:
+            template:
+              metadata:
+                annotations:
+                  version: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - CronJob
+      mutate: {}
+      name: autogen-cronjob-require-annotation-version
+      skipBackgroundRequests: true
+      validate:
+        message: A `version` annotation is required.
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  metadata:
+                    annotations:
+                      version: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - DaemonSet
+          - Deployment
+          - Job
+          - StatefulSet
+          - ReplicaSet
+          - ReplicationController
+      mutate: {}
+      name: autogen-require-annotation-maintainer
+      skipBackgroundRequests: true
+      validate:
+        message: A `maintainer` annotation is required.
+        pattern:
+          spec:
+            template:
+              metadata:
+                annotations:
+                  maintainer: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - CronJob
+      mutate: {}
+      name: autogen-cronjob-require-annotation-maintainer
+      skipBackgroundRequests: true
+      validate:
+        message: A `maintainer` annotation is required.
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  metadata:
+                    annotations:
+                      maintainer: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - DaemonSet
+          - Deployment
+          - Job
+          - StatefulSet
+          - ReplicaSet
+          - ReplicationController
+      mutate: {}
+      name: autogen-require-spec-containers
+      skipBackgroundRequests: true
+      validate:
+        message: The Pod must have at least one container.
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                - name: ?*
+    - exclude:
+        resources: {}
+      generate:
+        clone: {}
+        cloneList: {}
+      match:
+        resources:
+          kinds:
+          - CronJob
+      mutate: {}
+      name: autogen-cronjob-require-spec-containers
+      skipBackgroundRequests: true
+      validate:
+        message: The Pod must have at least one container.
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - name: ?*
+  conditions:
+  - lastTransitionTime: "2025-01-17T19:09:11Z"
+    message: Ready
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  rulecount:
+    generate: 0
+    mutate: 0
+    validate: 5
+    verifyimages: 0
+  validatingadmissionpolicy:
+    generated: false
+    message: ""
+

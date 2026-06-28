@@ -1,0 +1,35 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: '3'
+    argocd.argoproj.io/tracking-id: foobar-admin:grafana.integreatly.org/GrafanaDatasource:foo/cluster-local
+  name: cluster-local
+  namespace: foo
+spec:
+  allowCrossNamespaceImport: true
+  datasource:
+    access: proxy
+    editable: true
+    isDefault: true
+    jsonData:
+      httpHeaderName1: Authorization
+      timeInterval: 5s
+      tlsSkipVerify: true
+    name: cluster-local
+    secureJsonData:
+      httpHeaderValue1: Bearer ${token}
+    type: prometheus
+    url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  resyncPeriod: 5m
+  valuesFrom:
+    - targetPath: secureJsonData.httpHeaderValue1
+      valueFrom:
+        secretKeyRef:
+          key: token
+          name: grafana-token
+status:
+  uid: ""

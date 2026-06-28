@@ -1,0 +1,88 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.application-parameters {
+    &__labels {
+        line-height: 28px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        flex-wrap: wrap;
+        padding-top: 0.5em;
+    }
+
+    &__label {
+        background-color: $argo-color-gray-5;
+        color: white;
+        border-radius: 5px;
+        padding: 4px;
+        line-height: 14px;
+        margin: 0.3em 0;
+        margin-right: 2px;
+    }
+
+    &__sort-icon {
+        cursor: pointer;
+        position: absolute;
+        font-size: 1.3em;
+        left: -1em;
+
+        &.fa-sort-up {
+            top: 10px;
+        }
+
+        &.fa-sort-down {
+            bottom: 10px;
+        }
+    }
+    &__remove-icon {
+        cursor: pointer;
+        position: absolute;
+        top: 1em;
+        right: 1em;
+    }
+
+    .source-panel-buttons {
+        margin-bottom: 10px;
+    }
+
+    .argo-field {
+        line-height: 1.15;
+    }
+
+    .white-box__details p {
+        font-weight: 500;
+        @include themify($themes) {            
+            color: themed('text-1');
+        }
+    }
+
+    .white-box__details-row .row {
+        padding-left: 1em;
+        padding-right: 1em;
+    }
+
+    .white-box__details-row .row .columns:last-child {
+        padding-left: 1em;
+    }
+
+    .select {
+        padding-bottom: 0;
+
+        .select__value{
+            min-height: 28px;
+        }
+    }
+
+    .row.application-retry-options {
+        .columns.application-retry-options__item{
+            padding-left: 0;
+            padding-right: 10px;
+        }
+
+        .argo-form-row__error-msg {
+            position: static;
+            line-height: 1;
+        }
+    }
+}

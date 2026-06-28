@@ -1,0 +1,29 @@
+apiVersion: core.humio.com/v1alpha1
+kind: HumioAlert
+metadata:
+  creationTimestamp: '2022-12-08T02:03:07Z'
+  finalizers:
+    - core.humio.com/finalizer
+  generation: 3
+  labels:
+    app.kubernetes.io/instance: humio-deploy
+  name: example-alert-1
+  namespace: humio
+  resourceVersion: '10768150'
+  uid: eb138512-0661-47c1-a056-0e53f3b5fa1f
+spec:
+  actions:
+    - move-to-alerts
+  description: Error counts
+  labels:
+    - test-label
+  managedClusterName: example-humiocluster
+  name: example-alert
+  query:
+    queryString: '#repo = humio | error = true | count() | _count > 0'
+    start: 24h
+  silenced: false
+  throttleTimeMillis: 60000
+  viewName: example-view
+status:
+  state: NotFound

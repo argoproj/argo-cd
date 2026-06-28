@@ -1,0 +1,41 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  annotations:
+    cdi.kubevirt.io/storage.bind.immediate.requested: "true"
+    kubevirt.ui/provider: fedora
+  labels:
+    app.kubernetes.io/instance: datavolumes
+  name: fedora
+  namespace: openshift-virtualization-os-images
+spec:
+  pvc:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 20Gi
+    volumeMode: Filesystem
+  source:
+    http:
+      url: https://mirror.arizona.edu/fedora/linux/releases/34/Cloud/x86_64/images/Fedora-Cloud-Base-34-1.2.x86_64.raw.xz
+status:
+  conditions:
+  - lastHeartbeatTime: "2021-08-30T21:31:52Z"
+    lastTransitionTime: "2021-08-30T21:31:52Z"
+    message: PVC fedora Bound
+    reason: Bound
+    status: "True"
+    type: Bound
+  - lastHeartbeatTime: "2021-08-30T21:34:36Z"
+    lastTransitionTime: "2021-08-30T21:34:36Z"
+    status: "True"
+    type: Ready
+  - lastHeartbeatTime: "2021-08-30T21:34:36Z"
+    lastTransitionTime: "2021-08-30T21:34:36Z"
+    message: Import Complete
+    reason: Completed
+    status: "False"
+    type: Running
+  phase: Succeeded
+  progress: 100.0%

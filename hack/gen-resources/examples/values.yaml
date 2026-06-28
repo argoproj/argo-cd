@@ -1,0 +1,6 @@
+vcluster:
+  image: rancher/k3s:v1.23.3-k3s1 # be sure that use same cluster version either change an image tag
+  extraArgs:
+    - --service-cidr=10.100.0.0/16 # THE CLUSTER SERVICE CIDR HERE ( you can find here https://github.com/loft-sh/virtual-cluster#install how to get it)
+storage:
+  size: 1Gi

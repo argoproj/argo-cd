@@ -1,0 +1,18 @@
+{
+    "$defs": {
+        "myType": {
+            "$ref": "http://doesnotexist.example.com/",
+            "title": "myType",
+            "type": "object"
+        }
+    },
+    "type": "object",
+    "required": [
+        "name"
+    ],
+    "properties": {
+        "name": {
+            "$ref": "#/$defs/myType"
+        }
+    }
+}

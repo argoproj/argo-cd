@@ -1,0 +1,9 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Cassandra Cluster"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy.yaml

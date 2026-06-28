@@ -1,0 +1,12 @@
+# To generate a Status.Decisions from this CRD, requires the open-cluster-management.io Placement controller be deployed.
+# See: https://open-cluster-management.io/docs/concepts/content-placement/placement/
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ocm-placement
+data:
+  apiVersion: cluster.open-cluster-management.io/v1beta1
+  kind: placementdecisions
+  statusListKey: decisions
+  matchKey: clusterName

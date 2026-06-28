@@ -1,0 +1,15 @@
+---
+# PlacementDecision is created by the Placement controller to hold scheduling results.
+# A Placement resource defines the scheduling policy; the controller then populates
+# one or more PlacementDecision resources with the selected clusters.
+# See: https://open-cluster-management.io/docs/concepts/content-placement/placement/#placementdecisions
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: PlacementDecision
+metadata:
+  name: test-placement
+  labels:
+    cluster.open-cluster-management.io/placement: test-placement
+status:
+  decisions:
+  - clusterName: cluster-01
+  - clusterName: cluster-02

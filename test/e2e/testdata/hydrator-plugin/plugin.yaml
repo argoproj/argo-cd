@@ -1,0 +1,10 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: hydrator-plugin
+spec:
+  version: v1.0
+  generate:
+    command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"plugin-generated-map\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\" }, \"data\": { \"message\": \"plugin-hydrated\", \"source\": \"hydrator-plugin\", \"content\": \"$(cat data.txt)\", \"plugin-env\": \"$ARGOCD_ENV_PLUGIN_ENV\" }}"']
+  discover:
+    fileName: "data.txt"

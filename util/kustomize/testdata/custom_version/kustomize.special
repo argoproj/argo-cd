@@ -1,0 +1,8 @@
+#!/bin/bash
+
+current_dir=$(dirname $0)
+output="$current_dir/env_output"
+
+env | grep "ARGOCD_APP_NAME" > $output
+
+kustomize $@

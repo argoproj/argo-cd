@@ -1,0 +1,41 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Backup
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: apps-bridge-demo-de1:k8s.mariadb.com/Backup:bridge/backup-local-bridge
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"k8s.mariadb.com/v1alpha1","kind":"Backup","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"apps-bridge-demo-de1:k8s.mariadb.com/Backup:bridge/backup-local-bridge"},"name":"backup-local-bridge","namespace":"bridge"},"spec":{"args":["--databases bridge"],"mariaDbRef":{"name":"mariadb"},"maxRetention":"168h","schedule":{"cron":"0 1-23/2 * * *","suspend":false},"storage":{"persistentVolumeClaim":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"80Gi"}}}}}}
+  creationTimestamp: "2024-04-12T12:35:41Z"
+  generation: 2
+  name: backup-local-bridge
+  namespace: bridge
+  resourceVersion: "506591405"
+  uid: 67364d0a-6da9-4369-97fd-45ea468dbbea
+spec:
+  args:
+  - --databases bridge
+  backoffLimit: 5
+  logLevel: info
+  mariaDbRef:
+    name: mariadb
+    waitForIt: true
+  maxRetention: 168h
+  restartPolicy: OnFailure
+  schedule:
+    cron: 0 1-23/2 * * *
+    suspend: false
+  serviceAccountName: backup-local-bridge
+  storage:
+    persistentVolumeClaim:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 80Gi
+status:
+  conditions:
+  - lastTransitionTime: "2024-04-24T15:00:23Z"
+    message: Success
+    reason: CronJobSucess
+    status: "True"
+    type: Complete

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: helm-with-dependencies
+version: v1.0.0
+dependencies:
+  - name: simple-chart
+    repository: file://../simple-chart
+    version: v1.1.0

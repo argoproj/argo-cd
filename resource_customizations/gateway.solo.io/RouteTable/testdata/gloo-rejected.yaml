@@ -1,0 +1,15 @@
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+status:
+  statuses:
+    gloo-system:
+      reason: "message that will describe all the reasons for rejection"
+      reportedBy: gateway
+      state: Rejected
+      subresourceStatuses:
+        '*v1.Proxy.gateway-proxy_gloo-system':
+          reportedBy: gloo
+          state: Accepted
+        '*v1.Proxy.internal-proxy_gloo-system':
+          reportedBy: gloo
+          state: Rejected

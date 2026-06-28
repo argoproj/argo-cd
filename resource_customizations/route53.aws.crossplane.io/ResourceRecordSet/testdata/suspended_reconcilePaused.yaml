@@ -1,0 +1,27 @@
+apiVersion: route53.aws.crossplane.io/v1alpha1
+kind: ResourceRecordSet
+metadata:
+  annotations:
+    crossplane.io/paused: "true"
+  creationTimestamp: "2024-01-11T04:16:15Z"
+  generation: 1
+  name: www-domain
+  resourceVersion: "187746011"
+  uid: 5517b419-5052-43d9-941e-c32f60d8c7e5
+spec:
+  providerConfigRef:
+    name: crossplane
+  forProvider:
+    resourceRecords:
+      - value: www.crossplane.io
+    setIdentifier: www
+    ttl: 60
+    type: CNAME
+    weight: 0
+    zoneId: ABCDEFGAB07CD
+status:
+  conditions:
+    - lastTransitionTime: "2024-01-11T04:16:16Z"
+      reason: ReconcilePaused
+      status: "False"
+      type: Synced

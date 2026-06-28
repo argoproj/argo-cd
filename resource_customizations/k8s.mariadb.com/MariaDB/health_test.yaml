@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "No status info available"
+  inputPath: testdata/no_status.yaml
+- healthStatus:
+    status: Healthy
+    message: "Running"
+  inputPath: testdata/statefulset_ready.yaml
+- healthStatus:
+    status: Progressing
+    message: "Not ready"
+  inputPath: testdata/statefulset_not_ready.yaml
+- healthStatus:
+    status: Healthy
+    message: "Running"
+  inputPath: testdata/restore_complete.yaml
+- healthStatus:
+    status: Progressing
+    message: "Restoring backup"
+  inputPath: testdata/restore_not_complete.yaml
+- healthStatus:
+    status: Degraded
+    message: "Error creating ConfigMap"
+  inputPath: testdata/mariadb_error.yaml

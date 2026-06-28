@@ -1,0 +1,19 @@
+kind: HorizontalPodAutoscaler
+apiVersion: autoscaling/v1
+metadata:
+  name: sample
+  namespace: argocd
+  annotations:
+    autoscaling.alpha.kubernetes.io/conditions: '[{"type":"AbleToScale","status":"True","lastTransitionTime":"2026-02-05T14:13:42Z","reason":"ScaleDownStabilized","message":"recent recommendations were higher than current one, applying the highest recent recommendation"},{"type":"ScalingActive","status":"True","lastTransitionTime":"2026-02-05T14:13:42Z","reason":"ValidMetricFound","message":"the HPA was able to successfully calculate a replica count from cpu resource utilization (percentage of request)"},{"type":"ScalingLimited","status":"False","lastTransitionTime":"2026-02-05T14:13:42Z","reason":"DesiredWithinRange","message":"the desired count is within the acceptable range"}]'
+spec:
+  scaleTargetRef:
+    kind: Deployment
+    name: sample
+    apiVersion: apps/v1
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+status:
+  currentReplicas: 1
+  desiredReplicas: 1
+  currentCPUUtilizationPercentage: 0

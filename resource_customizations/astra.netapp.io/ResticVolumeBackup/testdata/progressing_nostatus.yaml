@@ -1,0 +1,49 @@
+apiVersion: astra.netapp.io/v1
+kind: ResticVolumeBackup
+metadata:
+  creationTimestamp: "2024-04-25T20:30:15Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  name: backup-40b1dc7d-f1c0-4c3d-b34e-d7db5cc26d14-vs-78b36b0d-52db-4b24-afe4-ceec56209bbb
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Backup
+      name: hourly-acde9-20240425195000
+      uid: 40b1dc7d-f1c0-4c3d-b34e-d7db5cc26d14
+  resourceVersion: "11459172"
+  uid: f3424a57-862e-4609-88ce-e534a655a5d6
+spec:
+  clonePVC:
+    metadata: {}
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 100Gi
+      storageClassName: netapp-cvs-perf-premium
+  dataSourceRef:
+    apiGroup: snapshot.storage.k8s.io
+    kind: VolumeSnapshot
+    name: backup-40b1dc7d-f1c0-4c3d-b34e-d7db5cc26d14-vs-78b36b0d-52db-4b24-afe4-ceec56209bbb
+  resticEnv:
+    - name: GOOGLE_PROJECT_ID
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      value: /var/run/secrets/neptune/astra-gcp-backup-743cfd150129-5rdt4/credentials.json
+    - name: RESTIC_PASSWORD
+      value: password
+  resticRepository: gs:astra-gcp-backup-743cfd150129://ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/restic/ghost/mysql-pv-claim_5749beb5-e09a-4286-8cb4-1af9750f6929
+  resticVolumeMounts:
+    - mount:
+        mountPath: /var/run/secrets/neptune/astra-gcp-backup-743cfd150129-5rdt4
+        name: secret-astra-gcp-backup-743cfd150129-5rdt4
+        readOnly: true
+      source:
+        items:
+          - key: credentials.json
+            path: credentials.json
+        secretName: astra-gcp-backup-743cfd150129-5rdt4

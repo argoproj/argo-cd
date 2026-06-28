@@ -1,0 +1,24 @@
+apiVersion: core.humio.com/v1alpha1
+kind: HumioView
+metadata:
+  annotations:
+  creationTimestamp: '2022-12-08T02:03:07Z'
+  finalizers:
+    - core.humio.com/finalizer
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: humio-deploy
+  name: example-view
+  namespace: humio
+  resourceVersion: '10768121'
+  uid: 2c49ac77-1be2-4e2c-a473-44f3f0e03453
+spec:
+  connections:
+    - filter: '*'
+      repositoryName: example-1
+    - filter: '*'
+      repositoryName: example-2
+  managedClusterName: example-humiocluster
+  name: example-view
+status:
+  state: Unknown

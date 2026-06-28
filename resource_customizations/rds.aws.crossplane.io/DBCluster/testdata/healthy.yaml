@@ -1,0 +1,61 @@
+apiVersion: rds.aws.crossplane.io/v1alpha1
+kind: DBCluster
+metadata:
+  name: test-rds1
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    allowMajorVersionUpgrade: true
+    applyImmediately: true
+    autogeneratePassword: true
+    databaseName: app
+    dbSubnetGroupName: test-rds
+    engine: aurora-postgresql
+    engineVersion: '16.2'
+    masterUsername: root
+    skipFinalSnapshot: true
+  managementPolicies:
+    - '*'
+  providerConfigRef:
+    name: provider-aws
+  publishConnectionDetailsTo:
+    configRef:
+      name: store-config
+    name: test-rds1-rds
+status:
+  atProvider:
+    activityStreamStatus: stopped
+    clusterCreateTime: "2024-07-15T14:23:42Z"
+    crossAccountClone: false
+    dbClusterARN: arn:aws:rds:abc123:cluster:test-rds1
+    dbClusterIdentifier: test-rds1
+    dbClusterMembers:
+    - dbClusterParameterGroupStatus: in-sync
+      dbInstanceIdentifier: test-rds1-0
+      isClusterWriter: true
+      promotionTier: 1
+    dbClusterParameterGroup: default.aurora-postgresql16
+    dbClusterResourceID: cluster-abc123
+    dbSubnetGroup: sandbox5-valhalla-rds
+    earliestRestorableTime: "2024-07-15T14:24:40Z"
+    endpoint: test-rds1.cluster-abc123.rds.amazonaws.com
+    engineVersion: "16.2"
+    hostedZoneID: abc123
+    httpEndpointEnabled: false
+    iamDatabaseAuthenticationEnabled: false
+    latestRestorableTime: "2024-07-15T14:46:08Z"
+    multiAZ: false
+    readerEndpoint: test-rds1.abc123.rds.amazonaws.com
+    status: available
+    vpcSecurityGroups:
+    - status: active
+      vpcSecurityGroupID: sg-abc123
+  conditions:
+  - lastTransitionTime: "2024-07-15T14:48:40Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-15T14:23:42Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced

@@ -1,0 +1,5 @@
+{{ if .Capabilities.APIVersions.Has "sample/v2" }}
+apiVersion: "sample/v2"
+{{ else }}
+apiVersion: "sample/v1" {{ end }}
+kind: Test

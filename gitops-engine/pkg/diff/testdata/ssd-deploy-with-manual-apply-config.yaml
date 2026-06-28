@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: manual-apply-test-deployment
+  namespace: default
+  labels:
+    app: manual-apply-app
+    applications.argoproj.io/app-name: manual-apply-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: manual-apply-test
+  template:
+    metadata:
+      labels:
+        app: manual-apply-test
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: main-container
+          image: 'nginx:latest'
+          ports:
+            - containerPort: 80
+              name: http
+            - containerPort: 40
+              name: https
+          resources:
+            limits:
+              memory: "100Mi"

@@ -1,0 +1,71 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: '2'
+  creationTimestamp: '2020-11-06T18:39:45Z'
+  generation: 4
+  labels:
+    rollout-type: Step
+    rollouts-pod-template-hash: ff68867ff
+    step-index: '0'
+  name: rollout-canary-ff68867ff-2-0
+  namespace: default
+  ownerReferences:
+    - apiVersion: argoproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Rollout
+      name: rollout-canary
+      uid: 0223237a-0dc1-45f6-881c-fe1873b1771f
+  resourceVersion: '1381'
+  selfLink: >-
+    /apis/argoproj.io/v1alpha1/namespaces/default/analysisruns/rollout-canary-ff68867ff-2-0
+  uid: 863da27d-df03-41d2-a528-cc2f1ec25358
+spec:
+  args:
+    - name: exit-code
+      value: '0'
+    - name: duration
+      value: 1h
+  metrics:
+    - name: sleep-job
+      provider:
+        job:
+          metadata:
+            creationTimestamp: null
+          spec:
+            backoffLimit: 0
+            template:
+              metadata:
+                creationTimestamp: null
+              spec:
+                containers:
+                  - args:
+                      - 'sleep {{args.duration}} && exit {{args.exit-code}}'
+                    command:
+                      - sh
+                      - '-c'
+                      - '-x'
+                    image: 'nginx:1.19-alpine'
+                    name: sleep-job
+                    resources: {}
+                restartPolicy: Never
+  terminate: true
+status:
+  message: run terminated
+  metricResults:
+    - count: 1
+      measurements:
+        - finishedAt: '2020-11-06T18:42:58Z'
+          message: metric terminated
+          metadata:
+            job-name: 863da27d-df03-41d2-a528-cc2f1ec25358.sleep-job.1
+          phase: Successful
+          startedAt: '2020-11-06T18:39:45Z'
+      message: metric terminated
+      name: sleep-job
+      phase: Successful
+      successful: 1
+  phase: Successful
+  startedAt: '2020-11-06T18:39:45Z'

@@ -1,0 +1,15 @@
+<!-- Derived from NAuth logo: https://github.com/WirelessCar/nauth/blob/main/www/public/nauth.svg
+     Licensed under Apache License 2.0. Modified to use #8fa4b1 to match Argo CD resource icons. -->
+<svg width="91" height="111" viewBox="0 0 91 111" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="nauth-cutout" maskUnits="userSpaceOnUse" x="0" y="0" width="91" height="111">
+      <rect width="91" height="111" fill="white"/>
+      <path d="M64.3435 27H75.1186V73H63.4237L27.025 39.4172V73H16.1186V27H27.025L64.3435 61.3354V27Z" fill="black"/>
+    </mask>
+  </defs>
+  <g mask="url(#nauth-cutout)">
+    <path d="M84.7226 82.2272L45.7117 55.1461L0.564755 23.8055L2.56475 76.1586C2.56475 79.0233 4.0139 80.6894 6.40687 82.2272L41.1119 108.173C44.8288 110.919 46.3007 110.919 50.0176 108.173L84.7226 82.2272Z" fill="#8fa4b1"/>
+    <path d="M45.7117 55.1461L84.7226 82.2272C87.1156 80.6894 88.5648 79.0233 88.5648 76.1586L90.5648 23.8055C90.5648 23.3254 90.5803 22.8778 90.5948 22.46C90.6667 20.3855 90.7142 19.0168 88.7227 17.7369L50.0176 1.79154C48.5116 1.14698 47.1346 0.824087 45.7117 0.822879V55.1461Z" fill="#8fa4b1"/>
+    <path d="M0.564755 23.8055L45.7117 55.1461V0.822879C44.2835 0.821667 42.8091 1.14455 41.1119 1.79154L2.40687 17.7369C0.415306 19.0168 0.462785 20.3855 0.534751 22.4601C0.549256 22.8782 0.564755 23.325 0.564755 23.8055Z" fill="#8fa4b1"/>
+  </g>
+</svg>

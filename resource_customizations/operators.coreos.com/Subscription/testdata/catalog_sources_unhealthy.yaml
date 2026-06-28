@@ -1,0 +1,58 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-gitops-operator
+  namespace: openshift-operators
+  labels:
+    operators.coreos.com/openshift-gitops-operator.openshift-operators: ''
+spec:
+  channel: stable
+  name: openshift-gitops-operator
+  source: redhat-op
+  sourceNamespace: openshift-marketplace
+  startingCSV: openshift-gitops-operator.v1.10
+status:
+  catalogHealth:
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: certified-operators
+        namespace: openshift-marketplace
+        resourceVersion: '767930'
+        uid: dba4fefa-78fa-45c2-9801-d551a086a229
+      healthy: true
+      lastUpdated: '2021-08-25T21:16:59Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: community-operators
+        namespace: openshift-marketplace
+        resourceVersion: '769392'
+        uid: 3e16e348-5b8c-4382-bd71-30fd97836a6c
+      healthy: true
+      lastUpdated: '2021-08-25T21:16:59Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-marketplace
+        namespace: openshift-marketplace
+        resourceVersion: '766585'
+        uid: 04003c1c-5414-43e7-ba5e-738addfa2443
+      healthy: true
+      lastUpdated: '2021-08-25T21:16:59Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-operators
+        namespace: openshift-marketplace
+        resourceVersion: '766000'
+        uid: 4cff9c98-14aa-4ebf-a238-2fb8fc48edb6
+      healthy: true
+      lastUpdated: '2021-08-25T21:16:59Z'
+  conditions:
+    - lastTransitionTime: '2021-08-25T21:16:59Z'
+      message: targeted catalogsource openshift-marketplace/redhat-op missing
+      reason: UnhealthyCatalogSourceFound
+      status: 'True'
+      type: CatalogSourcesUnhealthy
+  lastUpdated: '2021-08-25T21:16:59Z'

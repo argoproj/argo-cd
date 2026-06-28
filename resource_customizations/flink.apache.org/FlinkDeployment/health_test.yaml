@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy_running_v0.1.x.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy_running_v1.x.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy_suspended_v0.1.x.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy_suspended_v1.x.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for deploying
+  inputPath: testdata/progressing_deployedNotReady.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for deploying
+  inputPath: testdata/progressing_deploying.yaml
+- healthStatus:
+    status: Degraded
+    message: "org.apache.flink.configuration.IllegalConfigurationException: TaskManager memory configuration failed: Cannot read memory size from config option ''taskmanager.memory.network.max''."
+  inputPath: testdata/degraded_error.yaml

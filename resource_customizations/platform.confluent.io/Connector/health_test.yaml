@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: 'Connector running'
+    inputPath: testdata/connector-healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'connect Rest API request failed: Connector configuration is invalid and contains the following 1 error(s): Could not read properties from file'
+    inputPath: testdata/connector-failure.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'Connector has failed tasks'
+    inputPath: testdata/connector-task-failure.yaml

@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for postgres cluster status..."
+  inputPath: testdata/provisioning.yaml
+- healthStatus:
+    status: Progressing
+    message: "Updating"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Running"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "UpdateFailed"
+  inputPath: testdata/degraded.yaml

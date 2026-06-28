@@ -1,0 +1,75 @@
+package io
+
+import (
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGetPath_SameURLs(t *testing.T) {
+	t.Parallel()
+	paths := NewRandomizedTempPaths(os.TempDir())
+	res1, err := paths.GetPath("https://localhost/test.txt")
+	require.NoError(t, err)
+	res2, err := paths.GetPath("https://localhost/test.txt")
+	require.NoError(t, err)
+	assert.Equal(t, res1, res2)
+}
+
+func TestGetPath_DifferentURLs(t *testing.T) {
+	t.Parallel()
+	paths := NewRandomizedTempPaths(os.TempDir())
+	res1, err := paths.GetPath("https://localhost/test1.txt")
+	require.NoError(t, err)
+	res2, err := paths.GetPath("https://localhost/test2.txt")
+	require.NoError(t, err)
+	assert.NotEqual(t, res1, res2)
+}
+
+func TestGetPath_SameURLsDifferentInstances(t *testing.T) {
+	t.Parallel()
+	paths1 := NewRandomizedTempPaths(os.TempDir())
+	res1, err := paths1.GetPath("https://localhost/test.txt")
+	require.NoError(t, err)
+	paths2 := NewRandomizedTempPaths(os.TempDir())
+	res2, err := paths2.GetPath("https://localhost/test.txt")
+	require.NoError(t, err)
+	assert.NotEqual(t, res1, res2)
+}
+
+// TestGetPathIfExists is intentionally NOT parallel: its subtests share the
+// same RandomizedTempPaths instance and depend on call order ("does not exist"
+// must run before "does exist" populates the path).
+func TestGetPathIfExists(t *testing.T) {
+	paths := NewRandomizedTempPaths(os.TempDir())
+	t.Run("does not exist", func(t *testing.T) {
+		path := paths.GetPathIfExists("https://localhost/test.txt")
+		assert.Empty(t, path)
+	})
+	t.Run("does exist", func(t *testing.T) {
+		_, err := paths.GetPath("https://localhost/test.txt")
+		require.NoError(t, err)
+		path := paths.GetPathIfExists("https://localhost/test.txt")
+		assert.NotEmpty(t, path)
+	})
+}
+
+// TestGetPaths_no_race is intentionally NOT parallel: it fires goroutines
+// that call require/assert on t without waiting, which is only safe while
+// the parent test is still running. Adding t.Parallel() would let the runner
+// mark the test complete before those goroutines execute, violating the
+// testing.T contract (Fatal/FailNow must run on the test goroutine). The
+// test exists to be inspected by `go test -race`; parallelism adds no value.
+func TestGetPaths_no_race(t *testing.T) {
+	paths := NewRandomizedTempPaths(os.TempDir())
+	go func() {
+		path, err := paths.GetPath("https://localhost/test.txt")
+		require.NoError(t, err)
+		assert.NotEmpty(t, path)
+	}()
+	go func() {
+		paths.GetPaths()
+	}()
+}

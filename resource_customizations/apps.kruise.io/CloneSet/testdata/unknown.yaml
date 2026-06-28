@@ -1,0 +1,5 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: CloneSet
+metadata:
+  name: cloneset-test
+  namespace: kruise

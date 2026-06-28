@@ -1,0 +1,19 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Dummy
+metadata:
+  name: dummy-crd-instance
+spec:
+  cpu: 2000m
+  memory: 32Mi
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Dummy
+metadata:
+  name: dummy-crd-instance
+  namespace: kube-system
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterDummy
+metadata:
+  name: cluster-dummy-crd-instance

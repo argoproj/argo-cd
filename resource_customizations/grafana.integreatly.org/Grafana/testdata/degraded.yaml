@@ -1,0 +1,47 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: '1'
+    argocd.argoproj.io/tracking-id: foobar-admin:grafana.integreatly.org/Grafana:foo/grafana
+  creationTimestamp: '2024-10-07T08:46:00Z'
+  generation: 3
+  labels:
+    dashboards: grafana
+    folders: grafana
+  name: grafana
+  namespace: foo
+  resourceVersion: '343511'
+  uid: d2f0496d-cd5c-46bf-8630-de827b6d59b0
+spec:
+  deployment:
+    metadata: {}
+    spec:
+      template:
+        metadata: {}
+        spec:
+          containers:
+            - image: docker.io/grafana/grafana:11.1.4
+              name: grafana
+              volumeMounts:
+                - mountPath: /etc/ssl/certs/ca-certificates.crt
+                  name: tls-ca-bundle
+                  readOnly: true
+                  subPath: tls-ca-bundle.pem
+          volumes:
+            - name: tls-ca-bundle
+              secret:
+                items:
+                  - key: tls-ca-bundle.pem
+                    path: tls-ca-bundle.pem
+                secretName: tls-ca-bundle-secret
+  version: 10.4.3
+status:
+  adminUrl: http://grafana-service.foo:3000
+  dashboards:
+    - foo/dashboard-argocd/qPkgGHg7k
+  datasources:
+    - foo/cluster-local/927b3c23-e25f-4cbe-a82f-effbb0bbbf40
+  stage: ingress
+  stageStatus: failed
+  version: 11.1.4

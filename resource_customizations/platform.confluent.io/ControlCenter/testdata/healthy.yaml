@@ -1,0 +1,47 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: ControlCenter
+metadata:
+  finalizers:
+    - controlcenter.finalizers.platform.confluent.io
+  generation: 1
+  name: controlcenter
+  namespace: confluent
+spec:
+  dataVolumeCapacity: 10Gi
+  dependencies:
+    connect:
+      - name: connect
+        url: http://connect:8083
+    ksqldb:
+      - name: ksqldb
+        url: http://ksqldb:8088
+    schemaRegistry:
+      url: http://schemaregistry:8081
+  replicas: 1
+status:
+  clusterName: controlcenter
+  clusterNamespace: confluent
+  conditions:
+    - lastProbeTime: "2021-08-11T10:08:37Z"
+      lastTransitionTime: "2021-08-11T10:10:37Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: platform.confluent.io/statefulset-available
+    - lastProbeTime: "2021-08-11T10:08:37Z"
+      lastTransitionTime: "2021-08-11T10:10:37Z"
+      message: Kubernetes resources ready.
+      reason: KubernetesResourcesReady
+      status: "True"
+      type: platform.confluent.io/resources-ready
+  controlCenterName: _confluent-controlcenter
+  currentReplicas: 1
+  id: 0
+  kafka:
+    bootstrapEndpoint: kafka.confluent.svc.cluster.local:9071
+  operatorVersion: v0.174.13
+  phase: RUNNING
+  readyReplicas: 1
+  replicas: 1
+  restConfig:
+    internalEndpoint: http://controlcenter.confluent.svc.cluster.local:9021

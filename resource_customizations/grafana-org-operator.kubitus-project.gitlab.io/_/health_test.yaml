@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "Waiting ..."
+    inputPath: testdata/empty.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Grafana Instance reconciled"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: >-
+        Failed to reach Grafana instance: Get
+        "http://grafana.grafana.invalid/api/user": dial tcp:
+        lookup grafana.grafana.invalid on 10.20.30.40:53: server
+        misbehaving
+    inputPath: testdata/degraded.yaml

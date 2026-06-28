@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "At least one certificate is still being provisioned"
+    inputPath: testdata/provisioning.yaml
+  - healthStatus:
+      status: Degraded
+      message: "At least one certificate has failed to be provisioned"
+    inputPath: testdata/failed.yaml
+  - healthStatus:
+      status: Healthy
+      message: "All certificates are active"
+    inputPath: testdata/active.yaml

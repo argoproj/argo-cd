@@ -1,0 +1,37 @@
+apiVersion: core.humio.com/v1alpha1
+kind: HumioParser
+metadata:
+  creationTimestamp: '2022-12-08T02:03:07Z'
+  finalizers:
+    - core.humio.com/finalizer
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: humio-deploy
+  name: example-1-parser
+  namespace: humio
+  resourceVersion: '10768079'
+  uid: 5641590d-b8e9-42e8-a544-d0673bf0e1a2
+spec:
+  managedClusterName: example-humiocluster
+  name: example-1
+  parserScript: >
+    /(?<client>\S+)\s+-\s+(?<userid>\S+)\s+\[(?<@timestamp>.*)\]\s+"((?<method>\S+)\s+(?<url>\S+)?\s+(?<httpversion>\S+)?|-)"\s+(?<statuscode>\d+)\s+(?<responsesize>\S+)\s+"(?<referrer>[^"]*)"\s+"(?<useragent>[^"]*)"\s*(?<responsetime>(\d|\.)+)?/
+    | parseTimestamp(format="dd/MMM/yyyy:HH:mm:ss Z", field=@timestamp)
+  repositoryName: example-repo
+  tagFields:
+    - statuscode
+    - client
+  testData:
+    - >-
+      4.4.4.4 - - [12/Dec/2015:18:25:11 +0100] "GET /administrator/
+      HTTP/1.1" 200 4263 "-" "Mozilla/5.0 (Windows NT 6.0; rv:34.0)
+      Gecko/20100101 Firefox/34.0" "-"
+    - >-
+      4.4.4.4 - - [12/Dec/2015:18:25:11 +0100] "POST
+      /administrator/index.php HTTP/1.1" 200 4494
+      "http://github.com/administrator/" "Mozilla/5.0 (Windows NT 6.0;
+      rv:34.0) Gecko/20100101 Firefox/34.0" "-"
+    - >-
+      4.4.4.4 - - [12/Dec/2015:18:31:08 +0100] "GET /administrator/
+      HTTP/1.1" 200 4263 "-" "Mozilla/5.0 (Windows NT 6.0; rv:34.0)
+      Gecko/20100101 Firefox/34.0" "-"
