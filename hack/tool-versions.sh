@@ -17,7 +17,7 @@
 # checksums.
 ###############################################################################
 # renovate: datasource=github-releases depName=helm/helm packageName=helm/helm
-HELM_VERSION=4.2.1
+HELM_VERSION=4.2.2
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize packageName=kubernetes-sigs/kustomize extractVersion=^kustomize/v(?<version>.*)$
 KUSTOMIZE_VERSION=5.8.1
 protoc_version=29.3
