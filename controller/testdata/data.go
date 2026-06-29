@@ -32,4 +32,10 @@ var (
 
 	//go:embed additional-image-replicas-deployment.yaml
 	AdditionalImageReplicaDeploymentYaml string
+
+	//go:embed live-pdb.yaml
+	LivePDBYaml string
+
+	//go:embed target-pdb.yaml
+	TargetPDBYaml string
 )
