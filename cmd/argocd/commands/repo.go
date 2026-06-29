@@ -201,7 +201,11 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.AzureServicePrincipalClientId = repoOpts.AzureServicePrincipalClientId
 			repoOpts.Repo.AzureServicePrincipalClientSecret = repoOpts.AzureServicePrincipalClientSecret
 			repoOpts.Repo.AzureActiveDirectoryEndpoint = repoOpts.AzureActiveDirectoryEndpoint
-			repoOpts.Repo.Depth = repoOpts.Depth
+			if c.Flags().Changed("depth") {
+				d, err := c.Flags().GetInt64("depth")
+				errors.CheckError(err)
+				repoOpts.Repo.Depth = &d
+			}
 			repoOpts.Repo.WebhookManifestCacheWarmDisabled = repoOpts.WebhookManifestCacheWarmDisabled
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {

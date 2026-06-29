@@ -165,7 +165,7 @@ func TestSanitizedRepository(t *testing.T) {
 		AzureServicePrincipalClientId:     "client-id",
 		AzureServicePrincipalClientSecret: "client-secret",
 		AzureServicePrincipalTenantId:     "tenant-id",
-		Depth:                             1,
+		Depth:                             int64ptr(1),
 	}
 
 	sanitized := repo.Sanitized()
@@ -203,14 +203,15 @@ func TestSanitizedRepository(t *testing.T) {
 }
 
 func TestSanitizedRepositoryPreservesDepthZero(t *testing.T) {
-	// Depth of 0 means full clone; verify it's preserved (zero value)
+	// Depth of 0 means explicit full clone (not nil/unset); verify it's preserved.
 	repo := &Repository{
 		Repo:  "https://github.com/argoproj/argo-cd.git",
-		Depth: 0,
+		Depth: int64ptr(0),
 	}
 
 	sanitized := repo.Sanitized()
-	assert.Equal(t, int64(0), sanitized.Depth)
+	require.NotNil(t, sanitized.Depth)
+	assert.Equal(t, int64(0), *sanitized.Depth)
 }
 
 func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
@@ -237,30 +238,38 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid-url-format")
 }
 
+func int64ptr(v int64) *int64 { return &v }
+
 func TestCopyCredentialsFrom_Depth(t *testing.T) {
 	tests := []struct {
-		name      string
-		repoCreds RepoCreds
-		repo      Repository
-		expected  Repository
+		name          string
+		repoCreds     RepoCreds
+		repo          Repository
+		expectedDepth *int64
 	}{
 		{
-			name:      "copies depth from repoCreds when repo depth is zero",
-			repo:      Repository{Depth: 0},
-			repoCreds: RepoCreds{Depth: 5},
-			expected:  Repository{Depth: 5},
+			name:          "inherits depth from repoCreds when repo depth is nil (unset)",
+			repo:          Repository{},
+			repoCreds:     RepoCreds{Depth: int64ptr(5)},
+			expectedDepth: int64ptr(5),
 		},
 		{
-			name:      "does not override depth when repo depth is non-zero",
-			repo:      Repository{Depth: 3},
-			repoCreds: RepoCreds{Depth: 5},
-			expected:  Repository{Depth: 3},
+			name:          "does not override depth when repo depth is explicitly set to non-zero",
+			repo:          Repository{Depth: int64ptr(3)},
+			repoCreds:     RepoCreds{Depth: int64ptr(5)},
+			expectedDepth: int64ptr(3),
 		},
 		{
-			name:      "keeps zero when both repo and repoCreds depth are zero",
-			repo:      Repository{Depth: 0},
-			repoCreds: RepoCreds{Depth: 0},
-			expected:  Repository{Depth: 0},
+			name:          "does not override depth when repo depth is explicitly set to 0 (full clone)",
+			repo:          Repository{Depth: int64ptr(0)},
+			repoCreds:     RepoCreds{Depth: int64ptr(5)},
+			expectedDepth: int64ptr(0),
+		},
+		{
+			name:          "stays nil when both repo and repoCreds depth are nil",
+			repo:          Repository{},
+			repoCreds:     RepoCreds{},
+			expectedDepth: nil,
 		},
 	}
 
@@ -269,8 +278,16 @@ func TestCopyCredentialsFrom_Depth(t *testing.T) {
 			repo := tt.repo
 			repo.CopyCredentialsFrom(&tt.repoCreds)
 
-			if repo.Depth != tt.expected.Depth {
-				t.Errorf("expected depth %d, got %d", tt.expected.Depth, repo.Depth)
+			if tt.expectedDepth == nil {
+				if repo.Depth != nil {
+					t.Errorf("expected nil depth, got %d", *repo.Depth)
+				}
+			} else {
+				if repo.Depth == nil {
+					t.Errorf("expected depth %d, got nil", *tt.expectedDepth)
+				} else if *repo.Depth != *tt.expectedDepth {
+					t.Errorf("expected depth %d, got %d", *tt.expectedDepth, *repo.Depth)
+				}
 			}
 		})
 	}

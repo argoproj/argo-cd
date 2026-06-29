@@ -732,7 +732,7 @@ func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T
 	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{
 			Repo:  "https://git.example.com/test/repo",
-			Depth: refSourceDepth,
+			Depth: new(int64(refSourceDepth)),
 		}, nil
 	}, []string{})
 	require.NoError(t, err)

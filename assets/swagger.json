@@ -9626,7 +9626,7 @@
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
         },
         "depth": {
-          "description": "Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.",
+          "description": "Depth specifies the depth for shallow clones. Nil or omitting the field inherits the depth from a matching\ncredential template. A value of 0 indicates a full clone (overrides any template depth).",
           "type": "integer",
           "format": "int64"
         },
@@ -9749,7 +9749,7 @@
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
         "depth": {
-          "description": "Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.",
+          "description": "Depth specifies the depth for shallow clones. Nil or omitting the field inherits the depth from a matching\ncredential template. A value of 0 indicates a full clone (overrides any template depth).",
           "type": "integer",
           "format": "int64"
         },
