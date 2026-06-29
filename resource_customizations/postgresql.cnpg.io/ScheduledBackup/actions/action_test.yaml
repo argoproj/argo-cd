@@ -1,0 +1,4 @@
+actionTests:
+  - action: create-backup
+    inputPath: testdata/scheduledbackup.yaml
+    expectedOutputPath: testdata/scheduledbackup-create-backup.yaml
