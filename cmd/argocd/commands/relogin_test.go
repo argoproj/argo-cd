@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
@@ -108,7 +108,8 @@ func TestNewReloginCommandWithClientOptions(t *testing.T) {
 func TestReloginUsesArgocdContext(t *testing.T) {
 	// Start a plain-text gRPC server that handles the version probe (so apiclient.NewClient
 	// initialises cleanly) and the session Create call (the actual relogin RPC).
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	const newToken = "new-token-for-ctx-b"
