@@ -619,6 +619,11 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
 
+	if len(refSources) != 0 {
+		// TODO: need to support multi source (calculate refSourceCommitSHAs for SetNewRevisionManifests)
+		return fmt.Errorf("moving manifest cache is currently not supported for multi-source applications")
+	}
+
 	oldManifestKey := cache.NewManifestKey(
 		change.shaBefore,
 		&source,
