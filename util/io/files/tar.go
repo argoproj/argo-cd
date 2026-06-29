@@ -192,6 +192,13 @@ func matchPath(pattern, relativePath string) (bool, error) {
 	return doublestar.Match(normPattern, normPath)
 }
 
+func matchesPattern(pattern, base, relativePath string) (bool, error) {
+	if strings.Contains(filepath.ToSlash(pattern), "/") {
+		return matchPath(pattern, relativePath)
+	}
+	return filepath.Match(pattern, base)
+}
+
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
 // the given file in the tgz.tarWriter applying the exclusion pattern defined
 // in tgz.exclusions, or the inclusion pattern defined in tgz.inclusions.
@@ -219,18 +226,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
 		included := false
 		for _, inclusionPattern := range t.inclusions {
-			var (
-				found    bool
-				matchErr error
-			)
-			if strings.Contains(filepath.ToSlash(inclusionPattern), "/") {
-				// Path-aware pattern: match against the full relative path so
-				// callers can target subdirectories (e.g. "charts/**").
-				found, matchErr = matchPath(inclusionPattern, relativePath)
-			} else {
-				// Simple glob: match against the filename only (original behaviour).
-				found, matchErr = filepath.Match(inclusionPattern, base)
-			}
+			found, matchErr := matchesPattern(inclusionPattern, base, relativePath)
 			if matchErr != nil {
 				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, matchErr)
 			}
@@ -245,17 +241,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	}
 	if t.exclusions != nil {
 		for _, exclusionPattern := range t.exclusions {
-			var (
-				found    bool
-				matchErr error
-			)
-			if strings.Contains(filepath.ToSlash(exclusionPattern), "/") {
-				// Path-aware exclusion: match against the full relative path
-				found, matchErr = matchPath(exclusionPattern, relativePath)
-			} else {
-				// Filename-only exclusion: preserve original behavior with filepath.Match
-				found, matchErr = filepath.Match(exclusionPattern, base)
-			}
+			found, matchErr := matchesPattern(exclusionPattern, base, relativePath)
 			if matchErr != nil {
 				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, matchErr)
 			}
