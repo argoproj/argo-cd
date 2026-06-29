@@ -148,3 +148,22 @@ func TestFlagWithEqualSign(t *testing.T) {
 
 	assert.Equal(t, "bar", GetFlag("foo", ""))
 }
+
+func TestStringSliceFlagRepeated(t *testing.T) {
+	loadOpts(t, `--header "CF-Access-Client-Id: foo" --header "CF-Access-Client-Secret: bar"`)
+	headers := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, headers, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", headers[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", headers[1])
+}
+
+func TestStringSliceFlagRepeatedMixedWithCSV(t *testing.T) {
+	loadOpts(t, `--header "CF-Access-Client-Id: foo,CF-Access-Client-Secret: bar" --header "X-Custom: baz"`)
+	headers := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, headers, 3)
+	assert.Equal(t, "CF-Access-Client-Id: foo", headers[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", headers[1])
+	assert.Equal(t, "X-Custom: baz", headers[2])
+}
