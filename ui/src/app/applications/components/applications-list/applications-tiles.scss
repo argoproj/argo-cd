@@ -4,7 +4,7 @@
     display: grid;
     gap: 24px;
     grid-template-columns: repeat(auto-fill,minmax(370px,1fr));
-    padding: 0 12px;
+    padding: 0;
 
     &__wrapper {
         height: 100%;
@@ -21,6 +21,10 @@
 
     &__actions {
         margin-top: auto;
+
+        .applications-list__entry--actions {
+            overflow: visible;
+        }
     }
 
     .argo-table-list__row {

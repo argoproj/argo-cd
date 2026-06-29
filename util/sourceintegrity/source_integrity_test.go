@@ -1,6 +1,7 @@
 package sourceintegrity
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -70,11 +71,11 @@ func Test_GPGDisabledLogging(t *testing.T) {
 
 func TestGPGUnknownMode(t *testing.T) {
 	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
-	gitClient.EXPECT().CommitSHA().Return("DEADBEEF", nil)
+	gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+	gitClient.EXPECT().CommitSHA(mock.Anything).Return("DEADBEEF", nil)
 
 	s := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
-	result, _, err := verify(s, gitClient, "https://github.com/argoproj/argo-cd.git")
+	result, _, err := verify(t.Context(), s, gitClient, "https://github.com/argoproj/argo-cd.git")
 	require.ErrorContains(t, err, `unknown GPG mode "foobar" configured for GIT source integrity`)
 	assert.Nil(t, result)
 }
@@ -233,7 +234,7 @@ func TestComparingWithGPGFingerprint(t *testing.T) {
 	require.True(t, IsLongKeyID(fingerprint))
 
 	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return(
+	gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).Return(
 		[]git.RevisionSignatureInfo{{
 			Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: shortKey, Date: "ignored", AuthorIdentity: "ignored",
 		}},
@@ -245,7 +246,7 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, fingerp
 
 	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{fingerprint}}
 	// And verifying a given revision
-	result, legacy, err := verify(gpgWithTag, gitClient, "1.0")
+	result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, result.IsValid())
@@ -264,14 +265,14 @@ func TestGPGHeadValid(t *testing.T) {
 		{
 			revision: sha,
 			check: func(gitClient *gitmocks.Client, logger utilTest.LogHook) {
-				gitClient.AssertCalled(t, "LsSignatures", sha, false)
+				gitClient.AssertCalled(t, "LsSignatures", mock.Anything, sha, false)
 				assert.Empty(t, logger.GetEntries())
 			},
 		},
 		{
 			revision: tag,
 			check: func(gitClient *gitmocks.Client, logger utilTest.LogHook) {
-				gitClient.AssertCalled(t, "LsSignatures", tag, false)
+				gitClient.AssertCalled(t, "LsSignatures", mock.Anything, tag, false)
 				assert.Empty(t, logger.GetEntries())
 			},
 		},
@@ -281,7 +282,7 @@ func TestGPGHeadValid(t *testing.T) {
 		t.Run("verify "+test.revision, func(t *testing.T) {
 			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
-			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(func(revision string, _ bool) ([]git.RevisionSignatureInfo, string, error) {
+			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, revision string, _ bool) ([]git.RevisionSignatureInfo, string, error) {
 				signatureInfos := []git.RevisionSignatureInfo{{
 					Revision: revision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: keyId, Date: "ignored", AuthorIdentity: "ignored",
 				}}
@@ -301,7 +302,7 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, keyId)
 				Keys: []string{keyId, "0000000000000000"},
 			}
 			// And verifying a given revision
-			result, legacy, err := verify(gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 			// Then it is checked and valid
 			assert.True(t, result.IsValid())
@@ -662,8 +663,8 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 
 			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
-			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(
-				func(revision string, deep bool) (info []git.RevisionSignatureInfo, legacy string, err error) {
+			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+				func(_ context.Context, revision string, deep bool) (info []git.RevisionSignatureInfo, legacy string, err error) {
 					if ret, ok := lsSignatures[deep][revision]; ok {
 						legacy := fmt.Sprintf(`gpg: Signature made %s
 gpg:                using RSA key D6E87BF6B9AE64079FFEDC02%s
@@ -685,7 +686,7 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 				Keys: []string{keyOfFirst, keyOfSecond},
 			}
 			// And verifying a given revision
-			result, legacy, err := verify(gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 
 			// Then it is checked and valid

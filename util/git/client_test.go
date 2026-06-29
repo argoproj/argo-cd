@@ -144,7 +144,7 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 
 	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
 
-	err := client.Fetch("", 0)
+	err := client.Fetch(t.Context(), "", 0)
 	require.Error(t, err, "fetch against a missing remote must fail")
 	assert.NoFileExists(t, orphanPack, "orphaned temp pack should be cleaned up after a failed fetch")
 	assert.NoFileExists(t, orphanIdx, "orphaned temp index should be cleaned up after a failed fetch")
@@ -160,7 +160,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 }
 
@@ -178,7 +178,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 
 	err = runCmd(ctx, tempDir, "git", "branch", "-d", "test/foo")
@@ -186,7 +186,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo/bar")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 }
 
@@ -219,24 +219,24 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "tag", "light-tag")
 	require.NoError(t, err)
 
-	atag := client.IsAnnotatedTag("HEAD")
+	atag := client.IsAnnotatedTag(t.Context(), "HEAD")
 	assert.False(t, atag)
 
-	atag = client.IsAnnotatedTag("master")
+	atag = client.IsAnnotatedTag(t.Context(), "master")
 	assert.False(t, atag)
 
-	atag = client.IsAnnotatedTag("blorp")
+	atag = client.IsAnnotatedTag(t.Context(), "blorp")
 	assert.False(t, atag)
 
-	sha, err := client.CommitSHA()
+	sha, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
-	atag = client.IsAnnotatedTag(sha)
+	atag = client.IsAnnotatedTag(t.Context(), sha)
 	assert.False(t, atag)
 
-	atag = client.IsAnnotatedTag("annot-tag")
+	atag = client.IsAnnotatedTag(t.Context(), "annot-tag")
 	assert.True(t, atag)
 
-	atag = client.IsAnnotatedTag("light-tag")
+	atag = client.IsAnnotatedTag(t.Context(), "light-tag")
 	assert.False(t, atag)
 }
 
@@ -291,20 +291,20 @@ func Test_ChangedFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	// Invalid commits, error
-	_, err = client.ChangedFiles("0000000000000000000000000000000000000000", "1111111111111111111111111111111111111111")
+	_, err = client.ChangedFiles(t.Context(), "0000000000000000000000000000000000000000", "1111111111111111111111111111111111111111")
 	require.Error(t, err)
 
 	// Not SHAs, error
-	_, err = client.ChangedFiles(previousSHA, "HEAD")
+	_, err = client.ChangedFiles(t.Context(), previousSHA, "HEAD")
 	require.Error(t, err)
 
 	// Same commit, no changes
-	changedFiles, err := client.ChangedFiles(commitSHA, commitSHA)
+	changedFiles, err := client.ChangedFiles(t.Context(), commitSHA, commitSHA)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{}, changedFiles)
 
 	// Different ref, with changes
-	changedFiles, err = client.ChangedFiles(previousSHA, commitSHA)
+	changedFiles, err = client.ChangedFiles(t.Context(), previousSHA, commitSHA)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"README"}, changedFiles)
 }
@@ -648,14 +648,14 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
-	_, err = client.Checkout(commitSHA, false, true)
+	_, err = client.Checkout(t.Context(), commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
@@ -663,7 +663,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
-	_, err = client.Checkout(commitSHA, true, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config
@@ -678,7 +678,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call Submodule()
-	err = client.Submodule()
+	err = client.Submodule(t.Context())
 	require.NoError(t, err)
 
 	// Check if the URL change in .gitmodule is reflected in .git/config
@@ -723,11 +723,11 @@ func Test_IsRevisionPresent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Ensure revision for HEAD is present locally.
-	revisionPresent := client.IsRevisionPresent(commitSHA)
+	revisionPresent := client.IsRevisionPresent(t.Context(), commitSHA)
 	assert.True(t, revisionPresent)
 
 	// Ensure invalid revision is not returned.
-	revisionPresent = client.IsRevisionPresent("invalid-revision")
+	revisionPresent = client.IsRevisionPresent(t.Context(), "invalid-revision")
 	assert.False(t, revisionPresent)
 }
 
@@ -770,7 +770,7 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	metadata, err := client.RevisionMetadata("HEAD")
+	metadata, err := client.RevisionMetadata(t.Context(), "HEAD")
 	require.NoError(t, err)
 	require.Equal(t, &RevisionMetadata{
 		Author: `FooBar ||| somethingelse <foo@foo.com>`,
@@ -816,7 +816,7 @@ func Test_nativeGitClient_SetAuthor(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor(expectedName, expectedEmail)
+	out, err := client.SetAuthor(t.Context(), expectedName, expectedEmail)
 	require.NoError(t, err, "error output: ", out)
 
 	// Check git user.name
@@ -848,7 +848,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err)
 
 		// set the author for the initial commit of the orphan branch
-		out, err := client.SetAuthor("test", "test@example.com")
+		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
@@ -869,7 +869,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		err = runCmd(ctx, tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrOrphan(expectedBranch, false)
+		out, err = client.CheckoutOrOrphan(t.Context(), expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -914,10 +914,10 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err)
 
 		// set the author for the initial commit of the orphan branch
-		out, err := client.SetAuthor("test", "test@example.com")
+		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch(t.Context(), "", 0)
 		require.NoError(t, err)
 
 		// checkout to origin base branch
@@ -929,7 +929,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err)
 		baseCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 
-		out, err = client.CheckoutOrOrphan(expectedBranch, false)
+		out, err = client.CheckoutOrOrphan(t.Context(), expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -983,7 +983,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		out, err := client.SetAuthor("test", "test@example.com")
+		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
@@ -1000,14 +1000,14 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.NoError(t, err)
 
 		// get expected commit
-		expectedCommitHash, err := client.CommitSHA()
+		expectedCommitHash, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 
 		// checkout to base branch, ready to test
 		err = runCmd(ctx, tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrNew(expectedBranch, baseBranch, false)
+		out, err = client.CheckoutOrNew(t.Context(), expectedBranch, baseBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -1017,7 +1017,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.Equal(t, expectedBranch, actualBranch)
 
 		// get current commit hash, verify current commit hash
-		actualCommitHash, err := client.CommitSHA()
+		actualCommitHash, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 		require.Equal(t, expectedCommitHash, actualCommitHash)
 	})
@@ -1043,7 +1043,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		out, err := client.SetAuthor("test", "test@example.com")
+		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
@@ -1052,10 +1052,10 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		baseBranch := strings.TrimSpace(string(gitCurrentBranch))
 
 		// get expected commit
-		expectedCommitHash, err := client.CommitSHA()
+		expectedCommitHash, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrNew(expectedBranch, baseBranch, false)
+		out, err = client.CheckoutOrNew(t.Context(), expectedBranch, baseBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -1065,7 +1065,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.Equal(t, expectedBranch, actualBranch)
 
 		// get current commit hash, verify current commit hash
-		actualCommitHash, err := client.CommitSHA()
+		actualCommitHash, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 		require.Equal(t, expectedCommitHash, actualCommitHash)
 	})
@@ -1083,7 +1083,7 @@ func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	_, err = client.SetAuthor("test", "test@example.com")
+	_, err = client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err)
 
 	err = runCmd(ctx, client.Root(), "touch", "README.md")
@@ -1100,7 +1100,7 @@ func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
 	require.NoError(t, err)
 
 	// when: remove only "scripts" directory
-	_, err = client.RemoveContents([]string{"scripts"})
+	_, err = client.RemoveContents(t.Context(), []string{"scripts"})
 	require.NoError(t, err)
 
 	// then: "scripts" should be gone, "README.md" should still exist
@@ -1137,13 +1137,13 @@ func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(t.Context(), branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false, true)
+	out, err = client.Checkout(t.Context(), branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// make a file then commit and push
@@ -1156,7 +1156,7 @@ func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	require.NoError(t, err, "error output: %s", out)
 
 	// get current commit hash of the cloned repository
-	expectedCommitHash, err := client.CommitSHA()
+	expectedCommitHash, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
 
 	// get origin repository's current commit hash
@@ -1484,11 +1484,11 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	require.NoError(t, err)
 
 	// Assert that LsFiles returns the correct files when called sequentially
-	files1, err := client1.LsFiles("*", true)
+	files1, err := client1.LsFiles(t.Context(), "*", true)
 	require.NoError(t, err)
 	require.Contains(t, files1, "file1.txt")
 
-	files2, err := client2.LsFiles("*", true)
+	files2, err := client2.LsFiles(t.Context(), "*", true)
 	require.NoError(t, err)
 	require.Contains(t, files2, "file2.txt")
 
@@ -1497,7 +1497,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	callLsFiles := func(client Client, expectedFile string) {
 		defer wg.Done()
 		for range 100 {
-			files, err := client.LsFiles("*", true)
+			files, err := client.LsFiles(t.Context(), "*", true)
 			require.NoError(t, err)
 			require.Contains(t, files, expectedFile)
 		}
@@ -1706,13 +1706,13 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(t.Context(), branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false, true)
+	out, err = client.Checkout(t.Context(), branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
@@ -1724,12 +1724,12 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	require.NoError(t, err, "error output: %s", out)
 
 	// Get the latest commit SHA
-	sha, err := client.CommitSHA()
+	sha, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, sha)
 
 	// No note found, should return ErrNoNoteFound
-	got, err := client.GetCommitNote(sha, "")
+	got, err := client.GetCommitNote(t.Context(), sha, "")
 	require.Empty(t, got)
 	unwrappedError := errors.Unwrap(err)
 	require.ErrorIs(t, unwrappedError, ErrNoNoteFound)
@@ -1740,7 +1740,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call the method under test
-	got, err = client.GetCommitNote(sha, "")
+	got, err = client.GetCommitNote(t.Context(), sha, "")
 	require.NoError(t, err)
 	require.Equal(t, noteMsg, got)
 }
@@ -1766,13 +1766,13 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(t.Context(), branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false, true)
+	out, err = client.Checkout(t.Context(), branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
@@ -1784,13 +1784,13 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	require.NoError(t, err, "error output: %s", out)
 
 	// Get current commit SHA
-	sha, err := client.CommitSHA()
+	sha, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, sha)
 
 	// Add and push a note (to the same repo acting as its own origin)
 	note := "this is a test note"
-	err = client.AddAndPushNote(sha, "", note)
+	err = client.AddAndPushNote(t.Context(), sha, "", note)
 	require.NoError(t, err)
 
 	// Verify the note exists
@@ -1802,7 +1802,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	t.Run("custom namespace", func(t *testing.T) {
 		customNS := "source-hydrator"
 		customNote := "custom namespace note"
-		err = client.AddAndPushNote(sha, customNS, customNote)
+		err = client.AddAndPushNote(t.Context(), sha, customNS, customNote)
 		require.NoError(t, err)
 
 		outBytes, err := outputCmd(ctx, client.Root(), "git", "notes", "--ref="+customNS, "show", sha)
@@ -1832,13 +1832,13 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(t.Context(), branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false, true)
+	out, err = client.Checkout(t.Context(), branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create the file inside repo root
@@ -1849,7 +1849,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.NoError(t, err)
 
 	// Untracked file, should be reported as changed
-	changed, err := client.HasFileChanged(filePath)
+	changed, err := client.HasFileChanged(t.Context(), filePath)
 	require.NoError(t, err)
 	require.True(t, changed, "expected untracked file to be reported as changed")
 
@@ -1858,14 +1858,14 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.NoError(t, err, "error output: %s", out)
 	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
-	changed, err = client.HasFileChanged(filePath)
+	changed, err = client.HasFileChanged(t.Context(), filePath)
 	require.NoError(t, err)
 	require.False(t, changed, "expected committed file to not be changed")
 
 	// Modify the file should be reported as changed
 	err = os.WriteFile(filePath, []byte("modified content"), 0o644)
 	require.NoError(t, err)
-	changed, err = client.HasFileChanged(filePath)
+	changed, err = client.HasFileChanged(t.Context(), filePath)
 	require.NoError(t, err)
 	require.True(t, changed, "expected modified file to be reported as changed")
 }
@@ -1877,7 +1877,7 @@ func Test_LsSignatures_Error(t *testing.T) {
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: %s", out)
 
 	err = runCmd(ctx, tempDir, "git", "log")
@@ -1901,7 +1901,7 @@ func Test_LsSignatures_Error(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		signatures, legacy, err := client.LsSignatures(tt.revision, tt.deep)
+		signatures, legacy, err := client.LsSignatures(t.Context(), tt.revision, tt.deep)
 		require.ErrorContains(t, err, tt.expectedMsg)
 		assert.Nil(t, signatures)
 		assert.Empty(t, legacy)
