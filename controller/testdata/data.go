@@ -32,4 +32,10 @@ var (
 
 	//go:embed additional-image-replicas-deployment.yaml
 	AdditionalImageReplicaDeploymentYaml string
+
+	//go:embed live-application-multi-source.yaml
+	LiveApplicationMultiSourceYaml string
+
+	//go:embed target-application-multi-source.yaml
+	TargetApplicationMultiSourceYaml string
 )
