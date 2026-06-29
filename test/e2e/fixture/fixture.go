@@ -1096,6 +1096,16 @@ func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
+func GitRevList(t *testing.T, args []string) string {
+	t.Helper()
+	log.WithFields(log.Fields{"args": args}).Info("rev-list")
+	gitArgs := append([]string{"rev-list"}, args...)
+
+	result, err := Run(repoDirectory(), "git", gitArgs...)
+	errors.NewHandler(t).FailOnErr(result, err)
+	return result
+}
+
 func Patch(t *testing.T, path string, jsonPatch string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")

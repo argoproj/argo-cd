@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"time"
@@ -43,9 +44,19 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
+func (a *Actions) GetLastOutput() string {
+	return a.lastOutput
+}
+
 func (a *Actions) PatchFile(file string, jsonPatch string) *Actions {
 	a.context.T().Helper()
 	fixture.Patch(a.context.T(), a.context.path+"/"+file, jsonPatch)
+	return a
+}
+
+func (a *Actions) GitRevList(args ...string) *Actions {
+	a.context.T().Helper()
+	a.lastOutput = fixture.GitRevList(a.context.T(), args)
 	return a
 }
 
@@ -577,6 +588,29 @@ func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRule
 func (a *Actions) WithImpersonationDisabled() *Actions {
 	a.context.T().Helper()
 	require.NoError(a.context.T(), fixture.SetImpersonationEnabled("false"))
+	return a
+}
+
+func (a *Actions) GetHelmTemplateProcess() *Actions {
+	a.context.T().Helper()
+	//pattern := regexp.MustCompile(patternStr)
+	cwd, err := os.Getwd()
+	require.NoError(a.context.T(), err)
+
+	// use BSD style ps(1) options and field names so it can be run
+	// on both linux and MacOS: the first column will be PID,
+	// the rest - commandline starting with the executable name
+	output, err := fixture.Run(cwd, "ps", "xao", "pid=,command=")
+	require.NoError(a.context.T(), err)
+
+	//suffix := a.context.ShortID()
+	appName := a.context.AppName()
+	regexStr := "(?m)^.* helm template \\. --name-template " + appName + " .*$"
+	regex := regexp.MustCompile(regexStr)
+	require.NoError(a.context.T(), err)
+	a.lastOutput = regex.FindString(output)
+	//assert.NotEmpty(a.context.T(), a.lastOutput)
+	a.lastError = nil
 	return a
 }
 
