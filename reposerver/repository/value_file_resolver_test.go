@@ -43,9 +43,9 @@ func TestValueFileResolver_ResolveValueFiles(t *testing.T) {
 			expectedCount:           0,
 		},
 		{
-			name:          "multiple files",
+			name:          "duplicate files are de-duplicated",
 			rawValueFiles: []string{"values.yaml", "values.yaml"},
-			expectedCount: 2,
+			expectedCount: 1,
 		},
 	}
 
@@ -73,7 +73,7 @@ func TestValueFileResolver_ResolveValueFiles(t *testing.T) {
 	}
 }
 
-func TestValueFileResolver_resolveLocalValueFile(t *testing.T) {
+func TestValueFileResolver_resolveRawPath_local(t *testing.T) {
 	tmpDir := t.TempDir()
 	appPath := filepath.Join(tmpDir, "app")
 	repoRoot := tmpDir
@@ -93,16 +93,17 @@ func TestValueFileResolver_resolveLocalValueFile(t *testing.T) {
 		false,
 	)
 
-	// Test existing file
-	resolvedPath, shouldSkip, err := resolver.resolveLocalValueFile("test.yaml")
+	// Test existing local file
+	resolvedPath, isRemote, effectiveRoot, err := resolver.resolveRawPath("test.yaml")
 	require.NoError(t, err)
-	assert.False(t, shouldSkip)
+	assert.False(t, isRemote)
+	assert.Equal(t, repoRoot, effectiveRoot)
 	assert.Contains(t, string(resolvedPath), "test.yaml")
 
 	// Test with URL
-	resolvedPath, shouldSkip, err = resolver.resolveLocalValueFile("https://example.com/values.yaml")
+	resolvedPath, isRemote, _, err = resolver.resolveRawPath("https://example.com/values.yaml")
 	require.NoError(t, err)
-	assert.False(t, shouldSkip)
+	assert.True(t, isRemote)
 	assert.Equal(t, pathutil.ResolvedFilePath("https://example.com/values.yaml"), resolvedPath)
 }
 
@@ -148,36 +149,29 @@ func TestValueFileResolver_checkFileExists(t *testing.T) {
 	}
 }
 
-func TestValueFileResolver_resolveReferencedValueFile(t *testing.T) {
-	// Test verifies resolution of referenced value files from both Git and OCI repositories
+func TestValueFileResolver_resolveRawPath_referenced(t *testing.T) {
+	// Test verifies resolution of referenced value files from both Git and OCI repositories.
+	// Neither ref source is present in the temp paths, so resolution returns an error rather
+	// than panicking - the point is that the ref branch is exercised for both URL schemes.
 	resolver := NewValueFileResolver(
 		"/app",
 		"/repo",
 		&v1alpha1.Env{},
 		[]string{"https"},
-		nil,
+		map[string]*v1alpha1.RefTarget{
+			"$git": {Repo: v1alpha1.Repository{Repo: "https://github.com/test/repo.git"}},
+			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
+		},
 		utilio.NewRandomizedTempPaths(t.TempDir()),
 		utilio.NewRandomizedTempPaths(t.TempDir()),
 		false,
 	)
 
-	// Test with Git repo
-	gitRefTarget := &v1alpha1.RefTarget{
-		Repo: v1alpha1.Repository{
-			Repo: "https://github.com/test/repo.git",
-		},
-	}
+	// Git ref source - repo not registered in temp paths, so it errors out.
+	_, _, _, err := resolver.resolveRawPath("$git/values.yaml")
+	require.Error(t, err)
 
-	_, shouldSkip, _ := resolver.resolveReferencedValueFile("$test/values.yaml", gitRefTarget)
-	assert.False(t, shouldSkip) // Referenced files should never be skipped
-
-	// Test with OCI repo
-	ociRefTarget := &v1alpha1.RefTarget{
-		Repo: v1alpha1.Repository{
-			Repo: "oci://registry.example.com/chart",
-		},
-	}
-
-	_, shouldSkip, _ = resolver.resolveReferencedValueFile("$test/values.yaml", ociRefTarget)
-	assert.False(t, shouldSkip)
+	// OCI ref source - repo not registered in temp paths, so it errors out.
+	_, _, _, err = resolver.resolveRawPath("$oci/values.yaml")
+	require.Error(t, err)
 }

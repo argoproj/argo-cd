@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/TomOnTime/utfutil"
-	"github.com/bmatcuk/doublestar/v4"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	gocache "github.com/patrickmn/go-cache"
 	"sigs.k8s.io/yaml"
@@ -1372,7 +1371,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.Namespace = appHelm.Namespace
 		}
 
-		resolvedValueFiles, err := getResolvedValueFilesWithOCI(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, ociPaths, appHelm.IgnoreMissingValueFiles)
+		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, ociPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
 			return nil, "", fmt.Errorf("error resolving helm value files: %w", err)
 		}
@@ -1409,9 +1408,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			var resolvedPath pathutil.ResolvedFilePath
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
-
 				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, ociPaths)
-
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1513,6 +1510,8 @@ func redactPaths(s string, paths utilio.TempPaths, extraValuesPath pathutil.Reso
 	return s
 }
 
+// getResolvedValueFiles resolves a list of raw value file paths (handling local
+// files, $ref Git/OCI sources, and glob expansion) via the ValueFileResolver.
 func getResolvedValueFiles(
 	appPath string,
 	repoRoot string,
@@ -1524,123 +1523,6 @@ func getResolvedValueFiles(
 	ociRepoPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
 ) ([]pathutil.ResolvedFilePath, error) {
-	// Pre-collect resolved paths for all explicit (non-glob) entries. This allows glob
-	// expansion to skip files that also appear explicitly, so the explicit entry controls
-	// the final position. For example, with ["*.yaml", "c.yaml"], c.yaml is excluded from
-	// the glob expansion and placed at the end where it was explicitly listed.
-	explicitPaths := make(map[pathutil.ResolvedFilePath]struct{})
-	for _, rawValueFile := range rawValueFiles {
-		referencedSource := getReferencedSource(rawValueFile, refSources)
-		var resolved pathutil.ResolvedFilePath
-		var err error
-		if referencedSource != nil {
-			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, ociRepoPaths)
-		} else {
-			resolved, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
-		}
-		if err != nil {
-			continue // resolution errors will be surfaced in the main loop below
-		}
-		if !isGlobPath(string(resolved)) {
-			explicitPaths[resolved] = struct{}{}
-		}
-	}
-
-	var resolvedValueFiles []pathutil.ResolvedFilePath
-	seen := make(map[pathutil.ResolvedFilePath]struct{})
-	appendUnique := func(p pathutil.ResolvedFilePath) {
-		if _, ok := seen[p]; !ok {
-			seen[p] = struct{}{}
-			resolvedValueFiles = append(resolvedValueFiles, p)
-		}
-	}
-	for _, rawValueFile := range rawValueFiles {
-		isRemote := false
-		var resolvedPath pathutil.ResolvedFilePath
-		var err error
-
-		referencedSource := getReferencedSource(rawValueFile, refSources)
-		// effectiveRoot is the repository root used for the symlink boundary check
-		// on glob matches. For ref-source paths this is the external repo's checkout
-		// directory; for local paths it is the main repo root.
-		effectiveRoot := repoRoot
-		if referencedSource != nil {
-			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, ociRepoPaths)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving value file path: %w", err)
-			}
-			if refRepoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
-				effectiveRoot = refRepoPath
-			}
-		} else {
-			// This will resolve val to an absolute path (or a URL)
-			resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving value file path: %w", err)
-			}
-		}
-
-		// If the resolved path contains a glob pattern, expand it to all matching files.
-		// doublestar.FilepathGlob is used (consistent with AppSet generators) because it supports
-		// ** for recursive matching in addition to all standard glob patterns (*,?,[).
-		// Matches are returned in lexical order, which determines helm's merge precedence
-		// (later files override earlier ones). Glob patterns are only expanded for local files;
-		// remote value file URLs (e.g. https://...) are passed through as-is.
-		// If the glob matches no files and ignoreMissingValueFiles is true, skip it silently.
-		// Otherwise, return an error — consistent with how missing non-glob value files are handled.
-		if !isRemote && isGlobPath(string(resolvedPath)) {
-			matches, err := doublestar.FilepathGlob(string(resolvedPath))
-			if err != nil {
-				return nil, fmt.Errorf("error expanding glob pattern %q: %w", rawValueFile, err)
-			}
-			if len(matches) == 0 {
-				if ignoreMissingValueFiles {
-					log.Debugf(" %s values file glob matched no files", rawValueFile)
-					continue
-				}
-				return nil, &GlobNoMatchError{Pattern: rawValueFile}
-			}
-			if err := verifyGlobMatchesWithinRoot(matches, effectiveRoot); err != nil {
-				return nil, fmt.Errorf("glob pattern %q: %w", rawValueFile, err)
-			}
-			for _, match := range matches {
-				// Skip files that are also listed explicitly - they will be placed
-				// at their explicit position rather than the glob's position.
-				if _, isExplicit := explicitPaths[pathutil.ResolvedFilePath(match)]; !isExplicit {
-					appendUnique(pathutil.ResolvedFilePath(match))
-				}
-			}
-			continue
-		}
-		if !isRemote {
-			_, err = os.Stat(string(resolvedPath))
-			if os.IsNotExist(err) {
-				if ignoreMissingValueFiles {
-					log.Debugf(" %s values file does not exist", resolvedPath)
-					continue
-				}
-			}
-		}
-
-		appendUnique(resolvedPath)
-	}
-	log.Infof("resolved value files: %v", resolvedValueFiles)
-	return resolvedValueFiles, nil
-}
-
-// getResolvedValueFilesWithOCI handles both Git and OCI ref values using the ValueFileResolver
-func getResolvedValueFilesWithOCI(
-	appPath string,
-	repoRoot string,
-	env *v1alpha1.Env,
-	allowedValueFilesSchemas []string,
-	rawValueFiles []string,
-	refSources map[string]*v1alpha1.RefTarget,
-	gitRepoPaths utilio.TempPaths,
-	ociPaths utilio.TempPaths,
-	ignoreMissingValueFiles bool,
-) ([]pathutil.ResolvedFilePath, error) {
 	resolver := NewValueFileResolver(
 		appPath,
 		repoRoot,
@@ -1648,7 +1530,7 @@ func getResolvedValueFilesWithOCI(
 		allowedValueFilesSchemas,
 		refSources,
 		gitRepoPaths,
-		ociPaths,
+		ociRepoPaths,
 		ignoreMissingValueFiles,
 	)
 
