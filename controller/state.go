@@ -750,8 +750,8 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	}
 	conditions = append(conditions, dedupConditions...)
 
-	for i := len(targetObjs) - 1; i >= 0; i-- {
-		targetObj := targetObjs[i]
+	for i, v := range slices.Backward(targetObjs) {
+		targetObj := v
 		gvk := targetObj.GroupVersionKind()
 		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
 			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
