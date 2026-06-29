@@ -2382,8 +2382,10 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: Message is a human-readable informational message
-                      describing the health status
+                    description: |-
+                      Message is a human-readable informational message describing the health status
+
+                      Deprecated: this field is not used and will be removed in a future release.
                     type: string
                   status:
                     description: Status holds the status code of the application
@@ -35124,7 +35126,6 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-server
 spec:
-  minReadySeconds: 0
   podManagementPolicy: OrderedReady
   replicas: 3
   selector:
