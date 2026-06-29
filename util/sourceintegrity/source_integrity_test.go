@@ -331,7 +331,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	subkeySignature := func() *gitmocks.Client {
 		gitClient := &gitmocks.Client{}
-		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return(
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).Return(
 			[]git.RevisionSignatureInfo{{
 				Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: subkeyID, Date: "ignored", AuthorIdentity: "ignored",
 			}},
@@ -343,7 +343,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	t.Run("subkey accepted when its primary is allowed", func(t *testing.T) {
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{primaryKeyID}}
-		result, _, err := verify(gpg, subkeySignature(), "1.0")
+		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.True(t, result.IsValid())
 		require.NoError(t, result.AsError())
@@ -351,7 +351,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	t.Run("subkey rejected when its primary is not allowed", func(t *testing.T) {
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{unrelatedKeyID}}
-		result, _, err := verify(gpg, subkeySignature(), "1.0")
+		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.False(t, result.IsValid())
 		require.ErrorContains(t, result.AsError(), "signed with unallowed key (key_id="+subkeyID+")")
@@ -360,7 +360,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 	t.Run("primary match is case-insensitive", func(t *testing.T) {
 		// gpg emits key IDs in upper case; the operator may have used a different case in the policy.
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{strings.ToUpper(primaryKeyID)}}
-		result, _, err := verify(gpg, subkeySignature(), "1.0")
+		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.True(t, result.IsValid())
 		require.NoError(t, result.AsError())
@@ -372,7 +372,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 		// lookup deterministically fails for this fingerprint).
 		fingerprint := "abcd1234abcd1234abcd1234" + primaryKeyID
 		gitClient := &gitmocks.Client{}
-		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return(
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).Return(
 			[]git.RevisionSignatureInfo{{
 				Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: fingerprint, Date: "ignored", AuthorIdentity: "ignored",
 			}},
@@ -380,7 +380,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 			nil,
 		)
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{primaryKeyID}}
-		result, _, err := verify(gpg, gitClient, "1.0")
+		result, _, err := verify(t.Context(), gpg, gitClient, "1.0")
 		require.NoError(t, err)
 		assert.True(t, result.IsValid())
 		require.NoError(t, result.AsError())
