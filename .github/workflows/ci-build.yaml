@@ -102,6 +102,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
       - name: Restore go build and module cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -172,6 +173,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -246,6 +248,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -539,6 +542,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
       - name: Set GOPATH
         run: |
           echo "GOPATH=$HOME/go" >> $GITHUB_ENV
