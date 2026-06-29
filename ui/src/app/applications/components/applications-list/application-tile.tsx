@@ -238,11 +238,11 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                 <ApplicationURLs urls={app.status.summary?.externalURLs} />
                 {managedByURLInvalid ? (
                     <button type='button' className='managed-by-url-invalid' onClick={handleExternalLinkClick} style={{cursor: 'not-allowed'}} title={MANAGED_BY_URL_INVALID_TEXT}>
-                        <i className='fa fa-external-link-alt' />
+                        <i className='fa fa-window-maximize' />
                     </button>
                 ) : (
                     <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
-                        <i className='fa fa-external-link-alt' />
+                        <i className='fa fa-window-maximize' />
                     </button>
                 )}
                 <button title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
