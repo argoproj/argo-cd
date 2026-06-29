@@ -599,7 +599,6 @@ func (a *Actions) WithImpersonationEnforcementDisabled() *Actions {
 
 func (a *Actions) GetHelmTemplateProcess() *Actions {
 	a.context.T().Helper()
-	//pattern := regexp.MustCompile(patternStr)
 	cwd, err := os.Getwd()
 	require.NoError(a.context.T(), err)
 
@@ -609,13 +608,11 @@ func (a *Actions) GetHelmTemplateProcess() *Actions {
 	output, err := fixture.Run(cwd, "ps", "xao", "pid=,command=")
 	require.NoError(a.context.T(), err)
 
-	//suffix := a.context.ShortID()
 	appName := a.context.AppName()
 	regexStr := "(?m)^.* helm template \\. --name-template " + appName + " .*$"
 	regex := regexp.MustCompile(regexStr)
 	require.NoError(a.context.T(), err)
 	a.lastOutput = regex.FindString(output)
-	//assert.NotEmpty(a.context.T(), a.lastOutput)
 	a.lastError = nil
 	return a
 }

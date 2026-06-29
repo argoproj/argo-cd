@@ -534,7 +534,7 @@ func TestNestedRefresh(t *testing.T) {
 	acts.Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		// synced to the last commited revision - the second refresh worked
+		// synced to the last committed revision - the second refresh worked
 		Expect(SyncRevisionIs(revision))
 }
 
