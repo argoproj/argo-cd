@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	stderrors "errors"
@@ -105,6 +106,12 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 	// empty SyncPolicy). obj.Spec is already normalized by the caller; only the live side needs it.
 	normalizedLive.Spec = *argo.NormalizeApplicationSpec(&normalizedLive.Spec)
 
+	// Preserve an unmodified copy of the desired object before applyIgnoreDifferences
+	// strips ignored fields in place. This copy still carries the ResourceVersion from
+	// the live read above and is used by the null-values fallback below, so that a full
+	// Update does not clear ignored fields on the live resource.
+	desiredOriginal := obj.DeepCopy()
+
 	// Apply ignoreApplicationDifferences rules to remove ignored fields from both the live and the desired state. This
 	// prevents those differences from appearing in the diff and therefore in the patch.
 	err := applyIgnoreDifferences(diffConfig, normalizedLive, obj)
@@ -114,6 +121,24 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 
 	if appEquality.DeepEqual(normalizedLive, obj) {
 		return controllerutil.OperationResultNone, nil
+	}
+
+	// JSON Merge Patch (RFC 7396) interprets null values as field deletions. When
+	// valuesObject contains null entries (used by Helm to unset chart defaults), a
+	// merge patch would silently strip them. Fall back to a full Update in that case
+	// so the null values are preserved as-is in the stored object.
+	//
+	// Use desiredOriginal here. obj has had ignored fields stripped by
+	// applyIgnoreDifferences, so sending it to Update would clear those fields on the
+	// live resource and violate ignoreDifferences semantics.
+	if helmSourcesHaveNullValues(desiredOriginal) {
+		if err := c.Update(ctx, desiredOriginal); err != nil {
+			return controllerutil.OperationResultNone, err
+		}
+		// Keep obj in sync with what was written so callers observing it see the
+		// post-update state, matching the patch path's behavior.
+		desiredOriginal.DeepCopyInto(obj)
+		return controllerutil.OperationResultUpdated, nil
 	}
 
 	patch := client.MergeFrom(normalizedLive)
@@ -203,6 +228,58 @@ func applyIgnoreDifferences(diffConfig argodiff.DiffConfig, found *argov1alpha1.
 	generatedApp.Namespace = generatedAppCopy.Namespace
 	generatedApp.Operation = generatedAppCopy.Operation
 	return nil
+}
+
+// helmSourcesHaveNullValues returns true if any helm source in the application has
+// null values in its valuesObject. This is used to determine whether a JSON Merge Patch
+// is safe to use, since RFC 7396 treats null as a deletion directive.
+func helmSourcesHaveNullValues(app *argov1alpha1.Application) bool {
+	sources := app.Spec.GetSources()
+	for _, src := range sources {
+		if src.Helm != nil && src.Helm.ValuesObject != nil && src.Helm.ValuesObject.Raw != nil {
+			// Fast path: skip JSON parsing if no null literal is present.
+			if !bytes.Contains(src.Helm.ValuesObject.Raw, []byte("null")) {
+				continue
+			}
+			if jsonContainsNull(src.Helm.ValuesObject.Raw) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// jsonContainsNull checks whether JSON data contains any null values.
+func jsonContainsNull(data []byte) bool {
+	var parsed any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return false
+	}
+	return anyContainsNull(parsed)
+}
+
+func anyContainsNull(v any) bool {
+	switch val := v.(type) {
+	case map[string]any:
+		for _, value := range val {
+			if value == nil {
+				return true
+			}
+			if anyContainsNull(value) {
+				return true
+			}
+		}
+	case []any:
+		for _, item := range val {
+			if item == nil {
+				return true
+			}
+			if anyContainsNull(item) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func appToUnstructured(app client.Object) (*unstructured.Unstructured, error) {
