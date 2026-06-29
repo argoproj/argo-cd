@@ -21,6 +21,10 @@
 
     &__actions {
         margin-top: auto;
+
+        .applications-list__entry--actions {
+            overflow: visible;
+        }
     }
 
     .argo-table-list__row {
