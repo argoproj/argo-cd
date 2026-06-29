@@ -125,6 +125,16 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
 }
 
+type fakeProjectNamespaceLister struct {
+	argov1.AppProjectNamespaceLister
+	namespace string
+	clientset *appclientset.Clientset
+}
+
+func (f *fakeProjectNamespaceLister) Get(name string) (*v1alpha1.AppProject, error) {
+	return f.clientset.ArgoprojV1alpha1().AppProjects(f.namespace).Get(context.Background(), name, metav1.GetOptions{})
+}
+
 type fakeAppsLister struct {
 	argov1.ApplicationLister
 	argov1.ApplicationNamespaceLister
@@ -166,7 +176,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10, &fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"})
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -1160,6 +1170,7 @@ func TestHandleEvent(t *testing.T) {
 				int64(50)*1024*1024,
 				0,
 				10,
+				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 			)
 
 			// Create payload with the changed file
@@ -1759,6 +1770,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			int64(50)*1024*1024,
 			2*time.Second,
 			10,
+			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
 
 		req := &appRefreshRequest{
@@ -1799,6 +1811,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			int64(50)*1024*1024,
 			2*time.Second,
 			100, // High threshold - won't be exceeded
+			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
 
 		req := &appRefreshRequest{

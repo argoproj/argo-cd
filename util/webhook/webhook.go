@@ -16,7 +16,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 
 	bb "github.com/ktrysmt/go-bitbucket"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/workqueue"
 
@@ -97,6 +96,7 @@ type ArgoCDWebhookHandler struct {
 	appNs                         []string
 	appClientset                  appclientset.Interface
 	appsLister                    alpha1.ApplicationLister
+	appProjectsLister             alpha1.AppProjectNamespaceLister
 	parsers                       []Extractor
 	settings                      *settings.ArgoCDSettings
 	settingsSrc                   settingsSource
@@ -107,7 +107,7 @@ type ArgoCDWebhookHandler struct {
 	webhookRefreshJitterThreshold int
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int, appProjectsLister alpha1.AppProjectNamespaceLister) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -173,6 +173,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		refreshQueue:                  workqueue.NewTypedDelayingQueue[*appRefreshRequest](),
 		maxWebhookPayloadSizeB:        maxWebhookPayloadSizeB,
 		appsLister:                    appsLister,
+		appProjectsLister:             appProjectsLister,
 		webhookRefreshJitter:          webhookRefreshJitter,
 		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
 	}
@@ -591,8 +592,9 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	}
 
 	var sourceIntegrity *v1alpha1.SourceIntegrity
+
 	if app.Spec.Project != "" {
-		proj, err := a.appClientset.ArgoprojV1alpha1().AppProjects(a.ns).Get(context.Background(), app.Spec.Project, metav1.GetOptions{})
+		proj, err := a.appProjectsLister.Get(app.Spec.Project)
 		if err != nil {
 			return err
 		}
