@@ -65,7 +65,7 @@ type Client_AddAndPushNote_Call struct {
 //   - sha string
 //   - namespace string
 //   - note string
-func (_e *Client_Expecter) AddAndPushNote(ctx interface{}, sha interface{}, namespace interface{}, note interface{}) *Client_AddAndPushNote_Call {
+func (_e *Client_Expecter) AddAndPushNote(ctx any, sha any, namespace any, note any) *Client_AddAndPushNote_Call {
 	return &Client_AddAndPushNote_Call{Call: _e.mock.On("AddAndPushNote", ctx, sha, namespace, note)}
 }
 
@@ -144,7 +144,7 @@ type Client_ChangedFiles_Call struct {
 //   - ctx context.Context
 //   - revision string
 //   - targetRevision string
-func (_e *Client_Expecter) ChangedFiles(ctx interface{}, revision interface{}, targetRevision interface{}) *Client_ChangedFiles_Call {
+func (_e *Client_Expecter) ChangedFiles(ctx any, revision any, targetRevision any) *Client_ChangedFiles_Call {
 	return &Client_ChangedFiles_Call{Call: _e.mock.On("ChangedFiles", ctx, revision, targetRevision)}
 }
 
@@ -217,7 +217,7 @@ type Client_Checkout_Call struct {
 //   - revision string
 //   - submoduleEnabled bool
 //   - cleanState bool
-func (_e *Client_Expecter) Checkout(ctx interface{}, revision interface{}, submoduleEnabled interface{}, cleanState interface{}) *Client_Checkout_Call {
+func (_e *Client_Expecter) Checkout(ctx any, revision any, submoduleEnabled any, cleanState any) *Client_Checkout_Call {
 	return &Client_Checkout_Call{Call: _e.mock.On("Checkout", ctx, revision, submoduleEnabled, cleanState)}
 }
 
@@ -295,7 +295,7 @@ type Client_CheckoutOrNew_Call struct {
 //   - branch string
 //   - base string
 //   - submoduleEnabled bool
-func (_e *Client_Expecter) CheckoutOrNew(ctx interface{}, branch interface{}, base interface{}, submoduleEnabled interface{}) *Client_CheckoutOrNew_Call {
+func (_e *Client_Expecter) CheckoutOrNew(ctx any, branch any, base any, submoduleEnabled any) *Client_CheckoutOrNew_Call {
 	return &Client_CheckoutOrNew_Call{Call: _e.mock.On("CheckoutOrNew", ctx, branch, base, submoduleEnabled)}
 }
 
@@ -372,7 +372,7 @@ type Client_CheckoutOrOrphan_Call struct {
 //   - ctx context.Context
 //   - branch string
 //   - submoduleEnabled bool
-func (_e *Client_Expecter) CheckoutOrOrphan(ctx interface{}, branch interface{}, submoduleEnabled interface{}) *Client_CheckoutOrOrphan_Call {
+func (_e *Client_Expecter) CheckoutOrOrphan(ctx any, branch any, submoduleEnabled any) *Client_CheckoutOrOrphan_Call {
 	return &Client_CheckoutOrOrphan_Call{Call: _e.mock.On("CheckoutOrOrphan", ctx, branch, submoduleEnabled)}
 }
 
@@ -443,7 +443,7 @@ type Client_Commit_Call struct {
 // Commit is a helper method to define mock.On call
 //   - message string
 //   - signingKeyID string
-func (_e *Client_Expecter) Commit(message interface{}, signingKeyID interface{}) *Client_Commit_Call {
+func (_e *Client_Expecter) Commit(message any, signingKeyID any) *Client_Commit_Call {
 	return &Client_Commit_Call{Call: _e.mock.On("Commit", message, signingKeyID)}
 }
 
@@ -508,7 +508,7 @@ type Client_CommitSHA_Call struct {
 
 // CommitSHA is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Client_Expecter) CommitSHA(ctx interface{}) *Client_CommitSHA_Call {
+func (_e *Client_Expecter) CommitSHA(ctx any) *Client_CommitSHA_Call {
 	return &Client_CommitSHA_Call{Call: _e.mock.On("CommitSHA", ctx)}
 }
 
@@ -561,7 +561,7 @@ type Client_Fetch_Call struct {
 //   - ctx context.Context
 //   - revision string
 //   - depth int64
-func (_e *Client_Expecter) Fetch(ctx interface{}, revision interface{}, depth interface{}) *Client_Fetch_Call {
+func (_e *Client_Expecter) Fetch(ctx any, revision any, depth any) *Client_Fetch_Call {
 	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", ctx, revision, depth)}
 }
 
@@ -633,7 +633,7 @@ type Client_GetCommitNote_Call struct {
 //   - ctx context.Context
 //   - sha string
 //   - namespace string
-func (_e *Client_Expecter) GetCommitNote(ctx interface{}, sha interface{}, namespace interface{}) *Client_GetCommitNote_Call {
+func (_e *Client_Expecter) GetCommitNote(ctx any, sha any, namespace any) *Client_GetCommitNote_Call {
 	return &Client_GetCommitNote_Call{Call: _e.mock.On("GetCommitNote", ctx, sha, namespace)}
 }
 
@@ -704,7 +704,7 @@ type Client_HasFileChanged_Call struct {
 // HasFileChanged is a helper method to define mock.On call
 //   - ctx context.Context
 //   - filePath string
-func (_e *Client_Expecter) HasFileChanged(ctx interface{}, filePath interface{}) *Client_HasFileChanged_Call {
+func (_e *Client_Expecter) HasFileChanged(ctx any, filePath any) *Client_HasFileChanged_Call {
 	return &Client_HasFileChanged_Call{Call: _e.mock.On("HasFileChanged", ctx, filePath)}
 }
 
@@ -864,7 +864,7 @@ type Client_IsAnnotatedTag_Call struct {
 // IsAnnotatedTag is a helper method to define mock.On call
 //   - ctx context.Context
 //   - revision string
-func (_e *Client_Expecter) IsAnnotatedTag(ctx interface{}, revision interface{}) *Client_IsAnnotatedTag_Call {
+func (_e *Client_Expecter) IsAnnotatedTag(ctx any, revision any) *Client_IsAnnotatedTag_Call {
 	return &Client_IsAnnotatedTag_Call{Call: _e.mock.On("IsAnnotatedTag", ctx, revision)}
 }
 
@@ -921,7 +921,7 @@ type Client_IsRevisionPresent_Call struct {
 // IsRevisionPresent is a helper method to define mock.On call
 //   - ctx context.Context
 //   - revision string
-func (_e *Client_Expecter) IsRevisionPresent(ctx interface{}, revision interface{}) *Client_IsRevisionPresent_Call {
+func (_e *Client_Expecter) IsRevisionPresent(ctx any, revision any) *Client_IsRevisionPresent_Call {
 	return &Client_IsRevisionPresent_Call{Call: _e.mock.On("IsRevisionPresent", ctx, revision)}
 }
 
@@ -990,7 +990,7 @@ type Client_LsFiles_Call struct {
 //   - ctx context.Context
 //   - path string
 //   - enableNewGitFileGlobbing bool
-func (_e *Client_Expecter) LsFiles(ctx interface{}, path interface{}, enableNewGitFileGlobbing interface{}) *Client_LsFiles_Call {
+func (_e *Client_Expecter) LsFiles(ctx any, path any, enableNewGitFileGlobbing any) *Client_LsFiles_Call {
 	return &Client_LsFiles_Call{Call: _e.mock.On("LsFiles", ctx, path, enableNewGitFileGlobbing)}
 }
 
@@ -1062,7 +1062,7 @@ type Client_LsLargeFiles_Call struct {
 
 // LsLargeFiles is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Client_Expecter) LsLargeFiles(ctx interface{}) *Client_LsLargeFiles_Call {
+func (_e *Client_Expecter) LsLargeFiles(ctx any) *Client_LsLargeFiles_Call {
 	return &Client_LsLargeFiles_Call{Call: _e.mock.On("LsLargeFiles", ctx)}
 }
 
@@ -1177,7 +1177,7 @@ type Client_LsRemote_Call struct {
 
 // LsRemote is a helper method to define mock.On call
 //   - revision string
-func (_e *Client_Expecter) LsRemote(revision interface{}) *Client_LsRemote_Call {
+func (_e *Client_Expecter) LsRemote(revision any) *Client_LsRemote_Call {
 	return &Client_LsRemote_Call{Call: _e.mock.On("LsRemote", revision)}
 }
 
@@ -1247,7 +1247,7 @@ type Client_LsSignatures_Call struct {
 //   - ctx context.Context
 //   - revision string
 //   - deep bool
-func (_e *Client_Expecter) LsSignatures(ctx interface{}, revision interface{}, deep interface{}) *Client_LsSignatures_Call {
+func (_e *Client_Expecter) LsSignatures(ctx any, revision any, deep any) *Client_LsSignatures_Call {
 	return &Client_LsSignatures_Call{Call: _e.mock.On("LsSignatures", ctx, revision, deep)}
 }
 
@@ -1317,7 +1317,7 @@ type Client_Push_Call struct {
 
 // Push is a helper method to define mock.On call
 //   - branch string
-func (_e *Client_Expecter) Push(branch interface{}) *Client_Push_Call {
+func (_e *Client_Expecter) Push(branch any) *Client_Push_Call {
 	return &Client_Push_Call{Call: _e.mock.On("Push", branch)}
 }
 
@@ -1378,7 +1378,7 @@ type Client_RemoveContents_Call struct {
 // RemoveContents is a helper method to define mock.On call
 //   - ctx context.Context
 //   - paths []string
-func (_e *Client_Expecter) RemoveContents(ctx interface{}, paths interface{}) *Client_RemoveContents_Call {
+func (_e *Client_Expecter) RemoveContents(ctx any, paths any) *Client_RemoveContents_Call {
 	return &Client_RemoveContents_Call{Call: _e.mock.On("RemoveContents", ctx, paths)}
 }
 
@@ -1490,7 +1490,7 @@ type Client_RevisionMetadata_Call struct {
 // RevisionMetadata is a helper method to define mock.On call
 //   - ctx context.Context
 //   - revision string
-func (_e *Client_Expecter) RevisionMetadata(ctx interface{}, revision interface{}) *Client_RevisionMetadata_Call {
+func (_e *Client_Expecter) RevisionMetadata(ctx any, revision any) *Client_RevisionMetadata_Call {
 	return &Client_RevisionMetadata_Call{Call: _e.mock.On("RevisionMetadata", ctx, revision)}
 }
 
@@ -1601,7 +1601,7 @@ type Client_SetAuthor_Call struct {
 //   - ctx context.Context
 //   - name string
 //   - email string
-func (_e *Client_Expecter) SetAuthor(ctx interface{}, name interface{}, email interface{}) *Client_SetAuthor_Call {
+func (_e *Client_Expecter) SetAuthor(ctx any, name any, email any) *Client_SetAuthor_Call {
 	return &Client_SetAuthor_Call{Call: _e.mock.On("SetAuthor", ctx, name, email)}
 }
 
@@ -1662,7 +1662,7 @@ type Client_Submodule_Call struct {
 
 // Submodule is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Client_Expecter) Submodule(ctx interface{}) *Client_Submodule_Call {
+func (_e *Client_Expecter) Submodule(ctx any) *Client_Submodule_Call {
 	return &Client_Submodule_Call{Call: _e.mock.On("Submodule", ctx)}
 }
 
@@ -1723,7 +1723,7 @@ type Client_VerifyCommitSignature_Call struct {
 // VerifyCommitSignature is a helper method to define mock.On call
 //   - ctx context.Context
 //   - revision string
-func (_e *Client_Expecter) VerifyCommitSignature(ctx interface{}, revision interface{}) *Client_VerifyCommitSignature_Call {
+func (_e *Client_Expecter) VerifyCommitSignature(ctx any, revision any) *Client_VerifyCommitSignature_Call {
 	return &Client_VerifyCommitSignature_Call{Call: _e.mock.On("VerifyCommitSignature", ctx, revision)}
 }
 
