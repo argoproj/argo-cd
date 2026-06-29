@@ -1,12 +1,12 @@
-import {Tooltip} from 'argo-ui';
+import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../utils';
-import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus} from '../utils';
+import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
-import {ResourceIcon} from '../resource-icon';
+import {isValidManagedByURL} from '../../../shared/utils';
 
 export interface AppSetTileProps {
     appSet: models.ApplicationSet;
@@ -22,6 +22,8 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
 
     const linkInfo = getApplicationLinkURL(appSet, ctx.baseHref);
     const healthStatus = getAppSetHealthStatus(appSet);
+    const managedByURL = getManagedByURL(appSet);
+    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -35,6 +37,18 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
 
     const handleExternalLinkClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (managedByURLInvalid) {
+            ctx.notifications.show({
+                content: (
+                    <div>
+                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
+                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
+                    </div>
+                ),
+                type: NotificationType.Warning
+            });
+            return;
+        }
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
@@ -50,17 +64,28 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(appSet)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
-                        <div className='columns small-11'>
-                            <ResourceIcon group='argoproj.io' kind='ApplicationSet' customStyle={{marginRight: '5px'}} />
+                        <div className='columns small-11 applications-tiles__title-col'>
+                            <i className='icon argo-icon-applicationset' />
                             <Tooltip content={AppUtils.appInstanceName(appSet)}>
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>
                             </Tooltip>
                         </div>
                         <div className='columns small-1'>
                             <div className='applications-list__external-link'>
-                                <button onClick={handleExternalLinkClick} title={getManagedByURL(appSet) ? `Managed by: ${getManagedByURL(appSet)}` : 'Open application'}>
-                                    <i className='fa fa-external-link-alt' />
-                                </button>
+                                {managedByURLInvalid ? (
+                                    <button
+                                        type='button'
+                                        className='managed-by-url-invalid'
+                                        onClick={handleExternalLinkClick}
+                                        style={{cursor: 'not-allowed'}}
+                                        title={MANAGED_BY_URL_INVALID_TEXT}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                ) : (
+                                    <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                )}
                                 <button
                                     title={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
                                     className='large-text-height'
@@ -78,58 +103,60 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                         </div>
                     </div>
 
-                    {/* Labels row */}
-                    <div className='row'>
-                        <div className='columns small-3' title='Labels:'>
-                            Labels:
-                        </div>
-                        <div className='columns small-9'>
-                            <Tooltip
-                                zIndex={4}
-                                content={
-                                    <div>
+                    <div className='applications-tiles__fields'>
+                        {/* Labels row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Labels:'>
+                                Labels:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>
+                                <Tooltip
+                                    zIndex={4}
+                                    content={
+                                        <div>
+                                            {Object.keys(appSet.metadata.labels || {})
+                                                .map(label => ({label, value: appSet.metadata.labels[label]}))
+                                                .map(item => (
+                                                    <div key={item.label}>
+                                                        {item.label}={item.value}
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    }>
+                                    <span>
                                         {Object.keys(appSet.metadata.labels || {})
-                                            .map(label => ({label, value: appSet.metadata.labels[label]}))
-                                            .map(item => (
-                                                <div key={item.label}>
-                                                    {item.label}={item.value}
-                                                </div>
-                                            ))}
-                                    </div>
-                                }>
-                                <span>
-                                    {Object.keys(appSet.metadata.labels || {})
-                                        .map(label => `${label}=${appSet.metadata.labels[label]}`)
-                                        .join(', ')}
-                                </span>
-                            </Tooltip>
+                                            .map(label => `${label}=${appSet.metadata.labels[label]}`)
+                                            .join(', ')}
+                                    </span>
+                                </Tooltip>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Status row */}
-                    <div className='row'>
-                        <div className='columns small-3' title='Status:'>
-                            Status:
+                        {/* Status row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Status:'>
+                                Status:
+                            </div>
+                            <div className='columns applications-tiles__field-value' qe-id='applications-tiles-health-status'>
+                                <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> {healthStatus}
+                            </div>
                         </div>
-                        <div className='columns small-9' qe-id='applications-tiles-health-status'>
-                            <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> {healthStatus}
-                        </div>
-                    </div>
 
-                    {/* Applications count row */}
-                    <div className='row'>
-                        <div className='columns small-3' title='Applications:'>
-                            Applications:
+                        {/* Applications count row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Applications:'>
+                                Applications:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>{appSet.status?.resourcesCount ?? appSet.status?.resources?.length ?? 0}</div>
                         </div>
-                        <div className='columns small-9'>{appSet.status?.resourcesCount ?? appSet.status?.resources?.length ?? 0}</div>
-                    </div>
 
-                    {/* Created At row */}
-                    <div className='row'>
-                        <div className='columns small-3' title='Age:'>
-                            Created At:
+                        {/* Created At row */}
+                        <div className='row applications-tiles__field-row'>
+                            <div className='columns applications-tiles__field-label' title='Age:'>
+                                Created At:
+                            </div>
+                            <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
                         </div>
-                        <div className='columns small-9'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
                     </div>
                 </div>
             </div>

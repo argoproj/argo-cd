@@ -233,3 +233,53 @@ func TestNewGitHubMetricsClient(t *testing.T) {
 		})
 	}
 }
+
+func TestNewGitHubMetricsClientFrom(t *testing.T) {
+	metricsCtx := &MetricsContext{
+		AppSetNamespace: appsetNamespace,
+		AppSetName:      appsetName,
+	}
+
+	customTransport := &http.Transport{
+		MaxIdleConns: 10,
+	}
+	customClient := &http.Client{
+		Transport: customTransport,
+	}
+
+	client := NewGitHubMetricsClientFrom(customClient, metricsCtx)
+
+	assert.NotNil(t, client)
+	assert.NotEqual(t, customClient, client, "Should return a new client instance")
+	assert.NotEqual(t, customClient.Transport, client.Transport, "Original client transport should not be modified")
+
+	transport, ok := client.Transport.(*GitHubMetricsTransport)
+	assert.True(t, ok, "Transport should be GitHubMetricsTransport")
+
+	assert.Equal(t, metricsCtx, transport.metricsContext)
+	assert.Equal(t, customTransport, transport.transport, "Base transport should be the custom transport")
+	assert.Equal(t, globalGitHubMetrics, transport.metrics, "Should use global metrics")
+}
+
+func TestNewGitHubMetricsClientFrom_NilTransport(t *testing.T) {
+	metricsCtx := &MetricsContext{
+		AppSetNamespace: appsetNamespace,
+		AppSetName:      appsetName,
+	}
+
+	customClient := &http.Client{
+		Transport: nil,
+	}
+
+	client := NewGitHubMetricsClientFrom(customClient, metricsCtx)
+
+	assert.NotNil(t, client)
+	assert.NotEqual(t, customClient, client, "Should return a new client instance")
+
+	transport, ok := client.Transport.(*GitHubMetricsTransport)
+	assert.True(t, ok, "Transport should be GitHubMetricsTransport")
+
+	assert.Equal(t, metricsCtx, transport.metricsContext)
+	assert.Equal(t, http.DefaultTransport, transport.transport, "Base transport should be http.DefaultTransport")
+	assert.Equal(t, globalGitHubMetrics, transport.metrics, "Should use global metrics")
+}

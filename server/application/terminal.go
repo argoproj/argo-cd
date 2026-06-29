@@ -12,12 +12,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/streaming/pkg/httpstream"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -210,21 +210,9 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if pod.Status.Phase != corev1.PodRunning {
-		http.Error(w, "Pod not running", http.StatusBadRequest)
-		return
-	}
-
-	var findContainer bool
-	for _, c := range pod.Spec.Containers {
-		if container == c.Name {
-			findContainer = true
-			break
-		}
-	}
-	if !findContainer {
-		fieldLog.Warn("terminal container not found")
-		http.Error(w, "Cannot find container", http.StatusBadRequest)
+	if !containerRunning(pod, container) {
+		fieldLog.Warn("terminal container not running")
+		http.Error(w, "container find running", http.StatusBadRequest)
 		return
 	}
 
@@ -243,12 +231,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if slices.Contains(s.allowedShells, shell) {
 		cmd := []string{shell}
-		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
+		err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
 		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
 		for _, testShell := range s.allowedShells {
 			cmd := []string{testShell}
-			if err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
+			if err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
 				break
 			}
 		}
@@ -268,6 +256,20 @@ func podExists(treeNodes []appv1.ResourceNode, podName, namespace string) bool {
 		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" &&
 			treeNode.Name == podName && treeNode.Namespace == namespace {
 			return true
+		}
+	}
+	return false
+}
+
+func containerRunning(pod *corev1.Pod, containerName string) bool {
+	return containerStatusRunning(pod.Status.ContainerStatuses, containerName) ||
+		containerStatusRunning(pod.Status.InitContainerStatuses, containerName)
+}
+
+func containerStatusRunning(statuses []corev1.ContainerStatus, containerName string) bool {
+	for i := range statuses {
+		if statuses[i].Name == containerName {
+			return statuses[i].State.Running != nil
 		}
 	}
 	return false
@@ -296,7 +298,7 @@ type TerminalCommand struct {
 }
 
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)
-func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
+func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -330,7 +332,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 			return err
 		}
 	}
-	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
 		Stderr:            ptyHandler,

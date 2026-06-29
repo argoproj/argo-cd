@@ -152,14 +152,14 @@ spec:
   - clusters:
       selector:
         matchLabels:
-          argocd.argoproj.io/kubernetes-version: 1.28
+          argocd.argoproj.io/kubernetes-version: v1.28.1
         # matchExpressions are also supported.
         #matchExpressions:
         #  - key: argocd.argoproj.io/kubernetes-version
         #    operator: In
         #    values:
-        #      - "1.27"
-        #      - "1.28"
+        #      - "v1.27.1"
+        #      - "v1.28.1"
 ```
 
 ### Pass additional key-value pairs via `values` field

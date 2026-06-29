@@ -6,6 +6,7 @@ import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
 import {getRootPathByApp, isApp} from '../../applications/components/utils';
+import {namespaceQuery, namespaceQueryKey} from './applications-service.namespace';
 
 interface QueryOptions {
     fields: string[];
@@ -59,14 +60,11 @@ export class ApplicationsService {
     }
 
     public get(name: string, appNamespace: string, objectListKind: string, refresh?: 'normal' | 'hard'): Promise<models.AbstractApplication> {
-        const query: {[key: string]: string} = {};
+        const query: {[key: string]: string} = {...namespaceQuery(objectListKind, appNamespace)};
         const isApplication = objectListKind === 'application';
         const endpoint = isApplication ? '/applications' : '/applicationsets';
         if (refresh) {
             query.refresh = refresh;
-        }
-        if (appNamespace) {
-            query.appNamespace = appNamespace;
         }
         return requests
             .get(`${endpoint}/${name}`)
@@ -119,15 +117,34 @@ export class ApplicationsService {
         const endpoint = isApplication ? '/applications' : '/applicationsets';
         return requests
             .get(`${endpoint}/${name}/resource-tree`)
-            .query({appNamespace})
+            .query(namespaceQuery(objectListKind, appNamespace))
             .then(res => res.body as models.AbstractApplicationTree);
     }
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
         const isApplication = objectListKind === 'application';
-        const endpoint = isApplication ? 'applications' : 'applicationsets';
+        // ApplicationSet has no dedicated streaming resource-tree endpoint.
+        // Derive the tree from status.resources via the existing AppSet watch stream.
+        if (!isApplication) {
+            return this.watch(objectListKind, {name, appNamespace}).pipe(
+                map(watchEvent => {
+                    const appset = watchEvent.application;
+                    return {
+                        nodes: (appset.status?.resources || []).map(res => ({
+                            ...res,
+                            parentRefs: [] as models.ResourceRef[],
+                            info: [] as models.InfoItem[],
+                            resourceVersion: '',
+                            uid: ''
+                        })),
+                        orphanedNodes: [],
+                        hosts: []
+                    } as models.ApplicationTree;
+                })
+            );
+        }
         return requests
-            .loadEventSource(`/stream/${endpoint}/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
@@ -228,14 +245,16 @@ export class ApplicationsService {
                 search.set('resourceVersion', query.resourceVersion);
             }
             if (query.appNamespace) {
-                search.set('appNamespace', query.appNamespace);
+                search.set(namespaceQueryKey(objectListKind, true), query.appNamespace);
             }
         }
         if (options) {
             const searchOptions = optionsToSearch(options);
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
-            search.set('appNamespace', searchOptions.appNamespace);
+            if (searchOptions.appNamespace) {
+                search.set(namespaceQueryKey(objectListKind, true), searchOptions.appNamespace);
+            }
             if (isApplication) {
                 query?.projects?.forEach(project => search.append('projects', project));
             }
@@ -249,7 +268,9 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    watchEvent.application = this.parseAppFields(watchEvent.application, isApplication) as models.Application;
+                    // ApplicationSetWatchEvent has 'applicationSet' field, normalize to 'application'
+                    const rawApp = isApplication ? watchEvent.application : (watchEvent as unknown as models.ApplicationSetWatchEvent).applicationSet;
+                    watchEvent.application = this.parseAppFields(rawApp, isApplication) as models.Application;
                     return watchEvent;
                 })
             );
@@ -324,7 +345,7 @@ export class ApplicationsService {
                 try {
                     const parsed = JSON.parse(data);
                     return parsed && parsed.result ? (parsed.result as models.LogEntry) : null;
-                } catch (e) {
+                } catch {
                     return null;
                 }
             }),
@@ -629,5 +650,14 @@ export class ApplicationsService {
             .get(`/applicationsets/${name}/events`)
             .query({appsetNamespace: appNamespace})
             .then(res => (res.body as models.EventList).items || []);
+    }
+
+    public appSetGenerate(appSet: models.ApplicationSet): Promise<models.Application[]> {
+        const {status, ...rest} = appSet as models.ApplicationSet & {status?: unknown};
+        void status;
+        return requests
+            .post(`/applicationsets/generate`)
+            .send({applicationSet: rest})
+            .then(res => (res.body as {applications?: models.Application[]}).applications || []);
     }
 }

@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -284,8 +285,8 @@ type NormalizationResult struct {
 
 // StateDiff will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
-func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (diff.DiffResult, error) {
-	results, err := StateDiffs([]*unstructured.Unstructured{live}, []*unstructured.Unstructured{config}, diffConfig)
+func StateDiff(ctx context.Context, live, config *unstructured.Unstructured, diffConfig DiffConfig) (diff.DiffResult, error) {
+	results, err := StateDiffs(ctx, []*unstructured.Unstructured{live}, []*unstructured.Unstructured{config}, diffConfig)
 	if err != nil {
 		return diff.DiffResult{}, err
 	}
@@ -297,7 +298,7 @@ func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (
 
 // StateDiffs will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
-func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
+func StateDiffs(ctx context.Context, lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
 	normResults, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform pre-diff normalization: %w", err)
@@ -325,20 +326,20 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 
 	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
 	if useCache && cachedDiff != nil {
-		cached, err := diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
+		cached, err := diffArrayCached(ctx, normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate diff from cache: %w", err)
 		}
 		return cached, nil
 	}
-	array, err := diff.DiffArray(normResults.Targets, normResults.Lives, diffOpts...)
+	array, err := diff.DiffArray(ctx, normResults.Targets, normResults.Lives, diffOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate diff: %w", err)
 	}
 	return array, nil
 }
 
-func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
+func diffArrayCached(ctx context.Context, configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, errors.New("left and right arrays have mismatched lengths")
@@ -372,7 +373,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 				Modified:       cachedDiff.Modified,
 			}
 		} else {
-			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
+			res, err := diff.Diff(ctx, configArray[i], liveArray[i], opts...)
 			if err != nil {
 				return nil, err
 			}
@@ -397,15 +398,16 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 		return false, nil
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
-	if c.stateCache != nil {
-		err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
-		if err != nil {
-			log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", appName, err)
-			return false, nil
+	err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
+	if err != nil {
+		if errors.Is(err, appstatecache.ErrCacheMiss) {
+			log.Warnf("DiffFromCache: cannot get managed resources for app %s: %s", appName, err)
+		} else {
+			log.Errorf("DiffFromCache: cannot get managed resources for app %s: %s", appName, err)
 		}
-		return true, cachedDiff
+		return false, nil
 	}
-	return false, nil
+	return true, cachedDiff
 }
 
 // preDiffNormalize applies the normalization of live and target resources before invoking

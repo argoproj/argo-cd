@@ -100,8 +100,10 @@ type ClientApp struct {
 	provider Provider
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
-	// properties for azure workload identity.
-	azure azureApp
+	// domainHint is an optional hint to the identity provider about the domain the user belongs to.
+	// Used to pre-fill or streamline the login experience (e.g., for Azure AD multi-tenant scenarios).
+	domainHint string
+	azure      azureApp
 	// preemptive token refresh threshold
 	refreshTokenThreshold time.Duration
 }
@@ -182,6 +184,14 @@ func GetScopesOrDefault(scopes []string) []string {
 	return scopes
 }
 
+func getDomainHint(settings *settings.ArgoCDSettings) string {
+	oidcConfig := settings.OIDCConfig()
+	if oidcConfig != nil {
+		return strings.TrimSpace(oidcConfig.DomainHint)
+	}
+	return ""
+}
+
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
 func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
@@ -193,6 +203,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	if err != nil {
 		return nil, err
 	}
+	domainHint := getDomainHint(settings)
 	a := ClientApp{
 		clientID:                 settings.OAuth2ClientID(),
 		clientSecret:             settings.OAuth2ClientSecret(),
@@ -204,7 +215,8 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
-		refreshTokenThreshold:    settings.OIDCRefreshTokenThreshold,
+		domainHint:               domainHint,
+		refreshTokenThreshold:    settings.RefreshTokenThreshold(),
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -422,6 +434,9 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
+	if a.domainHint != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("domain_hint", a.domainHint))
+	}
 	if a.usePKCE {
 		pkceVerifier = oauth2.GenerateVerifier()
 		opts = append(opts, oauth2.S256ChallengeOption(pkceVerifier))
@@ -565,6 +580,15 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	// save the accessToken in memory for later use
 	sub := jwtutil.StringField(claims, "sub")
+
+	// Invalidate cached groups from previous sessions so a fresh login picks up updated memberships
+	if err := a.clientCache.Delete(FormatUserInfoResponseCacheKey(sub)); err != nil {
+		log.Warnf("failed to invalidate UserInfo cache for %s: %v", sub, err)
+	}
+	if err := a.clientCache.Delete(FormatAzureGroupsOverageResponseCacheKey(sub)); err != nil {
+		log.Warnf("failed to invalidate Azure groups overage cache for %s: %v", sub, err)
+	}
+
 	err = a.SetValueInEncryptedCache(ctx, FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
@@ -678,7 +702,8 @@ func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.Ma
 	span.SetAttributes(
 		attribute.String("iss", iss),
 		attribute.String("sub", sub),
-		attribute.String("sid", sid))
+		attribute.String("sid", sid),
+	)
 	if GetTokenExpiration(groupClaims) < refreshTokenThreshold {
 		token, err := a.GetUpdatedOidcTokenFromCache(ctx, sub, sid)
 		if err != nil {
@@ -866,12 +891,14 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
 }
 
-// SetGroupsFromUserInfo takes a claims object and adds groups claim from userinfo endpoint if available
-// This is required by some SSO implementations as they don't provide the groups claim in the ID token
-// If querying the UserInfo endpoint fails, we return an error to indicate the session is invalid
-// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
-// otherwise this would cause a panic
-func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
+// SetGroupsClaimFromEndpoint takes a claims object and adds groups claim from either:
+// - the UserInfo endpoint if enabled
+// - the Microsoft Graph API if Azure groups overage claim is detected and enabled
+// This is required by some SSO implementations as they don't provide the groups claim in the ID token.
+// If querying the endpoint fails, we return an error to indicate the session is invalid.
+// We assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+// otherwise this would cause a panic.
+func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
 	var groupClaims jwt.MapClaims
 	var ok bool
 	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
@@ -881,26 +908,44 @@ func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims
 			}
 		}
 	}
+
 	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
-		if unauthorized {
-			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+	if iss != sessionManagerClaimsIssuer {
+		// Path 1: UserInfo endpoint — mutually exclusive with Path 2 (Azure overage).
+		// For Entra ID, UserInfo returns the same data as the ID token, so both are never needed.
+		if a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+			userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoBaseURL(), a.settings.UserInfoPath())
+			if unauthorized {
+				return groupClaims, fmt.Errorf("error while querying userinfo endpoint: %w", err)
+			}
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+			}
+			if groupClaims["sub"] != userInfo["sub"] {
+				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			}
+			groupClaims["groups"] = userInfo["groups"]
+			return groupClaims, nil
 		}
-		if err != nil {
-			return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+
+		// Path 2: Azure AD groups overage claim resolution via Microsoft Graph API
+		if a.settings.AzureUserGroupOverageClaimEnabled() && a.settings.AzureGraphAPIEndpoint() != "" {
+			groups, err := a.GetUserGroupsFromAzureOverageClaim(ctx, groupClaims, a.settings.AzureGraphAPIEndpoint())
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching groups from Azure overage claim: %w", err)
+			}
+			if len(groups) > 0 {
+				groupClaims["groups"] = groups
+			}
+			return groupClaims, nil
 		}
-		if groupClaims["sub"] != userInfo["sub"] {
-			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
-		}
-		groupClaims["groups"] = userInfo["groups"]
 	}
 
 	return groupClaims, nil
 }
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
-func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoBaseURL, userInfoPath string) (jwt.MapClaims, bool, error) {
 	var span trace.Span
 	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUserInfo")
 	defer span.End()
@@ -934,7 +979,13 @@ func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims,
 		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
 	}
 
-	url := issuerURL + userInfoPath
+	var url string
+	if userInfoBaseURL != "" {
+		url = userInfoBaseURL + userInfoPath
+	} else {
+		url = issuerURL + userInfoPath
+	}
+
 	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
@@ -1053,4 +1104,8 @@ func FormatAccessTokenCacheKey(sub string) string {
 // formatRefreshTokenCacheKey returns the key which is used to store the oidc Token for a session in cache
 func formatOidcTokenCacheKey(sub string, sid string) string {
 	return fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
+}
+
+func (a *ClientApp) IssuerURL() string {
+	return a.issuerURL
 }

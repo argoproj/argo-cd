@@ -212,7 +212,7 @@ func (s *Server) ListWriteRepositories(ctx context.Context, q *repositorypkg.Rep
 	return &v1alpha1.RepositoryList{Items: items}, nil
 }
 
-// ListRepositoriesByAppProject returns a list of all configured repositories and the state of their connections. It
+// prepareRepoList returns a list of all configured repositories and the state of their connections. It
 // normalizes, sanitizes, and filters out repositories that the user does not have access to in the specified project.
 // It also sorts the repositories by project and repo name.
 func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos []*v1alpha1.Repository, forceRefresh bool) (v1alpha1.Repositories, error) {
@@ -686,25 +686,29 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 	}
 
 	repo := &v1alpha1.Repository{
-		Repo:                       q.Repo,
-		Type:                       q.Type,
-		Name:                       q.Name,
-		Username:                   q.Username,
-		Password:                   q.Password,
-		BearerToken:                q.BearerToken,
-		SSHPrivateKey:              q.SshPrivateKey,
-		Insecure:                   q.Insecure,
-		TLSClientCertData:          q.TlsClientCertData,
-		TLSClientCertKey:           q.TlsClientCertKey,
-		EnableOCI:                  q.EnableOci,
-		GithubAppPrivateKey:        q.GithubAppPrivateKey,
-		GithubAppId:                q.GithubAppID,
-		GithubAppInstallationId:    q.GithubAppInstallationID,
-		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
-		Proxy:                      q.Proxy,
-		GCPServiceAccountKey:       q.GcpServiceAccountKey,
-		InsecureOCIForceHttp:       q.InsecureOciForceHttp,
-		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
+		Repo:                              q.Repo,
+		Type:                              q.Type,
+		Name:                              q.Name,
+		Username:                          q.Username,
+		Password:                          q.Password,
+		BearerToken:                       q.BearerToken,
+		SSHPrivateKey:                     q.SshPrivateKey,
+		Insecure:                          q.Insecure,
+		TLSClientCertData:                 q.TlsClientCertData,
+		TLSClientCertKey:                  q.TlsClientCertKey,
+		EnableOCI:                         q.EnableOci,
+		GithubAppPrivateKey:               q.GithubAppPrivateKey,
+		GithubAppId:                       q.GithubAppID,
+		GithubAppInstallationId:           q.GithubAppInstallationID,
+		GitHubAppEnterpriseBaseURL:        q.GithubAppEnterpriseBaseUrl,
+		Proxy:                             q.Proxy,
+		GCPServiceAccountKey:              q.GcpServiceAccountKey,
+		InsecureOCIForceHttp:              q.InsecureOciForceHttp,
+		UseAzureWorkloadIdentity:          q.UseAzureWorkloadIdentity,
+		AzureServicePrincipalClientId:     q.AzureServicePrincipalClientId,
+		AzureServicePrincipalClientSecret: q.AzureServicePrincipalClientSecret,
+		AzureServicePrincipalTenantId:     q.AzureServicePrincipalTenantId,
+		AzureActiveDirectoryEndpoint:      q.AzureActiveDirectoryEndpoint,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -737,24 +741,28 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 	}
 
 	repo := &v1alpha1.Repository{
-		Repo:                       q.Repo,
-		Type:                       q.Type,
-		Name:                       q.Name,
-		Username:                   q.Username,
-		Password:                   q.Password,
-		BearerToken:                q.BearerToken,
-		SSHPrivateKey:              q.SshPrivateKey,
-		Insecure:                   q.Insecure,
-		TLSClientCertData:          q.TlsClientCertData,
-		TLSClientCertKey:           q.TlsClientCertKey,
-		EnableOCI:                  q.EnableOci,
-		GithubAppPrivateKey:        q.GithubAppPrivateKey,
-		GithubAppId:                q.GithubAppID,
-		GithubAppInstallationId:    q.GithubAppInstallationID,
-		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
-		Proxy:                      q.Proxy,
-		GCPServiceAccountKey:       q.GcpServiceAccountKey,
-		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
+		Repo:                              q.Repo,
+		Type:                              q.Type,
+		Name:                              q.Name,
+		Username:                          q.Username,
+		Password:                          q.Password,
+		BearerToken:                       q.BearerToken,
+		SSHPrivateKey:                     q.SshPrivateKey,
+		Insecure:                          q.Insecure,
+		TLSClientCertData:                 q.TlsClientCertData,
+		TLSClientCertKey:                  q.TlsClientCertKey,
+		EnableOCI:                         q.EnableOci,
+		GithubAppPrivateKey:               q.GithubAppPrivateKey,
+		GithubAppId:                       q.GithubAppID,
+		GithubAppInstallationId:           q.GithubAppInstallationID,
+		GitHubAppEnterpriseBaseURL:        q.GithubAppEnterpriseBaseUrl,
+		Proxy:                             q.Proxy,
+		GCPServiceAccountKey:              q.GcpServiceAccountKey,
+		UseAzureWorkloadIdentity:          q.UseAzureWorkloadIdentity,
+		AzureServicePrincipalClientId:     q.AzureServicePrincipalClientId,
+		AzureServicePrincipalClientSecret: q.AzureServicePrincipalClientSecret,
+		AzureServicePrincipalTenantId:     q.AzureServicePrincipalTenantId,
+		AzureActiveDirectoryEndpoint:      q.AzureActiveDirectoryEndpoint,
 	}
 
 	err := s.testRepo(ctx, repo)

@@ -86,7 +86,7 @@ data:
     # Optional set of OIDC claims to request on the ID token.
     requestedIDTokenClaims: {"groups": {"essential": true}}
 
-  # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
+  # Configuration to customize resource behavior (optional) can be configured via split sub keys.
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
   # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group_kind>
   # resource.customizations.ignoreResourceUpdates.<group_kind>
@@ -115,7 +115,7 @@ data:
     jsonPointers:
     - /metadata/resourceVersion
 
-  # Configuration to define customizations ignoring differences during watched resource updates can be configured via splitted sub key.
+  # Configuration to define customizations ignoring differences during watched resource updates can be configured via split sub key.
   resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
     jsonPointers:
     - /status
@@ -328,6 +328,9 @@ data:
   # at the bottom of the page. Change the value as needed.
   # ui.bannerposition: "bottom"
 
+  # Optional override for the SSO login button label.
+  # ui.loginButtonText: "SSO Login"
+
   # Application reconciliation timeout is the amount of time spent before Argo tries to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Two minutes by default with additional jitter.
   # For the argocd-repo-server this setting defines the expiration
@@ -346,6 +349,20 @@ data:
   # added to the sync timeout. So, if the sync timeout is 3 minutes and the jitter is 1 minute, then the actual timeout will
   # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 1 minute.
   timeout.reconciliation.jitter: 60s
+
+  # webhook.refresh.jitter is the maximum jitter duration that can be added to the webhook-triggered application refresh.
+  # When multiple webhook events are received simultaneously (e.g., after a bulk merge), this jitter helps spread out the
+  # refresh load over time to prevent spikes in the repo-server component. The jitter is a random delay between 0 and the
+  # configured duration that is applied before refreshing each application. For example, if set to 60s, each webhook-triggered
+  # refresh will wait between 0 and 60 seconds before processing. Disabled when the value is 0 (default).
+  webhook.refresh.jitter: 0s
+
+  # webhook.refresh.jitter.threshold is the minimum number of applications that must be affected by a webhook event
+  # before jitter is applied. This prevents adding unnecessary delays for webhook events that affect only a few applications.
+  # For example, if set to 10, jitter will only be applied when more than 10 applications are affected by a single webhook
+  # event. When the number of affected applications is at or below this threshold, refreshes happen immediately without jitter.
+  # This works together with webhook.refresh.jitter. Default is 10.
+  webhook.refresh.jitter.threshold: "10"
 
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
@@ -474,3 +491,33 @@ data:
     Co-authored-by: {{ .metadata.author }}
     {{- end }}
 
+  ### SourceHydrator readme message template.
+  # This template defines the content of the README.md file that is automatically
+  # generated during the hydration process. It can use placeholders such as
+  # `.RepoURL`, `.DrySHA`, and `.Commands` to provide reproducible instructions.
+  #
+  # The template is dynamically loaded from a ConfigMap, which allows customizing
+  # the README format depending on the environment or requirements.
+  sourceHydrator.readmeMessageTemplate: |
+    # Manifest Hydration
+
+    To hydrate the manifests in this repository, run the following commands:
+
+    ```shell
+    git clone {{ .RepoURL }}
+    # cd into the cloned directory
+    git checkout {{ .DrySHA }}
+    {{ range $command := .Commands -}}
+    {{ $command }}
+    {{ end -}}
+    ```
+
+    {{ if .References -}}
+    ## References
+
+    {{ range $ref := .References -}}
+    {{ if $ref.Commit -}}
+    * [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+    {{ end -}}
+    {{ end -}}
+    {{ end -}}

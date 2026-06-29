@@ -10,6 +10,7 @@ import (
 )
 
 func TestHasAnnotationOption(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		obj *unstructured.Unstructured
 		key string
@@ -30,8 +31,43 @@ func TestHasAnnotationOption(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.ElementsMatch(t, tt.wantVals, GetAnnotationCSVs(tt.args.obj, tt.args.key))
 			assert.Equal(t, tt.want, HasAnnotationOption(tt.args.obj, tt.args.key, tt.args.val))
+		})
+	}
+}
+
+func TestGetAnnotationOptionValue(t *testing.T) {
+	t.Parallel()
+	type args struct {
+		obj *unstructured.Unstructured
+		key string
+		val string
+	}
+	tests := []struct {
+		name string
+		args args
+		want *string
+	}{
+		{"Nil", args{testingutils.NewPod(), "foo", "bar"}, nil},
+		{"Empty", args{example(""), "foo", "bar"}, nil},
+		{"Standalone", args{example("bar"), "foo", "bar"}, nil},
+		{"Single", args{example("bar=baz"), "foo", "bar"}, new("baz")},
+		{"DeDup", args{example("bar=baz1,bar=baz2"), "foo", "bar"}, new("baz1")},
+		{"Double", args{example("bar=qux,baz=quux"), "foo", "baz"}, new("quux")},
+		{"Spaces", args{example("bar=baz "), "foo", "bar"}, new("baz")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := GetAnnotationOptionValue(tt.args.obj, tt.args.key, tt.args.val)
+			if tt.want == nil {
+				assert.Nil(t, got)
+			} else {
+				assert.NotNil(t, got)
+				assert.Equal(t, *tt.want, *got)
+			}
 		})
 	}
 }

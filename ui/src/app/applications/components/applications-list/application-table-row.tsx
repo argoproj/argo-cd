@@ -1,12 +1,14 @@
-import {DropDownMenu, Tooltip} from 'argo-ui';
+import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
 import {Cluster} from '../../../shared/components';
 import {ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
+import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
+import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
+import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
@@ -27,6 +29,8 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
     const healthStatus = app.status.health.status;
     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const source = getAppDefaultSource(app);
+    const managedByURL = getManagedByURL(app);
+    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -40,6 +44,18 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
 
     const handleExternalLinkClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (managedByURLInvalid) {
+            ctx.notifications.show({
+                content: (
+                    <div>
+                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
+                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
+                    </div>
+                ),
+                type: NotificationType.Warning
+            });
+            return;
+        }
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
@@ -54,70 +70,78 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                 onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
-                    <div className='row'>
-                        <div className='columns small-2'>
-                            <div>
-                                <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                    <button onClick={handleFavoriteToggle}>
-                                        <i
-                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
-                                            style={{
-                                                cursor: 'pointer',
-                                                marginRight: '7px',
-                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                            }}
-                                        />
-                                    </button>
-                                </Tooltip>
-                                <ApplicationURLs urls={app.status.summary?.externalURLs} />
-                            </div>
-                        </div>
-                        <div className='show-for-xxlarge columns small-4'>Project:</div>
-                        <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
-                    </div>
-                    <div className='row'>
-                        <div className='columns small-2' />
-                        <div className='show-for-xxlarge columns small-4'>Name:</div>
-                        <div className='columns small-12 xxlarge-6'>
-                            <Tooltip
-                                content={
-                                    <>
-                                        {app.metadata.name}
-                                        <br />
-                                        <Moment fromNow={true} ago={true}>
-                                            {app.metadata.creationTimestamp}
-                                        </Moment>
-                                    </>
-                                }>
-                                <span>{app.metadata.name}</span>
+                    <div className='applications-list__meta-column'>
+                        <div className='applications-list__fav-col'>
+                            <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                                <button type='button' onClick={handleFavoriteToggle}>
+                                    <i
+                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                        style={{
+                                            cursor: 'pointer',
+                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                        }}
+                                    />
+                                </button>
                             </Tooltip>
-                            <button
-                                onClick={handleExternalLinkClick}
-                                style={{marginLeft: '0.5em'}}
-                                title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}>
-                                <i className='fa fa-external-link-alt' />
-                            </button>
+                            <ApplicationURLs urls={app.status.summary?.externalURLs} />
+                        </div>
+                        <div className='applications-list__meta-rows'>
+                            <div className='applications-list__meta-row'>
+                                <div className='show-for-xxlarge applications-list__meta-label'>Project:</div>
+                                <div className='applications-list__meta-value'>{app.spec.project}</div>
+                            </div>
+                            <div className='applications-list__meta-row'>
+                                <div className='show-for-xxlarge applications-list__meta-label'>Name:</div>
+                                <div className='applications-list__meta-value'>
+                                    {/* Rendered before the name so it stays visible when the name truncates with ellipsis;
+                                        the column's `overflow:hidden; white-space:nowrap` (argo-ui table-list) clips trailing
+                                        inline children. The tile view does the opposite because there the title wraps. */}
+                                    <NoticeIcon annotations={app.metadata.annotations} />
+                                    <Tooltip
+                                        content={
+                                            <>
+                                                {app.metadata.name}
+                                                <br />
+                                                <Moment fromNow={true} ago={true}>
+                                                    {app.metadata.creationTimestamp}
+                                                </Moment>
+                                            </>
+                                        }>
+                                        <span>{app.metadata.name}</span>
+                                    </Tooltip>
+                                    <button
+                                        type='button'
+                                        className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
+                                        onClick={handleExternalLinkClick}
+                                        style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
+                                        title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Second column: Source and Destination */}
                 <div className='columns small-6'>
-                    <div className='row'>
-                        <div className='show-for-xxlarge columns small-2'>Source:</div>
-                        <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
-                            <div className='applications-table-source__link'>
-                                <ApplicationsSource source={source} />
-                            </div>
-                            <div className='applications-table-source__labels'>
-                                <ApplicationsLabels app={app} />
+                    <div className='applications-list__meta-rows'>
+                        <div className='applications-list__meta-row'>
+                            <div className='show-for-xxlarge applications-list__meta-label'>Source:</div>
+                            <div className='applications-list__meta-value applications-table-source'>
+                                <div className='applications-table-source__link'>
+                                    <ApplicationsSource source={source} />
+                                </div>
+                                <div className='applications-table-source__labels'>
+                                    <ApplicationsLabels app={app} />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div className='row'>
-                        <div className='show-for-xxlarge columns small-2'>Destination:</div>
-                        <div className='columns small-12 xxlarge-10'>
-                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                        <div className='applications-list__meta-row'>
+                            <div className='show-for-xxlarge applications-list__meta-label'>Destination:</div>
+                            <div className='applications-list__meta-value'>
+                                <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                            </div>
                         </div>
                     </div>
                 </div>
