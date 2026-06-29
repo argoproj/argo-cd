@@ -1,7 +1,9 @@
 package helm
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -13,7 +15,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -780,4 +784,118 @@ func TestWithPlainHTTP(t *testing.T) {
 		c := NewClient("my.registry.com", HelmCreds{}, true, "", "", WithPlainHTTP())
 		assert.True(t, c.(*nativeHelmChart).plainHTTP)
 	})
+}
+
+func Test_nativeHelmChart_ExtractChartRespectsChartCacheExpiration(t *testing.T) {
+	const (
+		chartName    = "test-chart"
+		chartVersion = "1.0.0"
+	)
+
+	var (
+		mu            sync.Mutex
+		chartRequests int
+		chartArchive  = testHelmChartArchive(t, chartName, chartVersion, "foo: first\n")
+		server        *httptest.Server
+	)
+
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/index.yaml":
+			w.Header().Set("Content-Type", "application/x-yaml")
+			_, _ = fmt.Fprintf(w, `apiVersion: v1
+entries:
+  %[1]s:
+  - apiVersion: v2
+    name: %[1]s
+    version: %[2]s
+    urls:
+    - %[3]s/%[1]s-%[2]s.tgz
+`, chartName, chartVersion, server.URL)
+		case "/" + chartName + "-" + chartVersion + ".tgz":
+			mu.Lock()
+			chartRequests++
+			body := append([]byte(nil), chartArchive...)
+			mu.Unlock()
+
+			w.Header().Set("Content-Type", "application/gzip")
+			_, _ = w.Write(body)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(server.URL, HelmCreds{}, false, "", "",
+		WithChartPaths(utilio.NewRandomizedTempPaths(t.TempDir())),
+		WithHelmChartCacheExpiration(time.Hour),
+	)
+	nativeClient, ok := client.(*nativeHelmChart)
+	require.True(t, ok)
+
+	extractValues := func() string {
+		t.Helper()
+		path, closer, err := client.ExtractChart(t.Context(), chartName, chartVersion, false, math.MaxInt64, false)
+		require.NoError(t, err)
+		defer utilio.Close(closer)
+
+		values, err := os.ReadFile(filepath.Join(path, "values.yaml"))
+		require.NoError(t, err)
+		return string(values)
+	}
+	requireChartRequests := func(expected int) {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		require.Equal(t, expected, chartRequests)
+	}
+
+	require.Equal(t, "foo: first\n", extractValues())
+	requireChartRequests(1)
+
+	secondChartArchive := testHelmChartArchive(t, chartName, chartVersion, "foo: second\n")
+	mu.Lock()
+	chartArchive = secondChartArchive
+	mu.Unlock()
+
+	require.Equal(t, "foo: first\n", extractValues())
+	requireChartRequests(1)
+
+	cachedChartPath, err := nativeClient.getCachedChartPath(chartName, chartVersion)
+	require.NoError(t, err)
+	expired := time.Now().Add(-2 * time.Hour)
+	require.NoError(t, os.Chtimes(cachedChartPath, expired, expired))
+
+	require.Equal(t, "foo: second\n", extractValues())
+	requireChartRequests(2)
+}
+
+func testHelmChartArchive(t *testing.T, chartName, chartVersion, values string) []byte {
+	t.Helper()
+
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+
+	writeFile := func(name, contents string) {
+		t.Helper()
+		header := &tar.Header{
+			Name: name,
+			Mode: 0o644,
+			Size: int64(len(contents)),
+		}
+		require.NoError(t, tarWriter.WriteHeader(header))
+		_, err := tarWriter.Write([]byte(contents))
+		require.NoError(t, err)
+	}
+
+	writeFile(filepath.ToSlash(filepath.Join(chartName, "Chart.yaml")), fmt.Sprintf(`apiVersion: v2
+name: %s
+version: %s
+`, chartName, chartVersion))
+	writeFile(filepath.ToSlash(filepath.Join(chartName, "values.yaml")), values)
+
+	require.NoError(t, tarWriter.Close())
+	require.NoError(t, gzipWriter.Close())
+	return archive.Bytes()
 }
