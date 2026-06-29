@@ -1304,7 +1304,6 @@ spec:
   podManagementPolicy: OrderedReady
   updateStrategy:
     type: RollingUpdate
-  minReadySeconds: 0
   template:
     metadata:
       annotations:
