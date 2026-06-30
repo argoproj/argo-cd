@@ -50,6 +50,18 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 		projSources: []string{"https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
 	}, {
 		projSources: []string{"https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
+	}, {
+		// Domain-level wildcard: ** should match all repos under github.com
+		projSources: []string{"https://github.com/**"}, appSource: "https://github.com/argoproj/argocd-example-apps.git", isPermitted: true,
+	}, {
+		// Domain-level wildcard: ** should match nested org paths
+		projSources: []string{"https://github.com/**"}, appSource: "https://github.com/some-org/some-repo.git", isPermitted: true,
+	}, {
+		// Domain-level wildcard with **: should NOT match different domains
+		projSources: []string{"https://github.com/**"}, appSource: "https://gitlab.com/group/repo.git", isPermitted: false,
+	}, {
+		// Single-level wildcard: * should NOT match multi-level paths after domain
+		projSources: []string{"https://github.com/*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
 	}}
 
 	for _, data := range testData {
@@ -85,6 +97,15 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 		projSources: []string{"!https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
 	}, {
 		projSources: []string{"!https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
+	}, {
+		// Negated domain-level wildcard: deny all GitHub repos
+		projSources: []string{"!https://github.com/**"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
+	}, {
+		// Combined patterns: allow all except GitHub
+		projSources: []string{"*", "!https://github.com/**"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
+	}, {
+		// Combined patterns: allow all except GitHub, but GitLab should work
+		projSources: []string{"*", "!https://github.com/**"}, appSource: "https://gitlab.com/group/repo.git", isPermitted: true,
 	}, {
 		projSources: []string{"*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
 	}, {
