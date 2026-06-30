@@ -49,9 +49,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                         load={async () => {
                             const [appsResult, appSetResult] = await Promise.allSettled([
                                 services.applications.list([], props.objectListKind, {fields: ['items.metadata.name', 'items.metadata.namespace']}),
-                                appSetRef
-                                    ? services.applications.getApplicationSet(appSetRef.name, props.application.metadata.namespace)
-                                    : Promise.reject(new Error('no appset'))
+                                appSetRef ? services.applications.getApplicationSet(appSetRef.name, props.application.metadata.namespace) : Promise.reject(new Error('no appset'))
                             ]);
                             const apps = appsResult.status === 'fulfilled' ? appsResult.value : ({items: []} as models.AbstractApplicationList);
                             const appSet = appSetResult.status === 'fulfilled' ? appSetResult.value : null;
@@ -60,9 +58,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                         }}>
                         {({apps, siblings}: {apps: models.AbstractApplicationList; siblings: models.ApplicationSetResource[]}) => {
                             const filteredSiblings =
-                                appSetRef && siblings.length > 0
-                                    ? siblings.filter(s => appFilter.length === 0 || s.name.toLowerCase().includes(appFilter.toLowerCase()))
-                                    : [];
+                                appSetRef && siblings.length > 0 ? siblings.filter(s => appFilter.length === 0 || s.name.toLowerCase().includes(appFilter.toLowerCase())) : [];
                             return (
                                 <>
                                     {filteredSiblings.length > 0 && (
@@ -91,7 +87,9 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                                                 className='application-details-app-dropdown__item'
                                                 key={app.metadata.name}
                                                 onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
-                                                <i className={`icon ${resourceIconClass(props.objectListKind)} resource-icon__font-icon application-details-app-dropdown__resource-icon`} />
+                                                <i
+                                                    className={`icon ${resourceIconClass(props.objectListKind)} resource-icon__font-icon application-details-app-dropdown__resource-icon`}
+                                                />
                                                 <span>
                                                     {app.metadata.name}
                                                     {app.metadata.name === props.appName && ' (current)'}
