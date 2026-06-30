@@ -86,6 +86,7 @@ func resourceScopeAllowsResource(syncOp v1alpha1.SyncOperation, key kube.Resourc
 	}
 	return argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
 }
+
 func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
