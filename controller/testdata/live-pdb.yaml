@@ -1,0 +1,31 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: 'myapp:policy/PodDisruptionBudget:default/myapp-pdb'
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"policy/v1","kind":"PodDisruptionBudget","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"myapp:policy/PodDisruptionBudget:default/myapp-pdb"},"name":"myapp-pdb","namespace":"default"},"spec":{"minAvailable":1,"selector":{"matchLabels":{"app":"myapp","version":"v1"}}}}
+  creationTimestamp: '2024-01-10T10:00:00Z'
+  generation: 1
+  name: myapp-pdb
+  namespace: default
+  resourceVersion: '12345'
+  uid: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: myapp
+      version: v1
+status:
+  conditions:
+    - lastTransitionTime: '2024-01-10T10:00:00Z'
+      message: ''
+      reason: SufficientPods
+      status: 'True'
+      type: DisruptionAllowed
+  currentHealthy: 3
+  desiredHealthy: 1
+  disruptionsAllowed: 2
+  expectedPods: 3
+  observedGeneration: 1
