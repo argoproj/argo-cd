@@ -250,7 +250,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                         className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
                         style={{
                             cursor: 'pointer',
-                            margin: '-1px 0px 0px 7px',
+                            margin: '-1px 0px 0px 0px',
                             color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
                         }}
                     />

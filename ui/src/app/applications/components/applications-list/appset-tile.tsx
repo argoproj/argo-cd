@@ -157,7 +157,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                         className={favList?.includes(appSet.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
                         style={{
                             cursor: 'pointer',
-                            margin: '-1px 0px 0px 7px',
+                            margin: '-1px 0px 0px 0px',
                             color: favList?.includes(appSet.metadata.name) ? '#FFCE25' : '#8fa4b1'
                         }}
                     />
