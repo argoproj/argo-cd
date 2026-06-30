@@ -2243,8 +2243,22 @@ func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Conte
 	return duration + ctrl.persistAppStatus(ctx, orig, newStatus)
 }
 
-// removes given temporary annotation and its timestamp.
-// FIXME: comment
+// Conditionally removes given refresh annotation (for application refresh or hydration)
+// and its accompanying timestamp annotation. If there are no such annotations it does nothing.
+//
+// The annotations are left in place if the timestamp annotation value has changed in k8s.
+//
+// It builds a single JSONPatch requests to remove the annotations, which contains
+// a "test" operation to ensure that timestamp value matches before deleting.
+//
+// In most cases the annotations are not modified and are successfully removed.
+//
+// If patch operation fails, it tests whether it was because of the timestamp change:
+// If so, both annotation remain so an additional refresh/hydration operation will be performed.
+// Otherwise it re-reads the actual application manifest state and retries the operation
+// according to the updated manifest (in case one of the annotations was deleted externally).
+//
+// It returns duration of all external patch request that were performed.
 func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	origAnnotations := orig.GetAnnotations()
