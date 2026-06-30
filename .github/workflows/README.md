@@ -7,6 +7,7 @@
 | image-reuse.yaml   | Build, push, and Sign container images                         |
 | image.yaml         | Build container image for PR's & publish for push events       |
 | init-release.yaml  | Build manifests and version then create a PR for release branch|
+| tag-release.yaml   | Run after PR for release branch is merged, create and push a release tag |
 | pr-title-check.yaml| Lint PR for semantic information                               |
 | release.yaml       | Build images, cli-binaries, provenances, and post actions      |
 | scorecard.yaml     | Generate scorecard for supply-chain security                   |
