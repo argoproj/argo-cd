@@ -2221,7 +2221,7 @@ func (ctrl *ApplicationController) patchAnnotations(app *appv1.Application, anno
 	annotations := app.GetAnnotations()
 	jsonPatch := []map[string]any{}
 	if _, ok := annotations[annotation]; ok {
-		annotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(appv1.AnnotationKeyRefresh)
+		annotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(annotation)
 		jsonPatch = append(jsonPatch, map[string]any{
 			"op":   "remove",
 			"path": annotationPath,
