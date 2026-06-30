@@ -467,8 +467,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                 newPref.healthFilter = [value];
                                                                             } else if (type === 'Sync') {
                                                                                 newPref.syncFilter = [value];
-                                                                            } else if (type === 'Hydrator') {
-                                                                                newPref.operationFilter = [value];
                                                                             }
                                                                             newPref.view = AppsListViewKey.Tiles;
                                                                             onAppFilterPrefChanged(ctx, newPref);

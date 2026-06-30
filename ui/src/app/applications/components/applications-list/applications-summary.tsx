@@ -25,6 +25,13 @@ hydratorColors.set('Hydrated', COLORS.operation.success);
 hydratorColors.set('Failed', COLORS.operation.failed);
 hydratorColors.set('None', COLORS.sync.unknown);
 
+const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        action();
+    }
+};
+
 export const ApplicationsSummary = ({
     applications,
     onFilterClick
@@ -102,51 +109,73 @@ export const ApplicationsSummary = ({
                                                 <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
                                                 <div
                                                     onClick={() => {
-                                                        if (onFilterClick && hoveredSector && hoveredSector.chartTitle === chart.title) {
-                                                            onFilterClick(chart.title as 'Health' | 'Sync' | 'Hydrator', hoveredSector.title);
+                                                        if (chart.title !== 'Hydrator' && onFilterClick && hoveredSector && hoveredSector.chartTitle === chart.title) {
+                                                            onFilterClick(chart.title as 'Health' | 'Sync', hoveredSector.title);
                                                         }
                                                     }}
-                                                    style={{cursor: 'pointer'}}
-                                                    title='Click to filter applications'
-                                                >
+                                                    onKeyDown={e => {
+                                                        if (chart.title !== 'Hydrator' && onFilterClick && hoveredSector && hoveredSector.chartTitle === chart.title) {
+                                                            handleKeyDown(e, () => onFilterClick(chart.title as 'Health' | 'Sync', hoveredSector.title));
+                                                        }
+                                                    }}
+                                                    style={{cursor: chart.title === 'Hydrator' ? 'default' : 'pointer'}}
+                                                    title={chart.title === 'Hydrator' ? undefined : 'Click to filter applications'}
+                                                    role={chart.title === 'Hydrator' ? undefined : 'button'}
+                                                    tabIndex={chart.title === 'Hydrator' ? undefined : 0}>
                                                     <PieChart
                                                         data={chart.data}
-                                                        onSectorHover={(d: any) => setHoveredSector(d ? {chartTitle: chart.title, title: d.title} : null)}
-                                                        expandOnHover={true}
+                                                        onSectorHover={
+                                                            chart.title === 'Hydrator'
+                                                                ? undefined
+                                                                : (d: any) => setHoveredSector(d ? {chartTitle: chart.title, title: d.title} : null)
+                                                        }
+                                                        expandOnHover={chart.title !== 'Hydrator'}
                                                     />
                                                 </div>
                                             </div>
                                             <div className='large-3 small-1'>
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
-                                                        <li
-                                                            style={{listStyle: 'none', whiteSpace: 'nowrap', cursor: 'pointer'}}
-                                                            key={key}
-                                                            onClick={() => {
-                                                                if (onFilterClick) {
-                                                                    onFilterClick(chart.title as 'Health' | 'Sync' | 'Hydrator', key);
-                                                                }
-                                                            }}
-                                                            title={`Filter by ${key}`}
-                                                        >
-                                                            {chart.title === 'Health' && <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />}
-                                                            {chart.title === 'Sync' && <ComparisonStatusIcon status={key as SyncStatusCode} noSpin={true} />}
-                                                            {chart.title === 'Hydrator' && key !== 'None' && (
-                                                                <HydrateOperationPhaseIcon
-                                                                    operationState={{
-                                                                        phase: key as any,
-                                                                        startedAt: '',
-                                                                        message: '',
-                                                                        drySHA: '',
-                                                                        hydratedSHA: '',
-                                                                        sourceHydrator: {} as any
-                                                                    }}
-                                                                />
-                                                            )}
-                                                            {chart.title === 'Hydrator' && key === 'None' && (
-                                                                <i className='fa fa-minus-circle' style={{color: hydratorColors.get(key)}} />
-                                                            )}
-                                                            {` ${key} (${getLegendValue(key)})`}
+                                                        <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
+                                                            <button
+                                                                type='button'
+                                                                onClick={() => {
+                                                                    if (chart.title !== 'Hydrator' && onFilterClick) {
+                                                                        onFilterClick(chart.title as 'Health' | 'Sync', key);
+                                                                    }
+                                                                }}
+                                                                title={chart.title === 'Hydrator' ? undefined : `Filter by ${key}`}
+                                                                disabled={chart.title === 'Hydrator'}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    padding: 0,
+                                                                    cursor: chart.title === 'Hydrator' ? 'default' : 'pointer',
+                                                                    textAlign: 'left',
+                                                                    font: 'inherit',
+                                                                    color: 'inherit'
+                                                                }}>
+                                                                {chart.title === 'Health' && (
+                                                                    <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />
+                                                                )}
+                                                                {chart.title === 'Sync' && <ComparisonStatusIcon status={key as SyncStatusCode} noSpin={true} />}
+                                                                {chart.title === 'Hydrator' && key !== 'None' && (
+                                                                    <HydrateOperationPhaseIcon
+                                                                        operationState={{
+                                                                            phase: key as any,
+                                                                            startedAt: '',
+                                                                            message: '',
+                                                                            drySHA: '',
+                                                                            hydratedSHA: '',
+                                                                            sourceHydrator: {} as any
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                                {chart.title === 'Hydrator' && key === 'None' && (
+                                                                    <i className='fa fa-minus-circle' style={{color: hydratorColors.get(key)}} />
+                                                                )}
+                                                                {` ${key} (${getLegendValue(key)})`}
+                                                            </button>
                                                         </li>
                                                     ))}
                                                 </ul>
