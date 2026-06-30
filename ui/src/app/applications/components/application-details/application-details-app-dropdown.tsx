@@ -53,7 +53,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                                     ? services.applications.getApplicationSet(appSetRef.name, props.application.metadata.namespace)
                                     : Promise.reject(new Error('no appset'))
                             ]);
-                            const apps = appsResult.status === 'fulfilled' ? appsResult.value : {items: []};
+                            const apps = appsResult.status === 'fulfilled' ? appsResult.value : ({items: []} as models.AbstractApplicationList);
                             const appSet = appSetResult.status === 'fulfilled' ? appSetResult.value : null;
                             const siblings = appSet?.status?.resources?.filter(r => r.kind === 'Application') ?? [];
                             return {apps, siblings};
