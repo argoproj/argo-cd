@@ -70,9 +70,6 @@ COPY --from=builder /usr/local/bin/git-lfs /usr/local/bin/git-lfs
 # Initialize git-lfs system configuration (/etc/gitconfig) so LFS filters are active
 RUN git lfs install --system
 
-# keep uid_entrypoint.sh for backward compatibility
-RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
-
 # support for mounting configuration from a configmap
 WORKDIR /app/config/ssh
 RUN touch ssh_known_hosts && \
