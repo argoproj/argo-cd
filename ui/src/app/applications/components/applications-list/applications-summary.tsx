@@ -25,7 +25,15 @@ hydratorColors.set('Hydrated', COLORS.operation.success);
 hydratorColors.set('Failed', COLORS.operation.failed);
 hydratorColors.set('None', COLORS.sync.unknown);
 
-export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
+export const ApplicationsSummary = ({
+    applications,
+    onFilterClick
+}: {
+    applications: models.Application[];
+    onFilterClick?: (type: 'Health' | 'Sync' | 'Hydrator', value: string) => void;
+}) => {
+    const [hoveredSector, setHoveredSector] = React.useState<{title: string; value: number; color: string} | null>(null);
+
     const sync = new Map<string, number>();
     applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
     const health = new Map<string, number>();
@@ -92,12 +100,31 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
                                         <div className='row chart'>
                                             <div className='large-8 small-6'>
                                                 <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
-                                                <PieChart data={chart.data} />
+                                                <div
+                                                    onClick={() => {
+                                                        if (onFilterClick && hoveredSector) {
+                                                            onFilterClick(chart.title as 'Health' | 'Sync' | 'Hydrator', hoveredSector.title);
+                                                        }
+                                                    }}
+                                                    style={{cursor: 'pointer'}}
+                                                    title='Click to filter applications'
+                                                >
+                                                    <PieChart data={chart.data} onSectorHover={(d: any) => setHoveredSector(d)} expandOnHover={true} />
+                                                </div>
                                             </div>
                                             <div className='large-3 small-1'>
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
-                                                        <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
+                                                        <li
+                                                            style={{listStyle: 'none', whiteSpace: 'nowrap', cursor: 'pointer'}}
+                                                            key={key}
+                                                            onClick={() => {
+                                                                if (onFilterClick) {
+                                                                    onFilterClick(chart.title as 'Health' | 'Sync' | 'Hydrator', key);
+                                                                }
+                                                            }}
+                                                            title={`Filter by ${key}`}
+                                                        >
                                                             {chart.title === 'Health' && <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />}
                                                             {chart.title === 'Sync' && <ComparisonStatusIcon status={key as SyncStatusCode} noSpin={true} />}
                                                             {chart.title === 'Hydrator' && key !== 'None' && (

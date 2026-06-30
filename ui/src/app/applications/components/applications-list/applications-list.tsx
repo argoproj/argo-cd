@@ -333,7 +333,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                 annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
                 operation: newPref.operationFilter.join(','),
                 // Keep URL and preferences consistent. When false, remove the param entirely.
-                showFavorites: newPref.showFavorites ? 'true' : null
+                showFavorites: newPref.showFavorites ? 'true' : null,
+                view: newPref.view
             },
             {replace: true}
         );
@@ -457,7 +458,23 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                     sidebarTarget?.current
                                                                 )}
 
-                                                                {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
+                                                                {(pref.view === 'summary' && (
+                                                                    <ApplicationsSummary
+                                                                        applications={filteredApps}
+                                                                        onFilterClick={(type, value) => {
+                                                                            const newPref = {...pref};
+                                                                            if (type === 'Health') {
+                                                                                newPref.healthFilter = [value];
+                                                                            } else if (type === 'Sync') {
+                                                                                newPref.syncFilter = [value];
+                                                                            } else if (type === 'Hydrator') {
+                                                                                newPref.operationFilter = [value];
+                                                                            }
+                                                                            newPref.view = AppsListViewKey.Tiles;
+                                                                            onAppFilterPrefChanged(ctx, newPref);
+                                                                        }}
+                                                                    />
+                                                                )) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <AppsStatusBar applications={filteredApps} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}

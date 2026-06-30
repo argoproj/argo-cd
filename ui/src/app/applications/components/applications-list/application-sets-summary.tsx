@@ -12,7 +12,15 @@ appSetHealthColors.set('Healthy', COLORS.health.healthy);
 appSetHealthColors.set('Degraded', COLORS.health.degraded);
 appSetHealthColors.set('Progressing', COLORS.health.progressing);
 
-export const ApplicationSetsSummary = ({appSets}: {appSets: models.ApplicationSet[]}) => {
+export const ApplicationSetsSummary = ({
+    appSets,
+    onFilterClick
+}: {
+    appSets: models.ApplicationSet[];
+    onFilterClick?: (type: 'Health', value: string) => void;
+}) => {
+    const [hoveredSector, setHoveredSector] = React.useState<{title: string; value: number; color: string} | null>(null);
+
     const health = new Map<string, number>();
 
     appSets.forEach(appSet => {
@@ -62,12 +70,31 @@ export const ApplicationSetsSummary = ({appSets}: {appSets: models.ApplicationSe
                                         <div className='row chart'>
                                             <div className='large-8 small-6'>
                                                 <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
-                                                <PieChart data={chart.data} />
+                                                <div
+                                                    onClick={() => {
+                                                        if (onFilterClick && hoveredSector) {
+                                                            onFilterClick(chart.title as 'Health', hoveredSector.title);
+                                                        }
+                                                    }}
+                                                    style={{cursor: 'pointer'}}
+                                                    title='Click to filter application sets'
+                                                >
+                                                    <PieChart data={chart.data} onSectorHover={(d: any) => setHoveredSector(d)} expandOnHover={true} />
+                                                </div>
                                             </div>
                                             <div className='large-3 small-1'>
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
-                                                        <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
+                                                        <li
+                                                            style={{listStyle: 'none', whiteSpace: 'nowrap', cursor: 'pointer'}}
+                                                            key={key}
+                                                            onClick={() => {
+                                                                if (onFilterClick) {
+                                                                    onFilterClick(chart.title as 'Health', key);
+                                                                }
+                                                            }}
+                                                            title={`Filter by ${key}`}
+                                                        >
                                                             <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />
                                                             {` ${key} (${getLegendValue(key)})`}
                                                         </li>
