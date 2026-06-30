@@ -7,6 +7,9 @@ import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_B
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 import {isValidManagedByURL} from '../../../shared/utils';
+import {EntryField, EntryFieldList} from './entry-fields';
+
+import './entry-fields.scss';
 
 export interface AppSetTileProps {
     appSet: models.ApplicationSet;
@@ -60,8 +63,11 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
     };
 
     return (
+        // role=group + aria-label names the card as one labelled record, matching the app tile.
         <div
             ref={tileRef}
+            role='group'
+            aria-label={AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <a
                 className='row applications-tiles__wrapper'
@@ -83,61 +89,40 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                         <div className='columns small-1' aria-hidden='true' />
                     </div>
 
-                    <div className='applications-tiles__fields'>
-                        {/* Labels row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Labels:'>
-                                Labels:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>
-                                <Tooltip
-                                    zIndex={4}
-                                    content={
-                                        <div>
-                                            {Object.keys(appSet.metadata.labels || {})
-                                                .map(label => ({label, value: appSet.metadata.labels[label]}))
-                                                .map(item => (
-                                                    <div key={item.label}>
-                                                        {item.label}={item.value}
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    }>
-                                    <span>
+                    <EntryFieldList variant='tile'>
+                        <EntryField name='labels' label='Labels'>
+                            <Tooltip
+                                zIndex={4}
+                                content={
+                                    <div>
                                         {Object.keys(appSet.metadata.labels || {})
-                                            .map(label => `${label}=${appSet.metadata.labels[label]}`)
-                                            .join(', ')}
-                                    </span>
-                                </Tooltip>
-                            </div>
-                        </div>
-
-                        {/* Status row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Status:'>
-                                Status:
-                            </div>
-                            <div className='columns applications-tiles__field-value' qe-id='applications-tiles-health-status'>
+                                            .map(label => ({label, value: appSet.metadata.labels[label]}))
+                                            .map(item => (
+                                                <div key={item.label}>
+                                                    {item.label}={item.value}
+                                                </div>
+                                            ))}
+                                    </div>
+                                }>
+                                <span>
+                                    {Object.keys(appSet.metadata.labels || {})
+                                        .map(label => `${label}=${appSet.metadata.labels[label]}`)
+                                        .join(', ')}
+                                </span>
+                            </Tooltip>
+                        </EntryField>
+                        <EntryField name='status' label='Status'>
+                            <span qe-id='applications-tiles-health-status'>
                                 <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> {healthStatus}
-                            </div>
-                        </div>
-
-                        {/* Applications count row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Applications:'>
-                                Applications:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>{appSet.status?.resourcesCount ?? appSet.status?.resources?.length ?? 0}</div>
-                        </div>
-
-                        {/* Created At row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Age:'>
-                                Created At:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}</div>
-                        </div>
-                    </div>
+                            </span>
+                        </EntryField>
+                        <EntryField name='applications' label='Applications'>
+                            {appSet.status?.resourcesCount ?? appSet.status?.resources?.length ?? 0}
+                        </EntryField>
+                        <EntryField name='createdAt' label='Created At'>
+                            {AppUtils.formatCreationTimestamp(appSet.metadata.creationTimestamp)}
+                        </EntryField>
+                    </EntryFieldList>
                 </div>
             </a>
 
