@@ -25,6 +25,9 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
     const managedByURL = getManagedByURL(appSet);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
+    // AppSet pages don't support the Application details `view` param, so the link is view-less.
+    const appSetLink = AppUtils.getAppListLink(ctx, appSet);
+
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (favList?.includes(appSet.metadata.name)) {
@@ -52,7 +55,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`);
+            ctx.navigation.goto(appSetLink.path);
         }
     };
 
@@ -60,7 +63,12 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
         <div
             ref={tileRef}
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div className='row applications-tiles__wrapper' onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`, {view: pref.appDetails.view}, {event: e})}>
+            <a
+                className='row applications-tiles__wrapper'
+                href={appSetLink.href}
+                onClick={appSetLink.onClick}
+                draggable={false}
+                aria-label={AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(appSet)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
@@ -70,37 +78,9 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>
                             </Tooltip>
                         </div>
-                        <div className='columns small-1'>
-                            <div className='applications-list__external-link'>
-                                {managedByURLInvalid ? (
-                                    <button
-                                        type='button'
-                                        className='managed-by-url-invalid'
-                                        onClick={handleExternalLinkClick}
-                                        style={{cursor: 'not-allowed'}}
-                                        title={MANAGED_BY_URL_INVALID_TEXT}>
-                                        <i className='fa fa-external-link-alt' />
-                                    </button>
-                                ) : (
-                                    <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
-                                        <i className='fa fa-external-link-alt' />
-                                    </button>
-                                )}
-                                <button
-                                    title={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
-                                    className='large-text-height'
-                                    onClick={handleFavoriteToggle}>
-                                    <i
-                                        className={favList?.includes(appSet.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
-                                        style={{
-                                            cursor: 'pointer',
-                                            margin: '-1px 0px 0px 7px',
-                                            color: favList?.includes(appSet.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                        }}
-                                    />
-                                </button>
-                            </div>
-                        </div>
+                        {/* Empty placeholder — the actual buttons live outside the anchor as an
+                            absolutely-positioned sibling, so we don't nest interactive content in <a>. */}
+                        <div className='columns small-1' aria-hidden='true' />
                     </div>
 
                     <div className='applications-tiles__fields'>
@@ -159,6 +139,29 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                         </div>
                     </div>
                 </div>
+            </a>
+
+            {/* Header buttons — sibling of the anchor (not nested) so the markup stays valid. */}
+            <div className='applications-tiles__header-buttons applications-list__external-link'>
+                {managedByURLInvalid ? (
+                    <button type='button' className='managed-by-url-invalid' onClick={handleExternalLinkClick} style={{cursor: 'not-allowed'}} title={MANAGED_BY_URL_INVALID_TEXT}>
+                        <i className='fa fa-external-link-alt' />
+                    </button>
+                ) : (
+                    <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
+                        <i className='fa fa-external-link-alt' />
+                    </button>
+                )}
+                <button title={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
+                    <i
+                        className={favList?.includes(appSet.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                        style={{
+                            cursor: 'pointer',
+                            margin: '-1px 0px 0px 7px',
+                            color: favList?.includes(appSet.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                        }}
+                    />
+                </button>
             </div>
         </div>
     );

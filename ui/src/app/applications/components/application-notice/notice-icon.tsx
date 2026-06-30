@@ -19,7 +19,14 @@ export const NoticeIcon = ({annotations}: NoticeIconProps) => {
                 className={`fa ${notice.iconClass} application-notice-icon application-notice-icon--${notice.severity}`}
                 aria-label={`Notice: ${preview}`}
                 role='img'
-                onClick={e => e.stopPropagation()}
+                onClick={e => {
+                    // When NoticeIcon is rendered inside a wrapping <a> (e.g. the application
+                    // tile), stopPropagation alone wouldn't prevent the browser's default anchor
+                    // activation — preventDefault is what keeps a click on the icon from
+                    // navigating into the application.
+                    e.preventDefault();
+                    e.stopPropagation();
+                }}
             />
         </Tooltip>
     );
