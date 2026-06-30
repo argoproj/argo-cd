@@ -4143,7 +4143,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
-		ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		duration := ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		patched, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
@@ -4152,6 +4152,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		_, hasTS := patched.Annotations[v1alpha1.AnnotationKeyRefreshTimestamp]
 		assert.False(t, hasTS, "refresh-timestamp annotation should be removed")
 		assert.Equal(t, "value", patched.Annotations["other"], "unrelated annotations should be preserved")
+		assert.Positive(t, duration, "duration should reflect the patch call time")
 	})
 
 	t.Run("removes both hydrate annotations on success", func(t *testing.T) {
@@ -4163,7 +4164,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
-		ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyHydrate, v1alpha1.AnnotationKeyHydrateTimestamp)
+		duration := ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyHydrate, v1alpha1.AnnotationKeyHydrateTimestamp)
 
 		patched, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
@@ -4172,6 +4173,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		_, hasTS := patched.Annotations[v1alpha1.AnnotationKeyHydrateTimestamp]
 		assert.False(t, hasTS, "hydrate-timestamp annotation should be removed")
 		assert.Equal(t, "value", patched.Annotations["other"], "unrelated annotations should be preserved")
+		assert.Positive(t, duration, "duration should reflect the patch call time")
 	})
 
 	t.Run("removes main annotation when timestamp annotation is absent", func(t *testing.T) {
@@ -4181,12 +4183,13 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
-		ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		duration := ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		patched, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 		_, hasRefresh := patched.Annotations[v1alpha1.AnnotationKeyRefresh]
 		assert.False(t, hasRefresh, "refresh annotation should be removed even without a timestamp companion")
+		assert.Positive(t, duration, "duration should reflect the patch call time")
 	})
 
 	t.Run("no-op when neither annotation is present", func(t *testing.T) {
@@ -4199,9 +4202,10 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return false, nil, nil
 		})
 
-		ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		duration := ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		assert.Equal(t, 0, patchCalls, "no API call should be made when annotations are absent")
+		assert.Zero(t, duration, "duration should be zero when no patch call is made")
 	})
 
 	t.Run("leaves annotations in place when a newer refresh arrived during reconcile", func(t *testing.T) {
@@ -4228,10 +4232,11 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, nil, unprocessableErr(app.Name)
 		})
 
-		ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		duration := ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		assert.Equal(t, 1, patchCalls, "should attempt the patch exactly once")
 		assert.Equal(t, 1, getCalls, "should read current app state to verify the timestamp change")
+		assert.Positive(t, duration, "duration should reflect the single (failed) patch call time")
 	})
 
 	t.Run("retries annotation cleanup after 422 when there is no timestamp conflict", func(t *testing.T) {
@@ -4258,10 +4263,11 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, &v1alpha1.Application{}, nil
 		})
 
-		ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		duration := ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		assert.Equal(t, 2, patchCalls, "should retry the cleanup patch once after a spurious 422")
 		assert.Equal(t, 1, getCalls, "should read current app state once to check the timestamp")
+		assert.Positive(t, duration, "duration should accumulate time from both patch calls")
 	})
 
 	t.Run("returns without retry when Get fails after 422", func(t *testing.T) {
@@ -4284,11 +4290,13 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, nil, unprocessableErr(app.Name)
 		})
 
+		var duration time.Duration
 		assert.NotPanics(t, func() {
-			ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+			duration = ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 		})
 		assert.Equal(t, 1, patchCalls, "should not retry after Get failure")
 		assert.Equal(t, 1, getCalls, "should have attempted Get once")
+		assert.Positive(t, duration, "duration should reflect the single (failed) patch call time")
 	})
 
 	t.Run("does not retry on non-422 patch error", func(t *testing.T) {
@@ -4311,10 +4319,11 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, nil, errors.New("internal server error")
 		})
 
-		ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		duration := ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		assert.Equal(t, 1, patchCalls, "should not retry on a non-422 error")
 		assert.Equal(t, 0, getCalls, "should not Get on a non-422 error")
+		assert.Positive(t, duration, "duration should reflect the single (failed) patch call time")
 	})
 
 	t.Run("does not retry on 422 when no timestamp annotation was set", func(t *testing.T) {
@@ -4337,9 +4346,10 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, nil, unprocessableErr(app.Name)
 		})
 
-		ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		duration := ctrl.handleRefreshAnnotation(app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		assert.Equal(t, 1, patchCalls, "should not retry when orig had no timestamp annotation")
 		assert.Equal(t, 0, getCalls, "should not Get when the hasTimestamp guard is false")
+		assert.Positive(t, duration, "duration should reflect the single (failed) patch call time")
 	})
 }
