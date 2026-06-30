@@ -154,6 +154,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		parsers = append(parsers, &bitbucketServerParser{webhook: bitbucketserverWebhook})
 	}
 	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
+	parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
 
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
