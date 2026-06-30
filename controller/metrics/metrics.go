@@ -39,6 +39,7 @@ type MetricsServer struct {
 	orphanedResourcesGauge            *prometheus.GaugeVec
 	k8sRequestCounter                 *prometheus.CounterVec
 	clusterEventsCounter              *prometheus.CounterVec
+	clusterEventsIgnoredCounter       *prometheus.CounterVec
 	redisRequestCounter               *prometheus.CounterVec
 	reconcileHistogram                *prometheus.HistogramVec
 	redisRequestHistogram             *prometheus.HistogramVec
@@ -116,6 +117,11 @@ var (
 	clusterEventsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_cluster_events_total",
 		Help: "Number of processes k8s resource events.",
+	}, append(descClusterDefaultLabels, "group", "kind"))
+
+	clusterEventsIgnoredCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_cluster_events_ignored_total",
+		Help: "Number of k8s resource events ignored by ignoreResourceUpdates rules.",
 	}, append(descClusterDefaultLabels, "group", "kind"))
 
 	redisRequestCounter = prometheus.NewCounterVec(
@@ -204,6 +210,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(orphanedResourcesGauge)
 	registry.MustRegister(reconcileHistogram)
 	registry.MustRegister(clusterEventsCounter)
+	registry.MustRegister(clusterEventsIgnoredCounter)
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(resourceEventsProcessingHistogram)
@@ -226,6 +233,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		orphanedResourcesGauge:            orphanedResourcesGauge,
 		reconcileHistogram:                reconcileHistogram,
 		clusterEventsCounter:              clusterEventsCounter,
+		clusterEventsIgnoredCounter:       clusterEventsIgnoredCounter,
 		redisRequestCounter:               redisRequestCounter,
 		redisRequestHistogram:             redisRequestHistogram,
 		resourceEventsProcessingHistogram: resourceEventsProcessingHistogram,
@@ -281,6 +289,11 @@ func (m *MetricsServer) SetOrphanedResourcesMetric(app *argoappv1.Application, n
 // IncClusterEventsCount increments the number of cluster events
 func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 	m.clusterEventsCounter.WithLabelValues(server, group, kind).Inc()
+}
+
+// IncClusterEventsIgnoredCount increments the number of cluster events ignored by ignoreResourceUpdates rules
+func (m *MetricsServer) IncClusterEventsIgnoredCount(server, group, kind string) {
+	m.clusterEventsIgnoredCounter.WithLabelValues(server, group, kind).Inc()
 }
 
 // IncKubernetesRequest increments the kubernetes requests counter for an application
@@ -339,6 +352,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.orphanedResourcesGauge.Reset()
 		m.k8sRequestCounter.Reset()
 		m.clusterEventsCounter.Reset()
+		m.clusterEventsIgnoredCounter.Reset()
 		m.redisRequestCounter.Reset()
 		m.reconcileHistogram.Reset()
 		m.redisRequestHistogram.Reset()
