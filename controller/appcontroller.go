@@ -481,7 +481,8 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		if ref.Namespace == "" {
 			namespace = "(cluster-scoped)"
 		}
-		logCtx.WithFields(log.Fields{
+
+		refreshLogCtx := logCtx.WithFields(log.Fields{
 			"comparison-level": level,
 			"namespace":        namespace,
 			"name":             ref.Name,
@@ -489,7 +490,16 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			"kind":             ref.Kind,
 			"server":           app.Spec.Destination.Server,
 			"cluster-name":     app.Spec.Destination.Name,
-		}).Debug("Requesting app refresh caused by object update")
+		})
+		// A managed resource change triggers an actual reconciliation (CompareWithRecent),
+		// so log it at Info to give visibility into what caused the reconcile. Other object
+		// updates (orphan, child of managed resources) only refresh the resource tree,
+		// so keep them at Debug level to limit noise.
+		if isManagedResource {
+			refreshLogCtx.Info("Requesting app refresh caused by object update")
+		} else {
+			refreshLogCtx.Debug("Requesting app refresh caused by object update")
+		}
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}
