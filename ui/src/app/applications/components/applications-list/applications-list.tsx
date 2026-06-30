@@ -458,7 +458,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                     sidebarTarget?.current
                                                                 )}
 
-                                                                {(pref.view === 'summary' && (
+                                                                {(pref.view === Summary && (
                                                                     <ApplicationsSummary
                                                                         applications={filteredApps}
                                                                         onFilterClick={(type, value) => {

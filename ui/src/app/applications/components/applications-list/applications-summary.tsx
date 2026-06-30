@@ -32,7 +32,7 @@ export const ApplicationsSummary = ({
     applications: models.Application[];
     onFilterClick?: (type: 'Health' | 'Sync' | 'Hydrator', value: string) => void;
 }) => {
-    const [hoveredSector, setHoveredSector] = React.useState<{title: string; value: number; color: string} | null>(null);
+    const [hoveredSector, setHoveredSector] = React.useState<{chartTitle: string; title: string} | null>(null);
 
     const sync = new Map<string, number>();
     applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
@@ -102,14 +102,18 @@ export const ApplicationsSummary = ({
                                                 <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
                                                 <div
                                                     onClick={() => {
-                                                        if (onFilterClick && hoveredSector) {
+                                                        if (onFilterClick && hoveredSector && hoveredSector.chartTitle === chart.title) {
                                                             onFilterClick(chart.title as 'Health' | 'Sync' | 'Hydrator', hoveredSector.title);
                                                         }
                                                     }}
                                                     style={{cursor: 'pointer'}}
                                                     title='Click to filter applications'
                                                 >
-                                                    <PieChart data={chart.data} onSectorHover={(d: any) => setHoveredSector(d)} expandOnHover={true} />
+                                                    <PieChart
+                                                        data={chart.data}
+                                                        onSectorHover={(d: any) => setHoveredSector(d ? {chartTitle: chart.title, title: d.title} : null)}
+                                                        expandOnHover={true}
+                                                    />
                                                 </div>
                                             </div>
                                             <div className='large-3 small-1'>
