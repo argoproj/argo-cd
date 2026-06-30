@@ -2040,7 +2040,7 @@ func TestSelfHealSyncDoesNotRenderHooksUnrecoverable(t *testing.T) {
 		// self-heal recovery flag is never set (so BeforeHookCreation re-run is preserved).
 		assert.False(t, shouldSkipHooks(full, true))
 		assert.False(t, shouldSkipHooks(full, false))
-		assert.False(t, len(full.Resources) > 0, "self-heal recovery flag must be unset for a full sync")
+		assert.Empty(t, full.Resources, "self-heal recovery flag must be unset for a full sync")
 		assert.True(t, resourceScopeAllowsResource(full, preSyncHookKey, preSyncHook, true))
 		assert.True(t, resourceScopeAllowsResource(full, preSyncHookKey, preSyncHook, false))
 		assert.True(t, resourceScopeAllowsResource(full, deploymentKey, driftedDeployment, false))
