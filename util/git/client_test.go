@@ -2181,3 +2181,70 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 	// ... and the fix surfaces it as an actionable authentication error (the fix).
 	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
 }
+
+func TestStaleGitLockPath(t *testing.T) {
+	root := t.TempDir()
+	gitDir := filepath.Join(root, ".git")
+
+	tests := []struct {
+		name   string
+		output string
+		want   string
+		wantOk bool
+	}{
+		{
+			name:   "ref lock under .git is removable",
+			output: fmt.Sprintf("error: cannot lock ref 'HEAD': Unable to create '%s/HEAD.lock': File exists.", gitDir),
+			want:   filepath.Join(gitDir, "HEAD.lock"),
+			wantOk: true,
+		},
+		{
+			name:   "index lock under .git is removable",
+			output: fmt.Sprintf("fatal: Unable to create '%s/index.lock': File exists.", gitDir),
+			want:   filepath.Join(gitDir, "index.lock"),
+			wantOk: true,
+		},
+		{
+			name:   "shallow lock under .git is removable",
+			output: fmt.Sprintf("fatal: Unable to create '%s/shallow.lock': File exists.", gitDir),
+			want:   filepath.Join(gitDir, "shallow.lock"),
+			wantOk: true,
+		},
+		{
+			name:   "nested ref lock under .git is removable",
+			output: fmt.Sprintf("fatal: Unable to create '%s/refs/heads/main.lock': File exists.", gitDir),
+			want:   filepath.Join(gitDir, "refs/heads/main.lock"),
+			wantOk: true,
+		},
+		{
+			name:   "working-tree Chart.lock is NOT removable",
+			output: fmt.Sprintf("Unable to create '%s/charts/foo/Chart.lock': File exists.", root),
+			wantOk: false,
+		},
+		{
+			name:   "lock outside the repo root is NOT removable",
+			output: "Unable to create '/etc/something/.git/evil.lock': File exists.",
+			wantOk: false,
+		},
+		{
+			name:   "non-lock file is NOT removable",
+			output: fmt.Sprintf("Unable to create '%s/HEAD': File exists.", gitDir),
+			wantOk: false,
+		},
+		{
+			name:   "unrelated error yields no path",
+			output: "fatal: could not read from remote repository",
+			wantOk: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := staleGitLockPath(root, tt.output)
+			assert.Equal(t, tt.wantOk, ok)
+			if tt.wantOk {
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}

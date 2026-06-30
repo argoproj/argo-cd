@@ -582,7 +582,10 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 		args = append(args, "--tags")
 	}
 	args = append(args, "--force", "--prune")
-	return m.runCredentialedCmd(ctx, args...)
+	_, err := m.reExecOnStaleLock(func() (string, error) {
+		return "", m.runCredentialedCmd(ctx, args...)
+	})
+	return err
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
@@ -771,7 +774,10 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
-	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
+	out, err := m.reExecOnStaleLock(func() (string, error) {
+		return m.runCmd(ctx, "checkout", "--force", revision)
+	})
+	if err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
@@ -1723,6 +1729,78 @@ func isRetryableNotePushError(errStr string) bool {
 		strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
 		strings.Contains(errStr, "failed to update ref") || // Generic ref update failure that may include transient issues
 		strings.Contains(errStr, "cannot lock ref") // Server could not lock the notes ref because a concurrent push from another shard holds it
+}
+
+// gitLockFileErrRe captures the path git prints when a *.lock file blocks a
+// ref/index update, e.g.:
+//
+//	cannot lock ref 'HEAD': Unable to create '/path/.git/HEAD.lock': File exists.
+//	fatal: Unable to create '/path/.git/index.lock': File exists.
+//	fatal: Unable to create '/path/.git/shallow.lock': File exists.
+var gitLockFileErrRe = regexp.MustCompile(`Unable to create '([^']+)': File exists`)
+
+// staleGitLockPath extracts the lock file path from a failed git command's
+// output when the failure is a leftover *.lock from a previously interrupted
+// git process. It returns a path ONLY when it is safe to remove: a *.lock file
+// inside this repository's own .git metadata directory. This deliberately
+// excludes working-tree files (a chart's own Chart.lock is never under .git/)
+// and anything outside root, so a malformed or adversarial error string can
+// never cause an arbitrary file to be deleted.
+func staleGitLockPath(root string, outputs ...string) (string, bool) {
+	var match []string
+	for _, out := range outputs {
+		if match = gitLockFileErrRe.FindStringSubmatch(out); match != nil {
+			break
+		}
+	}
+	if match == nil {
+		return "", false
+	}
+	p := match[1]
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(root, p)
+	}
+	p = filepath.Clean(p)
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", false
+	}
+	sep := string(os.PathSeparator)
+	if !strings.HasSuffix(p, ".lock") ||
+		!strings.HasPrefix(p, filepath.Clean(rootAbs)+sep) ||
+		!strings.Contains(p, sep+".git"+sep) {
+		return "", false
+	}
+	return p, true
+}
+
+// reExecOnStaleLock runs op and, if it fails solely because a stale *.lock file
+// (left by a previously SIGKILL'd git process) blocks a ref/index update,
+// removes that single lock file and runs op exactly once more.
+//
+// This recovers a repo-server cache that would otherwise stay wedged forever: a
+// git child killed mid-checkout/fetch (exec timeout, gRPC context cancel, OOM)
+// leaves a regular-file lock that git never reclaims, so every later operation
+// on that cached repo fails with exit 128 until the pod is restarted. The
+// removal is reactive (only after a failure that names the lock) and surgical
+// (only that file, only inside .git/), so it never races a live operation — the
+// holder has already failed — and never touches working-tree content. Compare
+// cleanupOrphanedTempPackfiles, which handles the leftover-packfile sibling.
+func (m *nativeGitClient) reExecOnStaleLock(op func() (string, error)) (string, error) {
+	out, err := op()
+	if err == nil {
+		return out, nil
+	}
+	lockPath, ok := staleGitLockPath(m.root, err.Error(), out)
+	if !ok {
+		return out, err
+	}
+	log.Warnf("git operation failed on a stale lock %q from a previously interrupted git process; removing it and retrying once", lockPath)
+	if rmErr := os.Remove(lockPath); rmErr != nil && !os.IsNotExist(rmErr) {
+		log.Warnf("could not remove stale git lock %q: %v", lockPath, rmErr)
+		return out, err
+	}
+	return op()
 }
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
