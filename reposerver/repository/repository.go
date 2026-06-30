@@ -193,6 +193,38 @@ func (s *Service) Init() error {
 		fullPath := filepath.Join(s.rootDir, file.Name())
 		closer := s.gitRepoInitializer(fullPath)
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
+			indexLockFile := filepath.Join(fullPath, ".git", "index.lock")
+			if lockInfo, statErr := os.Lstat(indexLockFile); statErr == nil {
+				if !lockInfo.Mode().IsRegular() {
+					log.Warnf("Lock file %s is not a regular file, skipping removal", indexLockFile)
+				} else {
+					log.Warnf("Lock file present in git repository %s, removing it", fullPath)
+					if err = os.Remove(indexLockFile); err != nil {
+						log.Errorf("Failed to remove lock file %s: %v", indexLockFile, err)
+					}
+
+					if err == nil {
+						// don't run `git reset` unless an index file is actually present
+						indexFile := filepath.Join(fullPath, ".git", "index")
+						if _, err = os.Stat(indexFile); err == nil {
+							wt, err := repo.Worktree()
+							if err != nil {
+								log.Errorf("Failed to get worktree for git repo %s: %v", fullPath, err)
+							} else if headRef, err := repo.Head(); err != nil {
+								log.Errorf("Failed to resolve HEAD for git repo %s: %v", fullPath, err)
+							} else if err = wt.Reset(&gogit.ResetOptions{
+								Mode:   gogit.MixedReset,
+								Commit: headRef.Hash(),
+							}); err != nil {
+								log.Errorf("Failed to reset git repo %s: %v", fullPath, err)
+							}
+						}
+					}
+				}
+			} else if !os.IsNotExist(statErr) {
+				log.Warnf("Failed to stat lock file %s, skipping cleanup: %v", indexLockFile, statErr)
+			}
+
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
 				s.gitRepoPaths.Add(git.NormalizeGitURL(remotes[0].Config().URLs[0]), fullPath)
 			}

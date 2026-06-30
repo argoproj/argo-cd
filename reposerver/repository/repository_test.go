@@ -3295,6 +3295,107 @@ func TestInit(t *testing.T) {
 	_, err := os.ReadDir(dir)
 	require.Error(t, err)
 	initGitRepo(t, newGitRepoOptions{path: path.Join(dir, "repo2"), remote: "https://github.com/argo-cd/test-repo2", createPath: true, addEmptyCommit: false})
+
+	repoPath = path.Join(dir, "repo3")
+	lockFile := path.Join(repoPath, ".git", "index.lock")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo3", createPath: true, addEmptyCommit: false})
+	require.NoError(t, os.WriteFile(lockFile, []byte("test"), 0o644))
+
+	service = newService(t, ".")
+	service.rootDir = dir
+
+	_, err = os.Stat(lockFile)
+	require.NoError(t, err)
+	require.NoError(t, service.Init())
+	_, err = os.Stat(lockFile)
+	require.Error(t, err, "lock file should be removed after Init()")
+	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+// TestInitWithIndexLockFile verifies that Init removes a stale .git/index.lock
+// while preserving the .git/index file.
+func TestInitWithIndexLockFile(t *testing.T) {
+	dir := t.TempDir()
+
+	// service.Init sets permission to 0300. Restore permissions when the test
+	// finishes so dir can be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0o777))
+	})
+
+	repoPath := path.Join(dir, "repo")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo", createPath: true, addEmptyCommit: true})
+
+	// Verify .git/index normally exists after git operations
+	indexFile := path.Join(repoPath, ".git", "index")
+	_, err := os.Stat(indexFile)
+	require.NoError(t, err, ".git/index should normally exist after git operations")
+
+	// Create index.lock file to simulate a git operation in progress
+	lockFile := path.Join(repoPath, ".git", "index.lock")
+	require.NoError(t, os.WriteFile(lockFile, []byte("test lock"), 0o644))
+
+	// Verify both files exist before Init
+	_, err = os.Stat(indexFile)
+	require.NoError(t, err, ".git/index should exist before Init")
+	_, err = os.Stat(lockFile)
+	require.NoError(t, err, ".git/index.lock should exist before Init")
+
+	service := newService(t, ".")
+	service.rootDir = dir
+
+	// Init should clean up the lock file
+	require.NoError(t, service.Init())
+
+	// After Init, lock file should be removed
+	_, err = os.Stat(lockFile)
+	require.Error(t, err, "lock file should be removed after Init()")
+	require.ErrorIs(t, err, fs.ErrNotExist)
+
+	// The index file should still exist after lock cleanup
+	_, err = os.Stat(indexFile)
+	require.NoError(t, err, ".git/index should exist after lock file cleanup")
+}
+
+// TestInitWithIndexLockFileUnresolvableHead verifies that Init does not panic
+// when a repository has a stale .git/index.lock and an index file but an
+// unresolvable HEAD (e.g. a repo with no commits). In that case the reset is
+// skipped gracefully rather than dereferencing a nil HEAD reference.
+func TestInitWithIndexLockFileUnresolvableHead(t *testing.T) {
+	dir := t.TempDir()
+
+	// service.Init sets permission to 0300. Restore permissions when the test
+	// finishes so dir can be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0o777))
+	})
+
+	// addEmptyCommit: false leaves the repository with an unborn HEAD, so
+	// repo.Head() returns an error.
+	repoPath := path.Join(dir, "repo")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo", createPath: true, addEmptyCommit: false})
+
+	// Create an index and a stale lock file so that the reset branch is
+	// reached. git init alone does not create an index file.
+	indexFile := path.Join(repoPath, ".git", "index")
+	require.NoError(t, os.WriteFile(indexFile, []byte("test index"), 0o644))
+	lockFile := path.Join(repoPath, ".git", "index.lock")
+	require.NoError(t, os.WriteFile(lockFile, []byte("test lock"), 0o644))
+
+	service := newService(t, ".")
+	service.rootDir = dir
+
+	// Init must not panic and must clean up the lock file even though HEAD
+	// cannot be resolved.
+	require.NoError(t, service.Init())
+
+	// After Init, the lock file should be removed.
+	_, err := os.Stat(lockFile)
+	require.ErrorIs(t, err, fs.ErrNotExist)
+
+	// The index file is left untouched because the reset was skipped.
+	_, err = os.Stat(indexFile)
+	require.NoError(t, err, ".git/index should be preserved when HEAD is unresolvable")
 }
 
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
