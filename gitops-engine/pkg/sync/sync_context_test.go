@@ -1713,6 +1713,88 @@ func TestBeforeHookCreation(t *testing.T) {
 	assert.Equal(t, "waiting for completion of hook /Pod/my-pod", message)
 }
 
+// TestSelfHealRecoversMissingPreSyncHookWithoutRerunningHealthyOne reproduces the
+// orphaned-PreSync-hook scenario from https://github.com/argoproj/argo-cd/issues/13429.
+//
+// It models a self-heal / resource-scoped sync where hooks are *not* skipped (the
+// controller-side fix) and the WithSelfHealRecovery opt is enabled. It proves the
+// gitops-engine invariant we rely on:
+//
+//	(a) a MISSING PreSync hook (live==nil) is recreated, and
+//	(b) a HEALTHY, already-completed PreSync hook with hook-delete-policy
+//	    BeforeHookCreation that already exists is NOT deleted+recreated (i.e. the
+//	    DB-migration Job is not re-run on every drift heal).
+//
+// The second sub-test proves the gating: with WithSelfHealRecovery disabled (the
+// default), the same healthy hook IS deleted (the unchanged upstream BeforeHookCreation
+// re-run behavior). This is the behavior asserted by the review gate in
+// zz_review_rerun_test.go.
+func TestSelfHealRecoversMissingPreSyncHookWithoutRerunningHealthyOne(t *testing.T) {
+	// buildSyncCtx constructs a sync context with one healthy/completed PreSync hook that
+	// already exists in the cluster ("migration") and one orphaned PreSync hook that is
+	// missing from the cluster ("service-account"). Both use the BeforeHookCreation delete
+	// policy. The returned `deleted` map records any delete calls against the live hook.
+	buildSyncCtx := func(t *testing.T, selfHealRecovery bool) (*syncContext, map[string]bool) {
+		t.Helper()
+
+		healthyHook := newHook("migration", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
+		require.NoError(t, unstructured.SetNestedField(healthyHook.Object, string(corev1.PodSucceeded), "status", "phase"))
+
+		missingHook := newHook("service-account", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
+
+		syncCtx := newTestSyncCtx(nil)
+		syncCtx.selfHealRecovery = selfHealRecovery
+		// Hooks enabled (this is what the controller fix guarantees for self-heal). Both
+		// hooks are present in the hook list; only the healthy one has a live object.
+		syncCtx.hooks = []*unstructured.Unstructured{healthyHook, missingHook}
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{healthyHook, nil},
+			Target: []*unstructured.Unstructured{nil, missingHook},
+		})
+
+		deleted := map[string]bool{}
+		client := fake.NewSimpleDynamicClient(runtime.NewScheme(), healthyHook)
+		client.PrependReactor("delete", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+			deleted[action.(testcore.DeleteAction).GetName()] = true
+			return false, nil, nil
+		})
+		syncCtx.dynamicIf = client
+		return syncCtx, deleted
+	}
+
+	missingKey := kube.GetResourceKey(newHook("service-account", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation))
+	healthyKey := kube.GetResourceKey(newHook("migration", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation))
+
+	t.Run("self-heal recovery on: missing hook recreated, healthy hook untouched", func(t *testing.T) {
+		syncCtx, deleted := buildSyncCtx(t, true)
+
+		syncCtx.Sync(context.Background())
+
+		resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+
+		// (a) the missing hook must be (re)created (applied)
+		assert.Equal(t, "apply", resourceOps.GetLastResourceCommand(missingKey),
+			"missing PreSync hook should be recreated (applied) by self-heal")
+
+		// (b) the healthy, already-completed hook must NOT be deleted (would re-run the migration Job)
+		assert.False(t, deleted["migration"], "healthy completed PreSync hook must not be deleted+recreated by self-heal")
+		// ...and must NOT be re-applied either.
+		assert.Empty(t, resourceOps.GetLastResourceCommand(healthyKey),
+			"healthy completed PreSync hook must not be re-applied by self-heal")
+	})
+
+	t.Run("self-heal recovery off (default): healthy hook is re-run (unchanged upstream behavior)", func(t *testing.T) {
+		syncCtx, deleted := buildSyncCtx(t, false)
+
+		syncCtx.Sync(context.Background())
+
+		// With the flag off, the completed BeforeHookCreation hook is deleted (and would be
+		// recreated), exactly as upstream. This guards that the recovery behavior is opt-in.
+		assert.True(t, deleted["migration"],
+			"with self-heal recovery disabled, a completed BeforeHookCreation hook must still be deleted+recreated")
+	})
+}
+
 func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 	hook1 := newHook("existing-hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2 := newHook("existing-hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)

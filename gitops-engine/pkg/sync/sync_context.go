@@ -111,6 +111,20 @@ func WithSkipHooks(skipHooks bool) SyncOpt {
 	}
 }
 
+// WithSelfHealRecovery enables self-heal recovery semantics for hooks. When enabled, an
+// already-present hook (one that has a live object) is left completely untouched: it is
+// neither deleted-before-creation nor re-applied, regardless of its hook-delete-policy. A
+// hook that is missing from the cluster (no live object) is still created, which lets an
+// automated self-heal recreate an orphaned hook (e.g. a PreSync Job) without re-running the
+// hooks that already exist. Default false reproduces upstream behavior exactly (a completed
+// BeforeHookCreation hook is deleted and re-run on a normal/full sync).
+// See https://github.com/argoproj/argo-cd/issues/13429.
+func WithSelfHealRecovery(selfHealRecovery bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.selfHealRecovery = selfHealRecovery
+	}
+}
+
 // WithPrune specifies if resource pruning enabled
 func WithPrune(prune bool) SyncOpt {
 	return func(ctx *syncContext) {
@@ -390,6 +404,7 @@ type syncContext struct {
 	force                           bool
 	validate                        bool
 	skipHooks                       bool
+	selfHealRecovery                bool
 	resourcesFilter                 func(key kubeutil.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
 	prune                           bool
 	replace                         bool
@@ -1035,6 +1050,35 @@ func (sc *syncContext) getSyncTasks(ctx context.Context) (_ syncTasks, successfu
 			continue
 		}
 		task.liveObj = sc.liveObj(task.targetObj)
+	}
+
+	// Self-heal recovery: when an automated self-heal is recovering a resource-scoped drift,
+	// existing hooks must not be re-run. Without this, a still-pending hook that has a live
+	// object (e.g. a completed BeforeHookCreation PreSync Job) satisfies deleteBeforeCreation()
+	// and would be deleted and re-run on every drift heal. We therefore seed the live object's
+	// current phase onto any existing (liveObj != nil) hook task, which makes it non-pending so
+	// the engine neither deletes-before-creation nor re-applies it. A hook that is missing from
+	// the cluster (liveObj == nil) is left pending and is created as usual, which recovers an
+	// orphaned hook. When selfHealRecovery is disabled (the default), behavior is unchanged from
+	// upstream: a completed BeforeHookCreation hook is still deleted and re-run on a normal/full
+	// sync. See https://github.com/argoproj/argo-cd/issues/13429.
+	if sc.selfHealRecovery {
+		for _, task := range tasks {
+			if !task.isHook() || !task.pending() || task.liveObj == nil {
+				continue
+			}
+			phase, message, err := sc.getOperationPhase(task.liveObj)
+			if err != nil || !phase.Completed() {
+				// The hook is still running (or its phase is indeterminate). Leave it pending
+				// so the normal flow waits for it; it is already present so it will not be
+				// deleted+recreated.
+				continue
+			}
+			// The hook already finished. Treat it as completed so it is neither
+			// deleted-before-creation nor re-applied.
+			task.operationState = phase
+			task.message = message
+		}
 	}
 
 	isRetryable := apierrors.IsUnauthorized
