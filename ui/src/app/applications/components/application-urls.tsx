@@ -65,12 +65,17 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
     return (
         ((externalLinks || []).length > 0 && (
             <div className='applications-list__external-links-icon-container'>
-                <a href={externalLinks[0].ref} title={externalLinks[0].title} target='_blank' rel='noopener noreferrer' onClick={e => e.stopPropagation()}>
-                    <i className='fa fa-external-link-alt' />
-                </a>
-                {externalLinks.length > 1 && (
+                {externalLinks.length === 1 ? (
+                    <a href={externalLinks[0].ref} title={externalLinks[0].title} target='_blank' rel='noopener noreferrer' onClick={e => e.stopPropagation()}>
+                        <i className='fa fa-external-link-alt' />
+                    </a>
+                ) : (
                     <DropDownMenu
-                        anchor={() => <i className='fa fa-caret-down' />}
+                        anchor={() => (
+                            <a title='External URLs'>
+                                <i className='fa fa-share-square' />
+                            </a>
+                        )}
                         items={externalLinks.map(item => ({
                             title: item.title,
                             action: () => window.open(item.ref, '_blank', 'noopener,noreferrer')

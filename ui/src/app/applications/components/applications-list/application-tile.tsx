@@ -238,11 +238,11 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                 <ApplicationURLs urls={app.status.summary?.externalURLs} />
                 {managedByURLInvalid ? (
                     <button type='button' className='managed-by-url-invalid' onClick={handleExternalLinkClick} style={{cursor: 'not-allowed'}} title={MANAGED_BY_URL_INVALID_TEXT}>
-                        <i className='fa fa-external-link-alt' />
+                        <i className='fa fa-window-maximize' />
                     </button>
                 ) : (
                     <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
-                        <i className='fa fa-external-link-alt' />
+                        <i className='fa fa-window-maximize' />
                     </button>
                 )}
                 <button title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
@@ -250,7 +250,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                         className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
                         style={{
                             cursor: 'pointer',
-                            margin: '-1px 0px 0px 7px',
+                            margin: '-1px 0px 0px 0px',
                             color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
                         }}
                     />

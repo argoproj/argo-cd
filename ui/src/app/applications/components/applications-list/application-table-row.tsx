@@ -130,7 +130,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                         onClick={handleExternalLinkClick}
                                         style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
                                         title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                                        <i className='fa fa-external-link-alt' />
+                                        <i className='fa fa-window-maximize' />
                                     </button>
                                 </div>
                             </div>
