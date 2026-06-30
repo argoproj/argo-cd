@@ -923,6 +923,20 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                               title: 'Preview Apps',
                                                               iconClassName: 'fa fa-eye',
                                                               action: () => selectNode(appFullName, 0, 'preview')
+                                                          },
+                                                          {
+                                                              iconClassName: classNames('fa fa-redo', {
+                                                                  'status-icon--spin': AppUtils.isAppSetRefreshing(application as appModels.ApplicationSet)
+                                                              }),
+                                                              title: 'Refresh',
+                                                              disabled: AppUtils.isAppSetRefreshing(application as appModels.ApplicationSet),
+                                                              action: () => {
+                                                                  if (!AppUtils.isAppSetRefreshing(application as appModels.ApplicationSet)) {
+                                                                      AppUtils.setAppSetRefreshing(application as appModels.ApplicationSet);
+                                                                      appChanged.current.next(application);
+                                                                      services.applications.refreshApplicationSet(application.metadata.name, application.metadata.namespace);
+                                                                  }
+                                                              }
                                                           }
                                                       ]
                                             },
@@ -1213,7 +1227,18 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         )}
                                         {!isApplication && (
                                             <SlidingPanel isShown={isAppSelected} onClose={() => selectNode('')}>
-                                                {isAppSelected && <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />}
+                                                {isAppSelected && (
+                                                    <AppSetResourceDetails
+                                                        appSet={application as appModels.ApplicationSet}
+                                                        onRefresh={() => {
+                                                            if (!AppUtils.isAppSetRefreshing(application as appModels.ApplicationSet)) {
+                                                                AppUtils.setAppSetRefreshing(application as appModels.ApplicationSet);
+                                                                appChanged.current.next(application);
+                                                                services.applications.refreshApplicationSet(application.metadata.name, application.metadata.namespace);
+                                                            }
+                                                        }}
+                                                    />
+                                                )}
                                             </SlidingPanel>
                                         )}
                                         {isApplication && (

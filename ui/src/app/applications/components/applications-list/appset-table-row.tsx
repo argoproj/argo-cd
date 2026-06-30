@@ -1,5 +1,6 @@
 import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import classNames from 'classnames';
 import Moment from 'react-moment';
 import {ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -14,9 +15,10 @@ export interface AppSetTableRowProps {
     selected: boolean;
     pref: ViewPreferences;
     ctx: ContextApis;
+    refreshApplicationSet: (appSetName: string, appSetNamespace: string) => void;
 }
 
-export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
+export const AppSetTableRow = ({appSet, selected, pref, ctx, refreshApplicationSet}: AppSetTableRowProps) => {
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = getAppSetHealthStatus(appSet);
     const linkInfo = getApplicationLinkURL(appSet, ctx.baseHref);
@@ -108,8 +110,22 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                 </div>
 
                 {/* Status column (takes remaining space since no Source/Destination for AppSets) */}
-                <div className='columns small-8'>
+                <div className='columns small-6'>
                     <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> <span>{healthStatus}</span>
+                </div>
+                <div className='columns small-2 applications-list__entry--actions'>
+                    <Tooltip content='Refresh'>
+                        <button
+                            type='button'
+                            qe-id='applicationsets-table-button-refresh'
+                            {...AppUtils.appSetRefreshLinkAttrs(appSet)}
+                            onClick={e => {
+                                e.stopPropagation();
+                                refreshApplicationSet(appSet.metadata.name, appSet.metadata.namespace);
+                            }}>
+                            <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppSetRefreshing(appSet)})} />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
         </div>

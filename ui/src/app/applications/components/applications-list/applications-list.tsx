@@ -316,6 +316,20 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         services.applications.get(appName, appNamespace, 'application', 'normal');
     }
 
+    function refreshAppSet(appSetName: string, appSetNamespace: string) {
+        if (loaderRef.current) {
+            const applications = loaderRef.current.getData() as models.AbstractApplication[];
+            const appSet = applications.find(item => !AppUtils.isApp(item) && item.metadata.name === appSetName && item.metadata.namespace === appSetNamespace) as
+                | models.ApplicationSet
+                | undefined;
+            if (appSet) {
+                AppUtils.setAppSetRefreshing(appSet);
+                loaderRef.current.setData(applications);
+            }
+        }
+        services.applications.refreshApplicationSet(appSetName, appSetNamespace);
+    }
+
     function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
         ctx.navigation.goto(
@@ -503,6 +517,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                         ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
                                                                                     }
                                                                                     refreshApplication={refreshApp}
+                                                                                    refreshApplicationSet={refreshAppSet}
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
@@ -514,6 +529,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                         ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
                                                                                     }
                                                                                     refreshApplication={refreshApp}
+                                                                                    refreshApplicationSet={refreshAppSet}
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
