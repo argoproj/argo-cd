@@ -57,6 +57,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                             return {apps, siblings};
                         }}>
                         {({apps, siblings}: {apps: models.AbstractApplicationList; siblings: models.ApplicationSetResource[]}) => {
+                            const siblingKeys = new Set(siblings.map(s => `${s.namespace}/${s.name}`));
                             const filteredSiblings =
                                 appSetRef && siblings.length > 0 ? siblings.filter(s => appFilter.length === 0 || s.name.toLowerCase().includes(appFilter.toLowerCase())) : [];
                             return (
@@ -80,6 +81,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                                         </>
                                     )}
                                     {apps.items
+                                        .filter(app => !siblingKeys.has(`${app.metadata.namespace}/${app.metadata.name}`))
                                         .filter(app => appFilter.length === 0 || app.metadata.name.toLowerCase().includes(appFilter.toLowerCase()))
                                         .slice(0, 100)
                                         .map(app => (
