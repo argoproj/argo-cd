@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
+	gitopsCache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/mock"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
@@ -115,7 +115,6 @@ argocd_cluster_labels{label_env="production",label_team="team3",name="cluster3",
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.description, func(t *testing.T) {
 			if !c.skip {
 				cfg := TestMetricServerConfig{

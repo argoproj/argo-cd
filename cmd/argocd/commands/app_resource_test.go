@@ -43,9 +43,49 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
 	require.NoError(t, w.Flush())
 	output := buf.String()
-
+	t.Logf("Output:\n%s", output)
 	assert.Contains(t, output, "Rollout")
 	assert.Contains(t, output, "argoproj.io")
+	assert.Contains(t, output, "└─apps       ReplicaSet  sandbox-rollout-numalogic-demo  numalogic-rollout-demo-5dcd5457d5        No")
+	assert.Contains(t, output, "  └─         Pod         sandbox-rollout-numalogic-demo  numalogic-rollout-demo-5dcd5457d5-6trpt  No")
+}
+
+func TestPrintTreeViewAppResourcesWithMultipleChildren(t *testing.T) {
+	var nodes [4]v1alpha1.ResourceNode
+	// Parent
+	nodes[0].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Kind: "Rollout", Namespace: "ns", Name: "rollout", UID: "root"}
+	// Child 1
+	nodes[1].ResourceRef = v1alpha1.ResourceRef{Group: "apps", Kind: "ReplicaSet", Namespace: "ns", Name: "rs1", UID: "rs1"}
+	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{UID: "root"}}
+	// Child 2
+	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "apps", Kind: "ReplicaSet", Namespace: "ns", Name: "rs2", UID: "rs2"}
+	nodes[2].ParentRefs = []v1alpha1.ResourceRef{{UID: "root"}}
+	// Grandchild
+	nodes[3].ResourceRef = v1alpha1.ResourceRef{Group: "", Kind: "Pod", Namespace: "ns", Name: "pod1", UID: "pod1"}
+	nodes[3].ParentRefs = []v1alpha1.ResourceRef{{UID: "rs1"}}
+
+	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
+	for _, node := range nodes {
+		nodeMapping[node.UID] = node
+		if len(node.ParentRefs) > 0 {
+			mapParentToChild[node.ParentRefs[0].UID] = append(mapParentToChild[node.ParentRefs[0].UID], node.UID)
+		} else {
+			parentNode[node.UID] = struct{}{}
+		}
+	}
+	buf := &bytes.Buffer{}
+	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
+
+	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
+	require.NoError(t, w.Flush())
+	output := buf.String()
+	t.Logf("Output:\n%s", output)
+
+	assert.Contains(t, output, "├─apps       ReplicaSet  ns  rs1")
+	assert.Contains(t, output, "│ └─         Pod         ns  pod1")
+	assert.Contains(t, output, "└─apps       ReplicaSet  ns  rs2")
 }
 
 func TestPrintTreeViewDetailedAppResources(t *testing.T) {
@@ -82,10 +122,11 @@ func TestPrintTreeViewDetailedAppResources(t *testing.T) {
 	printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
 	require.NoError(t, w.Flush())
 	output := buf.String()
+	t.Logf("Output:\n%s", output)
 
-	assert.Contains(t, output, "Rollout")
-	assert.Contains(t, output, "Degraded")
-	assert.Contains(t, output, "Readiness Gate failed")
+	assert.Contains(t, output, "argoproj.io  Rollout     sandbox-rollout-numalogic-demo  numalogic-rollout-demo                   No  <unknown>  Degraded  Readiness Gate failed")
+	assert.Contains(t, output, "└─apps       ReplicaSet  sandbox-rollout-numalogic-demo  numalogic-rollout-demo-5dcd5457d5        No")
+	assert.Contains(t, output, "  └─         Pod         sandbox-rollout-numalogic-demo  numalogic-rollout-demo-5dcd5457d5-6trpt  No")
 }
 
 func TestPrintResourcesTree(t *testing.T) {

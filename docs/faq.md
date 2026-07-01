@@ -19,7 +19,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
   for `hostname` or `IP`. Some ingress controllers
-  ([contour](https://github.com/heptio/contour/issues/403)
+  ([contour](https://github.com/projectcontour/contour/issues/403)
   , [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
   `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
 
@@ -82,6 +82,26 @@ or a randomly generated password stored in a secret (Argo CD 1.9 and later).
 
 Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap
 (see [user management](./operator-manual/user-management/index.md)).
+
+## How to view orphaned resources?
+
+Orphaned Kubernetes resources are top-level namespaced resources that do not belong to any Argo CD Application. For more information, see [Orphaned Resources Monitoring](./user-guide/orphaned-resources.md).
+
+!!! warning
+    Enabling orphaned resource monitoring has performance implications. If an AppProject monitors a namespace containing many resources not managed by Argo CD (e.g. `kube-system`), it can significantly impact your Argo CD instance. Enable this feature only on projects with well-scoped namespaces.
+
+To view orphaned resources in the Argo CD UI:
+
+1. Click on **Settings** in the sidebar.
+2. Click on **Projects**.
+3. Select the desired project.
+4. Scroll down to the **RESOURCE MONITORING** section.
+5. Click **Edit** and enable the monitoring feature.
+6. Check **Enable application warning conditions?** to enable warnings.
+7. Click **Save**.
+8. Navigate back to **Applications** and select an application under the configured project.
+9. In the **Sync Panel**, under **APP CONDITIONS**, you will see the orphaned resources warning.
+10. Click **Show Orphaned** below the **HEALTH STATUS** filters to display orphaned resources.
 
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
@@ -311,7 +331,7 @@ Argo CD default installation is now configured to automatically enable Redis aut
 If for some reason authenticated Redis does not work for you and you want to use non-authenticated Redis, here are the steps:
 
 1. You need to have your own Redis installation.
-2. Configure Argo CD to use your own Redis instance. See this [doc](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/) for the Argo CD configuration.
+2. Configure Argo CD to use your own Redis instance, as shown in the [example configuration](operator-manual/argocd-cmd-params-cm-yaml.md).
 3. If you already installed Redis shipped with Argo CD, you also need to clean up the existing components:
 
     * When HA Redis is used:

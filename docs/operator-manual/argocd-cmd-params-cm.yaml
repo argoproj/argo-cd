@@ -19,7 +19,7 @@ data:
   # Redis database
   redis.db:
 
-  # Enables the alpha "manifest hydrator" feature. (default "false")
+  # Enables the beta "manifest hydrator" feature. (default "false")
   hydrator.enabled: "false"
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
@@ -50,16 +50,31 @@ data:
   controller.repo.server.plaintext: "false"
   # Whether to use strict validation of the TLS cert presented by the repo server
   controller.repo.server.strict.tls: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate 
+  controller.repo.server.ca.cert.path: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  controller.repo.server.client.cert.path: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  controller.repo.server.client.cert.key.path: ""
   # Number of application status processors (default 20)
   controller.status.processors: "20"
   # Number of application operation processors (default 10)
   controller.operation.processors: "10"
+  # Number of manifest hydration processors (default 5). Only relevant when the Source Hydrator is enabled.
+  controller.hydration.processors: "5"
   # Set the logging format. One of: json|text (default "json")
   controller.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   controller.log.level: "info"
   # Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
   controller.metrics.cache.expiration: "24h0m0s"
+  # High-cardinality label/condition values can degrade Prometheus performance; use sparingly.
+  # List of Application labels added to the argocd_app_labels metric (comma separated)
+  controller.metrics.application.labels: "team,env"
+  # List of Application conditions added to the argocd_app_conditions metric (comma separated)
+  controller.metrics.application.conditions: "OrphanedResourceWarning"
+  # List of Cluster labels added to the argocd_cluster_labels metric (comma separated)
+  controller.metrics.cluster.labels: "environment"
   # Specifies timeout between application self heal attempts
   controller.self.heal.timeout.seconds: "0"
   # Specifies exponential backoff timeout parameters between application self heal attempts
@@ -102,6 +117,31 @@ data:
   # will increase the speed at which Argo CD becomes aware of external cluster state. A higher value will reduce cluster
   # cache lock contention and better handle high-churn clusters.
   controller.cluster.cache.events.processing.interval: "100ms"
+  # QPS (Queries Per Second) limit for K8s API client requests (default "50")
+  # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  controller.k8s.client.qps: "50"
+  # Burst value for K8s API client requests (default "100", which is 2x QPS)
+  # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
+  controller.k8s.client.burst: "100"
+  # Maximum number of idle connections in the K8s REST client HTTP transport (default "500")
+  # Can also be set via ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS environment variable
+  controller.k8s.client.max.idle.connections: "500"
+  # TCP timeout duration when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_TIMEOUT environment variable
+  controller.k8s.tcp.timeout: "30s"
+  # TCP keep-alive probe interval when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_KEEPALIVE environment variable
+  controller.k8s.tcp.keepalive: "30s"
+  # TLS handshake timeout when establishing connections to K8s API servers (default "10s")
+  # Can also be set via ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT environment variable
+  controller.k8s.tls.handshake.timeout: "10s"
+  # Idle TCP connection timeout to K8s API servers (default "5m")
+  # Can also be set via ARGOCD_K8S_TCP_IDLE_TIMEOUT environment variable
+  controller.k8s.tcp.idle.timeout: "5m"
+  # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
+  # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
+  # See https://github.com/argoproj/argo-cd/issues/24991
+  controller.grpc.enable.txt.service.config: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -125,6 +165,12 @@ data:
   server.api.content.types: "application/json"
   # Number of webhook requests processed concurrently (default 50)
   server.webhook.parallelism.limit: "50"
+  # Maximum number of compiled glob patterns to cache for RBAC evaluation (default 10000)
+  server.glob.cache.size: "10000"
+  # Number of concurrent workers processing webhook-triggered app refresh requests (default 20).
+  # Increase this value when webhook events affect large numbers of applications to reduce refresh latency.
+  # Works together with webhook.refresh.jitter / webhook.refresh.jitter.threshold in argocd-cm.
+  server.webhook.refresh.workers: "20"
   # Whether to allow sync with replace checked to go through. Resource-level annotation to replace override this setting, i.e. it's only enforced on the API server level.
   server.sync.replace.allowed: "true"
 
@@ -138,6 +184,12 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  server.repo.server.ca.cert.path: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  server.repo.server.client.cert.path: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  server.repo.server.client.cert.key.path: ""
   # Dex server address (default "http://argocd-dex-server:5556")
   server.dex.server: "http://argocd-dex-server:5556"
   # Use a plaintext client (non-TLS) to connect to dex server
@@ -168,6 +220,31 @@ data:
   server.enable.proxy.extension: "false"
   # Enables profile endpoint on the internal metrics port
   server.profile.enabled: "false"
+  # QPS (Queries Per Second) limit for K8s API client requests (default "50")
+  # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  server.k8s.client.qps: "50"
+  # Burst value for K8s API client requests (default "100", which is 2x QPS)
+  # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
+  server.k8s.client.burst: "100"
+  # Maximum number of idle connections in the K8s REST client HTTP transport (default "500")
+  # Can also be set via ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS environment variable
+  server.k8s.client.max.idle.connections: "500"
+  # TCP timeout duration when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_TIMEOUT environment variable
+  server.k8s.tcp.timeout: "30s"
+  # TCP keep-alive probe interval when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_KEEPALIVE environment variable
+  server.k8s.tcp.keepalive: "30s"
+  # TLS handshake timeout when establishing connections to K8s API servers (default "10s")
+  # Can also be set via ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT environment variable
+  server.k8s.tls.handshake.timeout: "10s"
+  # Idle TCP connection timeout to K8s API servers (default "5m")
+  # Can also be set via ARGOCD_K8S_TCP_IDLE_TIMEOUT environment variable
+  server.k8s.tcp.idle.timeout: "5m"
+  # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
+  # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
+  # See https://github.com/argoproj/argo-cd/issues/24991
+  server.grpc.enable.txt.service.config: "false"
 
   ## Repo-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -188,6 +265,8 @@ data:
   reposerver.tls.maxversion: "1.3"
   # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
   reposerver.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+  # Path to the client CA certificate file for mTLS. if the file is not found or empty, mTLS is disabled.
+  reposerver.client.ca.path: ""
   # Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
   reposerver.repo.cache.expiration: "24h0m0s"
   # Cache expiration default (default 24h0m0s)
@@ -225,6 +304,12 @@ data:
   reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
+  # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
+  # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
+  # See https://github.com/argoproj/argo-cd/issues/24991
+  reposerver.grpc.enable.txt.service.config: "false"
+  # Enables profile endpoint on the internal metrics port
+  reposerver.profile.enabled: "false"
 
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -235,6 +320,10 @@ data:
   commitserver.log.level: "info"
   # Listen on given address for metrics (default "0.0.0.0")
   commitserver.metrics.listen.address: "0.0.0.0"
+  # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
+  # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
+  # See https://github.com/argoproj/argo-cd/issues/24991
+  commitserver.grpc.enable.txt.service.config: "false"
 
   # Set the logging format. One of: json|text (default "json")
   dexserver.log.format: "json"
@@ -242,6 +331,8 @@ data:
   dexserver.log.level: "info"
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
+  # To fail the entire auth flow in case of a connector failure, set this to "false".
+  dexserver.connector.failure.continue: "false"
 
   ## ApplicationSet Controller Properties
   # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
@@ -283,7 +374,7 @@ data:
   # The url used in the scm generator must exactly match one in the list
   applicationsetcontroller.allowed.scm.providers: "https://git.example.com/,https://gitlab.example.com/"
   # To disable SCM providers entirely (i.e. disable the SCM and PR generators), set this to "false". Default is "true".
-  applicationsetcontroller.enable.scm.providers: "false"
+  applicationsetcontroller.enable.scm.providers: "true"
   # Number of webhook requests processed concurrently (default 50)
   applicationsetcontroller.webhook.parallelism.limit: "50"
   # Override the default requeue time for the controller. (default 3m)
@@ -300,13 +391,52 @@ data:
   applicationsetcontroller.status.max.resources.count: "5000"
   # Enables profile endpoint on the internal metrics port
   applicationsetcontroller.profile.enabled: "false"
+  # QPS (Queries Per Second) limit for K8s API client requests (default "50")
+  # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  applicationsetcontroller.k8s.client.qps: "50"
+  # Burst value for K8s API client requests (default "100", which is 2x QPS)
+  # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
+  applicationsetcontroller.k8s.client.burst: "100"
+  # Maximum number of idle connections in the K8s REST client HTTP transport (default "500")
+  # Can also be set via ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS environment variable
+  applicationsetcontroller.k8s.client.max.idle.connections: "500"
+  # TCP timeout duration when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_TIMEOUT environment variable
+  applicationsetcontroller.k8s.tcp.timeout: "30s"
+  # TCP keep-alive probe interval when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_KEEPALIVE environment variable
+  applicationsetcontroller.k8s.tcp.keepalive: "30s"
+  # TLS handshake timeout when establishing connections to K8s API servers (default "10s")
+  # Can also be set via ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT environment variable
+  applicationsetcontroller.k8s.tls.handshake.timeout: "10s"
+  # Idle TCP connection timeout to K8s API servers (default "5m")
+  # Can also be set via ARGOCD_K8S_TCP_IDLE_TIMEOUT environment variable
+  applicationsetcontroller.k8s.tcp.idle.timeout: "5m"
+  # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
+  # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
+  # See https://github.com/argoproj/argo-cd/issues/24991
+  applicationsetcontroller.grpc.enable.txt.service.config: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  applicationsetcontroller.repo.server.ca.cert.path: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  applicationsetcontroller.repo.server.client.cert.path: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  applicationsetcontroller.repo.server.client.cert.key.path: ""
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
   notificationscontroller.log.level: "info"
   # Set the logging format. One of: json|text (default "json")
   notificationscontroller.log.format: "json"
+  # Number of notification processors (default 1)
+  notificationscontroller.processors.count: "1"
   # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
   notificationscontroller.selfservice.enabled: "false"
   # Disable TLS on connections to repo server
   notificationscontroller.repo.server.plaintext: "false"
+  # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
+  notificationscontroller.repo.server.ca.cert.path: ""
+  # Path to the client certificate file for mTLS connections to repo server
+  notificationscontroller.repo.server.client.cert.path: ""
+  # Path to the client certificate key file for mTLS connections to repo server
+  notificationscontroller.repo.server.client.cert.key.path: ""

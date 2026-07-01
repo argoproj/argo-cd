@@ -4,15 +4,16 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/sync"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -21,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestPersistRevisionHistory(t *testing.T) {
@@ -50,7 +52,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
@@ -96,7 +98,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.syncPolicy.managedNamespaceMetadata into sync result
 	assert.Equal(t, app.Spec.SyncPolicy.ManagedNamespaceMetadata, opState.SyncResult.ManagedNamespaceMetadata)
 }
@@ -139,7 +141,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 			Source: &source,
 		},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
@@ -161,17 +163,20 @@ func TestSyncComparisonError(t *testing.T) {
 			Name:      "default",
 		},
 		Spec: v1alpha1.AppProjectSpec{
-			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 		},
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []string{},
-			Namespace:    test.FakeDestNamespace,
-			Server:       test.FakeClusterURL,
-			Revision:     "abc123",
-			VerifyResult: "something went wrong",
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name:     "GIT/GPG",
+				Problems: []string{"Unknown key 'XXX'"},
+			}}},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
@@ -182,7 +187,7 @@ func TestSyncComparisonError(t *testing.T) {
 		Sync: &v1alpha1.SyncOperation{},
 	}}
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 
 	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
 	assert.NotEmpty(t, conditions)
@@ -213,7 +218,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 				Destinations: []v1alpha1.ApplicationDestination{
 					{
 						Namespace: "*",
@@ -271,7 +276,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		}}
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
@@ -343,7 +348,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationRunning, opState.Phase)
@@ -392,6 +397,31 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.Len(t, targets, 1)
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "2.0", iksmVersion)
+	})
+	t.Run("will not copy live status into the apply target", func(t *testing.T) {
+		// given: status is configured as an ignored field (equivalent to the
+		// default ignoreResourceStatusField=crd behavior) and the live resource
+		// has an in-flight operationState.
+		ignore := v1alpha1.ResourceIgnoreDifferences{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/status"},
+		}
+		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{ignore})
+		live := f.comparisonResult.reconciliationResult.Live[0]
+		require.NoError(t, unstructured.SetNestedField(
+			live.Object, "Running", "status", "operationState", "phase"))
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then: live status must not be merged into the target that gets applied,
+		// otherwise the SSA sync manager co-owns and freezes operationState.phase.
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		_, found, err := unstructured.NestedMap(targets[0].Object, "status")
+		require.NoError(t, err)
+		assert.False(t, found, "live status must not be merged into the apply target")
 	})
 	t.Run("will not modify target resource if ignore difference is not configured", func(t *testing.T) {
 		// given
@@ -670,6 +700,155 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	})
 }
 
+// TestNormalizeTargetResourcesPDBSelector reproduces https://github.com/argoproj/argo-cd/issues/18232
+// When a PDB (policy/v1) has an ignoreDifferences rule for a matchLabels sub-field and
+// RespectIgnoreDifferences=true is set, normalizeTargetResources should only patch the
+// ignored field — not clobber the entire selector due to patchStrategy:"replace".
+func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
+	setupPDB := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *comparisonResult {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LivePDBYaml)
+		target := test.YamlToUnstructured(testdata.TargetPDBYaml)
+		return &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+	}
+
+	t.Run("ignoring one matchLabels key should not clobber other selector changes", func(t *testing.T) {
+		// User ignores /spec/selector/matchLabels/version but intentionally changes
+		// /spec/selector/matchLabels/app from "myapp" to "myapp-v2".
+		// With patchStrategy:"replace" on the selector field (policy/v1),
+		// normalizeTargetResources should preserve the app label change.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// The "version" label should take the live value (ignored field — respected).
+		assert.Equal(t, "v1", matchLabels["version"], "ignored field 'version' should use live value")
+
+		// The "app" label should keep the target value — it is NOT ignored.
+		assert.Equal(t, "myapp-v2", matchLabels["app"],
+			"non-ignored field 'app' was clobbered by live value; patchStrategy:replace on selector may cause normalizeTargetResources to overwrite the entire selector")
+	})
+
+	t.Run("ignoring one matchLabels key should not drop non-ignored sibling fields", func(t *testing.T) {
+		// Target has matchExpressions that live does not.
+		// Ignoring a matchLabels key should not cause matchExpressions to be
+		// dropped due to replace semantics pulling the entire live selector
+		// (which lacks matchExpressions) into the target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		// Add matchExpressions to the target only (not in live).
+		target := cr.reconciliationResult.Target[0]
+		matchExpr := []any{
+			map[string]any{
+				"key":      "tier",
+				"operator": "In",
+				"values":   []any{"frontend"},
+			},
+		}
+		require.NoError(t, unstructured.SetNestedSlice(target.Object, matchExpr, "spec", "selector", "matchExpressions"))
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		// matchExpressions should be preserved — it was not ignored.
+		expr, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "selector", "matchExpressions")
+		require.NoError(t, err)
+		assert.True(t, ok, "matchExpressions was dropped from target by replace-strategy collateral")
+		assert.Len(t, expr, 1)
+
+		// app label should still reflect the target change.
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, "myapp-v2", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
+	})
+
+	t.Run("ignoring one matchLabels key should not add live-only non-ignored selector keys", func(t *testing.T) {
+		// Live has an additional non-ignored label ("track") that target does not.
+		// Replace semantics should not copy it into the patched target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		live := cr.reconciliationResult.Live[0]
+		matchLabels, ok, err := unstructured.NestedStringMap(live.Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		matchLabels["track"] = "stable"
+		require.NoError(t, unstructured.SetNestedStringMap(live.Object, matchLabels, "spec", "selector", "matchLabels"))
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		patchedMatchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		assert.Equal(t, "myapp-v2", patchedMatchLabels["app"])
+		assert.Equal(t, "v1", patchedMatchLabels["version"])
+		_, found := patchedMatchLabels["track"]
+		assert.False(t, found, "live-only non-ignored selector key was added to target by replace-strategy collateral")
+	})
+
+	t.Run("ignoring entire selector should replace target selector with live", func(t *testing.T) {
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// When the entire selector is ignored, both labels should come from live.
+		assert.Equal(t, "myapp", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
+	})
+}
+
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	t.Parallel()
 
@@ -725,7 +904,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should be an error saying no valid match was found
@@ -749,7 +928,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and should use the right service account for impersonation
 		require.NoError(t, err)
@@ -788,7 +967,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and should use the right service account for impersonation
 		require.NoError(t, err)
@@ -827,7 +1006,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and it should use the first matching service account for impersonation
 		require.NoError(t, err)
@@ -861,7 +1040,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and should use the first matching glob pattern service account for impersonation
 		require.NoError(t, err)
@@ -896,7 +1075,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be an error saying no match was found
 		require.EqualError(t, err, expectedErrMsg)
@@ -924,7 +1103,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the service account configured for with empty namespace should be used.
 		require.NoError(t, err)
@@ -958,7 +1137,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the catch all service account should be returned
 		require.NoError(t, err)
@@ -982,7 +1161,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there must be an error as the glob pattern is invalid.
 		require.ErrorContains(t, err, "invalid glob pattern for destination namespace")
@@ -1016,7 +1195,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account with its namespace should be returned.
@@ -1044,7 +1223,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f.application.Spec.Destination.Name = f.cluster.Name
 
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account with its namespace should be returned.
@@ -1127,7 +1306,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the right service account must be returned.
 		require.NoError(t, err)
@@ -1166,7 +1345,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and first matching service account should be used
 		require.NoError(t, err)
@@ -1200,7 +1379,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account of the glob pattern, being the first match should be returned.
@@ -1235,7 +1414,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
 
 		// then, there an error with appropriate message must be returned
 		require.EqualError(t, err, expectedErr)
@@ -1269,7 +1448,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the service account of the glob pattern match must be returned.
 		require.NoError(t, err)
@@ -1293,7 +1472,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there must be an error as the glob pattern is invalid.
 		require.ErrorContains(t, err, "invalid glob pattern for destination server")
@@ -1327,7 +1506,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
 
 		// then, there should not be any error and the service account with the given namespace prefix must be returned.
 		require.NoError(t, err)
@@ -1355,7 +1534,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		f.application.Spec.Destination.Name = f.cluster.Name
 
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account with its namespace should be returned.
@@ -1435,7 +1614,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then, app sync should fail with expected error message in operation state
 		assert.Equal(t, synccommon.OperationError, opState.Phase)
@@ -1456,7 +1635,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should fail with expected error message in operation state
 		assert.Equal(t, synccommon.OperationError, opState.Phase)
@@ -1477,7 +1656,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1498,7 +1677,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then application sync should pass using the control plane service account
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1523,7 +1702,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		f.application.Spec.Destination.Name = "minikube"
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1593,7 +1772,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1611,7 +1790,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1629,7 +1808,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1652,4 +1831,117 @@ func dig(obj any, path ...any) any {
 	}
 
 	return i
+}
+
+func TestValidateSyncPermissions(t *testing.T) {
+	t.Parallel()
+
+	newResource := func(group, kind, name, namespace string) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: group, Version: "v1", Kind: kind})
+		obj.SetName(name)
+		obj.SetNamespace(namespace)
+		return obj
+	}
+
+	project := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-project",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			Destinations: []v1alpha1.ApplicationDestination{
+				{Namespace: "default", Server: "*"},
+			},
+		},
+	}
+
+	destCluster := &v1alpha1.Cluster{
+		Server: "https://kubernetes.default.svc",
+	}
+
+	noopGetClusters := func(_ string) ([]*v1alpha1.Cluster, error) {
+		return nil, nil
+	}
+
+	t.Run("nil APIResource returns error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("apps", "Deployment", "my-deploy", "default")
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get API resource info for apps/Deployment")
+		assert.Contains(t, err.Error(), "unable to verify permissions")
+	})
+
+	t.Run("permitted namespaced resource returns no error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("", "ConfigMap", "my-cm", "default")
+		res := &metav1.APIResource{Name: "configmaps", Namespaced: true}
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, res)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("group kind not permitted returns error", func(t *testing.T) {
+		t.Parallel()
+		projectWithDenyList := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "restricted-project",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Namespace: "*", Server: "*"},
+				},
+				ClusterResourceBlacklist: []v1alpha1.ClusterResourceRestrictionItem{
+					{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				},
+			},
+		}
+		un := newResource("rbac.authorization.k8s.io", "ClusterRole", "my-role", "")
+		res := &metav1.APIResource{Name: "clusterroles", Namespaced: false}
+
+		err := validateSyncPermissions(projectWithDenyList, destCluster, noopGetClusters, un, res)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "is not permitted in project")
+	})
+
+	t.Run("namespace not permitted returns error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("", "ConfigMap", "my-cm", "kube-system")
+		res := &metav1.APIResource{Name: "configmaps", Namespaced: true}
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, res)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "namespace kube-system is not permitted in project")
+	})
+
+	t.Run("cluster-scoped resource skips namespace check", func(t *testing.T) {
+		t.Parallel()
+		projectWithClusterResources := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-project",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Namespace: "default", Server: "*"},
+				},
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
+					{Group: "*", Kind: "*"},
+				},
+			},
+		}
+		un := newResource("", "Namespace", "my-ns", "")
+		res := &metav1.APIResource{Name: "namespaces", Namespaced: false}
+
+		err := validateSyncPermissions(projectWithClusterResources, destCluster, noopGetClusters, un, res)
+
+		assert.NoError(t, err)
+	})
 }

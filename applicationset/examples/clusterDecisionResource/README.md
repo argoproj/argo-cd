@@ -37,17 +37,17 @@ data:
 
 # Applying the example
 1. Connect to a cluster with the ApplicationSet controller running
-2. Edit the Role for the ApplicationSet service account, and grant it permission to `list` the `placementdecisions` resources, from apiGroups `cluster.open-cluster-management.io/v1alpha1`
+2. Edit the Role for the ApplicationSet service account, and grant it permission to `list` the `placementdecisions` resources, from apiGroups `cluster.open-cluster-management.io`
 ```yaml
 - apiGroups:
-  - "cluster.open-cluster-management.io/v1alpha1"
+  - "cluster.open-cluster-management.io"
   resources:
   - placementdecisions
   verbs:
   - list
 ```
-3. Apply the following controller and associated ManagedCluster CRD's:
-https://github.com/open-cluster-management/placement
+3. Deploy the open-cluster-management Placement controller:
+https://open-cluster-management.io/docs/concepts/content-placement/placement/
 4. Now apply the PlacementDecision and an ApplicationSet:
 ```bash
 kubectl apply -f ./placementdecision.yaml

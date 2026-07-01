@@ -4,10 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 )
 
 func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTime *metav1.Time, status ApplicationSetConditionStatus, reason string) ApplicationSetCondition {
@@ -263,6 +262,17 @@ func TestApplicationSetCalculateHealth(t *testing.T) {
 			expectedHealth: health.HealthStatusUnknown,
 			expectedMsg:    "Waiting for health status to be determined",
 		},
+		{
+			name: "when all conditions are present, calculate using status",
+			conditions: []ApplicationSetCondition{
+				{Type: ApplicationSetConditionResourcesUpToDate, Status: ApplicationSetConditionStatusTrue, Message: "all applications synced"},
+				{Type: ApplicationSetConditionRolloutProgressing, Status: ApplicationSetConditionStatusFalse},
+				{Type: ApplicationSetConditionErrorOccurred, Status: ApplicationSetConditionStatusFalse},
+				{Type: ApplicationSetConditionParametersGenerated, Status: ApplicationSetConditionStatusTrue, Message: "params ok"},
+			},
+			expectedHealth: health.HealthStatusHealthy,
+			expectedMsg:    "all applications synced",
+		},
 	}
 
 	for _, tt := range tests {
@@ -314,9 +324,9 @@ func TestSCMProviderGeneratorGitlab_WillIncludeSharedProjects(t *testing.T) {
 	settings := SCMProviderGeneratorGitlab{}
 	assert.True(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = ptr.To(false)
+	settings.IncludeSharedProjects = new(false)
 	assert.False(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = ptr.To(true)
+	settings.IncludeSharedProjects = new(true)
 	assert.True(t, settings.WillIncludeSharedProjects())
 }

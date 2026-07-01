@@ -182,7 +182,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			// Exactly one of --namespace or --policy-file must be given.
 			if (!nsOverride && policyFile == "") || (nsOverride && policyFile != "") {
 				c.HelpFunc()(c, args)
-				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+				log.Fatal("please provide exactly one of --policy-file or --namespace")
 			}
 
 			restConfig, err := clientConfig.ClientConfig()
@@ -264,12 +264,12 @@ argocd admin settings rbac validate --namespace argocd
 
 			if len(args) > 0 {
 				c.HelpFunc()(c, args)
-				log.Fatalf("too many arguments")
+				log.Fatal("too many arguments")
 			}
 
 			if (namespace == "" && policyFile == "") || (namespace != "" && policyFile != "") {
 				c.HelpFunc()(c, args)
-				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+				log.Fatal("please provide exactly one of --policy-file or --namespace")
 			}
 
 			restConfig, err := clientConfig.ClientConfig()
@@ -284,13 +284,13 @@ argocd admin settings rbac validate --namespace argocd
 			userPolicy, _, _ := getPolicy(ctx, policyFile, realClientset, namespace)
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
-					fmt.Printf("Policy is valid.\n")
+					fmt.Print("Policy is valid.\n")
 					os.Exit(0)
 				}
 				fmt.Printf("Policy is invalid: %v\n", err)
 				os.Exit(1)
 			}
-			log.Fatalf("Policy is empty or could not be loaded.")
+			log.Fatal("Policy is empty or could not be loaded.")
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -303,13 +303,9 @@ argocd admin settings rbac validate --namespace argocd
 // Load user policy file if requested or use Kubernetes client to get the
 // appropriate ConfigMap from the current context
 func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string) {
-	var err error
 	if policyFile != "" {
 		// load from file
-		userPolicy, defaultRole, matchMode, err = getPolicyFromFile(policyFile)
-		if err != nil {
-			log.Fatalf("could not read policy file: %v", err)
-		}
+		userPolicy, defaultRole, matchMode = getPolicyFromFile(policyFile)
 	} else {
 		cm, err := getPolicyConfigMap(ctx, kubeClient, namespace)
 		if err != nil {
@@ -321,8 +317,10 @@ func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Int
 	return userPolicy, defaultRole, matchMode
 }
 
-// getPolicyFromFile loads a RBAC policy from given path
-func getPolicyFromFile(policyFile string) (string, string, string, error) {
+// getPolicyFromFile loads an RBAC policy from the given path. The file may be
+// raw policy text or a serialized ConfigMap. If [os.ReadFile] fails, it calls
+// log.Fatalf (which exits the process) and does not return to the caller.
+func getPolicyFromFile(policyFile string) (string, string, string) {
 	var (
 		userPolicy  string
 		defaultRole string
@@ -332,7 +330,6 @@ func getPolicyFromFile(policyFile string) (string, string, string, error) {
 	upol, err := os.ReadFile(policyFile)
 	if err != nil {
 		log.Fatalf("error opening policy file: %v", err)
-		return "", "", "", err
 	}
 
 	// Try to unmarshal the input file as ConfigMap first. If it succeeds, we
@@ -345,7 +342,7 @@ func getPolicyFromFile(policyFile string) (string, string, string, error) {
 		userPolicy, defaultRole, matchMode = getPolicyFromConfigMap(upolCM)
 	}
 
-	return userPolicy, defaultRole, matchMode, nil
+	return userPolicy, defaultRole, matchMode
 }
 
 // Retrieve policy information from a ConfigMap

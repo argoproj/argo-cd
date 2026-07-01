@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 // Resource holds the information about Kubernetes resource, ownership references and optional information
@@ -76,16 +76,16 @@ func (r *Resource) toOwnerRef() metav1.OwnerReference {
 }
 
 // iterateChildrenV2 is a depth-first traversal of the graph of resources starting from the current resource.
-func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*Resource, ns map[kube.ResourceKey]*Resource, visited map[kube.ResourceKey]int, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
+func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*Resource, ns map[kube.ResourceKey]*Resource, actionCallState map[kube.ResourceKey]callState, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
 	key := r.ResourceKey()
-	if visited[key] == 2 {
+	if actionCallState[key] == completed {
 		return
 	}
 	// this indicates that we've started processing this node's children
-	visited[key] = 1
+	actionCallState[key] = inProgress
 	defer func() {
 		// this indicates that we've finished processing this node's children
-		visited[key] = 2
+		actionCallState[key] = completed
 	}()
 	children, ok := graph[key]
 	if !ok || children == nil {
@@ -94,13 +94,13 @@ func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*R
 	for _, child := range children {
 		childKey := child.ResourceKey()
 		// For cross-namespace relationships, child might not be in ns, so use it directly from graph
-		switch visited[childKey] {
-		case 1:
+		switch actionCallState[childKey] {
+		case inProgress:
 			// Since we encountered a node that we're currently processing, we know we have a circular dependency.
 			_ = action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
-		case 0:
+		case notCalled:
 			if action(nil, child, ns) {
-				child.iterateChildrenV2(graph, ns, visited, action)
+				child.iterateChildrenV2(graph, ns, actionCallState, action)
 			}
 		}
 	}

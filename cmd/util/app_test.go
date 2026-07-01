@@ -274,13 +274,15 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("auto-prune", "true"))
 		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.True(t, f.spec.SyncPolicy.Automated.Prune)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Prune)
+		assert.True(t, *f.spec.SyncPolicy.Automated.Prune)
 
 		// automated.enabled = true
 		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("auto-prune", "false"))
 		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.False(t, f.spec.SyncPolicy.Automated.Prune)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Prune)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Prune)
 	})
 	t.Run("SelfHealFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()
@@ -288,12 +290,14 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("self-heal", "true"))
 		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.True(t, f.spec.SyncPolicy.Automated.SelfHeal)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.SelfHeal)
+		assert.True(t, *f.spec.SyncPolicy.Automated.SelfHeal)
 
 		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("self-heal", "false"))
 		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.False(t, f.spec.SyncPolicy.Automated.SelfHeal)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.SelfHeal)
+		assert.False(t, *f.spec.SyncPolicy.Automated.SelfHeal)
 	})
 	t.Run("AllowEmptyFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()
@@ -301,12 +305,14 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("allow-empty", "true"))
 		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.True(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+		assert.True(t, *f.spec.SyncPolicy.Automated.AllowEmpty)
 
 		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("allow-empty", "false"))
 		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.False(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+		assert.False(t, *f.spec.SyncPolicy.Automated.AllowEmpty)
 	})
 	t.Run("RetryLimit", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-retry-limit", "5"))
@@ -487,6 +493,7 @@ spec:
         - values.yaml`
 
 func TestReadAppsFromURI(t *testing.T) {
+	t.Parallel()
 	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
@@ -508,6 +515,7 @@ func TestReadAppsFromURI(t *testing.T) {
 }
 
 func TestConstructAppFromStdin(t *testing.T) {
+	t.Parallel()
 	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
@@ -537,6 +545,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 }
 
 func TestConstructBasedOnName(t *testing.T) {
+	t.Parallel()
 	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
 
 	require.NoError(t, err)
@@ -545,7 +554,9 @@ func TestConstructBasedOnName(t *testing.T) {
 }
 
 func TestFilterResources(t *testing.T) {
+	t.Parallel()
 	t.Run("Filter by ns", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -561,6 +572,7 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter by kind", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -576,6 +588,7 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter by name", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -591,6 +604,7 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter no result", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -606,6 +620,7 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter multiple results", func(t *testing.T) {
+		t.Parallel()
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",

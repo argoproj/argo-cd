@@ -2,7 +2,9 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -31,7 +33,24 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (ctrl *ApplicationController) EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, string, error) {
+	sources := []appv1.ApplicationSource{source}
+	revisions := []string{revision}
+
+	hasChanges, resolvedRevisions, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(ctx, app, sources, revisions, project, false, noRevisionCache)
+	if err != nil {
+		return false, "", err
+	}
+	if len(resolvedRevisions) != 1 {
+		return false, "", fmt.Errorf("expected exactly one resolved revision for single source, got %d", len(resolvedRevisions))
+	}
+	if resolvedRevisions[0] == "" {
+		return false, "", errors.New("resolved revision is empty for dry source")
+	}
+	return hasChanges, resolvedRevisions[0], nil
+}
+
+func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 
@@ -40,20 +59,12 @@ func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *app
 		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
 
-	app := origApp.DeepCopy()
-	// Remove the manifest generate path annotation, because the feature will misbehave for apps using source hydrator.
-	// Setting this annotation causes GetRepoObjs to compare the dry source commit to the most recent synced commit. The
-	// problem is that the most recent synced commit is likely on the hydrated branch, not the dry branch. The
-	// comparison will throw an error and break hydration.
-	//
-	// The long-term solution will probably be to persist the synced _dry_ revision and use that for the comparison.
-	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
-
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, project.EffectiveSourceIntegrity(), project, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
+
 	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get tracking method: %w", err)
@@ -80,18 +91,21 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 	// guarantee that the hydrator is running on the same controller shard as is processing the application.
 
 	// This function is called for each app after a hydrate operation is completed so that the app controller can pick
-	// up the newly-hydrated changes. So we set hydrate=false to avoid a hydrate loop.
-	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal, false)
+	// up the newly-hydrated changes. So we pass nil hydrateType to avoid a hydrate loop.
+	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal, nil)
 	if err != nil {
 		return fmt.Errorf("failed to request app refresh: %w", err)
 	}
 	return nil
 }
 
-func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+	newAnnotations := make(map[string]string)
+	maps.Copy(newAnnotations, orig.GetAnnotations())
+	delete(newAnnotations, appv1.AnnotationKeyHydrate)
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(orig, status)
+	ctrl.persistAppStatus(orig, status, newAnnotations)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
@@ -105,4 +119,29 @@ func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, e
 	}
 
 	return sourceHydratorCommitMessageKey, nil
+}
+
+func (ctrl *ApplicationController) GetHydratorReadmeMessageTemplate() (string, error) {
+	readmeTemplate, err := ctrl.settingsMgr.GetHydratorReadmeTemplate()
+	if err != nil {
+		return "", fmt.Errorf("failed to get sourceHydrator README message template: %w", err)
+	}
+
+	return readmeTemplate, nil
+}
+
+func (ctrl *ApplicationController) GetCommitAuthorName() (string, error) {
+	authorName, err := ctrl.settingsMgr.GetCommitAuthorName()
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit author name: %w", err)
+	}
+	return authorName, nil
+}
+
+func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
+	authorEmail, err := ctrl.settingsMgr.GetCommitAuthorEmail()
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit author email: %w", err)
+	}
+	return authorEmail, nil
 }

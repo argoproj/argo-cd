@@ -1,13 +1,13 @@
 # High Availability
 
 Argo CD is largely stateless. All data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd.
-Redis is only used as a throw-away cache and can be lost. When lost, it will be rebuilt without loss of service.
+Redis is only used as a disposable cache and can be safely rebuilt without service disruption.
 
 A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/stable/manifests/ha) are provided for users who wish to
 run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
 > [!NOTE]
-> The HA installation will require at least three different nodes due to pod anti-affinity roles in the
+> The HA installation will require at least three different nodes due to pod anti-affinity rule in the
 > specs. Additionally, IPv6 only clusters are not supported.
 
 ## Scaling Up
@@ -19,17 +19,17 @@ run Argo CD in a highly available manner. This runs more containers, and runs Re
 The `argocd-repo-server` is responsible for cloning Git repository, keeping it up to date and generating manifests using
 the appropriate tool.
 
-* `argocd-repo-server` fork/exec config management tool to generate manifests. The fork can fail due to lack of memory
+* `argocd-repo-server` fork/exec config management tools to generate manifests. The fork can fail due to lack of memory
   or limit on the number of OS threads.
   The `--parallelismlimit` flag controls how many manifests generations are running concurrently and helps avoid OOM
   kills.
 
-* the `argocd-repo-server` ensures that repository is in the clean state during the manifest generation using config
+* The `argocd-repo-server` ensures that repository is in the clean state during the manifest generation using config
   management tools such as Kustomize, Helm
   or custom plugin. As a result Git repositories with multiple applications might affect repository server performance.
   Read [Monorepo Scaling Considerations](#monorepo-scaling-considerations) for more information.
 
-* `argocd-repo-server` clones the repository into `/tmp` (or the path specified in the `TMPDIR` env variable). The Pod
+* `argocd-repo-server` clones the repository into `/tmp` (or the path specified in the `TMPDIR` env variable). The pod
   might run out of disk space if it has too many repositories
   or if the repositories have a lot of files. To avoid this problem mount a persistent volume.
 
@@ -83,7 +83,13 @@ get the actual cluster state.
   syncing (seconds). The number of queue processors for each queue is controlled by
   `--status-processors` (20 by default) and `--operation-processors` (10 by default) flags. Increase the number of
   processors if your Argo CD instance manages too many applications.
-  For 1000 application we use 50 for `--status-processors` and 25 for `--operation-processors`
+  For 1000 applications, we use 50 for `--status-processors` and 25 for `--operation-processors`
+
+* when the [Source Hydrator](../user-guide/source-hydrator.md) is enabled, the controller hydrates manifests using a
+  separate queue whose concurrency is controlled by the `--hydration-processors` flag (5 by default). The hydration
+  queue is keyed by source repo, target revision, and destination branch, so the same key is never hydrated by more
+  than one processor at a time; increasing the count only parallelizes hydration across distinct keys. Increase it if a
+  single controller hydrates many independent repositories or branches and hydration becomes a bottleneck.
 
 * The manifest generation typically takes the most time during reconciliation. The duration of manifest generation is
   limited to make sure the controller refresh queue does not overflow.
@@ -139,7 +145,7 @@ spec:
       and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters.
 
 The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the
-`argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment
+`argocd-cmd-params-cm` `ConfigMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment
 variable and by specifying the same possible values.
 
 > [!WARNING]
@@ -148,7 +154,7 @@ variable and by specifying the same possible values.
 > The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain
 > scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur
 > and may temporarily have negative performance impacts.
-> The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been
+> The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmarks have been
 > documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results.
 > Community
 > feedback is highly appreciated before moving this feature to a production ready state.
@@ -182,7 +188,7 @@ stringData:
   if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
 * `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` - environment variable controlling the number of pages the controller
-  buffers in memory when performing a list operation against the K8s api server while syncing the cluster cache. This
+  buffers in memory when performing a list operation against the K8s Api server while syncing the cluster cache. This
   is useful when the cluster contains a large number of resources and cluster sync times exceed the default etcd
   compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application controller
   may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a higher
@@ -253,17 +259,58 @@ spec:
   megabytes.
   The default value is 200. You might need to increase this for an Argo CD instance that manages 3000+ applications.
 
+* The `server.glob.cache.size` config key in `argocd-cmd-params-cm` (or the `--glob-cache-size` server flag) controls
+  the maximum number of compiled glob patterns cached for RBAC policy evaluation. Glob pattern compilation is expensive,
+  and caching significantly improves RBAC performance when many applications are managed. The default value is 10000.
+  See [RBAC Glob Matching](rbac.md#glob-matching) for more details.
+
 ### argocd-dex-server, argocd-redis
 
-The `argocd-dex-server` uses an in-memory database, and two or more instances would have inconsistent data.
+The `argocd-dex-server` uses an in-memory database, and two or more instances may have inconsistent data.
 `argocd-redis` is pre-configured with the understanding of only three total redis servers/sentinels.
 
 ## Monorepo Scaling Considerations
 
 Argo CD repo server maintains one repository clone locally and uses it for application manifest generation. If the
 manifest generation requires to change a file in the local repository clone then only one concurrent manifest generation
-per server instance is allowed. This limitation might significantly slowdown Argo CD if you have a mono repository with
+per server instance is allowed. This limitation might significantly slow down Argo CD if you have a monorepo with
 multiple applications (50+).
+
+### Use Fully Qualified Git References
+
+When specifying the `targetRevision` in your Application manifests, using fully qualified Git reference paths instead of short names can significantly improve repo-server performance, especially in large monorepos with hundreds of thousands of commits and tags.
+
+**Performance Impact:**
+
+When resolving a Git reference (e.g., converting `main` to a commit SHA), Argo CD needs to:
+
+1. Load all Git references (branches and tags)
+2. Iterate through all references to find a match
+3. Resolve symbolic references if needed
+
+For repositories with many references, this process is CPU and memory intensive. Using fully qualified references allows Argo CD to optimize the resolution process and leverage caching more effectively.
+
+**Recommended approach:**
+
+```yaml
+# ❌ Less efficient - requires iteration through all refs
+spec:
+  source:
+    targetRevision: main
+
+# ✅ More efficient - directly identifies the reference type
+spec:
+  source:
+    targetRevision: refs/heads/main
+```
+
+**Common fully qualified reference formats:**
+
+* **Branches**: `refs/heads/<branch-name>` (e.g., `refs/heads/main`, `refs/heads/develop`)
+* **Tags**: `refs/tags/<tag-name>` (e.g., `refs/tags/v1.0.0`)
+* **Pull requests** (GitHub): `refs/pull/<pr-number>/head` (e.g., `refs/pull/123/head`)
+* **Merge requests** (GitLab): `refs/merge-requests/<mr-number>/head`
+
 
 ### Enable Concurrent Processing
 
@@ -280,8 +327,8 @@ The following are known cases that might cause slowness and their workarounds:
   `.argocd-allow-concurrency` file in the app directory, or use the sidecar plugin option, which processes each
   application using a temporary copy of the repository.
 
-* **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry,
-  no workaround for now.
+* **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** Currently,
+  there is no workaround for this limitation.
 
 ### Manifest Paths Annotation
 
@@ -305,6 +352,14 @@ get no benefit from using these annotations.
 
 Similarly, applications referencing an external Helm values file will not get the benefits of this feature when an
 unrelated change happens in the external source.
+
+> [!NOTE]
+> The Git-history comparison described above is skipped for repositories configured with shallow cloning (`depth` greater
+> than `0`). In that case, Argo CD may not have enough history to compare the previous synced revision with the new
+> revision, so it treats the application as potentially changed and proceeds with normal refresh and manifest generation.
+> This does not affect webhook payload filtering, which uses the changed files reported by the webhook event. The
+> annotation can also still be used to calculate a common root path and reduce the repository content sent to a Config
+> Management Plugin sidecar when `--plugin-use-manifest-generate-paths` is enabled.
 
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
@@ -397,6 +452,55 @@ spec:
 > paths
 > provided in the annotation. The application path serves as the deepest path that can be selected as the root.
 
+#### Measuring Annotation Efficiency
+
+You can use the following metrics to evaluate how effectively the `argocd.argoproj.io/manifest-generate-paths`
+annotation is reducing unnecessary manifest regeneration:
+
+- **`argocd_webhook_requests_total`** (label: `repo`) — counts incoming webhook events per repository. Use this as the
+  baseline for how many push events Argo CD is receiving.
+
+- **`argocd_webhook_store_cache_attempts_total`** (labels: `repo`, `successful`) — counts attempts to reuse the previously
+  cached manifests for the new commit SHA when an application's refresh paths have _not_ changed. A `successful=true`
+  result means the cache was warmed for the new revision without re-generating manifests, which is the desired outcome.
+
+To assess efficiency, compare the rate of `successful=true` attempts against the total webhook rate. A high ratio
+indicates the annotation is working well and preventing unnecessary manifest regeneration.
+
+Note that some `successful=false` results are expected and not a cause for concern — they occur when Argo CD has not
+yet cached manifests for an application (e.g. after a restart or first sync), so there is nothing to carry forward to
+the new revision.
+
+#### Disabling Manifest Cache Warming in Webhooks
+
+In some cases, the manifest cache warming done by the webhook handler can hurt performance rather than help it:
+
+- **Plain YAML repositories**: if applications use plain YAML manifests (no Helm or Kustomize rendering), manifest
+  generation is fast and caching provides little benefit. Attempting to warm the cache for thousands of unaffected
+  applications on every commit adds significant overhead.
+- **Large monorepos**: with many applications sharing a single repository, each webhook event triggers a cache warm
+  attempt for every application whose paths did not change. With thousands of applications, this can cause the webhook
+  handler to spend significant time on Redis operations, delaying the actual reconciliation trigger for the affected
+  application.
+
+When disabled, the webhook handler will only trigger reconciliation for applications whose files have changed and
+will skip all Redis cache operations for unaffected applications. This is the recommended setting for large monorepos
+with plain YAML manifests.
+
+**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: true` on the repository via the
+ArgoCD CLI or UI:
+
+```bash
+argocd repo edit https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+```
+
+**Global setting**: to disable cache warming for all repositories, set the following environment variable on
+`argocd-server`:
+
+```
+ARGOCD_WEBHOOK_MANIFEST_CACHE_WARM_DISABLED=true
+```
+
 ### Application Sync Timeout & Jitter
 
 Argo CD has a timeout for application syncs. It will trigger a refresh for each application periodically when the
@@ -411,6 +515,45 @@ jitter is 1 minute, then the actual timeout will be between 5 and 6 minutes.
 To configure the jitter you can set the following environment variables:
 
 * `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 60.
+
+### Webhook Reconciliation Jitter
+
+When a webhook event arrives (e.g. after a bulk merge to a monorepo), Argo CD may simultaneously enqueue refreshes for
+a large number of applications, causing a spike in load on the repo-server. To spread these refreshes out over time you
+can configure a random jitter that is applied before each webhook-triggered refresh is processed.
+
+The following `argocd-cm` ConfigMap keys control this behaviour:
+
+* `webhook.refresh.jitter` – The maximum duration of the random delay added before each webhook-triggered
+  application refresh. For example, if set to `60s`, each refresh will wait between 0 and 60 seconds before being
+  processed. Disabled when the value is `0` (default).
+* `webhook.refresh.jitter.threshold` – The minimum number of applications that must be affected by a single
+  webhook event before jitter is applied. This prevents unnecessary delays for small events. For example, if set to
+  `10` (the default), jitter is only applied when more than 10 applications are affected.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # Apply up to 60s of jitter when more than 10 applications are affected
+  webhook.refresh.jitter: "60s"
+  webhook.refresh.jitter.threshold: "10"
+```
+
+You can also tune the number of concurrent workers that process the refresh queue using the
+`server.webhook.refresh.workers` key in `argocd-cmd-params-cm` (default: `20`). Under high webhook load it may be
+beneficial to raise this value alongside the jitter settings to drain the queue faster once the jitter delay expires.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  server.webhook.refresh.workers: "40"
+```
 
 ## Rate Limiting Application Reconciliations
 
@@ -522,21 +665,50 @@ Not all HTTP responses are eligible for retries. The following conditions will n
 
 Argo CD optionally exposes a profiling endpoint that can be used to profile the CPU and memory usage of the Argo CD
 component.
-The profiling endpoint is available on metrics port of each component. See [metrics](./metrics.md) for more information
+The profiling endpoint is available on the metrics port of each component. See [metrics](./metrics.md) for more information
 about the port.
 For security reasons, the profiling endpoint is disabled by default. The endpoint can be enabled by setting the
-`server.profile.enabled`, `applicationsetcontroller.profile.enabled`, or `controller.profile.enabled` key
-of [argocd-cmd-params-cm](argocd-cmd-params-cm.yaml) ConfigMap to `true`.
-Once the endpoint is enabled, you can use go profile tool to collect the CPU and memory profiles. Example:
+`server.profile.enabled`, `applicationsetcontroller.profile.enabled`, `reposerver.profile.enabled` or 
+`controller.profile.enabled` key of [argocd-cmd-params-cm](argocd-cmd-params-cm.yaml) ConfigMap to `true`.
+Once the endpoint is enabled, you can use the go profile tool to collect the CPU and memory profiles. Example:
 
 ```bash
 $ kubectl port-forward svc/argocd-metrics 8082:8082
 $ go tool pprof http://localhost:8082/debug/pprof/heap
 ```
 
+## Mitigating OOMKilled Events from Memory Spikes
+
+To mitigate `OOMKilled` events caused by sudden memory spikes without over-provisioning resources, you can configure the `GOMEMLIMIT` environment variable on the relevant Argo CD containers (supported in Argo CD versions >= 2.7.0).
+
+Setting `GOMEMLIMIT` to **80%–90%** of your container's total memory limit forces the Go runtime to trigger garbage collection before the Kubernetes hard limit is reached. For more detail, see the [Go GC Guide](https://go.dev/doc/gc-guide#Memory_limit) and the [Environment variables](https://pkg.go.dev/runtime#hdr-Environment_Variables) reference.
+
+```yaml
+containers:
+  - name: argocd-application-controller
+    resources:
+      limits:
+        memory: "2Gi"
+    env:
+      - name: GOMEMLIMIT
+        value: "1800MiB"  # ~90% of the 2Gi memory limit above; GOMEMLIMIT uses MiB/GiB units
+```
+
+### Known Use Cases
+
+* Application controller cold-start memory spike
+* Expensive per-request memory spikes in argocd-server
+
+### Trade-Offs & Tuning
+
+> [!WARNING]
+> Setting `GOMEMLIMIT` too close to the application's actual working set can cause **GC thrashing**. The Go runtime will spend excessive CPU cycles continuously attempting to reclaim memory, significantly degrading application performance.
+
+If you observe sustained high CPU utilization alongside frequent GC activity or ongoing `OOMKilled` events, increase the container's total memory limit and recalculate `GOMEMLIMIT` proportionally to give the runtime more breathing room.
+
 ## Shallow Clone
 
-Monorepos can be large and slow to clone. To speed up the clone process, you can use the `depth: "1"` repository option:
+Repositories with large histories or large files in past revisions can be slow to clone and update. To speed up the clone process, you can use the `depth: "1"` repository option:
 
 ```yaml
 apiVersion: v1
@@ -555,6 +727,13 @@ metadata:
 type: Opaque
 ```
 
-> [!NOTE] You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
+> [!NOTE]
+> You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.
+
+> [!NOTE]
+> Shallow cloning disables the non-webhook Git-history comparison optimization provided by the
+> `argocd.argoproj.io/manifest-generate-paths` annotation. If you rely on that annotation to avoid unnecessary refreshes
+> without webhooks, use a full clone (`depth: "0"` or omit `depth`) for that repository. Webhook payload filtering and
+> Config Management Plugin sidecar path narrowing can still use the annotation with shallow clones.
