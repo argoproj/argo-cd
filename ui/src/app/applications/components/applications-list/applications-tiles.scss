@@ -4,10 +4,45 @@
     display: grid;
     gap: 24px;
     grid-template-columns: repeat(auto-fill,minmax(370px,1fr));
-    padding: 0 12px;
+    padding: 0;
 
     &__wrapper {
+        // <a> defaults to display: inline; we need block-level layout for height:100%
+        // and Foundation's .row internals to work like they did when this was a <div>.
+        display: block;
         height: 100%;
+        color: inherit;
+        text-decoration: none;
+
+        &:hover, &:focus, &:visited, &:active {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        // Leave room at the bottom for the absolutely-positioned action-buttons sibling.
+        // Scoped via :has so AppSet tiles (which don't render an actions sibling) don't
+        // get wasted whitespace.
+        &:has(~ .applications-tiles__actions) {
+            padding-bottom: 50px;
+        }
+    }
+
+    // Header buttons (URLs, external-link, favorite) live outside the wrapping anchor
+    // to keep the markup valid (no <a>/<button> nested inside <a>). They're absolutely
+    // positioned over the top-right of the tile where the original button column rendered.
+    // `pointer-events: none` on the container lets clicks in the gap between icons fall
+    // through to the wrapping anchor below (so empty space still navigates into the tile),
+    // while the children get `pointer-events: auto` so they still receive their own clicks.
+    &__header-buttons {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+        z-index: 1;
+        pointer-events: none;
+
+        > * {
+            pointer-events: auto;
+        }
     }
 
     &__item {
@@ -19,13 +54,42 @@
         }
     }
 
+    // Action buttons (Sync, Refresh, Delete) likewise live outside the wrapping anchor,
+    // absolutely positioned at the bottom of the tile. As with `__header-buttons` above,
+    // the container is `pointer-events: none` so dead-zone clicks between buttons fall
+    // through to the wrapping anchor (preserving the original "click anywhere on the
+    // tile to navigate" behaviour), and the buttons opt back in.
     &__actions {
-        margin-top: auto;
+        position: absolute;
+        bottom: 8px;
+        left: 0;
+        right: 0;
+        // Match the entry's horizontal padding (1em) plus the Foundation column gutter
+        // (0.9375rem) so the buttons align with the labels above.
+        padding: 0 calc(1em + 0.9375rem);
+        z-index: 1;
+        pointer-events: none;
+
+        button {
+            pointer-events: auto;
+        }
     }
 
     .argo-table-list__row {
         padding-top: 0;
         padding-bottom: 0;
+
+        .columns.applications-tiles__field-label {
+            overflow: visible;
+            white-space: nowrap;
+            text-overflow: clip;
+        }
+
+        .columns.applications-tiles__title-col {
+            overflow: visible;
+            white-space: normal;
+            text-overflow: clip;
+        }
     }
     &__selected {
         box-shadow: 0 0 0 1px $argo-color-teal-5;
@@ -33,63 +97,104 @@
 
     .applications-list__title {
         white-space: normal !important;
-        word-break: break-word; 
-        overflow-wrap: break-word; 
-        hyphens: auto; 
-        line-height: 1.4; 
-        width: 100%; 
+        word-break: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+        line-height: 1.4;
     }
-}
 
-.columns:has(> .argo-icon-git), .columns:has(> .argo-icon-helm) {
-    display: flex;
-    align-items: center;
-}
-
-@media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
-    .custom-tooltip {
-        display: none !important;
-    }
-}
-
-.applications-list__external-link {
-    align-items: center;
-    display: flex;
-    
-    button {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        margin: 0;
-        color: inherit;
+    .applications-tiles__title-col {
         display: flex;
         align-items: center;
-        justify-content: center;
-        
-        &:hover {
-            color: $argo-color-teal-5;
-        }
+        overflow: visible;
+        white-space: normal;
+        text-overflow: clip;
 
-        &.managed-by-url-invalid {
-            color: #f4c030;
+        .applications-list__title {
+            width: auto;
+            flex: 1 1 auto;
+            overflow: visible;
+        }
+    }
+
+    .applications-tiles__fields {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        column-gap: 1rem;
+        align-items: baseline;
+    }
+
+    .applications-tiles__field-row {
+        display: contents;
+
+        &::before,
+        &::after {
+            display: none;
+        }
+    }
+
+    .applications-tiles__field-label {
+        width: auto;
+        max-width: none;
+        float: none;
+        padding-left: 0;
+        padding-right: 0;
+        overflow: visible;
+        white-space: nowrap;
+        text-overflow: clip;
+    }
+
+    .applications-tiles__field-value {
+        width: auto;
+        max-width: none;
+        float: none;
+        min-width: 0;
+        padding-left: 0;
+        padding-right: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .applications-list__external-link {
+        align-items: center;
+        display: flex;
+        gap: 7px;
+
+        button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
 
             &:hover {
-                color: #f4c030;
+                color: $argo-color-teal-5;
             }
-        }
-        
-        i {
-            font-size: 14px;
+
+            &.managed-by-url-invalid {
+                color: #f4c030;
+
+                &:hover {
+                    color: #f4c030;
+                }
+            }
+
+            i {
+                font-size: 14px;
+            }
         }
     }
 }
 
-/* Table / name column external-link (not under .applications-list__external-link) */
-.applications-list__table-row button.managed-by-url-invalid {
-    color: #f4c030;
-
-    &:hover {
-        color: #f4c030;
+// Tippy renders the tooltip on document.body, so this rule must be global.
+// Hide once button labels are visible (show-for-xxlarge).
+@media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
+    .applications-tiles__action-tooltip {
+        display: none !important;
     }
 }

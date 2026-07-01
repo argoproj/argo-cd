@@ -100,6 +100,7 @@ argocd app set APPNAME [flags]
       --sync-retry-refresh                         Indicates if the latest revision should be used on retry instead of the initial one
       --sync-source-branch string                  The branch from which the app will sync
       --sync-source-path string                    The path in the repository from which the app will sync
+      --tag-prefix string                          Filter git tags by this prefix before evaluating targetRevision as a semver constraint
       --validate                                   Validation of repo and cluster (default true)
       --values stringArray                         Helm values file(s) to use
       --values-literal-file string                 Filename or URL to import as a literal Helm values block

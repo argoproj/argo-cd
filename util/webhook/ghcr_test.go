@@ -14,6 +14,7 @@ import (
 )
 
 func TestGHCRParser_Parse(t *testing.T) {
+	t.Parallel()
 	parser := newGHCRParser("")
 	tests := []struct {
 		name       string
@@ -94,6 +95,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(tt.body))
 			event, err := parser.Parse(req)
 
@@ -116,6 +118,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 }
 
 func TestValidateSignature(t *testing.T) {
+	t.Parallel()
 	body := []byte(`{"test":"payload"}`)
 	secret := "my-secret"
 
@@ -158,6 +161,7 @@ func TestValidateSignature(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			parser := newGHCRParser(tt.secret)
 
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)

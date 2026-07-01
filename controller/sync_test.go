@@ -52,7 +52,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
@@ -98,7 +98,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.syncPolicy.managedNamespaceMetadata into sync result
 	assert.Equal(t, app.Spec.SyncPolicy.ManagedNamespaceMetadata, opState.SyncResult.ManagedNamespaceMetadata)
 }
@@ -141,7 +141,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 			Source: &source,
 		},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
@@ -187,7 +187,7 @@ func TestSyncComparisonError(t *testing.T) {
 		Sync: &v1alpha1.SyncOperation{},
 	}}
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 
 	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
 	assert.NotEmpty(t, conditions)
@@ -276,7 +276,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		}}
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
@@ -348,7 +348,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationRunning, opState.Phase)
@@ -397,6 +397,31 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.Len(t, targets, 1)
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "2.0", iksmVersion)
+	})
+	t.Run("will not copy live status into the apply target", func(t *testing.T) {
+		// given: status is configured as an ignored field (equivalent to the
+		// default ignoreResourceStatusField=crd behavior) and the live resource
+		// has an in-flight operationState.
+		ignore := v1alpha1.ResourceIgnoreDifferences{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/status"},
+		}
+		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{ignore})
+		live := f.comparisonResult.reconciliationResult.Live[0]
+		require.NoError(t, unstructured.SetNestedField(
+			live.Object, "Running", "status", "operationState", "phase"))
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then: live status must not be merged into the target that gets applied,
+		// otherwise the SSA sync manager co-owns and freezes operationState.phase.
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		_, found, err := unstructured.NestedMap(targets[0].Object, "status")
+		require.NoError(t, err)
+		assert.False(t, found, "live status must not be merged into the apply target")
 	})
 	t.Run("will not modify target resource if ignore difference is not configured", func(t *testing.T) {
 		// given
@@ -672,6 +697,155 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		env0 := env[0].(map[string]any)
 		assert.Equal(t, "EV", env0["name"])
 		assert.Equal(t, "here", env0["value"])
+	})
+}
+
+// TestNormalizeTargetResourcesPDBSelector reproduces https://github.com/argoproj/argo-cd/issues/18232
+// When a PDB (policy/v1) has an ignoreDifferences rule for a matchLabels sub-field and
+// RespectIgnoreDifferences=true is set, normalizeTargetResources should only patch the
+// ignored field — not clobber the entire selector due to patchStrategy:"replace".
+func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
+	setupPDB := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *comparisonResult {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LivePDBYaml)
+		target := test.YamlToUnstructured(testdata.TargetPDBYaml)
+		return &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+	}
+
+	t.Run("ignoring one matchLabels key should not clobber other selector changes", func(t *testing.T) {
+		// User ignores /spec/selector/matchLabels/version but intentionally changes
+		// /spec/selector/matchLabels/app from "myapp" to "myapp-v2".
+		// With patchStrategy:"replace" on the selector field (policy/v1),
+		// normalizeTargetResources should preserve the app label change.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// The "version" label should take the live value (ignored field — respected).
+		assert.Equal(t, "v1", matchLabels["version"], "ignored field 'version' should use live value")
+
+		// The "app" label should keep the target value — it is NOT ignored.
+		assert.Equal(t, "myapp-v2", matchLabels["app"],
+			"non-ignored field 'app' was clobbered by live value; patchStrategy:replace on selector may cause normalizeTargetResources to overwrite the entire selector")
+	})
+
+	t.Run("ignoring one matchLabels key should not drop non-ignored sibling fields", func(t *testing.T) {
+		// Target has matchExpressions that live does not.
+		// Ignoring a matchLabels key should not cause matchExpressions to be
+		// dropped due to replace semantics pulling the entire live selector
+		// (which lacks matchExpressions) into the target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		// Add matchExpressions to the target only (not in live).
+		target := cr.reconciliationResult.Target[0]
+		matchExpr := []any{
+			map[string]any{
+				"key":      "tier",
+				"operator": "In",
+				"values":   []any{"frontend"},
+			},
+		}
+		require.NoError(t, unstructured.SetNestedSlice(target.Object, matchExpr, "spec", "selector", "matchExpressions"))
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		// matchExpressions should be preserved — it was not ignored.
+		expr, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "selector", "matchExpressions")
+		require.NoError(t, err)
+		assert.True(t, ok, "matchExpressions was dropped from target by replace-strategy collateral")
+		assert.Len(t, expr, 1)
+
+		// app label should still reflect the target change.
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, "myapp-v2", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
+	})
+
+	t.Run("ignoring one matchLabels key should not add live-only non-ignored selector keys", func(t *testing.T) {
+		// Live has an additional non-ignored label ("track") that target does not.
+		// Replace semantics should not copy it into the patched target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		live := cr.reconciliationResult.Live[0]
+		matchLabels, ok, err := unstructured.NestedStringMap(live.Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		matchLabels["track"] = "stable"
+		require.NoError(t, unstructured.SetNestedStringMap(live.Object, matchLabels, "spec", "selector", "matchLabels"))
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		patchedMatchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		assert.Equal(t, "myapp-v2", patchedMatchLabels["app"])
+		assert.Equal(t, "v1", patchedMatchLabels["version"])
+		_, found := patchedMatchLabels["track"]
+		assert.False(t, found, "live-only non-ignored selector key was added to target by replace-strategy collateral")
+	})
+
+	t.Run("ignoring entire selector should replace target selector with live", func(t *testing.T) {
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// When the entire selector is ignored, both labels should come from live.
+		assert.Equal(t, "myapp", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
 	})
 }
 
@@ -1440,7 +1614,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then, app sync should fail with expected error message in operation state
 		assert.Equal(t, synccommon.OperationError, opState.Phase)
@@ -1461,7 +1635,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should fail with expected error message in operation state
 		assert.Equal(t, synccommon.OperationError, opState.Phase)
@@ -1482,7 +1656,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1503,7 +1677,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then application sync should pass using the control plane service account
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1528,7 +1702,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		f.application.Spec.Destination.Name = "minikube"
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1598,7 +1772,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1616,7 +1790,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1634,7 +1808,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)

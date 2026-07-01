@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -695,8 +696,8 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 	if !initializing || isPodInitializedConditionTrue(&pod.Status) {
 		hasRunning := false
-		for i := len(pod.Status.ContainerStatuses) - 1; i >= 0; i-- {
-			container := pod.Status.ContainerStatuses[i]
+		for _, v := range slices.Backward(pod.Status.ContainerStatuses) {
+			container := v
 
 			restarts += int(container.RestartCount)
 			switch {

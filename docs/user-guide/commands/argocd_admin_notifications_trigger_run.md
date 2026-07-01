@@ -32,7 +32,6 @@ argocd admin notifications trigger run on-sync-status-unknown ./sample-app.yaml 
       --argocd-context string           The name of the Argo-CD server context to use
       --argocd-repo-server string       Argo CD repo server address (default "argocd-repo-server:8081")
       --argocd-repo-server-plaintext    Use a plaintext client (non-TLS) to connect to repository server
-      --argocd-repo-server-strict-tls   Perform strict validation of TLS certificates when connecting to repo server
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                   UID to impersonate for the operation
