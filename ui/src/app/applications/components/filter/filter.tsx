@@ -92,6 +92,13 @@ export const FiltersGroup = (props: {
     );
 };
 
+const selectedKeysFromValues = (values: {[label: string]: boolean}) =>
+    Object.entries(values)
+        .filter(([, value]) => value)
+        .map(([key]) => key)
+        .sort()
+        .join(',');
+
 export const Filter = (props: FilterProps) => {
     const init = {} as {[label: string]: boolean};
     props.selected.forEach(s => (init[s] = true));
@@ -101,6 +108,7 @@ export const Filter = (props: FilterProps) => {
     const [input, setInput] = React.useState('');
     const [collapsed, setCollapsed] = React.useState(props.collapsed || false);
     const [options, setOptions] = React.useState(props.options);
+    const syncingFromProps = React.useRef(false);
 
     React.useEffect(() => {
         setOptions(props.options);
@@ -109,6 +117,11 @@ export const Filter = (props: FilterProps) => {
     const labels = props.labels || options.map(o => o.label);
 
     React.useEffect(() => {
+        if (syncingFromProps.current) {
+            syncingFromProps.current = false;
+            return;
+        }
+
         const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
             (acc, [key, value]) => {
                 if (value !== undefined) {
@@ -139,12 +152,19 @@ export const Filter = (props: FilterProps) => {
     }, [values]);
 
     React.useEffect(() => {
+        const selectedFromProps = [...props.selected].sort().join(',');
+        if (selectedFromProps === selectedKeysFromValues(values)) {
+            return;
+        }
+
+        syncingFromProps.current = true;
+        const next = {} as {[label: string]: boolean};
+        props.selected.forEach(s => (next[s] = true));
+        setValues(next);
         if (props.selected.length === 0) {
-            setValues({} as {[label: string]: boolean});
             setInput('');
         }
-    }, [props.selected.length]);
-
+    }, [props.selected]);
     return (
         <div className='filter'>
             <div className='filter__header'>
