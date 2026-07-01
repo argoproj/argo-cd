@@ -330,7 +330,13 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
 				assert.Equal(t, "test-manager", capturedOpts.FieldManager)
 				assert.True(t, capturedOpts.Overwrite)
-				assert.True(t, capturedOpts.OpenAPIPatch)
+				if tc.strategy == cmdutil.DryRunClient {
+					// workaround for https://github.com/kubernetes/kubernetes/issues/139538
+					// in kubectl v1.36
+					assert.False(t, capturedOpts.OpenAPIPatch)
+				} else {
+					assert.True(t, capturedOpts.OpenAPIPatch)
+				}
 				assert.False(t, capturedOpts.ServerSideApply)
 				assert.False(t, capturedOpts.ForceConflicts)
 			})
