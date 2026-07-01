@@ -1,0 +1,5 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`renderActionMenuLabel.element 1`] = `"<span>Custom</span>"`;
+
+exports[`renderActionMenuLabel.string 1`] = `"<span class="show-for-large">Sync</span>"`;

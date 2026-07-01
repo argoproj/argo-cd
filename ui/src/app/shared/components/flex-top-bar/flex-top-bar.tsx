@@ -1,9 +1,34 @@
-import {Toolbar, Tooltip} from 'argo-ui';
+import {SplitButton, Toolbar, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Observable} from 'rxjs';
 import {AuthOption, DataLoader} from '../';
 
 import './flex-top-bar.scss';
+
+type ActionMenuItem = NonNullable<Toolbar['actionMenu']>['items'][number];
+
+export function getTooltipContent(title: ActionMenuItem['title']): string | undefined {
+    return typeof title === 'string' ? title : undefined;
+}
+
+export function renderActionMenuLabel(title: ActionMenuItem['title']): string | React.ReactElement {
+    if (typeof title === 'string') {
+        return <span className='show-for-large'>{title}</span>;
+    }
+    return title;
+}
+
+const ActionButtonTooltip = (props: {content: string | undefined; needsAnchor?: boolean; children: React.ReactElement}) => {
+    if (!props.content) {
+        return props.children;
+    }
+
+    return (
+        <Tooltip className='custom-tooltip' content={props.content}>
+            {props.needsAnchor ? <span className='flex-top-bar__tooltip-anchor'>{props.children}</span> : props.children}
+        </Tooltip>
+    );
+};
 
 // Extend Toolbar type to support options on the right and auth control
 export interface ToolbarWithOptions extends Toolbar {
@@ -34,20 +59,39 @@ const FlexTopBarContent = (props: {toolbar: ToolbarWithOptions}) => {
             <div className='flex-top-bar__actions'>
                 {props.toolbar.actionMenu && (
                     <React.Fragment>
-                        {props.toolbar.actionMenu.items.map((item, i) => (
-                            <Tooltip className='custom-tooltip' content={item.title} key={item.qeId || i}>
-                                <button
-                                    disabled={!!item.disabled}
-                                    qe-id={item.qeId}
-                                    className='argo-button argo-button--base'
-                                    onClick={() => item.action()}
-                                    style={{marginRight: 2}}
-                                    key={i}>
-                                    {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                    <span className='show-for-large'>{item.title}</span>
-                                </button>
-                            </Tooltip>
-                        ))}
+                        {props.toolbar.actionMenu.items.map((item, i) => {
+                            const tooltipContent = getTooltipContent(item.title);
+                            const key = item.qeId || i;
+
+                            if (item.subActions && item.subActions.length > 0) {
+                                return (
+                                    <ActionButtonTooltip key={key} content={tooltipContent} needsAnchor={true}>
+                                        <SplitButton
+                                            action={item.action}
+                                            title={renderActionMenuLabel(item.title)}
+                                            iconClassName={item.iconClassName}
+                                            subActions={item.subActions}
+                                            disabled={item.disabled}
+                                            qeId={item.qeId}
+                                        />
+                                    </ActionButtonTooltip>
+                                );
+                            }
+
+                            return (
+                                <ActionButtonTooltip key={key} content={tooltipContent}>
+                                    <button
+                                        disabled={!!item.disabled}
+                                        qe-id={item.qeId}
+                                        className='argo-button argo-button--base'
+                                        onClick={() => item.action()}
+                                        style={{marginRight: 2}}>
+                                        {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
+                                        {renderActionMenuLabel(item.title)}
+                                    </button>
+                                </ActionButtonTooltip>
+                            );
+                        })}
                     </React.Fragment>
                 )}
             </div>
