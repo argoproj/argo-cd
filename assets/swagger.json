@@ -7951,6 +7951,13 @@
             "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
           }
         },
+        "ignoreDuplicateResources": {
+          "description": "IgnoreDuplicateResources controls which resources should suppress RepeatedResourceWarning.\nIf a resource appears multiple times among application resources but matches one of these\nselectors, the RepeatedResourceWarning condition will not be generated for it.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDuplicate"
+          }
+        },
         "info": {
           "type": "array",
           "title": "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application",
@@ -10103,6 +10110,24 @@
           "items": {
             "type": "string"
           }
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceIgnoreDuplicate": {
+      "description": "ResourceIgnoreDuplicate contains resource filter for suppressing RepeatedResourceWarning.\nIf a resource matches the Group/Kind/Name/Namespace selector, the warning will not be\ngenerated when that resource appears multiple times among application resources.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
         },
         "name": {
           "type": "string"

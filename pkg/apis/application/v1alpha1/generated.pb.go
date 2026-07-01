@@ -3765,6 +3765,34 @@ func (m *ResourceIgnoreDifferences) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ResourceIgnoreDifferences proto.InternalMessageInfo
 
+func (m *ResourceIgnoreDuplicate) Reset()      { *m = ResourceIgnoreDuplicate{} }
+func (*ResourceIgnoreDuplicate) ProtoMessage() {}
+func (*ResourceIgnoreDuplicate) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{132}
+}
+func (m *ResourceIgnoreDuplicate) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ResourceIgnoreDuplicate) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *ResourceIgnoreDuplicate) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResourceIgnoreDuplicate.Merge(m, src)
+}
+func (m *ResourceIgnoreDuplicate) XXX_Size() int {
+	return m.Size()
+}
+func (m *ResourceIgnoreDuplicate) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResourceIgnoreDuplicate.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResourceIgnoreDuplicate proto.InternalMessageInfo
+
 func (m *ResourceNetworkingInfo) Reset()      { *m = ResourceNetworkingInfo{} }
 func (*ResourceNetworkingInfo) ProtoMessage() {}
 func (*ResourceNetworkingInfo) Descriptor() ([]byte, []int) {
@@ -4913,10 +4941,9 @@ func (m *SyncStrategyHook) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SyncStrategyHook proto.InternalMessageInfo
 
-func (m *TLSClientConfig) Reset()      { *m = TLSClientConfig{} }
 func (*TLSClientConfig) ProtoMessage() {}
 func (*TLSClientConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{174}
+	return fileDescriptor_c078c3c476799f44, []int{175}
 }
 func (m *TLSClientConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4944,7 +4971,7 @@ var xxx_messageInfo_TLSClientConfig proto.InternalMessageInfo
 func (m *TagFilter) Reset()      { *m = TagFilter{} }
 func (*TagFilter) ProtoMessage() {}
 func (*TagFilter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{175}
+	return fileDescriptor_c078c3c476799f44, []int{176}
 }
 func (m *TagFilter) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -5122,6 +5149,7 @@ func init() {
 	proto.RegisterType((*ResourceActions)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceActions")
 	proto.RegisterType((*ResourceDiff)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff")
 	proto.RegisterType((*ResourceIgnoreDifferences)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceIgnoreDifferences")
+	proto.RegisterType((*ResourceIgnoreDuplicate)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceIgnoreDuplicate")
 	proto.RegisterType((*ResourceNetworkingInfo)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceNetworkingInfo")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceNetworkingInfo.LabelsEntry")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceNetworkingInfo.TargetLabelsEntry")
@@ -8715,6 +8743,20 @@ func (m *ApplicationSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.IgnoreDuplicateResources) > 0 {
+		for iNdEx := len(m.IgnoreDuplicateResources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.IgnoreDuplicateResources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x52
+		}
+	}
 	if m.SourceHydrator != nil {
 		{
 			size, err := m.SourceHydrator.MarshalToSizedBuffer(dAtA[:i])
@@ -14315,6 +14357,49 @@ func (m *ResourceIgnoreDifferences) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	return len(dAtA) - i, nil
 }
 
+func (m *ResourceIgnoreDuplicate) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ResourceIgnoreDuplicate) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ResourceIgnoreDuplicate) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.Namespace)
+	copy(dAtA[i:], m.Namespace)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Namespace)))
+	i--
+	dAtA[i] = 0x22
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.Kind)
+	copy(dAtA[i:], m.Kind)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Kind)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Group)
+	copy(dAtA[i:], m.Group)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Group)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
 func (m *ResourceNetworkingInfo) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -18021,6 +18106,12 @@ func (m *ApplicationSpec) Size() (n int) {
 		l = m.SourceHydrator.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	if len(m.IgnoreDuplicateResources) > 0 {
+		for _, e := range m.IgnoreDuplicateResources {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -20050,6 +20141,23 @@ func (m *ResourceIgnoreDifferences) Size() (n int) {
 	return n
 }
 
+func (m *ResourceIgnoreDuplicate) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Group)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Kind)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Namespace)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
 func (m *ResourceNetworkingInfo) Size() (n int) {
 	if m == nil {
 		return 0
@@ -21743,6 +21851,11 @@ func (this *ApplicationSpec) String() string {
 		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForSources += "}"
+	repeatedStringForIgnoreDuplicateResources := "[]ResourceIgnoreDuplicate{"
+	for _, f := range this.IgnoreDuplicateResources {
+		repeatedStringForIgnoreDuplicateResources += strings.Replace(strings.Replace(f.String(), "ResourceIgnoreDuplicate", "ResourceIgnoreDuplicate", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForIgnoreDuplicateResources += "}"
 	s := strings.Join([]string{`&ApplicationSpec{`,
 		`Source:` + strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1) + `,`,
 		`Destination:` + strings.Replace(strings.Replace(this.Destination.String(), "ApplicationDestination", "ApplicationDestination", 1), `&`, ``, 1) + `,`,
@@ -21753,6 +21866,7 @@ func (this *ApplicationSpec) String() string {
 		`RevisionHistoryLimit:` + valueToStringGenerated(this.RevisionHistoryLimit) + `,`,
 		`Sources:` + repeatedStringForSources + `,`,
 		`SourceHydrator:` + strings.Replace(this.SourceHydrator.String(), "SourceHydrator", "SourceHydrator", 1) + `,`,
+		`IgnoreDuplicateResources:` + repeatedStringForIgnoreDuplicateResources + `,`,
 		`}`,
 	}, "")
 	return s
@@ -23296,6 +23410,19 @@ func (this *ResourceIgnoreDifferences) String() string {
 		`JSONPointers:` + fmt.Sprintf("%v", this.JSONPointers) + `,`,
 		`JQPathExpressions:` + fmt.Sprintf("%v", this.JQPathExpressions) + `,`,
 		`ManagedFieldsManagers:` + fmt.Sprintf("%v", this.ManagedFieldsManagers) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ResourceIgnoreDuplicate) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ResourceIgnoreDuplicate{`,
+		`Group:` + fmt.Sprintf("%v", this.Group) + `,`,
+		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
+		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`Namespace:` + fmt.Sprintf("%v", this.Namespace) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -32697,6 +32824,40 @@ func (m *ApplicationSpec) Unmarshal(dAtA []byte) error {
 				m.SourceHydrator = &SourceHydrator{}
 			}
 			if err := m.SourceHydrator.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IgnoreDuplicateResources", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.IgnoreDuplicateResources = append(m.IgnoreDuplicateResources, ResourceIgnoreDuplicate{})
+			if err := m.IgnoreDuplicateResources[len(m.IgnoreDuplicateResources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -51467,6 +51628,184 @@ func (m *ResourceIgnoreDifferences) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.ManagedFieldsManagers = append(m.ManagedFieldsManagers, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ResourceIgnoreDuplicate) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ResourceIgnoreDuplicate: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ResourceIgnoreDuplicate: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Group", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Group = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Kind", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Kind = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
