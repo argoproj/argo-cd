@@ -115,7 +115,7 @@ if obj.status.proposed.dry.sha ~= obj.status.active.dry.sha then
         end
     end
 
-    hs.status = "Progressing"
+    hs.status = "Healthy"
     hs.message =
         "Promotion in progress from '" .. getShortSha(obj.status.active.dry.sha) ..
         "' to '" .. getShortSha(obj.status.proposed.dry.sha) .. "': " ..
