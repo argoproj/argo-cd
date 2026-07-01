@@ -992,6 +992,43 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		})
 }
 
+func TestScaleDeploymentActionWithParam(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			// Scale to 2 replicas using the --param flag
+			_, err := fixture.RunCli("app", "actions", "run", app.Name, "scale",
+				"--kind", "Deployment", "--param", "replicas=2")
+			require.NoError(t, err)
+
+			deployment, err := fixture.KubeClientset.AppsV1().Deployments(app.Spec.Destination.Namespace).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.EqualValues(t, 2, *deployment.Spec.Replicas)
+		}).
+		And(func(app *Application) {
+			// Missing --param flag should fail
+			_, err := fixture.RunCli("app", "actions", "run", app.Name, "scale",
+				"--kind", "Deployment")
+			assert.ErrorContains(t, err, "replicas parameter is required")
+		}).
+		And(func(app *Application) {
+			// Non-numeric values should fail
+			_, err := fixture.RunCli("app", "actions", "run", app.Name, "scale",
+				"--kind", "Deployment", "--param", "replicas=notanumber")
+			assert.ErrorContains(t, err, "invalid number")
+		}).
+		And(func(app *Application) {
+			// Malformed param (no = separator) should fail
+			_, err := fixture.RunCli("app", "actions", "run", app.Name, "scale",
+				"--kind", "Deployment", "--param", "replicas")
+			assert.ErrorContains(t, err, "invalid parameter format")
+		})
+}
+
 func TestSyncResourceByLabel(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
