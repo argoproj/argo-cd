@@ -50,6 +50,10 @@ const (
 	SyncOptionClientSideApplyMigration = "ClientSideApplyMigration=true"
 	// Sync option that disables client-side apply migration
 	SyncOptionDisableClientSideApplyMigration = "ClientSideApplyMigration=false"
+	// Sync option that respects ignoreDifferences configs during the sync stage
+	SyncOptionRespectIgnoreDifferences = "RespectIgnoreDifferences=true"
+	// Sync option that disables RespectIgnoreDifferences for a specific resource
+	SyncOptionDisableRespectIgnoreDifferences = "RespectIgnoreDifferences=false"
 
 	// Default field manager for client-side apply migration
 	DefaultClientSideApplyMigrationManager = "kubectl-client-side-apply"

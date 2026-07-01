@@ -16,6 +16,7 @@ import (
 	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	syncresource "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -233,18 +234,15 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 
 	reconciliationResult := compareResult.reconciliationResult
 
-	// if RespectIgnoreDifferences is enabled, it should normalize the target
-	// resources which in this case applies the live values in the configured
-	// ignore differences fields.
-	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
-		patchedTargets, err := normalizeTargetResources(compareResult)
-		if err != nil {
-			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
-			return
-		}
-		reconciliationResult.Target = patchedTargets
+	// if RespectIgnoreDifferences is enabled (at the app or resource level), normalize the
+	// target resources so that ignored fields are not patched back to the desired state.
+	patchedTargets, err := normalizeTargetResources(compareResult, syncOp.SyncOptions)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
+		return
 	}
+	reconciliationResult.Target = patchedTargets
 
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
@@ -397,8 +395,12 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 //   - applies normalization to the target resources based on the live resources
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
-func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// normalize live and target resources
+//
+// Whether a resource is normalized is decided per-resource: the app-level syncOption sets the default,
+// and individual resources can override in either direction via the argocd.argoproj.io/sync-options annotation.
+func normalizeTargetResources(cr *comparisonResult, syncOptions v1alpha1.SyncOptions) ([]*unstructured.Unstructured, error) {
+	appLevel := syncOptions.HasOption(common.SyncOptionRespectIgnoreDifferences)
+
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
@@ -412,6 +414,18 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		}
 		originalTarget := cr.reconciliationResult.Target[idx]
 		if live == nil {
+			patchedTargets = append(patchedTargets, originalTarget)
+			continue
+		}
+
+		// per-resource annotation overrides app-level in either direction
+		shouldNormalize := appLevel
+		if syncresource.HasAnnotationOption(originalTarget, common.AnnotationSyncOptions, common.SyncOptionRespectIgnoreDifferences) {
+			shouldNormalize = true
+		} else if syncresource.HasAnnotationOption(originalTarget, common.AnnotationSyncOptions, common.SyncOptionDisableRespectIgnoreDifferences) {
+			shouldNormalize = false
+		}
+		if !shouldNormalize {
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
