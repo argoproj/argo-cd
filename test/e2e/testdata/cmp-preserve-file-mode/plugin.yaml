@@ -3,7 +3,6 @@ kind: ConfigManagementPlugin
 metadata:
   name: cmp-preserve-file-mode
 spec:
-  version: v1.0
   generate:
     command: [sh, -c , "./script.sh"]
   discovery:

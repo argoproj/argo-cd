@@ -9,7 +9,6 @@ data:
     metadata:
       name: my-plugin
     spec:
-      version: v1.0
       init:
         command: [sh , -c, 'echo "params: $ARGOCD_APP_PARAMETERS"']
       generate:

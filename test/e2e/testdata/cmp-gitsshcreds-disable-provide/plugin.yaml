@@ -3,7 +3,6 @@ kind: ConfigManagementPlugin
 metadata:
   name: cmp-gitsshcreds-disable-sharing
 spec:
-  version: v1.0
   generate:
     command: ["sh", "generate.sh"]
   discover:

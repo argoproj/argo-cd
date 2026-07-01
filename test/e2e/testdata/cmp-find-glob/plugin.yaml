@@ -3,7 +3,6 @@ kind: ConfigManagementPlugin
 metadata:
   name: cmp-find-glob
 spec:
-  version: v1.0
   init:
     command: [kustomize, version]
   generate:
