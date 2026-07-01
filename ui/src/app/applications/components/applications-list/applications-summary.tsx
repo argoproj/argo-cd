@@ -2,6 +2,8 @@ import * as React from 'react';
 const PieChart = require('react-svg-piechart').default;
 
 import {COLORS} from '../../../shared/components';
+import {Context} from '../../../shared/context';
+import {useQuery} from '../../../shared/hooks/query';
 import * as models from '../../../shared/models';
 import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {ComparisonStatusIcon, HealthStatusIcon, HydrateOperationPhaseIcon} from '../utils';
@@ -26,6 +28,8 @@ hydratorColors.set('Failed', COLORS.operation.failed);
 hydratorColors.set('None', COLORS.sync.unknown);
 
 export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
+    const ctx = React.useContext(Context);
+    const query = useQuery();
     const sync = new Map<string, number>();
     applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
     const health = new Map<string, number>();
@@ -35,6 +39,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
         const phase = app.status.sourceHydrator?.currentOperation?.phase || 'None';
         hydrator.set(phase, (hydrator.get(phase) || 0) + 1);
     });
+    const hoveredRef = React.useRef<{title: string; value: number; color: string} | null>(null);
 
     const attributes = [
         {title: 'APPLICATIONS', value: applications.length},
@@ -48,11 +53,13 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
     const charts = [
         {
             title: 'Sync',
+            queryParam: 'sync',
             data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
             legend: syncColors as Map<string, string>
         },
         {
             title: 'Health',
+            queryParam: 'health',
             data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
             legend: healthColors as Map<string, string>
         },
@@ -62,6 +69,22 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
             legend: hydratorColors as Map<string, string>
         }
     ];
+
+    const handleClickChart = (queryParam?: string) => {
+        const clicked = hoveredRef.current;
+        if (!clicked || !queryParam) {
+            return;
+        }
+
+        const current = query.get(queryParam)?.split(',').filter(Boolean) ?? [];
+        const next = current.includes(clicked.title) ? current.filter(v => v !== clicked.title) : [...current, clicked.title];
+
+        ctx.navigation.goto('.', {[queryParam]: next.length ? next.join(',') : null}, {replace: true});
+    };
+
+    const handleSectorHover = (data: {title: string; value: number; color: string}) => {
+        hoveredRef.current = data;
+    };
 
     return (
         <div className='white-box applications-list__summary'>
@@ -92,7 +115,9 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
                                         <div className='row chart'>
                                             <div className='large-8 small-6'>
                                                 <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
-                                                <PieChart data={chart.data} />
+                                                <div onClick={() => handleClickChart(chart.queryParam)}>
+                                                    <PieChart data={chart.data} onSectorHover={handleSectorHover} />
+                                                </div>
                                             </div>
                                             <div className='large-3 small-1'>
                                                 <ul>
