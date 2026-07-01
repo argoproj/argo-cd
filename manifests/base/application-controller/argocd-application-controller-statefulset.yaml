@@ -154,6 +154,24 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.metrics.cache.expiration
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.metrics.application.labels
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.metrics.application.conditions
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.metrics.cluster.labels
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -208,6 +226,24 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.repo.server.strict.tls
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.repo.server.ca.cert.path
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.repo.server.client.cert.path
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.repo.server.client.cert.key.path
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
           valueFrom:
             configMapKeyRef:
@@ -237,6 +273,12 @@ spec:
             configMapKeyRef:
               name: argocd-cmd-params-cm
               key: redis.db
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: redis.key.prefix
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
           valueFrom:
@@ -360,6 +402,8 @@ spec:
         volumeMounts:
         - name: argocd-repo-server-tls
           mountPath: /app/config/controller/tls
+        - name: argocd-repo-server-mtls
+          mountPath: /app/config/reposerver/mtls
         - name: argocd-home
           mountPath: /home/argocd
         - name: argocd-cmd-params-cm
@@ -398,6 +442,17 @@ spec:
             path: tls.key
           - key: ca.crt
             path: ca.crt
+      - name: argocd-repo-server-mtls
+        secret:
+          secretName: argocd-repo-server-mtls
+          optional: true
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
       - name: argocd-cmd-params-cm
         configMap:
           optional: true

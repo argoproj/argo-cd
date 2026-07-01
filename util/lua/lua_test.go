@@ -1127,6 +1127,7 @@ func Test_getHealthScriptPaths(t *testing.T) {
 		"_.crossplane.io/_",
 		"_.upbound.io/_",
 		"grafana-org-operator.kubitus-project.gitlab.io/_",
+		"microgateway.airlock.com/_",
 		"operator.victoriametrics.com/_",
 	}, paths)
 }

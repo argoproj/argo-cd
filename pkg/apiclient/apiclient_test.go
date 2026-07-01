@@ -1,7 +1,6 @@
 package apiclient
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -77,7 +76,7 @@ func TestExecuteRequest_ClosesBodyOnHTTPError(t *testing.T) {
 	}
 
 	// Execute request that should fail with HTTP 500
-	ctx := context.Background()
+	ctx := t.Context()
 	md := metadata.New(map[string]string{})
 	_, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
 
@@ -121,7 +120,7 @@ func TestExecuteRequest_ClosesBodyOnGRPCError(t *testing.T) {
 	}
 
 	// Execute request that should fail with gRPC error
-	ctx := context.Background()
+	ctx := t.Context()
 	md := metadata.New(map[string]string{})
 	_, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
 
@@ -184,7 +183,7 @@ func TestExecuteRequest_ConcurrentErrorRequests_NoConnectionLeak(t *testing.T) {
 	for range iterations {
 		for range concurrency {
 			wg.Go(func() {
-				ctx := context.Background()
+				ctx := t.Context()
 				md := metadata.New(map[string]string{})
 				_, err := c.executeRequest(ctx, "/application.ApplicationService/ManagedResources", []byte("test"), md)
 				// We expect errors
@@ -232,7 +231,7 @@ func TestExecuteRequest_SuccessDoesNotCloseBodyPrematurely(t *testing.T) {
 	}
 
 	// Execute successful request
-	ctx := context.Background()
+	ctx := t.Context()
 	md := metadata.New(map[string]string{})
 	resp, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
 

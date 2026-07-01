@@ -74,8 +74,8 @@ func NewCommand() *cobra.Command {
 		glogLevel                        int
 		metricsPort                      int
 		metricsCacheExpiration           time.Duration
-		metricsAplicationLabels          []string
-		metricsAplicationConditions      []string
+		metricsApplicationLabels         []string
+		metricsApplicationConditions     []string
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
@@ -96,7 +96,8 @@ func NewCommand() *cobra.Command {
 		// argocd k8s event logging flag
 		enableK8sEvent []string
 		// feature flag that enables the manifest hydrator controller
-		hydratorEnabled bool
+		hydratorEnabled              bool
+		repoServerClientTLSConfigSrc func() (tls.Configuration, error)
 	)
 	command := cobra.Command{
 		Use:               common.CommandApplicationController,
@@ -146,14 +147,14 @@ func NewCommand() *cobra.Command {
 				resyncDuration = time.Duration(appResyncPeriod) * time.Second
 			}
 
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerStrictTLS,
-			}
+			tlsConfig, err := repoServerClientTLSConfigSrc()
+			errors.CheckError(err)
+			tlsConfig.DisableTLS = repoServerPlaintext
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || repoServerStrictTLS
 
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.
-			if !repoServerPlaintext && repoServerStrictTLS {
+			if !repoServerPlaintext && repoServerStrictTLS && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/controller/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/controller/tls/ca.crt",
@@ -206,8 +207,8 @@ func NewCommand() *cobra.Command {
 				time.Duration(repoErrorGracePeriod)*time.Second,
 				metricsPort,
 				metricsCacheExpiration,
-				metricsAplicationLabels,
-				metricsAplicationConditions,
+				metricsApplicationLabels,
+				metricsApplicationConditions,
 				metricsClusterLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
@@ -280,9 +281,10 @@ func NewCommand() *cobra.Command {
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", env.ParseInt64FromEnv("ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT", 20, 0, math.MaxInt64), "Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
-	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
-	command.Flags().StringSliceVar(&metricsAplicationConditions, "metrics-application-conditions", []string{}, "List of Application conditions that will be added to the argocd_application_conditions metric")
-	command.Flags().StringSliceVar(&metricsClusterLabels, "metrics-cluster-labels", []string{}, "List of Cluster labels that will be added to the argocd_cluster_labels metric")
+	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
+	command.Flags().StringSliceVar(&metricsApplicationLabels, "metrics-application-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS", []string{}, ","), "List of Application labels that will be added to the argocd_app_labels metric")
+	command.Flags().StringSliceVar(&metricsApplicationConditions, "metrics-application-conditions", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS", []string{}, ","), "List of Application conditions that will be added to the argocd_app_condition metric")
+	command.Flags().StringSliceVar(&metricsClusterLabels, "metrics-cluster-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS", []string{}, ","), "List of Cluster labels that will be added to the argocd_cluster_labels metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
@@ -305,6 +307,7 @@ func NewCommand() *cobra.Command {
 	// argocd k8s event logging flag
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATION_CONTROLLER")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client

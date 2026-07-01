@@ -43,8 +43,8 @@ argocd-application-controller [flags]
       --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
       --logformat string                                          Set the logging format. One of: json|text (default "json")
       --loglevel string                                           Set the logging level. One of: debug|info|warn|error (default "info")
-      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_application_conditions metric
-      --metrics-application-labels strings                        List of Application labels that will be added to the argocd_application_labels metric
+      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_app_condition metric
+      --metrics-application-labels strings                        List of Application labels that will be added to the argocd_app_labels metric
       --metrics-cache-expiration duration                         Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-cluster-labels strings                            List of Cluster labels that will be added to the argocd_cluster_labels metric
       --metrics-port int                                          Start metrics server on given port (default 8082)
@@ -67,8 +67,10 @@ argocd-application-controller [flags]
       --redisdb int                                               Redis database.
       --repo-error-grace-period-seconds int                       Grace period in seconds for ignoring consecutive errors while communicating with repo server. (default 180)
       --repo-server string                                        Repo server address. (default "argocd-repo-server:8081")
+      --repo-server-ca-cert-path string                           Path to the repo-server CA certificate file
+      --repo-server-client-cert-key-path string                   Path to the client certificate key file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.key")
+      --repo-server-client-cert-path string                       Path to the client certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.crt")
       --repo-server-plaintext                                     Disable TLS on connections to repo server
-      --repo-server-strict-tls                                    Whether to use strict validation of the TLS cert presented by the repo server
       --repo-server-timeout-seconds int                           Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                                    The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --self-heal-backoff-cap-seconds int                         Specifies max timeout of exponential backoff between application self heal attempts (default 300)
