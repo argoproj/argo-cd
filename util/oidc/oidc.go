@@ -939,6 +939,11 @@ func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.C
 			}
 			return groupClaims, nil
 		}
+		groupsClaim := a.settings.UserInfoGroupsClaim()
+		if userInfo[groupsClaim] == nil {
+			log.Warnf("groups claim '%s' not found in UserInfo response, user will have no groups", groupsClaim)
+		}
+		groupClaims["groups"] = userInfo[groupsClaim]
 	}
 
 	return groupClaims, nil
