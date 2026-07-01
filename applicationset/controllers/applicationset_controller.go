@@ -61,6 +61,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 )
 
 const (
@@ -199,7 +200,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	generatedApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSetInfo, r.Generators, r.Renderer, r.Client)
 	if err != nil {
 		logCtx.Errorf("unable to generate applications: %v", err)
-		_ = r.setApplicationSetStatusCondition(ctx,
+		_ = r.setApplicationSetStatusCondition(
+			ctx,
 			&applicationSetInfo,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
@@ -227,7 +229,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// the RequeueAfter time.
 		logCtx.Errorf("error occurred during application validation: %s", err.Error())
 
-		_ = r.setApplicationSetStatusCondition(ctx,
+		_ = r.setApplicationSetStatusCondition(
+			ctx,
 			&applicationSetInfo,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
@@ -307,7 +310,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			// Only the last message gets added to the appset status, to keep the size reasonable.
 			message = fmt.Sprintf("%s (and %d more)", message, len(validateErrors)-1)
 		}
-		_ = r.setApplicationSetStatusCondition(ctx,
+		_ = r.setApplicationSetStatusCondition(
+			ctx,
 			&applicationSetInfo,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
@@ -342,7 +346,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowUpdate() {
 		err = r.createOrUpdateInCluster(ctx, logCtx, applicationSetInfo, validApps)
 		if err != nil {
-			_ = r.setApplicationSetStatusCondition(ctx,
+			_ = r.setApplicationSetStatusCondition(
+				ctx,
 				&applicationSetInfo,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
@@ -358,7 +363,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	} else {
 		err = r.createInCluster(ctx, logCtx, applicationSetInfo, validApps)
 		if err != nil {
-			_ = r.setApplicationSetStatusCondition(ctx,
+			_ = r.setApplicationSetStatusCondition(
+				ctx,
 				&applicationSetInfo,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
@@ -377,7 +383,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// Delete the generatedApplications instead of the validApps because we want to be able to delete applications in error/invalid state
 		err = r.deleteInCluster(ctx, logCtx, applicationSetInfo, generatedApplications)
 		if err != nil {
-			_ = r.setApplicationSetStatusCondition(ctx,
+			_ = r.setApplicationSetStatusCondition(
+				ctx,
 				&applicationSetInfo,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
@@ -407,7 +414,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		err := r.Update(ctx, &applicationSetInfo)
 		if err != nil {
 			logCtx.Warnf("error occurred while updating ApplicationSet: %v", err)
-			_ = r.setApplicationSetStatusCondition(ctx,
+			_ = r.setApplicationSetStatusCondition(
+				ctx,
 				&applicationSetInfo,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
@@ -425,7 +433,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
 
 	if len(validateErrors) == 0 {
-		if err := r.setApplicationSetStatusCondition(ctx,
+		if err := r.setApplicationSetStatusCondition(
+			ctx,
 			&applicationSetInfo,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
@@ -662,7 +671,7 @@ func appControllerIndexer(rawObj client.Object) []string {
 	return []string{owner.Name}
 }
 
-func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
+func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int, rateLimiterCfg *ratelimiter.AppControllerRateLimiterConfig) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", appControllerIndexer); err != nil {
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
@@ -672,6 +681,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
+		RateLimiter:             ratelimiter.NewCustomAppControllerRateLimiter[ctrl.Request](resolveRateLimiterConfig(rateLimiterCfg)),
 	}).For(&argov1alpha1.ApplicationSet{}, builder.WithPredicates(appSetOwnsHandler)).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(appOwnsHandler)).
 		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
@@ -681,8 +691,17 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 				Client:                   mgr.GetClient(),
 				Log:                      log.WithField("type", "createSecretEventHandler"),
 				ApplicationSetNamespaces: r.ApplicationSetNamespaces,
-			}).
+			},
+		).
 		Complete(r)
+}
+
+// resolveRateLimiterConfig returns the provided config if non-nil, otherwise falls back to the default.
+func resolveRateLimiterConfig(cfg *ratelimiter.AppControllerRateLimiterConfig) *ratelimiter.AppControllerRateLimiterConfig {
+	if cfg == nil {
+		return ratelimiter.GetDefaultAppRateLimiterConfig()
+	}
+	return cfg
 }
 
 // createOrUpdateInCluster will create / update application resources in the cluster.

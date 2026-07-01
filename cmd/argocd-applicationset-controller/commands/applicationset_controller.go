@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/webhook"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/github_app"
 
@@ -85,6 +86,7 @@ func NewCommand() *cobra.Command {
 		repoServerClientTLSConfigSrc func() (tls.Configuration, error)
 		scmProxyURL                  string
 		scmNoProxy                   string
+		workqueueRateLimit           ratelimiter.AppControllerRateLimiterConfig
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -140,7 +142,7 @@ func NewCommand() *cobra.Command {
 			var watchedNamespace string
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {
-				watchedNamespace = (applicationSetNamespaces)[0]
+				watchedNamespace = applicationSetNamespaces[0]
 			} else if enableScmProviders && len(allowedScmProviders) == 0 {
 				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
 				os.Exit(1)
@@ -214,7 +216,8 @@ func NewCommand() *cobra.Command {
 				enableGitHubAPIMetrics,
 				github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
 				tokenRefStrictMode, generators.WithProxyURL(scmProxyURL),
-				generators.WithNoProxyList(scmNoProxy))
+				generators.WithNoProxyList(scmNoProxy),
+			)
 
 			tlsConfig, err := repoServerClientTLSConfigSrc()
 			errors.CheckError(err)
@@ -250,7 +253,8 @@ func NewCommand() *cobra.Command {
 				metricsAplicationsetLabels,
 				func(appset *appv1alpha1.ApplicationSet) bool {
 					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
-				})
+				},
+			)
 			appsetReconciler := &controllers.ApplicationSetReconciler{
 				Generators: topLevelGenerators,
 				Client:     cacheSyncClient,
@@ -276,7 +280,7 @@ func NewCommand() *cobra.Command {
 			}
 			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, appsetReconciler)
 
-			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
+			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations, &workqueueRateLimit); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
 			}
@@ -326,6 +330,15 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
 	command.Flags().DurationVar(&cacheSyncPeriod, "cache-sync-period", env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD", time.Hour*10, 0, time.Hour*24), "Period at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync.")
 	command.Flags().IntVar(&concurrentApplicationUpdates, "concurrent-application-updates", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_APPLICATION_UPDATES", 1, 1, 200), "Number of concurrent Application create/update/delete operations per ApplicationSet reconcile.")
+	// global queue rate limit config
+	command.Flags().Int64Var(&workqueueRateLimit.BucketSize, "wq-bucket-size", env.ParseInt64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_SIZE", 500, 1, math.MaxInt64), "Set Workqueue Rate Limiter Bucket Size, default 500")
+	command.Flags().Float64Var(&workqueueRateLimit.BucketQPS, "wq-bucket-qps", env.ParseFloat64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_QPS", math.MaxFloat64, 1, math.MaxFloat64), "Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter")
+	// individual item rate limit config
+	// when WORKQUEUE_FAILURE_COOLDOWN is 0 per item rate limiting is disabled(default)
+	command.Flags().DurationVar(&workqueueRateLimit.FailureCoolDown, "wq-cooldown", time.Duration(env.ParseInt64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_FAILURE_COOLDOWN_NS", 0, 0, (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Cooldown duration, default 0 (per item rate limiter disabled)")
+	command.Flags().DurationVar(&workqueueRateLimit.BaseDelay, "wq-basedelay", time.Duration(env.ParseInt64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BASE_DELAY_NS", time.Millisecond.Nanoseconds(), time.Nanosecond.Nanoseconds(), (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Base Delay duration, default 1ms")
+	command.Flags().DurationVar(&workqueueRateLimit.MaxDelay, "wq-maxdelay", time.Duration(env.ParseInt64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_MAX_DELAY_NS", time.Second.Nanoseconds(), 1*time.Millisecond.Nanoseconds(), (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Max Delay duration, default 1s")
+	command.Flags().Float64Var(&workqueueRateLimit.BackoffFactor, "wq-backoff-factor", env.ParseFloat64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BACKOFF_FACTOR", 1.5, 1, 100), "Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5")
 	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATIONSET_CONTROLLER")
 	return &command
 }
