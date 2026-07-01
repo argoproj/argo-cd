@@ -745,7 +745,7 @@ To enable signing:
 > is required.
 
 > [!WARNING]
-> If you use a tool that auto-merges the hydrated (proposed) branch into the live branch — for example
+> If you use a tool that auto-merges the hydrated `hydrateTo` branch into the `syncSource` branch — for example
 > [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) or a GitHub "merge pull request" automation —
 > the live branch HEAD becomes a **merge commit signed by the merger**, not the commit server's signed commit.
 > Argo CD verifies that merge commit when it picks up the change on the live branch, so verification will fail
