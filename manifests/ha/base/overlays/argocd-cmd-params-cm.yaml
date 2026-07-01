@@ -4,3 +4,5 @@ metadata:
   name: argocd-cmd-params-cm
 data:
   redis.server: argocd-redis-ha-haproxy:6379
+  redis.sentinel.hosts: ""
+  redis.sentinel.master: ""
