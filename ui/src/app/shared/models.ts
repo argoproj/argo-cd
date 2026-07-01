@@ -844,6 +844,7 @@ export interface Event {
     action: string;
     related: ObjectReference;
     reportingController: string;
+    reportingComponent: string;
     reportingInstance: string;
 }
 
