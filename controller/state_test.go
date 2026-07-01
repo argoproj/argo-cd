@@ -1818,7 +1818,7 @@ func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 		called = true
 		assert.Empty(t, u.GetNamespace())
 		return nil
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.True(t, called, "normalization function should have called the callback function")
 }
@@ -1870,6 +1870,7 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 		func(_ *unstructured.Unstructured) error {
 			return nil
 		},
+		nil,
 	)
 
 	require.NoError(t, err)
@@ -1921,6 +1922,7 @@ func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 		func(_ *unstructured.Unstructured) error {
 			return nil
 		},
+		nil,
 	)
 
 	require.NoError(t, err)
@@ -1959,6 +1961,7 @@ func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
 			trackingCalled = true
 			return nil
 		},
+		nil,
 	)
 
 	require.NoError(t, err)
@@ -1970,6 +1973,158 @@ func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
 
 	// Verify tracking callback was called
 	assert.True(t, trackingCalled, "tracking callback should have been called")
+}
+
+func Test_NormalizeTargetObjects_IgnoreDuplicateResources(t *testing.T) {
+	// Create duplicate resources: ClusterRole and ConfigMap
+	cr1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"get"}, Resources: []string{"pods"}},
+		},
+	})
+	cr2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-cluster-role",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{Verbs: []string{"list"}, Resources: []string{"pods"}},
+		},
+	})
+	cm1 := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-config",
+			Namespace: test.FakeDestNamespace,
+		},
+		Data: map[string]string{"key": "value1"},
+	})
+	cm2 := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-config",
+			Namespace: test.FakeDestNamespace,
+		},
+		Data: map[string]string{"key": "value2"},
+	})
+
+	// Ignore duplicates for ClusterRole but not for ConfigMap
+	ignoreList := []v1alpha1.ResourceIgnoreDuplicate{
+		{
+			Group: "rbac.authorization.k8s.io",
+			Kind:  "ClusterRole",
+		},
+	}
+
+	result, conditions, err := NormalizeTargetObjects(
+		test.FakeDestNamespace,
+		[]*unstructured.Unstructured{cr1, cr2, cm1, cm2},
+		&resourceInfoProviderStub{},
+		func(_ *unstructured.Unstructured) error {
+			return nil
+		},
+		ignoreList,
+	)
+
+	require.NoError(t, err)
+	// Both resource types should be deduplicated to 1 each
+	assert.Len(t, result, 2, "should deduplicate to two objects (one per type)")
+
+	// Should only have warning for ConfigMap (the non-ignored one)
+	require.Len(t, conditions, 1, "should have one duplication warning for ConfigMap only")
+	assert.Equal(t, v1alpha1.ApplicationConditionRepeatedResourceWarning, conditions[0].Type)
+	assert.Contains(t, conditions[0].Message, "ConfigMap", "warning should be about ConfigMap")
+	assert.NotContains(t, conditions[0].Message, "ClusterRole", "warning should not mention ClusterRole")
+}
+
+func Test_NormalizeTargetObjects_IgnoreDuplicateResources_MatchByName(t *testing.T) {
+	// Create duplicates of two ConfigMaps with different names
+	cm1a := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ignored-config",
+			Namespace: test.FakeDestNamespace,
+		},
+		Data: map[string]string{"key": "value1"},
+	})
+	cm1b := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ignored-config",
+			Namespace: test.FakeDestNamespace,
+		},
+		Data: map[string]string{"key": "value2"},
+	})
+	cm2a := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "warned-config",
+			Namespace: test.FakeDestNamespace,
+		},
+		Data: map[string]string{"key": "value3"},
+	})
+	cm2b := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "warned-config",
+			Namespace: test.FakeDestNamespace,
+		},
+		Data: map[string]string{"key": "value4"},
+	})
+
+	// Ignore only the specific named ConfigMap
+	ignoreList := []v1alpha1.ResourceIgnoreDuplicate{
+		{
+			Kind: "ConfigMap",
+			Name: "ignored-config",
+		},
+	}
+
+	result, conditions, err := NormalizeTargetObjects(
+		test.FakeDestNamespace,
+		[]*unstructured.Unstructured{cm1a, cm1b, cm2a, cm2b},
+		&resourceInfoProviderStub{},
+		func(_ *unstructured.Unstructured) error {
+			return nil
+		},
+		ignoreList,
+	)
+
+	require.NoError(t, err)
+	assert.Len(t, result, 2, "should deduplicate to two objects")
+
+	// Should only warn about the non-ignored ConfigMap
+	require.Len(t, conditions, 1, "should have one duplication warning for warned-config only")
+	assert.Contains(t, conditions[0].Message, "warned-config", "warning should be about warned-config")
+	assert.NotContains(t, conditions[0].Message, "ignored-config", "warning should not mention ignored-config")
 }
 
 // namespacedResourceInfoProvider is a test helper that returns a fixed namespaced status

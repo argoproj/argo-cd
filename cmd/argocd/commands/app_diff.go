@@ -537,6 +537,7 @@ func newNormalizeTargetManifestsProvider(
 					argoSettings.GetInstallationID(),
 				)
 			},
+			app.Spec.IgnoreDuplicateResources,
 		)
 		if err != nil {
 			return nil, err

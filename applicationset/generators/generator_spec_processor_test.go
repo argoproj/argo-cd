@@ -790,9 +790,10 @@ func TestInterpolateGeneratorValuesHandling(t *testing.T) {
 			Finalizers:  []string{},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
-			IgnoreDifferences: argov1alpha1.IgnoreDifferences{},
-			Info:              []argov1alpha1.Info{},
-			Sources:           argov1alpha1.ApplicationSources{},
+			IgnoreDifferences:      argov1alpha1.IgnoreDifferences{},
+			IgnoreDuplicateResources: argov1alpha1.IgnoreDuplicateResources{},
+			Info:                   []argov1alpha1.Info{},
+			Sources:                argov1alpha1.ApplicationSources{},
 		},
 	}
 	type args struct {

@@ -100,6 +100,11 @@ type ApplicationSpec struct {
 
 	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
 	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
+
+	// IgnoreDuplicateResources controls which resources should suppress RepeatedResourceWarning.
+	// If a resource appears multiple times among application resources but matches one of these
+	// selectors, the RepeatedResourceWarning condition will not be generated for it.
+	IgnoreDuplicateResources IgnoreDuplicateResources `json:"ignoreDuplicateResources,omitempty" protobuf:"bytes,10,opt,name=ignoreDuplicateResources"`
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences
@@ -132,6 +137,37 @@ type ResourceIgnoreDifferences struct {
 	// desired state defined in the SCM and won't be displayed in diffs
 	ManagedFieldsManagers []string `json:"managedFieldsManagers,omitempty" protobuf:"bytes,7,opt,name=managedFieldsManagers"`
 }
+
+// ResourceIgnoreDuplicate contains resource filter for suppressing RepeatedResourceWarning.
+// If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be
+// generated when that resource appears multiple times among application resources.
+type ResourceIgnoreDuplicate struct {
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name      string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+}
+
+// Matches returns true if the given ResourceKey matches this selector.
+// Empty fields act as wildcards.
+func (r *ResourceIgnoreDuplicate) Matches(key kube.ResourceKey) bool {
+	if r.Group != "" && r.Group != key.Group {
+		return false
+	}
+	if r.Kind != "" && r.Kind != key.Kind {
+		return false
+	}
+	if r.Name != "" && r.Name != key.Name {
+		return false
+	}
+	if r.Namespace != "" && r.Namespace != key.Namespace {
+		return false
+	}
+	return true
+}
+
+// IgnoreDuplicateResources is a list of resource selectors for which RepeatedResourceWarning should be suppressed.
+type IgnoreDuplicateResources []ResourceIgnoreDuplicate
 
 // EnvEntry represents an entry in the application's environment
 type EnvEntry struct {
