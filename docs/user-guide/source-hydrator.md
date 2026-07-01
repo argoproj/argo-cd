@@ -685,6 +685,52 @@ To enable signing:
    verified at sync time. Without this step Argo CD will accept the signed commit but won't actually enforce that
    it was signed.
 
+    Declaratively, add the public key to `argocd-gpg-keys-cm`, keyed by the signing key's ID with the
+    ASCII-armored public key as the value:
+
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: argocd-gpg-keys-cm
+      namespace: argocd
+      labels:
+        app.kubernetes.io/name: argocd-gpg-keys-cm
+        app.kubernetes.io/part-of: argocd
+    data:
+      # The signing key's ID, with its ASCII-armored public key as the value.
+      D56C4FCA57A46444: |
+        -----BEGIN PGP PUBLIC KEY BLOCK-----
+        ...
+        -----END PGP PUBLIC KEY BLOCK-----
+    ```
+
+    Then reference that key ID in the project's `SourceIntegrity` policy so the hydrated (`hydrateTo`) branch is
+    verified at sync time:
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AppProject
+    metadata:
+      name: my-project
+      namespace: argocd
+    spec:
+      sourceIntegrity:
+        git:
+          policies:
+            - repos:
+                - url: "https://github.com/my-org/my-hydrated-repo.git"
+              gpg:
+                # "strict" verifies the entire branch history; because the commit server signs every hydrated
+                # commit, this holds for a branch signed from the start. Use "head" to verify only the tip commit
+                # instead — useful when the branch already had unsigned commits before signing was enabled.
+                mode: "strict"
+                keys:
+                  - "D56C4FCA57A46444"
+    ```
+
+    See [Git GnuPG verification](./source-integrity-git-gpg.md) for the full policy reference.
+
 > [!NOTE]
 > The configured key is the commit server's single, cluster-wide **default** signing key. Finer-grained signing
 > keys (for example per-AppProject or per-repository) are not supported yet, but are a planned additive extension —
