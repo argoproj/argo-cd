@@ -154,8 +154,7 @@ func TestNoReturnHealthStatusStatus(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validReturnNothingHealthStatusStatus)
 	require.NoError(t, err)
-	expectedStatus := &health.HealthStatus{}
-	assert.Equal(t, expectedStatus, status)
+	assert.Nil(t, status)
 }
 
 const validNilHealthStatusStatus = `local healthStatus = {}
@@ -168,8 +167,7 @@ func TestNilHealthStatusStatus(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validNilHealthStatusStatus)
 	require.NoError(t, err)
-	expectedStatus := &health.HealthStatus{}
-	assert.Equal(t, expectedStatus, status)
+	assert.Nil(t, status)
 }
 
 const validEmptyArrayHealthStatusStatus = `local healthStatus = {}
