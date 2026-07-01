@@ -17,6 +17,7 @@ import {
     PRUNE_SOME_WARNING
 } from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
+import {getAvailableKinds, setSelectionForKind} from './application-sync-panel.utils';
 
 import './application-sync-panel.scss';
 
@@ -29,7 +30,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
     const [isPending, setPending] = React.useState(false);
+    const [kindFilter, setKindFilter] = React.useState<string>('');
     const source = getAppDefaultSource(application);
+    const availableKinds = getAvailableKinds(appResources);
 
     return (
         <Consumer>
@@ -280,44 +283,76 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
                                             <a
-                                                onClick={() =>
+                                                onClick={() => {
+                                                    setKindFilter('');
                                                     formApi.setValue(
                                                         'resources',
                                                         formApi.values.resources.map(() => true)
-                                                    )
-                                                }>
+                                                    );
+                                                }}>
                                                 all
                                             </a>{' '}
                                             /{' '}
                                             <a
-                                                onClick={() =>
+                                                onClick={() => {
+                                                    setKindFilter('');
                                                     formApi.setValue(
                                                         'resources',
-                                                        application.status.resources
-                                                            .filter(item => !item.hook)
-                                                            .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
-                                                    )
-                                                }>
+                                                        appResources.map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
+                                                    );
+                                                }}>
                                                 out of sync
                                             </a>{' '}
                                             /{' '}
                                             <a
-                                                onClick={() =>
+                                                onClick={() => {
+                                                    setKindFilter('');
                                                     formApi.setValue(
                                                         'resources',
                                                         formApi.values.resources.map(() => false)
-                                                    )
-                                                }>
+                                                    );
+                                                }}>
                                                 none
                                             </a>
                                         </div>
+                                        {availableKinds.length > 1 && (
+                                            <div className='application-sync-panel__kind-filter'>
+                                                <label htmlFor='application-sync-panel-kind-filter-select'>Filter by Kind:</label>
+                                                <select id='application-sync-panel-kind-filter-select' value={kindFilter} onChange={e => setKindFilter(e.target.value)}>
+                                                    <option value=''>All kinds</option>
+                                                    {availableKinds.map(kind => (
+                                                        <option key={kind} value={kind}>
+                                                            {kind}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {kindFilter !== '' && (
+                                                    <span className='application-sync-panel__kind-filter-actions'>
+                                                        <a
+                                                            onClick={() =>
+                                                                formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, kindFilter, true))
+                                                            }>
+                                                            select visible
+                                                        </a>{' '}
+                                                        /{' '}
+                                                        <a
+                                                            onClick={() =>
+                                                                formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, kindFilter, false))
+                                                            }>
+                                                            clear visible
+                                                        </a>
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                         <div className='application-details__warning'>
                                             {!formApi.values.resources.every((item: boolean) => item) && <div>WARNING: partial synchronization is not recorded in history</div>}
                                         </div>
                                         <div>
-                                            {application.status.resources
-                                                .filter(item => !item.hook)
-                                                .map((item, i) => {
+                                            {appResources
+                                                .map((item, i) => ({item, i}))
+                                                .filter(({item}) => kindFilter === '' || item.kind === kindFilter)
+                                                .map(({item, i}) => {
                                                     const resKey = nodeKey(item);
                                                     const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
                                                     let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
