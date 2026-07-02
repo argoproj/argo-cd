@@ -150,12 +150,14 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 	return paths
 }
 
-// AppFilesHaveChanged returns true if any of the changed files are under the given refresh paths
-// If refreshPaths or changedFiles are empty, it will always return true
+// AppFilesHaveChanged returns true if any of the changed files are under the given refresh paths.
+// A nil changedFiles means the source did not provide a file list (unknown changes) and always
+// returns true. A non-nil but empty changedFiles means the source confirmed no files changed;
+// in that case only refreshPaths emptiness can still force a refresh.
 func AppFilesHaveChanged(refreshPaths []string, changedFiles []string) bool {
-	// an empty slice of changed files means that the payload didn't include a list
-	// of changed files and we have to assume that a refresh is required
-	if len(changedFiles) == 0 {
+	// nil means the webhook payload did not include a file list (e.g. Azure DevOps, Bitbucket
+	// Server), so we must assume something changed and trigger a refresh.
+	if changedFiles == nil {
 		return true
 	}
 

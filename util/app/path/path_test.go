@@ -256,3 +256,59 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestAppFilesHaveChanged(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		refreshPaths []string
+		changedFiles []string
+		expected     bool
+	}{
+		{
+			name:         "nil changedFiles means unknown file list - always refresh",
+			refreshPaths: []string{"manifests"},
+			changedFiles: nil,
+			expected:     true,
+		},
+		{
+			name:         "nil changedFiles with no refresh paths - always refresh",
+			refreshPaths: nil,
+			changedFiles: nil,
+			expected:     true,
+		},
+		{
+			name:         "empty commit (non-nil empty changedFiles) with matching refresh path - no refresh",
+			refreshPaths: []string{"manifests"},
+			changedFiles: []string{},
+			expected:     false,
+		},
+		{
+			name:         "empty commit with no refresh paths - always refresh",
+			refreshPaths: nil,
+			changedFiles: []string{},
+			expected:     true,
+		},
+		{
+			name:         "changed file matches refresh path - refresh",
+			refreshPaths: []string{"manifests"},
+			changedFiles: []string{"manifests/app.yaml"},
+			expected:     true,
+		},
+		{
+			name:         "changed file does not match refresh path - no refresh",
+			refreshPaths: []string{"manifests"},
+			changedFiles: []string{"docs/readme.md"},
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		ttc := tt
+		t.Run(ttc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, ttc.expected, AppFilesHaveChanged(ttc.refreshPaths, ttc.changedFiles))
+		})
+	}
+}
