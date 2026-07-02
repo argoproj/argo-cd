@@ -94,6 +94,14 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 		return controllerutil.OperationResultCreated, nil
 	}
 
+	// If the application is already being deleted, do not update it. Patching a deleting app
+	// (e.g. setting an Operation to trigger a sync) fights the finalizer-based deletion and
+	// causes an infinite Deleting↔Syncing loop.
+	if obj.DeletionTimestamp != nil {
+		logCtx.Debugf("skipping update of Application %s/%s: DeletionTimestamp is set", obj.Namespace, obj.Name)
+		return controllerutil.OperationResultNone, nil
+	}
+
 	normalizedLive := obj.DeepCopy()
 
 	// Mutate the live object to match the desired state.

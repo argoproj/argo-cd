@@ -276,6 +276,12 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 	}
 
 	for _, app := range applications {
+		// Skip apps that are being deleted so we don't drive their progressive-sync
+		// status forward and trigger spurious sync operations on a deleting app.
+		if app.DeletionTimestamp != nil {
+			continue
+		}
+
 		appHealthStatus := app.Status.Health.Status
 		appSyncStatus := app.Status.Sync.Status
 
