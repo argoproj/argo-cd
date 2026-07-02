@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -24,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
@@ -44,14 +44,6 @@ const (
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
 
-func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
-	cluster, err := m.liveStateCache.GetClusterCache(server)
-	if err != nil {
-		return nil, err
-	}
-	return cluster.GetOpenAPISchema(), nil
-}
-
 func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
@@ -65,16 +57,11 @@ func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields
 // cleanup function that must be called to remove the generated kube config for this
 // server.
 func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
-	}
-
 	rawConfig, err := cluster.RawRestConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, clusterCache.GetOpenAPISchema(), m.onKubectlRun)
+	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, m.onKubectlRun)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
@@ -112,7 +99,7 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 	return syncRes
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -153,7 +140,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
+	compareResult, err := m.CompareAppState(ctx, app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -183,7 +170,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		return
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to get destination cluster: %v", err)
@@ -244,13 +231,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		clientSideApplyManager = managerValue
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(destCluster)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
-		return
-	}
-
 	reconciliationResult := compareResult.reconciliationResult
 
 	// if RespectIgnoreDifferences is enabled, it should normalize the target
@@ -304,7 +284,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
 			return validateSyncPermissions(project, destCluster, func(proj string) ([]*v1alpha1.Cluster, error) {
-				return m.db.GetProjectClusters(context.TODO(), proj)
+				return m.db.GetProjectClusters(ctx, proj)
 			}, un, res)
 		}),
 		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
@@ -344,7 +324,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		rawConfig,
 		m.kubectl,
 		app.Spec.Destination.Namespace,
-		openAPISchema,
 		opts...,
 	)
 	if err != nil {
@@ -358,9 +337,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	start := time.Now()
 
 	if state.Phase == common.OperationTerminating {
-		syncCtx.Terminate()
+		syncCtx.Terminate(ctx)
 	} else {
-		syncCtx.Sync()
+		syncCtx.Sync(ctx)
 	}
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
@@ -447,17 +426,45 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			lookupPatchMeta = &meta
 		}
 
-		livePatch, err := getMergePatch(normalized.Lives[idx], live, lookupPatchMeta)
+		// RespectIgnoreDifferences preserves ignored fields by copying their live
+		// values into the target that is applied during sync. `status` must be
+		// excluded from that copy: it is owned by the resource's own controller,
+		// never by the sync. Merging live `status` into the apply makes the sync
+		// field manager (ArgoCDSSAManager, "argocd-controller") a co-owner of
+		// `status` under server-side apply. For resources without a /status
+		// subresource (e.g. argoproj.io/Application) this freezes a stale
+		// status.operationState.phase that the controller can no longer correct.
+		liveForPatch, normalizedLiveForPatch := live, normalized.Lives[idx]
+		liveForPatch = liveForPatch.DeepCopy()
+		unstructured.RemoveNestedField(liveForPatch.Object, "status")
+
+		if normalizedLiveForPatch != nil {
+			normalizedLiveForPatch = normalizedLiveForPatch.DeepCopy()
+			unstructured.RemoveNestedField(normalizedLiveForPatch.Object, "status")
+		}
+
+		livePatch, err := getMergePatch(normalizedLiveForPatch, liveForPatch, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
 
-		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject)
+		patchedTarget, err := applyMergePatch(normalizedTarget, livePatch, versionedObject)
 		if err != nil {
 			return nil, err
 		}
 
-		patchedTargets = append(patchedTargets, normalizedTarget)
+		// Restore non-ignored fields that may have been overwritten due to
+		// patchStrategy:"replace" on a parent field (e.g. policy/v1 PDB selector).
+		// Strategic merge patch treats "replace" fields as atomic, so patching in
+		// one ignored sub-field pulls the entire parent from live, clobbering
+		// non-ignored sibling fields. We detect and undo this here.
+		var normalizedLiveObj map[string]any
+		if normalized.Lives[idx] != nil {
+			normalizedLiveObj = normalized.Lives[idx].Object
+		}
+		restoreNonIgnoredFields(patchedTarget.Object, originalTarget.Object, normalizedTarget.Object, normalizedLiveObj)
+
+		patchedTargets = append(patchedTargets, patchedTarget)
 	}
 	return patchedTargets, nil
 }
@@ -503,6 +510,60 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 		return nil, err
 	}
 	return patchedObj, nil
+}
+
+// restoreNonIgnoredFields walks patched, original, normalized (target), and
+// normalizedLive in parallel. It corrects three classes of collateral damage
+// caused by patchStrategy:"replace" treating a parent field as atomic:
+//
+//  1. Overwrite — a non-ignored value was replaced with the live value.
+//  2. Drop — a non-ignored key was removed because live lacks it.
+//  3. Add — a non-ignored live-only key leaked into the patched target.
+//
+// A field is considered "not ignored" when normalizedTarget == originalTarget
+// for that field (the normalizer left it alone). For live-only keys (pass 2),
+// a key is non-ignored if it exists in normalizedLive (the normalizer did not
+// strip it from live).
+func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive map[string]any) {
+	// Pass 1: restore non-ignored fields that were overwritten or dropped.
+	for key, originalVal := range original {
+		patchedVal, inPatched := patched[key]
+		normalizedVal, inNormalized := normalizedTarget[key]
+
+		patchedMap, patchedIsMap := patchedVal.(map[string]any)
+		originalMap, originalIsMap := originalVal.(map[string]any)
+		normalizedMap, normalizedIsMap := normalizedVal.(map[string]any)
+
+		if inPatched && patchedIsMap && originalIsMap && normalizedIsMap {
+			var normalizedLiveMap map[string]any
+			if v, ok := normalizedLive[key].(map[string]any); ok {
+				normalizedLiveMap = v
+			}
+			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveMap)
+			continue
+		}
+
+		// Leaf, type-changed, or missing field.
+		// If normalized == original, the normalizer did not touch this field,
+		// so it is not ignored and should keep the original (target) value.
+		if inNormalized && reflect.DeepEqual(normalizedVal, originalVal) && (!inPatched || !reflect.DeepEqual(patchedVal, originalVal)) {
+			patched[key] = originalVal
+		}
+	}
+
+	// Pass 2: remove non-ignored keys that were introduced into patched from
+	// the live object via replace-strategy collateral but do not exist in the
+	// original target. A key is non-ignored if it exists in normalizedLive
+	// (the normalizer did not strip it). Ignored live-only keys are kept —
+	// they were intentionally copied by the livePatch.
+	for key := range patched {
+		if _, inOriginal := original[key]; inOriginal {
+			continue
+		}
+		if _, inNormalizedLive := normalizedLive[key]; inNormalizedLive {
+			delete(patched, key)
+		}
+	}
 }
 
 // hasSharedResourceCondition will check if the Application has any resource that has already

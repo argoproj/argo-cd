@@ -11,6 +11,7 @@ import (
 )
 
 func TestSetSettings(t *testing.T) {
+	t.Parallel()
 	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}))
 	updatedHealth := &noopSettings{}
 	updatedFilter := &noopSettings{}
@@ -21,6 +22,7 @@ func TestSetSettings(t *testing.T) {
 }
 
 func TestSetConfig(t *testing.T) {
+	t.Parallel()
 	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}))
 	updatedConfig := &rest.Config{Host: "http://newhost"}
 	cache.Invalidate(SetConfig(updatedConfig))
@@ -29,6 +31,7 @@ func TestSetConfig(t *testing.T) {
 }
 
 func TestSetNamespaces(t *testing.T) {
+	t.Parallel()
 	cache := NewClusterCache(&rest.Config{}, SetKubectl(&kubetest.MockKubectlCmd{}), SetNamespaces([]string{"default"}))
 
 	updatedNamespaces := []string{"updated"}
@@ -38,6 +41,7 @@ func TestSetNamespaces(t *testing.T) {
 }
 
 func TestSetResyncTimeout(t *testing.T) {
+	t.Parallel()
 	cache := NewClusterCache(&rest.Config{})
 	assert.Equal(t, defaultClusterResyncTimeout, cache.syncStatus.resyncTimeout)
 
@@ -48,6 +52,7 @@ func TestSetResyncTimeout(t *testing.T) {
 }
 
 func TestSetWatchResyncTimeout(t *testing.T) {
+	t.Parallel()
 	cache := NewClusterCache(&rest.Config{})
 	assert.Equal(t, defaultWatchResyncTimeout, cache.watchResyncTimeout)
 
@@ -57,6 +62,7 @@ func TestSetWatchResyncTimeout(t *testing.T) {
 }
 
 func TestSetBatchEventsProcessing(t *testing.T) {
+	t.Parallel()
 	cache := NewClusterCache(&rest.Config{})
 	assert.False(t, cache.batchEventsProcessing)
 
@@ -65,6 +71,7 @@ func TestSetBatchEventsProcessing(t *testing.T) {
 }
 
 func TestSetEventsProcessingInterval(t *testing.T) {
+	t.Parallel()
 	cache := NewClusterCache(&rest.Config{})
 	assert.Equal(t, defaultEventProcessingInterval, cache.eventProcessingInterval)
 

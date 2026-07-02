@@ -1,7 +1,6 @@
 package badge
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -127,7 +126,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], metav1.GetOptions{}); err == nil {
+		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(r.Context(), name[0], metav1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
 			applicationName = name[0]
@@ -150,7 +149,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).List(context.Background(), metav1.ListOptions{}); err == nil {
+		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).List(r.Context(), metav1.ListOptions{}); err == nil {
 			applicationSet := argo.FilterByProjects(apps.Items, projects)
 			for _, a := range applicationSet {
 				if a.Status.Sync.Status != appv1.SyncStatusCodeSynced {

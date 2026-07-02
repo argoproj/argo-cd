@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
@@ -76,6 +76,7 @@ func buildPluginConfig(opts ...pluginOpt) *CMPServerInitConstants {
 }
 
 func TestMatchRepository(t *testing.T) {
+	t.Parallel()
 	type fixture struct {
 		service *Service
 		path    string
@@ -94,6 +95,7 @@ func TestMatchRepository(t *testing.T) {
 	}
 	t.Run("will match plugin by filename", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			FileName: "kustomization.yaml",
 		}
@@ -109,6 +111,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will not match plugin by filename if file not found", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			FileName: "not_found.yaml",
 		}
@@ -124,6 +127,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will not match a pattern with a syntax error", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			FileName: "[",
 		}
@@ -137,6 +141,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will match plugin by glob", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Glob: "**/*/plugin.yaml",
@@ -154,6 +159,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will not match plugin by glob if not found", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Glob: "**/*/not_found.yaml",
@@ -171,6 +177,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will throw an error for a bad pattern", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Glob: "does-not-exist",
@@ -186,6 +193,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will match plugin by command when returns any output", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Command: Command{
@@ -205,6 +213,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will not match plugin by command when returns no output", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Command: Command{
@@ -223,6 +232,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will match plugin because env var defined", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Command: Command{
@@ -242,6 +252,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will not match plugin because no env var defined", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Command: Command{
@@ -262,6 +273,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will not match plugin by command when command fails", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Command: Command{
@@ -281,6 +293,7 @@ func TestMatchRepository(t *testing.T) {
 	})
 	t.Run("will not match plugin as discovery is not set", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{}
 		f := setup(t, withDiscover(d))
 
@@ -302,9 +315,11 @@ func Test_Negative_ConfigFile_DoesnotExist(t *testing.T) {
 }
 
 func TestGenerateManifest(t *testing.T) {
+	t.Parallel()
 	configFilePath := "./testdata/kustomize/config"
 
 	t.Run("successful generate", func(t *testing.T) {
+		t.Parallel()
 		service, err := newService(configFilePath)
 		require.NoError(t, err)
 
@@ -318,6 +333,7 @@ func TestGenerateManifest(t *testing.T) {
 		}
 	})
 	t.Run("bad generate command", func(t *testing.T) {
+		t.Parallel()
 		service, err := newService(configFilePath)
 		require.NoError(t, err)
 		service.WithGenerateCommand(Command{Command: []string{"bad-command"}})
@@ -327,6 +343,7 @@ func TestGenerateManifest(t *testing.T) {
 		assert.Nil(t, res.Manifests)
 	})
 	t.Run("bad yaml output", func(t *testing.T) {
+		t.Parallel()
 		service, err := newService(configFilePath)
 		require.NoError(t, err)
 		service.WithGenerateCommand(Command{Command: []string{"echo", "invalid yaml: }"}})
@@ -338,6 +355,7 @@ func TestGenerateManifest(t *testing.T) {
 }
 
 func TestGenerateManifest_deadline_exceeded(t *testing.T) {
+	t.Parallel()
 	configFilePath := "./testdata/kustomize/config"
 	service, err := newService(configFilePath)
 	require.NoError(t, err)
@@ -350,6 +368,7 @@ func TestGenerateManifest_deadline_exceeded(t *testing.T) {
 
 // TestRunCommandContextTimeout makes sure the command dies at timeout rather than sleeping past the timeout.
 func TestRunCommandContextTimeout(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(t.Context(), 990*time.Millisecond)
 	defer cancel()
 	// Use a subshell so there's a child command.
@@ -365,12 +384,14 @@ func TestRunCommandContextTimeout(t *testing.T) {
 }
 
 func TestRunCommandEmptyCommand(t *testing.T) {
+	t.Parallel()
 	_, err := runCommand(t.Context(), Command{}, "", nil)
 	require.ErrorContains(t, err, "Command is empty")
 }
 
 // TestRunCommandContextTimeoutWithCleanup makes sure that the process is given enough time to cleanup before sending SIGKILL.
 func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(t.Context(), 900*time.Millisecond)
 	defer cancel()
 
@@ -482,6 +503,7 @@ func Test_getTempDirMustCleanup(t *testing.T) {
 }
 
 func TestService_Init(t *testing.T) {
+	t.Parallel()
 	// Set up a base directory containing a test directory and a test file.
 	tempDir := t.TempDir()
 	workDir := path.Join(tempDir, "workDir")
@@ -510,11 +532,14 @@ func TestService_Init(t *testing.T) {
 }
 
 func TestEnviron(t *testing.T) {
+	t.Parallel()
 	t.Run("empty environ", func(t *testing.T) {
+		t.Parallel()
 		env := environ([]*apiclient.EnvEntry{})
 		assert.Nil(t, env)
 	})
 	t.Run("env vars with empty names", func(t *testing.T) {
+		t.Parallel()
 		env := environ([]*apiclient.EnvEntry{
 			{Value: "test"},
 			{Name: "test"},
@@ -522,6 +547,7 @@ func TestEnviron(t *testing.T) {
 		assert.Equal(t, []string{"test="}, env)
 	})
 	t.Run("proper env vars", func(t *testing.T) {
+		t.Parallel()
 		env := environ([]*apiclient.EnvEntry{
 			{Name: "name1", Value: "value1"},
 			{Name: "name2", Value: "value2"},
@@ -532,6 +558,7 @@ func TestEnviron(t *testing.T) {
 }
 
 func TestIsDiscoveryConfigured(t *testing.T) {
+	t.Parallel()
 	type fixture struct {
 		service *Service
 	}
@@ -545,6 +572,7 @@ func TestIsDiscoveryConfigured(t *testing.T) {
 	}
 	t.Run("discovery is enabled when is configured by FileName", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			FileName: "kustomization.yaml",
 		}
@@ -558,6 +586,7 @@ func TestIsDiscoveryConfigured(t *testing.T) {
 	})
 	t.Run("discovery is enabled when is configured by Glob", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Glob: "**/*/plugin.yaml",
@@ -573,6 +602,7 @@ func TestIsDiscoveryConfigured(t *testing.T) {
 	})
 	t.Run("discovery is enabled when is configured by Command", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			Find: Find{
 				Command: Command{
@@ -590,6 +620,7 @@ func TestIsDiscoveryConfigured(t *testing.T) {
 	})
 	t.Run("discovery is disabled when discover is not configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{}
 		f := setup(t, withDiscover(d))
 
@@ -651,11 +682,13 @@ func (m *MockGenerateManifestStream) Context() context.Context {
 }
 
 func TestService_GenerateManifest(t *testing.T) {
+	t.Parallel()
 	configFilePath := "./testdata/kustomize/config"
 	service, err := newService(configFilePath)
 	require.NoError(t, err)
 
 	t.Run("successful generate", func(t *testing.T) {
+		t.Parallel()
 		s, err := NewMockGenerateManifestStream("./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
 		err = service.generateManifestGeneric(s)
@@ -665,6 +698,7 @@ func TestService_GenerateManifest(t *testing.T) {
 	})
 
 	t.Run("out-of-bounds app path", func(t *testing.T) {
+		t.Parallel()
 		s, err := NewMockGenerateManifestStream("./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
 		// set a malicious app path on the metadata
@@ -725,11 +759,13 @@ func (m *MockMatchRepositoryStream) Context() context.Context {
 }
 
 func TestService_MatchRepository(t *testing.T) {
+	t.Parallel()
 	configFilePath := "./testdata/kustomize/config"
 	service, err := newService(configFilePath)
 	require.NoError(t, err)
 
 	t.Run("supported app", func(t *testing.T) {
+		t.Parallel()
 		s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
 		err = service.matchRepositoryGeneric(s)
@@ -739,6 +775,7 @@ func TestService_MatchRepository(t *testing.T) {
 	})
 
 	t.Run("unsupported app", func(t *testing.T) {
+		t.Parallel()
 		s, err := NewMockMatchRepositoryStream("./testdata/ksonnet", "./testdata/ksonnet", nil)
 		require.NoError(t, err)
 		err = service.matchRepositoryGeneric(s)
@@ -816,11 +853,13 @@ func (m *MockParametersAnnouncementStream) RecvMsg(any) error {
 }
 
 func TestService_GetParametersAnnouncement(t *testing.T) {
+	t.Parallel()
 	configFilePath := "./testdata/kustomize/config"
 	service, err := newService(configFilePath)
 	require.NoError(t, err)
 
 	t.Run("successful response", func(t *testing.T) {
+		t.Parallel()
 		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"MUST_BE_SET=yep"})
 		require.NoError(t, err)
 		err = service.GetParametersAnnouncement(s)
@@ -831,6 +870,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, *s.response.ParameterAnnouncements[1])
 	})
 	t.Run("out of bounds app", func(t *testing.T) {
+		t.Parallel()
 		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"MUST_BE_SET=yep"})
 		require.NoError(t, err)
 		// set a malicious app path on the metadata
@@ -840,6 +880,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.Nil(t, s.response)
 	})
 	t.Run("fails when script fails", func(t *testing.T) {
+		t.Parallel()
 		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"WRONG_ENV_VAR=oops"})
 		require.NoError(t, err)
 		err = service.GetParametersAnnouncement(s)
@@ -849,6 +890,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 }
 
 func TestService_CheckPluginConfiguration(t *testing.T) {
+	t.Parallel()
 	type fixture struct {
 		service *Service
 	}
@@ -862,6 +904,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 	}
 	t.Run("discovery is enabled when is configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{
 			FileName: "kustomization.yaml",
 		}
@@ -877,6 +920,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 
 	t.Run("discovery is disabled when is not configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		d := Discover{}
 		f := setup(t, withDiscover(d))
 

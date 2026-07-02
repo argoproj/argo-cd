@@ -10,6 +10,7 @@ import (
 )
 
 func TestDeletePolicies(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, DeletePolicies(testingutils.NewPod()))
 	assert.Equal(t, []DeletePolicy{BeforeHookCreation}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook-delete-policy", "before-hook-creation")))
 	assert.Equal(t, []DeletePolicy{HookSucceeded}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook-delete-policy", "hook-succeeded")))
@@ -17,6 +18,7 @@ func TestDeletePolicies(t *testing.T) {
 }
 
 func TestDeletePolicy_DeletePolicy(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, common.HookDeletePolicyBeforeHookCreation, BeforeHookCreation.DeletePolicy())
 	assert.Equal(t, common.HookDeletePolicyHookSucceeded, HookSucceeded.DeletePolicy())
 	assert.Equal(t, common.HookDeletePolicyHookFailed, HookFailed.DeletePolicy())

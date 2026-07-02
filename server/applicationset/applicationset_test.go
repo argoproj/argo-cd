@@ -144,7 +144,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	// ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(t.Context())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
@@ -832,11 +832,12 @@ func TestListResourceEvents(t *testing.T) {
 
 		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
 		require.NoError(t, err)
-		assert.NotEmpty(t, res.Items)
 		assert.Len(t, res.Items, 2)
 
-		// Verify the returned events have the expected content
-		eventNames := []string{res.Items[0].Name, res.Items[1].Name}
+		eventNames := make([]string, 0, len(res.Items))
+		for _, item := range res.Items {
+			eventNames = append(eventNames, item.Metadata.Name)
+		}
 		assert.Contains(t, eventNames, "appset1-event-1")
 		assert.Contains(t, eventNames, "appset1-event-2")
 	})

@@ -73,7 +73,7 @@ func GetNoopNormalizer() Normalizer {
 
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
-func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
 	preDiffOpts := opts
 	o := applyOptions(opts)
 	// If server-side diff is enabled, we need to skip full normalization (including ignore differences)
@@ -91,7 +91,7 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 	}
 
 	if o.serverSideDiff {
-		r, err := ServerSideDiff(config, live, opts...)
+		r, err := ServerSideDiff(ctx, config, live, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("error calculating server side diff: %w", err)
 		}
@@ -137,9 +137,9 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 // given config. The result will be compared with given live resource to determine
 // diff. If config or live are nil it means resource creation or deletion. In this
 // no call will be made to kube-api and a simple diff will be returned.
-func ServerSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+func ServerSideDiff(ctx context.Context, config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
 	if live != nil && config != nil {
-		result, err := serverSideDiff(config, live, opts...)
+		result, err := serverSideDiff(ctx, config, live, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("serverSideDiff error: %w", err)
 		}
@@ -162,12 +162,12 @@ func ServerSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 // given config. The result will be compared with given live resource to determine
 // diff. Modifications done by mutation webhooks are removed from the diff by default.
 // This behaviour can be customized with Option.WithIgnoreMutationWebhook.
-func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
 	o := applyOptions(opts)
 	if o.serverSideDryRunner == nil {
 		return nil, errors.New("serverSideDryRunner is null")
 	}
-	predictedLiveStr, err := o.serverSideDryRunner.Run(context.Background(), config, o.manager)
+	predictedLiveStr, err := o.serverSideDryRunner.Run(ctx, config, o.manager)
 	if err != nil {
 		return nil, fmt.Errorf("error running server side apply in dryrun mode for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
@@ -290,13 +290,13 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
 	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
 
-	// After applying the predicted live to live state, this would cause any removed fields to be restored.
-	// We need to re-remove these from predicted live.
-	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
-
 	if err != nil {
 		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
+
+	// After applying the predicted live to live state, this would cause any removed fields to be restored.
+	// We need to re-remove these from predicted live.
+	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
 
 	plu := typedPredictedLive.AsValue().Unstructured()
 	pl, ok := plu.(map[string]any)
@@ -862,7 +862,7 @@ func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) (*unstructu
 
 // DiffArray performs a diff on a list of unstructured objects. Objects are expected to match
 // environments
-func DiffArray(configArray, liveArray []*unstructured.Unstructured, opts ...Option) (*DiffResultList, error) {
+func DiffArray(ctx context.Context, configArray, liveArray []*unstructured.Unstructured, opts ...Option) (*DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, errors.New("left and right arrays have mismatched lengths")
@@ -874,7 +874,7 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, opts ...Opti
 	for i := 0; i < numItems; i++ {
 		config := configArray[i]
 		live := liveArray[i]
-		diffRes, err := Diff(config, live, opts...)
+		diffRes, err := Diff(ctx, config, live, opts...)
 		if err != nil {
 			return nil, err
 		}

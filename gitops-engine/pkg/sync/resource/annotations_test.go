@@ -10,6 +10,7 @@ import (
 )
 
 func TestHasAnnotationOption(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		obj *unstructured.Unstructured
 		key string
@@ -30,6 +31,7 @@ func TestHasAnnotationOption(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.ElementsMatch(t, tt.wantVals, GetAnnotationCSVs(tt.args.obj, tt.args.key))
 			assert.Equal(t, tt.want, HasAnnotationOption(tt.args.obj, tt.args.key, tt.args.val))
 		})
@@ -37,6 +39,7 @@ func TestHasAnnotationOption(t *testing.T) {
 }
 
 func TestGetAnnotationOptionValue(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		obj *unstructured.Unstructured
 		key string
@@ -57,6 +60,7 @@ func TestGetAnnotationOptionValue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := GetAnnotationOptionValue(tt.args.obj, tt.args.key, tt.args.val)
 			if tt.want == nil {
 				assert.Nil(t, got)

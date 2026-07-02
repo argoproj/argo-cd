@@ -1,6 +1,7 @@
 package sourceintegrity
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,7 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
-type gitFunc func(gitClient git.Client, verifiedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, legacyDescription string, err error)
+type gitFunc func(ctx context.Context, gitClient git.Client, verifiedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, legacyDescription string, err error)
 
 var _gpgDisabledLoggedAlready bool
 
@@ -37,14 +38,14 @@ func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSo
 // VerifyGit makes sure the git repository satisfies the criteria declared.
 // It returns nil in case there were no relevant criteria, a check result if there were.
 // The verifiedRevision is expected to be either an annotated tag to a resolved commit sha - the revision, its signature is being verified.
-func VerifyGit(si *v1alpha1.SourceIntegrity, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+func VerifyGit(ctx context.Context, si *v1alpha1.SourceIntegrity, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 	if si == nil || si.Git == nil {
 		return nil, "", nil
 	}
 
 	check := lookupGit(si, gitClient.RepoURL())
 	if check != nil {
-		return check(gitClient, verifiedRevision)
+		return check(ctx, gitClient, verifiedRevision)
 	}
 	return nil, "", nil
 }
@@ -61,7 +62,7 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		// This is to make sure that a mistake in argo cd configuration does not disable verification until fixed.
 		msg := fmt.Sprintf("multiple (%d) git source integrity policies found for repo URL: %s", nPolicies, repoURL)
 		log.Warn(msg)
-		return func(_ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+		return func(_ context.Context, _ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 			return nil, "", errors.New(msg)
 		}
 	}
@@ -79,8 +80,8 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 			return nil
 		}
 
-		return func(gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
-			return verify(policy.GPG, gitClient, verifiedRevision)
+		return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+			return verify(ctx, policy.GPG, gitClient, verifiedRevision)
 		}
 	}
 
@@ -121,7 +122,7 @@ func repoMatches(urlGlob string, repoURL string) int {
 	return 0
 }
 
-func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+func verify(ctx context.Context, g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 	const checkName = "GIT/GPG"
 
 	var deep bool
@@ -137,7 +138,7 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verif
 	}
 
 	// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
-	signatures, legacyVerification, err := gitClient.LsSignatures(verifiedRevision, deep)
+	signatures, legacyVerification, err := gitClient.LsSignatures(ctx, verifiedRevision, deep)
 	if err != nil {
 		return nil, "", err
 	}
@@ -186,18 +187,18 @@ func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []
 			}
 		}
 
-		// Do not report the same key twice unless:
-		// - the revision is unsigned (unsigned commits can have different authors, so they are all worth reporting)
-		// - the revision is a tag (tags are signed separately from commits)
-		if signatureInfo.SignatureKeyID != "" && git.IsCommitSHA(signatureInfo.Revision) {
-			if _, exists := reportedKeys[signatureInfo.SignatureKeyID]; exists {
-				continue
-			}
-			reportedKeys[signatureInfo.SignatureKeyID] = nil
-		}
-
 		problem := gpgProblemMessage(g, signatureInfo)
 		if problem != "" {
+			// Do not report the same key twice unless:
+			// - the revision is unsigned (unsigned commits can have different authors, so they are all worth reporting)
+			// - the revision is a tag (tags are signed separately from commits)
+			if signatureInfo.SignatureKeyID != "" && git.IsCommitSHA(signatureInfo.Revision) {
+				if _, exists := reportedKeys[signatureInfo.SignatureKeyID]; exists {
+					continue
+				}
+				reportedKeys[signatureInfo.SignatureKeyID] = nil
+			}
+
 			problems = append(problems, problem)
 
 			// Report at most 10 problems

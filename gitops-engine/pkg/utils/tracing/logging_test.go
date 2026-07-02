@@ -10,6 +10,7 @@ import (
 )
 
 func TestLoggingTracer(t *testing.T) {
+	t.Parallel()
 	l := mocks.NewLogSink(t)
 	initCall := l.EXPECT().Init(mock.Anything).Return().Once()
 	withBaggageCall := l.EXPECT().WithValues("my-key", "my-value").Return(l).Once()

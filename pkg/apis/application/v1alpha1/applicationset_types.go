@@ -859,10 +859,11 @@ type ApplicationSetConditionType string
 
 // ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
 const (
-	ApplicationSetConditionErrorOccurred       ApplicationSetConditionType = "ErrorOccurred"
-	ApplicationSetConditionParametersGenerated ApplicationSetConditionType = "ParametersGenerated"
-	ApplicationSetConditionResourcesUpToDate   ApplicationSetConditionType = "ResourcesUpToDate"
-	ApplicationSetConditionRolloutProgressing  ApplicationSetConditionType = "RolloutProgressing"
+	ApplicationSetConditionErrorOccurred        ApplicationSetConditionType = "ErrorOccurred"
+	ApplicationSetConditionParametersGenerated  ApplicationSetConditionType = "ParametersGenerated"
+	ApplicationSetConditionResourcesUpToDate    ApplicationSetConditionType = "ResourcesUpToDate"
+	ApplicationSetConditionRolloutProgressing   ApplicationSetConditionType = "RolloutProgressing"
+	ApplicationSetConditionInvalidRolloutConfig ApplicationSetConditionType = "InvalidRolloutConfig"
 )
 
 type ApplicationSetReasonType string
@@ -871,7 +872,6 @@ const (
 	ApplicationSetReasonErrorOccurred                    = "ErrorOccurred"
 	ApplicationSetReasonApplicationSetUpToDate           = "ApplicationSetUpToDate"
 	ApplicationSetReasonParametersGenerated              = "ParametersGenerated"
-	ApplicationSetReasonApplicationGenerated             = "ApplicationGeneratedSuccessfully"
 	ApplicationSetReasonUpdateApplicationError           = "UpdateApplicationError"
 	ApplicationSetReasonApplicationParamsGenerationError = "ApplicationGenerationFromParamsError"
 	ApplicationSetReasonRenderTemplateParamsError        = "RenderTemplateParamsError"
@@ -881,7 +881,9 @@ const (
 	ApplicationSetReasonApplicationValidationError       = "ApplicationValidationError"
 	ApplicationSetReasonApplicationSetModified           = "ApplicationSetModified"
 	ApplicationSetReasonApplicationSetRolloutComplete    = "ApplicationSetRolloutComplete"
-	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
+	ApplicationSetReasonApplicationSetRolloutError       = "ApplicationSetRolloutError"
+	ApplicationSetReasonInvalidRolloutConfig             = "ApplicationSetInvalidRolloutConfig"
+	ApplicationSetReasonValidRolloutConfig               = "ApplicationSetValidRolloutConfig"
 )
 
 // Represents resource health status

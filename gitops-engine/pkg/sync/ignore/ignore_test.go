@@ -17,6 +17,7 @@ func newHook(obj *unstructured.Unstructured, hookType common.HookType) *unstruct
 }
 
 func TestIgnore(t *testing.T) {
+	t.Parallel()
 	assert.False(t, Ignore(testingutils.NewPod()))
 	assert.False(t, Ignore(newHook(testingutils.NewPod(), "Sync")))
 	assert.True(t, Ignore(newHook(testingutils.NewPod(), "garbage")))
