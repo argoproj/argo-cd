@@ -197,6 +197,38 @@ LAST SEEN   FIRST SEEN   COUNT   NAME                         KIND          SUBO
 1m          1m           1       guestbook.157f7c651990e848   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Progressing -> Healthy
 ```
 
+### Resource action audit events
+
+When a user runs a [resource action](resource_actions.md) against a managed workload, Argo CD records
+the activity twice with reason `ResourceActionRan`:
+
+1. **Application event** — emitted on the Application CR in the Argo CD namespace, consistent with
+   other application audit events above. The message identifies the user, action name, and target
+   resource (for example, `admin ran action restart on resource apps/Deployment/guestbook-ui`).
+
+2. **Resource event** — emitted on the **destination cluster** where the workload lives, with the
+   workload as the involved object. The event is stored in the resource's namespace (for
+   cluster-scoped objects such as `ClusterRole`, in the `default` namespace per Kubernetes
+   convention). The message identifies the user and action name (for example,
+   `admin ran action restart`).
+
+Resource events use the credentials Argo CD uses to reach the application's destination cluster,
+including impersonated service accounts when [impersonation](app-sync-using-impersonation.md) is
+configured. Those credentials must have permission to `create` `events` (core/v1) in the relevant
+namespace. If event creation is denied, the resource action still succeeds and Argo CD logs an
+error describing the missing permission.
+
+To inspect resource-level events on the destination cluster:
+
+```bash
+$ kubectl get events -n <workload-namespace>
+LAST SEEN   FIRST SEEN   COUNT   NAME                              KIND         SUBOBJECT   TYPE     REASON              SOURCE         MESSAGE
+1m          1m           1       guestbook-ui.157f7c651990e848     Deployment               Normal   ResourceActionRan   argocd-server  admin ran action restart
+```
+
+Application-level `ResourceActionRan` events appear alongside the other Application events when
+listing events in the Argo CD namespace.
+
 These events can be then be persisted for longer periods of time using other tools as
 [Event Exporter](https://github.com/GoogleCloudPlatform/k8s-stackdriver/tree/master/event-exporter) or
 [Event Router](https://github.com/heptiolabs/eventrouter).
