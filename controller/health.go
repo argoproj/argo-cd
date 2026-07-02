@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
@@ -72,8 +73,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			statuses[i].Health = nil
 		}
 
-		// Missing resources should not affect parent app health - the OutOfSync status already indicates resources are missing
-		if res.Live == nil && healthStatus.Status == health.HealthStatusMissing {
+		// Missing resources without a registered health check should not affect parent
+		// app health — the OutOfSync status already indicates that. Resources whose
+		// kind has an override or built-in health check MUST aggregate as Missing so
+		// parent app-of-apps wave gates correctly wait for them. See #27917.
+		gvk := schema.GroupVersionKind{Group: res.Group, Version: res.Version, Kind: res.Kind}
+		if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
 			continue
 		}
 
