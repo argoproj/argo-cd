@@ -1908,6 +1908,10 @@ message RepoCreds {
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
 
+  // Depth specifies the depth for shallow clones. Nil or omitting the field inherits the depth from a matching
+  // credential template. A value of 0 indicates a full clone (overrides any template depth).
+  optional int64 depth = 27;
+
   // AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
   optional string azureServicePrincipalClientId = 29;
 
@@ -2009,7 +2013,8 @@ message Repository {
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
 
-  // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+  // Depth specifies the depth for shallow clones. Nil or omitting the field inherits the depth from a matching
+  // credential template. A value of 0 indicates a full clone (overrides any template depth).
   optional int64 depth = 27;
 
   // WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.

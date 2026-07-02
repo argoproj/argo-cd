@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -405,11 +406,13 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
-	depth, err := intOrZero(secret, "depth")
-	if err != nil {
-		return repository, err
+	if _, present := secret.Data["depth"]; present {
+		depth, err := intOrZero(secret, "depth")
+		if err != nil {
+			return repository, err
+		}
+		repository.Depth = &depth
 	}
-	repository.Depth = depth
 
 	webhookManifestCacheWarmDisabled, err := boolOrFalse(secret, "webhookManifestCacheWarmDisabled")
 	if err != nil {
@@ -453,7 +456,9 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secretCopy, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
-	updateSecretInt(secretCopy, "depth", repository.Depth)
+	if repository.Depth != nil {
+		secretCopy.Data["depth"] = []byte(strconv.FormatInt(*repository.Depth, 10))
+	}
 	updateSecretBool(secretCopy, "webhookManifestCacheWarmDisabled", repository.WebhookManifestCacheWarmDisabled)
 	updateSecretString(secretCopy, "azureServicePrincipalClientId", repository.AzureServicePrincipalClientId)
 	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repository.AzureServicePrincipalClientSecret)
@@ -523,6 +528,14 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	if _, present := secret.Data["depth"]; present {
+		depth, err := intOrZero(secret, "depth")
+		if err != nil {
+			return repository, err
+		}
+		repository.Depth = &depth
+	}
+
 	return repository, nil
 }
 
@@ -552,6 +565,9 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretString(secretCopy, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
+	if repoCreds.Depth != nil {
+		secretCopy.Data["depth"] = []byte(strconv.FormatInt(*repoCreds.Depth, 10))
+	}
 	updateSecretString(secretCopy, "azureServicePrincipalClientID", repoCreds.AzureServicePrincipalClientId)
 	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repoCreds.AzureServicePrincipalClientSecret)
 	updateSecretString(secretCopy, "azureServicePrincipalTenantID", repoCreds.AzureServicePrincipalTenantId)
