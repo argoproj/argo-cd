@@ -77,7 +77,7 @@ Do not make assumptions beyond what the issue content supports. Do not invent mi
 **Incomplete issues:** If the issue lacks enough detail for meaningful triage, add a comment that politely asks the author to provide the missing information:
 - For bugs: steps to reproduce, expected vs actual behavior, logs/errors, environment details.
 - For other issue types: equivalent details that would make the report actionable.
-- Apply a `needs-info` or `question` label if one exists in the repository.
+- Apply a `needs-info` label if one exists in the repository.
 
 Be specific about what is missing and why it is needed. Do not attempt to apply type or other labels to incomplete issues.
 
