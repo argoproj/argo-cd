@@ -24,6 +24,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
@@ -210,10 +211,10 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		kubectl,
 		appResyncPeriod,
 		time.Hour,
-		time.Second,
+		0, // appResyncJitter: deterministic unit tests (no randomized refresh delay)
 		time.Minute,
 		nil,
-		0,
+		0, // syncTimeout (unused/zero in fake controller fixtures)
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
@@ -2161,6 +2162,590 @@ func TestUnchangedManagedNamespaceMetadata(t *testing.T) {
 	assert.Equal(t, CompareWithLatest, compareWith)
 }
 
+func clearTestRefreshSignals(ctrl *ApplicationController) {
+	ctrl.refreshRequestedAppsMutex.Lock()
+	ctrl.refreshRequestedApps = make(map[string]CompareWith)
+	ctrl.refreshRequestedAppsMutex.Unlock()
+	for ctrl.appRefreshQueue.Len() > 0 {
+		item, shutdown := ctrl.appRefreshQueue.Get()
+		if shutdown {
+			break
+		}
+		ctrl.appRefreshQueue.Forget(item)
+		ctrl.appRefreshQueue.Done(item)
+	}
+}
+
+func clearTestInformerQueues(ctrl *ApplicationController) {
+	clearTestRefreshSignals(ctrl)
+	for ctrl.appOperationQueue.Len() > 0 {
+		item, shutdown := ctrl.appOperationQueue.Get()
+		if shutdown {
+			break
+		}
+		ctrl.appOperationQueue.Forget(item)
+		ctrl.appOperationQueue.Done(item)
+	}
+	for ctrl.appHydrateQueue.Len() > 0 {
+		item, shutdown := ctrl.appHydrateQueue.Get()
+		if shutdown {
+			break
+		}
+		ctrl.appHydrateQueue.Forget(item)
+		ctrl.appHydrateQueue.Done(item)
+	}
+}
+
+func assertInformerWorkqueueSignal(t *testing.T, queueLen func() int, want bool, msg string) {
+	t.Helper()
+	if want {
+		require.Eventually(t, func() bool { return queueLen() > 0 }, time.Second, 5*time.Millisecond, "%s", msg)
+		return
+	}
+	require.Never(t, func() bool { return queueLen() > 0 }, 100*time.Millisecond, 5*time.Millisecond, "%s (queue should remain empty)", msg)
+}
+
+func assertInformerOperationQueueSignal(t *testing.T, ctrl *ApplicationController, want bool, msg string) {
+	t.Helper()
+	assertInformerWorkqueueSignal(t, ctrl.appOperationQueue.Len, want, msg)
+}
+
+func assertInformerHydrateQueueSignal(t *testing.T, ctrl *ApplicationController, want bool, msg string) {
+	t.Helper()
+	assertInformerWorkqueueSignal(t, ctrl.appHydrateQueue.Len, want, msg)
+}
+
+func assertInformerUpdateSideEffects(t *testing.T, ctrl *ApplicationController, qualifiedName string, wantRefresh, wantOperation, wantHydrate bool, msg string) {
+	t.Helper()
+	assertInformerRefreshSignal(t, ctrl, qualifiedName, wantRefresh, msg)
+	assertInformerOperationQueueSignal(t, ctrl, wantOperation, msg+": operation queue")
+	assertInformerHydrateQueueSignal(t, ctrl, wantHydrate, msg+": hydrate queue")
+}
+
+// invokeApplicationInformerUpdateFromHandler mirrors UpdateFunc in newApplicationInformerAndLister.
+// Returns false when canProcessApp rejects the update (e.g. skip-reconcile=true).
+func invokeApplicationInformerUpdateFromHandler(t *testing.T, ctrl *ApplicationController, oldApp, newApp *v1alpha1.Application) bool {
+	t.Helper()
+	if !ctrl.canProcessApp(newApp) {
+		return false
+	}
+	key, err := cache.MetaNamespaceKeyFunc(newApp)
+	require.NoError(t, err)
+	oldAppAny, oldOK := any(oldApp).(*v1alpha1.Application)
+	newAppAny, newOK := any(newApp).(*v1alpha1.Application)
+	ctrl.applicationInformerProcessUpdate(oldOK, oldAppAny, newOK, newAppAny, key)
+	return true
+}
+
+// invokeApplicationInformerAdd mirrors AddFunc in newApplicationInformerAndLister.
+func invokeApplicationInformerAdd(t *testing.T, ctrl *ApplicationController, newApp *v1alpha1.Application) {
+	t.Helper()
+	require.True(t, ctrl.canProcessApp(newApp))
+	key, err := cache.MetaNamespaceKeyFunc(newApp)
+	require.NoError(t, err)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.clusterSharding.AddApp(newApp)
+}
+
+// invokeApplicationInformerDelete mirrors DeleteFunc in newApplicationInformerAndLister.
+func invokeApplicationInformerDelete(t *testing.T, ctrl *ApplicationController, delApp *v1alpha1.Application) {
+	t.Helper()
+	require.True(t, ctrl.canProcessApp(delApp))
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(delApp)
+	require.NoError(t, err)
+	ctrl.appRefreshQueue.Add(key)
+	ctrl.clusterSharding.DeleteApp(delApp)
+}
+
+func assertInformerRefreshSignal(t *testing.T, ctrl *ApplicationController, qualifiedName string, want bool, msg string) {
+	t.Helper()
+	key := ctrl.toAppKey(qualifiedName)
+	// The workqueue does not expose queued keys, only its length.
+	// We first check refreshRequestedApps[key], but some enqueue paths
+	// (e.g. AddRateLimited/AddAfter) may not update that map.
+	// As a fallback, we treat Len()>0 as a signal that a refresh was enqueued.
+	// This is only reliable in tests where:
+	//   - clearTestInformerQueues() was called, and
+	//   - the controller enqueues refreshes for a single app.
+	// Otherwise, Len()>0 may reflect a different app.
+	refreshPresent := func() bool {
+		ctrl.refreshRequestedAppsMutex.Lock()
+		_, inMap := ctrl.refreshRequestedApps[key]
+		ctrl.refreshRequestedAppsMutex.Unlock()
+		if inMap {
+			return true
+		}
+		return ctrl.appRefreshQueue.Len() > 0
+	}
+	if want {
+		require.Eventually(t, refreshPresent, time.Second, 5*time.Millisecond, "%s (key=%s)", msg, key)
+		return
+	}
+	// requestAppRefresh may enqueue with a delay (e.g. AddRateLimited/AddAfter),
+	// so poll briefly to ensure no refresh was scheduled.
+	require.Never(t, refreshPresent, 100*time.Millisecond, 5*time.Millisecond, "%s (key=%s inMap/queue should remain empty)", msg, key)
+}
+
+func TestApplicationComparisonExpired(t *testing.T) {
+	t.Run("soft expired", func(t *testing.T) {
+		app := newFakeApp()
+		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+		app.Status.ReconciledAt = &past
+		ctrl := &ApplicationController{statusRefreshTimeout: time.Hour}
+		assert.True(t, ctrl.applicationComparisonExpired(app))
+	})
+
+	t.Run("hard expired when hard timeout configured and shorter than soft window", func(t *testing.T) {
+		app := newFakeApp()
+		past := metav1.NewTime(time.Now().UTC().Add(-10 * time.Minute))
+		app.Status.ReconciledAt = &past
+		ctrl := &ApplicationController{
+			statusRefreshTimeout:     2 * time.Hour,
+			statusHardRefreshTimeout: time.Minute,
+		}
+		assert.True(t, ctrl.applicationComparisonExpired(app))
+	})
+
+	t.Run("neither soft nor hard expired", func(t *testing.T) {
+		app := newFakeApp()
+		recent := metav1.NewTime(time.Now().UTC().Add(-30 * time.Second))
+		app.Status.ReconciledAt = &recent
+		ctrl := &ApplicationController{
+			statusRefreshTimeout:     2 * time.Hour,
+			statusHardRefreshTimeout: time.Minute,
+		}
+		assert.False(t, ctrl.applicationComparisonExpired(app))
+	})
+
+	t.Run("soft timeout zero disables expiry check", func(t *testing.T) {
+		app := newFakeApp()
+		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+		app.Status.ReconciledAt = &past
+		ctrl := &ApplicationController{
+			statusRefreshTimeout:     0,
+			statusHardRefreshTimeout: 0,
+		}
+		assert.False(t, ctrl.applicationComparisonExpired(app))
+	})
+}
+
+func TestNeedRefreshAppStatusZeroTimeout(t *testing.T) {
+	app := newFakeApp()
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Status: v1alpha1.SyncStatusCodeSynced,
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination:       app.Spec.Destination,
+			IgnoreDifferences: app.Spec.IgnoreDifferences,
+			Source:            app.Spec.GetSource(),
+		},
+	}
+	past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+	app.Status.ReconciledAt = &past
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 0, 0)
+	assert.False(t, needRefresh, "timeout 0 should disable automatic expiry-based refresh")
+}
+
+func TestResyncRefreshAfter(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		ctrl := &ApplicationController{}
+		assert.Nil(t, ctrl.resyncRefreshAfter())
+		ctrl.appResyncJitter = time.Second * -5
+		assert.Nil(t, ctrl.resyncRefreshAfter())
+	})
+	t.Run("bounded uniform", func(t *testing.T) {
+		ctrl := &ApplicationController{appResyncJitter: time.Millisecond * 500}
+		for range 400 {
+			d := ctrl.resyncRefreshAfter()
+			require.NotNil(t, d)
+			require.GreaterOrEqual(t, *d, time.Duration(0))
+			require.LessOrEqual(t, *d, time.Millisecond*500)
+		}
+	})
+}
+
+func TestApplicationInformerUpdateFunc(t *testing.T) {
+	// Test that UpdateFunc correctly handles status-only vs meaningful changes,
+	// plus termination, finalizers, annotations, and operation updates.
+
+	app := newFakeApp()
+	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	proj := defaultProj.DeepCopy()
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+	require.True(t, ctrl.canProcessApp(app), "fixture must allow UpdateFunc to run (destination must match registered cluster)")
+
+	invokeApplicationInformerUpdate := func(t *testing.T, oldApp, newApp *v1alpha1.Application) {
+		t.Helper()
+		require.True(t, invokeApplicationInformerUpdateFromHandler(t, ctrl, oldApp, newApp), "expected UpdateFunc to process app")
+	}
+
+	invokeApplicationInformerUpdateSkipped := func(t *testing.T, oldApp, newApp *v1alpha1.Application) {
+		t.Helper()
+		require.False(t, invokeApplicationInformerUpdateFromHandler(t, ctrl, oldApp, newApp), "expected UpdateFunc to skip app")
+	}
+
+	t.Run("Status-only update without annotation should NOT trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "1"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "2"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, false, "Status-only update without annotation")
+	})
+
+	t.Run("Status-only update WITH refresh annotation SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "3"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "4"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		if newApp.Annotations == nil {
+			newApp.Annotations = make(map[string]string)
+		}
+		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update WITH refresh annotation")
+	})
+
+	t.Run("Status-only update WITH hydrate annotation SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "5"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "6"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		if newApp.Annotations == nil {
+			newApp.Annotations = make(map[string]string)
+		}
+		newApp.Annotations[v1alpha1.AnnotationKeyHydrate] = "true"
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update WITH hydrate annotation")
+	})
+
+	t.Run("Status-only update WITH both refresh and hydrate annotations SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "7"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "8"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		if newApp.Annotations == nil {
+			newApp.Annotations = make(map[string]string)
+		}
+		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+		newApp.Annotations[v1alpha1.AnnotationKeyHydrate] = "true"
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update WITH both refresh and hydrate annotations")
+	})
+
+	t.Run("Status-only update with annotation REMOVAL SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "9"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+		if oldApp.Annotations == nil {
+			oldApp.Annotations = make(map[string]string)
+		}
+		oldApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "10"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		delete(newApp.Annotations, v1alpha1.AnnotationKeyRefresh)
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "annotation removal is a metadata change")
+	})
+
+	t.Run("Status-only update with refresh annotation value change SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "10a"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-30 * time.Second)}
+		if oldApp.Annotations == nil {
+			oldApp.Annotations = make(map[string]string)
+		}
+		oldApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "10b"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeHard)
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update with refresh annotation value change")
+	})
+
+	t.Run("Spec change SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "11"
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "12"
+		newApp.Spec.Destination.Namespace = "different-namespace"
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Spec change")
+	})
+
+	t.Run("Informer resync (same ResourceVersion) should NOT trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "13"
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "13"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, false, "Informer resync")
+	})
+
+	t.Run("Informer resync same RV when soft-expired SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldReconciled := metav1.Time{Time: time.Now().Add(-2 * time.Hour)}
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "16"
+		oldApp.Status.ReconciledAt = &oldReconciled
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "16"
+		newApp.Status.Health = v1alpha1.AppHealthStatus{Status: health.HealthStatusDegraded}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "same-RV resync soft-expired")
+	})
+
+	t.Run("Status-only update without annotation when soft-expired SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldReconciled := metav1.Time{Time: time.Now().Add(-2 * time.Hour)}
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "17"
+		oldApp.Status.ReconciledAt = &oldReconciled
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "18"
+		newApp.Status.ReconciledAt = &oldReconciled
+		newApp.Status.Health = v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "status-only soft-expired")
+	})
+
+	t.Run("DeletionTimestamp added SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "14"
+		oldApp.DeletionTimestamp = nil
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "15"
+		newApp.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "DeletionTimestamp added")
+	})
+
+	t.Run("Status-only update with hydrator enabled SHOULD enqueue hydration but NOT refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+		prevHydrator := ctrl.hydrator
+		ctrl.hydrator = &hydrator.Hydrator{}
+		t.Cleanup(func() { ctrl.hydrator = prevHydrator })
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "19"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "20"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, true, "status-only with hydrator")
+	})
+
+	t.Run("Update with pending Operation SHOULD enqueue operation queue", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "21"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "22"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		newApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, true, false, "pending operation")
+	})
+
+	t.Run("App terminating with status-only update SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		now := metav1.Now()
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "23"
+		oldApp.DeletionTimestamp = &now
+		oldApp.Finalizers = []string{v1alpha1.ResourcesFinalizerName}
+		oldApp.Status.Health = v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "24"
+		newApp.Status.Health = v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "terminating app status-only update")
+	})
+
+	t.Run("Finalizers changed SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "25"
+		oldApp.Finalizers = nil
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "26"
+		newApp.Finalizers = []string{v1alpha1.ResourcesFinalizerName}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "finalizers changed")
+	})
+
+	t.Run("skip-reconcile annotation set to true SHOULD skip UpdateFunc", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "27"
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "28"
+		if newApp.Annotations == nil {
+			newApp.Annotations = make(map[string]string)
+		}
+		newApp.Annotations[common.AnnotationKeyAppSkipReconcile] = "true"
+
+		invokeApplicationInformerUpdateSkipped(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, false, "skip-reconcile blocks UpdateFunc")
+	})
+
+	t.Run("skip-reconcile annotation removed SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "27a"
+		if oldApp.Annotations == nil {
+			oldApp.Annotations = make(map[string]string)
+		}
+		oldApp.Annotations[common.AnnotationKeyAppSkipReconcile] = "true"
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "28a"
+		delete(newApp.Annotations, common.AnnotationKeyAppSkipReconcile)
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "skip-reconcile removed")
+	})
+
+	t.Run("Operation modified SHOULD trigger refresh and operation queue", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "29"
+		oldApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "30"
+		newApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, true, false, "operation modified")
+	})
+
+	t.Run("Operation removed SHOULD trigger refresh but NOT operation queue", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "31"
+		oldApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "32"
+		newApp.Operation = nil
+
+		invokeApplicationInformerUpdate(t, oldApp, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "operation removed")
+	})
+}
+
+func TestApplicationInformerAddFunc(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	proj := defaultProj.DeepCopy()
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+	require.True(t, ctrl.canProcessApp(app))
+
+	t.Run("New app added SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		newApp := app.DeepCopy()
+		invokeApplicationInformerAdd(t, ctrl, newApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "new app added")
+	})
+}
+
+func TestApplicationInformerDeleteFunc(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	proj := defaultProj.DeepCopy()
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+	require.True(t, ctrl.canProcessApp(app))
+
+	t.Run("App deleted SHOULD trigger refresh", func(t *testing.T) {
+		clearTestInformerQueues(ctrl)
+
+		delApp := app.DeepCopy()
+		invokeApplicationInformerDelete(t, ctrl, delApp)
+		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "app deleted")
+	})
+}
+
 func TestRefreshAppConditions(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2987,6 +3572,55 @@ func TestFinalizeProjectDeletion_IgnoresAppsNotPermittedByProject(t *testing.T) 
 			"finalizers": nil,
 		},
 	}, receivedPatch)
+}
+
+func TestProcessAppOperationQueueItem_FinalizesDeletionWhenStaleOperationCleared(t *testing.T) {
+	now := metav1.Now()
+
+	// Informer still shows a pending operation (stale).
+	staleApp := newFakeApp()
+	staleApp.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	staleApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+
+	// API server has already cleared the operation and started deletion.
+	freshApp := staleApp.DeepCopy()
+	freshApp.Operation = nil
+	freshApp.ResourceVersion = "999"
+	freshApp.DeletionTimestamp = &now
+	freshApp.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:            []runtime.Object{staleApp, &defaultProj},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if getAction, ok := action.(kubetesting.GetAction); ok &&
+			getAction.GetNamespace() == freshApp.Namespace &&
+			getAction.GetName() == freshApp.Name {
+			return true, freshApp.DeepCopy(), nil
+		}
+		return defaultReactor.React(action)
+	})
+
+	finalizePatchCalled := false
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		finalizePatchCalled = true
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	key, err := cache.MetaNamespaceKeyFunc(staleApp)
+	require.NoError(t, err)
+	ctrl.appOperationQueue.Add(key)
+
+	assert.True(t, ctrl.processAppOperationQueueItem())
+	assert.True(t, finalizePatchCalled,
+		"expected deletion finalization when fresh app has no operation but has deletion timestamp")
 }
 
 func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
