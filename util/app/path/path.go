@@ -155,7 +155,7 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 func AppFilesHaveChanged(refreshPaths []string, changedFiles []string) bool {
 	// an empty slice of changed files means that the payload didn't include a list
 	// of changed files and we have to assume that a refresh is required
-	if len(changedFiles) == 0 {
+	if changedFiles == nil {
 		return true
 	}
 
