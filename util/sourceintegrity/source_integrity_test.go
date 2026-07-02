@@ -120,24 +120,51 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 }
 
 func TestRepoURLCaseInsensitivePolicyMatching(t *testing.T) {
-	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
-		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/myorg/*"}},
-		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
-			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
-			Keys: []string{"SOME_KEY_ID"},
-		},
-	}}}}
+	si := func(url string) *v1alpha1.SourceIntegrityGit {
+		return &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+			Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: url}},
+			GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+				Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+				Keys: []string{"SOME_KEY_ID"},
+			},
+		}}}
+	}
 
-	canonicalSource := v1alpha1.ApplicationSource{RepoURL: "https://github.com/myorg/myrepo"}
-	alternateCaseSource := v1alpha1.ApplicationSource{RepoURL: "https://GitHub.com/myorg/myrepo"}
+	caseSensitive := findMatchingGitPolicies(
+		si("https://github.com/myorg/*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, caseSensitive, 1)
 
-	assert.True(t, HasCriteria(si, canonicalSource))
-	assert.True(t, HasCriteria(si, alternateCaseSource))
+	caseInsensitive := findMatchingGitPolicies(
+		si("https://github.com/myorg/*"),
+		"https://GitHub.com/myorg/myrepo",
+	)
+	assert.Len(t, caseInsensitive, 1)
 
-	canonicalPolicies := findMatchingGitPolicies(si.Git, canonicalSource.RepoURL)
-	alternateCasePolicies := findMatchingGitPolicies(si.Git, alternateCaseSource.RepoURL)
-	assert.Len(t, canonicalPolicies, 1)
-	assert.Len(t, alternateCasePolicies, 1)
+	negative := findMatchingGitPolicies(
+		si("https://github.com/myorg/foo.git"),
+		"https://github.com/other-org/repo.git",
+	)
+	assert.Empty(t, negative)
+
+	matchAll := findMatchingGitPolicies(
+		si("*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, matchAll, 1)
+
+	matchNone := findMatchingGitPolicies(
+		si("!https://github.com/*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Empty(t, matchNone)
+
+	middle := findMatchingGitPolicies(
+		si("https://*.git"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, middle, 1)
 }
 
 func TestPolicyMatching(t *testing.T) {
