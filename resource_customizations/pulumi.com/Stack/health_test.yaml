@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: the stack has been processed and is up to date
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: stack is being processed
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: up failed 5 times; not retrying until the spec or source changes
+    inputPath: testdata/degraded.yaml
