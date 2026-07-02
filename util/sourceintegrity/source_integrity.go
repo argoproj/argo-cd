@@ -90,10 +90,11 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 }
 
 func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
+	normalizedRepoURL := git.NormalizeGitURLAllowInvalid(repoURL)
 	for _, p := range si.Policies {
 		include := false
 		for _, r := range p.Repos {
-			m := repoMatches(r.URL, repoURL)
+			m := repoMatches(normalizeRepoGlob(r.URL), normalizedRepoURL)
 			if m == -1 {
 				include = false
 				break
@@ -106,6 +107,16 @@ func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (p
 		}
 	}
 	return policies
+}
+
+// normalizeRepoGlob normalizes the URL portion of a (possibly negated, "!"-prefixed)
+// source integrity repo glob using the same normalization applied to the repo URL
+// being checked, so that repoMatches compares like-for-like.
+func normalizeRepoGlob(urlGlob string) string {
+	if strings.HasPrefix(urlGlob, "!") {
+		return "!" + git.NormalizeGitURLAllowInvalid(urlGlob[1:])
+	}
+	return git.NormalizeGitURLAllowInvalid(urlGlob)
 }
 
 func repoMatches(urlGlob string, repoURL string) int {

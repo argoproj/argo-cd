@@ -119,6 +119,54 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 	}
 }
 
+func TestRepoURLCaseInsensitivePolicyMatching(t *testing.T) {
+	si := func(url string) *v1alpha1.SourceIntegrityGit {
+		return &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+			Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: url}},
+			GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+				Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+				Keys: []string{"SOME_KEY_ID"},
+			},
+		}}}
+	}
+
+	caseSensitive := findMatchingGitPolicies(
+		si("https://github.com/myorg/*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, caseSensitive, 1)
+
+	caseInsensitive := findMatchingGitPolicies(
+		si("https://github.com/myorg/*"),
+		"https://GitHub.com/myorg/myrepo",
+	)
+	assert.Len(t, caseInsensitive, 1)
+
+	negative := findMatchingGitPolicies(
+		si("https://github.com/myorg/foo.git"),
+		"https://github.com/other-org/repo.git",
+	)
+	assert.Empty(t, negative)
+
+	matchAll := findMatchingGitPolicies(
+		si("*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, matchAll, 1)
+
+	matchNone := findMatchingGitPolicies(
+		si("!https://github.com/*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Empty(t, matchNone)
+
+	middle := findMatchingGitPolicies(
+		si("https://*.git"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, middle, 1)
+}
+
 func TestPolicyMatching(t *testing.T) {
 	group := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
