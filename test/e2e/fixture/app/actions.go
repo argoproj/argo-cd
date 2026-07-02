@@ -43,6 +43,18 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
+func (a *Actions) PushChanges() *Actions {
+	a.context.T().Helper()
+	fixture.PushChanges(a.context.T())
+	return a
+}
+
+func (a *Actions) WritePatch(file string, jsonPatch string) *Actions {
+	a.context.T().Helper()
+	fixture.WritePatch(a.context.T(), a.context.path+"/"+file, jsonPatch)
+	return a
+}
+
 func (a *Actions) PatchFile(file string, jsonPatch string) *Actions {
 	a.context.T().Helper()
 	fixture.Patch(a.context.T(), a.context.path+"/"+file, jsonPatch)

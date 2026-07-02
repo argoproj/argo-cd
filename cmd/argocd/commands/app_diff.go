@@ -469,12 +469,15 @@ func newLocalClientSideProvider(
 	}
 }
 
-// newDefaultTargetProvider creates a provider that extracts targets from ManagedResources
-func newDefaultTargetProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
+// newTargetManifestProvider creates a provider that extracts target manifests from ManagedResources
+func newTargetManifestProvider(liveState *application.ManagedResourcesResponse, excludeSecret bool) manifestProvider {
 	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
 		targetManifests := make([]*unstructured.Unstructured, 0, len(liveState.Items))
 		for i := range liveState.Items {
 			res := liveState.Items[i]
+			if excludeSecret && res.Kind == kube.SecretKind && res.Group == "" {
+				continue
+			}
 			target := &unstructured.Unstructured{}
 			err := json.Unmarshal([]byte(res.TargetState), &target)
 			if err != nil {
@@ -639,6 +642,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revisions                 []string
 		sourcePositions           []int64
 		sourceNames               []string
+		compareDesired            bool
 		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
 	)
 	shortDesc := "Perform a diff against the target and live state."
@@ -700,14 +704,22 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 
-			hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
-
-			// Use annotation if flag not explicitly set
-			if !c.Flags().Changed("server-side-diff") {
-				serverSideDiff = hasServerSideDiffAnnotation
-			} else if serverSideDiff && !hasServerSideDiffAnnotation {
-				// Flag explicitly set to true, but app annotation is not set
-				fmt.Fprint(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
+			if !compareDesired {
+				// Use annotation if flag not explicitly set
+				hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
+				if !c.Flags().Changed("server-side-diff") {
+					serverSideDiff = hasServerSideDiffAnnotation
+				} else if serverSideDiff && !hasServerSideDiffAnnotation {
+					// Flag explicitly set to true, but app annotation is not set
+					fmt.Fprint(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
+				}
+			} else {
+				// When comparing desired state, always use client-side diff.
+				// We want to compare two generated manifests versions together without any influence of the current live state.
+				if c.Flags().Changed("server-side-diff") {
+					fmt.Fprint(os.Stderr, "Warning: --server-side-diff is ignored when --compare-desired is set.\n")
+				}
+				serverSideDiff = false
 			}
 
 			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
@@ -751,14 +763,24 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 
 			default:
-				getTargetManifests = newDefaultTargetProvider(liveState)
+				if compareDesired {
+					errors.Fatal(errors.ErrorGeneric, "--compare-desired cannot be specified when no target manifests are provided (use --local, --revision, or --revisions)")
+				}
+				getTargetManifests = newTargetManifestProvider(liveState, excludeSecret)
 			}
 
 			// Wrap target manifest provider with normalization since the manifest are have not been applied to kubernetes
 			getTargetManifests = newNormalizeTargetManifestsProvider(getTargetManifests, app, argoSettings, infoProvider)
 
-			// Create live manifest provider
-			getLiveManifests := newLiveManifestProvider(liveState, excludeSecret)
+			// Create comparison manifest provider (live or target based on flag)
+			var getLiveManifests manifestProvider
+			if compareDesired {
+				// When comparing desired states, use target manifests from ManagedResources
+				getLiveManifests = newNormalizeTargetManifestsProvider(newTargetManifestProvider(liveState, excludeSecret), app, argoSettings, infoProvider)
+			} else {
+				// Default: compare against live cluster state
+				getLiveManifests = newLiveManifestProvider(liveState, excludeSecret)
+			}
 
 			// Create diff strategy based on --server-side-diff flag
 			var diffHandler diffStrategy
@@ -789,20 +811,21 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
-	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error.")
-	command.Flags().IntVar(&diffExitCode, "diff-exit-code", 1, "Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands.")
+	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error")
+	command.Flags().IntVar(&diffExitCode, "diff-exit-code", 1, "Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
-	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
-	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
-	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.")
-	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
-	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
+	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Send your manifests to the server for diffing. Used with --local")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Specify patterns of filenames to send. Matching is based on filename and not path. Used with --server-side-generate")
+	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
+	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in --source-positions")
+	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1")
+	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array")
+	command.Flags().BoolVar(&compareDesired, "compare-desired", false, "Compare against the current desired state (target) instead of live state. Used together with --local or --revision(s)")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
-	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
-	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
-	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
+	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. Defaults to true if the ServerSideDiff annotation is set on the application")
+	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	return command
 }
 
