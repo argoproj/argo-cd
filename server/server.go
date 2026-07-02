@@ -355,6 +355,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
+	policyEnf.SetEnableLocalUserStrictMode(settings.RBACLocalUserStrictMode)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
 	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
@@ -821,6 +822,7 @@ func (server *ArgoCDServer) watchSettings() {
 	for {
 		newSettings := <-updateCh
 		server.settings = newSettings
+		server.policyEnforcer.SetEnableLocalUserStrictMode(newSettings.RBACLocalUserStrictMode)
 		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
 		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {
