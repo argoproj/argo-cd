@@ -2424,7 +2424,6 @@ func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string) (bo
 	// Previously this comparison was skipped when newRevisionHasChanges was false, which caused a
 	// genuinely new revision to be misclassified as already attempted and routed through the self-heal
 	// path that performs a partial, hook-skipping sync (see #27792).
-	log.WithFields(applog.GetAppLogFields(app)).WithField("newRevisionHasChanges", newRevisionHasChanges).Infof("Already attempted sync: comparing synced revisions to %s", desiredRevisions)
 	if app.Spec.HasMultipleSources() {
 		if !reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, desiredRevisions) {
 			return false, app.Status.OperationState.SyncResult.Revisions, app.Status.OperationState.Phase
