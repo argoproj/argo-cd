@@ -20,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -973,8 +972,6 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 	})
 }
 
-}
-
 // TestNormalizeTargetResourcesPDBSelector reproduces https://github.com/argoproj/argo-cd/issues/18232
 // When a PDB (policy/v1) has an ignoreDifferences rule for a matchLabels sub-field and
 // RespectIgnoreDifferences=true is set, normalizeTargetResources should only patch the
@@ -1011,7 +1008,7 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 			},
 		})
 
-		targets, err := normalizeTargetResources(cr)
+		targets, err := normalizeTargetResources(nil, cr)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
@@ -1051,7 +1048,7 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 		}
 		require.NoError(t, unstructured.SetNestedSlice(target.Object, matchExpr, "spec", "selector", "matchExpressions"))
 
-		targets, err := normalizeTargetResources(cr)
+		targets, err := normalizeTargetResources(nil, cr)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
@@ -1087,7 +1084,7 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 		matchLabels["track"] = "stable"
 		require.NoError(t, unstructured.SetNestedStringMap(live.Object, matchLabels, "spec", "selector", "matchLabels"))
 
-		targets, err := normalizeTargetResources(cr)
+		targets, err := normalizeTargetResources(nil, cr)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
@@ -1110,7 +1107,7 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 			},
 		})
 
-		targets, err := normalizeTargetResources(cr)
+		targets, err := normalizeTargetResources(nil, cr)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
