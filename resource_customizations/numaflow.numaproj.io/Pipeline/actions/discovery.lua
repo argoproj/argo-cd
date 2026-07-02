@@ -33,8 +33,20 @@ function isChild(obj)
   return false
 end
 
+-- pause/unpause is allowed for standalone pipelines, and for Numaplane-owned pipelines
+-- in recyclable-expired state where manual pause/unpause is needed
+function isPausingAllowed(obj)
+  if isChild(obj) == false then
+    return true
+  end
+  if obj.metadata ~= nil and obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "recyclable-expired" then
+    return true
+  end
+  return false
+end
+
 -- pause/unpause
-if isChild(obj) == false then
+if isPausingAllowed(obj) then
   local paused = false
   if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.spec.lifecycle.desiredPhase == "Paused" then
     paused = true
