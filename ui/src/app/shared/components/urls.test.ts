@@ -41,6 +41,17 @@ test('gitlab.com', () => {
     );
 });
 
+// for self-hosted gitlab installations
+test('gitlab.my-enterprise.com', () => {
+    testExample(
+        'https://gitlab.my-enterprise.com/my-org/my-repo.git',
+        'git@gitlab.my-enterprise.com:my-org/my-repo.git',
+        'b1fe9426ead684d7af16958920968342ee295c1f',
+        'https://gitlab.my-enterprise.com/my-org/my-repo',
+        'https://gitlab.my-enterprise.com/my-org/my-repo/-/commit/b1fe9426ead684d7af16958920968342ee295c1f',
+    );
+});
+
 test('bitbucket.org', () => {
     testExample(
         'https://alexcollinsinuit@bitbucket.org/alexcollinsinuit/test-repo.git',
