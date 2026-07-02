@@ -119,6 +119,27 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 	}
 }
 
+func TestRepoURLCaseInsensitivePolicyMatching(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/myorg/*"}},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+			Keys: []string{"SOME_KEY_ID"},
+		},
+	}}}}
+
+	canonicalSource := v1alpha1.ApplicationSource{RepoURL: "https://github.com/myorg/myrepo"}
+	alternateCaseSource := v1alpha1.ApplicationSource{RepoURL: "https://GitHub.com/myorg/myrepo"}
+
+	assert.True(t, HasCriteria(si, canonicalSource))
+	assert.True(t, HasCriteria(si, alternateCaseSource))
+
+	canonicalPolicies := findMatchingGitPolicies(si.Git, canonicalSource.RepoURL)
+	alternateCasePolicies := findMatchingGitPolicies(si.Git, alternateCaseSource.RepoURL)
+	assert.Len(t, canonicalPolicies, 1)
+	assert.Len(t, alternateCasePolicies, 1)
+}
+
 func TestPolicyMatching(t *testing.T) {
 	group := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
