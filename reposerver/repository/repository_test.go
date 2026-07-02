@@ -4995,6 +4995,25 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				Paths:          []string{},
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{Changes: true}, wantErr: assert.NoError},
+		{name: "OCIRepoWithEmptyTypeShortCircuits", fields: func() fields {
+			// Regression test: empty Type on an oci:// repo URL must not be normalized to "git",
+			// otherwise the call falls through to git LsRemote and fails with
+			// "unsupported scheme oci".
+			s, _, c := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &v1alpha1.Repository{Repo: "oci://example.com/foo"},
+				Revision:       "1.0.0",
+				SyncedRevision: "0.9.0",
+				Paths:          []string{"."},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
