@@ -4120,7 +4120,7 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 
-		assert.Equal(t, 0, len(patchedApp.Annotations))
+		assert.Empty(t, patchedApp.Annotations)
 	})
 }
 
