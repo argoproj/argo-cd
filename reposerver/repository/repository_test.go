@@ -401,7 +401,10 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
-	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
+	key := cache.NewManifestKey(mock.Anything, &src, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), &q, nil,
+	)
+	err := service.cache.SetManifests(key, &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -426,7 +429,10 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: nil})
+	key := cache.NewManifestKey(mock.Anything, &src, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), &q, nil,
+	)
+	err := service.cache.SetManifests(key, &cache.CachedManifestResponse{ManifestResponse: nil})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -927,7 +933,10 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(getManifestCacheKey(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, nil), cachedManifestResponse)
+		key := cache.NewManifestKey(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.GetRefSources(), manifestRequest.GetNamespace(), manifestRequest.GetTrackingMethod(),
+			manifestRequest.GetAppLabelKey(), manifestRequest.GetAppName(), manifestRequest.GetInstallationID(), manifestRequest.GetSourceIntegrity(), manifestRequest, nil,
+		)
+		err := service.cache.GetManifests(key, cachedManifestResponse)
 		require.NoError(t, err)
 		return cachedManifestResponse
 	}
@@ -2363,13 +2372,14 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
 			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
 			// operations is the point of the cache.
-			err = service.cache.GetManifests(cache.ManifestKey{
-				Revision:    mock.Anything,
-				AppSource:   source,
-				RefSources:  v1alpha1.RefTargetRevisionMapping{},
-				ClusterInfo: &v1alpha1.ClusterInfo{},
-				AppName:     "test",
-			}, res)
+			q := apiclient.ManifestRequest{
+				AppName:    "test",
+				RefSources: v1alpha1.RefTargetRevisionMapping{},
+			}
+			key := cache.NewManifestKey(mock.Anything, source, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+				q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), &q, nil,
+			)
+			err = service.cache.GetManifests(key, res)
 			require.NoError(t, err)
 		})
 	})
@@ -5429,9 +5439,11 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	}
 
 	// Seed the manifest cache for the synced revision.
+	key := cache.NewManifestKey(syncedRevision, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(), request.GetTrackingMethod(),
+		request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(), request.GetSourceIntegrity(), request, nil,
+	)
 	err := cacheMocks.cache.SetManifests(
-		getManifestCacheKeyFromUpdateRevisionRequest(request, syncedRevision, nil),
-		&cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
+		key, &cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
 	)
 	require.NoError(t, err)
 
@@ -5456,6 +5468,41 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	require.NoError(t, err)
 	assert.False(t, resp3.Changes, "Using the resolved revision as SyncedRevision should detect no changes")
 	assert.Equal(t, resolvedRevision, resp3.Revision)
+}
+
+func TestConsistentManifestCacheKey(t *testing.T) {
+	revision := "HEAD"
+
+	request := &apiclient.UpdateRevisionForPathsRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          revision,
+		SyncedRevision:    "1e67a504d03def3a6a1125d934cb511680f72555",
+		Paths:             []string{"."},
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "test-persist-revision",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
+		SourceIntegrity:   sourceIntegrityReqStrict,
+	}
+
+	manifestRequest := &apiclient.ManifestRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          revision,
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "test-persist-revision",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
+		SourceIntegrity:   sourceIntegrityReqStrict,
+	}
+
+	assert.Equal(t,
+		cache.NewManifestKey(revision, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(), request.GetTrackingMethod(),
+			request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(), request.GetSourceIntegrity(), request, nil).String(),
+		cache.NewManifestKey(revision, manifestRequest.ApplicationSource, manifestRequest.GetRefSources(), manifestRequest.GetNamespace(), manifestRequest.GetTrackingMethod(),
+			manifestRequest.GetAppLabelKey(), manifestRequest.GetAppName(), manifestRequest.GetInstallationID(), manifestRequest.GetSourceIntegrity(), manifestRequest, nil).String(),
+	)
 }
 
 func Test_getRepoSanitizerRegex(t *testing.T) {
