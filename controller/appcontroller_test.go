@@ -4131,27 +4131,7 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 
-		// 	ctrl.persistAppStatus(t.Context(), origApp, newStatus /*, newAnnotations*/)
-
-		// 	// Verify the patch was created correctly
-		// 	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
-		// 	require.NoError(t, err)
-
-		// 	// Hydrate annotation should be deleted
-		// 	_, hasHydrate := patchedApp.Annotations[v1alpha1.AnnotationKeyHydrate]
-		// 	assert.False(t, hasHydrate, "hydrate annotation should be deleted")
-
-		// 	// Refresh annotation should still exist
-		// 	refreshValue, hasRefresh := patchedApp.Annotations[v1alpha1.AnnotationKeyRefresh]
-		// 	assert.True(t, hasRefresh, "refresh annotation should still exist")
-		// 	assert.Equal(t, string(v1alpha1.RefreshTypeNormal), refreshValue)
-
-		// 	// Other annotations should be preserved
-		// 	otherValue, hasOther := patchedApp.Annotations["other-annotation"]
-		// 	assert.True(t, hasOther, "other annotations should be preserved")
-		// 	assert.Equal(t, "other-value", otherValue)
-		// })
-		assert.Equal(t, 0, len(patchedApp.Annotations))
+		assert.Empty(t, patchedApp.Annotations)
 	})
 }
 
