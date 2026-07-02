@@ -2328,29 +2328,39 @@ type Cluster struct {
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
-	// Config holds cluster information for connecting to a cluster
+	// Config holds cluster information for connecting to a cluster.
+	// In a cluster Secret, marshaled as JSON under the key "config".
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
 	// Deprecated: use Info.ConnectionState field instead.
-	// ConnectionState contains information about cluster connection state
+	// ConnectionState contains information about cluster connection state.
+	// Not stored in cluster Secrets; populated at runtime by the API.
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
 	// Deprecated: use Info.ServerVersion field instead.
-	// The server version
+	// The server version.
+	// Not stored in cluster Secrets; populated at runtime by the API.
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
+	// In a cluster Secret, stored as a comma-separated string under the key "namespaces".
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
-	// RefreshRequestedAt holds time when cluster cache refresh has been requested
+	// RefreshRequestedAt holds time when cluster cache refresh has been requested.
+	// In a cluster Secret, stored as an RFC3339 timestamp in the annotation "argocd.argoproj.io/refresh", not in stringData.
 	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
-	// Info holds information about cluster cache and state
+	// Info holds information about cluster cache and state.
+	// Not stored in cluster Secrets; populated at runtime by the API.
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
 	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
+	// In a cluster Secret, stored as a decimal string under the key "shard".
 	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
 	// Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
+	// In a cluster Secret, stored as the string "true" or "false" under the key "clusterResources".
 	ClusterResources bool `json:"clusterResources,omitempty" protobuf:"bytes,10,opt,name=clusterResources"`
 	// Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
 	Project string `json:"project,omitempty" protobuf:"bytes,11,opt,name=project"`
-	// Labels for cluster secret metadata
+	// Labels for cluster secret metadata.
+	// In a cluster Secret, stored in metadata.labels (not stringData).
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
-	// Annotations for cluster secret metadata
+	// Annotations for cluster secret metadata.
+	// In a cluster Secret, stored in metadata.annotations (not stringData).
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
 
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
