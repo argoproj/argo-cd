@@ -31,6 +31,15 @@
         margin-top: 0.75em;
     }
 
+    .application-parameters {
+        .editable-panel .argo-form-row__error-msg {
+            position: static;
+            line-height: 1.2;
+            margin-top: 4px;
+            white-space: normal;
+        }
+    }
+
     &__multi-source-block {
         margin-bottom: 0.5em;
 
