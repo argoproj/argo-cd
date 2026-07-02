@@ -105,7 +105,8 @@ func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Applicatio
 	delete(newAnnotations, appv1.AnnotationKeyHydrate)
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(orig, status, newAnnotations)
+	// PersistHydrationStatus has no request context; the status write roots its own trace.
+	ctrl.persistAppStatus(context.Background(), orig, status, newAnnotations)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
