@@ -47,7 +47,7 @@ func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
 }
 
-func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
+func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, credsProvider redisCredentialsProvider) *redis.Client {
 	opts := &redis.Options{
 		Addr:       redisAddress,
 		Password:   password,
@@ -56,17 +56,24 @@ func buildRedisClient(redisAddress, password, username string, redisDB, maxRetri
 		TLSConfig:  tlsConfig,
 		Username:   username,
 	}
+	if credsProvider != nil {
+		// CredentialsProviderContext takes precedence over the static
+		// Username/Password fields above for every new connection
+		// (including reconnects), which is exactly the rotation behaviour
+		// AAD-issued tokens require.
+		opts.CredentialsProviderContext = credsProvider
+	}
 
 	client := redis.NewClient(opts)
 
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, credsProvider)
 	})))
 
 	return client
 }
 
-func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
+func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string, credsProvider redisCredentialsProvider) *redis.Client {
 	opts := &redis.FailoverOptions{
 		MasterName:       sentinelMaster,
 		SentinelAddrs:    sentinelAddresses,
@@ -78,15 +85,23 @@ func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword
 		SentinelUsername: sentinelUsername,
 		SentinelPassword: sentinelPassword,
 	}
+	if credsProvider != nil {
+		opts.CredentialsProviderContext = credsProvider
+	}
 
 	client := redis.NewFailoverClient(opts)
 
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+		*client = *buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses, credsProvider)
 	})))
 
 	return client
 }
+
+// redisCredentialsProvider is an unexported alias retained for the existing
+// builder signatures in this file. New code should depend on the exported
+// RedisCredentialsProvider type from credentials.go.
+type redisCredentialsProvider = RedisCredentialsProvider
 
 type Options struct {
 	FlagPrefix      string
@@ -219,6 +234,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 	redisUseTLS := false
 	insecureRedis := false
 	compressionStr := ""
+	credentialsProviderName := ""
 	opt := mergeOptions(opts...)
 	var defaultCacheExpiration time.Duration
 
@@ -244,6 +260,14 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 	redisCACertificateSrc := getFlagVal(cmd, opt, "redis-ca-certificate", cmd.Flags().GetString)
 	cmd.Flags().StringVar(&compressionStr, opt.FlagPrefix+CLIFlagRedisCompress, env.StringFromEnv(opt.getEnvPrefix()+"REDIS_COMPRESSION", string(RedisCompressionGZip)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none)")
 	compressionStrSrc := getFlagVal(cmd, opt, CLIFlagRedisCompress, cmd.Flags().GetString)
+	cmd.Flags().StringVar(&credentialsProviderName, opt.FlagPrefix+"redis-credentials-provider", env.StringFromEnv(opt.getEnvPrefix()+"REDIS_CREDENTIALS_PROVIDER", ""),
+		fmt.Sprintf("Use a registered credentials provider to authenticate to Redis dynamically (e.g. cloud-provider workload identity). Registered providers: %v. When set, --redis-password / REDIS_PASSWORD are ignored.", registeredRedisCredentialsProviderNames()))
+	credentialsProviderNameSrc := getFlagVal(cmd, opt, "redis-credentials-provider", cmd.Flags().GetString)
+	// Each registered factory contributes its own backend-specific flags. They
+	// are visible in --help regardless of which provider is selected, which
+	// keeps documentation discoverable; the values only take effect when the
+	// matching --redis-credentials-provider name is chosen.
+	addRedisCredentialsProviderFlags(cmd, opt.FlagPrefix, opt.getEnvPrefix())
 	return func() (*Cache, error) {
 		redisAddress := redisAddressSrc()
 		redisDB := redisDBSrc()
@@ -256,6 +280,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		insecureRedis := insecureRedisSrc()
 		redisCACertificate := redisCACertificateSrc()
 		compressionStr := compressionStrSrc()
+		credentialsProviderName := credentialsProviderNameSrc()
 
 		var tlsConfig *tls.Config
 		if redisUseTLS {
@@ -295,13 +320,42 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		if err != nil {
 			return nil, err
 		}
+		// Wire up the selected RedisCredentialsProviderFactory (e.g. the
+		// Azure Entra ID workload identity provider). Static
+		// --redis-password / REDIS_PASSWORD values are intentionally
+		// discarded when a dynamic provider is active: cloud-issued tokens
+		// are short-lived and the static value would only be used until the
+		// first reconnect, which is more confusing than helpful.
+		var credsProvider redisCredentialsProvider
+		if credentialsProviderName != "" {
+			// Sentinel-fronted Redis is incompatible with cloud-managed
+			// caches that the credentials providers target (Azure Cache
+			// for Redis, GCP Memorystore, AWS ElastiCache all front HA
+			// behind their own managed endpoint, not sentinel). Mixing
+			// the two is almost always a misconfiguration; fail fast
+			// with a clear message rather than letting it fail at
+			// connect time.
+			if len(sentinelAddresses) > 0 {
+				return nil, fmt.Errorf("--redis-credentials-provider=%q is incompatible with sentinel-mode (--sentinel); cloud-managed Redis services do not use sentinel", credentialsProviderName)
+			}
+			factory, lookupErr := lookupRedisCredentialsProvider(credentialsProviderName)
+			if lookupErr != nil {
+				return nil, lookupErr
+			}
+			provider, buildErr := factory.Build(username)
+			if buildErr != nil {
+				return nil, buildErr
+			}
+			credsProvider = provider
+			password = ""
+		}
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		compression, err := CompressionTypeFromString(compressionStr)
 		if err != nil {
 			return nil, err
 		}
 		if len(sentinelAddresses) > 0 {
-			client := buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+			client := buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses, credsProvider)
 			opt.callOnClientCreated(client)
 			return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
 		}
@@ -309,7 +363,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 			redisAddress = common.DefaultRedisAddr
 		}
 
-		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, credsProvider)
 		opt.callOnClientCreated(client)
 		return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
 	}
