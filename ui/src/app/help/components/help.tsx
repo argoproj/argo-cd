@@ -7,6 +7,15 @@ import classNames from 'classnames';
 
 require('./help.scss');
 
+export const RELEASES_URL = 'https://github.com/argoproj/argo-cd/releases';
+
+// Released versions ("v3.4.1", "v3.4.0-rc1") link to their release tag; dev builds
+// ("v3.5.0+0dc5b3f") and unknown versions fall back to the releases list.
+export const cliDownloadURL = (version: string): string => {
+    const tag = (version || '').trim();
+    return /^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(tag) ? `${RELEASES_URL}/tag/${tag}` : RELEASES_URL;
+};
+
 export const Help = () => {
     return (
         <DataLoader
@@ -16,19 +25,17 @@ export const Help = () => {
                 // with `undefined` when every source completes (as these promise-backed ones do).
                 const [settings, version] = await Promise.all([
                     services.authService.settings(),
-                    // Best-effort, informative only: the download link below is arch-agnostic, so the
-                    // arch is just label text.
-                    services.version.version().catch(() => ({Platform: ''}) as VersionMessage)
+                    // Best-effort: an unknown version just links to the releases list.
+                    services.version.version().catch(() => ({Version: ''}) as VersionMessage)
                 ]);
                 return {
                     binaryUrls: settings.help.binaryUrls || {},
-                    // Platform is "<os>/<arch>" (e.g. "linux/amd64"); may be empty.
-                    hostArch: (version.Platform || '').split('/')[1] || ''
+                    downloadURL: cliDownloadURL(version.Version)
                 };
             }}>
-            {(settings?: {binaryUrls: Record<string, string>; hostArch: string}) => {
+            {(settings?: {binaryUrls: Record<string, string>; downloadURL: string}) => {
                 const binaryUrls = settings?.binaryUrls || {};
-                const hostArch = settings?.hostArch || '';
+                const downloadURL = settings?.downloadURL || RELEASES_URL;
                 return (
                     <Consumer>
                         {() => (
@@ -45,14 +52,14 @@ export const Help = () => {
                                     <div className='columns large-4 small-6'>
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
-                                            {/* Arch-agnostic link: targets the suffix-less /argocd-linux route, which every
-                                                server serves from its own embedded binary regardless of the server's architecture.
-                                                This keeps the UI bundle architecture-independent (no arch baked in) and avoids
-                                                404s on mixed-arch clusters. The arch label is informational only, shown when known. */}
-                                            <a href='download/argocd-linux' className='user-info-panel-buttons argo-button argo-button--base'>
-                                                <i className='fab fa-linux' /> Linux{hostArch && ` (${hostArch})`}
-                                            </a>
-                                            &nbsp;
+                                            {/* Configured help.download.* links take precedence (see #28180): when any are set
+                                                we render only those, otherwise we fall back to the GitHub releases link for the
+                                                running version. This keeps the fallback out of the way in air-gapped setups. */}
+                                            {Object.keys(binaryUrls).length === 0 && (
+                                                <a href={downloadURL} target='_blank' rel='noopener noreferrer' className='user-info-panel-buttons argo-button argo-button--base'>
+                                                    <i className='fab fa-github' /> GitHub releases
+                                                </a>
+                                            )}
                                             {Object.keys(binaryUrls || {}).map(binaryName => {
                                                 const url = binaryUrls[binaryName];
                                                 const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64|ppc64le|s390x)/);
