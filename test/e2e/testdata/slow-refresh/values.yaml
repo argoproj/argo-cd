@@ -1,0 +1,8 @@
+# Number of bcrypt calls performed at render time.
+# Each call costs a fixed chunk of CPU (~50-80ms on a typical machine)
+# and cannot be cached or optimized away, so render time scales linearly.
+#
+# Rough guide (varies by machine):
+#   400  -> ~20-30s
+#   800  -> ~40-60s
+iterations: 150

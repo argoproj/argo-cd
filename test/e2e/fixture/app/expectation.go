@@ -96,6 +96,25 @@ func SyncStatusIs(expected v1alpha1.SyncStatusCode) Expectation {
 	}
 }
 
+func SyncRevisionIs(expected string) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.Sync.Revision
+		return simple(actual == expected, fmt.Sprintf("sync revision to be %s, is %s", expected, actual))
+	}
+}
+
+func HelmTemplateRuns() Expectation {
+	return func(c *Consequences) (state, string) {
+		isRunning := false
+		c.actions.GetHelmTemplateProcess()
+		processData := c.actions.GetLastOutput()
+		if processData != "" {
+			isRunning = true
+		}
+		return simple(isRunning, fmt.Sprintf("Helm template command is to be running, this is %v, processData: %q", isRunning, processData))
+	}
+}
+
 func HydrationPhaseIs(expected v1alpha1.HydrateOperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.SourceHydrator.CurrentOperation.Phase
@@ -397,6 +416,7 @@ func Success(message string, matchers ...func(string, string) bool) Expectation 
 		matchers = append(matchers, strings.Contains)
 	}
 	match := func(actual, expected string) bool {
+		fmt.Printf("*** ACTUAL=%q\n*** EXPECT=%q\n", actual, expected)
 		for i := range matchers {
 			if !matchers[i](actual, expected) {
 				return false
