@@ -566,8 +566,6 @@ metadata:
 ---
 apiVersion: v1
 data:
-  redis.sentinel.hosts: ""
-  redis.sentinel.master: ""
   redis.server: argocd-redis-ha-haproxy:6379
 kind: ConfigMap
 metadata:
