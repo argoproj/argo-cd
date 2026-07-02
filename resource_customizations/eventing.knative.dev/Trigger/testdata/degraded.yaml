@@ -1,0 +1,15 @@
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: my-service-trigger
+  namespace: events
+spec:
+  broker: default
+status:
+  conditions:
+  - type: DependencyReady
+    status: "False"
+  - type: Ready
+    status: "False"
+    reason: DependencyFailed
+    message: the status of Dependency Ready is False
