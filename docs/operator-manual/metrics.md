@@ -169,7 +169,7 @@ argocd_cluster_labels{label_environment="production",label_team_name="team3",nam
 
 ## ApplicationSet Controller metrics
 
-Metrics about ApplicationSets. Scraped at the `argocd-applicationset-controller-metrics:8080/metrics` endpoint.
+Metrics about ApplicationSets. Scraped at the `argocd-applicationset-controller:8080/metrics` endpoint.
 
 | Metric                                            |   Type    | Description                                                                                                                                                                                |
 | ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
