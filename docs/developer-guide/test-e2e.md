@@ -3,16 +3,16 @@
 The test [directory](https://github.com/argoproj/argo-cd/tree/master/test) contains E2E tests and test applications. The tests assume that Argo CD services are installed into `argocd-e2e` namespace or cluster in current context. A throw-away
 namespace `argocd-e2e***` is created prior to the execution of the tests. The throw-away namespace is used as a target namespace for test applications.
 
-The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution, the directory is copied into `/tmp/argo-e2e***` temp directory (configurable by `ARGOCD_E2E_DIR`) and used in tests as a
-Git repository via file url: `file:///tmp/argo-e2e***`.
+The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution, the directory is copied into default directory path and used in tests as a
+Git repository via file url: `file://<directory>`. Default path is `/tmp/argo-e2e` and configurable by `ARGOCD_E2E_DIR`.
+If using macOS, default path is `$(HOME)/argo-e2e`, if this folder does not exist on your system, you must create it manually to continue using this default path.
 
 > [!NOTE]
-> You might get an error such as `unable to ls-remote HEAD on repository: failed to list refs: repository not found` when querying the local repository exposed through the e2e server running in a container.
-> This is often caused by `/tmp` directoring sharing protection. You can configure a different directory with `ARGOCD_E2E_DIR`, or disable the directory sharing protection.
+> If you'd like to keep using directory /tmp/argo-e2e while using macOS, you'll need to disable the directory sharing protection after configuring `ARGOCD_E2E_DIR`
 >
 > **Rancher Desktop Volume Sharing**
 >
-> To do enable `/tmp` sharing, add the following to
+> To enable `/tmp` sharing, add the following to
 > `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
 >
 > ```yaml
