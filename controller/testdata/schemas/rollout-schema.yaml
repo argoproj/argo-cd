@@ -1,0 +1,67 @@
+swagger: "2.0"
+info:
+  title: Rollout
+  version: "v1alpha1"
+paths: {}
+definitions:
+  argoproj.io.v1alpha1.Rollout:
+    type: object
+    x-kubernetes-group-version-kind:
+      - group: argoproj.io
+        version: v1alpha1
+        kind: Rollout
+    properties:
+      spec:
+        type: object
+        properties:
+          replicas:
+            type: integer
+          strategy:
+            type: object
+            properties:
+              canary:
+                type: object
+                properties:
+                  steps:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        setWeight:
+                          type: integer
+          selector:
+            type: object
+            properties:
+              matchLabels:
+                type: object
+                additionalProperties:
+                  type: string
+          template:
+            type: object
+            properties:
+              metadata:
+                type: object
+                properties:
+                  labels:
+                    type: object
+                    additionalProperties:
+                      type: string
+              spec:
+                type: object
+                properties:
+                  containers:
+                    type: array
+                    x-kubernetes-list-map-keys:
+                      - name
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        image:
+                          type: string
+                        livenessProbe:
+                          type: object
+                          properties:
+                            initialDelaySeconds:
+                              type: integer

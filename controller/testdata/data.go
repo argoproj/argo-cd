@@ -38,4 +38,22 @@ var (
 
 	//go:embed target-pdb.yaml
 	TargetPDBYaml string
+
+	//go:embed simple-app-live.yaml
+	SimpleAppLiveYaml string
+
+	//go:embed simple-app-target.yaml
+	SimpleAppTargetYaml string
+
+	//go:embed target-rollout.yaml
+	TargetRolloutYaml string
+
+	//go:embed live-rollout.yaml
+	LiveRolloutYaml string
+
+	//go:embed live-child-application.yaml
+	LiveChildApplicationYaml string
+
+	//go:embed target-child-application.yaml
+	TargetChildApplicationYaml string
 )
