@@ -300,7 +300,7 @@ func TestMTLSIntegration_NoClientCert_IsRejected(t *testing.T) {
 		}
 	}(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	conn.Connect()
 	for {
@@ -315,12 +315,13 @@ func TestMTLSIntegration_NoClientCert_IsRejected(t *testing.T) {
 
 	err = healthCheck(t, conn)
 	require.Error(t, err, "the server enforces mTLS; a client without a certificate must be rejected")
-	// gRPC may surface the TLS alert as "certificate required" or as a transport-level
-	// "broken pipe" when the server closes the connection after detecting the missing cert.
-	// Both are valid indicators of an mTLS rejection.
+	// gRPC may surface the TLS alert as "certificate required", as a transport-level
+	// "broken pipe" when the server closes the connection after detecting the missing cert,
+	// or as "connection reset by peer" when the server sends a TCP RST before completing
+	// the TLS handshake. All are valid indicators of an mTLS rejection.
 	assert.True(t,
-		strings.Contains(err.Error(), "certificate") || strings.Contains(err.Error(), "broken pipe"),
-		"rejection must be a TLS-related error (certificate or broken pipe), got: %v", err,
+		strings.Contains(err.Error(), "certificate") || strings.Contains(err.Error(), "broken pipe") || strings.Contains(err.Error(), "connection reset by peer"),
+		"rejection must be a TLS-related error (certificate, broken pipe, or connection reset by peer), got: %v", err,
 	)
 }
 
@@ -407,7 +408,7 @@ func TestMTLSIntegration_HealthCheckEphemeralCert_IsAccepted(t *testing.T) {
 // that DisableTLS=true on the client side still works after this PR.
 func TestMTLSIntegration_DisableTLS_PlaintextConnection(t *testing.T) {
 	t.Parallel()
-	lis, err := new(net.ListenConfig).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	lis, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	srv := grpc.NewServer() // no TLS credentials
@@ -549,7 +550,7 @@ func extractServerCert(t *testing.T, addr string, clientCert *tls.Certificate) (
 		Certificates:       []tls.Certificate{*clientCert},
 	}
 	d := &tls.Dialer{Config: cfg}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
@@ -593,7 +594,7 @@ func newMTLSServer(t *testing.T, clientCAs *x509.CertPool) *mTLSServerFixture {
 		MinVersion:   tls.VersionTLS12,
 	}
 
-	lis, err := new(net.ListenConfig).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	lis, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err, "binding test listener")
 
 	srv := grpc.NewServer(grpc.Creds(credentials.NewTLS(serverTLSCfg)))
@@ -609,7 +610,7 @@ func newMTLSServer(t *testing.T, clientCAs *x509.CertPool) *mTLSServerFixture {
 
 func healthCheck(t *testing.T, conn *grpc.ClientConn) error {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	resp, err := grpc_health_v1.NewHealthClient(conn).Check(ctx, &grpc_health_v1.HealthCheckRequest{})
 	if err != nil {

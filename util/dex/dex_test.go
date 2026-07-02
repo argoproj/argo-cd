@@ -275,6 +275,22 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigOIDCWithEnvVarReference = `
+connectors:
+- type: oidc
+  id: authentik
+  name: Authentik
+  config:
+    issuer: https://sso.example.com/
+    clientID: $AUTHENTIK_CLIENT_ID
+    clientSecret: $AUTHENTIK_CLIENT_SECRET
+    redirectURI: http://localhost/callback
+    scopes:
+    - openid
+    - profile
+    - email
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -651,6 +667,20 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 			dexConfig: goodDexConfigLDAPWithDollarSign,
 			field:     "bindPW",
 			expected:  "pässwörð£€",
+		},
+		{
+			name:      "unresolved environment variable reference is NOT escaped (allows Dex env expansion)",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigOIDCWithEnvVarReference,
+			field:     "clientID",
+			expected:  "$AUTHENTIK_CLIENT_ID",
+		},
+		{
+			name:      "unresolved clientSecret environment variable reference is NOT escaped",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigOIDCWithEnvVarReference,
+			field:     "clientSecret",
+			expected:  "$AUTHENTIK_CLIENT_SECRET",
 		},
 	}
 

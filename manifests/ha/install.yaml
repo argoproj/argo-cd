@@ -31347,6 +31347,12 @@ rules:
   - get
   - patch
 - apiGroups:
+  - '*'
+  resources:
+  - '*/finalizers'
+  verbs:
+  - update
+- apiGroups:
   - ""
   resources:
   - events
@@ -33695,6 +33701,12 @@ spec:
               key: redis.db
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -34228,6 +34240,12 @@ spec:
               key: redis.db
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -34635,6 +34653,24 @@ spec:
               key: controller.metrics.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.application.labels
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.application.conditions
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.cluster.labels
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -34735,6 +34771,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION

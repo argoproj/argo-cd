@@ -79,7 +79,7 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		return nil, fmt.Errorf("failed to get managed live objects: %w", err)
 	}
 	result := sync.Reconcile(resources, managedResources, namespace, e.cache)
-	diffRes, err := diff.DiffArray(result.Target, result.Live, diff.WithLogr(e.log))
+	diffRes, err := diff.DiffArray(ctx, result.Target, result.Live, diff.WithLogr(e.log))
 	if err != nil {
 		return nil, fmt.Errorf("failed to diff objects: %w", err)
 	}
@@ -109,7 +109,7 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 	defer close(resIgnore)
 	defer unsubscribe()
 	for {
-		syncCtx.Sync()
+		syncCtx.Sync(ctx)
 		phase, message, resources := syncCtx.GetState()
 		if phase.Completed() {
 			if phase == common.OperationError {
@@ -119,7 +119,7 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		}
 		select {
 		case <-ctx.Done():
-			syncCtx.Terminate()
+			syncCtx.Terminate(ctx)
 			//nolint:wrapcheck // don't wrap context errors
 			return resources, ctx.Err()
 		case <-time.After(operationRefreshTimeout):

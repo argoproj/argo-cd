@@ -154,6 +154,24 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.metrics.cache.expiration
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.metrics.application.labels
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.metrics.application.conditions
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.metrics.cluster.labels
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -255,6 +273,12 @@ spec:
             configMapKeyRef:
               name: argocd-cmd-params-cm
               key: redis.db
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: redis.key.prefix
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
           valueFrom:

@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -53,14 +52,14 @@ func TestAuthReconcileWithMissingNamespace(t *testing.T) {
 		role := testingutils.NewRole()
 		role.SetNamespace(namespace)
 
-		_, err := k.rbacReconcile(context.Background(), role, cmdutil.DryRunNone)
+		_, err := k.rbacReconcile(t.Context(), role, cmdutil.DryRunNone)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `namespaces "test-ns" not found`)
 
 		roleBinding := testingutils.NewRoleBinding()
 		roleBinding.SetNamespace(namespace)
 
-		_, err = k.rbacReconcile(context.Background(), roleBinding, cmdutil.DryRunNone)
+		_, err = k.rbacReconcile(t.Context(), roleBinding, cmdutil.DryRunNone)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `namespaces "test-ns" not found`)
 	})
@@ -73,13 +72,13 @@ func TestAuthReconcileWithMissingNamespace(t *testing.T) {
 		clusterRole := testingutils.NewClusterRole()
 		clusterRole.SetNamespace(namespace)
 
-		_, err := k.rbacReconcile(context.Background(), clusterRole, cmdutil.DryRunNone)
+		_, err := k.rbacReconcile(t.Context(), clusterRole, cmdutil.DryRunNone)
 		require.NoError(t, err)
 
 		clusterRoleBinding := testingutils.NewClusterRoleBinding()
 		clusterRoleBinding.SetNamespace(namespace)
 
-		_, err = k.rbacReconcile(context.Background(), clusterRoleBinding, cmdutil.DryRunNone)
+		_, err = k.rbacReconcile(t.Context(), clusterRoleBinding, cmdutil.DryRunNone)
 		require.NoError(t, err)
 	})
 }
@@ -330,7 +329,13 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
 				assert.Equal(t, "test-manager", capturedOpts.FieldManager)
 				assert.True(t, capturedOpts.Overwrite)
-				assert.True(t, capturedOpts.OpenAPIPatch)
+				if tc.strategy == cmdutil.DryRunClient {
+					// workaround for https://github.com/kubernetes/kubernetes/issues/139538
+					// in kubectl v1.36
+					assert.False(t, capturedOpts.OpenAPIPatch)
+				} else {
+					assert.True(t, capturedOpts.OpenAPIPatch)
+				}
 				assert.False(t, capturedOpts.ServerSideApply)
 				assert.False(t, capturedOpts.ForceConflicts)
 			})
