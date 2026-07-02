@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: build-deploy-run
+  namespace: default
+spec:
+  pipelineRef:
+    name: build-deploy
+status:
+  conditions:
+  - type: Succeeded
+    status: "True"
+    reason: Succeeded
+    message: "All Tasks have completed executing"
