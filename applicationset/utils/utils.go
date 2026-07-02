@@ -333,9 +333,9 @@ func getFilteredGeneratorTypes() map[string]bool {
 // apply the first generator's metadata values to the second generator's Values templates.
 var generatorOwnParamKeys = map[string][]string{
 	"ClusterGenerator":     {"name", "nameNormalized", "server", "project", "metadata", "clusters"},
-	"GitGenerator":         {"path", "url", "type", "repo", "revision"},
-	"SCMProviderGenerator": {"organization", "repository", "url", "branch", "sha", "short_sha", "labels", "branchNormalized", "branchSlug"},
-	"PullRequestGenerator": {"number", "branch", "head_sha", "labels", "author", "title", "body", "target_branch"},
+	"GitGenerator":         {"path"},
+	"SCMProviderGenerator": {"organization", "repository", "repository_id", "url", "branch", "sha", "short_sha", "short_sha_7", "labels", "branchNormalized"},
+	"PullRequestGenerator": {"number", "title", "branch", "branch_slug", "target_branch", "target_branch_slug", "head_sha", "head_short_sha", "head_short_sha_7", "author", "labels"},
 }
 
 func isMissingKeyError(err error) bool {
