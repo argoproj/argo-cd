@@ -119,6 +119,7 @@ export const ApplicationCreatePanel = (props: {
     const lastOciUrl = React.useRef('');
     const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
     const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
+    const [selectedProjectDetails, setSelectedProjectDetails] = React.useState<models.Project>(null);
     let destinationComboValue = destinationFieldChanges.destFormat;
     const authSettingsCtx = React.useContext(AuthSettingsCtx);
 
@@ -133,6 +134,18 @@ export const ApplicationCreatePanel = (props: {
             debouncedOnAppChanged.cancel();
         };
     }, [debouncedOnAppChanged]);
+
+    React.useEffect(() => {
+        const projectName = app.spec.project;
+        if (projectName && authSettingsCtx?.appsInAnyNamespaceEnabled) {
+            services.projects
+                .get(projectName)
+                .then(proj => setSelectedProjectDetails(proj))
+                .catch(() => setSelectedProjectDetails(null));
+        } else {
+            setSelectedProjectDetails(null);
+        }
+    }, [app.spec.project, authSettingsCtx?.appsInAnyNamespaceEnabled]);
 
     const currentName = app.spec.destination.name;
     const currentServer = app.spec.destination.server;
@@ -174,6 +187,10 @@ export const ApplicationCreatePanel = (props: {
             delete data.spec.destination.name;
         } else {
             delete data.spec.destination.server;
+        }
+
+        if (!data.metadata.namespace) {
+            delete data.metadata.namespace;
         }
 
         if (data.spec.sourceHydrator && !data.spec.sourceHydrator.hydrateTo?.targetBranch) {
@@ -261,6 +278,30 @@ export const ApplicationCreatePanel = (props: {
                                     const hasHydrator = !!a.spec.sourceHydrator;
                                     const source = a.spec.source;
 
+                                    const appNsError = (() => {
+                                        if (!authSettingsCtx?.appsInAnyNamespaceEnabled || !a.metadata.namespace) {
+                                            return undefined;
+                                        }
+                                        const allowed = selectedProjectDetails?.spec?.sourceNamespaces;
+                                        if (allowed && allowed.length > 0) {
+                                            const ns = a.metadata.namespace;
+                                            const isAllowed = allowed.some(pattern => {
+                                                // support simple glob: exact match or trailing-wildcard prefix match
+                                                if (pattern === '*' || pattern === ns) {
+                                                    return true;
+                                                }
+                                                if (pattern.endsWith('*')) {
+                                                    return ns.startsWith(pattern.slice(0, -1));
+                                                }
+                                                return false;
+                                            });
+                                            if (!isAllowed) {
+                                                return `Namespace "${ns}" is not permitted by project "${a.spec.project}". Allowed: ${allowed.join(', ')}`;
+                                            }
+                                        }
+                                        return undefined;
+                                    })();
+
                                     const destinationErrors = {
                                         'spec.destination.server':
                                             !a.spec.destination.server && (!a.spec.destination.hasOwnProperty('name') || a.spec.destination.name === '')
@@ -275,6 +316,7 @@ export const ApplicationCreatePanel = (props: {
                                     if (multiSourceMode && !hasHydrator) {
                                         const errs: Record<string, string | undefined> = {
                                             'metadata.name': !a.metadata.name ? 'Application Name is required' : undefined,
+                                            'metadata.namespace': appNsError,
                                             'spec.project': !a.spec.project ? 'Project Name is required' : undefined,
                                             ...destinationErrors
                                         };
@@ -291,6 +333,7 @@ export const ApplicationCreatePanel = (props: {
 
                                     return {
                                         'metadata.name': !a.metadata.name ? 'Application Name is required' : undefined,
+                                        'metadata.namespace': appNsError,
                                         'spec.project': !a.spec.project ? 'Project Name is required' : undefined,
                                         'spec.source.repoURL': !hasHydrator && !source?.repoURL ? 'Repository URL is required' : undefined,
                                         'spec.source.targetRevision':
@@ -342,6 +385,28 @@ export const ApplicationCreatePanel = (props: {
                                                     }}
                                                 />
                                             </div>
+                                            {authSettingsCtx?.appsInAnyNamespaceEnabled && (
+                                                <div className='argo-form-row'>
+                                                    <FormField
+                                                        formApi={api}
+                                                        label='Application Namespace'
+                                                        qeId='application-create-field-app-namespace'
+                                                        field='metadata.namespace'
+                                                        component={AutocompleteField}
+                                                        componentProps={{
+                                                            items: (() => {
+                                                                const sourceNamespaces = selectedProjectDetails?.spec?.sourceNamespaces || [];
+                                                                // Don't show dropdown list for wildcard permissions
+                                                                if (sourceNamespaces.length === 1 && sourceNamespaces[0] === '*') {
+                                                                    return [];
+                                                                }
+                                                                return sourceNamespaces;
+                                                            })(),
+                                                            filterSuggestions: true
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
                                             <div className='argo-form-row'>
                                                 <FormField
                                                     formApi={api}
