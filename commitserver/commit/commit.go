@@ -7,12 +7,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/gpgsign"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
@@ -26,13 +28,25 @@ const (
 type Service struct {
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
+	// signingConfig is non-nil when the commit server has been configured to
+	// sign hydrated commits. When set, every commit produced by this service
+	// is GPG-signed with the configured key, locally verified, and only then
+	// pushed — there is no unsigned fallback.
+	signingConfig *gpgsign.Config
+	// branchLock serializes the read-modify-write of a given target branch so
+	// concurrent requests for the same branch don't race each other. Keyed by
+	// repo URL + target branch.
+	branchLock sync.KeyLock
 }
 
-// NewService returns a new instance of the commit service.
-func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
+// NewService returns a new instance of the commit service. When signingConfig
+// is non-nil, hydrated commits are GPG-signed with the configured key.
+func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, signingConfig *gpgsign.Config) *Service {
 	return &Service{
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
+		signingConfig:     signingConfig,
+		branchLock:        sync.NewKeyLock(),
 	}
 }
 
@@ -118,6 +132,15 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return "", "", errors.New("sync branch is required")
 	}
 
+	// Serialize same-branch requests so they don't clone the same base and then
+	// race on the push (the loser hits a non-fast-forward rejection after a
+	// wasted sign cycle). Per-replica only; cross-replica safety still relies on
+	// git rejecting non-fast-forward pushes. The NUL separator can't appear in
+	// either field, so distinct (repo, branch) pairs never share a key.
+	branchKey := r.Repo.Repo + "\x00" + r.TargetBranch
+	s.branchLock.Lock(branchKey)
+	defer s.branchLock.Unlock(branchKey)
+
 	logCtx = logCtx.WithField("repo", r.Repo.Repo)
 	logCtx.Debug("Initiating git client")
 	gitClient, dirPath, cleanup, err := s.initGitClient(ctx, logCtx, r)
@@ -183,10 +206,42 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		}
 		return "", hydratedSha, nil
 	}
-	logCtx.Debug("Committing and pushing changes")
-	out, err = gitClient.CommitAndPush(ctx, r.TargetBranch, r.CommitMessage)
+	logCtx.Debug("Committing changes")
+	signingKeyID := ""
+	if s.signingConfig != nil {
+		signingKeyID = s.signingConfig.KeyID
+	}
+	out, err = gitClient.Commit(r.CommitMessage, signingKeyID)
 	if err != nil {
-		return out, "", fmt.Errorf("failed to commit and push: %w", err)
+		if s.signingConfig != nil {
+			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonCommit)
+		}
+		return out, "", fmt.Errorf("failed to commit: %w", err)
+	}
+
+	if s.signingConfig != nil {
+		// Verify locally that the freshly-created commit is signed by the
+		// expected key before pushing. If anything looks off, we fail here —
+		// we must never push an unsigned (or wrongly-signed) hydrated commit.
+		status, keyID, sigErr := gitClient.HeadSignatureStatus()
+		if sigErr != nil {
+			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonVerify)
+			return out, "", fmt.Errorf("failed to verify signature of hydrated commit: %w", sigErr)
+		}
+		if status != git.SignatureStatusGood && status != git.SignatureStatusGoodUnknownTrust {
+			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonBadStatus)
+			return out, "", fmt.Errorf("hydrated commit signature status %q is not acceptable (want %q or %q)", status, git.SignatureStatusGood, git.SignatureStatusGoodUnknownTrust)
+		}
+		if !s.signingConfig.MatchesSigningKey(keyID) {
+			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonWrongKey)
+			return out, "", fmt.Errorf("hydrated commit signed by key %q, expected one of %v", keyID, s.signingConfig.SigningKeyIDs)
+		}
+		logCtx.WithField("signingKey", keyID).Debug("Hydrated commit signature verified")
+	}
+
+	logCtx.Debug("Pushing changes")
+	if out, err = gitClient.Push(r.TargetBranch); err != nil {
+		return out, "", fmt.Errorf("failed to push: %w", err)
 	}
 
 	logCtx.Debug("Getting commit SHA")

@@ -636,8 +636,122 @@ not verified), hydration is rejected. Verification is opted into per project by 
 the `AppProject`. See [Source Integrity Verification](source-integrity.md) for how to set it up (for example, using
 [Git GnuPG verification](source-integrity-git-gpg.md)).
 
-The hydrator **does not** sign the commits it pushes to git, so if signature verification is enabled for the
-hydrated branch, those commits will fail verification when Argo CD attempts to sync the hydrated manifests.
+By default the hydrator **does not** sign the commits it pushes to git, so if signature verification is enabled
+for the hydrated branch those commits will fail verification when Argo CD attempts to sync the hydrated manifests.
+See [Signing Hydrated Commits](#signing-hydrated-commits) below for how to opt in.
+
+### Signing Hydrated Commits
+
+*Current Status: Alpha (Since v3.6)*
+
+The commit server can optionally GPG-sign every hydrated commit before pushing it. Signing is enabled simply by
+configuring a signing key path — there is no separate on/off toggle. When a key is configured, the commit server
+fails fast at startup if the signing key is missing or invalid, and refuses to push any commit it cannot locally
+verify against the configured key — there is no unsigned fallback.
+
+To enable signing:
+
+1. Create a Kubernetes Secret in the Argo CD namespace named `argocd-commit-server-gpg-signing-key` containing
+   the ASCII-armored private key, and (optionally) the passphrase:
+
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: argocd-commit-server-gpg-signing-key
+      namespace: argocd
+    type: Opaque
+    stringData:
+      signingKey: |
+        -----BEGIN PGP PRIVATE KEY BLOCK-----
+        ...
+        -----END PGP PRIVATE KEY BLOCK-----
+      # Optional. Omit entirely if the key has no passphrase.
+      passphrase: "s3cret"
+    ```
+
+2. Set the relevant params in `argocd-cmd-params-cm`. Setting the key path is what turns signing on:
+
+    ```yaml
+    # Empty by default (signing off). Point this at the mounted Secret entry to enable signing.
+    commitserver.signing.key.path: "/app/config/gpg/signing/signingKey"
+    # Empty by default. Set this ONLY for a passphrase-protected key, pointing at the
+    # mounted `passphrase` Secret entry. Leave unset for an unprotected key.
+    commitserver.signing.key.passphrase.file: "/app/config/gpg/signing/passphrase"
+    ```
+
+3. Add the corresponding **public** key to Argo CD's trusted GPG keys (via the UI, CLI, or the
+   `argocd-gpg-keys-cm` ConfigMap) and configure your project's `SourceIntegrity` policy so the hydrated branch is
+   verified at sync time. Without this step Argo CD will accept the signed commit but won't actually enforce that
+   it was signed.
+
+    Declaratively, add the public key to `argocd-gpg-keys-cm`, keyed by the signing key's ID with the
+    ASCII-armored public key as the value:
+
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: argocd-gpg-keys-cm
+      namespace: argocd
+      labels:
+        app.kubernetes.io/name: argocd-gpg-keys-cm
+        app.kubernetes.io/part-of: argocd
+    data:
+      # The signing key's ID, with its ASCII-armored public key as the value.
+      D56C4FCA57A46444: |
+        -----BEGIN PGP PUBLIC KEY BLOCK-----
+        ...
+        -----END PGP PUBLIC KEY BLOCK-----
+    ```
+
+    Then reference that key ID in the project's `SourceIntegrity` policy so the hydrated (`hydrateTo`) branch is
+    verified at sync time:
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AppProject
+    metadata:
+      name: my-project
+      namespace: argocd
+    spec:
+      sourceIntegrity:
+        git:
+          policies:
+            - repos:
+                - url: "https://github.com/my-org/my-hydrated-repo.git"
+              gpg:
+                # "strict" verifies the entire branch history; because the commit server signs every hydrated
+                # commit, this holds for a branch signed from the start. Use "head" to verify only the tip commit
+                # instead — useful when the branch already had unsigned commits before signing was enabled.
+                mode: "strict"
+                keys:
+                  - "D56C4FCA57A46444"
+    ```
+
+    See [Git GnuPG verification](./source-integrity-git-gpg.md) for the full policy reference.
+
+> [!NOTE]
+> The configured key is the commit server's single, cluster-wide **default** signing key. Finer-grained signing
+> keys (for example per-AppProject or per-repository) are not supported yet, but are a planned additive extension —
+> the existing `commitserver.signing.key.*` params will remain the default and won't be renamed.
+
+> [!NOTE]
+> If your signing key has a dedicated **signing subkey** (common when the primary key is kept certify-only, e.g. a
+> key extended with `gpg --quick-add-key <fpr> - sign`), git signs commits with that subkey rather than the primary
+> key. You only need to list the **primary** key fingerprint in your `SourceIntegrity` policy — verification
+> resolves the signing subkey back to its primary key, so a subkey signature is accepted as long as the primary is
+> trusted. The public key you import via `argocd-gpg-keys-cm` already carries its subkeys, so no extra configuration
+> is required.
+
+> [!WARNING]
+> If you use a tool that auto-merges the hydrated `hydrateTo` branch into the `syncSource` branch — for example
+> [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) or a GitHub "merge pull request" automation —
+> the live branch HEAD becomes a **merge commit signed by the merger**, not the commit server's signed commit.
+> Argo CD verifies that merge commit when it picks up the change on the live branch, so verification will fail
+> unless the merger's public key is also trusted. Add the merger's public key (e.g. GitHub's web-flow key from
+> `https://github.com/web-flow.gpg`) to `argocd-gpg-keys-cm` and your project's `SourceIntegrity` policy alongside
+> the commit server's signing key.
 
 ### Project-Scoped Push Secrets
 

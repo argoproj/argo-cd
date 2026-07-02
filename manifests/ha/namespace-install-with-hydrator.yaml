@@ -2177,6 +2177,18 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_COMMIT_SERVER_SIGNING_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.signing.key.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_COMMIT_SERVER_SIGNING_KEY_PASSPHRASE_FILE
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.signing.key.passphrase.file
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -2211,10 +2223,11 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
-        - mountPath: /app/config/gpg/source
-          name: gpg-keys
         - mountPath: /app/config/gpg/keys
           name: gpg-keyring
+        - mountPath: /app/config/gpg/signing
+          name: gpg-signing-key
+          readOnly: true
         - mountPath: /tmp
           name: tmp
       serviceAccountName: argocd-commit-server
@@ -2225,11 +2238,12 @@ spec:
       - configMap:
           name: argocd-tls-certs-cm
         name: tls-certs
-      - configMap:
-          name: argocd-gpg-keys-cm
-        name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - name: gpg-signing-key
+        secret:
+          optional: true
+          secretName: argocd-commit-server-gpg-signing-key
       - emptyDir: {}
         name: tmp
       - name: argocd-commit-server-tls
