@@ -17,6 +17,9 @@ const (
 )
 
 func getArgoWorkflowHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
+	if h := pendingDeletionHealth(obj); h != nil {
+		return h, nil
+	}
 	phase, _, _ := unstructured.NestedString(obj.Object, "status", "phase")
 	message, _, _ := unstructured.NestedString(obj.Object, "status", "message")
 

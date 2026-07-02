@@ -11,4 +11,7 @@ tests:
     status: Degraded
     message: "Failed to verify ACME account: acme: : 404 page not found\n"
   inputPath: testdata/degraded_acmeFailed.yaml
-
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

@@ -12,6 +12,9 @@ import (
 )
 
 func getReplicaSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
+	if h := pendingDeletionHealth(obj); h != nil {
+		return h, nil
+	}
 	gvk := obj.GroupVersionKind()
 	switch gvk {
 	case appsv1.SchemeGroupVersion.WithKind(kube.ReplicaSetKind):

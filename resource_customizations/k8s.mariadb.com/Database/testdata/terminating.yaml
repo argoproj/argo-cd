@@ -1,0 +1,7 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: terminating-resource
+  deletionTimestamp: "2024-01-01T00:00:00Z"
+  finalizers:
+    - example.com/finalizer

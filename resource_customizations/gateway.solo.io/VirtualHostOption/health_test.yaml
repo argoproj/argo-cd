@@ -35,3 +35,7 @@ tests:
     status: Progressing
     message: "Update in progress"
   inputPath: testdata/gloo-no-status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

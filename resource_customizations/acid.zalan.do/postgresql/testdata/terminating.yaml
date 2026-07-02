@@ -1,0 +1,7 @@
+apiVersion: acid.zalan.do/v1
+kind: postgresql
+metadata:
+  name: terminating-resource
+  deletionTimestamp: "2024-01-01T00:00:00Z"
+  finalizers:
+    - example.com/finalizer

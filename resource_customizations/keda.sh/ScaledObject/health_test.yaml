@@ -23,3 +23,7 @@ tests:
     status: Degraded
     message: "At least one trigger is falling back on this scaled object"
   inputPath: testdata/keda-fallback.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

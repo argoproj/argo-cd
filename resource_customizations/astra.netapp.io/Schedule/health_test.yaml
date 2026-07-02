@@ -7,3 +7,7 @@ tests:
       status: Healthy
       message: "Protection policy lastScheduleTime: 2024-04-24T01:00:00Z"
     inputPath: testdata/healthy_status.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

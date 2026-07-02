@@ -2,6 +2,7 @@ package health
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -66,15 +67,25 @@ func IsWorse(current, new HealthStatusCode) bool {
 	return newIndex > currentIndex
 }
 
+// pendingDeletionHealth returns Progressing health for terminating resources that are not
+// blocked on the Argo CD hook finalizer. Returns nil when the resource is not terminating
+// or when the hook finalizer is present.
+func pendingDeletionHealth(obj *unstructured.Unstructured) *HealthStatus {
+	if obj.GetDeletionTimestamp() == nil || hook.HasHookFinalizer(obj) {
+		return nil
+	}
+	msg := "Pending deletion"
+	if finalizers := obj.GetFinalizers(); len(finalizers) > 0 {
+		msg = "Pending deletion; blocked by finalizers: " + strings.Join(finalizers, ", ")
+	}
+	return &HealthStatus{
+		Status:  HealthStatusProgressing,
+		Message: msg,
+	}
+}
+
 // GetResourceHealth returns the health of a k8s resource
 func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOverride) (health *HealthStatus, err error) {
-	if obj.GetDeletionTimestamp() != nil && !hook.HasHookFinalizer(obj) {
-		return &HealthStatus{
-			Status:  HealthStatusProgressing,
-			Message: "Pending deletion",
-		}, nil
-	}
-
 	if healthOverride != nil {
 		health, err := healthOverride.GetResourceHealth(obj)
 		if err != nil {
@@ -96,6 +107,12 @@ func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOver
 				Message: err.Error(),
 			}
 		}
+		return health, err
+	}
+
+	// No health check matched. Preserve the historical "Pending deletion" behavior for terminating resources.
+	if h := pendingDeletionHealth(obj); h != nil {
+		return h, nil
 	}
 	return health, err
 }

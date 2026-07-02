@@ -11,3 +11,7 @@ tests:
       status: Degraded
       message: "Astra Application Degraded, message: namespace wordpress is in terminating state"
     inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

@@ -11,6 +11,9 @@ import (
 )
 
 func getPVCHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
+	if h := pendingDeletionHealth(obj); h != nil {
+		return h, nil
+	}
 	gvk := obj.GroupVersionKind()
 	switch gvk {
 	case corev1.SchemeGroupVersion.WithKind(kube.PersistentVolumeClaimKind):

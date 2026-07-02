@@ -23,3 +23,7 @@ tests:
     status: Degraded
     message: "org.apache.flink.configuration.IllegalConfigurationException: TaskManager memory configuration failed: Cannot read memory size from config option ''taskmanager.memory.network.max''."
   inputPath: testdata/degraded_error.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

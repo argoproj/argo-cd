@@ -15,3 +15,7 @@ tests:
         lookup grafana.grafana.invalid on 10.20.30.40:53: server
         misbehaving
     inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

@@ -19,3 +19,7 @@ tests:
     status: Healthy
     message: 'Machines are running under this deployment'
   inputPath: testdata/healthy_provisioned.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

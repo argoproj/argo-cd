@@ -27,3 +27,7 @@ tests:
       status: Unknown
       message: "<DNS configuration error message>"
     inputPath: testdata/unknown_discoveryError.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

@@ -43,3 +43,7 @@ tests:
     status: Progressing
     message: "Update in progress"
   inputPath: testdata/config-connector-stale.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

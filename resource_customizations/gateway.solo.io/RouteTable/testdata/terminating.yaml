@@ -1,0 +1,7 @@
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: terminating-resource
+  deletionTimestamp: "2024-01-01T00:00:00Z"
+  finalizers:
+    - example.com/finalizer

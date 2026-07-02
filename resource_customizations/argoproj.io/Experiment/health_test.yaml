@@ -23,3 +23,7 @@ tests:
     status: Degraded
     message: "Experiment had an error"
   inputPath: testdata/errorExperiment.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml
