@@ -1945,3 +1945,104 @@ func TestValidateSyncPermissions(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func newPreSyncHookUnstructured() *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "ServiceAccount"})
+	obj.SetName("presync-sa")
+	obj.SetNamespace(test.FakeDestNamespace)
+	obj.SetAnnotations(map[string]string{
+		synccommon.AnnotationKeyHook:             string(synccommon.HookTypePreSync),
+		synccommon.AnnotationKeyHookDeletePolicy: string(synccommon.HookDeletePolicyBeforeHookCreation),
+	})
+	return obj
+}
+
+// TestSelfHealSyncDoesNotRenderHooksUnrecoverable captures the controller-side defect from
+// https://github.com/argoproj/argo-cd/issues/13429: an automated self-heal builds a
+// resource-scoped SyncOperation (syncOp.Resources populated with the drifted resources),
+// and the previous logic both (a) set skipHooks=true for any resource-scoped op and
+// (b) filtered PreSync hooks out of the resource scope. Together that made a deleted
+// PreSync hook impossible to recover via automation.
+//
+// This is a decision-level test for the helpers that produce the gitops-engine sync
+// options. The decision must DIFFER between an automated self-heal and a user selective
+// sync, even though both are resource-scoped:
+//
+//   - automated self-heal  -> skipHooks=false, PreSync hook in scope, recovery flag set
+//   - user selective sync  -> skipHooks=true,  PreSync hook filtered, recovery flag unset
+//
+// Full syncs and apply-strategy syncs are unchanged.
+func TestSelfHealSyncDoesNotRenderHooksUnrecoverable(t *testing.T) {
+	preSyncHook := newPreSyncHookUnstructured()
+	preSyncHookKey := kube.GetResourceKey(preSyncHook)
+
+	driftedDeployment := &unstructured.Unstructured{}
+	driftedDeployment.SetGroupVersionKind(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.DeploymentKind})
+	driftedDeployment.SetName("guestbook")
+	driftedDeployment.SetNamespace(test.FakeDestNamespace)
+	deploymentKey := kube.GetResourceKey(driftedDeployment)
+
+	// resourceScoped is what both an automated self-heal and a user selective sync build:
+	// a hook-strategy SyncOperation with Resources populated with the drifted/selected
+	// resources. The only difference is who initiated it (Operation.InitiatedBy.Automated).
+	resourceScoped := v1alpha1.SyncOperation{
+		Resources: []v1alpha1.SyncOperationResource{
+			{Kind: kube.DeploymentKind, Group: "apps", Name: "guestbook", Namespace: test.FakeDestNamespace},
+		},
+	}
+
+	t.Run("automated self-heal: hooks enabled, PreSync hook in scope, recovery on", func(t *testing.T) {
+		const automated = true
+		selfHealRecovery := automated && len(resourceScoped.Resources) > 0
+
+		assert.False(t, shouldSkipHooks(resourceScoped, automated),
+			"a resource-scoped self-heal must process hooks so a missing PreSync hook can be recovered")
+		assert.True(t, resourceScopeAllowsResource(resourceScoped, preSyncHookKey, preSyncHook, automated),
+			"PreSync hook must remain in scope for a resource-scoped self-heal")
+		assert.True(t, selfHealRecovery, "self-heal recovery flag must be set for an automated resource-scoped sync")
+		// The explicitly drifted resource is in scope.
+		assert.True(t, resourceScopeAllowsResource(resourceScoped, deploymentKey, driftedDeployment, automated))
+		// A non-hook resource that is not in the drift list stays out of scope (unchanged).
+		other := driftedDeployment.DeepCopy()
+		other.SetName("not-drifted")
+		assert.False(t, resourceScopeAllowsResource(resourceScoped, kube.GetResourceKey(other), other, automated))
+	})
+
+	t.Run("user selective sync: hooks skipped, PreSync hook filtered, recovery off (unchanged)", func(t *testing.T) {
+		const automated = false
+		selfHealRecovery := automated && len(resourceScoped.Resources) > 0
+
+		assert.True(t, shouldSkipHooks(resourceScoped, automated),
+			"a user selective sync must keep skipping hooks (documented behavior)")
+		assert.False(t, resourceScopeAllowsResource(resourceScoped, preSyncHookKey, preSyncHook, automated),
+			"a PreSync hook must remain filtered out of a user selective sync (documented behavior)")
+		assert.False(t, selfHealRecovery, "self-heal recovery flag must be unset for a non-automated selective sync")
+		// The explicitly selected resource is still in scope.
+		assert.True(t, resourceScopeAllowsResource(resourceScoped, deploymentKey, driftedDeployment, automated))
+	})
+
+	t.Run("apply-strategy sync still skips hooks", func(t *testing.T) {
+		applyOp := v1alpha1.SyncOperation{
+			SyncStrategy: &v1alpha1.SyncStrategy{Apply: &v1alpha1.SyncStrategyApply{}},
+			Resources: []v1alpha1.SyncOperationResource{
+				{Kind: kube.DeploymentKind, Group: "apps", Name: "guestbook"},
+			},
+		}
+		// Even an automated apply-strategy sync skips hooks.
+		assert.True(t, shouldSkipHooks(applyOp, true), "apply-strategy syncs continue to skip hooks")
+		assert.True(t, shouldSkipHooks(applyOp, false), "apply-strategy syncs continue to skip hooks")
+	})
+
+	t.Run("full sync does not skip hooks and keeps everything in scope", func(t *testing.T) {
+		full := v1alpha1.SyncOperation{}
+		// A full sync (no Resources) is not resource-scoped: hooks always run, and the
+		// self-heal recovery flag is never set (so BeforeHookCreation re-run is preserved).
+		assert.False(t, shouldSkipHooks(full, true))
+		assert.False(t, shouldSkipHooks(full, false))
+		assert.Empty(t, full.Resources, "self-heal recovery flag must be unset for a full sync")
+		assert.True(t, resourceScopeAllowsResource(full, preSyncHookKey, preSyncHook, true))
+		assert.True(t, resourceScopeAllowsResource(full, preSyncHookKey, preSyncHook, false))
+		assert.True(t, resourceScopeAllowsResource(full, deploymentKey, driftedDeployment, false))
+	})
+}

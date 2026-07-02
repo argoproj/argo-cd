@@ -44,6 +44,49 @@ const (
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
 
+// shouldSkipHooks decides whether sync hooks (PreSync/Sync/PostSync/SyncFail) should be
+// skipped for a sync operation.
+//
+// Hooks are skipped for an apply-strategy sync (unchanged), and for a USER selective sync
+// (a resource-scoped sync that was not initiated by automation). A user selective sync is
+// documented to skip hooks, so that behavior is preserved.
+//
+// An automated self-heal is also resource-scoped (it targets the drifted resources, see
+// ApplicationController.autoSync), but it is initiated by automation. Previously hooks were
+// skipped for ALL resource-scoped operations, which made self-heal hook-blind: a PreSync
+// hook that was deleted (e.g. one annotated with hook-delete-policy: BeforeHookCreation)
+// could never be recreated by automation, only by a manual full sync. We therefore do NOT
+// skip hooks for an automated self-heal, so a missing hook can be recovered.
+// See https://github.com/argoproj/argo-cd/issues/13429.
+//
+// Re-running healthy/completed hooks during a self-heal is prevented in the sync engine via
+// WithSelfHealRecovery, which leaves an already-present hook untouched.
+func shouldSkipHooks(syncOp v1alpha1.SyncOperation, automated bool) bool {
+	return syncOp.IsApplyStrategy() || (len(syncOp.Resources) > 0 && !automated)
+}
+
+// resourceScopeAllowsResource reports whether the given resource is in scope for a
+// (possibly resource-scoped) sync operation.
+//
+// For a full sync (no syncOp.Resources) everything is in scope. For a resource-scoped sync
+// we always admit pre/post-delete hooks (as before). Sync-phase hooks (PreSync/Sync/
+// PostSync/SyncFail) are never listed in syncOp.Resources, so for a resource-scoped sync
+// they are admitted ONLY for an automated self-heal (so a missing PreSync hook can be
+// recreated); for a USER selective sync they remain filtered out, preserving the documented
+// "selective sync skips hooks" behavior. See https://github.com/argoproj/argo-cd/issues/13429.
+func resourceScopeAllowsResource(syncOp v1alpha1.SyncOperation, key kube.ResourceKey, target *unstructured.Unstructured, automated bool) bool {
+	if len(syncOp.Resources) == 0 {
+		return true
+	}
+	if isPostDeleteHook(target) || isPreDeleteHook(target) {
+		return true
+	}
+	if automated && hasGitOpsEngineSyncPhaseHook(target) {
+		return true
+	}
+	return argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
+}
+
 func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
@@ -279,6 +322,12 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		}
 	}
 
+	// An automated self-heal is the only case that recovers a resource-scoped drift on behalf
+	// of automation. A new-revision auto-sync has empty Resources (full sync) and a user
+	// selective sync is not automated; both keep upstream behavior.
+	automated := state.Operation.InitiatedBy.Automated
+	selfHealRecovery := automated && len(syncOp.Resources) > 0
+
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
@@ -287,13 +336,11 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 				return m.db.GetProjectClusters(ctx, proj)
 			}, un, res)
 		}),
-		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
+		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), shouldSkipHooks(syncOp, automated)),
+		sync.WithSelfHealRecovery(selfHealRecovery),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
-			return (len(syncOp.Resources) == 0 ||
-				isPostDeleteHook(target) ||
-				isPreDeleteHook(target) ||
-				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
+			return resourceScopeAllowsResource(syncOp, key, target, automated) &&
 				m.isSelfReferencedObj(live, target, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
