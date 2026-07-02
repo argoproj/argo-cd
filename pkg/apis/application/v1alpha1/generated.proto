@@ -716,6 +716,11 @@ message ApplicationSpec {
 
   // SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
   optional SourceHydrator sourceHydrator = 9;
+
+  // IgnoreDuplicateResources controls which resources should suppress RepeatedResourceWarning.
+  // If a resource appears multiple times among application resources but matches one of these
+  // selectors, the RepeatedResourceWarning condition will not be generated for it.
+  repeated ResourceIgnoreDuplicate ignoreDuplicateResources = 10;
 }
 
 // ApplicationStatus contains status information for the application
@@ -2174,6 +2179,19 @@ message ResourceIgnoreDifferences {
   // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
   // desired state defined in the SCM and won't be displayed in diffs
   repeated string managedFieldsManagers = 7;
+}
+
+// ResourceIgnoreDuplicate contains resource filter for suppressing RepeatedResourceWarning.
+// If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be
+// generated when that resource appears multiple times among application resources.
+message ResourceIgnoreDuplicate {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
+
+  optional string namespace = 4;
 }
 
 // ResourceNetworkingInfo holds networking-related information for a resource.
