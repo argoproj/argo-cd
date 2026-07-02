@@ -7,7 +7,9 @@ if obj.status ~= nil then
     for i, condition in ipairs(obj.status.conditions) do
       if condition.status == "False" and condition.type == "Ready" then
         hs.message = condition.message
-        degraded = true
+        if condition.reason ~= "HPAMetricsUnavailable" then
+          degraded = true
+        end
       end
       if condition.status == "True" and condition.type == "Ready" then
         hs.message = condition.message
@@ -35,5 +37,7 @@ elseif healthy == true and suspended == true then
   return hs
 end
 hs.status = "Progressing"
-hs.message = "Creating HorizontalPodAutoscaler Object"
+if hs.message == nil then
+  hs.message = "Creating HorizontalPodAutoscaler Object"
+end
 return hs

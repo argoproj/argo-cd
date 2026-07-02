@@ -23,3 +23,7 @@ tests:
     status: Degraded
     message: "At least one trigger is falling back on this scaled object"
   inputPath: testdata/keda-fallback.yaml
+- healthStatus:
+    status: Progressing
+    message: "ScaledObject is configured correctly but HPA is not healthy: FailedGetResourceMetric"
+  inputPath: testdata/keda-progressing-hpa-metrics-unavailable.yaml
