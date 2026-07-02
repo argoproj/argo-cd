@@ -131,6 +131,12 @@ spec:
       include: '*.yaml'
 ```
 
+> [!NOTE]
+> `include` and `exclude` only filter among files Argo CD already recongnizes as manifests, for eg. files ending in `.yaml`, `.yml`, `.json`, or `.jsonnet`. 
+> They cannot make Argo CD process files with custom extensions. For exmample, `--directory-include "*.yaml.sealed` will not match a file named `secret.yaml.sealed`
+> because its extension is `.sealed`. Rename such files so a recongnized extension comes last (e.g. `secret.sealed.yaml`), or use the `--directory-include` option if needed
+> to include the file by name (e.g. `--directory-include secret.sealed.yaml`).
+
 ### Skipping File Rendering
 
 In some cases, repositories may contain YAML files that resemble Kubernetes manifests because they include fields like `apiVersion`, `kind`, and `metadata`, but are not intended to be rendered or applied as actual Kubernetes resources. Examples include Helm `values.yaml` files or configuration snippets used by CI/CD pipelines.
