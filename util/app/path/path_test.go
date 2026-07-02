@@ -256,3 +256,21 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestAppFilesHaveChanged_EmptyCommitSkipsRefresh(t *testing.T) {
+	t.Parallel()
+	changedFiles := []string{}
+	refreshPaths := []string{"my-app"}
+
+	assert.False(t, AppFilesHaveChanged(refreshPaths, changedFiles),
+		"a genuinely empty commit should NOT trigger a refresh when refreshPaths is set")
+}
+
+func TestAppFilesHaveChanged_NoFileDataStillRefreshes(t *testing.T) {
+	t.Parallel()
+	var changedFiles []string
+	refreshPaths := []string{"my-app"}
+
+	assert.True(t, AppFilesHaveChanged(refreshPaths, changedFiles),
+		"missing file-change data should still trigger a fail-safe refresh")
+}

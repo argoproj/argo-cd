@@ -771,6 +771,7 @@ func TestHandleEvent(t *testing.T) {
 		name        string
 		app         *v1alpha1.Application
 		changedFile string // file that was changed in the webhook payload
+		emptyCommit bool   // simulate a genuinely empty commit
 		hasRefresh  bool   // application has refresh annotation applied
 		hasHydrate  bool   // application has hydrate annotation applied
 		updateCache bool   // cache should be updated with the new revision
@@ -843,6 +844,31 @@ func TestHandleEvent(t *testing.T) {
 				},
 			},
 			changedFile: "source/path/other/app.yaml",
+			hasRefresh:  false,
+			hasHydrate:  false,
+			updateCache: true,
+		},
+		{
+			name: "single source with annotation - empty commit does not trigger refresh",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "manifests",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			emptyCommit: true,
 			hasRefresh:  false,
 			hasHydrate:  false,
 			updateCache: true,
@@ -1163,7 +1189,12 @@ func TestHandleEvent(t *testing.T) {
 			)
 
 			// Create payload with the changed file
-			payload := createTestPayload(ttc.changedFile)
+			var payload []byte
+			if ttc.emptyCommit {
+				payload = createEmptyCommitTestPayload()
+			} else {
+				payload = createTestPayload(ttc.changedFile)
+			}
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 			req.Header.Set("X-GitHub-Event", "push")
 			req.Body = io.NopCloser(bytes.NewReader(payload))
@@ -1234,6 +1265,26 @@ func createTestPayload(changedFile string) []byte {
 			}
 		]
 	}`, testBeforeSHA, testAfterSHA, changedFile)
+	return []byte(payload)
+}
+
+func createEmptyCommitTestPayload() []byte {
+	payload := fmt.Sprintf(`{
+		"ref": "refs/heads/master",
+		"before": "%s",
+		"after": "%s",
+		"repository": {
+			"html_url": "https://github.com/jessesuen/test-repo",
+			"default_branch": "master"
+		},
+		"commits": [
+			{
+				"added": [],
+				"modified": [],
+				"removed": []
+			}
+		]
+	}`, testBeforeSHA, testAfterSHA)
 	return []byte(payload)
 }
 
