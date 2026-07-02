@@ -64,6 +64,20 @@ func TestAddCacheFlagsToCmd_SentinelFlagOverridesEnv(t *testing.T) {
 	assert.Equal(t, []string{"flag1:26379"}, sentinel)
 }
 
+func TestAddCacheFlagsToCmd_SentinelDefaultValues(t *testing.T) {
+	cmd := &cobra.Command{}
+	AddCacheFlagsToCmd(cmd)
+
+	master, err := cmd.Flags().GetString("sentinelmaster")
+	require.NoError(t, err)
+
+	sentinel, err := cmd.Flags().GetStringArray("sentinel")
+	require.NoError(t, err)
+
+	assert.Equal(t, "master", master)
+	assert.Equal(t, []string{}, sentinel)
+}
+
 func NewInMemoryRedis() (*redis.Client, func()) {
 	mr, err := miniredis.Run()
 	if err != nil {
