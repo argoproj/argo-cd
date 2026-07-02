@@ -146,6 +146,18 @@ specify a wildcard in the resource kind, and anywhere in the resource group, lik
 > style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
+
+#### Lua `obj` fields available to health checks
+
+Health check scripts receive a subset of the live resource. To reduce evaluation cost, Argo CD does **not** expose the following server-side metadata on `obj`:
+
+- `metadata.managedFields`
+- `metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"]`
+
+All other fields on the resource—including `spec`, `status`, labels, and other annotations—are available. Resource action scripts are not subject to this limitation.
+
+If you upgrade from Argo CD 3.5 or earlier and a custom health check relied on either field above, update the script before upgrading to 3.6. See [v3.5 to 3.6 upgrade notes](upgrading/3.5-3.6.md).
+
 The custom health check might return one of the following health statuses:
 
   * `Healthy` - the resource is healthy
