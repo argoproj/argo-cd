@@ -3282,34 +3282,9 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 		}
 	}
 
-	repoRoot := gitClient.Root()
-	var paths []string
-	if err := filepath.WalkDir(repoRoot, func(path string, entry fs.DirEntry, fnErr error) error {
-		if fnErr != nil {
-			return fmt.Errorf("error walking the file tree: %w", fnErr)
-		}
-		if !entry.IsDir() { // Skip files: directories only
-			return nil
-		}
-
-		if !s.initConstants.IncludeHiddenDirectories && strings.HasPrefix(entry.Name(), ".") {
-			return filepath.SkipDir // Skip hidden directory
-		}
-
-		relativePath, err := filepath.Rel(repoRoot, path)
-		if err != nil {
-			return fmt.Errorf("error constructing relative repo path: %w", err)
-		}
-
-		if relativePath == "." { // Exclude '.' from results
-			return nil
-		}
-
-		paths = append(paths, relativePath)
-
-		return nil
-	}); err != nil {
-		return nil, err
+	paths, err := walkDirectoryTree(gitClient.Root(), s.initConstants.IncludeHiddenDirectories)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to walk directory tree: %v", err)
 	}
 
 	log.Debugf("found %d git paths from %s", len(paths), repo.Repo)
@@ -3570,6 +3545,150 @@ func getManifestCacheKeyFromUpdateRevisionRequest(request *apiclient.UpdateRevis
 		RefSourceCommitSHAs: refSourceCommitSHAs,
 		InstallationID:      request.InstallationID,
 	}
+}
+
+func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
+	repo := request.GetRepo()
+	revision := request.GetRevision()
+	ociPath := request.GetGlob()
+	noRevisionCache := request.GetNoRevisionCache()
+	if ociPath == "" {
+		ociPath = "."
+	}
+
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+
+	ociClient, digest, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to resolve OCI revision %s: %v", revision, err)
+	}
+
+	// check the cache and return the results if present
+	if cachedFiles, err := s.cache.GetOciFiles(repo.Repo, digest, ociPath); err == nil {
+		log.Debugf("cache hit for OCI repo: %s revision: %s pattern: %s", repo.Repo, digest, ociPath)
+		return &apiclient.OciFilesResponse{
+			Files: cachedFiles,
+		}, nil
+	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
+	// cache miss, extract the OCI artifact
+	extractedPath, closer, err := ociClient.Extract(ctx, digest)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to extract OCI artifact %s with revision %s: %v", repo.Repo, digest, err)
+	}
+	defer utilio.Close(closer)
+
+	globPattern := ociPath
+	if globPattern == "." {
+		globPattern = "**"
+	}
+	fullPattern := filepath.Join(extractedPath, globPattern)
+	matchedFiles, err := doublestar.FilepathGlob(fullPattern)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to match files. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+	}
+
+	log.Debugf("matched %d OCI files from %s under %s", len(matchedFiles), repo.Repo, ociPath)
+
+	root, err := os.OpenRoot(extractedPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to open extracted path %s: %v", extractedPath, err)
+	}
+	defer root.Close()
+
+	res := make(map[string][]byte)
+	for _, filePath := range matchedFiles {
+		relativePath, err := filepath.Rel(extractedPath, filePath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to get relative path for %s: %v", filePath, err)
+		}
+
+		fileInfo, err := root.Stat(relativePath)
+		if err != nil {
+			if _, ok := errors.AsType[*fs.PathError](err); ok {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               repo.Repo,
+					"digest":             digest,
+					"path":               relativePath,
+				}).Warnf("skipping OCI file that does not resolve within the artifact root: %v", err)
+				continue
+			}
+			return nil, status.Errorf(codes.Internal, "unable to stat file %s: %v", filePath, err)
+		}
+		if fileInfo.IsDir() {
+			continue
+		}
+
+		fileContents, err := root.ReadFile(relativePath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to read file. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+		}
+
+		res[relativePath] = fileContents
+	}
+
+	err = s.cache.SetOciFiles(repo.Repo, digest, ociPath, res)
+	if err != nil {
+		log.Warnf("error caching OCI files for repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+	}
+
+	return &apiclient.OciFilesResponse{
+		Files: res,
+	}, nil
+}
+
+// GetOciDirectories returns a set of directory paths for the given OCI artifact
+func (s *Service) GetOciDirectories(ctx context.Context, request *apiclient.OciDirectoriesRequest) (*apiclient.OciDirectoriesResponse, error) {
+	repo := request.GetRepo()
+	revision := request.GetRevision()
+	noRevisionCache := request.GetNoRevisionCache()
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+
+	ociClient, digest, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to resolve OCI revision %s: %v", revision, err)
+	}
+
+	// check the cache and return the results if present
+	if cachedPaths, err := s.cache.GetOciDirectories(repo.Repo, digest); err == nil {
+		log.Debugf("cache hit for OCI repo: %s revision: %s", repo.Repo, digest)
+		return &apiclient.OciDirectoriesResponse{
+			Paths: cachedPaths,
+		}, nil
+	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
+	// cache miss, extract the OCI artifact
+	extractedPath, closer, err := ociClient.Extract(ctx, digest)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to extract OCI artifact %s with revision %s: %v", repo.Repo, digest, err)
+	}
+	defer utilio.Close(closer)
+
+	paths, err := walkDirectoryTree(extractedPath, s.initConstants.IncludeHiddenDirectories)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to walk directory tree: %v", err)
+	}
+
+	log.Debugf("found %d OCI paths from %s", len(paths), repo.Repo)
+	err = s.cache.SetOciDirectories(repo.Repo, digest, paths)
+	if err != nil {
+		log.Warnf("error caching OCI directories for repo %s with revision %s: %v", repo.Repo, digest, err)
+	}
+
+	return &apiclient.OciDirectoriesResponse{
+		Paths: paths,
+	}, nil
 }
 
 func (s *Service) ociClientStandardOpts() []oci.ClientOpts {

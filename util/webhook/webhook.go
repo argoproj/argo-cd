@@ -153,7 +153,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if bitbucketserverWebhook != nil {
 		parsers = append(parsers, &bitbucketServerParser{webhook: bitbucketserverWebhook})
 	}
-	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
+	parsers = append(parsers, NewGHCRParser(set.GetWebhookGitHubSecret()))
 
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
@@ -655,14 +655,14 @@ func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string
 	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
 	for _, prefix := range targetRevisionHasPrefixList {
 		if strings.HasPrefix(source.TargetRevision, prefix) {
-			return compareRevisions(revision, targetRev)
+			return CompareRevisions(revision, targetRev)
 		}
 	}
 
-	return compareRevisions(revision, source.TargetRevision)
+	return CompareRevisions(revision, source.TargetRevision)
 }
 
-func compareRevisions(revision string, targetRevision string) bool {
+func CompareRevisions(revision string, targetRevision string) bool {
 	if revision == targetRevision {
 		return true
 	}
