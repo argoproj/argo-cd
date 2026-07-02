@@ -55,7 +55,7 @@ discoveryTests:
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
       - name: delete
-        disabled: true
+        disabled: false
         iconClass: 'fa-solid fa-fw fa-trash'
         displayName: 'Delete'
   - inputPath: testdata/pipeline-wrong-ref.yaml
