@@ -327,10 +327,12 @@ When the `example-user` executes the `extensions/DaemonSet/test` action, the fol
 
 ## Using SSO Users/Groups
 
-The `scopes` field controls which OIDC scopes to examine during RBAC enforcement (in addition to `sub` scope).
-If omitted, it defaults to `'[groups]'`. The scope value can be a string, or a list of strings.
+The `claims` field controls which OIDC claims to examine during RBAC enforcement (in addition to the `sub` claim).
+If omitted, it defaults to `'[groups]'`. The value can be a string, or a list of strings.
 
-For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
+> `claims` was previously named `scopes`. The `scopes` key continues to work as a deprecated alias for backward compatibility, but `claims` is preferred.
+
+For more information please review the [User Management Documentation](user-management/index.md).
 
 The following example shows targeting `email` as well as `groups` from your OIDC provider, and also demonstrates explicit role assignments and role-to-role inheritance:
 
@@ -351,7 +353,7 @@ data:
     g, admin, role:admin
     g, role:admin, role:readonly
   policy.default: role:readonly
-  scopes: '[groups, email]'
+  claims: '[groups, email]'
 ```
 
 Here:
