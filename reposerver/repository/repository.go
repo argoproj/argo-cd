@@ -465,7 +465,11 @@ func (s *Service) runRepoOperation(
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{chartPath, "", nil}, nil
+			sourceIntegrityResult, err := s.verifyHelmSourceIntegrity(ctx, sourceIntegrity, source, helmClient, revision)
+			if err != nil {
+				return nil, err
+			}
+			return &operationContext{chartPath, "", sourceIntegrityResult}, nil
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
@@ -546,6 +550,53 @@ func (s *Service) runRepoOperation(
 
 		return &operationContext{appPath, verificationResult, sourceIntegrityResult}, nil
 	})
+}
+
+func (s *Service) verifyHelmSourceIntegrity(
+	ctx context.Context,
+	sourceIntegrity *v1alpha1.SourceIntegrity,
+	source *v1alpha1.ApplicationSource,
+	helmClient helm.Client,
+	revision string,
+) (*v1alpha1.SourceIntegrityCheckResult, error) {
+	if !sourceintegrity.HasCriteria(sourceIntegrity, *source) {
+		return nil, nil
+	}
+	if source.IsHelmOci() {
+		// OCI Helm charts are out of scope for Helm .prov policies; future OCI/sigstore support is planned separately.
+		return nil, nil
+	}
+	return s.verifyTraditionalHelmProvenance(ctx, sourceIntegrity, source, helmClient, revision)
+}
+
+func readHelmChartAndProvenance(ctx context.Context, helmClient helm.Client, chart, revision string) (chartTgz, provContent []byte, chartFilename string, err error) {
+	tgzPath, err := helmClient.GetChartTgzPath(chart, revision)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	chartTgz, err = os.ReadFile(tgzPath)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	provContent, chartFilename, err = helmClient.FetchProvenance(ctx, chart, revision)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return chartTgz, provContent, chartFilename, nil
+}
+
+func (s *Service) verifyTraditionalHelmProvenance(
+	ctx context.Context,
+	sourceIntegrity *v1alpha1.SourceIntegrity,
+	source *v1alpha1.ApplicationSource,
+	helmClient helm.Client,
+	revision string,
+) (*v1alpha1.SourceIntegrityCheckResult, error) {
+	chartTgz, provContent, chartFilename, err := readHelmChartAndProvenance(ctx, helmClient, source.Chart, revision)
+	if err != nil {
+		return sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, err), nil
+	}
+	return sourceintegrity.VerifyHelm(ctx, sourceIntegrity, source.RepoURL, chartTgz, provContent, chartFilename)
 }
 
 func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {

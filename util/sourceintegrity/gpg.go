@@ -16,11 +16,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/util/git"
-
 	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
 // Regular expression to match public key beginning
@@ -427,12 +426,28 @@ func IsSecretKey(keyID string) (bool, error) {
 	cmd.Env = getGPGEnviron()
 	out, err := executil.Run(cmd)
 	if err != nil {
-		return false, err
+		if isExecNotFound(err) {
+			// Fall back to gpg when gpg-wrapper.sh is not in PATH (e.g. in unit tests)
+			cmd = exec.CommandContext(context.Background(), "gpg", args...)
+			cmd.Env = getGPGEnviron()
+			out, err = executil.Run(cmd)
+		}
+		if err != nil {
+			// gpg exits 2 when the key has no secret key; treat as "not a secret key"
+			if strings.Contains(err.Error(), "No secret key") {
+				return false, nil
+			}
+			return false, err
+		}
 	}
 	if strings.HasPrefix(out, "gpg: error reading key: No secret key") {
 		return false, nil
 	}
 	return true, nil
+}
+
+func isExecNotFound(err error) bool {
+	return errors.Is(err, exec.ErrNotFound)
 }
 
 // GetInstalledPGPKeys runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs
@@ -588,17 +603,22 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("error import PGP keys: %w", err)
 		}
-		if len(addedKey) != 1 {
-			return nil, nil, fmt.Errorf("invalid key found in %s", path.Join(basePath, key))
+		if len(addedKey) < 1 {
+			return nil, nil, fmt.Errorf("no key imported from %s", path.Join(basePath, key))
 		}
-		importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
-		if err != nil {
-			return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
-		} else if len(importedKey) != 1 {
-			return nil, nil, fmt.Errorf("could not get details of imported key ID %s", importedKey)
+		// A key file may contain primary+subkeys; gpg reports one line per key imported.
+		for _, k := range addedKey {
+			importedKey, err := GetInstalledPGPKeys([]string{k.KeyID})
+			if err != nil {
+				return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
+			}
+			if len(importedKey) != 1 {
+				return nil, nil, fmt.Errorf("could not get details of imported key ID %s", k.KeyID)
+			}
+			fingerprints = append(fingerprints, importedKey[0].Fingerprint)
+			installed[k.KeyID] = importedKey[0]
 		}
 		newKeys = append(newKeys, key)
-		fingerprints = append(fingerprints, importedKey[0].Fingerprint)
 	}
 
 	// Delete all keys from the keyring that are not found in the configuration anymore.
