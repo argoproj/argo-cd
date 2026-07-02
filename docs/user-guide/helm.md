@@ -90,6 +90,53 @@ source:
     ignoreMissingValueFiles: true
 ```
 
+> [!NOTE]
+> `ignoreMissingValueFiles` only applies to local value files in the repository.
+> Remote value file URLs (e.g. `https://...`) are always fetched by Helm at
+> template time and cannot be skipped — see the warning under
+> [Marking a single file as optional](#marking-a-single-file-as-optional).
+
+### Marking a single file as optional
+
+`ignoreMissingValueFiles` makes every entry in `valueFiles` allowed-to-be-missing,
+which can hide typos or accidental renames in files that should always exist.
+To mark only specific entries as optional while keeping the rest strict, prefix
+those entries with `optional:`:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - shared/defaults.yaml                          # required
+    - optional:shared/defaults.region-eu-west.yaml  # optional override
+    - service/defaults.yaml                         # required
+    - optional:service/defaults.production.yaml     # optional override
+```
+
+A missing required entry still produces an error; a missing `optional:` entry is
+silently skipped. Order is preserved, so an `optional:` override stays at its
+declared position relative to the file it overrides.
+
+The `optional:` prefix composes with `$ref`-source paths and glob patterns. For
+globs, `optional:` causes a zero-match to be skipped silently instead of raising
+the `ComparisonError` described under [No-match behavior](#no-match-behavior).
+
+> [!WARNING]
+> Neither `optional:` nor `ignoreMissingValueFiles` affects remote value file
+> URLs. Remote value files (e.g. `https://...`) are passed through to Helm
+> unchanged and fetched by Helm at template time, so a remote URL is always
+> effectively required — if it cannot be retrieved, rendering fails regardless
+> of these settings. The missing-file handling only applies to local files in
+> the repository (including `$ref`-source paths).
+
+> [!NOTE]
+> The literal token `optional:` is reserved at the start of `valueFiles` entries.
+> Linux filesystems do allow `:` in filenames, but it is rare in practice (it
+> conflicts with `host:path` conventions in rsync/scp and with `PATH` separators).
+> If you do have a file whose name actually starts with `optional:`, escape it by
+> prefixing the entry with `./` — anything that does not start with the literal
+> token `optional:` is treated as a path. For example: `./optional:legacy.yaml`.
+
 ## Glob Patterns in Value Files
 
 Glob patterns can be used in `valueFiles` entries to match multiple files at once. This is useful
