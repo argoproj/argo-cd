@@ -29,7 +29,7 @@ Enable UI extensions to use a backend service.
     * [Use cases](#use-cases)
     * [Security Considerations](#security-considerations)
     * [Risks and Mitigations](#risks-and-mitigations)
-    * [Upgrade / Downgrade](#upgrade--downgrade)
+    * [Upgrade / Downgrade](#upgrade-downgrade)
 * [Drawbacks](#drawbacks)
 * [Open Questions](#open-questions)
 

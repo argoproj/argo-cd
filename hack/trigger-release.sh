@@ -31,6 +31,34 @@ fi
 
 echo ">> Working in release branch '${RELEASE_BRANCH}'"
 
+# Safety check: Warn if pushing to official argoproj/argo-cd repository
+REMOTE_URL=$(git remote get-url "${GIT_REMOTE}")
+if echo "${REMOTE_URL}" | grep -q "argoproj/argo-cd"; then
+	echo "" >&2
+	echo "!! ============================================================================" >&2
+	echo "!! WARNING: Remote '${GIT_REMOTE}' points to OFFICIAL argoproj/argo-cd!" >&2
+	echo "!! Remote URL: ${REMOTE_URL}" >&2
+	echo "!! ============================================================================" >&2
+	echo "!!" >&2
+	echo "!! This will create an OFFICIAL Argo CD release:" >&2
+	echo "!!   - Tag: ${NEW_TAG}" >&2
+	echo "!!   - Images: quay.io/argoproj/argocd:${NEW_TAG}" >&2
+	echo "!!   - GitHub Release: https://github.com/argoproj/argo-cd/releases" >&2
+	echo "!!   - Visible to ALL users" >&2
+	echo "!!" >&2
+	echo "!! If you want to release from YOUR FORK:" >&2
+	echo "!!   1. Press Ctrl+C now" >&2
+	echo "!!   2. Use your fork remote: ./hack/trigger-release.sh ${NEW_TAG} origin" >&2
+	echo "!!" >&2
+	echo "!! To proceed with OFFICIAL release, type 'y' (30 second timeout):" >&2
+	read -t 30 -r confirmation
+	if [ "$confirmation" != "y" ]; then
+		echo "!! Cancelled. Did not receive 'y' confirmation." >&2
+		exit 1
+	fi
+	echo ">> Confirmed official release. Proceeding..." >&2
+fi
+
 echo ">> Ensuring release branch is up to date."
 # make sure release branch is up to date
 git pull "${GIT_REMOTE}" "${RELEASE_BRANCH}"

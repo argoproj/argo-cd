@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand"
 	"net/http"
@@ -16,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -39,9 +40,9 @@ import (
 	"k8s.io/client-go/informers"
 	informerv1 "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/ptr"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -93,6 +94,10 @@ const (
 	ComparisonWithNothing CompareWith = 0
 )
 
+func init() {
+	settings_util.ConfigureGoClientFeatures()
+}
+
 func (a CompareWith) Max(b CompareWith) CompareWith {
 	return CompareWith(math.Max(float64(a), float64(b)))
 }
@@ -127,7 +132,6 @@ type ApplicationController struct {
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackoff               *wait.Backoff
-	selfHealBackoffCooldown       time.Duration
 	syncTimeout                   time.Duration
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
@@ -163,7 +167,6 @@ func NewApplicationController(
 	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	selfHealBackoff *wait.Backoff,
-	selfHealBackoffCooldown time.Duration,
 	syncTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
@@ -206,11 +209,10 @@ func NewApplicationController(
 		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
-		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.ApplicationController, enableK8sEvent),
+		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackoff:                   selfHealBackoff,
-		selfHealBackoffCooldown:           selfHealBackoffCooldown,
 		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
@@ -230,33 +232,7 @@ func NewApplicationController(
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
 	var err error
-	_, err = projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
-				ctrl.projectRefreshQueue.AddRateLimited(key)
-				if projMeta, ok := obj.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-		UpdateFunc: func(_, new any) {
-			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
-				ctrl.projectRefreshQueue.AddRateLimited(key)
-				if projMeta, ok := new.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-		DeleteFunc: func(obj any) {
-			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
-				// immediately push to queue for deletes
-				ctrl.projectRefreshQueue.Add(key)
-				if projMeta, ok := obj.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-	})
+	_, err = projInformer.AddEventHandler(ctrl.appProjectEventHandlerFuncs())
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +442,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		// Enforce application's permission for the source namespace
 		_, err = ctrl.getAppProj(app)
 		if err != nil {
-			logCtx.Errorf("Unable to determine project for app '%s': %v", app.QualifiedName(), err)
+			logCtx.WithError(err).Errorf("Unable to determine project for app")
 			continue
 		}
 
@@ -479,7 +455,8 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		if ref.Namespace == "" {
 			namespace = "(cluster-scoped)"
 		}
-		logCtx.WithFields(log.Fields{
+
+		refreshLogCtx := logCtx.WithFields(log.Fields{
 			"comparison-level": level,
 			"namespace":        namespace,
 			"name":             ref.Name,
@@ -487,7 +464,16 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			"kind":             ref.Kind,
 			"server":           app.Spec.Destination.Server,
 			"cluster-name":     app.Spec.Destination.Name,
-		}).Debug("Requesting app refresh caused by object update")
+		})
+		// A managed resource change triggers an actual reconciliation (CompareWithRecent),
+		// so log it at Info to give visibility into what caused the reconcile. Other object
+		// updates (orphan, child of managed resources) only refresh the resource tree,
+		// so keep them at Debug level to limit noise.
+		if isManagedResource {
+			refreshLogCtx.Info("Requesting app refresh caused by object update")
+		} else {
+			refreshLogCtx.Debug("Requesting app refresh caused by object update")
+		}
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}
@@ -495,7 +481,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 
 // setAppManagedResources will build a list of ResourceDiff based on the provided comparisonResult
 // and persist app resources related data in the cache. Will return the persisted ApplicationTree.
-func (ctrl *ApplicationController) setAppManagedResources(destCluster *appv1.Cluster, a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
+func (ctrl *ApplicationController) setAppManagedResources(ctx context.Context, destCluster *appv1.Cluster, a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
 	ts := stats.NewTimingStats()
 	defer func() {
 		logCtx := log.WithFields(applog.GetAppLogFields(a))
@@ -505,7 +491,7 @@ func (ctrl *ApplicationController) setAppManagedResources(destCluster *appv1.Clu
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished setting app managed resources")
 	}()
-	managedResources, err := ctrl.hideSecretData(destCluster, a, comparisonResult)
+	managedResources, err := ctrl.hideSecretData(ctx, destCluster, a, comparisonResult)
 	ts.AddCheckpoint("hide_secret_data_ms")
 	if err != nil {
 		return nil, fmt.Errorf("error getting managed resources: %w", err)
@@ -611,8 +597,10 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
 		}
 	}
+	// Process managed resources and their children, including cross-namespace relationships
+	// from cluster-scoped parents (e.g., Crossplane CompositeResourceDefinitions)
 	err = ctrl.stateCache.IterateHierarchyV2(destCluster, managedResourcesKeys, func(child appv1.ResourceNode, _ string) bool {
-		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
+		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Name, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
 			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get project clusters: %w", err)
@@ -632,10 +620,11 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	orphanedNodesKeys := make([]kube.ResourceKey, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
+		if k.Namespace != "" && proj.IsGroupKindNamePermitted(k.GroupKind(), k.Name, true) && !isKnownOrphanedResourceExclusion(k, proj) {
 			orphanedNodesKeys = append(orphanedNodesKeys, k)
 		}
 	}
+	// Process orphaned resources
 	err = ctrl.stateCache.IterateHierarchyV2(destCluster, orphanedNodesKeys, func(child appv1.ResourceNode, appName string) bool {
 		belongToAnotherApp := false
 		if appName != "" {
@@ -649,7 +638,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			return false
 		}
 
-		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
+		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Name, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
 			return ctrl.db.GetProjectClusters(context.TODO(), project)
 		})
 
@@ -793,7 +782,7 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 	return hosts, nil
 }
 
-func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, app *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
+func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destCluster *appv1.Cluster, app *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
 	items := make([]*appv1.ResourceDiff, len(comparisonResult.managedResources))
 	for i := range comparisonResult.managedResources {
 		res := comparisonResult.managedResources[i]
@@ -847,7 +836,7 @@ func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, ap
 				return nil, fmt.Errorf("appcontroller error building diff config: %w", err)
 			}
 
-			diffResult, err := argodiff.StateDiff(live, target, diffConfig)
+			diffResult, err := argodiff.StateDiff(ctx, live, target, diffConfig)
 			if err != nil {
 				return nil, fmt.Errorf("error applying diff: %w", err)
 			}
@@ -883,7 +872,20 @@ func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, ap
 }
 
 // Run starts the Application CRD controller.
-func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int) {
+// normalizeHydrationProcessors clamps the configured number of manifest hydration workers to a safe
+// minimum. The --hydration-processors flag / ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS env var
+// can be set to 0 or a negative value on the command line (the env default is clamped, but an explicit
+// flag value is not). Starting zero workers would silently stall hydration, so fall back to a single
+// worker and warn. See https://github.com/argoproj/argo-cd/issues/27926.
+func normalizeHydrationProcessors(hydrationProcessors int) int {
+	if hydrationProcessors < 1 {
+		log.Warnf("hydration-processors was set to %d; hydration requires at least one worker, using 1 instead", hydrationProcessors)
+		return 1
+	}
+	return hydrationProcessors
+}
+
+func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int, hydrationProcessors int) {
 	defer runtime.HandleCrash()
 	defer ctrl.appRefreshQueue.ShutDown()
 	defer ctrl.appComparisonTypeRefreshQueue.ShutDown()
@@ -902,12 +904,12 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	clusters, err := ctrl.db.ListClusters(ctx)
 	if err != nil {
-		log.Warnf("Cannot init sharding. Error while querying clusters list from database: %v", err)
+		log.WithError(err).Warn("Cannot init sharding. Error while querying clusters list from database")
 	} else {
 		appItems, err := ctrl.getAppList(metav1.ListOptions{})
 
 		if err != nil {
-			log.Warnf("Cannot init sharding. Error while querying application list from database: %v", err)
+			log.WithError(err).Warn("Cannot init sharding. Error while querying application list from database")
 		} else {
 			ctrl.clusterSharding.Init(clusters, appItems)
 		}
@@ -926,14 +928,14 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go func() { errors.CheckError(ctrl.stateCache.Run(ctx)) }()
 	go func() { errors.CheckError(ctrl.metricsServer.ListenAndServe()) }()
 
-	for i := 0; i < statusProcessors; i++ {
+	for range statusProcessors {
 		go wait.Until(func() {
 			for ctrl.processAppRefreshQueueItem() {
 			}
 		}, time.Second, ctx.Done())
 	}
 
-	for i := 0; i < operationProcessors; i++ {
+	for range operationProcessors {
 		go wait.Until(func() {
 			for ctrl.processAppOperationQueueItem() {
 			}
@@ -951,15 +953,29 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}, time.Second, ctx.Done())
 
 	if ctrl.hydrator != nil {
+		// The app hydrate queue is keyed per application. Its only job is to decide whether the
+		// app needs hydration and, if so, enqueue the (deduped) hydration key. The Hydrating
+		// status mark and all subsequent per-app status writes live on the hydration queue side,
+		// so this worker is just an enqueuer and a single goroutine is sufficient
+		// (https://github.com/argoproj/argo-cd/issues/27926).
 		go wait.Until(func() {
 			for ctrl.processAppHydrateQueueItem() {
 			}
 		}, time.Second, ctx.Done())
 
-		go wait.Until(func() {
-			for ctrl.processHydrationQueueItem() {
-			}
-		}, time.Second, ctx.Done())
+		// The hydration queue does the heavy lifting (marking apps Hydrating, generating
+		// manifests, committing to the hydrated branch, and writing the per-app statuses) and is
+		// keyed by {SourceRepoURL, SourceTargetRevision, DestinationBranch}. Because it is a
+		// rate-limiting workqueue, the same key is never processed by two workers at once, so
+		// additional workers only parallelize hydration across *distinct* keys. The per-key dedup
+		// is also what makes the status writes safe to do inside this worker rather than ahead of
+		// time on the app hydrate queue. This is the concurrency knob requested in #27926.
+		for range normalizeHydrationProcessors(hydrationProcessors) {
+			go wait.Until(func() {
+				for ctrl.processHydrationQueueItem() {
+				}
+			}, time.Second, ctx.Done())
+		}
 	}
 
 	<-ctx.Done()
@@ -1005,14 +1021,14 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	processNext = true
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.WithField("appkey", appKey).Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
 		ctrl.appOperationQueue.Done(appKey)
 	}()
 
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
-		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
+		log.WithField("appkey", appKey).WithError(err).Error("Failed to get application from informer index")
 		return processNext
 	}
 	if !exists {
@@ -1021,7 +1037,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
-		log.Warnf("Key '%s' in index is not an application", appKey)
+		log.WithField("appkey", appKey).Warn("Key in index is not an application")
 		return processNext
 	}
 	app := origApp.DeepCopy()
@@ -1041,7 +1057,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		// We cannot rely on informer since applications might be updated by both application controller and api server.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err != nil {
-			logCtx.Errorf("Failed to retrieve latest application state: %v", err)
+			logCtx.WithError(err).Error("Failed to retrieve latest application state")
 			return processNext
 		}
 		app = freshApp
@@ -1052,15 +1068,21 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		ctrl.processRequestedAppOperation(app)
 		ts.AddCheckpoint("process_requested_app_operation_ms")
 	} else if app.DeletionTimestamp != nil {
-		if err = ctrl.finalizeApplicationDeletion(app, func(project string) ([]*appv1.Cluster, error) {
-			return ctrl.db.GetProjectClusters(context.Background(), project)
+		// processAppOperationQueueItem is a workqueue entry point with no inbound request context, so
+		// context.Background() roots the deletion operation's context tree.
+		ctx := context.Background()
+		if err = ctrl.finalizeApplicationDeletion(ctx, app, func(project string) ([]*appv1.Cluster, error) {
+			return ctrl.db.GetProjectClusters(ctx, project)
 		}); err != nil {
 			ctrl.setAppCondition(app, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionDeletionError,
 				Message: err.Error(),
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
-			ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: corev1.EventTypeWarning}, message)
+			ctrl.logAppEvent(ctx, app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: corev1.EventTypeWarning}, message)
+		} else {
+			// Clear DeletionError condition if deletion is progressing successfully
+			app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionDeletionError: true})
 		}
 		ts.AddCheckpoint("finalize_application_deletion_ms")
 	}
@@ -1073,7 +1095,7 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.WithField("appkey", key).Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
 		ctrl.appComparisonTypeRefreshQueue.Done(key)
 	}()
@@ -1083,11 +1105,11 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 	}
 
 	if parts := strings.Split(key, "/"); len(parts) != 3 {
-		log.Warnf("Unexpected key format in appComparisonTypeRefreshTypeQueue. Key should consists of namespace/name/comparisonType but got: %s", key)
+		log.WithField("appkey", key).Warn("Unexpected key format in appComparisonTypeRefreshTypeQueue. Key should consist of namespace/name/comparisonType")
 	} else {
 		compareWith, err := strconv.Atoi(parts[2])
 		if err != nil {
-			log.Warnf("Unable to parse comparison type: %v", err)
+			log.WithField("appkey", key).WithError(err).Warn("Unable to parse comparison type")
 			return processNext
 		}
 		ctrl.requestAppRefresh(ctrl.toAppQualifiedName(parts[1], parts[0]), CompareWith(compareWith).Pointer(), nil)
@@ -1101,7 +1123,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.WithField("key", key).Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
 		ctrl.projectRefreshQueue.Done(key)
 	}()
@@ -1111,7 +1133,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 	}
 	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(key)
 	if err != nil {
-		log.Errorf("Failed to get project '%s' from informer index: %+v", key, err)
+		log.WithField("key", key).WithError(err).Error("Failed to get project from informer index")
 		return processNext
 	}
 	if !exists {
@@ -1120,26 +1142,26 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 	}
 	origProj, ok := obj.(*appv1.AppProject)
 	if !ok {
-		log.Warnf("Key '%s' in index is not an appproject", key)
+		log.WithField("key", key).Warnf("Key in index is not an appproject")
 		return processNext
 	}
 
 	if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
 		if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
-			log.Warnf("Failed to finalize project deletion: %v", err)
+			log.WithError(err).Warn("Failed to finalize project deletion")
 		}
 	}
 	return processNext
 }
 
 func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
-	apps, err := ctrl.appLister.Applications(ctrl.namespace).List(labels.Everything())
+	apps, err := ctrl.appLister.List(labels.Everything())
 	if err != nil {
 		return fmt.Errorf("error listing applications: %w", err)
 	}
 	appsCount := 0
 	for i := range apps {
-		if apps[i].Spec.GetProject() == proj.Name {
+		if apps[i].Spec.GetProject() == proj.Name && ctrl.isAppNamespaceAllowed(apps[i]) && proj.IsAppNamespacePermitted(apps[i], ctrl.namespace) {
 			appsCount++
 		}
 	}
@@ -1164,8 +1186,13 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
+	deleteOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDelete)
+	if deleteOption == nil && app.Spec.SyncPolicy != nil {
+		deleteOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionDelete)
+	}
+
 	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) &&
-		!resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) &&
+		(deleteOption == nil || *deleteOption != synccommon.SyncValueFalse) &&
 		!resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep)
 }
 
@@ -1188,13 +1215,13 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(destCluster *appv1
 	return objsMap, nil
 }
 
-func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application, projectClusters func(project string) ([]*appv1.Cluster, error)) error {
+func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Context, app *appv1.Application, projectClusters func(project string) ([]*appv1.Cluster, error)) error {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	// Get refreshed application info, since informer app copy might be stale
-	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			logCtx.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
+			logCtx.WithError(err).Error("Unable to get refreshed application info prior deleting resources")
 		}
 		return nil
 	}
@@ -1202,26 +1229,56 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return err
 	}
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+
+	// Get destination cluster
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
 	if err != nil {
-		logCtx.Warnf("Unable to get destination cluster: %v", err)
+		logCtx.WithError(err).Warn("Unable to get destination cluster")
 		app.UnSetCascadedDeletion()
 		app.UnSetPostDeleteFinalizerAll()
+		app.UnSetPreDeleteFinalizerAll()
 		if err := ctrl.updateFinalizers(app); err != nil {
 			return err
 		}
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
+
 	clusterRESTConfig, err := destCluster.RESTConfig()
 	if err != nil {
 		return err
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
 
+	// Apply impersonation config if necessary
+	if err := ctrl.applyImpersonationConfig(config, proj, app, destCluster); err != nil {
+		return fmt.Errorf("cannot apply impersonation: %w", err)
+	}
+
+	// Handle PreDelete hooks - run them before any deletion occurs
+	if app.HasPreDeleteFinalizer() {
+		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
+		if err != nil {
+			return fmt.Errorf("error getting permitted app live objects: %w", err)
+		}
+
+		done, err := ctrl.executePreDeleteHooks(ctx, app, proj, objsMap, config, logCtx)
+		if err != nil {
+			return fmt.Errorf("error executing pre-delete hooks: %w", err)
+		}
+		if !done {
+			// PreDelete hooks are still running - wait for them to complete
+			return nil
+		}
+		// PreDelete hooks are done - remove the finalizer so we can continue with deletion
+		app.UnSetPreDeleteFinalizer()
+		if err := ctrl.updateFinalizers(app); err != nil {
+			return fmt.Errorf("error updating pre-delete finalizers: %w", err)
+		}
+	}
+
 	if app.CascadedDeletion() {
 		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
-
 		logCtx.Infof("Deleting resources")
 		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
 		objs := make([]*unstructured.Unstructured, 0)
@@ -1256,7 +1313,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 		err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 			obj := filteredObjs[i]
-			return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+			return ctrl.kubectl.DeleteResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 		})
 		if err != nil {
 			return err
@@ -1287,7 +1344,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 
-		done, err := ctrl.executePostDeleteHooks(app, proj, objsMap, config, logCtx)
+		done, err := ctrl.executePostDeleteHooks(ctx, app, proj, objsMap, config, logCtx)
 		if err != nil {
 			return err
 		}
@@ -1298,13 +1355,30 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return ctrl.updateFinalizers(app)
 	}
 
+	if app.HasPreDeleteFinalizer("cleanup") {
+		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
+		if err != nil {
+			return fmt.Errorf("error getting permitted app live objects for pre-delete cleanup: %w", err)
+		}
+
+		done, err := ctrl.cleanupPreDeleteHooks(ctx, objsMap, config, logCtx)
+		if err != nil {
+			return fmt.Errorf("error cleaning up pre-delete hooks: %w", err)
+		}
+		if !done {
+			return nil
+		}
+		app.UnSetPreDeleteFinalizer("cleanup")
+		return ctrl.updateFinalizers(app)
+	}
+
 	if app.HasPostDeleteFinalizer("cleanup") {
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
 			return err
 		}
 
-		done, err := ctrl.cleanupPostDeleteHooks(objsMap, config, logCtx)
+		done, err := ctrl.cleanupPostDeleteHooks(ctx, objsMap, config, logCtx)
 		if err != nil {
 			return err
 		}
@@ -1315,12 +1389,12 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return ctrl.updateFinalizers(app)
 	}
 
-	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() {
-		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
+	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() && !app.HasPreDeleteFinalizer() {
+		if err := ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
 
-		if err := ctrl.cache.SetAppResourcesTree(app.Name, nil); err != nil {
+		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
 		ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, app.Spec.GetProject()))
@@ -1367,12 +1441,15 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	}
 	if err != nil {
-		logCtx.Errorf("Unable to set application condition: %v", err)
+		logCtx.WithError(err).Error("Unable to set application condition")
 	}
 }
 
 func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	// processAppOperationQueueItem is a workqueue entry point with no inbound request
+	// context, so context.Background() roots this operation's context tree.
+	ctx := context.Background()
 	var state *appv1.OperationState
 	// Recover from any unexpected panics and automatically set the status to be failed
 	defer func() {
@@ -1384,7 +1461,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
 			}
-			ctrl.setOperationState(app, state)
+			ctrl.setOperationState(ctx, app, state)
 		}
 	}()
 	ts := stats.NewTimingStats()
@@ -1405,7 +1482,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			terminatingCause = "controller sync timeout"
-			ctrl.setOperationState(app, state)
+			ctrl.setOperationState(ctx, app, state)
 			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
 		case state.Phase == synccommon.OperationRunning && state.FinishedAt != nil:
 			// Failed operation with retry strategy might be in-progress and has completion time
@@ -1413,7 +1490,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			if err != nil {
 				state.Phase = synccommon.OperationError
 				state.Message = err.Error()
-				ctrl.setOperationState(app, state)
+				ctrl.setOperationState(ctx, app, state)
 				return
 			}
 			retryAfter := time.Until(retryAt)
@@ -1437,14 +1514,14 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Message = fmt.Sprintf("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 			state.FinishedAt = nil
 			state.SyncResult = nil
-			ctrl.setOperationState(app, state)
+			ctrl.setOperationState(ctx, app, state)
 			logCtx.Infof("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
 		state = NewOperationState(*app.Operation)
-		ctrl.setOperationState(app, state)
+		ctrl.setOperationState(ctx, app, state)
 		if ctrl.syncTimeout != time.Duration(0) {
 			// Schedule a check during which the timeout would be checked.
 			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), ctrl.syncTimeout)
@@ -1457,7 +1534,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	project, err := ctrl.getAppProj(app)
 	if err == nil {
 		// Start or resume the sync
-		ctrl.appStateManager.SyncAppState(app, project, state)
+		ctrl.appStateManager.SyncAppState(ctx, app, project, state)
 	} else {
 		state.Phase = synccommon.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -1468,7 +1545,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	case synccommon.OperationRunning:
 		// It's possible for an app to be terminated while we were operating on it. We do not want
 		// to clobber the Terminated state with Running. Get the latest app state to check for this.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 		if err == nil {
 			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
 				state.Phase = synccommon.OperationTerminating
@@ -1502,22 +1579,32 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	ctrl.setOperationState(app, state)
+	ctrl.setOperationState(ctx, app, state)
 	ts.AddCheckpoint("final_set_operation_state")
 	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
 		if _, err := cache.MetaNamespaceKeyFunc(app); err == nil {
-			// force app refresh with using CompareWithLatest comparison type and trigger app reconciliation loop
-			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatestForceResolve.Pointer(), nil)
+			var compareWith CompareWith
+			if state.Operation.InitiatedBy.Automated {
+				// Do not force revision resolution on automated operations because
+				// this would cause excessive Ls-Remote requests on monorepo commits
+				compareWith = CompareWithLatest
+			} else {
+				// Force app refresh with using most recent resolved revision after sync,
+				// so UI won't show a just synced application being out of sync if it was
+				// synced after commit but before app. refresh (see #18153)
+				compareWith = CompareWithLatestForceResolve
+			}
+			ctrl.requestAppRefresh(app.QualifiedName(), compareWith.Pointer(), nil)
 		} else {
-			logCtx.Warnf("Fails to requeue application: %v", err)
+			logCtx.WithError(err).Warn("Fails to requeue application")
 		}
 	}
 	ts.AddCheckpoint("request_app_refresh_ms")
 }
 
-func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
+func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	if state.Phase == "" {
 		// expose any bugs where we neglect to set phase
@@ -1543,19 +1630,19 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 	}
 	patchJSON, err := json.Marshal(patch)
 	if err != nil {
-		logCtx.Errorf("error marshaling json: %v", err)
+		logCtx.WithError(err).Error("error marshaling json")
 		return
 	}
 	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
 		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
 		if err != nil {
-			logCtx.Errorf("error merging operation state patch: %v", err)
+			logCtx.WithError(err).Error("error merging operation state patch")
 			return
 		}
 	}
 
-	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
+		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
@@ -1563,7 +1650,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
 			// warning.
-			logCtx.Warnf("error patching application with operation state: %v", err)
+			logCtx.WithError(err).Warn("error patching application with operation state")
 			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
 		return nil
@@ -1588,11 +1675,11 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			eventInfo.Type = corev1.EventTypeWarning
 			messages = append(messages, "failed:", state.Message)
 		}
-		ctrl.logAppEvent(context.TODO(), app, eventInfo, strings.Join(messages, " "))
+		ctrl.logAppEvent(ctx, app, eventInfo, strings.Join(messages, " "))
 
-		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
 		if err != nil {
-			logCtx.Warnf("Unable to get destination cluster, setting dest_server label to empty string in sync metric: %v", err)
+			logCtx.WithError(err).Warn("Unable to get destination cluster, setting dest_server label to empty string in sync metric")
 		}
 		destServer := ""
 		if destCluster != nil {
@@ -1609,7 +1696,7 @@ func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app)).WithField("informer-writeBack", true)
 	err := ctrl.appInformer.GetStore().Update(app)
 	if err != nil {
-		logCtx.Errorf("failed to update informer store: %v", err)
+		logCtx.WithError(err).Error("failed to update informer store")
 		return
 	}
 }
@@ -1635,7 +1722,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	processNext = true
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.WithField("appkey", appKey).Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
 		// We want to have app operation update happen after the sync, so there's no race condition
 		// and app updates not proceeding. See https://github.com/argoproj/argo-cd/issues/18500.
@@ -1644,7 +1731,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}()
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
-		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
+		log.WithField("appkey", appKey).WithError(err).Error("Failed to get application from informer index")
 		return processNext
 	}
 	if !exists {
@@ -1653,7 +1740,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
-		log.Warnf("Key '%s' in index is not an application", appKey)
+		log.WithField("appkey", appKey).Warn("Key in index is not an application")
 		return processNext
 	}
 	origApp = origApp.DeepCopy()
@@ -1669,6 +1756,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		"dest-name":        origApp.Spec.Destination.Name,
 		"dest-namespace":   origApp.Spec.Destination.Namespace,
 	})
+
+	// processAppRefreshQueueItem is a workqueue entry point with no inbound request
+	// context, so context.Background() roots this reconciliation's context tree.
+	ctx := context.Background()
 
 	startTime := time.Now()
 	ts := stats.NewTimingStats()
@@ -1695,19 +1786,19 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	if comparisonLevel == ComparisonWithNothing {
 		// If the destination cluster is invalid, fallback to the normal reconciliation flow
-		if destCluster, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err == nil {
+		if destCluster, err = argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db); err == nil {
 			managedResources := make([]*appv1.ResourceDiff, 0)
 			if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err == nil {
 				var tree *appv1.ApplicationTree
 				if tree, err = ctrl.getResourceTree(destCluster, app, managedResources); err == nil {
 					app.Status.Summary = tree.GetSummary(app)
 					if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
-						logCtx.Errorf("Failed to cache resources tree: %v", err)
+						logCtx.WithError(err).Error("Failed to cache resources tree")
 						return processNext
 					}
 				}
 
-				patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
+				patchDuration = ctrl.persistReconciliationStatus(origApp, &app.Status)
 				return processNext
 			}
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
@@ -1715,27 +1806,27 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	ts.AddCheckpoint("comparison_with_nothing_ms")
 
-	project, hasErrors := ctrl.refreshAppConditions(app)
+	project, hasErrors := ctrl.refreshAppConditions(ctx, app)
 	ts.AddCheckpoint("refresh_app_conditions_ms")
 	now := metav1.Now()
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
-		patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
+		patchDuration = ctrl.persistReconciliationStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
-			logCtx.Warnf("failed to set app resource tree: %v", err)
+			logCtx.WithError(err).Warn("failed to set app resource tree")
 		}
 		if err := ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), nil); err != nil {
-			logCtx.Warnf("failed to set app managed resources tree: %v", err)
+			logCtx.WithError(err).Warn("failed to set app managed resources tree")
 		}
 		ts.AddCheckpoint("process_refresh_app_conditions_errors_ms")
 		return processNext
 	}
 
-	destCluster, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	destCluster, err = argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
 	if err != nil {
-		logCtx.Errorf("Failed to get destination cluster: %v", err)
+		logCtx.WithError(err).Error("Failed to get destination cluster")
 		// exit the reconciliation. ctrl.refreshAppConditions should have caught the error
 		return processNext
 	}
@@ -1772,12 +1863,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		sources = append(sources, app.Spec.GetSource())
 	}
 
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
+	compareResult, err := ctrl.appStateManager.CompareAppState(ctx, app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
 
 	ts.AddCheckpoint("compare_app_state_ms")
 
 	if stderrors.Is(err, ErrCompareStateRepo) {
-		logCtx.Warnf("Ignoring temporary failed attempt to compare app state against repo: %v", err)
+		logCtx.WithError(err).Warn("Ignoring temporary failed attempt to compare app state against repo")
 		return processNext // short circuit if git error is encountered
 	}
 
@@ -1785,20 +1876,26 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
 
-	ctrl.normalizeApplication(origApp, app)
+	ctrl.normalizeApplication(app)
 	ts.AddCheckpoint("normalize_application_ms")
 
-	tree, err := ctrl.setAppManagedResources(destCluster, app, compareResult)
+	tree, err := ctrl.setAppManagedResources(ctx, destCluster, app, compareResult)
 	ts.AddCheckpoint("set_app_managed_resources_ms")
 	if err != nil {
-		logCtx.Errorf("Failed to cache app resources: %v", err)
+		logCtx.WithError(err).Error("Failed to cache app resources")
 	} else {
 		app.Status.Summary = tree.GetSummary(app)
 	}
 
-	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false)
+	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
-		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
+		// The manifest-generate-paths optimization can report no changes for a newer commit that
+		// arrives while the app is still syncing, which would skip auto-sync and leave the app
+		// stuck OutOfSync. Only use it to avoid regenerating manifests, never to gate the sync
+		// decision: when the app is OutOfSync, always let autoSync compare the desired revision
+		// against the last synced one (#27875).
+		shouldCompareRevisions := compareResult.revisionsMayHaveChanges || compareResult.syncStatus.Status == appv1.SyncStatusCodeOutOfSync
+		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, shouldCompareRevisions)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
 			app.Status.SetConditions(
@@ -1829,10 +1926,25 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.SourceTypes = compareResult.appSourceTypes
 	app.Status.ControllerNamespace = ctrl.namespace
 	ts.AddCheckpoint("app_status_update_ms")
-	patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
-	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
-	ts.AddCheckpoint("persist_app_status_ms")
-	if (compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() || compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
+	// Update finalizers BEFORE persisting status to avoid race condition where app shows "Synced"
+	// but doesn't have finalizers yet, which would allow deletion without running pre-delete hooks
+	if (compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer() ||
+		compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer("cleanup")) &&
+		app.GetDeletionTimestamp() == nil {
+		if compareResult.hasPreDeleteHooks {
+			app.SetPreDeleteFinalizer()
+			app.SetPreDeleteFinalizer("cleanup")
+		} else {
+			app.UnSetPreDeleteFinalizer()
+			app.UnSetPreDeleteFinalizer("cleanup")
+		}
+
+		if err := ctrl.updateFinalizers(app); err != nil {
+			logCtx.Errorf("Failed to update pre-delete finalizers: %v", err)
+		}
+	}
+	if (compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() ||
+		compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
 		app.GetDeletionTimestamp() == nil {
 		if compareResult.hasPostDeleteHooks {
 			app.SetPostDeleteFinalizer()
@@ -1843,10 +1955,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 
 		if err := ctrl.updateFinalizers(app); err != nil {
-			logCtx.Errorf("Failed to update finalizers: %v", err)
+			logCtx.WithError(err).Error("Failed to update post-delete finalizers")
 		}
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
+	patchDuration = ctrl.persistReconciliationStatus(origApp, &app.Status)
+	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
+	ts.AddCheckpoint("persist_app_status_ms")
 	return processNext
 }
 
@@ -1859,13 +1974,13 @@ func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext boo
 	processNext = true
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.WithField("appkey", appKey).Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
 		ctrl.appHydrateQueue.Done(appKey)
 	}()
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
-		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
+		log.WithField("appkey", appKey).WithError(err).Error("Failed to get application from informer index")
 		return processNext
 	}
 	if !exists {
@@ -1874,11 +1989,11 @@ func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext boo
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
-		log.Warnf("Key '%s' in index is not an application", appKey)
+		log.WithField("appkey", appKey).Warn("Key in index is not an application")
 		return processNext
 	}
 
-	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp)
+	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp.DeepCopy())
 
 	log.WithFields(applog.GetAppLogFields(origApp)).Debug("Successfully processed app hydrate queue item")
 	return processNext
@@ -1891,18 +2006,20 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 		return processNext
 	}
 	processNext = true
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-		}
-		ctrl.hydrationQueue.Done(hydrationKey)
-	}()
 
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
 		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
+		"destinationRepoURL":   hydrationKey.DestinationRepoURL,
 		"destinationBranch":    hydrationKey.DestinationBranch,
 	})
+
+	defer func() {
+		if r := recover(); r != nil {
+			logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+		}
+		ctrl.hydrationQueue.Done(hydrationKey)
+	}()
 
 	logCtx.Debug("Processing hydration queue item")
 
@@ -1981,13 +2098,13 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
+func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app *appv1.Application) (*appv1.AppProject, bool) {
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		errorConditions = append(errorConditions, ctrl.projectErrorToCondition(err, app))
 	} else {
-		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
+		specConditions, err := argo.ValidatePermissions(ctx, &app.Spec, proj, ctrl.db)
 		if err != nil {
 			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionUnknownError,
@@ -2005,18 +2122,19 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
-func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application) {
+func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) {
+	orig := app.DeepCopy()
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
 	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
 
 	if err != nil {
-		logCtx.Errorf("error constructing app spec patch: %v", err)
+		logCtx.WithError(err).Error("error constructing app spec patch")
 	} else if modified {
 		_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
-			logCtx.Errorf("Error persisting normalized application spec: %v", err)
+			logCtx.WithError(err).Error("Error persisting normalized application spec")
 		} else {
 			logCtx.Infof("Normalized app spec: %s", string(patch))
 		}
@@ -2039,8 +2157,17 @@ func createMergePatch(orig, newV any) ([]byte, bool, error) {
 	return patch, string(patch) != "{}", nil
 }
 
-// persistAppStatus persists updates to application status. If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchDuration time.Duration) {
+// persistReconciliationStatus persists updates to application status and consumes the refresh annotation.
+func (ctrl *ApplicationController) persistReconciliationStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) time.Duration {
+	newAnnotations := make(map[string]string)
+	maps.Copy(newAnnotations, orig.GetAnnotations())
+	delete(newAnnotations, appv1.AnnotationKeyRefresh)
+	return ctrl.persistAppStatus(orig, newStatus, newAnnotations)
+}
+
+// persistAppStatus persists updates to application status and optionally updates annotations.
+// If no changes were made, it is a no-op
+func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus, newAnnotations map[string]string) (patchDuration time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
@@ -2058,34 +2185,64 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		// make sure the last transition time is the same and populated if the health is the same
 		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
 	}
-	var newAnnotations map[string]string
-	if orig.GetAnnotations() != nil {
-		newAnnotations = make(map[string]string)
-		for k, v := range orig.GetAnnotations() {
-			newAnnotations[k] = v
-		}
-		delete(newAnnotations, appv1.AnnotationKeyRefresh)
-		delete(newAnnotations, appv1.AnnotationKeyHydrate)
-	}
 	patch, modified, err := createMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
-		logCtx.Errorf("Error constructing app status patch: %v", err)
+		logCtx.WithError(err).Error("Error constructing app status patch")
 		return patchDuration
 	}
 	if !modified {
 		logCtx.Infof("No status changes. Skipping patch")
 		return patchDuration
 	}
-	// calculate time for path call
+	// calculate time for patch call
 	start := time.Now()
 	defer func() {
 		patchDuration = time.Since(start)
 	}()
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
-		logCtx.Warnf("Error updating application: %v", err)
+		if apierrors.IsRequestEntityTooLargeError(err) {
+			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
+			fallbackStatus := orig.Status.DeepCopy()
+			fallbackStatus.SetConditions([]appv1.ApplicationCondition{
+				{
+					Type:    appv1.ApplicationConditionUnknownError,
+					Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
+				},
+			},
+				map[appv1.ApplicationConditionType]bool{
+					appv1.ApplicationConditionUnknownError: true,
+				})
+
+			fallbackPatch, modified, mpErr := createMergePatch(
+				&appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: orig.GetAnnotations(),
+					},
+					Status: orig.Status,
+				},
+				&appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: newAnnotations,
+					},
+					Status: *fallbackStatus,
+				},
+			)
+			if mpErr != nil {
+				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
+				return patchDuration
+			}
+			if !modified {
+				return patchDuration
+			}
+			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
+				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			}
+			return patchDuration
+		}
+		logCtx.WithError(err).Warn("Error updating application")
 	} else {
 		logCtx.Infof("Update successful")
 	}
@@ -2123,7 +2280,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil, 0
 	}
 
-	if !app.Spec.SyncPolicy.Automated.Prune {
+	if !app.Spec.SyncPolicy.Automated.GetPrune() {
 		requirePruneOnly := true
 		for _, r := range resources {
 			if r.Status != appv1.SyncStatusCodeSynced && !r.RequiresPruning {
@@ -2137,7 +2294,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
-	source := ptr.To(app.Spec.GetSource())
+	source := new(app.Spec.GetSource())
 	desiredRevisions := []string{syncStatus.Revision}
 	if app.Spec.HasMultipleSources() {
 		source = nil
@@ -2148,7 +2305,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		Sync: &appv1.SyncOperation{
 			Source:      source,
 			Revision:    syncStatus.Revision,
-			Prune:       app.Spec.SyncPolicy.Automated.Prune,
+			Prune:       app.Spec.SyncPolicy.Automated.GetPrune(),
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 			Sources:     app.Spec.Sources,
 			Revisions:   syncStatus.Revisions,
@@ -2172,19 +2329,15 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			message := fmt.Sprintf("Failed last sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
-		if !app.Spec.SyncPolicy.Automated.SelfHeal {
+		if !app.Spec.SyncPolicy.Automated.GetSelfHeal() {
 			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
 			return nil, 0
 		}
 		// Self heal will trigger a new sync operation when the desired state changes and cause the application to
 		// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
 		// when the revisions have not changed, and where the previous sync to these revision was successful
-
-		// Only carry SelfHealAttemptsCount to be increased when the selfHealBackoffCooldown has not elapsed yet
-		if !ctrl.selfHealBackoffCooldownElapsed(app) {
-			if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-				op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
-			}
+		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+			op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
 		}
 
 		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
@@ -2206,7 +2359,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
 
-	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
+	if app.Spec.SyncPolicy.Automated.GetPrune() && !app.Spec.SyncPolicy.Automated.GetAllowEmpty() {
 		bAllNeedPrune := true
 		for _, r := range resources {
 			if !r.RequiresPruning {
@@ -2230,17 +2383,17 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		if stderrors.Is(err, argo.ErrAnotherOperationInProgress) {
 			// skipping auto-sync because another operation is in progress and was not noticed due to stale data in informer
 			// it is safe to skip auto-sync because it is already running
-			logCtx.Warnf("Failed to initiate auto-sync to %s: %v", desiredRevisions, err)
+			logCtx.WithError(err).Warnf("Failed to initiate auto-sync to %s", desiredRevisions)
 			return nil, 0
 		}
 
-		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredRevisions, err)
+		logCtx.WithError(err).Errorf("Failed to initiate auto-sync to %s", desiredRevisions)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
 	}
 	ctrl.writeBackToInformer(updatedApp)
 	ts.AddCheckpoint("write_back_to_informer_ms")
 
-	message := fmt.Sprintf("Initiated automated sync to %s", desiredRevisions)
+	message := fmt.Sprintf("Initiated automated sync to '%s'", strings.Join(desiredRevisions, ", "))
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil, setOpTime
@@ -2293,7 +2446,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 
 	var timeSinceOperation *time.Duration
 	if app.Status.OperationState.FinishedAt != nil {
-		timeSinceOperation = ptr.To(time.Since(app.Status.OperationState.FinishedAt.Time))
+		timeSinceOperation = new(time.Since(app.Status.OperationState.FinishedAt.Time))
 	}
 
 	var retryAfter time.Duration
@@ -2308,7 +2461,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps
-		for i := 0; i < steps; i++ {
+		for range steps {
 			delay = backOff.Step()
 		}
 		if timeSinceOperation == nil {
@@ -2318,19 +2471,6 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		}
 	}
 	return retryAfter
-}
-
-// selfHealBackoffCooldownElapsed returns true when the last successful sync has occurred since longer
-// than then self heal cooldown. This means that the application has been in sync for long enough to
-// reset the self healing backoff to its initial state
-func (ctrl *ApplicationController) selfHealBackoffCooldownElapsed(app *appv1.Application) bool {
-	if app.Status.OperationState == nil || app.Status.OperationState.FinishedAt == nil {
-		// Something is in progress, or about to be. In that case, selfHeal attempt should be zero anyway
-		return true
-	}
-
-	timeSinceLastOperation := time.Since(app.Status.OperationState.FinishedAt.Time)
-	return timeSinceLastOperation >= ctrl.selfHealBackoffCooldown && app.Status.OperationState.Phase.Successful()
 }
 
 // isAppNamespaceAllowed returns whether the application is allowed in the
@@ -2360,7 +2500,7 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 					return false
 				}
 			} else {
-				logCtx.Debugf("Unable to determine if Application should skip reconcile based on annotation %s: %v", common.AnnotationKeyAppSkipReconcile, err)
+				logCtx.WithError(err).Debugf("Unable to determine if Application should skip reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
 			}
 		}
 	}
@@ -2410,7 +2550,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		cache.Indexers{
 			cache.NamespaceIndex: func(obj any) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
-				if ok {
+				if ok && ctrl.projInformer.HasSynced() {
 					// We only generally work with applications that are in one
 					// the allowed namespaces.
 					if ctrl.isAppNamespaceAllowed(app) {
@@ -2436,6 +2576,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return nil, nil
 				}
 
+				if !ctrl.projInformer.HasSynced() {
+					return nil, nil
+				}
+
 				proj, err := ctrl.getAppProj(app)
 				if err != nil {
 					return nil, nil
@@ -2448,79 +2592,129 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	lister := applisters.NewApplicationLister(informer.GetIndexer())
-	_, err := informer.AddEventHandler(
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				if !ctrl.canProcessApp(obj) {
-					return
-				}
-				key, err := cache.MetaNamespaceKeyFunc(obj)
-				if err == nil {
-					ctrl.appRefreshQueue.AddRateLimited(key)
-				}
-				newApp, newOK := obj.(*appv1.Application)
-				if err == nil && newOK {
-					ctrl.clusterSharding.AddApp(newApp)
-				}
-			},
-			UpdateFunc: func(old, new any) {
-				if !ctrl.canProcessApp(new) {
-					return
-				}
-
-				key, err := cache.MetaNamespaceKeyFunc(new)
-				if err != nil {
-					return
-				}
-
-				var compareWith *CompareWith
-				var delay *time.Duration
-
-				oldApp, oldOK := old.(*appv1.Application)
-				newApp, newOK := new.(*appv1.Application)
-				if oldOK && newOK {
-					if automatedSyncEnabled(oldApp, newApp) {
-						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
-						compareWith = CompareWithLatest.Pointer()
-					}
-					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
-						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
-						delay = &jitter
-					}
-				}
-
-				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				if !newOK || (delay != nil && *delay != time.Duration(0)) {
-					ctrl.appOperationQueue.AddRateLimited(key)
-				}
-				if ctrl.hydrator != nil {
-					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-				}
-				ctrl.clusterSharding.UpdateApp(newApp)
-			},
-			DeleteFunc: func(obj any) {
-				if !ctrl.canProcessApp(obj) {
-					return
-				}
-				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-				// key function.
-				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-				if err == nil {
-					// for deletes, we immediately add to the refresh queue
-					ctrl.appRefreshQueue.Add(key)
-				}
-				delApp, delOK := obj.(*appv1.Application)
-				if err == nil && delOK {
-					ctrl.clusterSharding.DeleteApp(delApp)
-				}
-			},
-		},
-	)
+	_, err := informer.AddEventHandler(ctrl.applicationEventHandlerFuncs())
 	if err != nil {
 		return nil, nil
 	}
 	return informer, lister
+}
+
+// appProjectEventHandlerFuncs returns the informer event handlers for AppProject
+// objects. Adds and updates are rate-limited onto the project refresh queue, while
+// deletes are enqueued immediately; in all cases the project cache is invalidated.
+// DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones, and objects that do
+// not implement metav1.Object are skipped for cache invalidation.
+func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
+				ctrl.projectRefreshQueue.AddRateLimited(key)
+				if projMeta, ok := obj.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+		UpdateFunc: func(_, new any) {
+			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
+				ctrl.projectRefreshQueue.AddRateLimited(key)
+				if projMeta, ok := new.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
+				// immediately push to queue for deletes
+				ctrl.projectRefreshQueue.Add(key)
+				if projMeta, ok := obj.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+	}
+}
+
+// applicationEventHandlerFuncs returns the informer event handlers for Application
+// objects. Events for applications this controller cannot process (per canProcessApp)
+// are ignored. DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones and
+// immediately enqueues a refresh, while add/update use the rate-limited queues. The
+// cluster sharding cache is updated to reflect the application's lifecycle.
+func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if !ctrl.canProcessApp(obj) {
+				return
+			}
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err == nil {
+				ctrl.appRefreshQueue.AddRateLimited(key)
+			}
+			newApp, newOK := obj.(*appv1.Application)
+			if err == nil && newOK {
+				ctrl.clusterSharding.AddApp(newApp)
+			}
+		},
+		UpdateFunc: func(old, new any) {
+			if !ctrl.canProcessApp(new) {
+				return
+			}
+
+			key, err := cache.MetaNamespaceKeyFunc(new)
+			if err != nil {
+				return
+			}
+
+			var compareWith *CompareWith
+			var delay *time.Duration
+
+			oldApp, oldOK := old.(*appv1.Application)
+			newApp, newOK := new.(*appv1.Application)
+			if oldOK && newOK {
+				if automatedSyncEnabled(oldApp, newApp) {
+					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
+					compareWith = CompareWithLatest.Pointer()
+				}
+				if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
+					jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
+					delay = &jitter
+				}
+			}
+
+			ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
+			if !newOK || (delay != nil && *delay != time.Duration(0)) {
+				ctrl.appOperationQueue.AddRateLimited(key)
+			}
+			if ctrl.hydrator != nil {
+				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+			}
+			ctrl.clusterSharding.UpdateApp(newApp)
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if !ctrl.canProcessApp(obj) {
+				return
+			}
+			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+			// key function.
+			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+			if err == nil {
+				// for deletes, we immediately add to the refresh queue
+				ctrl.appRefreshQueue.Add(key)
+			}
+			delApp, delOK := obj.(*appv1.Application)
+			if err == nil && delOK {
+				ctrl.clusterSharding.DeleteApp(delApp)
+			}
+		},
+	}
 }
 
 func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1.Application) appv1.ApplicationCondition {
@@ -2552,14 +2746,14 @@ func automatedSyncEnabled(oldApp *appv1.Application, newApp *appv1.Application) 
 	oldSelfHealEnabled := false
 	if oldApp.Spec.SyncPolicy != nil && oldApp.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		oldEnabled = true
-		oldSelfHealEnabled = oldApp.Spec.SyncPolicy.Automated.SelfHeal
+		oldSelfHealEnabled = oldApp.Spec.SyncPolicy.Automated.GetSelfHeal()
 	}
 
 	newEnabled := false
 	newSelfHealEnabled := false
 	if newApp.Spec.SyncPolicy != nil && newApp.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		newEnabled = true
-		newSelfHealEnabled = newApp.Spec.SyncPolicy.Automated.SelfHeal
+		newSelfHealEnabled = newApp.Spec.SyncPolicy.Automated.GetSelfHeal()
 	}
 	if !oldEnabled && newEnabled {
 		return true
@@ -2613,6 +2807,24 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 func (ctrl *ApplicationController) logAppEvent(ctx context.Context, a *appv1.Application, eventInfo argo.EventInfo, message string) {
 	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db)
 	ctrl.auditLogger.LogAppEvent(a, eventInfo, message, "", eventLabels)
+}
+
+func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config, proj *appv1.AppProject, app *appv1.Application, destCluster *appv1.Cluster) error {
+	impersonationEnabled, err := ctrl.settingsMgr.IsImpersonationEnabled()
+	if err != nil {
+		return fmt.Errorf("error getting impersonation setting: %w", err)
+	}
+	if !impersonationEnabled {
+		return nil
+	}
+	user, err := settings_util.DeriveServiceAccountToImpersonate(proj, app, destCluster)
+	if err != nil {
+		return fmt.Errorf("error deriving service account to impersonate: %w", err)
+	}
+	config.Impersonate = rest.ImpersonationConfig{
+		UserName: user,
+	}
+	return nil
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool

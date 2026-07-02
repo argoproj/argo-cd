@@ -1,6 +1,6 @@
 import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi} from 'react-form';
+import {Form, FormApi} from 'argo-ui';
 import {ARGO_WARNING_COLOR, ProgressPopup, Spinner} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -57,11 +57,15 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                     onClose={() => hide()}
                     header={
                         <div>
-                            <button className='argo-button argo-button--base' disabled={isPending} onClick={() => syncHandler(form, ctx, apps)}>
+                            <button
+                                qe-id='applications-sync-panel-button-synchronize'
+                                className='argo-button argo-button--base'
+                                disabled={isPending}
+                                onClick={() => syncHandler(form, ctx, apps)}>
                                 <Spinner show={isPending} style={{marginRight: '5px'}} />
                                 Sync
                             </button>{' '}
-                            <button onClick={() => hide()} className='argo-button argo-button--base-o'>
+                            <button onClick={() => hide()} qe-id='applications-sync-panel-button-cancel' className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
                         </div>
@@ -146,7 +150,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
 
                                 <ApplicationRetryOptions id='applications-sync-panel' formApi={formApi} />
 
-                                <ApplicationSelector apps={apps} formApi={formApi} />
+                                {show && <ApplicationSelector apps={apps} formApi={formApi} />}
                             </div>
                         )}
                     </Form>

@@ -73,14 +73,14 @@ func TestSetLogFormat(t *testing.T) {
 					SetLogFormat(tt.logFormat)
 					return
 				}
-				cmd := exec.Command(os.Args[0], "-test.run="+t.Name())
+				cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run="+t.Name())
 				cmd.Env = append(os.Environ(), "TEST_FATAL=1")
 				err := cmd.Run()
 				e := &exec.ExitError{}
 				if errors.As(err, &e) {
 					return
 				}
-				t.Fatalf("expected fatal exit for invalid log format")
+				t.Fatal("expected fatal exit for invalid log format")
 			} else {
 				SetLogFormat(tt.logFormat)
 				assert.Equal(t, tt.expected, os.Getenv(common.EnvLogFormat))

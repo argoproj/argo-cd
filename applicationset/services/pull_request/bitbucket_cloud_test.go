@@ -53,6 +53,7 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 }
 
 func TestParseUrlEmptyUrl(t *testing.T) {
+	t.Parallel()
 	url, err := parseURL("")
 	bitbucketURL, _ := url.Parse("https://api.bitbucket.org/2.0")
 
@@ -61,24 +62,28 @@ func TestParseUrlEmptyUrl(t *testing.T) {
 }
 
 func TestInvalidBaseUrlBasicAuthCloud(t *testing.T) {
+	t.Parallel()
 	_, err := NewBitbucketCloudServiceBasicAuth("http:// example.org", "user", "password", "OWNER", "REPO")
 
 	require.Error(t, err)
 }
 
 func TestInvalidBaseUrlBearerTokenCloud(t *testing.T) {
+	t.Parallel()
 	_, err := NewBitbucketCloudServiceBearerToken("http:// example.org", "TOKEN", "OWNER", "REPO")
 
 	require.Error(t, err)
 }
 
 func TestInvalidBaseUrlNoAuthCloud(t *testing.T) {
+	t.Parallel()
 	_, err := NewBitbucketCloudServiceNoAuth("http:// example.org", "OWNER", "REPO")
 
 	require.Error(t, err)
 }
 
 func TestListPullRequestBearerTokenCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer TOKEN", r.Header.Get("Authorization"))
 		defaultHandlerCloud(t)(w, r)
@@ -89,7 +94,7 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(foo-bar)", pullRequests[0].Title)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -97,6 +102,7 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 }
 
 func TestListPullRequestNoAuthCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		defaultHandlerCloud(t)(w, r)
@@ -107,7 +113,7 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(foo-bar)", pullRequests[0].Title)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -115,6 +121,7 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 }
 
 func TestListPullRequestBasicAuthCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Basic dXNlcjpwYXNzd29yZA==", r.Header.Get("Authorization"))
 		defaultHandlerCloud(t)(w, r)
@@ -125,7 +132,7 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(foo-bar)", pullRequests[0].Title)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -133,6 +140,7 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 }
 
 func TestListPullRequestPaginationCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -240,6 +248,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 }
 
 func TestListResponseErrorCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -250,6 +259,7 @@ func TestListResponseErrorCloud(t *testing.T) {
 }
 
 func TestListResponseMalformedCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -274,6 +284,7 @@ func TestListResponseMalformedCloud(t *testing.T) {
 }
 
 func TestListResponseMalformedValuesCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -298,6 +309,7 @@ func TestListResponseMalformedValuesCloud(t *testing.T) {
 }
 
 func TestListResponseEmptyCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -324,6 +336,7 @@ func TestListResponseEmptyCloud(t *testing.T) {
 }
 
 func TestListPullRequestBranchMatchCloud(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -494,6 +507,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 }
 
 func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()

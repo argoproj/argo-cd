@@ -10,13 +10,13 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/podutils"
+	"k8s.io/streaming/pkg/httpstream"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -40,6 +40,7 @@ func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, p
 }
 
 func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOverrides, podSelectors ...string) (int, error) {
+	ctx := context.Background()
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, overrides, os.Stdin)
@@ -93,8 +94,9 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	failedChan := make(chan error, 1)
 	out := new(bytes.Buffer)
 	errOut := new(bytes.Buffer)
+	lc := &net.ListenConfig{}
 
-	ln, err := net.Listen("tcp", "localhost:0")
+	ln, err := lc.Listen(ctx, "tcp", "localhost:0")
 	if err != nil {
 		return -1, err
 	}

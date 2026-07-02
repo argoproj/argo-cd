@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,7 +29,7 @@ func setupPluginPath(t *testing.T) {
 func TestNormalCommandWithPlugin(t *testing.T) {
 	setupPluginPath(t)
 
-	_ = NewDefaultPluginHandler([]string{"argocd"})
+	_ = NewDefaultPluginHandler()
 	args := []string{"argocd", "version", "--short", "--client"}
 	buf := new(bytes.Buffer)
 	cmd := NewVersionCmd(&argocdclient.ClientOptions{}, nil)
@@ -47,7 +48,7 @@ func TestNormalCommandWithPlugin(t *testing.T) {
 func TestPluginExecution(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -87,10 +88,11 @@ func TestPluginExecution(t *testing.T) {
 			require.Error(t, err)
 
 			// since the command is not a valid argocd command, check for plugin execution
-			pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
+			errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
 			if tt.expectedPluginErr == "" {
 				require.NoError(t, pluginErr)
 			} else {
+				assert.Equal(t, errMsg, fmt.Sprintf("Error: %s\nRun 'argocd --help' for usage.\n", tt.expectedPluginErr))
 				require.EqualError(t, pluginErr, tt.expectedPluginErr)
 			}
 		})
@@ -101,7 +103,7 @@ func TestPluginExecution(t *testing.T) {
 func TestNormalCommandError(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	args := []string{"argocd", "version", "--non-existent-flag"}
 	cmd := NewVersionCmd(&argocdclient.ClientOptions{}, nil)
 	cmd.SetArgs(args[1:])
@@ -111,14 +113,16 @@ func TestNormalCommandError(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err)
 
-	pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
-	assert.EqualError(t, pluginErr, "unknown flag: --non-existent-flag")
+	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
+	require.Error(t, pluginErr)
+	assert.Equal(t, "Error: unknown flag: --non-existent-flag\n", errMsg)
+	require.EqualError(t, pluginErr, "unknown flag: --non-existent-flag")
 }
 
 // TestUnknownCommandNoPlugin tests the scenario when the command is neither a normal ArgoCD command
 // nor exists as a plugin
 func TestUnknownCommandNoPlugin(t *testing.T) {
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -128,16 +132,17 @@ func TestUnknownCommandNoPlugin(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err)
 
-	pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
+	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.Equal(t, err, pluginErr)
+	assert.Equal(t, "Error: unknown command \"non-existent\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
+	require.EqualError(t, pluginErr, "unknown command \"non-existent\" for \"argocd\"")
 }
 
 // TestPluginNoExecutePermission verifies the behavior when a plugin doesn't have executable permissions
 func TestPluginNoExecutePermission(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -147,16 +152,17 @@ func TestPluginNoExecutePermission(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err)
 
-	pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
+	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.EqualError(t, pluginErr, "unknown command \"no-permission\" for \"argocd\"")
+	assert.Equal(t, "Error: unknown command \"no-permission\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
+	require.EqualError(t, pluginErr, "unknown command \"no-permission\" for \"argocd\"")
 }
 
 // TestPluginExecutionError checks for errors that occur during plugin execution
 func TestPluginExecutionError(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -166,9 +172,10 @@ func TestPluginExecutionError(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err)
 
-	pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
+	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.EqualError(t, pluginErr, "exit status 1")
+	assert.Equal(t, "Error: exit status 1\n", errMsg)
+	require.EqualError(t, pluginErr, "exit status 1")
 }
 
 // TestPluginInRelativePathIgnored ensures that plugins in a relative path, even if the path is included in PATH,
@@ -187,7 +194,7 @@ func TestPluginInRelativePathIgnored(t *testing.T) {
 
 	t.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+relativePath)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -197,16 +204,17 @@ func TestPluginInRelativePathIgnored(t *testing.T) {
 	err = cmd.Execute()
 	require.Error(t, err)
 
-	pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
+	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.EqualError(t, pluginErr, "unknown command \"ignore-plugin\" for \"argocd\"")
+	assert.Equal(t, "Error: unknown command \"ignore-plugin\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
+	require.EqualError(t, pluginErr, "unknown command \"ignore-plugin\" for \"argocd\"")
 }
 
 // TestPluginFlagParsing checks that the flags are parsed correctly by the plugin handler
 func TestPluginFlagParsing(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 
 	tests := []struct {
 		name           string
@@ -239,12 +247,14 @@ func TestPluginFlagParsing(t *testing.T) {
 			err := cmd.Execute()
 			require.Error(t, err)
 
-			pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
+			errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
 
 			if tt.shouldFail {
 				require.Error(t, pluginErr)
 				assert.Equal(t, tt.expectedErrMsg, pluginErr.Error(), "Unexpected error message")
+				assert.Equal(t, errMsg, fmt.Sprintf("Error: %s\n", tt.expectedErrMsg))
 			} else {
+				assert.Empty(t, errMsg)
 				require.NoError(t, pluginErr, "Expected no error for valid flags")
 			}
 		})
@@ -255,7 +265,7 @@ func TestPluginFlagParsing(t *testing.T) {
 func TestPluginStatusCode(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 
 	tests := []struct {
 		name       string
@@ -294,9 +304,10 @@ func TestPluginStatusCode(t *testing.T) {
 			err := cmd.Execute()
 			require.Error(t, err)
 
-			pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
+			errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
 			if !tt.throwErr {
 				require.NoError(t, pluginErr)
+				assert.Empty(t, errMsg)
 			} else {
 				require.Error(t, pluginErr)
 				var exitErr *exec.ExitError
@@ -305,7 +316,81 @@ func TestPluginStatusCode(t *testing.T) {
 				} else {
 					t.Fatalf("expected an exit error, got: %v", pluginErr)
 				}
+				assert.Equal(t, errMsg, fmt.Sprintf("Error: exit status %d\n", tt.wantStatus))
 			}
 		})
 	}
+}
+
+// TestListAvailablePlugins tests the plugin discovery functionality for tab completion
+func TestListAvailablePlugins(t *testing.T) {
+	setupPluginPath(t)
+
+	tests := []struct {
+		name        string
+		validPrefix []string
+		expected    []string
+	}{
+		{
+			name:     "Standard argocd prefix finds plugins",
+			expected: []string{"demo_plugin", "error", "foo", "status-code-plugin", "test-plugin", "version"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pluginHandler := NewDefaultPluginHandler()
+			plugins := pluginHandler.ListAvailablePlugins()
+
+			assert.Equal(t, tt.expected, plugins)
+		})
+	}
+}
+
+// TestListAvailablePluginsEmptyPath tests plugin discovery when PATH is empty
+func TestListAvailablePluginsEmptyPath(t *testing.T) {
+	// Set empty PATH
+	t.Setenv("PATH", "")
+
+	pluginHandler := NewDefaultPluginHandler()
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	assert.Empty(t, plugins, "Should return empty list when PATH is empty")
+}
+
+// TestListAvailablePluginsNonExecutableFiles tests that non-executable files are ignored
+func TestListAvailablePluginsNonExecutableFiles(t *testing.T) {
+	setupPluginPath(t)
+
+	pluginHandler := NewDefaultPluginHandler()
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	// Should not include 'no-permission' since it's not executable
+	assert.NotContains(t, plugins, "no-permission")
+}
+
+// TestListAvailablePluginsDeduplication tests that duplicate plugins from different PATH dirs are handled
+func TestListAvailablePluginsDeduplication(t *testing.T) {
+	// Create two temporary directories with the same plugin
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+
+	// Create the same plugin in both directories
+	plugin1 := filepath.Join(dir1, "argocd-duplicate")
+	plugin2 := filepath.Join(dir2, "argocd-duplicate")
+
+	err := os.WriteFile(plugin1, []byte("#!/bin/bash\necho 'plugin1'\n"), 0o755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(plugin2, []byte("#!/bin/bash\necho 'plugin2'\n"), 0o755)
+	require.NoError(t, err)
+
+	// Set PATH to include both directories
+	testPath := dir1 + string(os.PathListSeparator) + dir2
+	t.Setenv("PATH", testPath)
+
+	pluginHandler := NewDefaultPluginHandler()
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	assert.Equal(t, []string{"duplicate"}, plugins)
 }

@@ -16,9 +16,13 @@ func TestRegisterProfile_FileIsMissing(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	resp, err := http.Get(srv.URL + "/debug/pprof/")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/debug/pprof/", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestRegisterProfile_FileExist(t *testing.T) {
@@ -36,9 +40,13 @@ func TestRegisterProfile_FileExist(t *testing.T) {
 	oldVal := enableProfilerFilePath
 	enableProfilerFilePath = f.Name()
 
-	resp, err := http.Get(srv.URL + "/debug/pprof/")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/debug/pprof/", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 
 	enableProfilerFilePath = oldVal
 	_ = f.Close()

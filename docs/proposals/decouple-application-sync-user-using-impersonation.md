@@ -194,7 +194,7 @@ In this specific scenario, service account name `generic-deployer` will get used
 
 - Install ArgoCD in the `argocd` namespace.
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
+kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
 ```
 
 - Enable the impersonation feature in ArgoCD.
@@ -258,7 +258,7 @@ In this specific scenario, service account name `guestbook-deployer` will get us
 
 - Install ArgoCD in the `argocd` namespace.
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
+kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
 ```
 
 - Enable the impersonation feature in ArgoCD.
@@ -326,7 +326,7 @@ spec:
 
 - Install ArgoCD in the `argocd` namespace.
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
+kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
 ```
 
 - Enable the impersonation feature in ArgoCD.
@@ -399,7 +399,7 @@ spec:
 
 - Install ArgoCD in the `argocd` namespace.
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
+kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
 ```
 
 - Enable the impersonation feature in ArgoCD.

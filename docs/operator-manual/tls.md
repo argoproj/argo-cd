@@ -1,5 +1,8 @@
 # TLS configuration
 
+> [!TIP]
+> Need repo-server mutual TLS between components? See [Mutual TLS (mTLS) for repo-server](./mtls.md).
+
 Argo CD provides three inbound TLS endpoints that can be configured:
 
 * The user-facing endpoint of the `argocd-server` workload, which serves the UI
@@ -28,11 +31,13 @@ their own dedicated Certificate Authority.
 
 ### Inter-Component TLS
 
-| Connection | Strict TLS Parameter | Plain Text Parameter | Default Behavior |
-|------------|---------------------|---------------------|------------------|
-| `argocd-server` → `argocd-repo-server` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
-| `argocd-application-controller` → `argocd-repo-server` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
-| `argocd-server` → `argocd-dex-server` | `--dex-server-strict-tls` | `--dex-server-plaintext` | Non-validating TLS |
+| Connection | Recommended Parameter | Legacy Parameter (deprecated) | Plain Text Parameter | Default Behavior |
+|------------|----------------------|-------------------------------|---------------------|------------------|
+| `argocd-server` → `argocd-repo-server` | `--repo-server-ca-cert-path` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
+| `argocd-server` → `argocd-dex-server` | — | `--dex-server-strict-tls` | `--dex-server-plaintext` | Non-validating TLS |
+| `argocd-application-controller` → `argocd-repo-server` | `--repo-server-ca-cert-path` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
+| `argocd-applicationset-controller` → `argocd-repo-server` | `--repo-server-ca-cert-path` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
+| `argocd-notifications-controller` → `argocd-repo-server` | `--argocd-repo-server-ca-cert-path` | `--argocd-repo-server-strict-tls` | `--argocd-repo-server-plaintext` | Non-validating TLS |
 
 ### Certificate Priority (argocd-server only)
 
@@ -180,29 +185,42 @@ on how your workloads connect to the repository server.
 
 ### Configuring TLS to argocd-repo-server
 
-Both `argocd-server` and `argocd-application-controller` communicate with the
-`argocd-repo-server` using a gRPC API over TLS. By default,
-`argocd-repo-server` generates a non-persistent, self-signed certificate
-to use for its gRPC endpoint on startup. Because the `argocd-repo-server` has
-no means to connect to the K8s control plane API, this certificate is not available 
-to outside consumers for verification. Both,
-`argocd-server` and `argocd-application-server` will use a non-validating
-connection to the `argocd-repo-server` for this reason.
+The components `argocd-server`, `argocd-application-controller`, `argocd-notifications-controller`, 
+and `argocd-applicationset-controller` communicate with the `argocd-repo-server` 
+using a gRPC API over TLS. By default, `argocd-repo-server` generates a non-persistent, 
+self-signed certificate to use for its gRPC endpoint on startup. Because the 
+`argocd-repo-server` has no means to connect to the K8s control plane API, this certificate 
+is not available to outside consumers for verification. These components will use a 
+non-validating connection to the `argocd-repo-server` for this reason.
 
-To change this behavior to be more secure by having the `argocd-server` and
-`argocd-application-controller` validate the TLS certificate of the
+To change this behavior to be more secure by having these components validate the TLS certificate of the
 `argocd-repo-server` endpoint, the following steps need to be performed:
 
 * Create a persistent TLS certificate to be used by `argocd-repo-server`, as
   shown above
 * Restart the `argocd-repo-server` pod(s)
-* Modify the pod startup parameters for `argocd-server` and
-  `argocd-application-controller` to include the `--repo-server-strict-tls`
-  parameter.
+* Modify the pod startup parameters for `argocd-server`, `argocd-application-controller`,
+  and `argocd-applicationset-controller` to include the
+  `--repo-server-ca-cert-path` parameter pointing to the CA certificate file.
+* Modify the pod startup parameters for `argocd-notifications-controller` to include the
+  `--argocd-repo-server-ca-cert-path` parameter pointing to the CA certificate file.
 
-The `argocd-server` and `argocd-application-controller` workloads will now
-validate the TLS certificate of the `argocd-repo-server` by using the
-certificate stored in the `argocd-repo-server-tls` secret.
+The `argocd-server`, `argocd-application-controller`, `argocd-notifications-controller`,
+and `argocd-applicationset-controller` workloads will now
+validate the TLS certificate of the `argocd-repo-server` using the provided CA certificate.
+
+> [!NOTE]
+> **Legacy path vs. recommended path**
+>
+> `--repo-server-strict-tls` (and `--argocd-repo-server-strict-tls` for the notifications controller)
+> is the **legacy path**: when set, the component auto-discovers the repo-server certificate from
+> the `argocd-repo-server-tls` Kubernetes secret. This flag is **deprecated** and may be removed
+> in a future release.
+>
+> `--repo-server-ca-cert-path` (and `--argocd-repo-server-ca-cert-path` for the notifications controller)
+> is the **recommended explicit path**: you provide the path to a CA certificate file directly.
+> This is required for mTLS setups and gives you full control over which CA is trusted.
+> See [Mutual TLS (mTLS) for repo-server](./mtls.md) for details.
 
 > [!NOTE]
 > **Certificate expiry**
@@ -245,7 +263,8 @@ secret.
 
 In some scenarios where mTLS through sidecar proxies is involved (e.g.
 in a service mesh), you may want to configure the connections between the
-`argocd-server` and `argocd-application-controller` to `argocd-repo-server`
+`argocd-server`, `argocd-application-controller`, `argocd-notifications-controller`, 
+and `argocd-applicationset-controller` to `argocd-repo-server`
 to not use TLS at all.
 
 In this case, you will need to:
@@ -255,14 +274,18 @@ In this case, you will need to:
   Also, consider restricting listening addresses to the loopback interface by specifying
   `--listen 127.0.0.1` parameter, so that the insecure endpoint is not exposed on
   the pod's network interfaces, but still available to the sidecar container.
-* Configure `argocd-server` and `argocd-application-controller` to not use TLS
+* Configure `argocd-server`, `argocd-application-controller`, 
+  and `argocd-applicationset-controller` to not use TLS
   for connections to the `argocd-repo-server` by specifying the parameter
   `--repo-server-plaintext` to the pod container's startup arguments
+* Modify the pod startup parameters for `argocd-notifications-controller` to include the
+  `--argocd-repo-server-plaintext` parameter
 * Configure `argocd-server` and `argocd-application-controller` to connect to
   the sidecar instead of directly to the `argocd-repo-server` service by
   specifying its address via the `--repo-server <address>` parameter
 
-After this change, `argocd-server` and `argocd-application-controller` will
+After this change, `argocd-server`, `argocd-application-controller`, `argocd-notifications-controller`, 
+and `argocd-applicationset-controller` will
 use a plain text connection to the sidecar proxy, which will handle all aspects
 of TLS to `argocd-repo-server`'s TLS sidecar proxy.
 

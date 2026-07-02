@@ -97,7 +97,9 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 		),
 	}
 
-	req, _ := http.NewRequest(http.MethodGet, ts.URL+URL, http.NoBody)
+	ctx := t.Context()
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+URL, http.NoBody)
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -109,7 +111,11 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	resp, err = http.Get(server.URL)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, server.URL, http.NoBody)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	resp, err = http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("failed to scrape metrics: %v", err)
 	}
@@ -151,15 +157,23 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 			metrics:        metrics,
 		},
 	}
+	ctx := t.Context()
 
-	req, _ := http.NewRequest(http.MethodGet, URL, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, URL, http.NoBody)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
 	_, _ = client.Do(req)
 
 	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	resp, err := http.Get(server.URL)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, server.URL, http.NoBody)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("failed to scrape metrics: %v", err)
 	}
@@ -218,4 +232,54 @@ func TestNewGitHubMetricsClient(t *testing.T) {
 			assert.Equal(t, globalGitHubMetrics, transport.metrics, "Should use global metrics")
 		})
 	}
+}
+
+func TestNewGitHubMetricsClientFrom(t *testing.T) {
+	metricsCtx := &MetricsContext{
+		AppSetNamespace: appsetNamespace,
+		AppSetName:      appsetName,
+	}
+
+	customTransport := &http.Transport{
+		MaxIdleConns: 10,
+	}
+	customClient := &http.Client{
+		Transport: customTransport,
+	}
+
+	client := NewGitHubMetricsClientFrom(customClient, metricsCtx)
+
+	assert.NotNil(t, client)
+	assert.NotEqual(t, customClient, client, "Should return a new client instance")
+	assert.NotEqual(t, customClient.Transport, client.Transport, "Original client transport should not be modified")
+
+	transport, ok := client.Transport.(*GitHubMetricsTransport)
+	assert.True(t, ok, "Transport should be GitHubMetricsTransport")
+
+	assert.Equal(t, metricsCtx, transport.metricsContext)
+	assert.Equal(t, customTransport, transport.transport, "Base transport should be the custom transport")
+	assert.Equal(t, globalGitHubMetrics, transport.metrics, "Should use global metrics")
+}
+
+func TestNewGitHubMetricsClientFrom_NilTransport(t *testing.T) {
+	metricsCtx := &MetricsContext{
+		AppSetNamespace: appsetNamespace,
+		AppSetName:      appsetName,
+	}
+
+	customClient := &http.Client{
+		Transport: nil,
+	}
+
+	client := NewGitHubMetricsClientFrom(customClient, metricsCtx)
+
+	assert.NotNil(t, client)
+	assert.NotEqual(t, customClient, client, "Should return a new client instance")
+
+	transport, ok := client.Transport.(*GitHubMetricsTransport)
+	assert.True(t, ok, "Transport should be GitHubMetricsTransport")
+
+	assert.Equal(t, metricsCtx, transport.metricsContext)
+	assert.Equal(t, http.DefaultTransport, transport.transport, "Base transport should be http.DefaultTransport")
+	assert.Equal(t, globalGitHubMetrics, transport.metrics, "Should use global metrics")
 }

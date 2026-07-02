@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/env"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
 	rediscache "github.com/go-redis/cache/v9"
@@ -23,6 +25,11 @@ type RedisCompressionType string
 var (
 	RedisCompressionNone RedisCompressionType = "none"
 	RedisCompressionGZip RedisCompressionType = "gzip"
+)
+
+const (
+	// envRedisKeyPrefix is an env variable name which stores the prefix for redis keys
+	envRedisKeyPrefix = "ARGOCD_REDIS_KEY_PREFIX"
 )
 
 func CompressionTypeFromString(s string) (RedisCompressionType, error) {
@@ -41,6 +48,7 @@ func NewRedisCache(client *redis.Client, expiration time.Duration, compressionTy
 		expiration:           expiration,
 		cache:                rediscache.New(&rediscache.Options{Redis: client}),
 		redisCompressionType: compressionType,
+		prefix:               env.StringFromEnv(envRedisKeyPrefix, ""),
 	}
 }
 
@@ -52,14 +60,17 @@ type redisCache struct {
 	client               *redis.Client
 	cache                *rediscache.Cache
 	redisCompressionType RedisCompressionType
+	// prefix is added to all keys stored in redis
+	prefix string
 }
 
 func (r *redisCache) getKey(key string) string {
+	prefixedKey := r.prefix + key
 	switch r.redisCompressionType {
 	case RedisCompressionGZip:
-		return key + ".gz"
+		return prefixedKey + ".gz"
 	default:
-		return key
+		return prefixedKey
 	}
 }
 
@@ -177,6 +188,23 @@ type redisHook struct {
 	registry MetricsRegistry
 }
 
+// ignoredRedisCommandNames are commands that go-redis may issue during connection setup / bookkeeping
+// and which we don't want to count as application-level requests in metrics.
+var ignoredRedisCommandNames = map[string]struct{}{
+	"hello":  {},
+	"client": {},
+	// Optional: we can enable if we want also want to exclude other setup/noise commands.
+	// "auth":   {},
+	// "select": {},
+	// "ping":   {},
+}
+
+func shouldIgnoreRedisCmd(cmd redis.Cmder) bool {
+	name := strings.ToLower(strings.TrimSpace(cmd.Name()))
+	_, ok := ignoredRedisCommandNames[name]
+	return ok
+}
+
 func (rh *redisHook) DialHook(next redis.DialHook) redis.DialHook {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		conn, err := next(ctx, network, addr)
@@ -189,6 +217,11 @@ func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 		startTime := time.Now()
 
 		err := next(ctx, cmd)
+
+		if shouldIgnoreRedisCmd(cmd) {
+			return err
+		}
+
 		rh.registry.IncRedisRequest(err != nil && !errors.Is(err, redis.Nil))
 		rh.registry.ObserveRedisRequestDuration(time.Since(startTime))
 

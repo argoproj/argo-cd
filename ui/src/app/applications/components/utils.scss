@@ -60,3 +60,13 @@ i.utils-health-status-icon {
         transform: rotate(360deg);
     }
 }
+
+.delete-dialog-icon {
+    &.warning {
+        color: #f4c030;
+    }
+    
+    &.info {
+        color: #0DADEA;
+    }
+}

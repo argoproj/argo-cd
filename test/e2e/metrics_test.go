@@ -27,10 +27,10 @@ func TestKubectlMetrics(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, fixture.Name(), app.Name)
+			assert.Equal(t, ctx.GetName(), app.Name)
 			assert.Equal(t, fixture.RepoURL(fixture.RepoURLTypeFile), app.Spec.GetSource().RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
-			assert.Equal(t, fixture.DeploymentNamespace(), app.Spec.Destination.Namespace)
+			assert.Equal(t, ctx.DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(argo.EventReasonResourceCreated, "create")).
@@ -38,7 +38,7 @@ func TestKubectlMetrics(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("app", "list")
 			require.NoError(t, err)
-			assert.Contains(t, output, fixture.Name())
+			assert.Contains(t, output, ctx.GetName())
 		}).
 		When().
 		// ensure that create is idempotent
@@ -60,8 +60,11 @@ func TestKubectlMetrics(t *testing.T) {
 			assert.Equal(t, "master", app.Spec.GetSource().TargetRevision)
 		})
 
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://127.0.0.1:8082/metrics", http.NoBody)
+	require.NoError(t, err)
+
 	// Make a request to the app controller metrics endpoint and ensure the response contains kubectl metrics.
-	resp, err := http.Get("http://127.0.0.1:8082/metrics")
+	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer func() {
 		err = resp.Body.Close()
@@ -87,8 +90,11 @@ func TestKubectlMetrics(t *testing.T) {
 	  - argocd_kubectl_transport_create_calls_total: The transport cache is only used under certain conditions, which this test doesn't encounter.
 	*/
 
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "http://127.0.0.1:8083/metrics", http.NoBody)
+	require.NoError(t, err)
+
 	// Repeat the test for port 8083, i.e. the API server.
-	resp, err = http.Get("http://127.0.0.1:8083/metrics")
+	resp, err = http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer func() {
 		err = resp.Body.Close()

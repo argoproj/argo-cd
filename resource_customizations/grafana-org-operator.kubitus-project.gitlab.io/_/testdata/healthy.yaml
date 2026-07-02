@@ -1,0 +1,16 @@
+apiVersion: grafana-org-operator.kubitus-project.gitlab.io/v1beta1
+kind: GrafanaInstance
+metadata:
+  name: grafana
+  namespace: grafana-org-operator
+spec:
+  url: http://grafana.grafana.svc
+  secretRef: grafana-admin
+status:
+  conditions:
+    - lastTransitionTime: '2025-10-21T12:33:41Z'
+      message: Grafana Instance reconciled
+      observedGeneration: 1
+      reason: Reconciled
+      status: 'True'
+      type: Ready

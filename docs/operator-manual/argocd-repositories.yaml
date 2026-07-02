@@ -84,4 +84,17 @@ stringData:
   name: contosocharts
   enableOCI: "true"
   useAzureWorkloadIdentity: "true"
-  
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-oci-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  username: my-username
+  password: my-password
+  project: myproject
+  type: oci
+  url: oci://my.registry.com/namespace/service

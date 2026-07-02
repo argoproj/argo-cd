@@ -1,6 +1,7 @@
 package cmpserver
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -85,7 +86,8 @@ func (a *ArgoCDCMPServer) Run() {
 
 	// Listen on the socket address
 	_ = os.Remove(config.Address())
-	listener, err := net.Listen("unix", config.Address())
+	lc := &net.ListenConfig{}
+	listener, err := lc.Listen(context.Background(), "unix", config.Address())
 	errors.CheckError(err)
 	log.Infof("argocd-cmp-server %s serving on %s", common.GetVersion(), listener.Addr())
 

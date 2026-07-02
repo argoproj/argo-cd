@@ -14,9 +14,19 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/fixture/log"
 	"github.com/argoproj/argo-cd/v3/test/fixture/path"
 	"github.com/argoproj/argo-cd/v3/test/fixture/test"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
+func setupGitEnv(t *testing.T) {
+	t.Helper()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(cwd, "testdata", "gitconfig"))
+}
+
 func TestIsCommitSHA(t *testing.T) {
+	t.Parallel()
 	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))
 	assert.True(t, IsCommitSHA("9D921F65F3C5373B682E2EB4B37AFBA6592E8F8B"))
 	assert.False(t, IsCommitSHA("gd921f65f3c5373b682e2eb4b37afba6592e8f8b"))
@@ -29,6 +39,7 @@ func TestIsCommitSHA(t *testing.T) {
 }
 
 func TestEnsurePrefix(t *testing.T) {
+	t.Parallel()
 	data := [][]string{
 		{"world", "hello", "helloworld"},
 		{"helloworld", "hello", "helloworld"},
@@ -46,6 +57,7 @@ func TestEnsurePrefix(t *testing.T) {
 }
 
 func TestIsSSHURL(t *testing.T) {
+	t.Parallel()
 	data := map[string]bool{
 		"git://github.com/argoproj/test.git":     false,
 		"git@GITHUB.com:argoproj/test.git":       true,
@@ -64,6 +76,7 @@ func TestIsSSHURL(t *testing.T) {
 }
 
 func TestIsSSHURLUserName(t *testing.T) {
+	t.Parallel()
 	isSSH, user := IsSSHURL("ssh://john@john-server.org:29418/project")
 	assert.True(t, isSSH)
 	assert.Equal(t, "john", user)
@@ -89,7 +102,23 @@ func TestIsSSHURLUserName(t *testing.T) {
 	assert.Equal(t, "john@doe.org", user)
 }
 
+func TestSSHHostWithPort(t *testing.T) {
+	t.Parallel()
+	data := map[string]string{
+		"git@github.com:argoproj/test.git":            "github.com:22",
+		"ssh://git@github.com/argoproj/test.git":      "github.com:22",
+		"ssh://git@github.com:2222/argoproj/test.git": "github.com:2222",
+		"ssh://john@john-server.org:29418/project":    "john-server.org:29418",
+		"https://github.com/argoproj/test":            "",
+		"":                                            "",
+	}
+	for repoURL, want := range data {
+		assert.Equal(t, want, SSHHostWithPort(repoURL), "input: %q", repoURL)
+	}
+}
+
 func TestSameURL(t *testing.T) {
+	t.Parallel()
 	data := map[string]string{
 		"git@GITHUB.com:argoproj/test":                     "git@github.com:argoproj/test.git",
 		"git@GITHUB.com:argoproj/test.git":                 "git@github.com:argoproj/test.git",
@@ -117,6 +146,8 @@ func TestSameURL(t *testing.T) {
 }
 
 func TestCustomHTTPClient(t *testing.T) {
+	proxy.UseTestingProxyCallback()
+
 	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
 	require.NoError(t, err)
 	assert.NotEmpty(t, certFile)
@@ -183,7 +214,7 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
-		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
 		require.NoError(t, err)
 		proxy, err := transport.Proxy(req)
 		require.NoError(t, err)
@@ -210,6 +241,7 @@ func TestCustomHTTPClient(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
+	setupGitEnv(t)
 	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
@@ -300,6 +332,7 @@ func TestLsRemote(t *testing.T) {
 
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
+	setupGitEnv(t)
 	// temporary disable LFS test
 	// TODO(alexmt): dockerize tests in and enabled it
 	t.Skip()
@@ -316,13 +349,13 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
-	largeFiles, err := client.LsLargeFiles()
+	largeFiles, err := client.LsLargeFiles(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 
@@ -343,27 +376,37 @@ func TestLFSClient(t *testing.T) {
 }
 
 func TestVerifyCommitSignature(t *testing.T) {
+	setupGitEnv(t)
 	p := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
+	client, err := NewClientExt("https://github.com/argoproj/argocd-example-apps.git", p, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	// Use shallow fetch to avoid timeout fetching the entire repo
+	err = client.Fetch(t.Context(), "", 1)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true, true)
+	require.NoError(t, err)
+
+	// Fetch the specific commits needed for signature verification
+	signedCommit := "723b86e01bea11dcf72316cb172868fcbf05d69e"
+	unsignedCommit := "1ccdee0a611224ccc6b9ff7919fe7002f905436e"
+	err = client.Fetch(t.Context(), signedCommit, 1)
+	require.NoError(t, err)
+	err = client.Fetch(t.Context(), unsignedCommit, 1)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
 	// It doesn't matter whether we know the key or not at this stage
 	{
-		out, err := client.VerifyCommitSignature("28027897aad1262662096745f2ce2d4c74d02b7f")
+		out, err := client.VerifyCommitSignature(t.Context(), signedCommit)
 		require.NoError(t, err)
 		assert.NotEmpty(t, out)
 		assert.Contains(t, out, "gpg: Signature made")
@@ -371,13 +414,14 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
 	{
-		out, err := client.VerifyCommitSignature("85d660f0b967960becce3d49bd51c678ba2a5d24")
+		out, err := client.VerifyCommitSignature(t.Context(), unsignedCommit)
 		require.NoError(t, err)
 		assert.Empty(t, out)
 	}
 }
 
 func TestNewFactory(t *testing.T) {
+	setupGitEnv(t)
 	addBinDirToPath := path.NewBinDirToPath(t)
 	defer addBinDirToPath.Close()
 	closer := log.Debug()
@@ -407,17 +451,17 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("")
+		err = client.Fetch(t.Context(), "", 0)
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("")
+		err = client.Fetch(t.Context(), "", 0)
 		require.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true)
+		_, err = client.Checkout(t.Context(), commitSHA, true, true)
 		require.NoError(t, err)
 
-		revisionMetadata, err := client.RevisionMetadata(commitSHA)
+		revisionMetadata, err := client.RevisionMetadata(t.Context(), commitSHA)
 		require.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
@@ -425,7 +469,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 
-		commitSHA2, err := client.CommitSHA()
+		commitSHA2, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)
@@ -433,6 +477,7 @@ func TestNewFactory(t *testing.T) {
 }
 
 func TestListRevisions(t *testing.T) {
+	setupGitEnv(t)
 	dir := t.TempDir()
 
 	repoURL := "https://github.com/argoproj/argo-cd.git"
@@ -452,13 +497,15 @@ func TestListRevisions(t *testing.T) {
 }
 
 func TestLsFiles(t *testing.T) {
+	setupGitEnv(t)
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	require.NoError(t, runCmd(tmpDir1, "git", "init"))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "init"))
 
 	// Setup files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir1, "a.yaml"), []byte{}, 0o644))
@@ -470,8 +517,8 @@ func TestLsFiles(t *testing.T) {
 
 	require.NoError(t, os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml")))
 
-	require.NoError(t, runCmd(tmpDir1, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir1, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "commit", "-m", "Initial commit"))
 
 	tests := []struct {
 		name           string
@@ -501,7 +548,7 @@ func TestLsFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lsResult, err := client.LsFiles(tt.pattern, tt.safeGlobbing)
+			lsResult, err := client.LsFiles(t.Context(), tt.pattern, tt.safeGlobbing)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, lsResult)
 		})
@@ -509,12 +556,14 @@ func TestLsFiles(t *testing.T) {
 }
 
 func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
+	setupGitEnv(t)
 	tmpDir := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	err = runCmd(tmpDir, "git", "init")
+	err = runCmd(ctx, tmpDir, "git", "init")
 	require.NoError(t, err)
 
 	// Setup directory structure and files
@@ -538,8 +587,8 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 		_, err := os.Create(filepath.Join(tmpDir, file))
 		require.NoError(t, err)
 	}
-	require.NoError(t, runCmd(tmpDir, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
 
 	tests := []struct {
 		name                 string
@@ -681,7 +730,7 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lsResult, err := client.LsFiles(tt.pattern, tt.isNewGlobbingEnabled)
+			lsResult, err := client.LsFiles(t.Context(), tt.pattern, tt.isNewGlobbingEnabled)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tt.expected, lsResult)
 		})
@@ -689,6 +738,7 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 }
 
 func TestAnnotatedTagHandling(t *testing.T) {
+	setupGitEnv(t)
 	dir := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", dir, NopCreds{}, false, false, "", "")
@@ -710,4 +760,125 @@ func TestAnnotatedTagHandling(t *testing.T) {
 
 	// Verify tag exists in the list and points to a valid commit SHA
 	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
+}
+
+func TestIsShortRef(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		revision string
+		expected bool
+	}{
+		// Short refs (should return true)
+		{
+			name:     "short branch name",
+			revision: "master",
+			expected: true,
+		},
+		{
+			name:     "short branch name with slashes",
+			revision: "feature/my-feature",
+			expected: true,
+		},
+		{
+			name:     "short branch name with multiple slashes",
+			revision: "release/v1.0/bugfix",
+			expected: true,
+		},
+		{
+			name:     "short tag name",
+			revision: "v1.0.0",
+			expected: true,
+		},
+		{
+			name:     "short tag name without version prefix",
+			revision: "release-1.0",
+			expected: true,
+		},
+		{
+			name:     "simple branch name",
+			revision: "main",
+			expected: true,
+		},
+		{
+			name:     "branch with hyphens",
+			revision: "my-feature-branch",
+			expected: true,
+		},
+		{
+			name:     "branch with underscores",
+			revision: "my_feature_branch",
+			expected: true,
+		},
+		// Full refs (should return false)
+		{
+			name:     "full branch ref",
+			revision: "refs/heads/master",
+			expected: false,
+		},
+		{
+			name:     "full tag ref",
+			revision: "refs/tags/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref",
+			revision: "refs/remotes/origin/master",
+			expected: false,
+		},
+		{
+			name:     "full branch ref with slashes in name",
+			revision: "refs/heads/feature/my-feature",
+			expected: false,
+		},
+		{
+			name:     "full tag ref with slashes in name",
+			revision: "refs/tags/release/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref with slashes",
+			revision: "refs/remotes/origin/feature/branch",
+			expected: false,
+		},
+		{
+			name:     "full pull request ref",
+			revision: "refs/pull/123/head",
+			expected: false,
+		},
+		{
+			name:     "full notes ref",
+			revision: "refs/notes/commits",
+			expected: false,
+		},
+		// Special cases
+		{
+			name:     "HEAD",
+			revision: "HEAD",
+			expected: true,
+		},
+		{
+			name:     "commit SHA",
+			revision: "9d921f65f3c5373b682e2eb4b37afba6592e8f8b",
+			expected: true,
+		},
+		{
+			name:     "truncated commit SHA",
+			revision: "9d921f6",
+			expected: true,
+		},
+		{
+			name:     "empty string",
+			revision: "",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := IsShortRef(tt.revision)
+			assert.Equal(t, tt.expected, result, "IsShortRef(%q) = %v, expected %v", tt.revision, result, tt.expected)
+		})
+	}
 }

@@ -2,14 +2,17 @@ import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
 import {ARGO_GRAY6_COLOR, DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
+import {revisionUrl} from '../../../shared/components/urls';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {
     ApplicationSyncWindowStatusIcon,
     ComparisonStatusIcon,
+    formatApplicationSetProgressiveSyncStep,
     getAppDefaultSource,
     getAppDefaultSyncRevisionExtra,
+    getSyncRevisionLabelSuffix,
     getAppOperationState,
     HydrateOperationPhaseIcon,
     hydrationStatusMessage,
@@ -66,6 +69,50 @@ const getApplicationSetOwnerRef = (application: models.Application) => {
     return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
 };
 
+const renderSyncStatusRevision = (application: models.Application) => {
+    const source = getAppDefaultSource(application);
+    if (!source) {
+        return syncStatusMessage(application);
+    }
+
+    const status = application.status.sync.status;
+    if (status !== models.SyncStatuses.Synced && status !== models.SyncStatuses.OutOfSync) {
+        return syncStatusMessage(application);
+    }
+
+    const prefix = status === models.SyncStatuses.Synced ? 'to' : 'from';
+    const branchName = source.targetRevision ? (source.tagPrefix || '') + source.targetRevision : 'HEAD';
+    const resolvedRevision = application.status.sync.revision || branchName;
+    const extra = getAppDefaultSyncRevisionExtra(application);
+    const revisionLink = revisionUrl(source.repoURL, resolvedRevision, false);
+
+    const shortRevision = getSyncRevisionLabelSuffix(source.repoURL, branchName, resolvedRevision, source.chart);
+
+    const revisionContent = (
+        <>
+            <span className='application-status-panel__item-value__revision-branch'>{branchName}</span>
+            {shortRevision && <span className='application-status-panel__item-value__revision-sha'> ({shortRevision})</span>}
+        </>
+    );
+
+    return (
+        <>
+            <span className='application-status-panel__item-value__revision-prefix'>{prefix}</span>
+            <span className='application-status-panel__item-value__revision-main'>
+                {revisionLink ? (
+                    <a href={revisionLink} target='_blank' rel='noopener noreferrer' title={branchName}>
+                        {revisionContent}
+                        <i className='fa fa-external-link-alt' />
+                    </a>
+                ) : (
+                    <span title={branchName}>{revisionContent}</span>
+                )}
+            </span>
+            {extra && <span className='application-status-panel__item-value__revision-extra'>{extra.trimStart()}</span>}
+        </>
+    );
+};
+
 const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
     const appSetRef = getApplicationSetOwnerRef(application);
     if (!appSetRef) {
@@ -91,22 +138,15 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 );
             }}
             load={async () => {
-                // Check if user has permission to read ApplicationSets
-                const canReadApplicationSets = await services.accounts.canI('applicationsets', 'get', application.spec.project + '/' + application.metadata.name);
-
                 // Find ApplicationSet by searching all namespaces dynamically
                 const appSetList = await services.applications.listApplicationSets();
                 const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
 
-                if (!appSet) {
-                    throw new Error(`ApplicationSet ${appSetRef.name} not found in any namespace`);
-                }
-
-                return {canReadApplicationSets, appSet};
+                return {appSet};
             }}>
-            {({canReadApplicationSets, appSet}: {canReadApplicationSets: boolean; appSet: models.ApplicationSet}) => {
+            {({appSet}: {appSet: models.ApplicationSet}) => {
                 // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
-                if (!appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync' || !canReadApplicationSets) {
+                if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
                     return null;
                 }
 
@@ -141,7 +181,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                         <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
                             {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;{appResource.status}
                         </div>
-                        {appResource?.step && <div className='application-status-panel__item-value'>Wave: {appResource.step}</div>}
+                        {appResource?.step !== undefined && <div className='application-status-panel__item-value'>{formatApplicationSetProgressiveSyncStep(appResource.step)}</div>}
                         {lastTransitionTime && (
                             <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                                 Last Transition: <br />
@@ -178,9 +218,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
-    if (application.metadata.deletionTimestamp && !appOperationState) {
-        showOperation = null;
-    }
 
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
@@ -257,7 +294,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                         )}
                     </div>
-                    <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
+                    <div className='application-status-panel__item-value__revision show-for-large'>{renderSyncStatusRevision(application)}</div>
                 </div>
                 <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                     {application.spec.syncPolicy?.automated && application.spec.syncPolicy.automated.enabled !== false ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
@@ -296,9 +333,16 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             )
                     )}
                     <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                        <a onClick={() => showOperation && showOperation()}>
-                            <OperationState app={application} isButton={true} />{' '}
-                        </a>
+                        {application.status.operationState ? (
+                            <a onClick={() => showOperation && showOperation()}>
+                                <OperationState app={application} isButton={true} />{' '}
+                            </a>
+                        ) : (
+                            // No operation to open; render non-clickable. <span> keeps the icon/label aligned.
+                            <span>
+                                <OperationState app={application} />{' '}
+                            </span>
+                        )}
                         {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
                             <div className='application-status-panel__item-value__revision show-for-large'>
                                 to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
@@ -349,7 +393,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
-                        {data.assignedWindows && (
+                        {data?.assignedWindows && (
                             <div className='application-status-panel__item' style={{position: 'relative'}}>
                                 {sectionLabel({
                                     title: 'SYNC WINDOWS',

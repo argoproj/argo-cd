@@ -55,7 +55,7 @@ management tools (Helm, Kustomize, etc.).
         + [Security Considerations](#security-considerations)
             - [Increased scripting](#increased-scripting)
         + [Risks and Mitigations](#risks-and-mitigations)
-        + [Upgrade / Downgrade Strategy](#upgrade--downgrade-strategy)
+        + [Upgrade / Downgrade Strategy](#upgrade-downgrade-strategy)
     * [Drawbacks](#drawbacks)
     * [Alternatives](#alternatives)
 
@@ -302,7 +302,7 @@ Environment variable names are set according to these rules:
 1. If a parameter is a `string`, the format is `PARAM_{escaped(name)}` (`escaped` is defined below).
 2. If a parameter is an `array`, the format is `PARAM_{escaped(name_{index})}` (where the first index is 0).
 3. If a parameter is a `map`, the format is `PARAM_{escaped(name_key)}`.
-4. If an escaped env var name matches one in the [build environment](https://argo-cd-docs.readthedocs.io/en/latest/user-guide/build-environment/),
+4. If an escaped env var name matches one in the [build environment](https://argo-cd.readthedocs.io/en/latest/user-guide/build-environment/),
    the build environment variable wins.
 5. If more than one parameter name produces the same env var name, the env var later in the list wins.
 

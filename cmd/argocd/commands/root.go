@@ -37,13 +37,18 @@ func NewCommand() *cobra.Command {
 	)
 
 	command := &cobra.Command{
-		Use:   cliName,
-		Short: "argocd controls a Argo CD server",
+		Use:   common.CommandCLI,
+		Short: "argocd controls an Argo CD server",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
 		DisableAutoGenTag: true,
 		SilenceUsage:      true,
+		ValidArgsFunction: func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+			// Return available plugin commands for tab completion
+			plugins := NewDefaultPluginHandler().ListAvailablePlugins()
+			return plugins, cobra.ShellCompDirectiveNoFileComp
+		},
 	}
 
 	command.AddCommand(NewCompletionCommand())

@@ -9,9 +9,16 @@ which gotestsum || go install gotest.tools/gotestsum@latest
 
 TEST_RESULTS=${TEST_RESULTS:-test-results}
 TEST_FLAGS=${TEST_FLAGS:-}
+DIST_DIR=${DIST_DIR:-dist}
+
+# Add DIST_DIR to PATH so binaries installed for argo are found first
+export PATH="${DIST_DIR}:${PATH}"
 
 if test "${ARGOCD_TEST_PARALLELISM:-}" != ""; then
 	TEST_FLAGS="$TEST_FLAGS -p $ARGOCD_TEST_PARALLELISM"
+fi
+if test "${ARGOCD_TEST_PARALLEL:-}" != ""; then
+	TEST_FLAGS="$TEST_FLAGS -parallel $ARGOCD_TEST_PARALLEL"
 fi
 if test "${ARGOCD_TEST_VERBOSE:-}" != ""; then
 	TEST_FLAGS="$TEST_FLAGS -v"
@@ -24,4 +31,4 @@ mkdir -p "$TEST_RESULTS"
 # shellcheck disable=SC2086
 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" \
     gotestsum --rerun-fails-report=rerunreport.txt --junitfile="$TEST_RESULTS/junit.xml" --format=testname \
-    --rerun-fails="$RERUN_FAILS" --packages="$PACKAGES" -- -cover $TEST_FLAGS "$@"
+    --rerun-fails="$RERUN_FAILS" --packages="${TEST_MODULE:-$PACKAGES}" -- -cover $TEST_FLAGS "$@"

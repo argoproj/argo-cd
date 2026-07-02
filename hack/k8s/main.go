@@ -11,7 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/errors"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
@@ -35,7 +35,7 @@ func main() {
 
 	attempts := 5
 	interval := time.Second
-	for i := 0; i < attempts; i++ {
+	for range attempts {
 		_, err = client.ServerVersion()
 		if err == nil {
 			break
@@ -44,7 +44,7 @@ func main() {
 	}
 	errors.CheckError(err)
 
-	cmd := exec.Command("kubectl", "apply", "-k", "manifests/base/config")
+	cmd := exec.CommandContext(context.Background(), "kubectl", "apply", "-k", "manifests/base/config")
 	cmd.Env = []string{"KUBECONFIG=" + kubeConfigPath}
 	errors.CheckError(cmd.Run())
 	<-context.Background().Done()
