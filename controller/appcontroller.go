@@ -2311,13 +2311,6 @@ func (ctrl *ApplicationController) patchAnnotations(app *appv1.Application, anno
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	annotations := app.GetAnnotations()
 	jsonPatch := []map[string]any{}
-	if _, ok := annotations[annotation]; ok {
-		annotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(annotation)
-		jsonPatch = append(jsonPatch, map[string]any{
-			"op":   "remove",
-			"path": annotationPath,
-		})
-	}
 	if refreshTS, ok := annotations[timestampAnnotation]; ok {
 		timestampAnnotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(timestampAnnotation)
 		jsonPatch = append(jsonPatch, []map[string]any{
@@ -2332,6 +2325,14 @@ func (ctrl *ApplicationController) patchAnnotations(app *appv1.Application, anno
 			},
 		}...)
 	}
+	if _, ok := annotations[annotation]; ok {
+		annotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(annotation)
+		jsonPatch = append(jsonPatch, map[string]any{
+			"op":   "remove",
+			"path": annotationPath,
+		})
+	}
+
 	if len(jsonPatch) != 0 {
 		var patch []byte
 		patch, err = json.Marshal(jsonPatch)
