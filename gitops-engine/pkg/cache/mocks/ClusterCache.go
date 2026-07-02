@@ -88,11 +88,11 @@ func (_c *ClusterCache_EnsureSynced_Call) RunAndReturn(run func() error) *Cluste
 // FindResources provides a mock function for the type ClusterCache
 func (_mock *ClusterCache) FindResources(namespace string, predicates ...func(r *cache.Resource) bool) map[kube.ResourceKey]*cache.Resource {
 	// func(r *cache.Resource) bool
-	_va := make([]interface{}, len(predicates))
+	_va := make([]any, len(predicates))
 	for _i := range predicates {
 		_va[_i] = predicates[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, namespace)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -120,9 +120,9 @@ type ClusterCache_FindResources_Call struct {
 // FindResources is a helper method to define mock.On call
 //   - namespace string
 //   - predicates ...func(r *cache.Resource) bool
-func (_e *ClusterCache_Expecter) FindResources(namespace interface{}, predicates ...interface{}) *ClusterCache_FindResources_Call {
+func (_e *ClusterCache_Expecter) FindResources(namespace any, predicates ...any) *ClusterCache_FindResources_Call {
 	return &ClusterCache_FindResources_Call{Call: _e.mock.On("FindResources",
-		append([]interface{}{namespace}, predicates...)...)}
+		append([]any{namespace}, predicates...)...)}
 }
 
 func (_c *ClusterCache_FindResources_Call) Run(run func(namespace string, predicates ...func(r *cache.Resource) bool)) *ClusterCache_FindResources_Call {
@@ -329,7 +329,7 @@ type ClusterCache_GetManagedLiveObjs_Call struct {
 // GetManagedLiveObjs is a helper method to define mock.On call
 //   - targetObjs []*unstructured.Unstructured
 //   - isManaged func(r *cache.Resource) bool
-func (_e *ClusterCache_Expecter) GetManagedLiveObjs(targetObjs interface{}, isManaged interface{}) *ClusterCache_GetManagedLiveObjs_Call {
+func (_e *ClusterCache_Expecter) GetManagedLiveObjs(targetObjs any, isManaged any) *ClusterCache_GetManagedLiveObjs_Call {
 	return &ClusterCache_GetManagedLiveObjs_Call{Call: _e.mock.On("GetManagedLiveObjs", targetObjs, isManaged)}
 }
 
@@ -357,6 +357,74 @@ func (_c *ClusterCache_GetManagedLiveObjs_Call) Return(resourceKeyToUnstructured
 }
 
 func (_c *ClusterCache_GetManagedLiveObjs_Call) RunAndReturn(run func(targetObjs []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)) *ClusterCache_GetManagedLiveObjs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetManagedLiveObjsForKey provides a mock function for the type ClusterCache
+func (_mock *ClusterCache) GetManagedLiveObjsForKey(targetObjs []*unstructured.Unstructured, appKey string) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	ret := _mock.Called(targetObjs, appKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetManagedLiveObjsForKey")
+	}
+
+	var r0 map[kube.ResourceKey]*unstructured.Unstructured
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func([]*unstructured.Unstructured, string) (map[kube.ResourceKey]*unstructured.Unstructured, error)); ok {
+		return returnFunc(targetObjs, appKey)
+	}
+	if returnFunc, ok := ret.Get(0).(func([]*unstructured.Unstructured, string) map[kube.ResourceKey]*unstructured.Unstructured); ok {
+		r0 = returnFunc(targetObjs, appKey)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[kube.ResourceKey]*unstructured.Unstructured)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func([]*unstructured.Unstructured, string) error); ok {
+		r1 = returnFunc(targetObjs, appKey)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClusterCache_GetManagedLiveObjsForKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetManagedLiveObjsForKey'
+type ClusterCache_GetManagedLiveObjsForKey_Call struct {
+	*mock.Call
+}
+
+// GetManagedLiveObjsForKey is a helper method to define mock.On call
+//   - targetObjs []*unstructured.Unstructured
+//   - appKey string
+func (_e *ClusterCache_Expecter) GetManagedLiveObjsForKey(targetObjs any, appKey any) *ClusterCache_GetManagedLiveObjsForKey_Call {
+	return &ClusterCache_GetManagedLiveObjsForKey_Call{Call: _e.mock.On("GetManagedLiveObjsForKey", targetObjs, appKey)}
+}
+
+func (_c *ClusterCache_GetManagedLiveObjsForKey_Call) Run(run func(targetObjs []*unstructured.Unstructured, appKey string)) *ClusterCache_GetManagedLiveObjsForKey_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []*unstructured.Unstructured
+		if args[0] != nil {
+			arg0 = args[0].([]*unstructured.Unstructured)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *ClusterCache_GetManagedLiveObjsForKey_Call) Return(resourceKeyToUnstructured map[kube.ResourceKey]*unstructured.Unstructured, err error) *ClusterCache_GetManagedLiveObjsForKey_Call {
+	_c.Call.Return(resourceKeyToUnstructured, err)
+	return _c
+}
+
+func (_c *ClusterCache_GetManagedLiveObjsForKey_Call) RunAndReturn(run func(targetObjs []*unstructured.Unstructured, appKey string) (map[kube.ResourceKey]*unstructured.Unstructured, error)) *ClusterCache_GetManagedLiveObjsForKey_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -454,11 +522,11 @@ func (_c *ClusterCache_GetServerVersion_Call) RunAndReturn(run func() string) *C
 // Invalidate provides a mock function for the type ClusterCache
 func (_mock *ClusterCache) Invalidate(opts ...cache.UpdateSettingsFunc) {
 	// cache.UpdateSettingsFunc
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, _va...)
 	_mock.Called(_ca...)
 	return
@@ -471,9 +539,9 @@ type ClusterCache_Invalidate_Call struct {
 
 // Invalidate is a helper method to define mock.On call
 //   - opts ...cache.UpdateSettingsFunc
-func (_e *ClusterCache_Expecter) Invalidate(opts ...interface{}) *ClusterCache_Invalidate_Call {
+func (_e *ClusterCache_Expecter) Invalidate(opts ...any) *ClusterCache_Invalidate_Call {
 	return &ClusterCache_Invalidate_Call{Call: _e.mock.On("Invalidate",
-		append([]interface{}{}, opts...)...)}
+		append([]any{}, opts...)...)}
 }
 
 func (_c *ClusterCache_Invalidate_Call) Run(run func(opts ...cache.UpdateSettingsFunc)) *ClusterCache_Invalidate_Call {
@@ -536,7 +604,7 @@ type ClusterCache_IsNamespaced_Call struct {
 
 // IsNamespaced is a helper method to define mock.On call
 //   - gk schema.GroupKind
-func (_e *ClusterCache_Expecter) IsNamespaced(gk interface{}) *ClusterCache_IsNamespaced_Call {
+func (_e *ClusterCache_Expecter) IsNamespaced(gk any) *ClusterCache_IsNamespaced_Call {
 	return &ClusterCache_IsNamespaced_Call{Call: _e.mock.On("IsNamespaced", gk)}
 }
 
@@ -577,7 +645,7 @@ type ClusterCache_IterateHierarchyV2_Call struct {
 // IterateHierarchyV2 is a helper method to define mock.On call
 //   - keys []kube.ResourceKey
 //   - action func(resource *cache.Resource, namespaceResources map[kube.ResourceKey]*cache.Resource) bool
-func (_e *ClusterCache_Expecter) IterateHierarchyV2(keys interface{}, action interface{}) *ClusterCache_IterateHierarchyV2_Call {
+func (_e *ClusterCache_Expecter) IterateHierarchyV2(keys any, action any) *ClusterCache_IterateHierarchyV2_Call {
 	return &ClusterCache_IterateHierarchyV2_Call{Call: _e.mock.On("IterateHierarchyV2", keys, action)}
 }
 
@@ -635,7 +703,7 @@ type ClusterCache_OnEvent_Call struct {
 
 // OnEvent is a helper method to define mock.On call
 //   - handler cache.OnEventHandler
-func (_e *ClusterCache_Expecter) OnEvent(handler interface{}) *ClusterCache_OnEvent_Call {
+func (_e *ClusterCache_Expecter) OnEvent(handler any) *ClusterCache_OnEvent_Call {
 	return &ClusterCache_OnEvent_Call{Call: _e.mock.On("OnEvent", handler)}
 }
 
@@ -688,7 +756,7 @@ type ClusterCache_OnProcessEventsHandler_Call struct {
 
 // OnProcessEventsHandler is a helper method to define mock.On call
 //   - handler cache.OnProcessEventsHandler
-func (_e *ClusterCache_Expecter) OnProcessEventsHandler(handler interface{}) *ClusterCache_OnProcessEventsHandler_Call {
+func (_e *ClusterCache_Expecter) OnProcessEventsHandler(handler any) *ClusterCache_OnProcessEventsHandler_Call {
 	return &ClusterCache_OnProcessEventsHandler_Call{Call: _e.mock.On("OnProcessEventsHandler", handler)}
 }
 
@@ -741,7 +809,7 @@ type ClusterCache_OnResourceUpdated_Call struct {
 
 // OnResourceUpdated is a helper method to define mock.On call
 //   - handler cache.OnResourceUpdatedHandler
-func (_e *ClusterCache_Expecter) OnResourceUpdated(handler interface{}) *ClusterCache_OnResourceUpdated_Call {
+func (_e *ClusterCache_Expecter) OnResourceUpdated(handler any) *ClusterCache_OnResourceUpdated_Call {
 	return &ClusterCache_OnResourceUpdated_Call{Call: _e.mock.On("OnResourceUpdated", handler)}
 }
 
