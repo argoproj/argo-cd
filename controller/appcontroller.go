@@ -2321,7 +2321,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
 	// and parameter overrides are different from our most recent sync operation.
-	alreadyAttempted, lastAttemptedRevisions, lastAttemptedPhase := alreadyAttemptedSync(app, desiredRevisions, shouldCompareRevisions)
+	alreadyAttempted, lastAttemptedRevisions, lastAttemptedPhase := alreadyAttemptedSync(app, desiredRevisions)
 	ts.AddCheckpoint("already_attempted_sync_ms")
 	if alreadyAttempted {
 		if !lastAttemptedPhase.Successful() {
@@ -2402,9 +2402,11 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 // alreadyAttemptedSync returns whether the most recently synced revision(s) exactly match the given desiredRevisions
 // and for the same application source. If the revision(s) have changed or the Application source configuration has been updated,
 // it will return false, indicating that a new sync should be attempted.
-// When newRevisionHasChanges is false, due to commits not having direct changes on the application, it will not compare the revision(s), but only the sources.
+// The revision(s) are always compared: a difference from the last synced revision(s) means a new revision needs to be
+// synced together with its sync hooks, so it must not be treated as already attempted. newRevisionHasChanges only
+// reflects whether the controller detected manifest changes for the new revision and is kept for logging/diagnostics (see #27792).
 // It also returns the last synced revisions if any, and the result of that last sync operation.
-func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, newRevisionHasChanges bool) (bool, []string, synccommon.OperationPhase) {
+func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string) (bool, []string, synccommon.OperationPhase) {
 	if app.Status.OperationState == nil {
 		// The operation state may be removed when new operations are triggered
 		return false, []string{}, ""
@@ -2417,19 +2419,19 @@ func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, new
 		return app.Status.OperationState.Phase.Completed(), []string{}, app.Status.OperationState.Phase
 	}
 
-	if newRevisionHasChanges {
-		log.WithFields(applog.GetAppLogFields(app)).Infof("Already attempted sync: comparing synced revisions to %s", desiredRevisions)
-		if app.Spec.HasMultipleSources() {
-			if !reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, desiredRevisions) {
-				return false, app.Status.OperationState.SyncResult.Revisions, app.Status.OperationState.Phase
-			}
-		} else {
-			if len(desiredRevisions) != 1 || app.Status.OperationState.SyncResult.Revision != desiredRevisions[0] {
-				return false, []string{app.Status.OperationState.SyncResult.Revision}, app.Status.OperationState.Phase
-			}
+	// Always compare the synced revision(s) against the desired revision(s). When they differ, a new
+	// revision must be synced together with its sync hooks, so the sync has not been "already attempted".
+	// Previously this comparison was skipped when newRevisionHasChanges was false, which caused a
+	// genuinely new revision to be misclassified as already attempted and routed through the self-heal
+	// path that performs a partial, hook-skipping sync (see #27792).
+	if app.Spec.HasMultipleSources() {
+		if !reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, desiredRevisions) {
+			return false, app.Status.OperationState.SyncResult.Revisions, app.Status.OperationState.Phase
 		}
 	} else {
-		log.WithFields(applog.GetAppLogFields(app)).Debugf("Already attempted sync: revisions %s have no changes", desiredRevisions)
+		if len(desiredRevisions) != 1 || app.Status.OperationState.SyncResult.Revision != desiredRevisions[0] {
+			return false, []string{app.Status.OperationState.SyncResult.Revision}, app.Status.OperationState.Phase
+		}
 	}
 
 	log.WithFields(applog.GetAppLogFields(app)).Debug("Already attempted sync: comparing sources")

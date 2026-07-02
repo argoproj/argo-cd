@@ -3857,9 +3857,23 @@ func TestAlreadyAttemptSync(t *testing.T) {
 		})
 
 		t.Run("same manifest, different SHA without changes", func(t *testing.T) {
+			// Regression test for https://github.com/argoproj/argo-cd/issues/27792.
+			// Even when the controller reports the new revision has no manifest changes, a SHA that
+			// differs from the last synced revision means a new revision must be synced together with
+			// its sync hooks. It must not be treated as already attempted, otherwise auto-sync routes
+			// through the self-heal path that performs a partial, hook-skipping sync.
 			app := app.DeepCopy()
 			app.Status.OperationState.SyncResult.Revision = "sha1"
 			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha2"}, false)
+			assert.False(t, attempted)
+		})
+
+		t.Run("same manifest, same SHA without changes", func(t *testing.T) {
+			// When the revision has not changed, auto-sync must still treat the app as already
+			// attempted so that self-heal (rather than a fresh hook-running sync) handles live drift.
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha"
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha"}, false)
 			assert.True(t, attempted)
 		})
 
@@ -3923,9 +3937,21 @@ func TestAlreadyAttemptSync(t *testing.T) {
 		})
 
 		t.Run("same manifest, different SHA without changes", func(t *testing.T) {
+			// Regression test for https://github.com/argoproj/argo-cd/issues/27792.
+			// A set of SHAs that differs from the last synced revisions means a new revision must be
+			// synced together with its sync hooks, even when the controller reports no manifest changes.
 			app := app.DeepCopy()
 			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a_=", "sha_b_1"}
 			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a_2", "sha_b_2"}, false)
+			assert.False(t, attempted)
+		})
+
+		t.Run("same manifest, same SHAs without changes", func(t *testing.T) {
+			// When the revisions have not changed, auto-sync must still treat the app as already
+			// attempted so that self-heal (rather than a fresh hook-running sync) handles live drift.
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a", "sha_b"}
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a", "sha_b"}, false)
 			assert.True(t, attempted)
 		})
 
