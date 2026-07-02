@@ -8,7 +8,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -184,10 +186,30 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 	return nil
 }
 
+func matchPath(pattern, relativePath string) (bool, error) {
+	normPattern := filepath.ToSlash(pattern)
+	normPath := filepath.ToSlash(relativePath)
+	return doublestar.Match(normPattern, normPath)
+}
+
+func matchesPattern(pattern, base, relativePath string) (bool, error) {
+	if strings.Contains(filepath.ToSlash(pattern), "/") {
+		return matchPath(pattern, relativePath)
+	}
+	return filepath.Match(pattern, base)
+}
+
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
 // the given file in the tgz.tarWriter applying the exclusion pattern defined
 // in tgz.exclusions, or the inclusion pattern defined in tgz.inclusions.
 // Only regular files will be added in the tarball.
+//
+// Inclusion pattern matching rules:
+//   - Patterns containing a path separator ('/') are matched against the
+//     file's relative path. The special segment "**" matches zero or more
+//     path segments, so "charts/**" includes every file under charts/.
+//   - Patterns without a path separator are matched against the filename only
+//     via filepath.Match (original behaviour, e.g. "*.yaml").
 func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if err != nil {
 		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
@@ -199,13 +221,14 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if err != nil {
 		return fmt.Errorf("relative path error: %w", err)
 	}
+	relativePath = filepath.ToSlash(relativePath)
 
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
 		included := false
 		for _, inclusionPattern := range t.inclusions {
-			found, err := filepath.Match(inclusionPattern, base)
-			if err != nil {
-				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, err)
+			found, matchErr := matchesPattern(inclusionPattern, base, relativePath)
+			if matchErr != nil {
+				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, matchErr)
 			}
 			if found {
 				included = true
@@ -218,9 +241,9 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	}
 	if t.exclusions != nil {
 		for _, exclusionPattern := range t.exclusions {
-			found, err := filepath.Match(exclusionPattern, relativePath)
-			if err != nil {
-				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, err)
+			found, matchErr := matchesPattern(exclusionPattern, base, relativePath)
+			if matchErr != nil {
+				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, matchErr)
 			}
 			if found {
 				if fi.IsDir() {
