@@ -47,6 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
@@ -1592,6 +1593,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		resources    []string
 		output       string
 		appNamespace string
+		pollInterval time.Duration
 	)
 	command := &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1644,7 +1646,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if appNamespace != "" && !strings.Contains(appName, "/") {
 					appName = appNamespace + "/" + appName
 				}
-				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output, pollInterval)
 				if err != nil {
 					if isContextCanceledErr(err) {
 						log.Fatalf("timed out (%ds) waiting for app %q to match the expected conditions", timeout, appName)
@@ -1666,6 +1668,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only wait for an application  in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
+	command.Flags().DurationVar(&pollInterval, "app-wait-poll-interval", appWaitPollInterval, "Fallback re-fetch cadence for the watch loop, used when the watch goes quiet (e.g. competing operations). Defaults to ARGOCD_APP_WAIT_POLL_INTERVAL or 5s.")
 	return command
 }
 
@@ -2038,7 +2041,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output, appWaitPollInterval)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -2351,10 +2354,21 @@ func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selecte
 	return ready, operationInProgress
 }
 
+// appWaitPollInterval is the default poll cadence for the waitOnApplicationStatus
+// fallback re-fetch — used when the watch event stream goes quiet (e.g. two
+// overlapping sync operations where the terminal event is never delivered). The
+// watch still drives the common case (it returns as soon as an event satisfies
+// the conditions), so this only bounds how quickly the fallback notices a
+// terminal transition that was never delivered as an event — it does not slow
+// down a normal wait. Configurable installation-wide via
+// ARGOCD_APP_WAIT_POLL_INTERVAL (e.g. "10s") or per-invocation via the
+// `--app-wait-poll-interval` flag on `argocd app wait`.
+var appWaitPollInterval = env.ParseDurationFromEnv("ARGOCD_APP_WAIT_POLL_INTERVAL", 5*time.Second, 1*time.Second, 1*time.Hour)
+
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string, pollInterval time.Duration) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -2492,27 +2506,27 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	}
 
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, appWithLock.GetApp().ResourceVersion)
-	for appEvent := range appEventCh {
-		appWithLock.SetApp(&appEvent.Application)
-		app = appWithLock.GetApp()
 
-		finalOperationState = app.Status.OperationState
-
-		if watch.delete && appEvent.Type == k8swatch.Deleted {
-			fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
-			return nil, nil, nil
-		}
-
+	// checkReturn evaluates the wait conditions and, when they are satisfied,
+	// prints the final status and reports done=true. It does NOT print
+	// intermediate resource states — that stays watch-event driven (see
+	// printResourceStates) so the poll fallback does not change output cadence.
+	checkReturn := func(app *argoappv1.Application) (retApp *argoappv1.Application, done bool) {
 		selectedResourcesAreReady, operationInProgress := checkAppWaitConditions(app, watch, selectedResources)
 		if app.Operation != nil && !app.Operation.DryRun() {
 			refresh = true
 		}
-
 		if selectedResourcesAreReady && (!operationInProgress || !watch.operation) {
-			app = printFinalStatus(app)
-			return app, finalOperationState, nil
+			return printFinalStatus(app), true
 		}
+		return nil, false
+	}
 
+	// printResourceStates prints changed resource states and detects a
+	// health-degraded transition. Driven by watch events only, preserving the
+	// pre-poll-fallback output cadence. Returns a non-nil error if the wait must
+	// abort because a resource's health degraded.
+	printResourceStates := func(app *argoappv1.Application) error {
 		newStates := groupResourceStates(app, selectedResources)
 		for _, newState := range newStates {
 			var doPrint bool
@@ -2520,7 +2534,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			if prevState, found := prevStates[stateKey]; found {
 				if watch.health && prevState.Health != string(health.HealthStatusUnknown) && prevState.Health != string(health.HealthStatusDegraded) && newState.Health == string(health.HealthStatusDegraded) {
 					_ = printFinalStatus(app)
-					return nil, finalOperationState, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
+					return fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
 				}
 				doPrint = prevState.Merge(newState)
 			} else {
@@ -2532,9 +2546,75 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			}
 		}
 		_ = w.Flush()
+		return nil
 	}
-	_ = printFinalStatus(appWithLock.GetApp())
-	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+
+	// The watch event stream only delivers messages when the application CR
+	// changes. When two sync operations overlap (e.g. an explicit sync racing an
+	// automated sync to the same revision), the exact moment where all wait
+	// conditions hold simultaneously may never arrive as a discrete event, and
+	// once the app goes quiet no further events arrive — the wait would then
+	// block until the command timeout. A periodic re-fetch re-evaluates the
+	// return conditions independently of the event stream; it only checks for
+	// completion and never prints, so progress output stays watch-event driven.
+	// Follow-up to #12211.
+	pollTicker := time.NewTicker(pollInterval)
+	defer pollTicker.Stop()
+
+	for {
+		select {
+		case appEvent, ok := <-appEventCh:
+			if !ok {
+				_ = printFinalStatus(appWithLock.GetApp())
+				return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+			}
+			appWithLock.SetApp(&appEvent.Application)
+			app = appWithLock.GetApp()
+			finalOperationState = app.Status.OperationState
+
+			if watch.delete && appEvent.Type == k8swatch.Deleted {
+				fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
+				return nil, nil, nil
+			}
+
+			if retApp, done := checkReturn(app); done {
+				return retApp, finalOperationState, nil
+			}
+			if err := printResourceStates(app); err != nil {
+				return nil, finalOperationState, err
+			}
+		case <-pollTicker.C:
+			polledApp, getErr := appClient.Get(ctx, &application.ApplicationQuery{
+				Name:         &appRealName,
+				AppNamespace: &appNs,
+			})
+			if getErr != nil {
+				// A NotFound means the application is gone. (As part of the fix
+				// for CVE-2022-41354 the API may return PermissionDenied for a
+				// non-existent app.) For a --delete wait that is the success
+				// condition; otherwise there is nothing left to wait for, so
+				// stop early instead of looping until the timeout.
+				switch grpc.UnwrapGRPCStatus(getErr).Code() {
+				case codes.NotFound, codes.PermissionDenied:
+					if watch.delete {
+						fmt.Printf("Application '%s' deleted\n", appName)
+						return nil, nil, nil
+					}
+					_ = printFinalStatus(appWithLock.GetApp())
+					return nil, finalOperationState, fmt.Errorf("application '%s' not found", appName)
+				}
+				// Other (transient) errors: keep watching, try again next tick.
+				continue
+			}
+			appWithLock.SetApp(polledApp)
+			app = appWithLock.GetApp()
+			finalOperationState = app.Status.OperationState
+
+			if retApp, done := checkReturn(app); done {
+				return retApp, finalOperationState, nil
+			}
+		}
+	}
 }
 
 // isContextCanceledErr returns true if the error is a context cancellation or deadline exceeded,
@@ -2750,7 +2830,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
-			}, nil, output)
+			}, nil, output, appWaitPollInterval)
 			errors.CheckError(err)
 		},
 	}
