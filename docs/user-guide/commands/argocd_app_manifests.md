@@ -28,9 +28,11 @@ argocd app manifests APPNAME [flags]
 
 ```
   -N, --app-namespace string          Namespace of the application
+      --hard-refresh                  Refresh application data as well as target manifests cache
   -h, --help                          help for manifests
       --local string                  If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.
       --local-repo-root string        Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'. (default ".")
+      --refresh                       Refresh application data when retrieving
       --revision string               Show manifests at a specific revision
       --revisions stringArray         Show manifests at specific revisions for the source at position in source-positions
       --source string                 Source of manifests. One of: live|git (default "git")

@@ -2804,6 +2804,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 		local           string
 		localRepoRoot   string
 		appNamespace    string
+		refresh         bool
+		hardRefresh     bool
 	)
 	command := &cobra.Command{
 		Use:   "manifests APPNAME",
@@ -2855,6 +2857,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{
 				Name:         &appName,
 				AppNamespace: &appNs,
+				Refresh:      getRefreshType(refresh, hardRefresh),
 			})
 			errors.CheckError(err)
 
@@ -2900,6 +2903,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						Revision:        new(revision),
 						Revisions:       revisions,
 						SourcePositions: sourcePositions,
+						NoCache:         &hardRefresh,
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
@@ -2914,6 +2918,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						Name:         &appName,
 						AppNamespace: &appNs,
 						Revision:     new(revision),
+						NoCache:      &hardRefresh,
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
@@ -2951,6 +2956,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	command.Flags().StringVar(&local, "local", "", "If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", ".", "Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'.")
+	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
+	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	return command
 }
 
