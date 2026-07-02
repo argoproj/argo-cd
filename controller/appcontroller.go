@@ -2406,7 +2406,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 // synced together with its sync hooks, so it must not be treated as already attempted. newRevisionHasChanges only
 // reflects whether the controller detected manifest changes for the new revision and is kept for logging/diagnostics (see #27792).
 // It also returns the last synced revisions if any, and the result of that last sync operation.
-func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, newRevisionHasChanges bool) (bool, []string, synccommon.OperationPhase) {
+func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string) (bool, []string, synccommon.OperationPhase) {
 	if app.Status.OperationState == nil {
 		// The operation state may be removed when new operations are triggered
 		return false, []string{}, ""
