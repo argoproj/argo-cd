@@ -1,0 +1,13 @@
+apiVersion: eventing.knative.dev/v1
+kind: Broker
+metadata:
+  name: default
+  namespace: events
+spec: {}
+status:
+  conditions:
+  - type: IngressReady
+    status: Unknown
+  - type: Ready
+    status: Unknown
+    reason: IngressNotConfigured

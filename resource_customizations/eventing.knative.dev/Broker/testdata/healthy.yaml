@@ -1,0 +1,24 @@
+apiVersion: eventing.knative.dev/v1
+kind: Broker
+metadata:
+  name: default
+  namespace: events
+spec:
+  config:
+    apiVersion: v1
+    kind: ConfigMap
+    name: config-br-default-channel
+    namespace: knative-eventing
+status:
+  address:
+    url: http://broker-ingress.knative-eventing.svc.cluster.local/events/default
+  conditions:
+  - type: Addressable
+    status: "True"
+  - type: IngressReady
+    status: "True"
+  - type: Ready
+    status: "True"
+    message: Broker is ready
+  - type: TriggerChannelReady
+    status: "True"
