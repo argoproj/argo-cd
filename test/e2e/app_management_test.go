@@ -1062,6 +1062,19 @@ func TestLocalManifestSync(t *testing.T) {
 		})
 }
 
+func TestLocalSyncServerSideGenerate(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Then().
+		And(func(app *Application) {
+			localRepoRoot := fixture.LocalRepoRoot()
+			_, err := fixture.RunCli("app", "sync", app.Name, "--local", localRepoRoot, "--server-side-generate")
+			require.NoError(t, err)
+		})
+}
+
 func TestLocalSync(t *testing.T) {
 	Given(t).
 		// we've got to use Helm as this uses kubeVersion
