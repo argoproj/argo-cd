@@ -1,0 +1,17 @@
+apiVersion: cert-manager.io/v1
+kind: CertificateRequest
+metadata:
+  name: example-tls-xyz12
+  namespace: default
+spec:
+  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+status:
+  conditions:
+  - type: Denied
+    status: "True"
+    reason: policy.cert-manager.io
+    message: The CertificateRequest was denied by an approval controller
