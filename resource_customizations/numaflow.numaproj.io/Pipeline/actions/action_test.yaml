@@ -33,6 +33,10 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: delete
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-trash'
+        displayName: 'Delete'
   - inputPath: testdata/numaplane-owned-pipeline-recyclable-expired.yaml
     result:
       - name: pause
@@ -50,6 +54,10 @@ discoveryTests:
         disabled: true
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: delete
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-trash'
+        displayName: 'Delete'
   - inputPath: testdata/pipeline-wrong-ref.yaml
     result:
       - name: pause
@@ -67,6 +75,10 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: delete
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-trash'
+        displayName: 'Delete'
   - inputPath: testdata/pipeline.yaml
     result:
       - name: pause
