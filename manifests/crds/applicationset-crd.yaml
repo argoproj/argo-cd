@@ -151,6 +151,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -392,6 +394,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -655,6 +659,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -1065,6 +1071,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -1306,6 +1314,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -1569,6 +1579,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -1980,6 +1992,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -2221,6 +2235,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -2484,6 +2500,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -2873,6 +2891,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -3114,6 +3134,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -3377,6 +3399,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -3791,6 +3815,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -4032,6 +4058,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -4295,6 +4323,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -4705,6 +4735,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -4946,6 +4978,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -5209,6 +5243,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -5620,6 +5656,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -5861,6 +5899,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -6124,6 +6164,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -6513,6 +6555,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -6754,6 +6798,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -7017,6 +7063,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -7414,6 +7462,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -7655,6 +7705,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -7918,6 +7970,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -8542,6 +8596,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -8783,6 +8839,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -9046,6 +9104,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -9667,6 +9727,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -9908,6 +9970,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -10171,6 +10235,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -10577,6 +10643,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -10818,6 +10886,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -11081,6 +11151,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -11497,6 +11569,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -11738,6 +11812,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -12001,6 +12077,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -12411,6 +12489,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -12652,6 +12732,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -12915,6 +12997,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -13326,6 +13410,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -13567,6 +13653,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -13830,6 +13918,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -14219,6 +14309,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -14460,6 +14552,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -14723,6 +14817,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -15120,6 +15216,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -15361,6 +15459,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -15624,6 +15724,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -16248,6 +16350,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -16489,6 +16593,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -16752,6 +16858,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -17373,6 +17481,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  allowCustomExtensions:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -17614,6 +17724,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      allowCustomExtensions:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -17877,6 +17989,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    allowCustomExtensions:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -18287,6 +18401,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -18528,6 +18644,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -18791,6 +18909,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -19187,6 +19307,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -19428,6 +19550,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -19691,6 +19815,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -20315,6 +20441,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -20556,6 +20684,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -20819,6 +20949,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -21440,6 +21572,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        allowCustomExtensions:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -21681,6 +21815,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            allowCustomExtensions:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -21944,6 +22080,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          allowCustomExtensions:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -22427,6 +22565,8 @@ spec:
                             type: string
                           directory:
                             properties:
+                              allowCustomExtensions:
+                                type: boolean
                               exclude:
                                 type: string
                               include:
@@ -22668,6 +22808,8 @@ spec:
                             properties:
                               directory:
                                 properties:
+                                  allowCustomExtensions:
+                                    type: boolean
                                   exclude:
                                     type: string
                                   include:
@@ -22931,6 +23073,8 @@ spec:
                               type: string
                             directory:
                               properties:
+                                allowCustomExtensions:
+                                  type: boolean
                                 exclude:
                                   type: string
                                 include:

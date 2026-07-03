@@ -534,6 +534,9 @@ message ApplicationSourceDirectory {
 
   // Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
   optional string include = 4;
+
+  // AllowCustomExtensions lets a user add custom extensions other than what is already supported today like .yaml.sealed
+  optional bool allowCustomExtensions = 5;
 }
 
 // ApplicationSourceHelm holds helm specific options

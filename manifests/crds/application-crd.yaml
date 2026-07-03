@@ -180,6 +180,11 @@ spec:
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
+                          allowCustomExtensions:
+                            description: AllowCustomExtensions lets a user add custom
+                              extensions other than what is already supported today
+                              like .yaml.sealed
+                            type: boolean
                           exclude:
                             description: Exclude contains a glob pattern to match
                               paths against that should be explicitly excluded from
@@ -572,6 +577,11 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            allowCustomExtensions:
+                              description: AllowCustomExtensions lets a user add custom
+                                extensions other than what is already supported today
+                                like .yaml.sealed
+                              type: boolean
                             exclude:
                               description: Exclude contains a glob pattern to match
                                 paths against that should be explicitly excluded from
@@ -1086,6 +1096,11 @@ spec:
                   directory:
                     description: Directory holds path/directory specific options
                     properties:
+                      allowCustomExtensions:
+                        description: AllowCustomExtensions lets a user add custom
+                          extensions other than what is already supported today like
+                          .yaml.sealed
+                        type: boolean
                       exclude:
                         description: Exclude contains a glob pattern to match paths
                           against that should be explicitly excluded from being used
@@ -1466,6 +1481,11 @@ spec:
                       directory:
                         description: Directory specifies path/directory specific options
                         properties:
+                          allowCustomExtensions:
+                            description: AllowCustomExtensions lets a user add custom
+                              extensions other than what is already supported today
+                              like .yaml.sealed
+                            type: boolean
                           exclude:
                             description: Exclude contains a glob pattern to match
                               paths against that should be explicitly excluded from
@@ -1883,6 +1903,11 @@ spec:
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
+                        allowCustomExtensions:
+                          description: AllowCustomExtensions lets a user add custom
+                            extensions other than what is already supported today
+                            like .yaml.sealed
+                          type: boolean
                         exclude:
                           description: Exclude contains a glob pattern to match paths
                             against that should be explicitly excluded from being
@@ -2444,6 +2469,11 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            allowCustomExtensions:
+                              description: AllowCustomExtensions lets a user add custom
+                                extensions other than what is already supported today
+                                like .yaml.sealed
+                              type: boolean
                             exclude:
                               description: Exclude contains a glob pattern to match
                                 paths against that should be explicitly excluded from
@@ -2839,6 +2869,11 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              allowCustomExtensions:
+                                description: AllowCustomExtensions lets a user add
+                                  custom extensions other than what is already supported
+                                  today like .yaml.sealed
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -3386,6 +3421,11 @@ spec:
                                 description: Directory holds path/directory specific
                                   options
                                 properties:
+                                  allowCustomExtensions:
+                                    description: AllowCustomExtensions lets a user
+                                      add custom extensions other than what is already
+                                      supported today like .yaml.sealed
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -3803,6 +3843,11 @@ spec:
                                   description: Directory holds path/directory specific
                                     options
                                   properties:
+                                    allowCustomExtensions:
+                                      description: AllowCustomExtensions lets a user
+                                        add custom extensions other than what is already
+                                        supported today like .yaml.sealed
+                                      type: boolean
                                     exclude:
                                       description: Exclude contains a glob pattern
                                         to match paths against that should be explicitly
@@ -4352,6 +4397,11 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              allowCustomExtensions:
+                                description: AllowCustomExtensions lets a user add
+                                  custom extensions other than what is already supported
+                                  today like .yaml.sealed
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -4756,6 +4806,11 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
+                                allowCustomExtensions:
+                                  description: AllowCustomExtensions lets a user add
+                                    custom extensions other than what is already supported
+                                    today like .yaml.sealed
+                                  type: boolean
                                 exclude:
                                   description: Exclude contains a glob pattern to
                                     match paths against that should be explicitly
@@ -5285,6 +5340,11 @@ spec:
                                 description: Directory specifies path/directory specific
                                   options
                                 properties:
+                                  allowCustomExtensions:
+                                    description: AllowCustomExtensions lets a user
+                                      add custom extensions other than what is already
+                                      supported today like .yaml.sealed
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -5748,6 +5808,11 @@ spec:
                                 description: Directory specifies path/directory specific
                                   options
                                 properties:
+                                  allowCustomExtensions:
+                                    description: AllowCustomExtensions lets a user
+                                      add custom extensions other than what is already
+                                      supported today like .yaml.sealed
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -6280,6 +6345,11 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              allowCustomExtensions:
+                                description: AllowCustomExtensions lets a user add
+                                  custom extensions other than what is already supported
+                                  today like .yaml.sealed
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -6684,6 +6754,11 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
+                                allowCustomExtensions:
+                                  description: AllowCustomExtensions lets a user add
+                                    custom extensions other than what is already supported
+                                    today like .yaml.sealed
+                                  type: boolean
                                 exclude:
                                   description: Exclude contains a glob pattern to
                                     match paths against that should be explicitly
