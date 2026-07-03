@@ -193,6 +193,33 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			desc:               "WebHook from a Gitea repository via push event",
+			headerKey:          "X-Gitea-Event",
+			headerValue:        "push",
+			payloadFile:        "gitea-push-event.json",
+			effectedAppSets:    []string{"git-gitea", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Forgejo repository via push event (X-Forgejo-Event header)",
+			headerKey:          "X-Forgejo-Event",
+			headerValue:        "push",
+			payloadFile:        "gitea-push-event.json",
+			effectedAppSets:    []string{"git-gitea", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Gitea repository via pull_request opened event",
+			headerKey:          "X-Gitea-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "gitea-pull-request-opened-event.json",
+			effectedAppSets:    []string{"pull-request-gitea", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
@@ -216,10 +243,12 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-gitlab-ssh", namespace, "ssh://git@gitlab.com/group/name"),
 				fakeAppWithGitGenerator("git-gitlab-alt-ssh", namespace, "ssh://git@altssh.gitlab.com:443/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
+				fakeAppWithGitGenerator("git-gitea", namespace, "http://gitea.example.com/org/repo"),
 				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
+				fakeAppWithGiteaPullRequestGenerator("pull-request-gitea", namespace, "org", "repo", "http://gitea.example.com/"),
 				fakeAppWithPluginGenerator("plugin", namespace),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
@@ -444,6 +473,28 @@ func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) 
 						Github: &v1alpha1.PullRequestGeneratorGithub{
 							Owner: owner,
 							Repo:  repo,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithGiteaPullRequestGenerator(name, namespace, owner, repo, api string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Gitea: &v1alpha1.PullRequestGeneratorGitea{
+							Owner: owner,
+							Repo:  repo,
+							API:   api,
 						},
 					},
 				},
