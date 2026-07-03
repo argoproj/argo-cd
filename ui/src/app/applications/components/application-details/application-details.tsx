@@ -80,7 +80,11 @@ export const NodeInfo = (node?: string): {key: string; container: number} => {
 
 export const SelectNode = (fullName: string, containerIndex = 0, tab: string = null, appContext: ContextApis) => {
     const node = fullName ? `${fullName}/${containerIndex}` : null;
-    appContext.navigation.goto('.', fullName ? {node, tab, highlight: null} : {node, tab}, {replace: true});
+    // Clear the deep-link highlight only when the highlighted node itself is selected.
+    // Selecting any other node keeps the highlight so the deep-linked resource stays marked.
+    const highlightKey = NodeInfo(new URLSearchParams(window.location.search).get('highlight')).key;
+    const clearHighlight = Boolean(fullName) && highlightKey === fullName;
+    appContext.navigation.goto('.', clearHighlight ? {node, tab, highlight: null} : {node, tab}, {replace: true});
 };
 
 export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}> & {objectListKind: string}> = props => {
