@@ -552,11 +552,13 @@ func (c *store) newResource(un *unstructured.Unstructured) *Resource {
 	return resource
 }
 
-// setNode is the legacy storage write path: it writes to c.resources and
-// then updates the shared cross-GK indexes via updateIndexes. The informer
-// impl performs the equivalent c.resources write + updateIndexes call
-// inline in onInformerChange (cluster.resources is kept as a shadow of
-// the informer's store so existing read paths work unchanged).
+// setNode is the store's write primitive for resource upserts: it writes to
+// c.resources and keeps the shared cross-GK indexes consistent via
+// updateIndexes. Both engines route upserts through it — legacy via
+// sync/processEvent (and onNodeUpdated), informer via onInformerChange — so
+// index maintenance lives in exactly one place. It performs no dispatch;
+// callers decide whether and when to fire OnResourceUpdated handlers.
+// Caller must hold store.lock.
 func (c *store) setNode(n *Resource) {
 	key := n.ResourceKey()
 

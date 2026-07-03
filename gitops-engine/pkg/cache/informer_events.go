@@ -128,11 +128,6 @@ func (e *informerEngine) onInformerChange(ctx context.Context, event watch.Event
 		un = unstructuredFromCachedResource(primary)
 	}
 
-	var existing *Resource
-	if oldCr != nil {
-		existing = oldCr.Resource
-	}
-
 	// Time the under-lock storage + dispatch work so we can feed the
 	// OnProcessEventsHandler observer below. Legacy fires this handler from
 	// legacyEngine.processEventsBatch with a batch duration + count;
@@ -182,8 +177,12 @@ func (e *informerEngine) onInformerChange(ctx context.Context, event watch.Event
 				"oldType", fmt.Sprintf("%T", oldObj))
 			return
 		}
-		c.resources[newCr.Resource.ResourceKey()] = newCr.Resource
-		c.updateIndexes(existing, newCr.Resource)
+		// Take the previous entry as actually indexed (not the informer's
+		// oldObj) for both index maintenance and dispatch — matching the
+		// legacy processEvent path, and robust to any drift between the
+		// shadow map and the informer's store.
+		existing := c.resources[newCr.Resource.ResourceKey()]
+		c.setNode(newCr.Resource)
 		// Suppress OnResourceUpdated for isInInitialList events during the
 		// very first sync — legacy first-sync writes to c.resources via
 		// setNode without firing OnResourceUpdated. After
