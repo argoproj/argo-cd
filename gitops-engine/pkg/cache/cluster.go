@@ -228,10 +228,12 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) ClusterCac
 		listRetryFunc:           ListRetryFuncNever,
 		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
-	cache := &clusterCache{store: s}
-	// Default to the legacy engine; a SetMode option below may replace it.
-	// Set before applying opts so SetMode (which swaps cache.engine) wins.
-	cache.engine = newSyncEngine(ModeLegacy, s)
+	cache := &clusterCache{
+		store: s,
+		// Default to the legacy engine; a SetMode option below may replace it.
+		// Set before applying opts so SetMode (which swaps cache.engine) wins.
+		engine: newSyncEngine(ModeLegacy, s),
+	}
 	// Give the store a way to resolve the active engine at call time (see the
 	// currentEngine field doc). Reads cache.engine, so callers hold store.lock.
 	s.currentEngine = func() syncEngine { return cache.engine }

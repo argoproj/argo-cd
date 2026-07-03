@@ -2,11 +2,8 @@ package cache
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 // cachedResource is the type stored in the informer's store by the informer
@@ -52,47 +49,4 @@ func (cr *cachedResource) DeepCopyObject() runtime.Object {
 // GetObjectKind is part of runtime.Object. It returns the embedded TypeMeta.
 func (cr *cachedResource) GetObjectKind() schema.ObjectKind {
 	return &cr.TypeMeta
-}
-
-// transformForInformer is the TransformFunc installed on a
-// SharedIndexInformer by the informer engine. It converts incoming
-// unstructured objects to cachedResource at intake, so the informer's store
-// holds the domain Resource directly and the event handler doesn't have to
-// re-derive it per event.
-//
-// OnPopulateResourceInfoHandler is invoked here rather than in the event
-// handler. Argo-cd's handler is pure (reads cluster-cache-independent
-// state only) so the earlier invocation is safe; it still decides whether
-// the full manifest is retained on Resource.Resource.
-//
-// Non-unstructured inputs (e.g. *metav1.Status from watch stream errors,
-// DeletedFinalStateUnknown tombstones) pass through unchanged so callers
-// upstream of this function can handle them.
-func (e *informerEngine) transformForInformer(obj any) (any, error) {
-	un, ok := obj.(*unstructured.Unstructured)
-	if !ok || un == nil {
-		return obj, nil
-	}
-	res := e.c.newResource(un)
-	// handleCRDEvent -> crdVersionsToAPIResources needs spec.versions to
-	// drive startMissingWatches / deleteAPIResource. Always retain the
-	// full CRD manifest regardless of the populate handler's cacheManifest
-	// return so direct gitops-engine users (and a future argo-cd handler
-	// change) keep correct dynamic API updates.
-	if res.Resource == nil && kube.IsCRD(un) {
-		res.Resource = un
-	}
-	return &cachedResource{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: un.GetAPIVersion(),
-			Kind:       un.GetKind(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            un.GetName(),
-			Namespace:       un.GetNamespace(),
-			UID:             un.GetUID(),
-			ResourceVersion: un.GetResourceVersion(),
-		},
-		Resource: res,
-	}, nil
 }
