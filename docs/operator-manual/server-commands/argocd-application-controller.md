@@ -40,7 +40,7 @@ argocd-application-controller [flags]
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
       --insecure-skip-tls-verify                                  If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                                         Path to a kube config. Only required if out-of-cluster
-      --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
+      --kubectl-parallelism-limit int                             Maximum number of concurrent cluster operations during sync. Any value less than 1 means no limit. (default 20)
       --logformat string                                          Set the logging format. One of: json|text (default "json")
       --loglevel string                                           Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_app_condition metric
