@@ -43,3 +43,7 @@ tests:
     status: Progressing
     message: "No status info available"
   inputPath: testdata/no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

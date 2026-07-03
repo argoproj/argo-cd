@@ -15,3 +15,7 @@ tests:
       status: Healthy
       message: "Helm repositories of type 'oci' do not contain any information in the status."
     inputPath: testdata/oci.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

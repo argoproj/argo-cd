@@ -25,3 +25,7 @@ tests:
         notification - namespaces [argo-example] found as specified;
         notification - namespaces [argo-example-2] found as specified
     inputPath: testdata/healthy_found.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

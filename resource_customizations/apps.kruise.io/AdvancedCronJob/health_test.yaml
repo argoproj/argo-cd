@@ -15,3 +15,7 @@ tests:
       status: Suspended
       message: AdvancedCronJob is Paused
     inputPath: testdata/suspended.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

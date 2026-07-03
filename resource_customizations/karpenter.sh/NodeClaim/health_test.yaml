@@ -31,3 +31,7 @@ tests:
       status: Progressing
       message: "Waiting for NodeClaim to be launched"
     inputPath: testdata/progressing_readyUnknown.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

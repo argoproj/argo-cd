@@ -31,3 +31,7 @@ tests:
     status: Progressing
     message: "CRD is being installed"
   inputPath: testdata/crd-v1-installing-progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "CRD is terminating"
+  inputPath: testdata/terminating.yaml

@@ -1,0 +1,7 @@
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: terminating-resource
+  deletionTimestamp: "2024-01-01T00:00:00Z"
+  finalizers:
+    - example.com/finalizer

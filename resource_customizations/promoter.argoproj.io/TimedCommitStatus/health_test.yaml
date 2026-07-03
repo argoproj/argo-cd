@@ -1,37 +1,42 @@
-tests:
-- healthStatus:
-    status: Progressing
+Tests:
+- HealthStatus:
     message: Initializing timed commit gate
-  inputPath: testdata/no-status.yaml
-- healthStatus:
     status: Progressing
+  InputPath: testdata/no-status.yaml
+- HealthStatus:
     message: TimedCommitStatus is being deleted
-  inputPath: testdata/deleting.yaml
-- healthStatus:
     status: Progressing
+  InputPath: testdata/deleting.yaml
+- HealthStatus:
     message: Waiting for TimedCommitStatus spec update to be observed
-  inputPath: testdata/observed-generation-outdated.yaml
-- healthStatus:
-    status: Degraded
-    message: "Timed commit gate failed: Reconciliation failed: PromotionStrategy not found"
-  inputPath: testdata/reconcile-error.yaml
-- healthStatus:
     status: Progressing
+  InputPath: testdata/observed-generation-outdated.yaml
+- HealthStatus:
+    message: 'Timed commit gate failed: Reconciliation failed: PromotionStrategy not
+      found'
+    status: Degraded
+  InputPath: testdata/reconcile-error.yaml
+- HealthStatus:
     message: TimedCommitStatus Ready condition is missing
-  inputPath: testdata/no-ready-condition.yaml
-- healthStatus:
-    status: Healthy
-    message: Timed commit gate reconciled
-  inputPath: testdata/empty-environments.yaml
-- healthStatus:
     status: Progressing
-    message: "Timed commit gate pending for branch(es): env/dev"
-  inputPath: testdata/environment-pending.yaml
-- healthStatus:
+  InputPath: testdata/no-ready-condition.yaml
+- HealthStatus:
+    message: Timed commit gate reconciled
     status: Healthy
+  InputPath: testdata/empty-environments.yaml
+- HealthStatus:
+    message: 'Timed commit gate pending for branch(es): env/dev'
+    status: Progressing
+  InputPath: testdata/environment-pending.yaml
+- HealthStatus:
     message: Timed commit gate satisfied for 2 environment(s)
-  inputPath: testdata/all-success.yaml
-- healthStatus:
+    status: Healthy
+  InputPath: testdata/all-success.yaml
+- HealthStatus:
+    message: 'Timed commit gate failed for branch(es): env/dev'
     status: Degraded
-    message: "Timed commit gate failed for branch(es): env/dev"
-  inputPath: testdata/environment-failure.yaml
+  InputPath: testdata/environment-failure.yaml
+- HealthStatus:
+    message: TimedCommitStatus is being deleted
+    status: Progressing
+  InputPath: testdata/terminating.yaml

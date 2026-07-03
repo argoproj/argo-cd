@@ -1,0 +1,7 @@
+apiVersion: cassandra.rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: terminating-resource
+  deletionTimestamp: "2024-01-01T00:00:00Z"
+  finalizers:
+    - example.com/finalizer

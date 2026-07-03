@@ -2,10 +2,6 @@ apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaConnect
 metadata:
   creationTimestamp: "2020-02-13T14:03:15Z"
-  deletionGracePeriodSeconds: 0
-  deletionTimestamp: "2020-05-28T10:29:44Z"
-  finalizers:
-  - foregroundDeletion
   generation: 25
   labels:
     app.kubernetes.io/instance: kafka-connect
@@ -15,8 +11,8 @@ metadata:
   selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/strimzi/kafkaconnects/kafka
   uid: 941ae21d-4e69-11ea-a53d-06e66a171f98
 spec:
-  bootstrapServers: PLAINTEXT://b-1.kafka.eu-west-1.amazonaws.com:9092,
-    PLAINTEXT://b-2.kafka.eu-west-1.amazonaws.com:9092, PLAINTEXT://b-3.kafka.eu-west-1.amazonaws.com:9092
+  bootstrapServers: PLAINTEXT://b-1.kafka.eu-west-1.amazonaws.com:9092, PLAINTEXT://b-2.kafka.eu-west-1.amazonaws.com:9092,
+    PLAINTEXT://b-3.kafka.eu-west-1.amazonaws.com:9092
   config:
     config.providers: file
     config.providers.file.class: org.apache.kafka.common.config.provider.FileConfigProvider
@@ -97,8 +93,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2020-05-28T13:43:05.813Z"
+    message: Error
     status: "True"
     type: NotReady
-    message: "Error"
   observedGeneration: 25
   url: http://kafka-connect-api.strimzi.svc:8083
