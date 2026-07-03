@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -152,166 +153,6 @@ func TestGetLogsAllow(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
-}
-
-func TestSyncToUnsignedCommit(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
-}
-
-func TestSyncToSignedBranchWithKnownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		Revision("master").
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
-}
-
-func TestSyncToSignedBranchWithUnknownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		Revision("master").
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToUnsignedBranch(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Revision("master").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToSignedTagWithKnownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Revision("signed-tag").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedTag("signed-tag").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
-}
-
-func TestSyncToSignedTagWithUnknownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Revision("signed-tag").
-		Path(guestbookPath).
-		Sleep(2).
-		When().
-		AddSignedTag("signed-tag").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToUnsignedTag(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Revision("unsigned-tag").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddTag("unsigned-tag").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
 }
 
 func TestAppCreation(t *testing.T) {
@@ -543,6 +384,101 @@ func TestImmutableChange(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestMultiSyncCRDClientSideSame(t *testing.T) {
+	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDClientSideChanged(t *testing.T) {
+	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideSame(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", true)
+}
+
+func TestMultiSyncCRDServerSideChanged(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", true)
+}
+
+func TestMultiSyncBuiltinClientSideSame(t *testing.T) {
+	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinClientSideChanged(t *testing.T) {
+	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideSame(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", true)
+}
+
+func TestMultiSyncBuiltinServerSideChanged(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", true)
+}
+
+// demostrate that Sync still works after initial Sync
+// several code paths are checked:
+// 1. serverSide vs Client side,
+// 2. second sync w/o change vs with change
+// 3. CRD vs builtin
+// 4  Small size vs Large size: manifests bigger than 256KiB won't fit into the last-applied-configuration annotation
+func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string, isBig bool) {
+	t.Helper()
+	args := []string{}
+	if serverSide {
+		args = append(args, "--server-side")
+	}
+	ctx := Given(t)
+	acts := ctx.Path(dir).
+		When().
+		CreateApp()
+	if isBig {
+		for i := range 16 {
+			// add some long fields so manifest size will be more that 256KiB: that would make it fail on a
+			// client-side kubectl operation because the entite manifest won't fit into the
+			// last-applied-configuration annotation
+			descr := strings.Repeat("A", 16*1024)
+			var patch string
+			if manifest == "cm.yaml" {
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/data/field%d", "value": %q }]`, i, descr)
+			} else {
+				// crd
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/field%d", "value": { "type" : "string", "description" : %q }}]`, i, descr)
+			}
+			acts = acts.PatchFile(manifest, patch)
+		}
+	}
+	acts.Sync(args...).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When()
+	if doChange {
+		acts = acts.PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
+	}
+	acts = acts.Refresh(RefreshTypeNormal)
+	acts = acts.Sync(args...)
+	acts.Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestInvalidAppProject(t *testing.T) {

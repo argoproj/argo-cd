@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -157,7 +158,7 @@ func newDeployment() *appsv1.Deployment {
 
 func diff(t *testing.T, config, live *unstructured.Unstructured, options ...Option) *DiffResult {
 	t.Helper()
-	res, err := Diff(config, live, options...)
+	res, err := Diff(t.Context(), config, live, options...)
 	assert.NoError(t, err)
 	return res
 }
@@ -240,7 +241,7 @@ func TestDiffArraySame(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.False(t, diffResList.Modified)
 }
@@ -255,7 +256,7 @@ func TestDiffArrayAdditions(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.False(t, diffResList.Modified)
 }
@@ -271,7 +272,7 @@ func TestDiffArrayModification(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.True(t, diffResList.Modified)
 }
@@ -915,7 +916,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ServicePredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -940,7 +941,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.Deployment2PredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -965,7 +966,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -990,7 +991,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentNestedPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1021,7 +1022,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentApplyPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1048,7 +1049,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ServicePredictedLiveNoLabelJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1081,7 +1082,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOptsWithNormalizer(testdata.ServicePredictedLiveJSONSSD, normalizer)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1113,7 +1114,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentCompositeKeyPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1203,7 +1204,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1221,7 +1222,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ConfigMapPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1262,7 +1263,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "injected-by-webhook"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1282,7 +1283,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "new-value"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1305,7 +1306,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "x", "token": "y"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1324,12 +1325,82 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, desired)
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
 		predictedData := mustGetSecretData(t, result.PredictedLive)
 		assert.Equal(t, "raw-value", predictedData["password"], "non-core Secret data must be left untouched")
+	})
+	t.Run("will strip kubectl.kubernetes.io/last-applied-configuration from both sides", func(t *testing.T) {
+		t.Parallel()
+
+		const lastAppliedRaw = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"secret","namespace":"default","annotations":{"app":"test"}},"data":{"password":"U0VDUkVUVkFM"},"stringData":{"username":"SECRETVAL"}}`
+
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test",
+					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`)
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test"
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`)
+		predictedLiveJSON := `{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {
+				"name": "secret",
+				"namespace": "default",
+				"annotations": {
+					"app": "test",
+					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
+				}
+			},
+			"type": "Opaque",
+			"data": {
+				"password": "U0VDUkVUVkFM"
+			}
+		}`
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), "kubectl.kubernetes.io/last-applied-configuration",
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), "kubectl.kubernetes.io/last-applied-configuration",
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.PredictedLive), "U0VDUkVUVkFM",
+			"PredictedLive must not contain raw secret values from last-applied-configuration")
+		assert.NotContains(t, string(result.PredictedLive), "SECRETVAL",
+			"PredictedLive must not contain raw secret values from last-applied-configuration")
 	})
 }
 
@@ -1964,7 +2035,7 @@ spec:
 `), &liveResource); err != nil {
 		panic(err)
 	}
-	diff, err := Diff(&expectedResource, &liveResource, diffOptionsForTest()...)
+	diff, err := Diff(context.Background(), &expectedResource, &liveResource, diffOptionsForTest()...)
 	if err != nil {
 		panic(err)
 	}
@@ -2050,7 +2121,7 @@ spec:
 		}
 
 		// when
-		result, err := Diff(desiredService, liveService, opts...)
+		result, err := Diff(t.Context(), desiredService, liveService, opts...)
 		require.NoError(t, err)
 
 		// then
@@ -2118,7 +2189,7 @@ spec:
 		}
 
 		// when
-		result, err := Diff(configService, liveService, opts...)
+		result, err := Diff(t.Context(), configService, liveService, opts...)
 		require.NoError(t, err)
 
 		// then
@@ -2136,4 +2207,152 @@ spec:
 		assert.Contains(t, predictedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 	})
+}
+
+func TestStructuredMergeDiff_HPAv2ToV1Conversion(t *testing.T) {
+	// Reproduces https://github.com/argoproj/argo-cd/issues/17795
+	gvkParser := buildGVKParser(t)
+
+	config := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	live := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+  managedFields:
+  - apiVersion: autoscaling/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:maxReplicas: {}
+        f:minReplicas: {}
+        f:scaleTargetRef: {}
+    manager: helm
+    operation: Apply
+    time: "2024-01-01T00:00:00Z"
+  - apiVersion: autoscaling/v2
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:metrics: {}
+    manager: argocd-controller
+    operation: Apply
+    time: "2024-01-02T00:00:00Z"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	// Identical config and live should not be modified
+	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.False(t, result.Modified, "identical config and live should not show as modified")
+}
+
+func TestStructuredMergeDiff_HPAv2ToV1Conversion_Modified(t *testing.T) {
+	// Verifies that a real change is detected when config differs from live
+	// with cross-version managed fields
+	gvkParser := buildGVKParser(t)
+
+	config := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+`)
+
+	live := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+  managedFields:
+  - apiVersion: autoscaling/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:maxReplicas: {}
+        f:minReplicas: {}
+        f:scaleTargetRef: {}
+    manager: helm
+    operation: Apply
+    time: "2024-01-01T00:00:00Z"
+  - apiVersion: autoscaling/v2
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:metrics: {}
+    manager: argocd-controller
+    operation: Apply
+    time: "2024-01-02T00:00:00Z"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.Modified, "different config and live should show as modified")
 }

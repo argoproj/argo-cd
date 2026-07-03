@@ -1,6 +1,6 @@
 import {FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'argo-ui';
 
 import {CheckboxField} from '../../../shared/components';
 

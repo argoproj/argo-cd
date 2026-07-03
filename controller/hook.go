@@ -94,7 +94,7 @@ func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
 }
 
 // executeHooks is a generic function to execute hooks of a specified type
-func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return false, err
@@ -116,7 +116,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	}
 
 	// Fetch target objects from Git to know which hooks should exist
-	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, app.Spec.GetSources(), appLabelKey, revisions, false, false, nil, proj, true)
 	if err != nil {
 		return false, err
 	}
@@ -157,7 +157,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 		}
 
 		logCtx.Infof("Creating %s hook resource: %s", hookType, key)
-		_, err = ctrl.kubectl.CreateResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
+		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				logCtx.Warnf("Hook resource %s already exists, skipping", key)
@@ -219,7 +219,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 		// Delete failed hooks to allow retry with potentially fixed hook definitions
 		logCtx.Infof("Deleting %d failed %s hook(s) to allow retry", len(failedHookObjects), hookType)
 		for _, obj := range failedHookObjects {
-			err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
+			err = ctrl.kubectl.DeleteResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
 			if err != nil && !apierrors.IsNotFound(err) {
 				logCtx.WithError(err).Warnf("Failed to delete failed hook %s/%s", obj.GetNamespace(), obj.GetName())
 			}
@@ -236,7 +236,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 }
 
 // cleanupHooks is a generic function to clean up hooks of a specified type
-func (ctrl *ApplicationController) cleanupHooks(hookType HookType, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) cleanupHooks(ctx context.Context, hookType HookType, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return false, err
@@ -296,7 +296,7 @@ func (ctrl *ApplicationController) cleanupHooks(hookType HookType, liveObjs map[
 				continue
 			}
 			logCtx.Infof("Deleting %s hook %s/%s", hookType, obj.GetNamespace(), obj.GetName())
-			err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
+			err = ctrl.kubectl.DeleteResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
 			if err != nil && !apierrors.IsNotFound(err) {
 				return false, err
 			}
@@ -313,18 +313,18 @@ func (ctrl *ApplicationController) cleanupHooks(hookType HookType, liveObjs map[
 
 // Execute and cleanup hooks for pre-delete and post-delete operations
 
-func (ctrl *ApplicationController) executePreDeleteHooks(app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.executeHooks(PreDeleteHookType, app, proj, liveObjs, config, logCtx)
+func (ctrl *ApplicationController) executePreDeleteHooks(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+	return ctrl.executeHooks(ctx, PreDeleteHookType, app, proj, liveObjs, config, logCtx)
 }
 
-func (ctrl *ApplicationController) cleanupPreDeleteHooks(liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.cleanupHooks(PreDeleteHookType, liveObjs, config, logCtx)
+func (ctrl *ApplicationController) cleanupPreDeleteHooks(ctx context.Context, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+	return ctrl.cleanupHooks(ctx, PreDeleteHookType, liveObjs, config, logCtx)
 }
 
-func (ctrl *ApplicationController) executePostDeleteHooks(app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.executeHooks(PostDeleteHookType, app, proj, liveObjs, config, logCtx)
+func (ctrl *ApplicationController) executePostDeleteHooks(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+	return ctrl.executeHooks(ctx, PostDeleteHookType, app, proj, liveObjs, config, logCtx)
 }
 
-func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.cleanupHooks(PostDeleteHookType, liveObjs, config, logCtx)
+func (ctrl *ApplicationController) cleanupPostDeleteHooks(ctx context.Context, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+	return ctrl.cleanupHooks(ctx, PostDeleteHookType, liveObjs, config, logCtx)
 }

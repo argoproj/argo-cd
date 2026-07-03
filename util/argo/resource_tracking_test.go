@@ -16,6 +16,7 @@ import (
 )
 
 func TestSetAppInstanceLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -32,6 +33,7 @@ func TestSetAppInstanceLabel(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotation(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -49,6 +51,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -65,6 +68,7 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -85,6 +89,7 @@ func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -105,6 +110,7 @@ func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -119,12 +125,14 @@ func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
 }
 
 func TestTruncateLabel_Short(t *testing.T) {
+	t.Parallel()
 	got, err := TruncateLabel("my-app")
 	require.NoError(t, err)
 	assert.Equal(t, "my-app", got)
 }
 
 func TestTruncateLabel_AtLimit(t *testing.T) {
+	t.Parallel()
 	val := "the-very-suspicious-name-with-precisely-sixty-three-characters0"
 	require.Len(t, val, LabelMaxLength)
 	got, err := TruncateLabel(val)
@@ -133,6 +141,7 @@ func TestTruncateLabel_AtLimit(t *testing.T) {
 }
 
 func TestTruncateLabel_LongName(t *testing.T) {
+	t.Parallel()
 	got, err := TruncateLabel("my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters")
 	require.NoError(t, err)
 	assert.Equal(t, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-cha", got)
@@ -140,17 +149,20 @@ func TestTruncateLabel_LongName(t *testing.T) {
 }
 
 func TestTruncateLabel_TrailingSpecialCharsStripped(t *testing.T) {
+	t.Parallel()
 	got, err := TruncateLabel("the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen")
 	require.NoError(t, err)
 	assert.Equal(t, "the-very-suspicious-name-with-precisely-sixty-three-characters", got)
 }
 
 func TestTruncateLabel_AllSpecialChars(t *testing.T) {
+	t.Parallel()
 	_, err := TruncateLabel("----------------------------------------------------------------")
 	assert.EqualError(t, err, "unable to truncate label to not end with a special character")
 }
 
 func TestRemoveAppInstance_LabelOnly(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -170,6 +182,7 @@ func TestRemoveAppInstance_LabelOnly(t *testing.T) {
 }
 
 func TestRemoveAppInstance_AnnotationOnly(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -192,6 +205,7 @@ func TestRemoveAppInstance_AnnotationOnly(t *testing.T) {
 }
 
 func TestRemoveAppInstance_AnnotationAndLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -213,6 +227,7 @@ func TestRemoveAppInstance_AnnotationAndLabel(t *testing.T) {
 }
 
 func TestRemoveAppInstance_DefaultCase(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -244,6 +259,7 @@ func TestRemoveAppInstance_DefaultCase(t *testing.T) {
 }
 
 func TestRemoveAppInstance_AnnotationAndLabel_LongName(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -265,6 +281,7 @@ func TestRemoveAppInstance_AnnotationAndLabel_LongName(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -279,6 +296,7 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 }
 
 func TestParseAppInstanceValue(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>")
 	require.NoError(t, err)
@@ -290,6 +308,7 @@ func TestParseAppInstanceValue(t *testing.T) {
 }
 
 func TestParseAppInstanceValueColon(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>:<colon>")
 	require.NoError(t, err)
@@ -301,18 +320,21 @@ func TestParseAppInstanceValueColon(t *testing.T) {
 }
 
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app")
 	require.ErrorIs(t, err, ErrWrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueWrongFormat2(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app;group/kind/ns")
 	require.ErrorIs(t, err, ErrWrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app:group/kind:test/ns")
 	require.NoError(t, err)
@@ -329,6 +351,7 @@ func sampleResource(t *testing.T) *unstructured.Unstructured {
 }
 
 func TestResourceIdNormalizer_Normalize(t *testing.T) {
+	t.Parallel()
 	rt := NewResourceTracking()
 
 	// live object is a resource that has old style tracking label
@@ -352,6 +375,7 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 }
 
 func TestResourceIdNormalizer_NormalizeCRD(t *testing.T) {
+	t.Parallel()
 	rt := NewResourceTracking()
 
 	// live object is a CRD resource
@@ -396,6 +420,7 @@ func TestResourceIdNormalizer_NormalizeCRD(t *testing.T) {
 }
 
 func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
+	t.Parallel()
 	rt := NewResourceTracking()
 
 	// live object is a resource that has old style tracking label
@@ -421,5 +446,6 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 }
 
 func TestIsOldTrackingMethod(t *testing.T) {
+	t.Parallel()
 	assert.True(t, IsOldTrackingMethod(string(v1alpha1.TrackingMethodLabel)))
 }

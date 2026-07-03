@@ -1,8 +1,14 @@
 package controller
 
 import (
+	"os"
 	"strconv"
 	"testing"
+
+	openapi_v2 "github.com/google/gnostic-models/openapiv2"
+	"k8s.io/kubectl/pkg/util/openapi"
+
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
@@ -24,6 +30,29 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
+
+type fakeDiscovery struct {
+	schema *openapi_v2.Document
+}
+
+func (f *fakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
+	return f.schema, nil
+}
+
+func loadCRDSchema(t *testing.T, path string) *openapi_v2.Document {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	jsonData, err := yaml.YAMLToJSON(data)
+	require.NoError(t, err)
+
+	doc, err := openapi_v2.ParseDocument(jsonData)
+	require.NoError(t, err)
+
+	return doc
+}
 
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
@@ -52,7 +81,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
@@ -98,7 +127,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.syncPolicy.managedNamespaceMetadata into sync result
 	assert.Equal(t, app.Spec.SyncPolicy.ManagedNamespaceMetadata, opState.SyncResult.ManagedNamespaceMetadata)
 }
@@ -141,7 +170,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 			Source: &source,
 		},
 	}}
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
@@ -163,17 +192,20 @@ func TestSyncComparisonError(t *testing.T) {
 			Name:      "default",
 		},
 		Spec: v1alpha1.AppProjectSpec{
-			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 		},
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []string{},
-			Namespace:    test.FakeDestNamespace,
-			Server:       test.FakeClusterURL,
-			Revision:     "abc123",
-			VerifyResult: "something went wrong",
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name:     "GIT/GPG",
+				Problems: []string{"Unknown key 'XXX'"},
+			}}},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
@@ -184,7 +216,7 @@ func TestSyncComparisonError(t *testing.T) {
 		Sync: &v1alpha1.SyncOperation{},
 	}}
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
-	ctrl.appStateManager.SyncAppState(app, defaultProject, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 
 	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
 	assert.NotEmpty(t, conditions)
@@ -215,7 +247,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 				Destinations: []v1alpha1.ApplicationDestination{
 					{
 						Namespace: "*",
@@ -273,7 +305,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		}}
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
@@ -345,7 +377,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationRunning, opState.Phase)
@@ -387,7 +419,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -395,12 +427,37 @@ func TestNormalizeTargetResources(t *testing.T) {
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "2.0", iksmVersion)
 	})
+	t.Run("will not copy live status into the apply target", func(t *testing.T) {
+		// given: status is configured as an ignored field (equivalent to the
+		// default ignoreResourceStatusField=crd behavior) and the live resource
+		// has an in-flight operationState.
+		ignore := v1alpha1.ResourceIgnoreDifferences{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/status"},
+		}
+		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{ignore})
+		live := f.comparisonResult.reconciliationResult.Live[0]
+		require.NoError(t, unstructured.SetNestedField(
+			live.Object, "Running", "status", "operationState", "phase"))
+
+		// when
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+
+		// then: live status must not be merged into the target that gets applied,
+		// otherwise the SSA sync manager co-owns and freezes operationState.phase.
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		_, found, err := unstructured.NestedMap(targets[0].Object, "status")
+		require.NoError(t, err)
+		assert.False(t, found, "live status must not be merged into the apply target")
+	})
 	t.Run("will not modify target resource if ignore difference is not configured", func(t *testing.T) {
 		// given
 		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -420,7 +477,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		unstructured.RemoveNestedField(live.Object, "metadata", "annotations", "iksm-version")
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -445,7 +502,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -460,7 +517,6 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, int64(4), replicas)
 	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
-		t.Skip("limitation in the current implementation")
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -474,7 +530,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -511,6 +567,11 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	}
 
 	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
+		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -523,9 +584,8 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f := setupHTTPProxy(t, ignores)
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
-
 		// when
-		patchedTargets, err := normalizeTargetResources(f.comparisonResult)
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -564,7 +624,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -616,7 +676,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -669,6 +729,395 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		env0 := env[0].(map[string]any)
 		assert.Equal(t, "EV", env0["name"])
 		assert.Equal(t, "here", env0["value"])
+	})
+
+	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
+		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "projectcontour.io",
+				Kind:              "HTTPProxy",
+				JQPathExpressions: []string{".spec.routes[].rateLimitPolicy.global.descriptors[].entries[]"},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, patchedTargets, 1)
+		patched := patchedTargets[0]
+
+		// verify descriptors array in patched target
+		descriptors := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors").([]any)
+		require.Len(t, descriptors, 1) // Only the descriptors with ignored entries should remain
+
+		// verify individual entries array inside the descriptor
+		entriesArr := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries").([]any)
+		require.Len(t, entriesArr, 1) // Only the ignored entry should be patched
+
+		// verify the content of the entry is preserved correctly
+		entry := entriesArr[0].(map[string]any)
+		requestHeader := entry["requestHeader"].(map[string]any)
+		assert.Equal(t, "sample-header", requestHeader["headerName"])
+		assert.Equal(t, "sample-key", requestHeader["descriptorKey"])
+	})
+}
+
+func TestNormalizeTargetResourcesCRDs(t *testing.T) {
+	type fixture struct {
+		comparisonResult *comparisonResult
+	}
+	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
+		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
+		return &fixture{
+			&comparisonResult{
+				reconciliationResult: sync.ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{target},
+				},
+				diffConfig: dc,
+			},
+		}
+	}
+
+	t.Run("sample-app", func(t *testing.T) {
+		doc := loadCRDSchema(t, "testdata/schemas/simple-app.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "example.com",
+				Kind:              "SimpleApp",
+				JQPathExpressions: []string{".spec.servers[1].enabled", ".spec.servers[0].port"},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, patchedTargets, 1)
+
+		patched := patchedTargets[0]
+		require.NotNil(t, patched)
+
+		// 'spec.servers' array has length 2
+		servers := dig(patched.Object, "spec", "servers").([]any)
+		require.Len(t, servers, 2)
+
+		// first server's 'name' is 'server1'
+		name1 := dig(patched.Object, "spec", "servers", 0, "name").(string)
+		assert.Equal(t, "server1", name1)
+
+		assert.Equal(t, int64(8081), dig(patched.Object, "spec", "servers", 0, "port").(int64))
+		assert.Equal(t, int64(9090), dig(patched.Object, "spec", "servers", 1, "port").(int64))
+
+		// first server's 'enabled' should be true
+		enabled1 := dig(patched.Object, "spec", "servers", 0, "enabled").(bool)
+		assert.True(t, enabled1)
+
+		// second server's 'name' should be 'server2'
+		name2 := dig(patched.Object, "spec", "servers", 1, "name").(string)
+		assert.Equal(t, "server2", name2)
+
+		// second server's 'enabled' should be true (respected from live due to ignoreDifferences)
+		enabled2 := dig(patched.Object, "spec", "servers", 1, "enabled").(bool)
+		assert.True(t, enabled2)
+	})
+	t.Run("rollout-obj", func(t *testing.T) {
+		// Load Rollout CRD schema like SimpleApp
+		doc := loadCRDSchema(t, "testdata/schemas/rollout-schema.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "argoproj.io",
+				Kind:              "Rollout",
+				JQPathExpressions: []string{`.spec.template.spec.containers[] | select(.name == "init") | .image`},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		targets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		patched := targets[0]
+		require.NotNil(t, patched)
+
+		containers := dig(patched.Object, "spec", "template", "spec", "containers").([]any)
+		require.Len(t, containers, 2)
+
+		initContainer := containers[0].(map[string]any)
+		mainContainer := containers[1].(map[string]any)
+
+		// Assert init container image is preserved (ignoreDifferences works)
+		initImage := dig(initContainer, "image").(string)
+		assert.Equal(t, "init-container:v1", initImage)
+
+		// Assert main container fields as expected
+		mainName := dig(mainContainer, "name").(string)
+		assert.Equal(t, "main", mainName)
+
+		mainImage := dig(mainContainer, "image").(string)
+		assert.Equal(t, "main-container:v1", mainImage)
+	})
+
+	t.Run("app-of-apps-child-application-chart-version-update-panic", func(t *testing.T) {
+		// This test reproduces the EXACT panic from https://github.com/blakepettersson/broken-app-of-apps
+		// Scenario:
+		// 1. Parent app-of-apps has RespectIgnoreDifferences=true
+		// 2. It manages a child Application (argo-workflows Helm chart)
+		// 3. Initial sync works fine (chart version 0.45.28)
+		// 4. Subsequent update (chart version 0.45.28 -> 0.45.29) causes panic
+		//
+		// The panic occurs when the OpenAPI schema from the Application CRD is used
+		// to perform strategic merge patch operations on array fields with incomplete merge directives
+
+		doc := loadCRDSchema(t, "testdata/schemas/application-openapi-v2.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		// Set up ignoreDifferences with RespectIgnoreDifferences enabled
+		// This is typical for app-of-apps to ignore certain fields
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "argoproj.io",
+				Kind:              "Application",
+				JQPathExpressions: []string{".spec.syncPolicy.automated"},
+			},
+		}
+
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+
+		// Load live child Application (current state with chart version 0.45.28)
+		live := test.YamlToUnstructured(testdata.LiveChildApplicationYaml)
+
+		// Load target child Application (desired state with chart version 0.45.29)
+		target := test.YamlToUnstructured(testdata.TargetChildApplicationYaml)
+
+		comparisonResult := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+
+		// This should NOT panic - it should handle the case gracefully
+		// Without the fix, this panics with: "runtime error: invalid memory address or nil pointer dereference"
+		// at k8s.io/apimachinery/pkg/util/strategicpatch.handleSliceDiff:306
+		// when processing array fields in the Application spec (like syncOptions)
+		patchedTargets, err := normalizeTargetResources(oapiResources, comparisonResult)
+
+		// We expect either success or a graceful error, but NOT a panic
+		if err != nil {
+			// If there's an error, it should be a descriptive error, not a panic
+			t.Logf("Got error (non-panic): %v", err)
+		} else {
+			// If successful, verify we got a result
+			require.Len(t, patchedTargets, 1)
+			patched := patchedTargets[0]
+			require.NotNil(t, patched)
+
+			// Verify the chart version was updated
+			targetRevision, ok, err := unstructured.NestedString(patched.Object, "spec", "source", "targetRevision")
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, "0.45.28", targetRevision, "Should have the updated chart version from target")
+		}
+	})
+}
+
+// TestNormalizeTargetResourcesPDBSelector reproduces https://github.com/argoproj/argo-cd/issues/18232
+// When a PDB (policy/v1) has an ignoreDifferences rule for a matchLabels sub-field and
+// RespectIgnoreDifferences=true is set, normalizeTargetResources should only patch the
+// ignored field — not clobber the entire selector due to patchStrategy:"replace".
+func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
+	setupPDB := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *comparisonResult {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LivePDBYaml)
+		target := test.YamlToUnstructured(testdata.TargetPDBYaml)
+		return &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+	}
+
+	t.Run("ignoring one matchLabels key should not clobber other selector changes", func(t *testing.T) {
+		// User ignores /spec/selector/matchLabels/version but intentionally changes
+		// /spec/selector/matchLabels/app from "myapp" to "myapp-v2".
+		// With patchStrategy:"replace" on the selector field (policy/v1),
+		// normalizeTargetResources should preserve the app label change.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// The "version" label should take the live value (ignored field — respected).
+		assert.Equal(t, "v1", matchLabels["version"], "ignored field 'version' should use live value")
+
+		// The "app" label should keep the target value — it is NOT ignored.
+		assert.Equal(t, "myapp-v2", matchLabels["app"],
+			"non-ignored field 'app' was clobbered by live value; patchStrategy:replace on selector may cause normalizeTargetResources to overwrite the entire selector")
+	})
+
+	t.Run("ignoring one matchLabels key should not drop non-ignored sibling fields", func(t *testing.T) {
+		// Target has matchExpressions that live does not.
+		// Ignoring a matchLabels key should not cause matchExpressions to be
+		// dropped due to replace semantics pulling the entire live selector
+		// (which lacks matchExpressions) into the target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		// Add matchExpressions to the target only (not in live).
+		target := cr.reconciliationResult.Target[0]
+		matchExpr := []any{
+			map[string]any{
+				"key":      "tier",
+				"operator": "In",
+				"values":   []any{"frontend"},
+			},
+		}
+		require.NoError(t, unstructured.SetNestedSlice(target.Object, matchExpr, "spec", "selector", "matchExpressions"))
+
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		// matchExpressions should be preserved — it was not ignored.
+		expr, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "selector", "matchExpressions")
+		require.NoError(t, err)
+		assert.True(t, ok, "matchExpressions was dropped from target by replace-strategy collateral")
+		assert.Len(t, expr, 1)
+
+		// app label should still reflect the target change.
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, "myapp-v2", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
+	})
+
+	t.Run("ignoring one matchLabels key should not add live-only non-ignored selector keys", func(t *testing.T) {
+		// Live has an additional non-ignored label ("track") that target does not.
+		// Replace semantics should not copy it into the patched target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		live := cr.reconciliationResult.Live[0]
+		matchLabels, ok, err := unstructured.NestedStringMap(live.Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		matchLabels["track"] = "stable"
+		require.NoError(t, unstructured.SetNestedStringMap(live.Object, matchLabels, "spec", "selector", "matchLabels"))
+
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		patchedMatchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		assert.Equal(t, "myapp-v2", patchedMatchLabels["app"])
+		assert.Equal(t, "v1", patchedMatchLabels["version"])
+		_, found := patchedMatchLabels["track"]
+		assert.False(t, found, "live-only non-ignored selector key was added to target by replace-strategy collateral")
+	})
+
+	t.Run("ignoring entire selector should replace target selector with live", func(t *testing.T) {
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// When the entire selector is ignored, both labels should come from live.
+		assert.Equal(t, "myapp", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
 	})
 }
 
@@ -1437,7 +1886,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then, app sync should fail with expected error message in operation state
 		assert.Equal(t, synccommon.OperationError, opState.Phase)
@@ -1458,7 +1907,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should fail with expected error message in operation state
 		assert.Equal(t, synccommon.OperationError, opState.Phase)
@@ -1479,7 +1928,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1500,7 +1949,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then application sync should pass using the control plane service account
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1525,7 +1974,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		f.application.Spec.Destination.Name = "minikube"
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1595,7 +2044,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1613,7 +2062,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -1631,7 +2080,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)

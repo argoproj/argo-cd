@@ -37,11 +37,11 @@ jobs:
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Set image tag and names
         run: |
@@ -96,7 +96,7 @@ jobs:
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.26.2
+      go-version: 1.26.4
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: false
 
@@ -113,7 +113,7 @@ jobs:
       ghcr_image_name: ${{ needs.set-vars.outputs.ghcr_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.26.2
+      go-version: 1.26.4
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: true
     secrets:
@@ -131,7 +131,7 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     if: ${{ (github.repository == 'argoproj/argo-cd' || needs.set-vars.outputs.image_namespace != 'argoproj') && github.event_name == 'push' && needs.set-vars.outputs.allow_ghcr_publish == 'true'}}
-    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
       image: ${{ needs.set-vars.outputs.ghcr_provenance_image }}
@@ -150,7 +150,7 @@ jobs:
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         env:
           TOKEN: ${{ secrets.TOKEN }}

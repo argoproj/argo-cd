@@ -18,6 +18,7 @@ func (e *unknownResourceInfoProvider) IsNamespaced(_ schema.GroupKind) (bool, er
 }
 
 func TestReconcileWithUnknownDiscoveryDataForClusterScopedResources(t *testing.T) {
+	t.Parallel()
 	targetObjs := []*unstructured.Unstructured{
 		{
 			Object: map[string]any{
