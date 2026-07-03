@@ -85,7 +85,7 @@ func (c *clusterCache) onInformerChange(ctx context.Context, event watch.EventTy
 	informerEngineOf(c).onInformerChange(ctx, event, oldObj, newObj, isInInitialList)
 }
 
-func (c *clusterCache) buildInformer(ctx context.Context, client dynamic.Interface, resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) cache.SharedIndexInformer {
+func (c *clusterCache) buildInformer(ctx context.Context, client dynamic.Interface, resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) (cache.SharedIndexInformer, cache.ResourceEventHandlerRegistration) {
 	return informerEngineOf(c).buildInformer(ctx, client, resClient, api, ns)
 }
 

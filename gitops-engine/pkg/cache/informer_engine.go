@@ -268,8 +268,8 @@ func (e *informerEngine) startInformersForAPILocked(ctx context.Context, api kub
 	// Build every informer up front so a partial failure doesn't leave
 	// apisMeta half-populated.
 	err = c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-		informer := e.buildInformer(watchCtx, client, resClient, api, ns)
-		informers[ns] = sharedInformer{informer: informer, cancel: cancel}
+		informer, registration := e.buildInformer(watchCtx, client, resClient, api, ns)
+		informers[ns] = sharedInformer{informer: informer, registration: registration, cancel: cancel}
 		return nil
 	})
 	if err != nil {
@@ -304,7 +304,13 @@ func (e *informerEngine) startInformersForAPILocked(ctx context.Context, api kub
 // reshaping the type.
 type sharedInformer struct {
 	informer cache.SharedIndexInformer
-	cancel   context.CancelFunc
+	// registration is the engine event handler's registration on the
+	// informer. Its HasSynced only flips true once the initial events have
+	// been DELIVERED to the handler — i.e. once onInformerChange has
+	// shadowed them into c.resources — which is the condition the sync wait
+	// needs (informer.HasSynced covers only the informer's own store).
+	registration cache.ResourceEventHandlerRegistration
+	cancel       context.CancelFunc
 }
 
 // informerSyncResnapshotInterval is how long each WaitForCacheSync slice in
@@ -316,11 +322,16 @@ const informerSyncResnapshotInterval = time.Second
 
 // snapshotWatched returns the current set of (gk, ns, HasSynced) tuples
 // across the engine's informer index. Caller must hold store.lock.
+//
+// The HasSynced used is the handler REGISTRATION's, not the informer's: the
+// registration's flips true only after the initial events have been delivered
+// to onInformerChange (populating the c.resources shadow), so a successful
+// sync wait guarantees the shared read paths see the initial state.
 func (e *informerEngine) snapshotWatched() []watchedInformer {
 	var watched []watchedInformer
 	for gk, informers := range e.informers {
 		for ns, si := range informers {
-			watched = append(watched, watchedInformer{gk: gk, ns: ns, hasSynced: si.informer.HasSynced})
+			watched = append(watched, watchedInformer{gk: gk, ns: ns, hasSynced: si.registration.HasSynced})
 		}
 	}
 	return watched
@@ -410,7 +421,7 @@ func (e *informerEngine) resolveSyncResult(synced bool, watched []watchedInforme
 // client is the dynamic client that resClient was derived from; it is
 // consulted (via ToListWatcherWithWatchListSemantics below) for whether
 // WatchList semantics are supported.
-func (e *informerEngine) buildInformer(ctx context.Context, client dynamic.Interface, resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) cache.SharedIndexInformer {
+func (e *informerEngine) buildInformer(ctx context.Context, client dynamic.Interface, resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) (cache.SharedIndexInformer, cache.ResourceEventHandlerRegistration) {
 	c := e.c
 	lw := &cache.ListWatch{
 		// Wrap List with store.listSemaphore so initial-list memory pressure
@@ -467,8 +478,17 @@ func (e *informerEngine) buildInformer(ctx context.Context, client dynamic.Inter
 	if err := informer.SetWatchErrorHandlerWithContext(e.informerWatchErrorHandler(api, ns)); err != nil {
 		panic(fmt.Errorf("unreachable: SetWatchErrorHandler on fresh informer: %w", err))
 	}
-	_, _ = informer.AddEventHandler(e.informerEventHandlerForCtx(ctx))
-	return informer
+	// Keep the handler registration: its HasSynced covers DELIVERY of the
+	// initial events to our handler (which shadows objects into c.resources
+	// via onInformerChange), not just population of the informer's own store
+	// like informer.HasSynced does. The sync wait must use it, or
+	// EnsureSynced can return success while the shadow maps are still being
+	// filled by the shared processor's async dispatch.
+	registration, err := informer.AddEventHandler(e.informerEventHandlerForCtx(ctx))
+	if err != nil {
+		panic(fmt.Errorf("unreachable: AddEventHandler on fresh informer: %w", err))
+	}
+	return informer, registration
 }
 
 // informerWatchErrorHandler is installed on every informer so list/watch
