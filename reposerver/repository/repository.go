@@ -2123,9 +2123,9 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 		return nil, "", fmt.Errorf("failed to get relative path of %q: %w", path, err)
 	}
 
-	// When allowCustomExtensions is set, user takes responsibility for filtering via
-	// include/exclude so we skip the built-in extension check. Otherwise, only files
-	// standard manifest extension like yaml/yml/json/jsonnet are considered.
+	// When allowCustomExtensions is set, the user takes responsibility for filtering via
+	// include/exclude, so we skip the built-in extension check. Otherwise, only files with
+	// a standard manifest extension like yaml/yml/json/jsonnet are considered.
 	if !allowCustomExtensions && !manifestFile.MatchString(f.Name()) {
 		return nil, "", nil
 	}

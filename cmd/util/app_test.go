@@ -267,6 +267,16 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-option", "!a=1"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
+	t.Run("DirectoryAllowCustomExtensions", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		require.NoError(t, f.SetFlag("directory-allow-custom-extensions", "true"))
+		require.NotNil(t, f.spec.Source.Directory)
+		assert.True(t, f.spec.Source.Directory.AllowCustomExtensions)
+
+		require.NoError(t, f.SetFlag("directory-allow-custom-extensions", "false"))
+		assert.False(t, f.spec.Source.Directory.AllowCustomExtensions)
+	})
 	t.Run("AutoPruneFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()
 

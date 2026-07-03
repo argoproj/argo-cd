@@ -64,6 +64,7 @@ type AppOptions struct {
 	namePrefix                      string
 	nameSuffix                      string
 	directoryRecurse                bool
+	directoryAllowCustomExtensions  bool
 	configManagementPlugin          string
 	jsonnetTlaStr                   []string
 	jsonnetTlaCode                  []string
@@ -145,6 +146,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
+	command.Flags().BoolVar(&opts.directoryAllowCustomExtensions, "directory-allow-custom-extensions", false, "Disable the built-in file extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed); when set, include/exclude become the only filters")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
@@ -734,6 +736,12 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 				source.Directory.Recurse = appOpts.directoryRecurse
 			} else {
 				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			}
+		case "directory-allow-custom-extensions":
+			if source.Directory != nil {
+				source.Directory.AllowCustomExtensions = appOpts.directoryAllowCustomExtensions
+			} else {
+				source.Directory = &argoappv1.ApplicationSourceDirectory{AllowCustomExtensions: appOpts.directoryAllowCustomExtensions}
 			}
 		case "directory-exclude":
 			if source.Directory != nil {
