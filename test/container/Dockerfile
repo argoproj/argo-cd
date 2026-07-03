@@ -12,11 +12,14 @@ FROM docker.io/library/golang:1.26.4@sha256:792443b89f65105abba56b9bd5e97f680a80
 
 FROM docker.io/library/registry:3.1@sha256:85347ed2ecde64161c7a4788a4d7d3dcc9d6f86f7be95834022e3c6a423a945a AS registry
 
-FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
+FROM docker.io/bitnamilegacy/kubectl:1.33@sha256:cd354d5b25562b195b277125439c23e4046902d7f1abc0dc3c75aad04d298c17 AS kubectl
 
 FROM docker.io/library/ubuntu:26.04@sha256:53958ec7b67c2c9355df922dd08dbf0360611f8c3cdb656875e81873db9ffdba
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# renovate: datasource=deb depName=git registryUrl=https://archive.ubuntu.com/ubuntu?suite=resolute&components=main,security&binaryArch=amd64
+ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
 
 # NOTE: binutils-gold contains the gold linker, which was recently removed
 #       from binutils, but is still nesessary for building lint-tools on arm64 only
@@ -27,7 +30,7 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     openssh-server \
     nginx \
     fcgiwrap \
-    git \
+    git=${GIT_APT_VERSION} \
     gpg \
     gpg-agent \
     jq \

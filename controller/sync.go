@@ -2,9 +2,11 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
@@ -42,6 +45,14 @@ const (
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
+
+func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.GetOpenAPISchema(), nil
+}
 
 func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
@@ -236,7 +247,14 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	// resources which in this case applies the live values in the configured
 	// ignore differences fields.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
-		patchedTargets, err := normalizeTargetResources(compareResult)
+		openAPISchema, err := m.getOpenAPISchema(destCluster)
+		if err != nil {
+			state.Phase = common.OperationError
+			state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
+			return
+		}
+
+		patchedTargets, err := normalizeTargetResources(openAPISchema, compareResult)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
@@ -396,33 +414,42 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 //   - applies normalization to the target resources based on the live resources
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
-func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// normalize live and target resources
+func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+	// Normalize live and target resources (cleaning or aligning them)
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
 	}
+
 	patchedTargets := []*unstructured.Unstructured{}
+
 	for idx, live := range cr.reconciliationResult.Live {
 		normalizedTarget := normalized.Targets[idx]
 		if normalizedTarget == nil {
 			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
+		gvk := normalizedTarget.GroupVersionKind()
+
 		originalTarget := cr.reconciliationResult.Target[idx]
 		if live == nil {
+			// No live resource, just use target
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
 
-		var lookupPatchMeta *strategicpatch.PatchMetaFromStruct
-		versionedObject, err := scheme.Scheme.New(normalizedTarget.GroupVersionKind())
-		if err == nil {
-			meta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
-			if err != nil {
+		var (
+			lookupPatchMeta strategicpatch.LookupPatchMeta
+			versionedObject any
+		)
+
+		// Load patch meta struct or OpenAPI schema for CRDs
+		if versionedObject, err = scheme.Scheme.New(gvk); err == nil {
+			if lookupPatchMeta, err = strategicpatch.NewPatchMetaFromStruct(versionedObject); err != nil {
 				return nil, err
 			}
-			lookupPatchMeta = &meta
+		} else if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
+			lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
 		}
 
 		// RespectIgnoreDifferences preserves ignored fields by copying their live
@@ -442,24 +469,37 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			unstructured.RemoveNestedField(normalizedLiveForPatch.Object, "status")
 		}
 
+		// Calculate live patch
 		livePatch, err := getMergePatch(normalizedLiveForPatch, liveForPatch, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
 
-		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject)
+		patchedTarget, err := applyMergePatch(normalizedTarget, livePatch, versionedObject, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
 
-		patchedTargets = append(patchedTargets, normalizedTarget)
+		// Restore non-ignored fields that may have been overwritten due to
+		// patchStrategy:"replace" on a parent field (e.g. policy/v1 PDB selector).
+		// Strategic merge patch treats "replace" fields as atomic, so patching in
+		// one ignored sub-field pulls the entire parent from live, clobbering
+		// non-ignored sibling fields. We detect and undo this here.
+		var normalizedLiveObj map[string]any
+		if normalized.Lives[idx] != nil {
+			normalizedLiveObj = normalized.Lives[idx].Object
+		}
+		restoreNonIgnoredFields(patchedTarget.Object, originalTarget.Object, normalizedTarget.Object, normalizedLiveObj)
+
+		patchedTargets = append(patchedTargets, patchedTarget)
 	}
+
 	return patchedTargets, nil
 }
 
 // getMergePatch calculates and returns the patch between the original and the
 // modified unstructures.
-func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta *strategicpatch.PatchMetaFromStruct) ([]byte, error) {
+func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta strategicpatch.LookupPatchMeta) ([]byte, error) {
 	originalJSON, err := original.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -475,18 +515,35 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
-// applyMergePatch will apply the given patch in the obj and return the patched
-// unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any) (*unstructured.Unstructured, error) {
+// applyMergePatch will apply the given patch in the obj and return the patched unstructure.
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any, meta strategicpatch.LookupPatchMeta) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
 	var patchedJSON []byte
-	if versionedObject == nil {
-		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
-	} else {
+	switch {
+	case versionedObject != nil:
 		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
+	case meta != nil:
+		var originalMap, patchMap map[string]any
+		if err := json.Unmarshal(originalJSON, &originalMap); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(patch, &patchMap); err != nil {
+			return nil, err
+		}
+
+		patchedMap, err := strategicpatch.StrategicMergeMapPatchUsingLookupPatchMeta(originalMap, patchMap, meta)
+		if err != nil {
+			return nil, err
+		}
+		patchedJSON, err = json.Marshal(patchedMap)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
 	}
 	if err != nil {
 		return nil, err
@@ -498,6 +555,60 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 		return nil, err
 	}
 	return patchedObj, nil
+}
+
+// restoreNonIgnoredFields walks patched, original, normalized (target), and
+// normalizedLive in parallel. It corrects three classes of collateral damage
+// caused by patchStrategy:"replace" treating a parent field as atomic:
+//
+//  1. Overwrite — a non-ignored value was replaced with the live value.
+//  2. Drop — a non-ignored key was removed because live lacks it.
+//  3. Add — a non-ignored live-only key leaked into the patched target.
+//
+// A field is considered "not ignored" when normalizedTarget == originalTarget
+// for that field (the normalizer left it alone). For live-only keys (pass 2),
+// a key is non-ignored if it exists in normalizedLive (the normalizer did not
+// strip it from live).
+func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive map[string]any) {
+	// Pass 1: restore non-ignored fields that were overwritten or dropped.
+	for key, originalVal := range original {
+		patchedVal, inPatched := patched[key]
+		normalizedVal, inNormalized := normalizedTarget[key]
+
+		patchedMap, patchedIsMap := patchedVal.(map[string]any)
+		originalMap, originalIsMap := originalVal.(map[string]any)
+		normalizedMap, normalizedIsMap := normalizedVal.(map[string]any)
+
+		if inPatched && patchedIsMap && originalIsMap && normalizedIsMap {
+			var normalizedLiveMap map[string]any
+			if v, ok := normalizedLive[key].(map[string]any); ok {
+				normalizedLiveMap = v
+			}
+			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveMap)
+			continue
+		}
+
+		// Leaf, type-changed, or missing field.
+		// If normalized == original, the normalizer did not touch this field,
+		// so it is not ignored and should keep the original (target) value.
+		if inNormalized && reflect.DeepEqual(normalizedVal, originalVal) && (!inPatched || !reflect.DeepEqual(patchedVal, originalVal)) {
+			patched[key] = originalVal
+		}
+	}
+
+	// Pass 2: remove non-ignored keys that were introduced into patched from
+	// the live object via replace-strategy collateral but do not exist in the
+	// original target. A key is non-ignored if it exists in normalizedLive
+	// (the normalizer did not strip it). Ignored live-only keys are kept —
+	// they were intentionally copied by the livePatch.
+	for key := range patched {
+		if _, inOriginal := original[key]; inOriginal {
+			continue
+		}
+		if _, inNormalizedLive := normalizedLive[key]; inNormalizedLive {
+			delete(patched, key)
+		}
+	}
 }
 
 // hasSharedResourceCondition will check if the Application has any resource that has already
