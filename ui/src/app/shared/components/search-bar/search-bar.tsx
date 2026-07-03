@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Autocomplete, Tooltip} from 'argo-ui';
+import {Autocomplete} from 'argo-ui';
 import classNames from 'classnames';
 import {Key, KeybindingContext} from 'argo-ui/v2';
 
@@ -11,12 +11,9 @@ interface SearchBarProps {
     placeholder?: string;
     /** Disable keyboard shortcuts (useful when parent has custom handling) */
     disableKeyboardShortcuts?: boolean;
-    /** Optional regex toggle. When provided, a `.*` button is rendered next to the input
-     *  and the input's border switches to a teal/red active/invalid state based on the value. */
-    regex?: {
-        enabled: boolean;
-        onToggle: () => void;
-    };
+    /** When true, the input's border switches to a teal/red active/invalid state based on
+     *  whether `value` parses as a valid RegExp. The toggle button lives outside the SearchBar. */
+    regexEnabled?: boolean;
     /** Optional autocomplete configuration */
     autocomplete?: {
         items: Array<string | {value: string; label: string}>;
@@ -26,7 +23,7 @@ interface SearchBarProps {
     };
 }
 
-export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholder = 'Search...', disableKeyboardShortcuts = false, regex, autocomplete}) => {
+export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholder = 'Search...', disableKeyboardShortcuts = false, regexEnabled, autocomplete}) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const searchBarRef = React.useRef<HTMLDivElement>(null);
     const {useKeybinding} = React.useContext(KeybindingContext);
@@ -44,7 +41,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
     };
 
     const regexInvalid = React.useMemo(() => {
-        if (!regex?.enabled || !value) {
+        if (!regexEnabled || !value) {
             return false;
         }
         try {
@@ -53,28 +50,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
         } catch {
             return true;
         }
-    }, [regex?.enabled, value]);
+    }, [regexEnabled, value]);
 
     const inputClassName = classNames('search-bar__input', {
-        'search-bar__input--regex': regex?.enabled && !regexInvalid,
+        'search-bar__input--regex': regexEnabled && !regexInvalid,
         'search-bar__input--regex-invalid': regexInvalid
     });
-
-    const regexToggle = regex && (
-        <Tooltip content={regex.enabled ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
-            <button
-                type='button'
-                aria-label='Toggle regex search'
-                aria-pressed={regex.enabled}
-                className={classNames('search-bar__regex-toggle', {
-                    'search-bar__regex-toggle--active': regex.enabled && !regexInvalid,
-                    'search-bar__regex-toggle--invalid': regexInvalid
-                })}
-                onClick={regex.onToggle}>
-                .*
-            </button>
-        </Tooltip>
-    );
 
     const focusInput = () => {
         if (autocomplete && searchBarRef.current) {
@@ -147,7 +128,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
                             className='argo-field'
                             placeholder={placeholder}
                         />
-                        {regexToggle}
                         <div className='keyboard-hint'>/</div>
                         {value && <i className='fa fa-times' onClick={() => handleChange('')} style={{cursor: 'pointer', marginLeft: '5px'}} />}
                     </div>
@@ -187,7 +167,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
                     }}
                     style={{fontSize: '14px', flex: 1, minWidth: 0}}
                 />
-                {regexToggle}
                 <div className='keyboard-hint'>/</div>
                 {localValue && <i className='fa fa-times' onClick={() => handleChange('')} style={{cursor: 'pointer', marginLeft: '5px'}} />}
             </div>

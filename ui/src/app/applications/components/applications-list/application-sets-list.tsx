@@ -85,7 +85,7 @@ function loadApplicationSets(projects: string[]): Observable<models.ApplicationS
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean}) => React.ReactNode}) => {
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
     const observableQuery$ = useObservableQuery();
 
     return (
@@ -117,8 +117,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                         return {
                             ...viewPref,
                             page: parseInt(params.get('page') || '0', 10),
-                            search: params.get('search') || '',
-                            searchRegex: params.get('searchRegex') === 'true'
+                            search: params.get('search') || ''
                         };
                     })
                 )
@@ -152,10 +151,7 @@ const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean;
             value={content || ''}
             onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search application sets...'}
-            regex={{
-                enabled: searchRegex,
-                onToggle: () => ctx.navigation.goto('.', {searchRegex: !searchRegex || null}, {replace: true})
-            }}
+            regexEnabled={searchRegex}
             autocomplete={{
                 items: appSets.map(appSet => AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
                 filterSuggestions: true,
@@ -180,13 +176,46 @@ const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean;
 
 const ApplicationSetsToolbar = (props: {
     appSets: models.ApplicationSet[];
-    pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean};
+    pref: AppsListPreferences & {page: number; search: string};
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }) => {
+    const regexInvalid = React.useMemo(() => {
+        if (!props.pref.searchRegex || !props.pref.search) {
+            return false;
+        }
+        try {
+            new RegExp(props.pref.search);
+            return false;
+        } catch {
+            return true;
+        }
+    }, [props.pref.searchRegex, props.pref.search]);
+
+    const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${props.pref.searchRegex ? '' : '-o'}${
+        regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
+    }`;
+
     return (
         <React.Fragment key='appset-list-tools'>
             <ApplicationSetsSearchBar content={props.pref.search} searchRegex={props.pref.searchRegex} appSets={props.appSets} ctx={props.ctx} />
+            <Tooltip
+                content={
+                    props.pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'
+                }>
+                <button
+                    type='button'
+                    aria-label='Toggle regex search'
+                    aria-pressed={props.pref.searchRegex}
+                    className={regexToggleClass}
+                    onClick={() => {
+                        services.viewPreferences.updatePreferences({
+                            appList: {...props.pref, searchRegex: !props.pref.searchRegex}
+                        });
+                    }}>
+                    .*
+                </button>
+            </Tooltip>
             <Tooltip content='Toggle Health Status Bar'>
                 <button
                     className={`applications-list__accordion argo-button argo-button--base${props.healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
@@ -400,7 +429,8 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                             view: pref.view,
                                             hideFilters: pref.hideFilters,
                                             statusBarView: pref.statusBarView,
-                                            annotationsFilter: pref.annotationsFilter
+                                            annotationsFilter: pref.annotationsFilter,
+                                            searchRegex: pref.searchRegex
                                         };
                                         const {filteredApps, filterResults} = filterApplicationSets(appSets, appSetPref, pref.search, pref.searchRegex);
 

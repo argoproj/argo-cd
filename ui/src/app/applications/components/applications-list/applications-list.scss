@@ -79,6 +79,17 @@
         margin-left: 10px;
     }
 
+    &__regex-toggle {
+        margin-left: 10px;
+        font-family: monospace;
+        font-weight: 600;
+        &--invalid {
+            background-color: $argo-failed-color !important;
+            border-color: $argo-failed-color !important;
+            color: white !important;
+        }
+    }
+
     &__view-type {
         white-space: nowrap;
         i {

@@ -99,7 +99,7 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean}) => React.ReactNode}) => {
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
     const observableQuery$ = useObservableQuery();
 
     return (
@@ -188,8 +188,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                         return {
                             ...viewPref,
                             page: parseInt(params.get('page') || '0', 10),
-                            search: params.get('search') || '',
-                            searchRegex: params.get('searchRegex') === 'true'
+                            search: params.get('search') || ''
                         };
                     })
                 )
@@ -242,10 +241,7 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
             onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
             disableKeyboardShortcuts={!!appInput}
-            regex={{
-                enabled: searchRegex,
-                onToggle: () => ctx.navigation.goto('.', {searchRegex: !searchRegex || null}, {replace: true})
-            }}
+            regexEnabled={searchRegex}
             autocomplete={{
                 items: apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
                 filterSuggestions: true,
@@ -270,15 +266,45 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
 
 interface ApplicationsToolbarProps {
     applications: models.Application[];
-    pref: AppsListPreferences & {page: number; search: string; searchRegex: boolean};
+    pref: AppsListPreferences & {page: number; search: string};
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
 const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
+    const regexInvalid = React.useMemo(() => {
+        if (!pref.searchRegex || !pref.search) {
+            return false;
+        }
+        try {
+            new RegExp(pref.search);
+            return false;
+        } catch {
+            return true;
+        }
+    }, [pref.searchRegex, pref.search]);
+
+    const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
+        regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
+    }`;
+
     return (
         <React.Fragment key='app-list-tools'>
             <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
+            <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
+                <button
+                    type='button'
+                    aria-label='Toggle regex search'
+                    aria-pressed={pref.searchRegex}
+                    className={regexToggleClass}
+                    onClick={() => {
+                        services.viewPreferences.updatePreferences({
+                            appList: {...pref, searchRegex: !pref.searchRegex}
+                        });
+                    }}>
+                    .*
+                </button>
+            </Tooltip>
             <Tooltip content='Toggle Health Status Bar'>
                 <button
                     className={`applications-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
