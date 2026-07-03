@@ -340,6 +340,14 @@ type clusterCache struct {
 	// receive it as a parameter. See syncEngine.
 	engine syncEngine
 
+	// started latches true on the first EnsureSynced (under store.lock) —
+	// the moment the engine spawns its machinery (watch goroutines /
+	// informers). Construction is inert, so before this point swapping the
+	// engine is safe; after it, goroutines hold references to the engine
+	// they were born under, and SetMode consults this latch to refuse the
+	// swap instead of running two engines' machinery against one store.
+	started bool
+
 	// syncMu serializes EnsureSynced calls to enforce single-flight sync.
 	// Under informer mode, sync() releases store.lock around WaitForCacheSync;
 	// without this gate a second EnsureSynced caller could acquire store.lock
@@ -1086,6 +1094,10 @@ func (c *clusterCache) EnsureSynced() error {
 	if alreadySynced {
 		return syncErr
 	}
+
+	// The engine is about to spawn its machinery — from here on the engine
+	// selection is final (SetMode consults this latch and refuses to swap).
+	c.started = true
 
 	// IMPORTANT: do not hold syncStatus.lock across sync(). Under informer mode
 	// sync() -> syncInformers() releases c.lock while waiting for the initial

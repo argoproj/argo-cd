@@ -58,9 +58,102 @@ type informerEngine struct {
 	firstSyncCompleted bool
 }
 
-// sync performs the informer-mode full (re)sync. See syncInformers.
+// sync performs the informer-mode full (re)sync.
 func (e *informerEngine) sync() error {
-	return e.syncInformers()
+	c := e.c
+	c.log.Info("Start syncing cluster (informer mode)")
+
+	// Cancel any existing informers before rebuilding. watchCancel stops
+	// every namespace watch for a GroupKind (shared context).
+	for _, meta := range c.apisMeta {
+		if meta != nil && meta.watchCancel != nil {
+			meta.watchCancel()
+		}
+	}
+	c.apisMeta = map[schema.GroupKind]*apiMeta{}
+	e.informers = map[schema.GroupKind]map[string]sharedInformer{}
+	c.resources = map[kube.ResourceKey]*Resource{}
+	c.namespacedResources = map[schema.GroupKind]bool{}
+	c.nsIndex = map[string]map[kube.ResourceKey]*Resource{}
+	c.parentUIDToChildren = map[kubetypes.UID]map[kube.ResourceKey]struct{}{}
+
+	version, err := c.kubectl.GetServerVersion(c.config)
+	if err != nil {
+		return fmt.Errorf("get server version: %w", err)
+	}
+	c.serverVersion = version
+
+	apiResources, err := c.kubectl.GetAPIResources(c.config, false, NewNoopSettings())
+	if err != nil {
+		return fmt.Errorf("get api resources: %w", err)
+	}
+	c.apiResources = apiResources
+
+	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
+	if err != nil {
+		return fmt.Errorf("load openapi schema: %w", err)
+	}
+	if gvkParser != nil {
+		c.gvkParser = gvkParser
+	}
+	c.openAPISchema = openAPISchema
+
+	// Discovery + informer startup is shared with the CRD-driven path (the
+	// apisMeta reset above makes its skip-already-watched check a no-op, so
+	// every discovered API starts fresh).
+	if err := e.startMissingWatches(); err != nil {
+		return err
+	}
+
+	// Bound the wait by clusterSyncRetryTimeout so a single broken API
+	// (forbidden, misbehaving aggregated API server, transient list
+	// failure) does not block all reconciliation. Reflectors that haven't
+	// synced keep retrying with backoff in the background; if the
+	// underlying cause clears (e.g., RBAC granted), HasSynced flips true
+	// and c.resources populates via the event handler — no further sync
+	// work needed. The outer EnsureSynced loop runs again after
+	// clusterSyncRetryTimeout, which tears these informers down and
+	// starts a fresh attempt.
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), c.clusterSyncRetryTimeout)
+	defer cancelWait()
+
+	// Wait in short slices, re-snapshotting the watched informers between
+	// them. Two reasons:
+	//   - New informers can appear mid-wait when handleCRDEvent fires
+	//     (CRD-driven startMissingWatches -> startInformersForAPILocked).
+	//     Waiting only on the original snapshot would report success while
+	//     the new informers are still doing their initial list.
+	//   - Informers torn down mid-wait (stopWatching on NotFound/403) have
+	//     a HasSynced that stays false forever — DeltaFIFO only flips it
+	//     after an initial list that will now never happen. Waiting on the
+	//     stale snapshot until waitCtx expires would fail the whole cluster
+	//     sync over a GroupKind that was legitimately purged; re-snapshotting
+	//     drops it from the wait set.
+	//
+	// Release store.lock during each wait — the event handler takes it when
+	// informers dispatch their initial list. Holding it across the wait
+	// would deadlock.
+	var watched []watchedInformer
+	for {
+		watched = e.snapshotWatched()
+		pending := unsyncedInformers(watched)
+		if len(pending) == 0 {
+			break
+		}
+		if waitCtx.Err() != nil {
+			return e.resolveSyncResult(false, watched)
+		}
+		sliceCtx, cancelSlice := context.WithTimeout(waitCtx, informerSyncResnapshotInterval)
+		c.lock.Unlock()
+		// Result deliberately ignored: whether this slice synced everything,
+		// timed out, or raced a teardown, the snapshot at the top of the loop
+		// is the single source of truth for what is still pending.
+		_ = cache.WaitForCacheSync(sliceCtx.Done(), pending...)
+		cancelSlice()
+		c.lock.Lock()
+	}
+
+	return e.resolveSyncResult(true, watched)
 }
 
 // onInvalidate resets first-sync tracking so the next syncInformers treats its
@@ -212,107 +305,6 @@ func (e *informerEngine) startInformersForAPILocked(ctx context.Context, api kub
 type sharedInformer struct {
 	informer cache.SharedIndexInformer
 	cancel   context.CancelFunc
-}
-
-// syncInformers is the informer-mode equivalent of sync(). It drops existing
-// state, runs discovery, and starts an informer per API, then blocks until
-// every informer has completed its initial list. informerEngine.sync
-// delegates here; callers must hold store.lock.
-func (e *informerEngine) syncInformers() error {
-	c := e.c
-	c.log.Info("Start syncing cluster (informer mode)")
-
-	// Cancel any existing informers before rebuilding. watchCancel stops
-	// every namespace watch for a GroupKind (shared context).
-	for _, meta := range c.apisMeta {
-		if meta != nil && meta.watchCancel != nil {
-			meta.watchCancel()
-		}
-	}
-	c.apisMeta = map[schema.GroupKind]*apiMeta{}
-	e.informers = map[schema.GroupKind]map[string]sharedInformer{}
-	c.resources = map[kube.ResourceKey]*Resource{}
-	c.namespacedResources = map[schema.GroupKind]bool{}
-	c.nsIndex = map[string]map[kube.ResourceKey]*Resource{}
-	c.parentUIDToChildren = map[kubetypes.UID]map[kube.ResourceKey]struct{}{}
-
-	version, err := c.kubectl.GetServerVersion(c.config)
-	if err != nil {
-		return fmt.Errorf("get server version: %w", err)
-	}
-	c.serverVersion = version
-
-	apiResources, err := c.kubectl.GetAPIResources(c.config, false, NewNoopSettings())
-	if err != nil {
-		return fmt.Errorf("get api resources: %w", err)
-	}
-	c.apiResources = apiResources
-
-	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
-	if err != nil {
-		return fmt.Errorf("load openapi schema: %w", err)
-	}
-	if gvkParser != nil {
-		c.gvkParser = gvkParser
-	}
-	c.openAPISchema = openAPISchema
-
-	// Discovery + informer startup is shared with the CRD-driven path (the
-	// apisMeta reset above makes its skip-already-watched check a no-op, so
-	// every discovered API starts fresh).
-	if err := e.startMissingWatches(); err != nil {
-		return err
-	}
-
-	// Bound the wait by clusterSyncRetryTimeout so a single broken API
-	// (forbidden, misbehaving aggregated API server, transient list
-	// failure) does not block all reconciliation. Reflectors that haven't
-	// synced keep retrying with backoff in the background; if the
-	// underlying cause clears (e.g., RBAC granted), HasSynced flips true
-	// and c.resources populates via the event handler — no further sync
-	// work needed. The outer EnsureSynced loop runs again after
-	// clusterSyncRetryTimeout, which tears these informers down and
-	// starts a fresh attempt.
-	waitCtx, cancelWait := context.WithTimeout(context.Background(), c.clusterSyncRetryTimeout)
-	defer cancelWait()
-
-	// Wait in short slices, re-snapshotting the watched informers between
-	// them. Two reasons:
-	//   - New informers can appear mid-wait when handleCRDEvent fires
-	//     (CRD-driven startMissingWatches -> startInformersForAPILocked).
-	//     Waiting only on the original snapshot would report success while
-	//     the new informers are still doing their initial list.
-	//   - Informers torn down mid-wait (stopWatching on NotFound/403) have
-	//     a HasSynced that stays false forever — DeltaFIFO only flips it
-	//     after an initial list that will now never happen. Waiting on the
-	//     stale snapshot until waitCtx expires would fail the whole cluster
-	//     sync over a GroupKind that was legitimately purged; re-snapshotting
-	//     drops it from the wait set.
-	//
-	// Release store.lock during each wait — the event handler takes it when
-	// informers dispatch their initial list. Holding it across the wait
-	// would deadlock.
-	var watched []watchedInformer
-	for {
-		watched = e.snapshotWatched()
-		pending := unsyncedInformers(watched)
-		if len(pending) == 0 {
-			break
-		}
-		if waitCtx.Err() != nil {
-			return e.resolveSyncResult(false, watched)
-		}
-		sliceCtx, cancelSlice := context.WithTimeout(waitCtx, informerSyncResnapshotInterval)
-		c.lock.Unlock()
-		// Result deliberately ignored: whether this slice synced everything,
-		// timed out, or raced a teardown, the snapshot at the top of the loop
-		// is the single source of truth for what is still pending.
-		_ = cache.WaitForCacheSync(sliceCtx.Done(), pending...)
-		cancelSlice()
-		c.lock.Lock()
-	}
-
-	return e.resolveSyncResult(true, watched)
 }
 
 // informerSyncResnapshotInterval is how long each WaitForCacheSync slice in

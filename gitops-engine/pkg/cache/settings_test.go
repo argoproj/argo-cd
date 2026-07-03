@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
@@ -85,4 +86,24 @@ func TestSetEventsProcessingInterval(t *testing.T) {
 	interval := 1 * time.Second
 	cache.Invalidate(SetEventProcessingInterval(interval))
 	assert.Equal(t, interval, cache.eventProcessingInterval)
+}
+// TestSetMode_RefusedAfterStart pins the construction-time-only contract:
+// once the cache has started (first EnsureSynced spawned the engine's
+// machinery), SetMode must keep the running engine rather than swap in a
+// fresh one — a swap would leave the old engine's still-draining goroutines
+// re-entering the lifecycle alongside the new engine's machinery.
+func TestSetMode_RefusedAfterStart(t *testing.T) {
+	t.Parallel()
+
+	// Before start, SetMode swaps freely (construction path).
+	cache := newSettingsTestCache(SetMode(ModeInformer))
+	_, isInformer := cache.engine.(*informerEngine)
+	assert.True(t, isInformer, "construction-time SetMode must install the requested engine")
+
+	// After start, SetMode must be refused.
+	cluster := newCluster(t)
+	require.NoError(t, cluster.EnsureSynced())
+	runningEngine := cluster.engine
+	cluster.Invalidate(SetMode(ModeInformer))
+	assert.Same(t, runningEngine, cluster.engine, "post-start SetMode must keep the running engine")
 }

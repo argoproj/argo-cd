@@ -201,13 +201,19 @@ const (
 // ModeLegacy when unset.
 //
 // Construction-time only: pass it to NewClusterCache, before the cache has
-// synced. Swapping the engine on a LIVE cache (via Invalidate(SetMode(...)))
-// is not supported — goroutines spawned by the replaced engine can still be
+// started (first EnsureSynced). Swapping the engine on a started cache is
+// not supported — goroutines spawned by the replaced engine can still be
 // draining and would re-enter the old engine's lifecycle (handleCRDEvent /
 // handleAPIServiceEvent pass the engine they were born under), running its
-// watch machinery alongside the replacement's.
+// watch machinery alongside the replacement's. Applying it after start
+// (e.g. via Invalidate(SetMode(...))) is therefore refused with an error
+// log, keeping the running engine.
 func SetMode(mode Mode) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
+		if cache.started {
+			cache.log.Error(nil, "SetMode ignored: the engine mode cannot change after the cluster cache has started; construct a new cache instead", "mode", mode)
+			return
+		}
 		cache.engine = newSyncEngine(mode, cache.store)
 	}
 }
