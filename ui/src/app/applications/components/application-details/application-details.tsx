@@ -1194,7 +1194,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     <Paginate
                                                         key={highlightNodeKey || 'grouped-resources'}
                                                         page={state.slidingPanelPage}
-                                                        data={sortResources(state.groupedResources, groupedResourceSort)}
+                                                        data={sortResources(groupedResources, groupedResourceSort)}
                                                         onPageChange={page => setState(prevState => ({...prevState, slidingPanelPage: page}))}
                                                         preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}
                                                         focusItemKey={highlightNodeKey || undefined}
