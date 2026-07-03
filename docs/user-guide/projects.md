@@ -132,6 +132,14 @@ argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 ```
+!!! note
+    `namespaceResourceWhitelist` (and `namespaceResourceBlacklist`) do not only
+    control what is allowed to sync into the cluster. They also determine which
+    resource kinds are displayed in the Application's resource tree in the Argo CD
+    UI. If a child resource's `Group/Kind` (for example `Pod` or `ReplicaSet`) is
+    not permitted by the project, that resource will still exist and run normally
+    in the cluster, but it will be hidden from the resource tree until its
+    `Group/Kind` is added to the whitelist.
 
 #### Restrict Cluster-Scoped Resources by Name
 

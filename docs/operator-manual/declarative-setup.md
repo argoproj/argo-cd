@@ -169,6 +169,12 @@ spec:
     jwtTokens:
     - iat: 1535390316
 ```
+> [!NOTE]
+> `namespaceResourceWhitelist` and `namespaceResourceBlacklist` do more than
+> control what is allowed to sync into the cluster. They also determine which
+> child resource kinds (for example `Pod` or `ReplicaSet` under a `Deployment`)
+> are shown in the Application's resource tree in the Argo CD UI. See
+> [Managing Projects](../user-guide/projects.md#managing-projects) for details.
 
 ## Repositories
 
