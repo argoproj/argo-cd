@@ -938,7 +938,7 @@ type ApplicationSourceDirectory struct {
 	// Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
 	Include string `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
 	// AllowCustomExtensions lets a user add custom extensions other than what is already supported today like .yaml.sealed
-	AllowCustomExtensions bool `json:"allowCustomExtensions,omitempty" protobuf:"bytes,5,name=allowCustomExtensions"`
+	AllowCustomExtensions bool `json:"allowCustomExtensions,omitempty" protobuf:"bytes,5,opt,name=allowCustomExtensions"`
 }
 
 // IsZero returns true if the ApplicationSourceDirectory is considered empty
