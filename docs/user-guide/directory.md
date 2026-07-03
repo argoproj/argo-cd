@@ -131,6 +131,83 @@ spec:
       include: '*.yaml'
 ```
 
+### Allowing Custom File Extensions
+
+By default, a directory-type application only considers files with the built-in manifest extensions
+`.yaml`, `.yml`, `.json`, and `.jsonnet`. Any other file is skipped *before* the `include`/`exclude`
+patterns are ever evaluated. This means an `include` pattern like `*.yaml.sealed` has no effect on its
+own since the file is filtered out by extension first, so the pattern never gets a chance to match.
+
+This is a problem for workflows that store manifests under a non-standard extension by convention. A
+common example is [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), where encrypted
+resources are named `*.yaml.sealed` to signal that they are sealed rather than plain YAML.
+
+To support these cases, set `allowCustomExtensions: true`. When enabled, the built-in extension filter is
+**disabled entirely**, and the `include`/`exclude` glob patterns become the *only* mechanism that decides
+which files are treated as manifests.
+
+```shell
+argocd app set guestbook --directory-allow-custom-extensions --directory-include "{*.yaml.sealed,*.yaml,*.yml,*.json}"
+```
+
+To accomplish the same thing declaratively, use this syntax:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  source:
+    directory:
+      allowCustomExtensions: true
+      include: '{*.yaml.sealed,*.yaml,*.yml,*.json}'
+```
+
+> [!IMPORTANT]
+> When `allowCustomExtensions` is `true`, **you are fully responsible for filtering.** Because the
+> built-in extension filter is turned off, the standard `.yaml`, `.yml`, `.json`, and `.jsonnet`
+> extensions are **no longer matched automatically** so you must list every extension you want in the
+> `include` pattern, including the standard ones. If your example above only used
+> `include: '*.yaml.sealed'`, your regular `.yaml` and `.json` manifests would be silently ignored.
+
+#### Why is this opt-in and defaulted to off?
+
+The field defaults to `false` so that existing applications behave exactly as before as turning on custom
+extensions is a deliberate choice, never a silent change. The built-in extension filter also acts as a
+safety net: it keeps unrelated files (documentation, license files, images, lockfiles) out of manifest
+generation without any configuration. Disabling it hands that responsibility to you, which is why it is
+gated behind an explicit flag.
+
+#### Filtering behavior with the flag enabled
+
+The `include` and `exclude` patterns work exactly as described in the sections above. `exclude` is applied
+first, then `include`. The only difference is that the extension pre-filter is skipped. So a file is
+selected when it matches `include` (or `include` is empty) **and** does not match `exclude`.
+
+If you set `allowCustomExtensions: true` **without** any `include` or `exclude`, then *every* file in the
+directory is read and treated as a candidate manifest. Argo CD logs a warning in this case because it is
+rarely what you want:
+
+- Non-manifest files (that don't contain `apiVersion`, `kind`, and `metadata`) are still safely ignored,
+  but every file is read from disk and its size counts toward the maximum combined manifest size limit
+  (the `reposerver.max.combined.directory.manifests.size` setting, default `10M`) which is a large binary in the
+  directory that can cause manifest generation to fail.
+- A stray file that happens to be a valid Kubernetes manifest would be applied to your cluster
+  unintentionally.
+
+This "consider everything" behavior is intentional and can be useful for repositories that are structured
+so that *every* file is a manifest regardless of extension. If that is your case, prefer scoping it with an
+`exclude` pattern for the known non-manifest files rather than leaving both patterns empty:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  source:
+    directory:
+      allowCustomExtensions: true
+      exclude: '{*.md,LICENSE,*.png}'
+```
+
 ### Skipping File Rendering
 
 In some cases, repositories may contain YAML files that resemble Kubernetes manifests because they include fields like `apiVersion`, `kind`, and `metadata`, but are not intended to be rendered or applied as actual Kubernetes resources. Examples include Helm `values.yaml` files or configuration snippets used by CI/CD pipelines.
