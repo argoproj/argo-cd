@@ -230,13 +230,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) ClusterCac
 	}
 	cache := &clusterCache{
 		store: s,
-		// Default to the legacy engine; a SetMode option below may replace it.
-		// Set before applying opts so SetMode (which swaps cache.engine) wins.
+		// Default to the legacy engine; a SetMode option below may replace it
+		// (retiring this instance). Set before applying opts so SetMode wins.
 		engine: newSyncEngine(ModeLegacy, s),
 	}
-	// Give the store a way to resolve the active engine at call time (see the
-	// currentEngine field doc). Reads cache.engine, so callers hold store.lock.
-	s.currentEngine = func() syncEngine { return cache.engine }
 	for i := range opts {
 		opts[i](cache)
 	}
@@ -246,12 +243,14 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) ClusterCac
 // store holds the shared, mode-agnostic cluster cache state and operations:
 // the resource index, the hierarchy indexes, discovery/config, event handler
 // registries, and cluster metadata. It is a leaf: each engine holds a *store,
-// but store holds no direct reference to any engine (the one shared op that
-// needs one, handleCRDEvent, resolves the ACTIVE engine at call time through
-// the currentEngine indirection installed by the facade). This keeps the
-// dependency one-directional — engines depend on store, not vice versa — and
-// keeps the legacy and informer lifecycles decoupled from each other and from
-// the public type.
+// but store holds no reference to any engine — the shared ops that need
+// lifecycle re-entry (handleCRDEvent, handleAPIServiceEvent) receive the
+// engine as a parameter; callers are always an engine and pass themselves.
+// This keeps the dependency one-directional — engines depend on store, not
+// vice versa — and keeps the two lifecycles decoupled from each other and
+// from the public type. The engine parameter is trusted to be the active
+// engine: SetMode is construction-time only (see its doc), so an engine that
+// has spawned goroutines is never replaced.
 //
 // Field placement follows one rule: store owns configuration and shared
 // state; each engine owns its own per-sync runtime state.
@@ -270,15 +269,6 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) ClusterCac
 // engine (the mode selector) and the EnsureSynced single-flight gate.
 type store struct {
 	syncStatus clusterCacheSync
-
-	// currentEngine returns the facade's ACTIVE engine (clusterCache.engine).
-	// Installed by NewClusterCache; must be called under store.lock, since
-	// SetMode (via Invalidate) swaps the engine under that lock. It exists so
-	// handleCRDEvent always re-enters the engine that is current at call time:
-	// dispatching on an engine captured earlier (e.g. by a watch goroutine
-	// spawned before an Invalidate(SetMode(...))) would let a stale engine
-	// restart its watch machinery alongside the replacement's.
-	currentEngine func() syncEngine
 
 	apisMeta              map[schema.GroupKind]*apiMeta
 	batchEventsProcessing bool
@@ -343,10 +333,11 @@ type clusterCache struct {
 
 	// engine holds the mode-specific lifecycle implementation (legacy
 	// list/watch vs. informer) and is the authoritative selector for which
-	// implementation is active. Defaults to the legacy engine; SetMode swaps
-	// it. Lives on the facade rather than *store so the shared layer stays a
-	// leaf; the one store op that needs it (handleCRDEvent) receives it as a
-	// parameter. See syncEngine.
+	// implementation is active. Defaults to the legacy engine; SetMode
+	// replaces it at construction time only (see SetMode). Lives on the
+	// facade rather than *store so the shared layer stays a leaf; the store
+	// ops that need an engine (handleCRDEvent, handleAPIServiceEvent)
+	// receive it as a parameter. See syncEngine.
 	engine syncEngine
 
 	// syncMu serializes EnsureSynced calls to enforce single-flight sync.
@@ -817,15 +808,14 @@ func (c *store) listResources(ctx context.Context, resClient dynamic.ResourceInt
 
 // handleCRDEvent reacts to a CRD add/modify/delete event on the watch
 // stream. It updates c.apiResources, triggers startMissingWatches for new
-// or changed CRDs, and reloads the OpenAPI schema. The engine is resolved via
-// c.currentEngine AT CALL TIME, under store.lock: the emitting goroutine may
-// have been spawned by an engine that Invalidate(SetMode(...)) has since
-// replaced, and startMissingWatches must run on the active engine, not the
-// stale one (pre-engine-split code got this for free by re-reading c.mode).
+// or changed CRDs, and reloads the OpenAPI schema. The engine is passed in
+// (rather than stored on *store) so the shared layer stays a leaf; callers
+// are always an engine and pass themselves, and the parameter is always the
+// active engine because SetMode is construction-time only (see SetMode).
 // Safe to call from any event source — the legacy watch loop invokes it
 // directly, and the informer engine calls it from its event handler via
 // dispatchEvent.
-func (c *store) handleCRDEvent(event watch.EventType, obj *unstructured.Unstructured) {
+func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *unstructured.Unstructured) {
 	resources, err := crdVersionsToAPIResources(obj)
 	if err != nil {
 		c.log.Error(err, "Failed to extract CRD resources")
@@ -854,9 +844,7 @@ func (c *store) handleCRDEvent(event watch.EventType, obj *unstructured.Unstruct
 				c.appendAPIResource(resources[i])
 			}
 		}
-		if err := runSynced(&c.lock, func() error {
-			return c.currentEngine().startMissingWatches()
-		}); err != nil {
+		if err := runSynced(&c.lock, engine.startMissingWatches); err != nil {
 			c.log.Error(err, "Failed to start missing watch")
 		}
 	}
@@ -916,8 +904,9 @@ func (c *store) reloadOpenAPISchema() error {
 // Argo CD started). Re-run discovery so those resources get watched, mirroring
 // how CRD events are handled by handleCRDEvent. Otherwise the new kinds remain
 // invisible until the next manual cache invalidation or full resync. Like
-// handleCRDEvent, it is safe to call from any event source.
-func (c *store) handleAPIServiceEvent(event watch.EventType, obj *unstructured.Unstructured) {
+// handleCRDEvent, it is safe to call from any event source, and the engine
+// parameter follows the same rules (callers pass themselves).
+func (c *store) handleAPIServiceEvent(engine syncEngine, event watch.EventType, obj *unstructured.Unstructured) {
 	deleted := event == watch.Deleted
 	if !deleted && !isAPIServiceAvailable(obj) {
 		return
@@ -929,7 +918,7 @@ func (c *store) handleAPIServiceEvent(event watch.EventType, obj *unstructured.U
 	// APIService's own group is served or we exhaust our attempts.
 	group, _, _ := unstructured.NestedString(obj.Object, "spec", "group")
 	c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event, "name", obj.GetName(), "group", group)
-	go c.reconcileAPIServiceWatches(group, !deleted)
+	go c.reconcileAPIServiceWatches(engine, group, !deleted)
 }
 
 // reconcileAPIServiceWatches re-runs discovery and starts any missing watches in
@@ -938,18 +927,14 @@ func (c *store) handleAPIServiceEvent(event watch.EventType, obj *unstructured.U
 // while Available) it retries with exponential backoff (9 attempts, intervals
 // growing 500ms -> ~8.5s for a ~25s total budget) until the APIService's group
 // is served by the cluster (i.e. a watch for it has been started) or the attempts
-// are exhausted. For deletions it reconciles once. startMissingWatches resolves
-// the ACTIVE engine at call time (currentEngine) — this goroutine can outlive
-// an Invalidate(SetMode(...)) engine swap.
-func (c *store) reconcileAPIServiceWatches(group string, waitForGroup bool) {
+// are exhausted. For deletions it reconciles once.
+func (c *store) reconcileAPIServiceWatches(engine syncEngine, group string, waitForGroup bool) {
 	err := wait.ExponentialBackoff(wait.Backoff{
 		Duration: 500 * time.Millisecond,
 		Factor:   1.5,
 		Steps:    9,
 	}, func() (bool, error) {
-		if err := runSynced(&c.lock, func() error {
-			return c.currentEngine().startMissingWatches()
-		}); err != nil {
+		if err := runSynced(&c.lock, engine.startMissingWatches); err != nil {
 			c.log.Error(err, "Failed to start missing watches after APIService event")
 		}
 		if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {

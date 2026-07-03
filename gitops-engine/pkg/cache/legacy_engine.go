@@ -384,9 +384,9 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 				e.recordEvent(event.Type, obj)
 				if kube.IsCRD(obj) {
-					c.handleCRDEvent(event.Type, obj)
+					c.handleCRDEvent(e, event.Type, obj)
 				} else if kube.IsAPIService(obj) {
-					c.handleAPIServiceEvent(event.Type, obj)
+					c.handleAPIServiceEvent(e, event.Type, obj)
 				}
 			}
 		}

@@ -24,9 +24,9 @@ func (e *informerEngine) dispatchEvent(event watch.EventType, un *unstructured.U
 		h(event, un)
 	}
 	if kube.IsCRD(un) {
-		c.handleCRDEvent(event, un)
+		c.handleCRDEvent(e, event, un)
 	} else if kube.IsAPIService(un) {
-		c.handleAPIServiceEvent(event, un)
+		c.handleAPIServiceEvent(e, event, un)
 	}
 }
 

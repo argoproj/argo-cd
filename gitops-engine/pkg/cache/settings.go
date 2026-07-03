@@ -198,7 +198,14 @@ const (
 )
 
 // SetMode selects which cluster cache implementation to use. Defaults to
-// ModeLegacy when unset. It swaps the active syncEngine in place.
+// ModeLegacy when unset.
+//
+// Construction-time only: pass it to NewClusterCache, before the cache has
+// synced. Swapping the engine on a LIVE cache (via Invalidate(SetMode(...)))
+// is not supported — goroutines spawned by the replaced engine can still be
+// draining and would re-enter the old engine's lifecycle (handleCRDEvent /
+// handleAPIServiceEvent pass the engine they were born under), running its
+// watch machinery alongside the replacement's.
 func SetMode(mode Mode) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		cache.engine = newSyncEngine(mode, cache.store)

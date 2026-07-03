@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
@@ -141,42 +140,3 @@ func TestLegacyStopWatching_RemovesNamespacedResourcesEntry(t *testing.T) {
 	assert.False(t, advertised, "stopWatching must also remove the GK from namespacedResources")
 }
 
-// TestHandleCRDEvent_DispatchesToCurrentEngine guards the engine-swap race:
-// a watch goroutine spawned by the legacy engine can outlive
-// Invalidate(SetMode(ModeInformer)) and deliver a CRD event afterwards.
-// handleCRDEvent must resolve the engine AT CALL TIME (store.currentEngine)
-// so startMissingWatches runs on the active informer engine — dispatching on
-// the goroutine's own (stale) engine would restart legacy watch machinery
-// alongside the informer engine's on the same store.
-func TestHandleCRDEvent_DispatchesToCurrentEngine(t *testing.T) {
-	cluster := newCluster(t)
-	require.NoError(t, cluster.EnsureSynced())
-
-	// Swap engines the way a library caller would.
-	cluster.Invalidate(SetMode(ModeInformer))
-
-	crd := &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "apiextensions.k8s.io/v1",
-		"kind":       "CustomResourceDefinition",
-		"metadata":   map[string]any{"name": "crontabs.stable.example.com"},
-		"spec": map[string]any{
-			"group": "stable.example.com",
-			"names": map[string]any{"kind": "CronTab", "plural": "crontabs", "singular": "crontab"},
-			"scope": "Namespaced",
-			"versions": []any{
-				map[string]any{"name": "v1", "served": true, "storage": true},
-			},
-		},
-	}}
-
-	// The stale legacy watch goroutine's call site is c.handleCRDEvent(...) —
-	// exactly this, with no engine threaded through.
-	require.NotPanics(t, func() { cluster.handleCRDEvent(watch.Added, crd) })
-
-	cluster.lock.RLock()
-	defer cluster.lock.RUnlock()
-	_, isInformer := cluster.engine.(*informerEngine)
-	require.True(t, isInformer, "sanity: the active engine is the informer engine")
-	assert.NotEmpty(t, informerEngineOf(cluster).informers,
-		"startMissingWatches must have run on the ACTIVE (informer) engine — its private informer index is populated")
-}

@@ -351,7 +351,7 @@ func TestHandleCRDEvent_LogsInnerCRDGroupKind(t *testing.T) {
 	// startMissingWatches and reloadOpenAPISchema will error because the
 	// MockKubectlCmd here has no APIResources, but handleCRDEvent logs
 	// before that — we don't care about the downstream errors.
-	c.handleCRDEvent(watch.Modified, crd)
+	c.handleCRDEvent(c.engine, watch.Modified, crd)
 
 	mu.Lock()
 	logged := logBuf.String()
@@ -395,7 +395,7 @@ func TestHandleCRDEvent_LogsInnerCRDGroupKindOnDecodeFailure(t *testing.T) {
 			"versions": "not-a-list",
 		},
 	}}
-	c.handleCRDEvent(watch.Modified, badCRD)
+	c.handleCRDEvent(c.engine, watch.Modified, badCRD)
 
 	mu.Lock()
 	logged := logBuf.String()

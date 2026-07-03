@@ -39,8 +39,14 @@ func legacyEngineOf(c *clusterCache) *legacyEngine {
 // these facade shims exist only for white-box tests that drive a single
 // lifecycle step.
 
+// sync honors the syncEngine contract ("called with store.lock held", see
+// engine.go) the same way production EnsureSynced does. Without the lock, a
+// direct test call races the store-map resets in the engine's sync against
+// watch goroutines from a previous sync still dispatching events under
+// store.lock (caught by -race in tests that fire watch events and then
+// re-sync, e.g. TestResyncClearsStaleNamespaceIndex).
 func (c *clusterCache) sync() error {
-	return c.engine.sync()
+	return runSynced(&c.lock, c.engine.sync)
 }
 
 func (c *clusterCache) startMissingWatches() error {
