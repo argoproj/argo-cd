@@ -1959,6 +1959,98 @@ func TestTransformForInformer_KeepsManifestWhenHandlerOptsIn(t *testing.T) {
 	assert.Equal(t, "Healthy", info.Health)
 }
 
+// TestTransformForInformer_RetainsManifestForDiscoveryKinds pins the
+// manifest-retention special case for the two kinds that drive dynamic-API
+// discovery, even when the populate handler opts out of caching (argo-cd's
+// handler returns cacheManifest=false for anything that is not app-tracked
+// or a CRD).
+//
+// Regression context (e2e TestAPIServiceLateRegistrationIsDiscovered):
+// APIServices used to lose spec+status in the transform, so dispatchEvent
+// handed handleAPIServiceEvent a synthesized metadata shell. The
+// isAPIServiceAvailable gate then failed on every Add/Modify and a
+// late-registered aggregated API (wardle) was never watched — its resources
+// stayed invisible in the app resource tree until a manual invalidation.
+// Deletes half-worked (the gate is skipped) but logged group="" because
+// spec.group was missing too.
+func TestTransformForInformer_RetainsManifestForDiscoveryKinds(t *testing.T) {
+	newCache := func(t *testing.T) *clusterCache {
+		t.Helper()
+		cache := newTransformTestCache(t)
+		cache.populateResourceInfoHandler = func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+			return nil, false // opt out, like argo-cd does for non-app resources
+		}
+		return cache
+	}
+
+	t.Run("APIService keeps availability condition and group", func(t *testing.T) {
+		out, err := newCache(t).transformForInformer(sampleAPIService())
+		require.NoError(t, err)
+
+		cr := out.(*cachedResource)
+		require.NotNil(t, cr.Resource.Resource, "APIService manifest must be retained despite cacheManifest=false")
+		assert.True(t, isAPIServiceAvailable(cr.Resource.Resource),
+			"handleAPIServiceEvent's Available gate must see status.conditions")
+		group, _, _ := unstructured.NestedString(cr.Resource.Resource.Object, "spec", "group")
+		assert.Equal(t, "wardle.example.com", group, "reconcileAPIServiceWatches needs spec.group to wait for the group")
+	})
+
+	t.Run("CRD keeps served versions", func(t *testing.T) {
+		crd := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apiextensions.k8s.io/v1",
+			"kind":       "CustomResourceDefinition",
+			"metadata":   map[string]any{"name": "crontabs.stable.example.com", "uid": "uid-crd"},
+			"spec": map[string]any{
+				"group": "stable.example.com",
+				"names": map[string]any{"kind": "CronTab", "plural": "crontabs", "singular": "crontab"},
+				"scope": "Namespaced",
+				"versions": []any{
+					map[string]any{"name": "v1", "served": true, "storage": true},
+				},
+			},
+		}}
+		out, err := newCache(t).transformForInformer(crd)
+		require.NoError(t, err)
+
+		cr := out.(*cachedResource)
+		require.NotNil(t, cr.Resource.Resource, "CRD manifest must be retained despite cacheManifest=false")
+		versions, _, _ := unstructured.NestedSlice(cr.Resource.Resource.Object, "spec", "versions")
+		assert.NotEmpty(t, versions, "handleCRDEvent -> crdVersionsToAPIResources needs spec.versions")
+	})
+
+	t.Run("other kinds still drop the manifest", func(t *testing.T) {
+		out, err := newCache(t).transformForInformer(samplePod())
+		require.NoError(t, err)
+		assert.Nil(t, out.(*cachedResource).Resource.Resource,
+			"the discovery-kind carve-out must not retain manifests for ordinary resources")
+	})
+}
+
+// sampleAPIService returns an APIService whose backing aggregated apiserver
+// reports Available, the shape the kube-apiserver emits once an extension
+// apiserver (e.g. the e2e wardle server) is up.
+func sampleAPIService() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apiregistration.k8s.io/v1",
+		"kind":       "APIService",
+		"metadata": map[string]any{
+			"name":            "v1alpha1.wardle.example.com",
+			"uid":             "apiservice-uid",
+			"resourceVersion": "7",
+		},
+		"spec": map[string]any{
+			"group":   "wardle.example.com",
+			"version": "v1alpha1",
+			"service": map[string]any{"name": "api", "namespace": "wardle"},
+		},
+		"status": map[string]any{
+			"conditions": []any{
+				map[string]any{"type": "Available", "status": "True"},
+			},
+		},
+	}}
+}
+
 func TestTransformForInformer_HandlerIsRootArg(t *testing.T) {
 	cache := newTransformTestCache(t)
 	var sawIsRoot bool

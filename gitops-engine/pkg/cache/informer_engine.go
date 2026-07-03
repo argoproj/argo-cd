@@ -583,12 +583,18 @@ func (e *informerEngine) transformForInformer(obj any) (any, error) {
 		return obj, nil
 	}
 	res := e.c.newResource(un)
-	// handleCRDEvent -> crdVersionsToAPIResources needs spec.versions to
-	// drive startMissingWatches / deleteAPIResource. Always retain the
-	// full CRD manifest regardless of the populate handler's cacheManifest
-	// return so direct gitops-engine users (and a future argo-cd handler
-	// change) keep correct dynamic API updates.
-	if res.Resource == nil && kube.IsCRD(un) {
+	// Dynamic-API discovery needs more than the metadata shell that
+	// unstructuredFromCachedResource can synthesize, so always retain the
+	// full manifest for the two kinds that drive it, regardless of the
+	// populate handler's cacheManifest return:
+	//   - CRDs: handleCRDEvent -> crdVersionsToAPIResources needs
+	//     spec.versions to drive startMissingWatches / deleteAPIResource.
+	//   - APIServices: handleAPIServiceEvent needs status.conditions (the
+	//     Available gate) and spec.group; without them every Add/Modify is
+	//     dropped at the availability check and a late-registered
+	//     aggregated API is never watched (caught by e2e
+	//     TestAPIServiceLateRegistrationIsDiscovered).
+	if res.Resource == nil && (kube.IsCRD(un) || kube.IsAPIService(un)) {
 		res.Resource = un
 	}
 	return &cachedResource{
