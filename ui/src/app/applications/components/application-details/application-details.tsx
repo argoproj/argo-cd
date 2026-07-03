@@ -304,20 +304,24 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
         [props.match.params.name, getAppNamespace, appContext, objectListKind]
     );
 
-    const getPageTitle = useCallback((view: string) => {
-        const {Tree, Pods, Network, List} = AppsDetailsViewKey;
-        switch (view) {
-            case Tree:
-                return 'Application Details Tree';
-            case Network:
-                return 'Application Details Network';
-            case Pods:
-                return 'Application Details Pods';
-            case List:
-                return 'Application Details List';
-        }
-        return '';
-    }, []);
+    const getPageTitle = useCallback(
+        (view: string) => {
+            const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+            const resourceKind = objectListKind === 'applicationset' ? 'ApplicationSet' : 'Application';
+            switch (view) {
+                case Tree:
+                    return `${resourceKind} Details Tree`;
+                case Network:
+                    return `${resourceKind} Details Network`;
+                case Pods:
+                    return `${resourceKind} Details Pods`;
+                case List:
+                    return `${resourceKind} Details List`;
+            }
+            return '';
+        },
+        [objectListKind]
+    );
 
     const getContent = useCallback((application: models.Application, source: models.ApplicationSource, revisions: string[], revision: string) => {
         const renderCommitMessage = (message: string) =>
