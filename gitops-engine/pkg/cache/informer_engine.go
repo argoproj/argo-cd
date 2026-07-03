@@ -175,7 +175,7 @@ func (e *informerEngine) startInformersForAPILocked(ctx context.Context, api kub
 	// Build every informer up front so a partial failure doesn't leave
 	// apisMeta half-populated.
 	err = c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-		informer := e.buildInformer(watchCtx, resClient, api, ns)
+		informer := e.buildInformer(watchCtx, client, resClient, api, ns)
 		informers[ns] = sharedInformer{informer: informer, cancel: cancel}
 		return nil
 	})
@@ -414,7 +414,11 @@ func (e *informerEngine) resolveSyncResult(synced bool, watched []watchedInforme
 // Invalidate or stopWatching), the attached event handler bails so that
 // post-cancel events from a still-draining reflector goroutine cannot
 // mutate fresh state owned by a subsequent syncInformers run.
-func (e *informerEngine) buildInformer(ctx context.Context, resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) cache.SharedIndexInformer {
+//
+// client is the dynamic client that resClient was derived from; it is
+// consulted (via ToListWatcherWithWatchListSemantics below) for whether
+// WatchList semantics are supported.
+func (e *informerEngine) buildInformer(ctx context.Context, client dynamic.Interface, resClient dynamic.ResourceInterface, api kube.APIResourceInfo, ns string) cache.SharedIndexInformer {
 	c := e.c
 	lw := &cache.ListWatch{
 		// Wrap List with store.listSemaphore so initial-list memory pressure
@@ -436,12 +440,21 @@ func (e *informerEngine) buildInformer(ctx context.Context, resClient dynamic.Re
 	}
 
 	informer := cache.NewSharedIndexInformerWithOptions(
-		// Opt out of WatchList (streaming initial events) semantics, which
-		// client-go >= v0.36 enables by default. Under WatchList the initial
-		// sync arrives through Watch and BYPASSES the semaphore-bounded,
-		// paged List above — losing the startup memory bounding this engine
-		// relies on. Revisit if the semaphore moves into the watch path.
-		noWatchListSemantics{lw},
+		// Wrap the ListWatch so WatchList (streaming initial events,
+		// KEP-3157) capability is decided by the underlying client, the same
+		// way dynamicinformer does it: real clients use watch-list when the
+		// client-go feature gate and the server support it (the reflector
+		// falls back to classic LIST/WATCH otherwise), while test fakes —
+		// which never send the end-of-initial-events bookmark — declare
+		// non-support and get the classic path. Without this wrapper our
+		// closure-based ListWatch hides the client's capability marker and
+		// the reflector would stream against fakes and hang.
+		//
+		// Note the listSemaphore above only bounds the classic paged-List
+		// path; under watch-list the initial state streams object-by-object,
+		// which doesn't produce the page-sized allocation spikes the
+		// semaphore exists to bound.
+		cache.ToListWatcherWithWatchListSemantics(lw, client),
 		&unstructured.Unstructured{},
 		cache.SharedIndexInformerOptions{
 			// ResyncPeriod=0 disables the informer's own periodic full-list
@@ -465,18 +478,6 @@ func (e *informerEngine) buildInformer(ctx context.Context, resClient dynamic.Re
 	_, _ = informer.AddEventHandler(e.informerEventHandlerForCtx(ctx))
 	return informer
 }
-
-// noWatchListSemantics wraps a ListWatch and declares that it does NOT
-// support WatchList (streaming initial events) semantics, so the reflector
-// falls back to the classic paged List + Watch flow (see the rationale at
-// the buildInformer call site). Implements the unexported
-// unSupportedWatchListSemantics interface consulted by
-// watchlist.DoesClientNotSupportWatchListSemantics.
-type noWatchListSemantics struct {
-	*cache.ListWatch
-}
-
-func (noWatchListSemantics) IsWatchListSemanticsUnSupported() bool { return true }
 
 // informerWatchErrorHandler is installed on every informer so list/watch
 // errors route to stopWatching when appropriate:

@@ -78,7 +78,7 @@ func TestBuildInformer_TransformAndEventHandlerInstalled(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	informer := c.buildInformer(ctx, client.Resource(podsGVR), podsAPI(), "")
+	informer := c.buildInformer(ctx, client, client.Resource(podsGVR), podsAPI(), "")
 
 	go informer.RunWithContext(ctx)
 	require.True(t, cache.WaitForCacheSync(ctx.Done(), informer.HasSynced),
@@ -1160,7 +1160,7 @@ func TestBuildInformer_ListAcquiresSemaphore(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	informer := c.buildInformer(ctx, client.Resource(podsGVR), podsAPI(), "")
+	informer := c.buildInformer(ctx, client, client.Resource(podsGVR), podsAPI(), "")
 	go informer.RunWithContext(ctx)
 	require.True(t, cache.WaitForCacheSync(ctx.Done(), informer.HasSynced))
 
