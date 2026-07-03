@@ -570,7 +570,7 @@ function renderPodGroup(
                                                 style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
                                                 onClick={e => e.stopPropagation()}
                                                 title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                                <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                                <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                             </span>
                                         );
                                     }
@@ -583,7 +583,7 @@ function renderPodGroup(
                                                 e.stopPropagation();
                                             }}
                                             title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                            <i className='fa fa-external-link-alt' />
+                                            <i className='fa fa-window-maximize' />
                                         </a>
                                     );
                                 }}
@@ -902,7 +902,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
                                             style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
                                             onClick={e => e.stopPropagation()}
                                             title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                            <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                            <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                         </span>
                                     );
                                 }
@@ -915,7 +915,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
                                             e.stopPropagation();
                                         }}
                                         title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                        <i className='fa fa-external-link-alt' />
+                                        <i className='fa fa-window-maximize' />
                                     </a>
                                 );
                             }}

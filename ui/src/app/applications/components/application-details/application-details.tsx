@@ -25,12 +25,12 @@ import {isApp} from '../utils';
 import {ResourceDetails} from '../resource-details/resource-details';
 import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
 import * as AppUtils from '../utils';
-import {ApplicationResourceList} from './application-resource-list';
+import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
 import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
-import {ChartDetails, OCIMetadata, ResourceStatus} from '../../../shared/models';
+import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
@@ -41,7 +41,7 @@ import {ApplicationHydrateOperationState} from '../application-hydrate-operation
 interface ApplicationDetailsState {
     page: number;
     revision?: string; // Which type of revision panelto show SYNC_STATUS_REVISION or OPERATION_STATE_REVISION
-    groupedResources?: ResourceStatus[];
+    groupedResourceIds?: string[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
@@ -109,7 +109,7 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
 
     const [state, setState] = useState<ApplicationDetailsState>(() => ({
         page: 0,
-        groupedResources: [],
+        groupedResourceIds: [],
         slidingPanelPage: 0,
         filteredGraph: [],
         truncateNameOnRight: false,
@@ -212,7 +212,7 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
     const closeGroupedNodesPanel = useCallback(() => {
         setState(prevState => ({
             ...prevState,
-            groupedResources: [],
+            groupedResourceIds: [],
             slidingPanelPage: 0
         }));
     }, []);
@@ -313,20 +313,24 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
         [props.match.params.name, getAppNamespace, appContext, objectListKind]
     );
 
-    const getPageTitle = useCallback((view: string) => {
-        const {Tree, Pods, Network, List} = AppsDetailsViewKey;
-        switch (view) {
-            case Tree:
-                return 'Application Details Tree';
-            case Network:
-                return 'Application Details Network';
-            case Pods:
-                return 'Application Details Pods';
-            case List:
-                return 'Application Details List';
-        }
-        return '';
-    }, []);
+    const getPageTitle = useCallback(
+        (view: string) => {
+            const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+            const resourceKind = objectListKind === 'applicationset' ? 'ApplicationSet' : 'Application';
+            switch (view) {
+                case Tree:
+                    return `${resourceKind} Details Tree`;
+                case Network:
+                    return `${resourceKind} Details Network`;
+                case Pods:
+                    return `${resourceKind} Details Pods`;
+                case List:
+                    return `${resourceKind} Details List`;
+            }
+            return '';
+        },
+        [objectListKind]
+    );
 
     const getContent = useCallback((application: models.Application, source: models.ApplicationSource, revisions: string[], revision: string) => {
         const renderCommitMessage = (message: string) =>
@@ -727,18 +731,20 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 return resourcesRef;
                             };
 
-                            const filteredRes = resourceNodes().filter(res => {
+                            const allResources = resourceNodes();
+                            const filteredRes = allResources.filter(res => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
                                 return filterTreeNode(resNode, treeFilter);
                             });
-                            const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
-                                const resources = resourceNodes();
+                            const groupedResources = state.groupedResourceIds?.length
+                                ? allResources.filter(res => state.groupedResourceIds.includes(res.uid) || state.groupedResourceIds.includes(AppUtils.nodeKey(res)))
+                                : [];
+                            const openGroupNodeDetails = (groupedNodeIds: string[]) => {
                                 setState(prevState => ({
                                     ...prevState,
-                                    groupedResources: groupdedNodeIds
-                                        ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(AppUtils.nodeKey(res)))
-                                        : []
+                                    groupedResourceIds: groupedNodeIds || [],
+                                    slidingPanelPage: 0
                                 }));
                             };
 
@@ -1182,8 +1188,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             </div>
                                         </div>
                                         {isApplication && (
-                                            <SlidingPanel isShown={state.groupedResources.length > 0} onClose={() => closeGroupedNodesPanel()}>
+                                            <SlidingPanel isShown={groupedResources.length > 0} onClose={() => closeGroupedNodesPanel()}>
                                                 <div className='application-details__sliding-panel-pagination-wrap'>
+                                                    {(pref.view === 'tree' || pref.view === 'network') && <ApplicationResourceParentRef resources={groupedResources} tree={tree} />}
                                                     <Paginate
                                                         key={highlightNodeKey || 'grouped-resources'}
                                                         page={state.slidingPanelPage}
@@ -1227,6 +1234,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     updateApp={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
                                                     selectedNode={selectedNode}
                                                     appCxt={{...appContext, apis: appContext} as unknown as AppContext}
+                                                    appChanged={appChanged.current}
                                                 />
                                             </SlidingPanel>
                                         )}

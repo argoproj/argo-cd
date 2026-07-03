@@ -5792,6 +5792,9 @@
         "uiCssURL": {
           "type": "string"
         },
+        "uiLoginButtonText": {
+          "type": "string"
+        },
         "url": {
           "type": "string"
         },

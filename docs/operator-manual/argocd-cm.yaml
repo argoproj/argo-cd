@@ -242,7 +242,7 @@ data:
     ignoreAggregatedRoles: true
 
     # disables status field diffing in specified resource types
-    # 'crd' - CustomResourceDefinitions 
+    # 'crd' - CustomResourceDefinitions
     # 'all' - all resources (default)
     # 'none' - disabled
     ignoreResourceStatusField: all
@@ -332,6 +332,9 @@ data:
   # navigation item is hidden and the /resources page shows a "feature not enabled" message.
   # Defaults to "false" (the Resources view is enabled).
   ui.view.resources.disabled: "false"
+
+  # Optional override for the SSO login button label.
+  # ui.loginButtonText: "SSO Login"
 
   # Application reconciliation timeout is the amount of time spent before Argo tries to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Two minutes by default with additional jitter.
@@ -459,10 +462,10 @@ data:
   # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"
 
-  # If true, passing passing a different revision from the one given in the application when syncing requires the `override` privilege. 
-  # The current default setting up to now (`false`) requires only `sync` privilege for syncing to a different revision. 
-  # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.  
-  application.sync.requireOverridePrivilegeForRevisionSync: "true"  
+  # If true, passing passing a different revision from the one given in the application when syncing requires the `override` privilege.
+  # The current default setting up to now (`false`) requires only `sync` privilege for syncing to a different revision.
+  # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.
+  application.sync.requireOverridePrivilegeForRevisionSync: "true"
 
   ### SourceHydrator commit author name (optional).
   # Configures the author name for commits created by the Source Hydrator.
@@ -481,7 +484,7 @@ data:
   sourceHydrator.commitMessageTemplate: |
     {{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
     {{- if .metadata.body }}
-    
+
     {{ .metadata.body }}
     {{- end }}
     {{ range $ref := .metadata.references }}
