@@ -220,6 +220,33 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			desc:               "WebHook from a Forgejo repository via pull_request opened event (X-Forgejo-Event header)",
+			headerKey:          "X-Forgejo-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "gitea-pull-request-opened-event.json",
+			effectedAppSets:    []string{"pull-request-gitea", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Gitea repository via pull_request with unallowed action",
+			headerKey:          "X-Gitea-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "gitea-pull-request-assigned-event.json",
+			effectedAppSets:    []string{"pull-request-gitea"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from a Gitea repository via pull_request with missing repository",
+			headerKey:          "X-Gitea-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "gitea-pull-request-no-repo-event.json",
+			effectedAppSets:    []string{"pull-request-gitea"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    false,
+		},
 	}
 
 	namespace := "test"
@@ -351,6 +378,71 @@ func mockGenerators() map[string]generators.Generator {
 		"Plugin":      terminalMockGenerators["Plugin"],
 		"Matrix":      generators.NewMatrixGenerator(nestedGenerators),
 		"Merge":       generators.NewMergeGenerator(nestedGenerators),
+	}
+}
+
+func TestShouldRefreshPRGeneratorGitea(t *testing.T) {
+	t.Parallel()
+	info := &prGeneratorInfo{
+		Gitea: &prGeneratorGiteaInfo{
+			Owner:       "myorg",
+			Repo:        "myrepo",
+			APIHostname: "gitea.example.com",
+		},
+	}
+	tests := []struct {
+		name string
+		gen  *v1alpha1.PullRequestGenerator
+		want bool
+	}{
+		{
+			name: "match",
+			gen: &v1alpha1.PullRequestGenerator{
+				Gitea: &v1alpha1.PullRequestGeneratorGitea{Owner: "myorg", Repo: "myrepo", API: "http://gitea.example.com/"},
+			},
+			want: true,
+		},
+		{
+			name: "owner case-insensitive match",
+			gen: &v1alpha1.PullRequestGenerator{
+				Gitea: &v1alpha1.PullRequestGeneratorGitea{Owner: "MyOrg", Repo: "myrepo", API: "http://gitea.example.com/"},
+			},
+			want: true,
+		},
+		{
+			name: "repo case-insensitive match",
+			gen: &v1alpha1.PullRequestGenerator{
+				Gitea: &v1alpha1.PullRequestGeneratorGitea{Owner: "myorg", Repo: "MyRepo", API: "http://gitea.example.com/"},
+			},
+			want: true,
+		},
+		{
+			name: "owner mismatch",
+			gen: &v1alpha1.PullRequestGenerator{
+				Gitea: &v1alpha1.PullRequestGeneratorGitea{Owner: "other-org", Repo: "myrepo", API: "http://gitea.example.com/"},
+			},
+			want: false,
+		},
+		{
+			name: "repo mismatch",
+			gen: &v1alpha1.PullRequestGenerator{
+				Gitea: &v1alpha1.PullRequestGeneratorGitea{Owner: "myorg", Repo: "other-repo", API: "http://gitea.example.com/"},
+			},
+			want: false,
+		},
+		{
+			name: "hostname mismatch",
+			gen: &v1alpha1.PullRequestGenerator{
+				Gitea: &v1alpha1.PullRequestGeneratorGitea{Owner: "myorg", Repo: "myrepo", API: "http://other-gitea.example.com/"},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, shouldRefreshPRGenerator(tt.gen, info))
+		})
 	}
 }
 
