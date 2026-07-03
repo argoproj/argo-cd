@@ -1,0 +1,23 @@
+apiVersion: astra.netapp.io/v1
+kind: ExecHook
+metadata:
+  creationTimestamp: "2024-04-25T14:17:52Z"
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: ghost-demo
+  name: pre-snapshot
+  namespace: astra-connector
+  resourceVersion: "11239151"
+  uid: 105679e3-4acc-4618-a3c2-53e0e5949f65
+spec:
+  action: snapshot
+  applicationRef: ghost
+  arguments:
+    - pre
+  enabled: true
+  hookSource: IyEvYmluL3NoCgojCiMgc3VjY2Vzc19zYW1wbGUuc2gKIwojIEEgc2ltcGxlIG5vb3Agc3VjY2VzcyBob29rIHNjcmlwdCBmb3IgdGVzdGluZyBwdXJwb3Nlcy4KIwojIGFyZ3M6IE5vbmUKIwoKCiMKIyBXcml0ZXMgdGhlIGdpdmVuIG1lc3NhZ2UgdG8gc3RhbmRhcmQgb3V0cHV0CiMKIyAkKiAtIFRoZSBtZXNzYWdlIHRvIHdyaXRlCiMKbXNnKCkgewogICAgZWNobyAiJCoiCn0KCgojCiMgV3JpdGVzIHRoZSBnaXZlbiBpbmZvcm1hdGlvbiBtZXNzYWdlIHRvIHN0YW5kYXJkIG91dHB1dAojCiMgJCogLSBUaGUgbWVzc2FnZSB0byB3cml0ZQojCmluZm8oKSB7CiAgICBtc2cgIklORk86ICQqIgp9CgojCiMgV3JpdGVzIHRoZSBnaXZlbiBlcnJvciBtZXNzYWdlIHRvIHN0YW5kYXJkIGVycm9yCiMKIyAkKiAtIFRoZSBtZXNzYWdlIHRvIHdyaXRlCiMKZXJyb3IoKSB7CiAgICBtc2cgIkVSUk9SOiAkKiIgMT4mMgp9CgoKIwojIG1haW4KIwoKIyBsb2cgc29tZXRoaW5nIHRvIHN0ZG91dAppbmZvICJydW5uaW5nIHN1Y2Nlc3Nfc2FtcGxlLnNoIgoKIyBleGl0IHdpdGggMCB0byBpbmRpY2F0ZSBzdWNjZXNzIAppbmZvICJleGl0IDAiCmV4aXQgMA==
+  matchingCriteria:
+    - type: containerImage
+      value: mysql
+  stage: pre
+  timeout: 25

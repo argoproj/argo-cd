@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: merge-clusters-and-list
+spec:
+  generators:
+    - merge:
+        mergeKeys:
+          - server
+        generators:
+          - clusters:
+              values:
+                kafka: 'true'
+                redis: 'false'
+          # For clusters with a specific label, enable Kafka.
+          - clusters:
+              selector:
+                matchLabels:
+                  use-kafka: 'false'
+              values:
+                kafka: 'false'
+          # For a specific cluster, enable Redis.
+          - list:
+              elements:
+                - server: https://some-specific-cluster
+                  values.redis: 'true'
+  template:
+    metadata:
+      name: '{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        targetRevision: HEAD
+        path: helm-guestbook
+        helm:
+          parameters:
+            - name: kafka
+              value: '{{values.kafka}}'
+            - name: redis
+              value: '{{values.redis}}'
+      destination:
+        server: '{{server}}'
+        namespace: default

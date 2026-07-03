@@ -1,0 +1,6 @@
+repo: https://somewhere
+kustomize:
+  images:
+    - quay.io/argoprojlabs/argocd-e2e-container:0.3
+  invalid:
+    - I don't know

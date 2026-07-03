@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: book-import
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusterDecisionResource:
+        configMapRef: ocm-placement
+        name: test-placement
+        requeueAfterSeconds: 30
+  template:
+    metadata:
+      name: '{{.clusterName}}-book-import'
+    spec:
+      project: "default"
+      source:
+        repoURL: https://github.com/open-cluster-management/application-samples.git
+        targetRevision: HEAD
+        path: book-import
+      destination:
+        name: '{{.clusterName}}'
+        namespace: bookimport
+      syncPolicy:
+        automated:
+          prune: true
+        syncOptions:
+          - CreateNamespace=true

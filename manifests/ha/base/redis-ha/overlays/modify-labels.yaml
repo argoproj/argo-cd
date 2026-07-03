@@ -1,0 +1,6 @@
+- op: replace
+  path: /metadata/labels
+  value:
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: argocd

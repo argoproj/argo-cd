@@ -1,0 +1,163 @@
+kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+metadata:
+  name: example
+  namespace: default
+  uid: 365e7b5a-a72e-4fdf-be9d-cd5590d956bb
+  resourceVersion: '88832'
+  generation: 1
+  creationTimestamp: '2021-08-26T04:37:06Z'
+  managedFields:
+    - manager: Mozilla
+      operation: Update
+      apiVersion: apps.openshift.io/v1
+      time: '2021-08-26T04:37:06Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:spec':
+          'f:replicas': {}
+          'f:revisionHistoryLimit': {}
+          'f:selector':
+            .: {}
+            'f:app': {}
+          'f:strategy':
+            'f:activeDeadlineSeconds': {}
+            'f:rollingParams':
+              .: {}
+              'f:intervalSeconds': {}
+              'f:maxSurge': {}
+              'f:maxUnavailable': {}
+              'f:timeoutSeconds': {}
+              'f:updatePeriodSeconds': {}
+            'f:type': {}
+          'f:template':
+            .: {}
+            'f:metadata':
+              .: {}
+              'f:creationTimestamp': {}
+              'f:labels':
+                .: {}
+                'f:app': {}
+            'f:spec':
+              .: {}
+              'f:containers':
+                .: {}
+                'k:{"name":"httpd"}':
+                  .: {}
+                  'f:image': {}
+                  'f:imagePullPolicy': {}
+                  'f:name': {}
+                  'f:ports':
+                    .: {}
+                    'k:{"containerPort":8080,"protocol":"TCP"}':
+                      .: {}
+                      'f:containerPort': {}
+                      'f:protocol': {}
+                  'f:resources': {}
+                  'f:terminationMessagePath': {}
+                  'f:terminationMessagePolicy': {}
+              'f:dnsPolicy': {}
+              'f:restartPolicy': {}
+              'f:schedulerName': {}
+              'f:securityContext': {}
+              'f:terminationGracePeriodSeconds': {}
+          'f:triggers': {}
+    - manager: openshift-controller-manager
+      operation: Update
+      apiVersion: apps.openshift.io/v1
+      time: '2021-08-26T04:37:11Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          'f:updatedReplicas': {}
+          'f:readyReplicas': {}
+          'f:conditions':
+            .: {}
+            'k:{"type":"Available"}':
+              .: {}
+              'f:lastTransitionTime': {}
+              'f:lastUpdateTime': {}
+              'f:message': {}
+              'f:status': {}
+              'f:type': {}
+            'k:{"type":"Progressing"}':
+              .: {}
+              'f:lastTransitionTime': {}
+              'f:lastUpdateTime': {}
+              'f:message': {}
+              'f:status': {}
+              'f:type': {}
+          'f:details':
+            .: {}
+            'f:causes': {}
+            'f:message': {}
+          'f:replicas': {}
+          'f:availableReplicas': {}
+          'f:observedGeneration': {}
+          'f:unavailableReplicas': {}
+          'f:latestVersion': {}
+spec:
+  strategy:
+    type: Rolling
+    rollingParams:
+      updatePeriodSeconds: 1
+      intervalSeconds: 1
+      timeoutSeconds: 600
+      maxUnavailable: 25%
+      maxSurge: 25%
+    resources: {}
+    activeDeadlineSeconds: 21600
+  triggers:
+    - type: ConfigChange
+  replicas: 20
+  revisionHistoryLimit: 10
+  test: false
+  selector:
+    app: httpd
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: httpd
+    spec:
+      containers:
+        - name: httpd
+          image: >-
+            image-registry.openshift-image-registry.svc:5000/openshift/httpd:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: Always
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler
+status:
+  observedGeneration: 1
+  details:
+    message: config change
+    causes:
+      - type: ConfigChange
+  availableReplicas: 20
+  unavailableReplicas: 0
+  latestVersion: 1
+  updatedReplicas: 20
+  conditions:
+    - type: Progressing
+      status: Unknown
+      lastUpdateTime: '2021-08-26T04:37:06Z'
+      lastTransitionTime: '2021-08-26T04:37:06Z'
+      message: >-
+        replication controller "example-1" is waiting for pod "example-1-deploy"
+        to run
+    - type: Available
+      status: 'True'
+      lastUpdateTime: '2021-08-26T04:37:12Z'
+      lastTransitionTime: '2021-08-26T04:37:12Z'
+      message: Deployment config has minimum availability.
+  replicas: 20
+  readyReplicas: 20

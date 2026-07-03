@@ -1,0 +1,7 @@
+apiVersion: argoproj.io/v1alpha1
+kind: DoesNotExist
+metadata:
+  name: dummy-crd-instance-doesnotexist
+spec:
+  cpu: 2000m
+  memory: 32Mi

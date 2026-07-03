@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "KeptnWorkloadInstance is progressing"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: "KeptnWorkloadInstance is degraded"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: "KeptnWorkloadInstance is healthy"
+    inputPath: testdata/healthy.yaml

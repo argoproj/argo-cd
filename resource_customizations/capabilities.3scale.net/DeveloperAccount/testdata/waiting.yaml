@@ -1,0 +1,7 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: DeveloperAccount
+status:
+  conditions:
+    - type: Waiting
+      status: "True"
+      message: Developer account is waiting for admin approval

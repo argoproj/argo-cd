@@ -1,0 +1,4 @@
+actionTests:
+- action: create-workflow
+  inputPath: testdata/workflowtemplate.yaml
+  expectedOutputPath: testdata/workflow.yaml

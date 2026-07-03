@@ -1,0 +1,7 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: data-04-06-2023
+spec:
+  driver: disk.csi.azure.com
+status: {}

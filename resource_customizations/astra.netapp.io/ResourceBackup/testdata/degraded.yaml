@@ -1,0 +1,52 @@
+apiVersion: astra.netapp.io/v1
+kind: ResourceBackup
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 6094b54d-b02b-475a-b5db-136729841240
+  creationTimestamp: "2024-04-24T19:54:19Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  name: snapshot-7b0d4f5e-53d0-4742-adec-15ef5d527865
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Snapshot
+      name: backup-ad301b6a-6536-4313-89c1-d10ad0275430
+      uid: 7b0d4f5e-53d0-4742-adec-15ef5d527865
+  resourceVersion: "10608354"
+  uid: 9f8505a1-29ac-4755-92b5-536e6d825c35
+spec:
+  appArchivePath: ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/snapshots/20240424195419_backup-ad301b6a-6536-4313-89c1-d10ad0275430_7b0d4f5e-53d0-4742-adec-15ef5d527865
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+status:
+  conditions:
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppOwnerReferenceCreated
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message:
+        'unable to fetch appVault: AppVault.astra.netapp.io "astra-gcp-backup-743cfd150129"
+        not found'
+      reason: Error
+      status: "False"
+      type: JobCreated
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: JobCompleted
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: JobCleanedUp
+  error:
+    'unable to fetch appVault: AppVault.astra.netapp.io "astra-gcp-backup-743cfd150129"
+    not found'
+  state: Error

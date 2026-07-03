@@ -1,0 +1,28 @@
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: podinfo
+  name: podinfo
+  namespace: default
+  resourceVersion: "2268395"
+  selfLink: /apis/flagger.app/v1beta1/namespaces/default/canaries/podinfo
+  uid: 82df0136-0248-4a95-9c60-3184792614ea
+spec: {}
+status:
+  canaryWeight: 0
+  conditions:
+  - lastTransitionTime: "2020-07-03T13:36:22Z"
+    lastUpdateTime: "2020-07-03T13:36:22Z"
+    message: Installation successful.
+    reason: Initialized
+    status: "True"
+    type: Promoted
+  failedChecks: 0
+  iterations: 0
+  lastAppliedSpec: 658bbf784f
+  lastPromotedSpec: 658bbf784f
+  lastTransitionTime: "2020-07-03T13:36:22Z"
+  phase: Initialized
+  trackedConfigs: {}

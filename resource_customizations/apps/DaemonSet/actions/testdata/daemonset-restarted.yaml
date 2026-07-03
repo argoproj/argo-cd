@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    deprecated.daemonset.template.generation: "3"
+  creationTimestamp: "2019-09-13T08:52:50Z"
+  generation: 3
+  labels:
+    app.kubernetes.io/instance: extensions
+  name: daemonset
+  namespace: statefulset
+  resourceVersion: "7472656"
+  selfLink: /apis/apps/v1/namespaces/statefulset/daemonsets/daemonset
+  uid: de04d075-d603-11e9-9e69-42010aa8005f
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      name: daemonset
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "0001-01-01T00:00:00Z"
+      labels:
+        name: daemonset
+    spec:
+      containers:
+      - image: registry.k8s.io/nginx-slim:0.8
+        imagePullPolicy: IfNotPresent
+        name: nginx
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+status:
+  currentNumberScheduled: 4
+  desiredNumberScheduled: 4
+  numberAvailable: 4
+  numberMisscheduled: 0
+  numberReady: 4
+  observedGeneration: 3
+  updatedNumberScheduled: 4

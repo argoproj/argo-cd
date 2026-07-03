@@ -1,0 +1,12 @@
+resources:
+  - ../core-install
+  - ../base/commit-server
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: argocd-cmd-params-cm
+    patch: |-
+      - op: add
+        path: /data
+        value: {"hydrator.enabled": "true"}

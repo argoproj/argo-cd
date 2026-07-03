@@ -1,0 +1,15 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  targetNamespace: default
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  path: "./kustomize"
+  prune: true
+  suspend: false
+  timeout: 1m

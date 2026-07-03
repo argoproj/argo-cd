@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: 'Route is still getting admitted'
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Route is degraded'
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Route is healthy'
+  inputPath: testdata/healthy.yaml

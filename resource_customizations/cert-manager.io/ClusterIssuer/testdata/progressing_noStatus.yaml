@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  creationTimestamp: "2018-11-06T23:14:18Z"
+  generation: 1
+  name: test-issuer
+  resourceVersion: "48889060"
+  uid: b0045219-e219-11e8-9f93-42010a80021d
+spec:
+  acme:
+    email: myemail@example.com
+    http01: {}
+    privateKeySecretRef:
+      key: ""
+      name: letsencrypt
+    server: https://acme-v02.api.letsencrypt.org/directory

@@ -1,0 +1,42 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  annotations:
+    cdi.kubevirt.io/storage.bind.immediate.requested: "true"
+    kubevirt.ui/provider: centos
+  labels:
+    app.kubernetes.io/instance: datavolumes
+  name: centos8
+  namespace: openshift-virtualization-os-images
+spec:
+  pvc:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 20Gi
+    volumeMode: Filesystem
+  source:
+    http:
+      url: https://cloud.centos.org/centos/8-stream/x86_64/images/CentOS-Stream-GenericCloud-8-20210603.0.x86_64.qcow2
+status:
+  conditions:
+  - lastHeartbeatTime: "2021-09-07T15:24:46Z"
+    lastTransitionTime: "2021-09-07T15:24:46Z"
+    message: PVC centos8 Bound
+    reason: Bound
+    status: "True"
+    type: Bound
+  - lastHeartbeatTime: "2021-09-07T15:25:33Z"
+    lastTransitionTime: "2021-09-07T15:24:37Z"
+    reason: TransferRunning
+    status: "False"
+    type: Ready
+  - lastHeartbeatTime: "2021-09-07T15:24:55Z"
+    lastTransitionTime: "2021-09-07T15:24:55Z"
+    reason: Pod is running
+    status: "True"
+    type: Running
+  phase: ImportInProgress
+  progress: 2.00%
+

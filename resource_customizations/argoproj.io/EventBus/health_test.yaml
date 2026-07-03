@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "JetStream is deployed"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'failed to get jetstream version, err: unsupported version "iwillfail", supported versions: "2.9.5,latest"'
+    inputPath: testdata/degraded.yaml

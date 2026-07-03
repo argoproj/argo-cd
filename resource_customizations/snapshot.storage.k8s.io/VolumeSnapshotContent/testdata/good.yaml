@@ -1,0 +1,20 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotContent
+metadata:
+  creationTimestamp: '2023-06-04T19:13:19Z'
+  finalizers:
+    - snapshot.storage.kubernetes.io/volumesnapshotcontent-bound-protection
+status:
+  creationTime: 1685906000388294100
+  readyToUse: true
+  restoreSize: 1099511627776
+  snapshotHandle: >-
+    /subscriptions/XXXXXX
+spec:
+  driver: disk.csi.azure.com
+  source:
+    volumeHandle: >-
+      /subscriptions/XXXXXX
+  volumeSnapshotClassName: azure-tools
+  volumeSnapshotRef:
+    apiVersion: snapshot.storage.k8s.io/v1

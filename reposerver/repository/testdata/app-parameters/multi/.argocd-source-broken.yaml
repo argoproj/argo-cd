@@ -1,0 +1,4 @@
+aloi
+kustomize:
+  images:
+    - quay.io/argoprojlabs/argocd-e2e-container:0.2

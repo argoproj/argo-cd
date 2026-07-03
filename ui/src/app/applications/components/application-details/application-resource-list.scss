@@ -1,0 +1,58 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.application-details__item {
+  display: flex;
+
+  .application-details__item_text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .application-details__external_link {
+    flex: 0;
+    min-width: 13px;
+  }
+}
+
+.application-resource-list {
+  .argo-table-list__row {
+    overflow: visible;
+
+    &.application-resource-list__row--orphaned {
+      @include themify($themes) {
+        background-color: themed('light-argo-gray-2') !important;
+      }
+    }
+  }
+
+  &__icon-column {
+    overflow: visible;
+    white-space: normal;
+    padding-inline: 0;
+  }
+
+  &__kind-icon {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    width: 60px;
+    line-height: 1;
+    text-align: center;
+    color: $argo-color-gray-7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &__kind {
+    display: inline-block;
+    max-width: 100%;
+    margin-top: 1px;
+    padding: 0 4px;
+    font-size: 0.7rem;
+    color: $argo-color-gray-6;
+    white-space: nowrap;
+    text-align: left;
+  }
+}

@@ -1,0 +1,3 @@
+[[IgnoredVulns]]
+id = "GHSA-93q8-gq69-wqmw"
+reason = "CVE-2021-3807 Code is only run client-side in the swagger-ui endpoint. No risk of server-side DoS."

@@ -1,0 +1,72 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  creationTimestamp: '2021-08-31T17:39:09Z'
+  generation: 1
+  labels:
+    operators.coreos.com/openshift-gitops-operator.openshift-operators: ''
+    operators.coreos.com/openshift-gitops123-operator.openshift-operators: ''
+  name: openshift-gitops123-operator
+  namespace: openshift-operators
+  resourceVersion: '83862'
+  uid: db43fe71-7937-47d4-84e9-382316c1403c
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: openshift-gitops123-operator
+  source: redhat-operators66
+  sourceNamespace: openshift-marketplace
+  startingCSV: openshift-gitops-operator.v1.2.0
+status:
+  catalogHealth:
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: certified-operators
+        namespace: openshift-marketplace
+        resourceVersion: '82603'
+        uid: 3bca2bd4-5376-4a66-929a-7374540011ab
+      healthy: true
+      lastUpdated: '2021-08-31T17:39:09Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: community-operators
+        namespace: openshift-marketplace
+        resourceVersion: '81603'
+        uid: de132714-31c7-441e-9a62-bcd2f3908b75
+      healthy: true
+      lastUpdated: '2021-08-31T17:39:09Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-marketplace
+        namespace: openshift-marketplace
+        resourceVersion: '81610'
+        uid: 36652a07-cd6e-46a5-a53f-74520250b69a
+      healthy: true
+      lastUpdated: '2021-08-31T17:39:09Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-operators
+        namespace: openshift-marketplace
+        resourceVersion: '81602'
+        uid: f73d6576-5955-4de2-bf4c-2b4c5c0a9077
+      healthy: true
+      lastUpdated: '2021-08-31T17:39:09Z'
+  conditions:
+    - lastTransitionTime: '2021-08-31T17:39:09Z'
+      message: targeted catalogsource openshift-marketplace/redhat-operators66 missing
+      reason: UnhealthyCatalogSourceFound
+      status: 'True'
+      type: CatalogSourcesUnhealthy
+    - message: >-
+        constraints not satisfiable: no operators found from catalog
+        redhat-operators66 in namespace openshift-marketplace referenced by
+        subscription openshift-gitops123-operator, subscription
+        openshift-gitops123-operator exists
+      reason: ConstraintsNotSatisfiable
+      status: 'True'
+      type: ResolutionFailed
+  lastUpdated: '2021-08-31T17:39:12Z'

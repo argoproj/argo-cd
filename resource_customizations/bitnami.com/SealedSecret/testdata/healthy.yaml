@@ -1,0 +1,24 @@
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  labels:
+    app.kubernetes.io/instance: sealed-secrets
+  name: test
+  namespace: test
+spec:
+  encryptedData:
+    .dockerconfigjson: xyz
+  template:
+    metadata:
+      creationTimestamp: null
+      name: test
+      namespace: test
+    type: kubernetes.io/dockerconfigjson
+status:
+  conditions:
+  - lastTransitionTime: "2021-02-11T15:56:29Z"
+    lastUpdateTime: "2021-02-11T15:57:37Z"
+    message: ""
+    status: "True"
+    type: Synced
+  observedGeneration: 1

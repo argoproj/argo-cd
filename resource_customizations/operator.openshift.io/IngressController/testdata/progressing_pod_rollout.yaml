@@ -1,0 +1,101 @@
+---
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: apps-shard-2
+  namespace: openshift-ingress-operator
+spec:
+  domain: openshift-apps-shard-2.example.com
+  endpointPublishingStrategy:
+    hostNetwork:
+      httpPort: 80
+      httpsPort: 443
+      statsPort: 1936
+    type: HostNetwork
+  nodePlacement:
+    nodeSelector:
+      matchLabels:
+        node-role.kubernetes.io/worker: ""
+  replicas: 1
+status:
+  availableReplicas: 0
+  conditions:
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    reason: Valid
+    status: "True"
+    type: Admitted
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    message: 'Some pods are not scheduled: Pod "router-apps-shard-2-7b5cb5f98d-gk4hj"
+      cannot be scheduled: 0/6 nodes are available: 2 node(s) didn''t have free ports
+      for the requested pod ports, 3 node(s) had untolerated taint {node-role.kubernetes.io/master:
+      }, 5 node(s) didn''t match Pod''s node affinity/selector. preemption: 0/6 nodes
+      are available: 1 node(s) didn''t have free ports for the requested pod ports,
+      5 Preemption is not helpful for scheduling. Make sure you have sufficient worker
+      nodes.'
+    reason: PodsNotScheduled
+    status: "False"
+    type: PodsScheduled
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    message: The deployment has Available status condition set to True
+    reason: DeploymentAvailable
+    status: "True"
+    type: DeploymentAvailable
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    message: Minimum replicas requirement is met
+    reason: DeploymentMinimumReplicasMet
+    status: "True"
+    type: DeploymentReplicasMinAvailable
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    message: 0/1 of replicas are available
+    reason: DeploymentReplicasNotAvailable
+    status: "False"
+    type: DeploymentReplicasAllAvailable
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    message: The configured endpoint publishing strategy does not include a managed
+      load balancer
+    reason: EndpointPublishingStrategyExcludesManagedLoadBalancer
+    status: "False"
+    type: LoadBalancerManaged
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    message: No DNS zones are defined in the cluster dns config.
+    reason: NoDNSZones
+    status: "False"
+    type: DNSManaged
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    status: "False"
+    type: Progressing
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    status: "False"
+    type: Degraded
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    message: IngressController is upgradeable.
+    reason: Upgradeable
+    status: "True"
+    type: Upgradeable
+  domain: openshift-apps-shard-2.example.com
+  endpointPublishingStrategy:
+    hostNetwork:
+      httpPort: 80
+      httpsPort: 443
+      protocol: TCP
+      statsPort: 1936
+    type: HostNetwork
+  observedGeneration: 2
+  selector: ingresscontroller.operator.openshift.io/deployment-ingresscontroller=apps-shard-2
+  tlsProfile:
+    ciphers:
+    - ECDHE-ECDSA-AES128-GCM-SHA256
+    - ECDHE-RSA-AES128-GCM-SHA256
+    - ECDHE-ECDSA-AES256-GCM-SHA384
+    - ECDHE-RSA-AES256-GCM-SHA384
+    - ECDHE-ECDSA-CHACHA20-POLY1305
+    - ECDHE-RSA-CHACHA20-POLY1305
+    - DHE-RSA-AES128-GCM-SHA256
+    - DHE-RSA-AES256-GCM-SHA384
+    - TLS_AES_128_GCM_SHA256
+    - TLS_AES_256_GCM_SHA384
+    - TLS_CHACHA20_POLY1305_SHA256
+    minTLSVersion: VersionTLS12

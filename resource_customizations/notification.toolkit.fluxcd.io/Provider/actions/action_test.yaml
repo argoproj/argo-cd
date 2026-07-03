@@ -1,0 +1,26 @@
+discoveryTests:
+- inputPath: testdata/initial_provider.yaml
+  result:
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+- inputPath: testdata/suspended_provider.yaml
+  result:
+    - name: suspend
+      disabled: true
+    - name: resume
+      disabled: false
+- inputPath: testdata/resumed_provider.yaml
+  result:
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+actionTests:
+- action: suspend
+  inputPath: testdata/initial_provider.yaml
+  expectedOutputPath: testdata/suspended_provider.yaml
+- action: resume
+  inputPath: testdata/suspended_provider.yaml
+  expectedOutputPath: testdata/resumed_provider.yaml

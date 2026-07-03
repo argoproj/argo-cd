@@ -1,0 +1,75 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  labels:
+    operators.coreos.com/openshift-gitops-operator.openshift-operators: ''
+  name: openshift-gitops-operator
+  namespace: openshift-operators
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: openshift-gitops-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: openshift-gitops-operator.v1.2.0
+status:
+  conditions:
+    - lastTransitionTime: '2021-08-23T16:03:23Z'
+      message: all available catalogsources are healthy
+      reason: AllCatalogSourcesHealthy
+      status: 'False'
+      type: CatalogSourcesUnhealthy
+  installplan:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-m7wvs
+    uuid: 5dfc3b72-b1a7-49b1-868a-c288ccefc667
+  lastUpdated: '2021-08-23T16:03:53Z'
+  installedCSV: openshift-gitops-operator.v1.2.0
+  currentCSV: openshift-gitops-operator.v1.2.0
+  installPlanRef:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-m7wvs
+    namespace: openshift-operators
+    resourceVersion: '49175'
+    uid: 5dfc3b72-b1a7-49b1-868a-c288ccefc667
+  state: AtLatestKnown
+  catalogHealth:
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: certified-operators
+        namespace: openshift-marketplace
+        resourceVersion: '47199'
+        uid: 1182e96f-bd44-4555-bcae-22ca5545d52f
+      healthy: true
+      lastUpdated: '2021-08-23T16:03:23Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: community-operators
+        namespace: openshift-marketplace
+        resourceVersion: '45598'
+        uid: fa39c2ee-af6d-4dbb-a62e-cd20c9e8f19b
+      healthy: true
+      lastUpdated: '2021-08-23T16:03:23Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-marketplace
+        namespace: openshift-marketplace
+        resourceVersion: '47712'
+        uid: b4d1171a-ec94-4be9-aa26-237bf4aed0f5
+      healthy: true
+      lastUpdated: '2021-08-23T16:03:23Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-operators
+        namespace: openshift-marketplace
+        resourceVersion: '46728'
+        uid: a1712fa4-1159-4a9b-8e40-fe605ecbb2e5
+      healthy: true
+      lastUpdated: '2021-08-23T16:03:23Z'
+  installPlanGeneration: 1

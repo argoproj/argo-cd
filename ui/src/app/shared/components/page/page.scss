@@ -1,0 +1,180 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+@import '../../config.scss';
+
+.page-wrapper {
+    width: 100%;
+    padding-left: $sidebar-width;
+    .page {
+        @media (max-width: map-get($breakpoints, medium)) {
+            &--has-toolbar {
+                padding-top: 0;
+            }
+
+            &--has-toolbar &__top-bar {
+                height: auto;
+                position: initial;
+
+                .top-bar.row > div {
+                    max-width: 100%;
+                    flex: 0 0 100%;
+                    text-align: center;
+
+                    &.top-bar__right-side > div {
+                        display: inline-block;
+                    }
+
+                    & > div {
+                        display: flex;
+                        flex-wrap: wrap;
+                        justify-content: center;
+
+                        button {
+                            margin-bottom: 2px;
+                        }
+                    }
+                }
+            }
+        }
+        $single-toolbar-height: 50px;
+
+        &--has-toolbar {
+            padding-top: $single-toolbar-height;
+        }
+        &__top-bar {
+            height: $single-toolbar-height;
+            left: $sidebar-width;
+        }
+    }
+}
+
+.login-logout-button {
+    border-radius: 3px;
+    @include themify($themes) {
+        color: themed('light-argo-teal-7');
+    }
+    padding: 3px;
+    cursor: pointer;
+
+    &:focus {
+        color: $argo-color-teal-5;
+        box-shadow: 0 0 0 0.1em $argo-color-teal-5;
+    }
+    &:hover {
+        @include themify($themes) {
+            color: themed('light-argo-teal-5');
+        }
+    }
+}
+
+.page {
+    padding-left: 0 !important;
+    &__top-bar {
+        left: $sidebar-width !important;
+    }
+}
+
+.sb-page-wrapper {
+    padding-left: $sidebar-width;
+
+    &__sidebar-collapsed {
+        padding-left: $collapsed-sidebar-width;
+        .flex-top-bar {
+            left: $collapsed-sidebar-width;
+        }
+
+        .page {
+            &__top-bar {
+                left: $collapsed-sidebar-width !important;
+            }
+        }
+
+        .application-details__status-panel {
+            left: $collapsed-sidebar-width;
+        }
+    }
+}
+
+.argo-container {
+    padding: 1em;
+}
+
+// Pin the trailing action menu to the right edge of the row and reserve room so it does not overlap
+// the last column's content.
+.argo-table-list__row {
+    .columns:last-child {
+        padding-right: 40px;
+        .argo-dropdown {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+    }
+}
+
+.argo-table-list {
+    // Lay each row out as a single no-wrap flex line. Foundation's float grid lets columns wrap
+    // onto a second row once their combined min-width no longer fits; with flex + nowrap the
+    // columns shrink to their min-width (and ellipsize) instead of wrapping.
+    .row {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+
+        // Foundation adds clearfix pseudo-elements for the float grid; they would become stray
+        // flex items (and add a trailing gap) once the row is a flex container, so hide them.
+        &::before,
+        &::after {
+            display: none;
+        }
+    }
+
+    // Ensure table columns keep a usable minimum width instead of collapsing on narrow screens.
+    // Foundation gives each column 15px of left/right gutter padding, which eats most of a narrow
+    // column. Scale the gutter with the viewport (2px on small screens up to the default 15px on
+    // wide ones) so more of the width is usable content.
+    .columns {
+        min-width: 60px;
+        padding-left: clamp(2px, 1vw, 15px);
+        padding-right: clamp(2px, 1vw, 15px);
+    }
+}
+
+.argo-table-list__head {
+    .columns.sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+}
+
+// Reduce the width of a leading column that only holds an item (e.g. an icon), so it does not
+// take up a full grid column. Apply to both the head and row cell to keep columns aligned.
+.argo-table-list__head,
+.argo-table-list__row {
+    .columns.argo-table-list__icon-column {
+        min-width: 60px;
+        max-width: 60px;
+        // Let the icon use the full column width and avoid the text-overflow ellipsis that the table
+        // columns apply when content is clipped. Center the icon within the column.
+        padding-inline: 0;
+        overflow: visible;
+        text-overflow: clip;
+        text-align: center;
+
+        // The argo-icon glyphs render at their own intrinsic size. Pin a fixed box and center the
+        // glyph so all icons render consistently. Match the ResourceIcon image size: a 40x32
+        // border-box with 2px padding leaves a 36x28 glyph area.
+        .icon {
+            display: inline-block;
+            width: 40px;
+            height: 32px;
+            padding: 2px;
+            font-size: 28px;
+            line-height: 28px;
+            text-align: center;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+    }
+}

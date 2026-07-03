@@ -1,0 +1,35 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  creationTimestamp: "2021-10-25T22:23:10Z"
+  name: example-badimport-dv
+  namespace: default
+spec:
+  pvc:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+  source:
+    http:
+      url: https://download.fedoraproject.org/pub/no-such-image.xz
+status:
+  conditions:
+  - lastHeartbeatTime: "2021-10-25T22:23:15Z"
+    lastTransitionTime: "2021-10-25T22:23:15Z"
+    message: PVC example-badimport-dv Bound
+    reason: Bound
+    status: "True"
+    type: Bound
+  - lastHeartbeatTime: "2021-10-25T22:23:10Z"
+    lastTransitionTime: "2021-10-25T22:23:10Z"
+    status: "False"
+    type: Ready
+  - lastHeartbeatTime: "2021-10-25T22:23:15Z"
+    lastTransitionTime: "2021-10-25T22:23:10Z"
+    reason: ContainerCreating
+    status: "False"
+    type: Running
+  phase: ImportScheduled
+  progress: N/A

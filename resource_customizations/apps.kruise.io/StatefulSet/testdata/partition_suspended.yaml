@@ -1,0 +1,36 @@
+apiVersion: apps.kruise.io/v1beta1
+kind: StatefulSet
+metadata:
+  name: statefulset-test
+  namespace: kruise
+  generation: 3
+  labels:
+    app: sample
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      containers:
+        - image: nginx:mainline
+  updateStrategy:
+    rollingUpdate:
+      partition: 4
+
+status:
+  availableReplicas: 10
+  currentReplicas: 4
+  currentRevision: statefulset-test-d4d4fb5bd
+  labelSelector: app=sample
+  observedGeneration: 3
+  readyReplicas: 10
+  replicas: 10
+  updateRevision: statefulset-test-56dfb978d4
+  updatedAvailableReplicas: 7
+  updatedReadyReplicas: 7
+  updatedReplicas: 7

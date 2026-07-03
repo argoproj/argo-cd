@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 20
+    ignore:
+    - dependency-name: k8s.io/*
+    groups:
+      aws-sdk-v2:
+        patterns:
+          - "github.com/aws/aws-sdk-go-v2*"
+      otel:
+        patterns:
+          - "go.opentelemetry.io/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: "/ui/"
+    schedule:
+      interval: "daily"

@@ -1,0 +1,64 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.settings-overview {
+    &__redirect-panel {
+        margin: 18px 0;
+    }
+
+    
+    &__redirect-panel {
+        position: relative;
+        padding: 20px;
+        font-size: 16px;
+        @include themify($themes) {
+            background-color: themed('background-2'); 
+            color: themed('text-2');;                
+        }
+        border-radius: 4px;
+        box-shadow: 1px 2px 3px rgba(#000, .1);
+        cursor: pointer;
+
+        &:hover {
+            @include themify($themes) {
+                background-color: themed('light-argo-teal-1');                               
+            }
+        }
+
+        &__ico {
+            position: relative;
+            top: -5px;
+            float: left;
+            margin-right: 10px;
+            font-size: 1.6em;
+            color: $argo-success-color;
+        }
+
+        &__content {
+            overflow: hidden;
+            width: auto;
+            padding-right: 30px;
+        }
+
+        &__title {
+            font-size: 1.2em;
+            color: $argo-color-teal-6;
+        }
+
+        &__description {
+            font-size: .8125em;
+            @include themify($themes) {                
+                color: themed('text-1');;                
+            }
+        }
+
+        &__arrow {
+            position: absolute;
+            top: 50%;
+            right: 30px;
+            transform: translateY(-50%);
+            font-size: 1.4em;
+            color: $argo-color-gray-7;
+        }
+    }
+}

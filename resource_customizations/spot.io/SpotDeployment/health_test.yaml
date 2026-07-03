@@ -1,0 +1,12 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: "Rollout is aborted"
+  inputPath: testdata/degraded_spotdeployment.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy_spotdeployment.yaml
+- healthStatus:
+    status: Degraded
+    message: "The Rollout \"basic\" is invalid: spec.strategy.strategy: Required value: Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'"
+  inputPath: testdata/invalid_spec_spotdeployment.yaml

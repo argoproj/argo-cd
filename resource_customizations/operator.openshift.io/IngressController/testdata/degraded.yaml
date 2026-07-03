@@ -1,0 +1,103 @@
+---
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: default
+  namespace: openshift-ingress-operator
+spec:
+  domain: openshift.example.com
+  endpointPublishingStrategy:
+    hostNetwork:
+      httpPort: 80
+      httpsPort: 443
+      statsPort: 1936
+    type: HostNetwork
+  nodePlacement:
+    nodeSelector:
+      matchLabels:
+        node-role.kubernetes.io/worker: ""
+  replicas: 1
+status:
+  availableReplicas: 0
+  conditions:
+  - lastTransitionTime: "2023-01-28T10:05:06Z"
+    reason: Valid
+    status: "True"
+    type: Admitted
+  - lastTransitionTime: "2023-01-28T10:09:15Z"
+    status: "True"
+    type: PodsScheduled
+  - lastTransitionTime: "2023-01-28T10:05:06Z"
+    message: The configured endpoint publishing strategy does not include a managed
+      load balancer
+    reason: EndpointPublishingStrategyExcludesManagedLoadBalancer
+    status: "False"
+    type: LoadBalancerManaged
+  - lastTransitionTime: "2023-01-28T10:05:06Z"
+    message: No DNS zones are defined in the cluster dns config.
+    reason: NoDNSZones
+    status: "False"
+    type: DNSManaged
+  - lastTransitionTime: "2023-01-28T10:05:06Z"
+    status: "False"
+    type: Progressing
+  - lastTransitionTime: "2023-01-28T10:13:55Z"
+    message: "One or more other status conditions indicate a degraded state."
+    # message: 'One or more other status conditions indicate a degraded state: CanaryChecksSucceeding=False
+    #   (CanaryChecksRepetitiveFailures: Canary route checks for the default ingress
+    #   controller are failing)'
+    reason: DegradedConditions
+    status: "True"
+    type: Degraded
+  - lastTransitionTime: "2023-01-28T10:05:06Z"
+    message: IngressController is upgradeable.
+    reason: Upgradeable
+    status: "True"
+    type: Upgradeable
+  - lastTransitionTime: "2023-01-28T10:12:55Z"
+    message: Canary route checks for the default ingress controller are failing
+    reason: CanaryChecksRepetitiveFailures
+    status: "False"
+    type: CanaryChecksSucceeding
+  domain: openshift.example.com
+  endpointPublishingStrategy:
+    hostNetwork:
+      httpPort: 80
+      httpsPort: 443
+      protocol: TCP
+      statsPort: 1936
+    type: HostNetwork
+  namespaceSelector: {}
+  observedGeneration: 2
+  routeSelector: {}
+  selector: ingresscontroller.operator.openshift.io/deployment-ingresscontroller=default
+  tlsProfile:
+    ciphers:
+    - ECDHE-ECDSA-CHACHA20-POLY1305
+    - ECDHE-RSA-CHACHA20-POLY1305
+    - ECDHE-ECDSA-AES128-GCM-SHA256
+    - ECDHE-RSA-AES128-GCM-SHA256
+    - ECDHE-ECDSA-AES256-GCM-SHA384
+    - ECDHE-RSA-AES256-GCM-SHA384
+    - DHE-RSA-AES128-GCM-SHA256
+    - DHE-RSA-AES256-GCM-SHA384
+    - ECDHE-ECDSA-AES128-SHA256
+    - ECDHE-RSA-AES128-SHA256
+    - ECDHE-ECDSA-AES128-SHA
+    - ECDHE-RSA-AES256-SHA384
+    - ECDHE-RSA-AES128-SHA
+    - ECDHE-ECDSA-AES256-SHA384
+    - ECDHE-ECDSA-AES256-SHA
+    - ECDHE-RSA-AES256-SHA
+    - DHE-RSA-AES128-SHA256
+    - DHE-RSA-AES128-SHA
+    - DHE-RSA-AES256-SHA256
+    - DHE-RSA-AES256-SHA
+    - AES128-GCM-SHA256
+    - AES256-GCM-SHA384
+    - AES128-SHA256
+    - AES256-SHA256
+    - AES128-SHA
+    - AES256-SHA
+    - '!DSS'
+    minTLSVersion: VersionTLS11

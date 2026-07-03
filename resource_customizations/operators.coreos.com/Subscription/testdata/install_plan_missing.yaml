@@ -1,0 +1,139 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  selfLink: >-
+    /apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions/openshift-gitops-operator
+  resourceVersion: '147969'
+  name: openshift-gitops-operator
+  uid: 59318244-d23a-47c1-9f23-38a3ccaaf6f8
+  creationTimestamp: '2021-08-30T21:43:17Z'
+  generation: 1
+  managedFields:
+    - apiVersion: operators.coreos.com/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:spec':
+          .: {}
+          'f:channel': {}
+          'f:installPlanApproval': {}
+          'f:name': {}
+          'f:source': {}
+          'f:sourceNamespace': {}
+          'f:startingCSV': {}
+      manager: Mozilla
+      operation: Update
+      time: '2021-08-30T21:43:17Z'
+    - apiVersion: operators.coreos.com/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:labels':
+            .: {}
+            'f:operators.coreos.com/openshift-gitops-operator.openshift-operators': {}
+      manager: olm
+      operation: Update
+      time: '2021-08-30T21:43:17Z'
+    - apiVersion: operators.coreos.com/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          'f:installedCSV': {}
+          'f:currentCSV': {}
+          'f:catalogHealth': {}
+          'f:installPlanRef':
+            .: {}
+            'f:apiVersion': {}
+            'f:kind': {}
+            'f:name': {}
+            'f:namespace': {}
+            'f:resourceVersion': {}
+            'f:uid': {}
+          'f:installPlanGeneration': {}
+          'f:conditions': {}
+          .: {}
+          'f:installplan':
+            .: {}
+            'f:apiVersion': {}
+            'f:kind': {}
+            'f:name': {}
+            'f:uuid': {}
+          'f:lastUpdated': {}
+          'f:state': {}
+      manager: catalog
+      operation: Update
+      time: '2021-08-30T21:43:19Z'
+  namespace: openshift-operators
+  labels:
+    operators.coreos.com/openshift-gitops-operator.openshift-operators: ''
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: openshift-gitops-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: openshift-gitops-operator.v1.2.0
+status:
+  installplan:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-jx26v
+    uuid: 8566ad1f-c3ea-4367-aba5-db021b8cef45
+  lastUpdated: '2021-08-30T21:43:30Z'
+  installedCSV: openshift-gitops-operator.v1.2.0
+  currentCSV: openshift-gitops-operator.v1.2.0
+  installPlanRef:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-jx26v
+    namespace: openshift-operators
+    resourceVersion: '147595'
+    uid: 8566ad1f-c3ea-4367-aba5-db021b8cef45
+  state: AtLatestKnown
+  catalogHealth:
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: certified-operators
+        namespace: openshift-marketplace
+        resourceVersion: '145894'
+        uid: 12fb6b00-6839-4360-89ea-0ed98cdc94f1
+      healthy: true
+      lastUpdated: '2021-08-30T21:43:17Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: community-operators
+        namespace: openshift-marketplace
+        resourceVersion: '145058'
+        uid: e8913c52-5002-404f-92a4-d7b6eb35ea54
+      healthy: true
+      lastUpdated: '2021-08-30T21:43:17Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-marketplace
+        namespace: openshift-marketplace
+        resourceVersion: '143953'
+        uid: 5bc9368c-50ee-4079-b66c-e32c8f75fa52
+      healthy: true
+      lastUpdated: '2021-08-30T21:43:17Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-operators
+        namespace: openshift-marketplace
+        resourceVersion: '143604'
+        uid: 57a67470-3344-48db-8790-91853b62b650
+      healthy: true
+      lastUpdated: '2021-08-30T21:43:17Z'
+  conditions:
+    - lastTransitionTime: '2021-08-30T21:43:17Z'
+      message: all available catalogsources are healthy
+      reason: AllCatalogSourcesHealthy
+      status: 'False'
+      type: CatalogSourcesUnhealthy
+    - lastTransitionTime: '2021-08-30T21:43:30Z'
+      reason: ReferencedInstallPlanNotFound
+      status: 'True'
+      type: InstallPlanMissing
+  installPlanGeneration: 1

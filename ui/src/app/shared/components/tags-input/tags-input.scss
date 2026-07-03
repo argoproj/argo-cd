@@ -1,0 +1,56 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.tags-input {
+    padding: 0 4px;
+    cursor: text;
+    overflow: hidden;
+    min-height: 2.8em;
+    line-height: 24px;
+
+    input {
+        width: 100%;
+        border-width: 0;
+        margin: 0.65em 0 0.65em -4px;
+        background: transparent;
+    }
+
+    .select {
+        min-width: 60%;
+        position: absolute;
+        left: -1000px;
+    }
+
+    &--focused {
+        outline: 0;
+        border-color: $argo-color-teal-6;
+        .select {
+            position: static;
+        }
+    }
+
+
+    &__tag {
+        position: relative;
+        display: inline-block;
+        background-color: $argo-color-gray-4;
+        color: $argo-color-gray-8;
+        box-shadow: 1px 1px 3px $argo-color-gray-5;
+        border-radius: 5px;
+        padding: 4px 18px 4px 4px;
+        margin: 0.2em 0.75em 0.2em 0;
+        cursor: default;
+        max-width: 100%;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+
+        i {
+            position: absolute;
+            cursor: pointer;
+            right: 2px;
+            top: 8px;
+        }
+    }
+}

@@ -1,0 +1,57 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  labels:
+    argocd.argoproj.io/instance: foo
+    cluster.x-k8s.io/cluster-name: foo
+  name: foo-pool
+  namespace: default
+spec:
+  clusterName: foo
+  replicas: 3
+  template:
+    metadata: {}
+    spec:
+      bootstrap:
+        dataSecretName: ""
+      clusterName: foo
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSManagedMachinePool
+        name: foo-pool
+        namespace: default
+      version: v1.30.0
+status:
+  availableReplicas: 3
+  bootstrapReady: true
+  conditions:
+    - lastTransitionTime: '2024-08-19T20:33:02Z'
+      status: 'True'
+      type: Ready
+    - lastTransitionTime: '2024-08-19T20:18:31Z'
+      status: 'True'
+      type: BootstrapReady
+    - lastTransitionTime: '2024-08-19T20:33:02Z'
+      status: 'True'
+      type: InfrastructureReady
+    - lastTransitionTime: '2024-08-19T20:18:31Z'
+      status: 'True'
+      type: ReplicasReady
+  infrastructureReady: true
+  nodeRefs:
+    - apiVersion: v1
+      kind: Node
+      name: ip-18-232-50-123-ec2.internal
+      uid: e4b3a44f-1c2d-4fd3-bb9e-3b0e08787a5a
+    - apiVersion: v1
+      kind: Node
+      name: ip-52-23-45-67-ec2.internal
+      uid: 2b9dabe5-3a1d-429a-985b-5e7ffb9649c6
+    - apiVersion: v1
+      kind: Node
+      name: ip-34-207-89-12-ec2.internal
+      uid: 6f94031a-d3e4-48f7-bc94-22bb9b687f5e
+  observedGeneration: 2
+  phase: Running
+  readyReplicas: 3
+  replicas: 3

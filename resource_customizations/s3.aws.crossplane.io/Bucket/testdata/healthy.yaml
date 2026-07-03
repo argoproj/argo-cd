@@ -1,0 +1,36 @@
+apiVersion: s3.aws.crossplane.io/v1beta1
+kind: Bucket
+metadata:
+  name: example
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    locationConstraint: eu-north-1
+    objectOwnership: BucketOwnerEnforced
+    paymentConfiguration:
+      payer: BucketOwner
+    publicAccessBlockConfiguration:
+      blockPublicAcls: true
+      blockPublicPolicy: true
+      ignorePublicAcls: true
+      restrictPublicBuckets: true
+    serverSideEncryptionConfiguration:
+      rules:
+        - applyServerSideEncryptionByDefault:
+            sseAlgorithm: AES256
+    versioningConfiguration:
+      status: Suspended
+  providerConfigRef:
+    name: provider-aws
+status:
+  atProvider:
+    arn: arn:aws:s3:::example
+  conditions:
+  - lastTransitionTime: "2024-07-12T12:50:46Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-12T12:50:44Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced

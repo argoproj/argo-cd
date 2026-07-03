@@ -1,0 +1,79 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.application-node-info {
+    &__manifest {
+        overflow-x: auto;
+
+        .tabs__content {
+            background-color: white;
+            @include themify($themes){
+                background-color: themed('background-2');
+            }
+        }
+
+        &--raw {
+            font-family: 'Bitstream Vera Sans Mono', 'DejaVu Sans Mono', Monaco, Courier, monospace;
+            white-space: pre;
+            font-size: 12px;
+            color: gray;
+            padding: 0 0 0 12px;
+            line-height: 2em;
+        }
+    }
+
+    &__labels {
+        line-height: 28px;
+    }
+
+    &__label {
+        background-color: $argo-color-gray-5;
+        color: white;
+        border-radius: 5px;
+        padding: 4px;
+        display: inline-block;
+        margin-right: 2px;
+        line-height: 14px;
+    }
+
+    &__checkboxes {
+        text-align: right;
+        label {
+            padding-right: 2em;
+            color: $argo-color-gray-8;
+            @include themify($themes){
+                color: themed('text-2');
+            }
+        }
+    }
+    &__err_msg {
+        padding-right: 2em;
+        color: $argo-failed-color;
+    }
+    &__container {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        line-height: 1.8;
+        border-bottom: 1px solid rgba(222, 230, 235, 0.7);
+
+        &--name {
+            width: 15%;
+        }
+        &--highlight {
+            font-style: italic;
+        }
+
+        &--hint {
+            text-decoration: underline;
+            text-decoration-style: dashed;
+            cursor: pointer;
+            &:hover {
+                text-decoration: none;
+            }
+        }
+        &:last-child {
+            border-bottom: none;
+        }
+    }
+}

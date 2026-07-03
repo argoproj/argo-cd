@@ -1,0 +1,55 @@
+# This example demonstrates a git file generator which traverses the directory structure of a git
+# repository to discover items based on a filename convention. For each file discovered, the
+# contents of the discovered files themselves, act as the set of inputs to the app template.
+#
+# Suppose the following git directory structure:
+#
+# cluster-deployments
+# ├── apps
+# │   └── guestbook
+# │       └── install.yaml
+# └── cluster-config
+#     ├── engineering
+#     │   ├── dev
+#     │   │   └── config.json
+#     │   └── prod
+#     │       └── config.json
+#     └── finance
+#         ├── dev
+#         │   └── config.json
+#         └── prod
+#             └── config.json
+#
+# The discovered files (e.g. config.json) files can be any structured data supplied to the
+# generated application. e.g.:
+# {
+#    "aws_account": "123456",
+#    "asset_id": "11223344"
+#    "cluster": {
+#        "owner": "Jesse_Suen@intuit.com",
+#        "name": "engineering-dev",
+#        "address": "http://1.2.3.4"
+#    }
+# }
+#
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/infra-team/cluster-deployments.git
+      files:
+      - path: "**/config.json"
+  template:
+    metadata:
+      name: '{{cluster.name}}-guestbook'
+    spec:
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+        path: apps/guestbook
+      destination:
+        server: '{{cluster.address}}'
+        namespace: guestbook

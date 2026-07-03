@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - clusters: {}
+  template:
+    metadata:
+      name: '{{.name}}-guestbook'
+    spec:
+      project: "default"
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        targetRevision: HEAD
+        path: guestbook
+      destination:
+        server: '{{.server}}'
+        namespace: guestbook

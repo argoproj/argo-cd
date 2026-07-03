@@ -1,0 +1,205 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$logoPath: 'assets/images/argologo.svg';
+$logoNegativePath: 'assets/images/argo.png';
+
+//for input fields
+
+.argo-field {
+    border-bottom: 2px solid $argo-color-gray-3;
+}
+
+.login {
+    min-height:100vh;
+    background: linear-gradient(to top left, 
+        rgba(122, 139, 207, 0.8) 0%, 
+        rgba(46, 50, 90, 0.8) 100%), 
+        url("assets/images/stars.gif");
+    display: flex;
+
+    &__content {
+        float: left;
+        margin: auto;
+        width: calc(100% - 320px);
+        text-align: center;
+    }
+
+    .argo__logo {
+        background-image: url($logoNegativePath);
+        background-repeat: no-repeat;
+        background-size: contain;
+        min-height: 200px;
+        margin: auto;
+        background-position: center;
+        height: 50vh;
+    }
+
+    &__text{
+        position: relative;
+        margin: auto;
+        top: -10vh;
+        color: #FFF;
+        font-size: 2.5rem;
+        font-weight: 100; 
+    }
+
+
+    &__box-wrapper {
+        display: table;
+        width: 100%;
+        height: calc(100% - 60px - 70px - 40px);
+        padding: 20px 0 80px;
+    }
+
+    &__box-outer {
+        display: table-cell;
+        vertical-align: middle;
+        overflow: hidden;
+        float: right;
+    }
+
+    &__box {
+        min-width: 320px;
+        width: 20%;
+        margin: 0 auto;
+        padding: 40px;
+        background-color: #fff;
+        position: relative;
+        float: right;
+        min-height: 100vh;
+
+        .width-control{
+            max-width: 200px;
+            margin: auto;
+        }
+
+        &_saml {
+            padding: 40px 0;
+        }
+
+        h3, h4, h5 {
+            color: #b268a7;
+            text-align: center;
+            padding-top: 1em;
+            padding-bottom: 1em;
+        }
+
+        h6 {
+            text-align: center;
+        }
+
+        h3 {
+            font-size: 2.25em;
+            font-weight: 100;
+            padding-bottom: 66px;
+
+            @media screen and (max-height: 774px) {
+                padding-bottom: 20px;
+            }
+        }
+    }
+
+    &__form-row {
+        padding: 20px 0;
+    }
+
+    &__more-row {
+        padding: 20px 0;
+        text-align: center;
+        font-weight: bold;
+
+        @media screen and (max-height: 774px) {
+            padding: 0;
+        }
+
+        a {
+            font-size: 13px;
+            text-transform: uppercase;
+            color: $argo-color-gray-7;
+            font-weight: 300;
+        }
+
+        p {
+            font-size: 13px;
+        }
+    }
+
+    &__saml-separator {
+        margin-top: 15px;
+        color: $argo-color-gray-7;
+        border-bottom: 1px solid $argo-color-gray-4;
+        text-align: center;
+        & > span {
+            position: relative;
+            top: 0.8em;
+            display: inline-block;
+            padding: 0 6px;
+            background: #fff;
+        }
+    }
+
+    &__logo {
+        display: block;
+        background-repeat: no-repeat;
+        background-position: center;
+        text-align: center;
+
+        &--neg {
+            height: 40px;
+            background-size: contain;
+            background-image: url($logoPath);
+            background-repeat: no-repeat;
+            margin-left: 4.5rem;
+            position: relative;
+            top: 1.5rem;
+            width: 10rem;
+        }
+        &--argo{
+            height: 5rem;
+            background-size: contain;
+            background-image: url(assets/images/Argo.svg);
+            background-repeat: no-repeat;
+            float: left;
+            width: 4rem;  
+        }
+
+        img.logo-image{
+            max-width: 50%;
+            color: #F77530;
+        }
+    }
+
+    &__footer {
+        color: $argo-color-gray-2;
+        bottom: 20px;
+        position: absolute;
+        width: 90%;
+        text-align: center;
+        left: 20px;        
+
+        & a {
+            color: $argo-color-gray-2;
+            img{
+                width: 36px;
+                filter: invert(50%);
+                -webkit-filter: invert(50%);
+            }
+        }
+
+        .ver {
+            font-size:12px;
+            color: $argo-color-gray-7;
+        }
+
+        &__link {
+            font-size:12px;
+            padding:0px 5px;
+        }
+    }
+
+    ::after {
+        content: '';
+        clear: both;
+    }
+
+}

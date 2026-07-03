@@ -1,0 +1,64 @@
+@font-face {
+	font-family: "codicon";
+	src: url("./fonts/codicon.ttf") format("truetype");
+}
+
+/* === Heebo - 300 */
+@font-face {
+	font-family: 'Heebo';
+	font-style: normal;
+	font-weight: 300;
+	font-display: swap;
+	src: url("./fonts/google-fonts/Heebo-Light.eot");
+	src: local('Heebo'),
+		url("./fonts/google-fonts/Heebo-Light.eot") format("embedded-opentype"),
+		url("./fonts/google-fonts/Heebo-Light.woff2") format("woff2"),
+		url("./fonts/google-fonts/Heebo-Light.woff") format("woff"),
+		url("./fonts/google-fonts/Heebo-Light.ttf") format("truetype"),
+		url("./fonts/google-fonts/Heebo-Light.svg") format("svg");
+}
+
+/* === Heebo - regular */
+@font-face {
+	font-family: 'Heebo';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url("./fonts/google-fonts/Heebo-Regular.eot");
+	src: local('Heebo'),
+		url("./fonts/google-fonts/Heebo-Regular.eot") format("embedded-opentype"),
+		url("./fonts/google-fonts/Heebo-Regular.woff2") format("woff2"),
+		url("./fonts/google-fonts/Heebo-Regular.woff") format("woff"),
+		url("./fonts/google-fonts/Heebo-Regular.ttf") format("truetype"),
+		url("./fonts/google-fonts/Heebo-Regular.svg") format("svg");
+}
+
+/* === Heebo - 500 */
+@font-face {
+	font-family: 'Heebo';
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url("./fonts/google-fonts/Heebo-Medium.eot");
+	src: local('Heebo'),
+		url("./fonts/google-fonts/Heebo-Medium.eot") format("embedded-opentype"),
+		url("./fonts/google-fonts/Heebo-Medium.woff2") format("woff2"),
+		url("./fonts/google-fonts/Heebo-Medium.woff") format("woff"),
+		url("./fonts/google-fonts/Heebo-Medium.ttf") format("truetype"),
+		url("./fonts/google-fonts/Heebo-Medium.svg") format("svg");
+}
+
+/* === Heebo - 700 */
+@font-face {
+	font-family: 'Heebo';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url("./fonts/google-fonts/Heebo-Bold.eot");
+	src: local('Heebo'),
+		url("./fonts/google-fonts/Heebo-Bold.eot") format("embedded-opentype"),
+		url("./fonts/google-fonts/Heebo-Bold.woff2") format("woff2"),
+		url("./fonts/google-fonts/Heebo-Bold.woff") format("woff"),
+		url("./fonts/google-fonts/Heebo-Bold.ttf") format("truetype"),
+		url("./fonts/google-fonts/Heebo-Bold.svg") format("svg");
+}

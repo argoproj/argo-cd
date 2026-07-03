@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-demo
+  namespace: default
+spec:
+  replicas: 5
+  restartAt: "0001-01-01T00:00:00Z"
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: canary-demo
+  strategy:
+    canary:
+      analysis:
+        args:
+        - name: ingress
+          value: canary-demo
+        templateName: success-rate
+      canaryService: canary-demo-preview
+      maxSurge: 1
+      maxUnavailable: 1
+      steps:
+      - setWeight: 40
+      - pause: {}
+      - setWeight: 60
+      - pause:
+          duration: 10
+      - setWeight: 80
+      - pause:
+          duration: 10
+  template:
+    metadata:
+      labels:
+        app: canary-demo
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:red
+        imagePullPolicy: Always
+        name: canary-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi

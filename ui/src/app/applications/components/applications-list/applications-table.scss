@@ -1,0 +1,173 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$applications-list-label-min: 5.75rem;
+$applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
+
+.applications-table {
+
+    .argo-table-list__row {
+        line-height: 26px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        padding-left: 2em;
+    }
+
+    .applications-list__table-row {
+        // No `position: relative` here on purpose: the overlay link anchors to the already-positioned
+        // outer `.argo-table-list__row` (argo-ui sets it `position: relative`), so it spans the full
+        // row including that element's left padding. Making this inner Foundation `.row` a containing
+        // block would shrink the overlay to the narrower inner row instead.
+
+        // Lift interactive and tooltip-bearing descendants above the overlay link so they
+        // receive their own clicks and so native `title` / Tippy hover fires on them. The
+        // overlay anchor catches clicks on the remaining non-interactive areas of the row.
+        // `[title]` covers status icons (HealthStatusIcon, ComparisonStatusIcon, etc. in
+        // utils.tsx which render `<i title=…>`); `.application-notice-icon` covers the
+        // NoticeIcon, which uses Tippy instead of native `title`.
+        button,
+        a:not(.applications-list__table-row__overlay-link),
+        [title],
+        .application-notice-icon {
+            position: relative;
+            z-index: 2;
+        }
+
+        // `.argo-dropdown` is `position: static` by default (argo-ui dropdown.scss), so
+        // z-index alone wouldn't lift it above the overlay link. Promote it to positioned
+        // so the `…` action menu still receives its own clicks.
+        .argo-dropdown {
+            position: relative;
+            z-index: 2;
+        }
+
+        // Visual reset for the name: it's an <a> (tabIndex=-1) styled to read like plain text,
+        // since the row's primary link semantics live on the overlay anchor.
+        .applications-list__table-row-name {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        // CellLink anchors wrap Source / Labels / Destination cell content. They're
+        // visually identical to the divs they replace (the overlay anchor provides
+        // the visual link semantics); block + min-width:0 preserves the prior
+        // flex/truncation behaviour of those cells.
+        .applications-list__table-row__cell-link {
+            display: block;
+            min-width: 0;
+            color: inherit;
+            text-decoration: none;
+
+            &:hover, &:focus, &:visited, &:active {
+                color: inherit;
+                text-decoration: none;
+            }
+        }
+    }
+
+    .applications-list__table-row__overlay-link {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        color: inherit;
+        text-decoration: none;
+
+        &:hover, &:visited, &:active {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        // Keyboard focus indicator — the anchor itself is invisible, so draw the outline
+        // on its bounding box (the whole row) for keyboard users.
+        &:focus-visible {
+            outline: 2px solid $argo-color-teal-5;
+            outline-offset: -2px;
+        }
+    }
+
+    .applications-list__table-row.applications-table-row--with-hydrator {
+        .columns.small-4,
+        .columns.small-6 {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+    }
+
+    .applications-list__table-row button.managed-by-url-invalid {
+        color: #f4c030;
+
+        &:hover {
+            color: #f4c030;
+        }
+    }
+
+    .applications-list__meta-column {
+        display: flex;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .applications-list__fav-col {
+        flex-shrink: 0;
+        padding-left: 0;
+        padding-right: 10px;
+
+        button {
+            padding: 0;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .applications-list__external-links-icon-container {
+            display: inline-block;
+            margin-left: 0.125rem;
+        }
+    }
+
+    .applications-list__meta-rows {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .applications-list__meta-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+
+        @media screen and (min-width: $applications-list-xxlarge) {
+            grid-template-columns: minmax($applications-list-label-min, 2fr) minmax(0, 8fr);
+            column-gap: 0.25rem;
+        }
+    }
+
+    .applications-list__meta-label {
+        min-width: $applications-list-label-min;
+        white-space: nowrap;
+    }
+
+    .applications-list__meta-value {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .applications-list__meta-value.applications-table-source {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        overflow: visible;
+
+        .applications-table-source__link {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .applications-table-source__labels {
+            max-width: 40%;
+            flex-shrink: 0;
+        }
+    }
+}

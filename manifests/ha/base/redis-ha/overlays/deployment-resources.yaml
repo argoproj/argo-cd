@@ -1,0 +1,4 @@
+- op: remove
+  path: /spec/template/spec/containers/0/resources
+- op: remove
+  path: /spec/template/spec/initContainers/0/resources

@@ -1,0 +1,18 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: WebRequestCommitStatus
+metadata:
+  name: external-check
+  namespace: gitops-promoter
+spec:
+  promotionStrategyRef:
+    name: demo
+  key: ext-approval
+  httpRequest:
+    urlTemplate: "https://example.com/health"
+    method: GET
+  success:
+    when:
+      expression: "Response.StatusCode == 200"
+  mode:
+    polling:
+      interval: 1m

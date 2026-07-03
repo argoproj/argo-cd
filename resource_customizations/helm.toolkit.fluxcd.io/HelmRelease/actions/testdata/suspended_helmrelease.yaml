@@ -1,0 +1,34 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  timeout: 5m
+  chart:
+    spec:
+      chart: podinfo
+      version: '6.5.*'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 5m
+  releaseName: podinfo
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  test:
+    enable: true
+  suspend: true
+  driftDetection:
+    mode: enabled
+    ignore:
+    - paths: ["/spec/replicas"]
+      target:
+        kind: Deployment
+  values:
+    replicaCount: 2

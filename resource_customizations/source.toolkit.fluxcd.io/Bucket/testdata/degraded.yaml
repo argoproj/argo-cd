@@ -1,0 +1,34 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: Bucket
+metadata:
+  name: minio-bucket
+  namespace: default
+spec:
+  interval: 5m0s
+  endpoint: minio.example.com
+  insecure: true
+  secretRef:
+    name: minio-bucket-secret
+  bucketName: example
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: building artifact
+      observedGeneration: 1
+      reason: ProgressingWithRetry
+      status: "True"
+      type: Reconciling
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'failed to confirm existence of ''example'' bucket: XML syntax error
+        on line 5: element <meta> closed by </head>'
+      observedGeneration: 1
+      reason: BucketOperationFailed
+      status: "False"
+      type: Ready
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'failed to confirm existence of ''example'' bucket: XML syntax error
+        on line 5: element <meta> closed by </head>'
+      observedGeneration: 1
+      reason: BucketOperationFailed
+      status: "True"
+      type: FetchFailed

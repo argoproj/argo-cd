@@ -1,0 +1,9 @@
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: simple-spinapp
+  namespace: spin-apps
+spec:
+  executor: containerd-shim-spin
+  image: ghcr.io/spinkube/containerd-shim-spin/examples/spin-rust-hello:v0.13.0
+  replicas: 2

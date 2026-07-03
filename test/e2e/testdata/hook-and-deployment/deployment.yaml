@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: main
+        image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /does-not-exist
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 3
+          timeoutSeconds: 1

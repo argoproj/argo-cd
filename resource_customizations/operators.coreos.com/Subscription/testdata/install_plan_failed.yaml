@@ -1,0 +1,86 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  labels:
+    operators.coreos.com/openshift-gitops-operator.openshift-operators: ''
+  name: openshift-gitops-operator
+  namespace: openshift-operators
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: openshift-gitops-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: openshift-gitops-operator.v1.2.0
+status:
+  installplan:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-rzdwt
+    uuid: 7a772cec-f487-4cf9-8689-7c533c212c82
+  lastUpdated: '2021-08-24T03:46:16Z'
+  installedCSV: openshift-gitops-operator.v1.2.0
+  currentCSV: openshift-gitops-operator.v1.2.0
+  installPlanRef:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-rzdwt
+    namespace: openshift-operators
+    resourceVersion: '50025'
+    uid: 7a772cec-f487-4cf9-8689-7c533c212c82
+  state: AtLatestKnown
+  catalogHealth:
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: certified-operators
+        namespace: openshift-marketplace
+        resourceVersion: '48843'
+        uid: 6c1dc387-00b4-4bb7-86f3-9e349a55abf0
+      healthy: true
+      lastUpdated: '2021-08-24T02:43:15Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: community-operators
+        namespace: openshift-marketplace
+        resourceVersion: '47352'
+        uid: 7d63bae9-06a9-434b-be50-af60fc73c19d
+      healthy: true
+      lastUpdated: '2021-08-24T02:43:15Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-marketplace
+        namespace: openshift-marketplace
+        resourceVersion: '48061'
+        uid: ef6d3590-a326-4ceb-bced-e180c50ff314
+      healthy: true
+      lastUpdated: '2021-08-24T02:43:15Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-operators
+        namespace: openshift-marketplace
+        resourceVersion: '46591'
+        uid: 1a6025d8-c166-4a9a-a608-c051cfc904a8
+      healthy: true
+      lastUpdated: '2021-08-24T02:43:15Z'
+  conditions:
+    - lastTransitionTime: '2021-08-24T02:43:15Z'
+      message: all available catalogsources are healthy
+      reason: AllCatalogSourcesHealthy
+      status: 'False'
+      type: CatalogSourcesUnhealthy
+    - lastTransitionTime: '2021-08-24T02:53:03Z'
+      message: >-
+        api-server resource not found installing CustomResourceDefinition
+        gitopsservices.pipelines.openshift.io: GroupVersionKind
+        apiextensions.k8s.io/v1beta1, Kind=CustomResourceDefinition not found on
+        the cluster. This API may have been deprecated and removed, see
+        https://kubernetes.io/docs/reference/using-api/deprecation-guide/ for
+        more information.
+      reason: InstallComponentFailed
+      status: 'True'
+      type: InstallPlanFailed
+  installPlanGeneration: 1

@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapp
+spec:
+  generators:
+  - pullRequest:
+      github:
+        # The GitHub organization or user.
+        owner: myorg
+        # The Github repository
+        repo: myrepo
+        # For GitHub Enterprise. (optional)
+        api: https://git.example.com/
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: github-token
+          key: token
+        # Labels is used to filter the PRs that you want to target. (optional)
+        labels:
+        - preview
+  template:
+    metadata:
+      name: 'myapp-{{ branch }}-{{ number }}'
+    spec:
+      source:
+        repoURL: 'https://github.com/myorg/myrepo.git'
+        targetRevision: '{{ head_sha }}'
+        path: helm-guestbook
+        helm:
+          parameters:
+          - name: "image.tag"
+            value: "pull-{{ head_sha }}"
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{ branch }}-{{ number }}"
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true

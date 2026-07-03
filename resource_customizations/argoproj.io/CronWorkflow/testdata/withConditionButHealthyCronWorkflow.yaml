@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: test-cron-wf
+  namespace: argocd
+spec:
+  entrypoint: sampleEntryPoint
+status:
+  conditions:
+    - lastTransitionTime: "2021-11-12T14:28:01Z"
+      message: this status may be outdated and we may still be progressing
+      status: "False"
+      type: SpecError
