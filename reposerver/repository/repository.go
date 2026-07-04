@@ -896,7 +896,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						}
 					} else {
 						if refSourceMapping.Repo.IsOCI() {
-							ociClient, err := s.newOCIClient(refSourceMapping.Repo.Repo, refSourceMapping.Repo.GetOCICreds(), refSourceMapping.Repo.Proxy, refSourceMapping.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+							ociClient, err := s.newOCIClient(refSourceMapping.Repo.Repo, refSourceMapping.Repo.GetOCICreds(), refSourceMapping.Repo.Proxy, refSourceMapping.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 							if err != nil {
 								log.Errorf("Failed to create OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 								ch.errCh <- fmt.Errorf("failed to create OCI client for repo %s", refSourceMapping.Repo.Repo)
