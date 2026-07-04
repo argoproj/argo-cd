@@ -16,6 +16,7 @@ import {
     ComparisonStatusIcon,
     getAppDrySource,
     getAppHydratorSyncSource,
+    getApplicationDetailsContainerClass,
     getAppOperationState,
     getAppSpecDefaultSource,
     getHydratorSyncSourceRepoURL,
@@ -1058,5 +1059,19 @@ describe('getAppSpecDefaultSource', () => {
             targetRevision: 'env/test',
             path: 'out'
         });
+    });
+});
+
+describe('getApplicationDetailsContainerClass', () => {
+    it('keeps the static application-details class and adds a prefixed per-application class', () => {
+        expect(getApplicationDetailsContainerClass('guestbook')).toBe('application-details user-app-guestbook');
+    });
+
+    it('prefixes the per-application class so an app named after a component class does not collide (#24220)', () => {
+        const classes = getApplicationDetailsContainerClass('login').split(' ');
+        // the per-application hook is present, but namespaced...
+        expect(classes).toContain('user-app-login');
+        // ...and must NOT emit a bare `login` class that would pull in the login page's `.login` styles.
+        expect(classes).not.toContain('login');
     });
 });
