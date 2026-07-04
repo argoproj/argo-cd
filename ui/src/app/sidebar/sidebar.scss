@@ -94,11 +94,6 @@ $deselected-text: #818d94;
         -webkit-appearance: none; // older Safari still needs the prefix
         font-family: inherit;
 
-        &:hover,
-        &:focus {
-            text-decoration: none;
-        }
-
         // Visible keyboard focus on the dark sidebar background (default ring is low-contrast here).
         &:focus-visible {
             outline: 2px solid #fe733f;
@@ -122,6 +117,11 @@ $deselected-text: #818d94;
 
         &--active {
             color: white;
+            // Out-specify argo-ui's global `a:hover { color: teal }` so the active item stays white.
+            &:hover,
+            &:focus {
+                color: white;
+            }
             i {
                 color: #fe733f;
             }
