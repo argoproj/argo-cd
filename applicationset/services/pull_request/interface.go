@@ -28,11 +28,11 @@ type PullRequest struct {
 	UpdatedAt time.Time
 }
 
-func (p PullRequest) IsCreatedWithin(t *time.Duration) bool {
+func (p PullRequest) IsCreatedBefore(t *time.Duration) bool {
 	return t != nil && p.CreatedAt.Before(time.Now().UTC().Add(-*t))
 }
 
-func (p PullRequest) IsUpdatedWithin(t *time.Duration) bool {
+func (p PullRequest) IsUpdatedBefore(t *time.Duration) bool {
 	return t != nil && p.UpdatedAt.Before(time.Now().UTC().Add(-*t))
 }
 

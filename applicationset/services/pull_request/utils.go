@@ -72,10 +72,10 @@ func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 	if filter.TitleMatch != nil && !filter.TitleMatch.MatchString(pullRequest.Title) {
 		return false
 	}
-	if pullRequest.IsCreatedWithin(filter.CreatedWithin) {
+	if pullRequest.IsCreatedBefore(filter.CreatedWithin) {
 		return false
 	}
-	if pullRequest.IsUpdatedWithin(filter.UpdatedWithin) {
+	if pullRequest.IsUpdatedBefore(filter.UpdatedWithin) {
 		return false
 	}
 

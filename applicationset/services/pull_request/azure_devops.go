@@ -99,6 +99,7 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 			pr.TargetRefName == nil ||
 			pr.LastMergeSourceCommit == nil ||
 			pr.LastMergeSourceCommit.CommitId == nil ||
+			pr.LastMergeSourceCommit.Push == nil ||
 			pr.LastMergeSourceCommit.Push.Date == nil {
 			continue
 		}
