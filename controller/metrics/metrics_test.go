@@ -451,6 +451,56 @@ argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_se
 	}
 }
 
+func TestMetricsWithNilApp(t *testing.T) {
+	type testCase struct {
+		description               string
+		emitLabelsOnAllAppMetrics bool
+		appLabels                 []string
+		responseContains          string
+	}
+	cases := []testCase{
+		{
+			description:               "default labels are emitted as empty values when app is nil",
+			emitLabelsOnAllAppMetrics: false,
+			appLabels:                 []string{},
+			responseContains: `
+# TYPE argocd_app_k8s_request_total counter
+argocd_app_k8s_request_total{dry_run="false",name="",namespace="",project="",resource_kind="Pod",resource_namespace="default",response_code="200",server="https://localhost:6443",verb="GET"} 1
+`,
+		},
+		{
+			description:               "allowed labels are emitted as empty values when app is nil and emit-labels-on-all-metrics is enabled",
+			emitLabelsOnAllAppMetrics: true,
+			appLabels:                 []string{"team-name", "team-bu"},
+			responseContains: `
+# TYPE argocd_app_k8s_request_total counter
+argocd_app_k8s_request_total{dry_run="false",label_team_bu="",label_team_name="",name="",namespace="",project="",resource_kind="Pod",resource_namespace="default",response_code="200",server="https://localhost:6443",verb="GET"} 1
+`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			cancel, appLister := newFakeLister(t.Context())
+			defer cancel()
+			mockDB := mocks.NewArgoDB(t)
+			metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, c.emitLabelsOnAllAppMetrics, c.appLabels, []string{}, mockDB)
+			require.NoError(t, err)
+
+			require.NotPanics(t, func() {
+				metricsServ.IncKubernetesRequest(nil, "https://localhost:6443", "200", "GET", "Pod", "default")
+			})
+
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+			require.NoError(t, err)
+			rr := httptest.NewRecorder()
+			metricsServ.Handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assertMetricsPrinted(t, c.responseContains, rr.Body.String())
+		})
+	}
+}
+
 func TestMetricConditions(t *testing.T) {
 	type testCases struct {
 		testCombination

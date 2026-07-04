@@ -284,7 +284,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
-	command.Flags().BoolVar(&emitLabelsToAllMetrics, "emit-labels-to-all-metrics", env.ParseBoolFromEnv("EMIT_LABELS_TO_ALL_METRICS", false), "Emits the allowed list of app labels in metrics-application-labels to all app metrics")
+	command.Flags().BoolVar(&emitLabelsToAllMetrics, "emit-labels-to-all-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_EMIT_LABELS_TO_ALL_METRICS", false), "Emits the allowed list of app labels in metrics-application-labels to all app metrics")
 	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
 	command.Flags().StringSliceVar(&metricsAplicationConditions, "metrics-application-conditions", []string{}, "List of Application conditions that will be added to the argocd_application_conditions metric")
 	command.Flags().StringSliceVar(&metricsClusterLabels, "metrics-cluster-labels", []string{}, "List of Cluster labels that will be added to the argocd_cluster_labels metric")

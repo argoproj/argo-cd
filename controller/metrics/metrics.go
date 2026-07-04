@@ -93,6 +93,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		if emitLabelsOnAllMetrics {
 			metricLabels = combinedLabels
 		}
+	} else if emitLabelsOnAllMetrics {
+		log.Warnf("emit-labels-to-all-metrics flag is enabled but no app labels were provided to emit")
 	}
 
 	if len(appConditions) > 0 {
@@ -212,7 +214,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
-	registry.MustRegister(NewAppCollector(appLister, appFilter, metricLabels, emitLabelsOnAllMetrics, appConditions, db, descAppLabels, descAppConditions, descAppInfo))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, emitLabelsOnAllMetrics, appConditions, db, descAppLabels, descAppConditions, descAppInfo))
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
@@ -508,7 +510,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	}
 }
 
-// getMetricLabelValues returns the base label values for app metrics and appends the whitelisted labels if enabled
+// getMetricLabelValues returns the base label values for app metrics and appends the allowed labels if enabled
 func getMetricLabelValues(app *argoappv1.Application, allowedAppLabels []string, appendAllowedAppLabels bool) []string {
 	// get the default metric label values
 	var namespace, name, project string
