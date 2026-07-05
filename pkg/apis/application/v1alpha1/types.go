@@ -334,8 +334,15 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 	return true
 }
 
+const ociPrefix = "oci://"
+
+// IsOCIURL returns true if the URL is an OCI registry URL
+func IsOCIURL(url string) bool {
+	return strings.HasPrefix(url, ociPrefix)
+}
+
 func (source *ApplicationSource) IsOCI() bool {
-	return strings.HasPrefix(source.RepoURL, "oci://")
+	return IsOCIURL(source.RepoURL)
 }
 
 // IsRef returns true when the application source is of type Ref

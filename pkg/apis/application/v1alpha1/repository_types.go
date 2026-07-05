@@ -344,13 +344,6 @@ func (repo *Repository) IsOCI() bool {
 	return IsOCIURL(repo.Repo)
 }
 
-const ociPrefix = "oci://"
-
-// IsOCIURL returns true if the URL is an OCI registry URL
-func IsOCIURL(url string) bool {
-	return strings.HasPrefix(url, ociPrefix)
-}
-
 // NormalizeRepoURL returns the normalized repository URL
 func (repo *Repository) NormalizeRepoURL() string {
 	if repo.IsOCI() {
