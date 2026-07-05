@@ -59,10 +59,8 @@ const (
 	MetricsPath = "/metrics"
 )
 
-var (
-	// defaultMetricLabels is tightly couple with getMetricLabelValues if this list changes it has to be added there as well
-	defaultMetricLabels = []string{"namespace", "name", "project"}
-)
+// defaultMetricLabels is tightly couple with getMetricLabelValues if this list changes it has to be added there as well
+var defaultMetricLabels = []string{"namespace", "name", "project"}
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
 func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, emitLabelsOnAllMetrics bool, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
