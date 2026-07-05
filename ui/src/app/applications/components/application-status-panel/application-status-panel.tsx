@@ -1,4 +1,4 @@
-import {HelpIcon} from 'argo-ui';
+import {DropDownMenu, HelpIcon, MenuItem} from 'argo-ui';
 import * as React from 'react';
 import {ARGO_GRAY6_COLOR, DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
@@ -34,6 +34,7 @@ interface Props {
     showConditions?: () => any;
     showExtension?: (id: string) => any;
     showMetadataInfo?: (revision: string) => any;
+    showTerminate?: () => any;
 }
 
 interface SectionInfo {
@@ -52,18 +53,18 @@ const sectionLabel = (info: SectionInfo) => (
     </label>
 );
 
-const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
-    return (
-        <div style={{display: 'flex', alignItems: 'center'}}>
-            {sectionLabel(info)}
-            {onClick && (
-                <button className='argo-button application-status-panel__more-button' onClick={onClick}>
-                    <i className='fa fa-ellipsis-h' />
-                </button>
-            )}
-        </div>
-    );
-};
+const MoreButton = ({onClick}: {onClick?: () => any}) => (
+    <button className='argo-button application-status-panel__more-button' onClick={onClick}>
+        <i className='fa fa-ellipsis-h' />
+    </button>
+);
+
+const sectionHeader = (info: SectionInfo, onClick?: () => any, menuItems?: MenuItem[]) => (
+    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+        {sectionLabel(info)}
+        {menuItems && menuItems.length > 0 ? <DropDownMenu anchor={MoreButton} items={menuItems} /> : onClick && <MoreButton onClick={onClick} />}
+    </div>
+);
 
 const getApplicationSetOwnerRef = (application: models.Application) => {
     return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
@@ -196,7 +197,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo, showTerminate}: Props) => {
     const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
 
     React.useEffect(() => {
@@ -330,7 +331,13 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 appOperationState.syncResult && (appOperationState.syncResult.revisions || appOperationState.syncResult.revision)
                                     ? 'OPERATION_STATE_REVISION'
                                     : null
-                            )
+                            ),
+                        showTerminate &&
+                            application.status.operationState &&
+                            !(application.status.operationState.finishedAt && application.status.operationState.phase !== 'Running') &&
+                            application.status.operationState.phase !== 'Terminating'
+                            ? [{title: 'Terminate', iconClassName: 'fa fa-times-circle', action: () => showTerminate()}]
+                            : undefined
                     )}
                     <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         {application.status.operationState ? (

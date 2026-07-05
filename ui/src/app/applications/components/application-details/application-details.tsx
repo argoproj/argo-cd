@@ -999,6 +999,21 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                         showConditions={() => setConditionsStatusVisible(true)}
                                                         showExtension={id => setExtensionPanelVisible(id)}
                                                         showMetadataInfo={revision => setState(prevState => ({...prevState, revision}))}
+                                                        showTerminate={async () => {
+                                                            const confirmed = await appContext.popup.confirm(
+                                                                'Terminate operation',
+                                                                'Are you sure you want to terminate operation?'
+                                                            );
+                                                            if (!confirmed) return;
+                                                            try {
+                                                                await services.applications.terminateOperation(application.metadata.name, application.metadata.namespace);
+                                                            } catch (e) {
+                                                                appContext.notifications.show({
+                                                                    content: <ErrorNotification title='Unable to terminate operation' e={e} />,
+                                                                    type: NotificationType.Error
+                                                                });
+                                                            }
+                                                        }}
                                                     />
                                                 ) : (
                                                     <ApplicationSetStatusPanel
