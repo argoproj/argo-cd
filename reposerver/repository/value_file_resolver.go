@@ -233,8 +233,8 @@ func getResolvedOCIRefValueFile(
 	// Get the OCI path from the ociPaths
 	ociPath := ociPaths.GetPathIfExists(refSourceRepo)
 	if ociPath == "" {
-    	log.Errorf("OCI repo %q not found in extracted paths. Available paths: %v", refSourceRepo, ociPaths.GetPaths())
-    	return "", fmt.Errorf("OCI ref source %q was not successfully extracted. Ensure the repository is accessible and properly configured", refSourceRepo)
+		log.Errorf("OCI repo %q not found in extracted paths. Available paths: %v", refSourceRepo, ociPaths.GetPaths())
+		return "", fmt.Errorf("OCI ref source %q was not successfully extracted. Ensure the repository is accessible and properly configured", refSourceRepo)
 	}
 
 	// Remove first segment (the ref variable name) and resolve the path
