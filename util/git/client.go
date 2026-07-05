@@ -1765,6 +1765,19 @@ func staleGitLockPath(root string, outputs ...string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
+	// Canonicalize both sides before the containment check: git reports the
+	// real path, while root may still contain a symlinked component (e.g. macOS
+	// /var -> /private/var), which a purely lexical prefix check would wrongly
+	// reject. Resolve both together (via the lock's parent dir, since the lock
+	// file itself may be a regular file we are about to remove) so they stay
+	// comparable; if either can't be resolved, fall back to the lexical form on
+	// both sides.
+	if pDir, derr := filepath.EvalSymlinks(filepath.Dir(p)); derr == nil {
+		if rootResolved, rerr := filepath.EvalSymlinks(rootAbs); rerr == nil {
+			p = filepath.Join(pDir, filepath.Base(p))
+			rootAbs = rootResolved
+		}
+	}
 	sep := string(os.PathSeparator)
 	if !strings.HasSuffix(p, ".lock") ||
 		!strings.HasPrefix(p, filepath.Clean(rootAbs)+sep) ||

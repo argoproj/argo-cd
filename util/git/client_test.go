@@ -2248,3 +2248,42 @@ func TestStaleGitLockPath(t *testing.T) {
 		})
 	}
 }
+
+// Test_nativeGitClient_CheckoutRecoversStaleLock exercises the full recovery
+// path (reExecOnStaleLock driving real git) that TestStaleGitLockPath's string
+// matrix does not. A stale, plain-file HEAD.lock — left when a git child is
+// killed mid-checkout — wedges every later checkout with exit 128 until the pod
+// is restarted. Checkout must remove that one lock and succeed on the retry.
+func Test_nativeGitClient_CheckoutRecoversStaleLock(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	// first checkout populates the cache and HEAD
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err)
+
+	// simulate a git child killed between creating HEAD.lock and renaming it
+	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
+	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+
+	// precondition: the stale lock wedges a raw checkout with exit 128 and the
+	// lock survives, exactly as in the wedged repo-server cache
+	require.Error(t, runCmd(ctx, client.Root(), "git", "checkout", "--force", commitSHA))
+	require.FileExists(t, lockPath)
+
+	// Checkout must transparently remove the stale lock and succeed
+	out, err := client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err, "error output: %s", out)
+	require.NoFileExists(t, lockPath)
+}
