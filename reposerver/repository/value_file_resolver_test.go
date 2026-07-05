@@ -94,17 +94,17 @@ func TestValueFileResolver_resolveRawPath_local(t *testing.T) {
 	)
 
 	// Test existing local file
-	resolvedPath, isRemote, effectiveRoot, err := resolver.resolveRawPath("test.yaml")
+	resolved, err := resolver.resolveRawPath("test.yaml")
 	require.NoError(t, err)
-	assert.False(t, isRemote)
-	assert.Equal(t, repoRoot, effectiveRoot)
-	assert.Contains(t, string(resolvedPath), "test.yaml")
+	assert.False(t, resolved.IsRemote)
+	assert.Equal(t, repoRoot, resolved.EffectiveRoot)
+	assert.Contains(t, string(resolved.Path), "test.yaml")
 
 	// Test with URL
-	resolvedPath, isRemote, _, err = resolver.resolveRawPath("https://example.com/values.yaml")
+	resolved, err = resolver.resolveRawPath("https://example.com/values.yaml")
 	require.NoError(t, err)
-	assert.True(t, isRemote)
-	assert.Equal(t, pathutil.ResolvedFilePath("https://example.com/values.yaml"), resolvedPath)
+	assert.True(t, resolved.IsRemote)
+	assert.Equal(t, pathutil.ResolvedFilePath("https://example.com/values.yaml"), resolved.Path)
 }
 
 func TestValueFileResolver_checkFileExists(t *testing.T) {
@@ -168,10 +168,10 @@ func TestValueFileResolver_resolveRawPath_referenced(t *testing.T) {
 	)
 
 	// Git ref source - repo not registered in temp paths, so it errors out.
-	_, _, _, err := resolver.resolveRawPath("$git/values.yaml")
+	_, err := resolver.resolveRawPath("$git/values.yaml")
 	require.Error(t, err)
 
 	// OCI ref source - repo not registered in temp paths, so it errors out.
-	_, _, _, err = resolver.resolveRawPath("$oci/values.yaml")
+	_, err = resolver.resolveRawPath("$oci/values.yaml")
 	require.Error(t, err)
 }

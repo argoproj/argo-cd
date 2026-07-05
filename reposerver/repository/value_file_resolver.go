@@ -58,12 +58,12 @@ func (r *ValueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathuti
 	// the glob expansion and placed at the end where it was explicitly listed.
 	explicitPaths := make(map[pathutil.ResolvedFilePath]struct{})
 	for _, rawValueFile := range rawValueFiles {
-		resolved, _, _, err := r.resolveRawPath(rawValueFile)
+		resolved, err := r.resolveRawPath(rawValueFile)
 		if err != nil {
 			continue // resolution errors will be surfaced in the main loop below
 		}
-		if !isGlobPath(string(resolved)) {
-			explicitPaths[resolved] = struct{}{}
+		if !isGlobPath(string(resolved.Path)) {
+			explicitPaths[resolved.Path] = struct{}{}
 		}
 	}
 
@@ -76,7 +76,7 @@ func (r *ValueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathuti
 		}
 	}
 	for _, rawValueFile := range rawValueFiles {
-		resolvedPath, isRemote, effectiveRoot, err := r.resolveRawPath(rawValueFile)
+		resolved, err := r.resolveRawPath(rawValueFile)
 		if err != nil {
 			return nil, fmt.Errorf("error resolving value file path: %w", err)
 		}
@@ -89,8 +89,8 @@ func (r *ValueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathuti
 		// remote value file URLs (e.g. https://...) are passed through as-is.
 		// If the glob matches no files and ignoreMissingValueFiles is true, skip it silently.
 		// Otherwise, return an error — consistent with how missing non-glob value files are handled.
-		if !isRemote && isGlobPath(string(resolvedPath)) {
-			matches, err := doublestar.FilepathGlob(string(resolvedPath))
+		if !resolved.IsRemote && isGlobPath(string(resolved.Path)) {
+			matches, err := doublestar.FilepathGlob(string(resolved.Path))
 			if err != nil {
 				return nil, fmt.Errorf("error expanding glob pattern %q: %w", rawValueFile, err)
 			}
@@ -101,7 +101,7 @@ func (r *ValueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathuti
 				}
 				return nil, &GlobNoMatchError{Pattern: rawValueFile}
 			}
-			if err := verifyGlobMatchesWithinRoot(matches, effectiveRoot); err != nil {
+			if err := verifyGlobMatchesWithinRoot(matches, resolved.EffectiveRoot); err != nil {
 				return nil, fmt.Errorf("glob pattern %q: %w", rawValueFile, err)
 			}
 			for _, match := range matches {
@@ -114,21 +114,27 @@ func (r *ValueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathuti
 			continue
 		}
 
-		if !isRemote && r.checkFileExists(resolvedPath) {
+		if !resolved.IsRemote && r.checkFileExists(resolved.Path) {
 			continue
 		}
 
-		appendUnique(resolvedPath)
+		appendUnique(resolved.Path)
 	}
 	log.Infof("resolved value files: %v", resolvedValueFiles)
 	return resolvedValueFiles, nil
+}
+
+type resolveRawPathResult struct {
+	Path          pathutil.ResolvedFilePath
+	IsRemote      bool
+	EffectiveRoot string
 }
 
 // resolveRawPath resolves a single raw value file entry to its path without expanding
 // globs or checking for existence. It returns whether the path is a remote URL and the
 // effective repository root used for the glob symlink-boundary check (the external repo's
 // checkout directory for $ref Git sources, otherwise the main repo root).
-func (r *ValueFileResolver) resolveRawPath(rawValueFile string) (pathutil.ResolvedFilePath, bool, string, error) {
+func (r *ValueFileResolver) resolveRawPath(rawValueFile string) (*resolveRawPathResult, error) {
 	referencedSource := getReferencedSource(rawValueFile, r.refSources)
 	effectiveRoot := r.repoRoot
 
@@ -143,12 +149,16 @@ func (r *ValueFileResolver) resolveRawPath(rawValueFile string) (pathutil.Resolv
 			r.ociPaths,
 		)
 		if err != nil {
-			return "", false, "", err
+			return nil, err
 		}
 		if refRepoPath := r.gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
 			effectiveRoot = refRepoPath
 		}
-		return resolvedPath, false, effectiveRoot, nil
+		return &resolveRawPathResult{
+			Path:          resolvedPath,
+			IsRemote:      false,
+			EffectiveRoot: effectiveRoot,
+		}, nil
 	}
 
 	// This will resolve val to an absolute path (or a URL)
@@ -159,10 +169,14 @@ func (r *ValueFileResolver) resolveRawPath(rawValueFile string) (pathutil.Resolv
 		r.allowedValueFilesSchemas,
 	)
 	if err != nil {
-		return "", false, "", err
+		return nil, err
 	}
 
-	return resolvedPath, isRemote, effectiveRoot, nil
+	return &resolveRawPathResult{
+		Path:          resolvedPath,
+		IsRemote:      isRemote,
+		EffectiveRoot: effectiveRoot,
+	}, nil
 }
 
 // checkFileExists checks if a file exists and determines if it should be skipped
