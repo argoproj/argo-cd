@@ -496,7 +496,6 @@ func TestInvalidAppProject(t *testing.T) {
 
 // Test refresh request stat comes while a refresh already running
 func TestNestedRefresh(t *testing.T) {
-	t.Helper()
 	dir := "slow-refresh"
 	manifest := "templates/cm.yaml"
 	ctx := Given(t).Timeout(80) // make it less flaky
