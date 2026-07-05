@@ -3200,7 +3200,7 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO
+        - name: ARGOCD_SERVER_OTLP_SAMPLE_RATIO
           valueFrom:
             configMapKeyRef:
               key: otlp.sample.ratio
