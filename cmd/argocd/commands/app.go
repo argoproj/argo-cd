@@ -1627,6 +1627,9 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			if err := validateAppWaitPollInterval(pollInterval); err != nil {
+				log.Fatalf("invalid --app-wait-poll-interval: %v", err)
+			}
 			watch = getWatchOpts(watch)
 			selectedResources, err := parseSelectedResources(resources)
 			errors.CheckError(err)
@@ -1668,7 +1671,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only wait for an application  in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
-	command.Flags().DurationVar(&pollInterval, "app-wait-poll-interval", appWaitPollInterval, "Fallback re-fetch cadence for the watch loop, used when the watch goes quiet (e.g. competing operations). Defaults to ARGOCD_APP_WAIT_POLL_INTERVAL or 5s.")
+	command.Flags().DurationVar(&pollInterval, "app-wait-poll-interval", appWaitPollInterval, "Fallback re-fetch cadence for the watch loop, used when the watch goes quiet (e.g. competing operations). Must be between 1s and 1h. Defaults to ARGOCD_APP_WAIT_POLL_INTERVAL or 5s.")
 	return command
 }
 
@@ -2362,8 +2365,24 @@ func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selecte
 // terminal transition that was never delivered as an event — it does not slow
 // down a normal wait. Configurable installation-wide via
 // ARGOCD_APP_WAIT_POLL_INTERVAL (e.g. "10s") or per-invocation via the
-// `--app-wait-poll-interval` flag on `argocd app wait`.
-var appWaitPollInterval = env.ParseDurationFromEnv("ARGOCD_APP_WAIT_POLL_INTERVAL", 5*time.Second, 1*time.Second, 1*time.Hour)
+// `--app-wait-poll-interval` flag on `argocd app wait`. Values outside
+// [appWaitPollIntervalMin, appWaitPollIntervalMax] are rejected — the lower
+// bound guards against `time.NewTicker` panicking on non-positive durations
+// and against hot-looping the API server, the upper bound catches obviously
+// bogus values.
+const (
+	appWaitPollIntervalMin = 1 * time.Second
+	appWaitPollIntervalMax = 1 * time.Hour
+)
+
+var appWaitPollInterval = env.ParseDurationFromEnv("ARGOCD_APP_WAIT_POLL_INTERVAL", 5*time.Second, appWaitPollIntervalMin, appWaitPollIntervalMax)
+
+func validateAppWaitPollInterval(d time.Duration) error {
+	if d < appWaitPollIntervalMin || d > appWaitPollIntervalMax {
+		return fmt.Errorf("must be between %s and %s, got %s", appWaitPollIntervalMin, appWaitPollIntervalMax, d)
+	}
+	return nil
+}
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.

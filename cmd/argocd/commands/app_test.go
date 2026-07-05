@@ -2735,6 +2735,35 @@ func TestIsContextCanceledErr(t *testing.T) {
 	})
 }
 
+func TestValidateAppWaitPollInterval(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		value   time.Duration
+		wantErr bool
+	}{
+		{"lower bound is accepted", 1 * time.Second, false},
+		{"upper bound is accepted", 1 * time.Hour, false},
+		{"default is accepted", 5 * time.Second, false},
+		{"zero is rejected", 0, true},
+		{"negative is rejected", -1 * time.Second, true},
+		{"below lower bound is rejected", 500 * time.Millisecond, true},
+		{"above upper bound is rejected", 2 * time.Hour, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateAppWaitPollInterval(tc.value)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 // TestWaitOnApplicationStatus_PollFallbackReturnsWhenWatchGoesQuiet simulates
 // two overlapping sync operations: the watch emits one non-satisfying event and
 // then goes quiet (never delivers the terminal event), while a periodic Get

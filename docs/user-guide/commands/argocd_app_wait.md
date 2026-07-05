@@ -39,7 +39,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
 
 ```
   -N, --app-namespace string              Only wait for an application  in namespace
-      --app-wait-poll-interval duration   Fallback re-fetch cadence for the watch loop, used when the watch goes quiet (e.g. competing operations). Defaults to ARGOCD_APP_WAIT_POLL_INTERVAL or 5s. (default 5s)
+      --app-wait-poll-interval duration   Fallback re-fetch cadence for the watch loop, used when the watch goes quiet (e.g. competing operations). Must be between 1s and 1h. Defaults to ARGOCD_APP_WAIT_POLL_INTERVAL or 5s. (default 5s)
       --degraded                          Wait for degraded
       --delete                            Wait for delete
       --health                            Wait for health
