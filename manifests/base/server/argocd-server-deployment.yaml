@@ -160,6 +160,24 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.repo.server.strict.tls
                   optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.ca.cert.path
+                  optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.client.cert.path
+                  optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.client.cert.key.path
+                  optional: true
             - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
               valueFrom:
                 configMapKeyRef:
@@ -220,6 +238,20 @@ spec:
                   name: argocd-cmd-params-cm
                   key: redis.server
                   optional: true
+
+            - name: REDIS_SENTINEL_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.sentinel.hosts
+                  optional: true
+
+            - name: REDIS_SENTINEL_MASTER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.sentinel.master
+                  optional: true
             - name: REDIS_COMPRESSION
               valueFrom:
                 configMapKeyRef:
@@ -231,6 +263,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: redis.db
+                  optional: true
+            - name: ARGOCD_REDIS_KEY_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.key.prefix
                   optional: true
             - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
               valueFrom:
@@ -322,6 +360,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.glob.cache.size
                   optional: true
+            - name: ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.webhook.refresh.workers
+                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
               valueFrom:
                 configMapKeyRef:
@@ -371,6 +415,8 @@ spec:
               mountPath: /app/config/tls
             - name: argocd-repo-server-tls
               mountPath: /app/config/server/tls
+            - name: argocd-repo-server-mtls
+              mountPath: /app/config/reposerver/mtls
             - name: argocd-dex-server-tls
               mountPath: /app/config/dex/tls
             - mountPath: /home/argocd
@@ -435,6 +481,17 @@ spec:
                 path: tls.crt
               - key: ca.crt
                 path: ca.crt
+        - name: argocd-repo-server-mtls
+          secret:
+            secretName: argocd-repo-server-mtls
+            optional: true
+            items:
+              - key: client.crt
+                path: client.crt
+              - key: client.key
+                path: client.key
+              - key: server-ca.crt
+                path: server-ca.crt
         - name: argocd-cmd-params-cm
           configMap:
             optional: true

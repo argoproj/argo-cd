@@ -11,6 +11,7 @@ import (
 )
 
 func TestFilterRepoMatch(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -40,6 +41,7 @@ func TestFilterRepoMatch(t *testing.T) {
 }
 
 func TestFilterLabelMatch(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -69,6 +71,7 @@ func TestFilterLabelMatch(t *testing.T) {
 }
 
 func TestFilterPathExists(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -94,6 +97,7 @@ func TestFilterPathExists(t *testing.T) {
 }
 
 func TestFilterPathDoesntExists(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -118,6 +122,7 @@ func TestFilterPathDoesntExists(t *testing.T) {
 }
 
 func TestFilterRepoMatchBadRegexp(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -135,6 +140,7 @@ func TestFilterRepoMatchBadRegexp(t *testing.T) {
 }
 
 func TestFilterLabelMatchBadRegexp(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -152,6 +158,7 @@ func TestFilterLabelMatchBadRegexp(t *testing.T) {
 }
 
 func TestFilterBranchMatch(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -191,6 +198,7 @@ func TestFilterBranchMatch(t *testing.T) {
 }
 
 func TestMultiFilterAnd(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -220,6 +228,7 @@ func TestMultiFilterAnd(t *testing.T) {
 }
 
 func TestMultiFilterOr(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -253,6 +262,7 @@ func TestMultiFilterOr(t *testing.T) {
 }
 
 func TestNoFilters(t *testing.T) {
+	t.Parallel()
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -281,6 +291,7 @@ func TestNoFilters(t *testing.T) {
 // tests the getApplicableFilters function, passing in all the filters, and an unset filter, plus an additional
 // branch filter
 func TestApplicableFilterMap(t *testing.T) {
+	t.Parallel()
 	branchFilter := Filter{
 		BranchMatch: &regexp.Regexp{},
 		FilterType:  FilterTypeBranch,

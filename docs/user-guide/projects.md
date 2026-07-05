@@ -133,6 +133,8 @@ argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 ```
 
+When a project uses `namespaceResourceWhitelist`, the whitelist also controls which child resources appear in the Application resource tree in the UI. Any child resource whose GroupKind is not permitted by the project is omitted from the tree, even if it exists and is healthy in the cluster. For example, if the whitelist includes only `apps/Deployment` and `Service`, the Deployment node is shown but its `ReplicaSet` and `Pod` children are hidden until `apps/ReplicaSet` and `Pod` are added to the whitelist. This filtering does not affect sync permissions for resources already deployed; it only affects observability in the resource tree.
+
 #### Restrict Cluster-Scoped Resources by Name
 
 Since the names of certain cluster-scoped resources such as Namespaces and CustomResourceDefinitions (CRDs) have special
@@ -313,7 +315,7 @@ data:
 kind: ConfigMap
 ``` 
 
-Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
 
@@ -392,6 +394,9 @@ stringData:
       }
     }
 ```
+
+> [!NOTE]
+> **Implicit Destinations:** When a project-scoped cluster is defined, an implicit entry is dynamically added to the AppProject's `destinations` list during evaluation. By default, this acts as a wildcard, allowing applications in the project to deploy to all namespaces in the cluster (acting as `namespace: "*"`). If the cluster definition has the `namespaces` field set, only those specific namespaces are implicitly added to the project's destinations instead. Because this happens dynamically during evaluation to facilitate multi-tenancy, these implicit destinations are not reflected in the AppProject's declarative spec or the UI.
 
 With project-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same project, as the example below demonstrates:
 
