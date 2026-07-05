@@ -1,8 +1,8 @@
-# Github Agentics Workflows
+# GitHub Agentics Workflows
 
 ## Overview
 
-Github Agentics offers multiple AI GitHub workflows for repo maintainers.
+GitHub Agentics offers multiple AI GitHub workflows for repo maintainers.
 
 Argo CD maintainers use [GitHub Agentics automatic issue triage](https://github.com/githubnext/agentics/blob/main/docs/issue-triage.md).
 
@@ -18,7 +18,7 @@ The initial configuration was performed by running `gh aw add-wizard githubnext/
 - `.github/workflows/aw.json` - additional configuration file. Upon performing changes in this file, it is required to run `gh aw compile`.
 
 ## Auto generated workflow files
-- `.github/workflows/issue-triage.lock.yml` - the Github CI workflow itself, auto-generated based on the `issue-triage.md` and `aw.json` files. 
+- `.github/workflows/issue-triage.lock.yml` - the GitHub CI workflow itself, auto-generated based on the `issue-triage.md` and `aw.json` files. 
 - `.github/aw/actions-lock.json` - pinned version of the relevant GitHub actions, auto-generated based on the `issue-triage.md` and `aw.json` files.
 - `.github/workflows/agentics-maintenance.yml` - a generic workflow that performs cleanup for multiple Github Agentics workflows types, not specific to triage. The current design of this workflow violates the principle of least privilege, requiring content and pull requests write permissions. This workflow is disabled while the required fine-grained permissions are [in discussion](https://github.com/github/gh-aw/issues/42779).  
 
