@@ -368,9 +368,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install gh aw
-        run: gh extension install github/gh-aw --pin v0.79.6
+        run: make install-gh-aw-local
       - name: Compile agentic workflows
-        run: gh aw compile
+        run: make gh-aw-compile
       - name: Check nothing has changed
         run: |
           set -xo pipefail
