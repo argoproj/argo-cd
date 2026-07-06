@@ -322,6 +322,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
 	}
+	if a.context.tagPrefix != "" {
+		args = append(args, "--tag-prefix", a.context.tagPrefix)
+	}
 	if a.context.helmPassCredentials {
 		args = append(args, "--helm-pass-credentials")
 	}
@@ -574,6 +577,12 @@ func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRule
 func (a *Actions) WithImpersonationDisabled() *Actions {
 	a.context.T().Helper()
 	require.NoError(a.context.T(), fixture.SetImpersonationEnabled("false"))
+	return a
+}
+
+func (a *Actions) WithImpersonationEnforcementDisabled() *Actions {
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetImpersonationEnforcement("false"))
 	return a
 }
 

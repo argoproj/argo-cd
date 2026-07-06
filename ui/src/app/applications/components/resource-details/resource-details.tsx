@@ -1,6 +1,7 @@
 import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
+import {BehaviorSubject} from 'rxjs';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
@@ -32,6 +33,7 @@ interface ResourceDetailsProps {
     isAppSelected: boolean;
     tree: ApplicationTree;
     appCxt: AppContext;
+    appChanged?: BehaviorSubject<models.AbstractApplication>;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
@@ -42,9 +44,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
 
-    React.useEffect(() => {
+    // Reset the active container when the selected node changes, by comparing the
+    // previous node key during render instead of using a cascading effect.
+    const [prevSelectedNodeKey, setPrevSelectedNodeKey] = useState(selectedNodeKey);
+    if (prevSelectedNodeKey !== selectedNodeKey) {
+        setPrevSelectedNodeKey(selectedNodeKey);
         setActiveContainer(null);
-    }, [selectedNodeKey]);
+    }
 
     const [pageNumber, setPageNumber] = React.useState(0);
     const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
@@ -324,7 +330,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources)}
+                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)}
                                     style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>

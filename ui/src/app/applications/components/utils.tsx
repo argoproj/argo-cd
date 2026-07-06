@@ -959,6 +959,9 @@ export function syncStatusMessage(app: appModels.Application) {
     const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
     let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
+    if (source?.tagPrefix) {
+        message = source.tagPrefix + message;
+    }
     const suffix = revision && source ? getSyncRevisionLabelSuffix(source.repoURL, source.targetRevision, revision, source.chart) : '';
 
     if (suffix) {
@@ -1451,6 +1454,10 @@ export function getAppSetConditionCategory(condition: appModels.ApplicationSetCo
     if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
         return 'error';
     }
+    // InvalidRolloutConfig with status True = warning
+    if (type === 'InvalidRolloutConfig' && status === 'true') {
+        return 'warning';
+    }
     // Otherwise it's informational
     return 'info';
 }
@@ -1503,15 +1510,15 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     return getAppDefaultSource(app);
 }
 
-export function getHydratorSyncSourceRepoURL(sourceHydrator: appModels.SourceHydrator): string {
-    return sourceHydrator.syncSource?.repoURL || sourceHydrator.drySource?.repoURL || '';
+export function getHydratorSyncSourceRepoURL(sourceHydrator?: appModels.SourceHydrator): string {
+    return sourceHydrator?.syncSource?.repoURL || sourceHydrator?.drySource?.repoURL || '';
 }
 
-export function getAppHydratorSyncSource(sourceHydrator: appModels.SourceHydrator): appModels.ApplicationSource {
+export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
     return {
         repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
-        targetRevision: sourceHydrator.syncSource.targetBranch,
-        path: sourceHydrator.syncSource.path
+        targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
+        path: sourceHydrator?.syncSource?.path || ''
     };
 }
 
@@ -1930,6 +1937,35 @@ export function getAppUrl(app: appModels.AbstractApplication): string {
         return `${basePath}/${app.metadata.name}`;
     }
     return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
+}
+
+export interface AppListLink {
+    /** Relative path for in-app navigation via ctx.navigation.goto. */
+    path: string;
+    /** Full base-href-prefixed href so native middle-click / right-click / status-bar URL preview work. */
+    href: string;
+    /** SPA navigation on a plain click; modifier-clicks fall through to the browser (open in new tab/window). */
+    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}
+
+// Builds the link target shared by every application / applicationset list row and tile.
+// `view` is the Application details view (e.g. 'tree'); AppSet pages don't support it, so
+// callers omit it there and the URL stays view-less.
+export function getAppListLink(ctx: ContextApis, app: appModels.AbstractApplication, view?: string): AppListLink {
+    const url = getAppUrl(app);
+    const path = `/${url}`;
+    const query = view ? {view} : {};
+    return {
+        path,
+        href: `${ctx.baseHref}${url}${view ? `?view=${encodeURIComponent(view)}` : ''}`,
+        onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                return;
+            }
+            e.preventDefault();
+            ctx.navigation.goto(path, query, {event: e});
+        }
+    };
 }
 
 /** RollingSync step for display; backend uses -1 when no step matches the app's labels. */

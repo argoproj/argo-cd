@@ -488,6 +488,13 @@ func SetImpersonationEnabled(impersonationEnabledFlag string) error {
 	})
 }
 
+func SetImpersonationEnforcement(value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.sync.impersonation.enforced"] = value
+		return nil
+	})
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -790,6 +797,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		func() error {
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
 			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false")
+			return err
+		},
+		func() error {
+			// delete old aggregated APIServices created by tests. A dangling APIService
+			// backed by a deleted extension apiserver degrades cluster discovery.
+			_, err := Run("", "kubectl", "delete", "apiservice", "-l", TestingLabel+"=true", "--wait=false")
 			return err
 		},
 		func() error {

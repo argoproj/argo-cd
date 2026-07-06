@@ -25,6 +25,7 @@ import (
 )
 
 func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
+	t.Parallel()
 	nowMinus5 := metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -883,6 +884,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
@@ -923,6 +925,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 }
 
 func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -1642,6 +1645,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
