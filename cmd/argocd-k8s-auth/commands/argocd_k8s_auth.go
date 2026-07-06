@@ -16,6 +16,7 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
+	command.PersistentFlags().BoolVar(&verbose, "verbose", false, "Enable verbose logging to stderr for troubleshooting")
 	command.AddCommand(newAWSCommand())
 	command.AddCommand(newGCPCommand())
 	command.AddCommand(newAzureCommand())
