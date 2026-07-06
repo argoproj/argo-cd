@@ -1,4 +1,4 @@
-import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
+import {Checkbox, ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
@@ -47,6 +47,7 @@ export interface EditablePanelProps<T> {
     collapsible?: boolean;
     collapsed?: boolean;
     collapsedDescription?: string;
+    showValidationToggle?: boolean;
 }
 
 function EditablePanel<T extends {} = {}>({
@@ -64,10 +65,12 @@ function EditablePanel<T extends {} = {}>({
     hasMultipleSources,
     collapsible,
     collapsed: collapsedProp = false,
-    collapsedDescription
+    collapsedDescription,
+    showValidationToggle
 }: EditablePanelProps<T>) {
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [skipValidation, setSkipValidation] = useState<boolean>(false);
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);
     const formApiRef = useRef<FormApi | null>(null);
@@ -102,8 +105,9 @@ function EditablePanel<T extends {} = {}>({
             if (!save) return;
             try {
                 setIsSaving(true);
-                await save(input, {});
+                await save(input, showValidationToggle ? {validate: !skipValidation} : {});
                 setIsEditing(false);
+                setSkipValidation(false);
                 setIsSaving(false);
                 onModeSwitch();
             } catch (e) {
@@ -115,11 +119,12 @@ function EditablePanel<T extends {} = {}>({
                 setIsSaving(false);
             }
         },
-        [save, onModeSwitch, ctx.notifications]
+        [save, onModeSwitch, ctx.notifications, showValidationToggle, skipValidation]
     );
 
     const handleCancel = useCallback(() => {
         setIsEditing(false);
+        setSkipValidation(false);
         onModeSwitch();
     }, [onModeSwitch]);
 
@@ -195,6 +200,12 @@ function EditablePanel<T extends {} = {}>({
                                 )}
                                 {isEditing && (
                                     <>
+                                        {showValidationToggle && (
+                                            <span className='editable-panel__validation-toggle'>
+                                                <Checkbox id='editable-panel-skip-validation' checked={skipValidation} onChange={setSkipValidation} />
+                                                <label htmlFor='editable-panel-skip-validation'>Skip Schema Validation</label>{' '}
+                                            </span>
+                                        )}
                                         <button disabled={isSaving} onClick={() => !isSaving && formApiRef.current?.submitForm(null)} className='argo-button argo-button--base'>
                                             <Spinner show={isSaving} style={{marginRight: '5px'}} />
                                             Save

@@ -12,6 +12,16 @@
         position: absolute;
         top: 30px;
         right: 3em;
+        white-space: nowrap;
+    }
+
+    &__validation-toggle {
+        margin-right: 1em;
+        white-space: nowrap;
+
+        label {
+            margin-left: 0.3em;
+        }
     }
 
     &__divider {
