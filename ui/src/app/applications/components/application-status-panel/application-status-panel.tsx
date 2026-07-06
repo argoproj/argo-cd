@@ -214,7 +214,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
-    const effectiveShowOperation = application.metadata.deletionTimestamp && !appOperationState ? null : showOperation;
 
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
@@ -330,9 +329,16 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             )
                     )}
                     <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                        <a onClick={() => effectiveShowOperation && effectiveShowOperation()}>
-                            <OperationState app={application} isButton={true} />{' '}
-                        </a>
+                        {application.status.operationState ? (
+                            <a onClick={() => showOperation && showOperation()}>
+                                <OperationState app={application} isButton={true} />{' '}
+                            </a>
+                        ) : (
+                            // No operation to open; render non-clickable. <span> keeps the icon/label aligned.
+                            <span>
+                                <OperationState app={application} />{' '}
+                            </span>
+                        )}
                         {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
                             <div className='application-status-panel__item-value__revision show-for-large'>
                                 to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}

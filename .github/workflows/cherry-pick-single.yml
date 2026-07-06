@@ -48,9 +48,16 @@ jobs:
           private-key: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}
 
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 0
+          # Explicitly check out the base repository's default branch. This
+          # workflow runs on pull_request_target but never executes fork code:
+          # it cherry-picks an already-merged commit onto a release branch.
+          # Pinning ref/repository to the base avoids checkout v7's fork-PR
+          # guard ("Refusing to check out fork pull request code...").
+          ref: master
+          repository: ${{ github.repository }}
           token: ${{ steps.generate-token.outputs.token }}
 
       - name: Configure Git

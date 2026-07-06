@@ -41,3 +41,17 @@ func TestNewCommand_MetricsFlagsFromEnv(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"environment"}, clusterLabels)
 }
+
+func TestNewCommand_MetricsFlagHelpUsesActualMetricNames(t *testing.T) {
+	cmd := NewCommand()
+
+	labelsFlag := cmd.Flags().Lookup("metrics-application-labels")
+	require.NotNil(t, labelsFlag)
+	assert.Contains(t, labelsFlag.Usage, "argocd_app_labels")
+	assert.NotContains(t, labelsFlag.Usage, "argocd_application_labels")
+
+	conditionsFlag := cmd.Flags().Lookup("metrics-application-conditions")
+	require.NotNil(t, conditionsFlag)
+	assert.Contains(t, conditionsFlag.Usage, "argocd_app_condition")
+	assert.NotContains(t, conditionsFlag.Usage, "argocd_application_conditions")
+}

@@ -19,11 +19,12 @@ func TestBuildAppDependencyList(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
-		name            string
-		appSet          v1alpha1.ApplicationSet
-		apps            []v1alpha1.Application
-		expectedList    [][]string
-		expectedStepMap map[string]int
+		name                     string
+		appSet                   v1alpha1.ApplicationSet
+		apps                     []v1alpha1.Application
+		expectedList             [][]string
+		expectedStepMap          map[string]int
+		expectedValidationIssues *ValidationIssues
 	}{
 		{
 			name: "handles an empty set of applications and no strategy",
@@ -34,9 +35,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{},
 			},
-			apps:            []v1alpha1.Application{},
-			expectedList:    [][]string{},
-			expectedStepMap: map[string]int{},
+			apps:                     []v1alpha1.Application{},
+			expectedList:             [][]string{},
+			expectedStepMap:          map[string]int{},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "handles an empty set of applications and ignores AllAtOnce strategy",
@@ -51,9 +53,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					},
 				},
 			},
-			apps:            []v1alpha1.Application{},
-			expectedList:    [][]string{},
-			expectedStepMap: map[string]int{},
+			apps:                     []v1alpha1.Application{},
+			expectedList:             [][]string{},
+			expectedStepMap:          map[string]int{},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "handles an empty set of applications with good 'In' selectors",
@@ -88,6 +91,9 @@ func TestBuildAppDependencyList(t *testing.T) {
 				{},
 			},
 			expectedStepMap: map[string]int{},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+			},
 		},
 		{
 			name: "handles selecting 1 application with 1 'In' selector",
@@ -133,6 +139,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-dev": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "handles 'In' selectors that select no applications",
@@ -211,6 +218,9 @@ func TestBuildAppDependencyList(t *testing.T) {
 				"app-qa":   1,
 				"app-prod": 2,
 			},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+			},
 		},
 		{
 			name: "multiple 'In' selectors in the same matchExpression only select Applications that match all selectors",
@@ -272,6 +282,8 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-qa2": 0,
 			},
+			// TO-DO: app-qa1 is not selected by any step but is generated - should be validationIssue
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "multiple values in the same 'In' matchExpression can match on any value",
@@ -336,6 +348,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 				"app-qa":   0,
 				"app-prod": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "handles an empty set of applications with good 'NotIn' selectors",
@@ -353,7 +366,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
 											Key:      "env",
-											Operator: "In",
+											Operator: "NotIn",
 											Values: []string{
 												"dev",
 											},
@@ -370,6 +383,9 @@ func TestBuildAppDependencyList(t *testing.T) {
 				{},
 			},
 			expectedStepMap: map[string]int{},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+			},
 		},
 		{
 			name: "selects 1 application with 1 'NotIn' selector",
@@ -415,6 +431,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-dev": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "'NotIn' selectors that select no applications",
@@ -434,7 +451,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 											Key:      "env",
 											Operator: "NotIn",
 											Values: []string{
-												"dev",
+												"qa", "prod",
 											},
 										},
 									},
@@ -462,12 +479,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					},
 				},
 			},
-			expectedList: [][]string{
-				{"app-qa", "app-prod"},
-			},
-			expectedStepMap: map[string]int{
-				"app-qa":   0,
-				"app-prod": 0,
+			expectedList:    [][]string{{}},
+			expectedStepMap: map[string]int{},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
 			},
 		},
 		{
@@ -528,6 +543,9 @@ func TestBuildAppDependencyList(t *testing.T) {
 				{},
 			},
 			expectedStepMap: map[string]int{},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+			},
 		},
 		{
 			name: "multiple 'NotIn' selectors filter all matching Applications",
@@ -608,6 +626,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-prod1": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "multiple values in the same 'NotIn' matchExpression exclude a match from any value",
@@ -671,6 +690,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-dev": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "in a mix of 'In' and 'NotIn' selectors, 'NotIn' takes precedence",
@@ -742,13 +762,153 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-qa2": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
+		},
+		{
+			name: "app selected in multiple steps is captured as validation issue",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-matches-multiple-steps",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "region",
+											Operator: "In",
+											Values: []string{
+												"us-west-2",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env":    "dev",
+							"region": "us-west-2",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa",
+						Labels: map[string]string{
+							"region": "us-west-2",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-dev"},
+				{"app-dev", "app-qa"},
+			},
+			expectedStepMap: map[string]int{
+				"app-dev": 0,
+				"app-qa":  1,
+			},
+			expectedValidationIssues: &ValidationIssues{
+				DuplicateAppSelections: map[string][]int{
+					"app-dev": {0, 1},
+				},
+			},
+		},
+		{
+			name: "Invalid Operator in MatchExpression is captured as validationIssue",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-match-expression",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "Invalid",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{},
+				{"app-dev"},
+			},
+			expectedStepMap: map[string]int{
+				"app-dev": 1,
+			},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+				InvalidMatchExpressions: []InvalidMatchExpression{
+					{
+						StepIndex: 0,
+						Operator:  "Invalid",
+					},
+				},
+			},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			t.Parallel()
-			appDependencyList, appStepMap := buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
+			appDependencyList, appStepMap, validationIssues := buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
+			assert.Equal(t, cc.expectedValidationIssues, validationIssues, "expected validationIssues did not match actual")
 		})
 	}
 }

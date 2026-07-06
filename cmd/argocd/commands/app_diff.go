@@ -340,11 +340,11 @@ func newClientSideDiffStrategy(
 		return nil, err
 	}
 
-	return func(_ context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+	return func(ctx context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
 		results := make([]*diff.DiffResult, len(items))
 
 		for i, item := range items {
-			diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
+			diffRes, err := argodiff.StateDiff(ctx, item.live, item.target, diffConfig)
 			if err != nil {
 				return nil, err
 			}

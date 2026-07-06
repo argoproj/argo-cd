@@ -170,6 +170,8 @@ spec:
     - iat: 1535390316
 ```
 
+`namespaceResourceWhitelist` also determines which child resources are visible in the Application resource tree in the UI. To observe workload children such as `Pod` and `apps/ReplicaSet` under a `Deployment`, those GroupKinds must be included in the whitelist. See [Projects](../user-guide/projects.md) for details.
+
 ## Repositories
 
 > [!NOTE]

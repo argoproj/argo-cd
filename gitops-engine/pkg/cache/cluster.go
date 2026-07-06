@@ -1094,6 +1094,8 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 func (c *clusterCache) sync() error {
 	c.log.Info("Start syncing cluster")
 
+	syncLock := sync.Mutex{}
+
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
 	}
@@ -1103,11 +1105,13 @@ func (c *clusterCache) sync() error {
 		c.eventMetaCh = make(chan eventMeta)
 	}
 
+	syncLock.Lock()
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
+	syncLock.Unlock()
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1148,17 +1152,15 @@ func (c *clusterCache) sync() error {
 		go c.processEvents()
 	}
 
-	// Each API is processed in parallel, so we need to take out a lock when we update clusterCache fields.
-	lock := sync.Mutex{}
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 
-		lock.Lock()
 		ctx, cancel := context.WithCancel(context.Background())
 		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
+		syncLock.Lock()
 		c.apisMeta[api.GroupKind] = info
 		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
-		lock.Unlock()
+		syncLock.Unlock()
 
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
@@ -1167,9 +1169,9 @@ func (c *clusterCache) sync() error {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {
 						newRes := c.newResource(un)
-						lock.Lock()
+						syncLock.Lock()
 						c.setNode(newRes)
-						lock.Unlock()
+						syncLock.Unlock()
 					}
 					return nil
 				})
@@ -1186,10 +1188,10 @@ func (c *clusterCache) sync() error {
 					}
 					// if we are not allowed to list the resource, remove it from the watch list
 					if !keep {
-						lock.Lock()
+						syncLock.Lock()
 						delete(c.apisMeta, api.GroupKind)
 						delete(c.namespacedResources, api.GroupKind)
-						lock.Unlock()
+						syncLock.Unlock()
 						return nil
 					}
 				}
@@ -1469,9 +1471,12 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 
 	// Loop through all nodes, calling each one "childNode," because we're only bothering with it if it has a parent.
 	for _, childNode := range nsNodes {
-		for i, ownerRef := range childNode.OwnerRefs {
-			// First, backfill UID of inferred owner child references.
-			if ownerRef.UID == "" {
+		for _, ownerRef := range childNode.OwnerRefs {
+			// Resolve empty owner-ref UIDs into a local variable only. childNode is shared
+			// cache state and IterateHierarchyV2 may run concurrently under RLock.
+			ownerUID := ownerRef.UID
+			if ownerUID == "" {
+				// First, backfill UID of inferred owner child references.
 				group, err := schema.ParseGroupVersion(ownerRef.APIVersion)
 				if err != nil {
 					// APIVersion is invalid, so we couldn't find the parent.
@@ -1482,12 +1487,11 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 					// No resource found with the given graph key, so move on.
 					continue
 				}
-				ownerRef.UID = graphKeyNode.Ref.UID
-				childNode.OwnerRefs[i] = ownerRef
+				ownerUID = graphKeyNode.Ref.UID
 			}
 
 			// Now that we have the UID of the parent, update the graph.
-			uidNodes, ok := nodesByUID[ownerRef.UID]
+			uidNodes, ok := nodesByUID[ownerUID]
 			if ok {
 				for _, uidNode := range uidNodes {
 					// Cache ResourceKey() to avoid repeated expensive calls

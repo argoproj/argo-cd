@@ -4,14 +4,16 @@ set -eux -o pipefail
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/../..; pwd)
 INSTALLERS=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
 
+_kustomize_version=${KUSTOMIZE_VERSION:-}
+
 . "$INSTALLERS/../tool-versions.sh"
+
+KUSTOMIZE_VERSION=${_kustomize_version:-$KUSTOMIZE_VERSION}
 
 INSTALL_PATH="${BIN:-$INSTALL_PATH}"
 INSTALL_PATH="${INSTALL_PATH:-$PROJECT_ROOT/dist}"
 PATH="${INSTALL_PATH}:${PATH}"
 [ -d "$INSTALL_PATH" ] || mkdir -p "$INSTALL_PATH"
-
-KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-$kustomize5_version}
 
 if [ -z "$INSTALL_OS" ]; then
     echo "install kustomize error: unsupported operating system"

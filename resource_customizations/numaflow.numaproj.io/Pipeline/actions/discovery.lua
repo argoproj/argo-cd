@@ -64,8 +64,11 @@ end
 
 -- delete
 local recyclable = false
-if obj.metadata.labels ~= nil and (obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "recyclable") then
-  recyclable = true
+if obj.metadata.labels ~= nil then
+  local upgradeState = obj.metadata.labels["numaplane.numaproj.io/upgrade-state"]
+  if upgradeState ~= nil and string.find(upgradeState, "^recyclable") then
+    recyclable = true
+  end
 end
 if recyclable then
   actions["delete"]["disabled"] = false

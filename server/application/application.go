@@ -468,7 +468,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
-	ociRepos, err := s.db.ListOCIRepositories(context.Background())
+	ociRepos, err := s.db.ListOCIRepositories(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list OCI repositories: %w", err)
 	}
@@ -476,7 +476,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("failed to get permitted OCI repositories for project %q: %w", proj.Name, err)
 	}
-	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(context.Background())
+	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get OCI credentials: %w", err)
 	}
@@ -553,7 +553,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{})
+		refSources, err := argo.GetRefSources(ctx, sources, appSpec.Project, s.db.GetRepository, []string{})
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -2712,7 +2712,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
-		err := s.verifyResourcePermitted(destCluster, proj, newObj)
+		err := s.verifyResourcePermitted(ctx, destCluster, proj, newObj)
 		if err != nil {
 			return nil, err
 		}
@@ -2804,9 +2804,9 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) verifyResourcePermitted(destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
+func (s *Server) verifyResourcePermitted(ctx context.Context, destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
 	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetName(), obj.GetNamespace(), destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
-		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
+		clusters, err := s.db.GetProjectClusters(ctx, project)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get project clusters: %w", err)
 		}
@@ -3089,7 +3089,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetObjs = append(targetObjs, obj)
 	}
 
-	diffResults, err := argodiff.StateDiffs(liveObjs, targetObjs, diffConfig)
+	diffResults, err := argodiff.StateDiffs(ctx, liveObjs, targetObjs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error performing state diffs: %w", err)
 	}
