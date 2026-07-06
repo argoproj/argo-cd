@@ -953,8 +953,7 @@ func (sc *syncContext) containsResource(resource reconciledResource) bool {
 }
 
 func generateHookName(generateName string) string {
-	baseName := strings.TrimSuffix(generateName, "-")
-	return names.SimpleNameGenerator.GenerateName(baseName)
+	return names.SimpleNameGenerator.GenerateName(generateName)
 }
 
 // generates the list of sync tasks we will be performing during this sync.
