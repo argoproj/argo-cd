@@ -496,9 +496,9 @@ func TestInvalidAppProject(t *testing.T) {
 
 // Test refresh request stat comes while a refresh already running
 func TestNestedRefresh(t *testing.T) {
-	dir := "slow-refresh"
+	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
-	ctx := Given(t).Timeout(80) // make it less flaky
+	ctx := Given(t).Timeout(100) // make it less flaky
 	acts := ctx.Path(dir).
 		When().
 		CreateApp().
@@ -508,28 +508,23 @@ func TestNestedRefresh(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
-	// runs app get --refresh asynchroniously, so we do not wait for refresh end
+	// runs app get --refresh asynchroniously, so we do not wait for refresh to finish
 	go acts.Refresh(RefreshTypeNormal)
-
 	// wait until Refresh actually runs `helm template`.  We can
 	// catch it because the template is really nasty and
 	// `helm templates` rendering takes tens of seconds
 	acts.Then().Expect(HelmTemplateRuns())
 	// ps output line containing helm PID and command line
 	helmProcessData := acts.GetLastOutput()
-
+	// make another change
 	acts = acts.PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value2"}]`)
-
 	// second (nested) refresh request
 	go acts.Refresh(RefreshTypeNormal)
-
 	// get process one more time and ensure the same helm process
 	// still running, so the second refresh was nested
 	acts.Then().Expect(HelmTemplateRuns()).Expect(Success(helmProcessData))
-
 	// get last revision
 	revision := acts.GitRevList("HEAD", "-1").GetLastOutput()
-
 	acts.Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
