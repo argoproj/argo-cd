@@ -561,34 +561,26 @@ func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applicat
 // checkAllApplicationsReconciled verifies that all Applications have been reconciled since the given time,
 // that no refresh annotations are present, and that the reconciled revision matches the target revision
 // returns list of applications that need to be reconciled
-func checkAllApplicationsReconciled(applications []argov1alpha1.Application, logCtx *log.Entry, sinceTime *metav1.Time, appSetAppStatus []argov1alpha1.ApplicationSetApplicationStatus) (bool, []argov1alpha1.Application, []argov1alpha1.Application) {
+func checkAllApplicationsReconciled(applications []argov1alpha1.Application, logCtx *log.Entry, sinceTime *metav1.Time, appSetAppStatus []argov1alpha1.ApplicationSetApplicationStatus) (bool, []argov1alpha1.Application) {
 	if sinceTime == nil {
-		return true, nil, nil
+		return true, nil
 	}
 	var addAnnotations []argov1alpha1.Application
-	var hasAnnotations []argov1alpha1.Application
 	statusMap := make(map[string]argov1alpha1.ApplicationSetApplicationStatus)
 	for _, appStatus := range appSetAppStatus {
 		statusMap[appStatus.Application] = appStatus
 	}
-
+	allReconciled := true
 	for _, app := range applications {
-		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
-			logCtx.WithField("application", app.Name).Debug("Application still has refresh annotation, waiting for reconciliation")
-			hasAnnotations = append(hasAnnotations, app)
-			continue
-		}
-
 		if needsReconcile(logCtx, app, statusMap, sinceTime) {
-			addAnnotations = append(addAnnotations, app)
-			logCtx.WithField("application", app.Name).Debug("Application needs refresh annotation")
+			allReconciled = false
+			if _, requested := app.IsRefreshRequested(); !requested {
+				addAnnotations = append(addAnnotations, app)
+				logCtx.WithField("application", app.Name).Debug("Application needs refresh annotation")
+			}
 		}
 	}
-
-	if len(hasAnnotations) > 0 || len(addAnnotations) > 0 {
-		return false, hasAnnotations, addAnnotations
-	}
-	return true, nil, nil
+	return allReconciled, addAnnotations
 }
 
 func needsReconcile(logCtx *log.Entry, app argov1alpha1.Application, statusMap map[string]argov1alpha1.ApplicationSetApplicationStatus, sinceTime *metav1.Time) bool {
@@ -655,16 +647,10 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 		}
 	}
 	// Check if all applications have been reconciled since the latestWaitingTime
-	allReconciled, appsWithAnnotation, appsNeedReconcile := checkAllApplicationsReconciled(applications, logCtx, latestWaitingTime, appSetAppStatus)
+	allReconciled, appsNeedReconcile := checkAllApplicationsReconciled(applications, logCtx, latestWaitingTime, appSetAppStatus)
 	if allReconciled {
 		logCtx.Info("All Applications have been reconciled, proceeding with progressive sync")
 		return true, nil
-	}
-
-	if len(appsWithAnnotation) > 0 {
-		// We've already added annotations, just waiting for reconciliation
-		logCtx.WithField("apps_with_annotation", appsWithAnnotation).Info("Waiting for Applications with refresh annotations to be reconciled")
-		return false, nil
 	}
 
 	// add refresh annotations to trigger reconciliation

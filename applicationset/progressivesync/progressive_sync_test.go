@@ -1708,22 +1708,20 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 	after := metav1.NewTime(now.Add(5 * time.Minute))
 
 	tests := []struct {
-		name                        string
-		applications                []v1alpha1.Application
-		sinceTime                   *metav1.Time
-		expected                    bool
-		expectedAppsWithAnnotations []v1alpha1.Application
-		expectedAppsNeedReconcile   []v1alpha1.Application
-		updatedAppStatus            []v1alpha1.ApplicationSetApplicationStatus
+		name                      string
+		applications              []v1alpha1.Application
+		sinceTime                 *metav1.Time
+		expected                  bool
+		expectedAppsNeedReconcile []v1alpha1.Application
+		updatedAppStatus          []v1alpha1.ApplicationSetApplicationStatus
 	}{
 		{
-			name:                        "nil sinceTime returns true",
-			applications:                []v1alpha1.Application{},
-			sinceTime:                   nil,
-			expected:                    true,
-			expectedAppsWithAnnotations: nil,
-			expectedAppsNeedReconcile:   nil,
-			updatedAppStatus:            []v1alpha1.ApplicationSetApplicationStatus{},
+			name:                      "nil sinceTime returns true",
+			applications:              []v1alpha1.Application{},
+			sinceTime:                 nil,
+			expected:                  true,
+			expectedAppsNeedReconcile: nil,
+			updatedAppStatus:          []v1alpha1.ApplicationSetApplicationStatus{},
 		},
 		{
 			name: "all applications reconciled after sinceTime with matching revisions",
@@ -1747,10 +1745,9 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			sinceTime:                   &now,
-			expected:                    true,
-			expectedAppsWithAnnotations: nil,
-			expectedAppsNeedReconcile:   nil,
+			sinceTime:                 &now,
+			expected:                  true,
+			expectedAppsNeedReconcile: nil,
 			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -1777,21 +1774,8 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			sinceTime: &now,
-			expected:  false,
-			expectedAppsWithAnnotations: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-						Annotations: map[string]string{
-							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
-						},
-					},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &after,
-					},
-				},
-			},
+			sinceTime:                 &now,
+			expected:                  false,
 			expectedAppsNeedReconcile: nil, // does not add refresh
 			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -1810,9 +1794,8 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			sinceTime:                   &now,
-			expected:                    false,
-			expectedAppsWithAnnotations: nil,
+			sinceTime: &now,
+			expected:  false,
 			expectedAppsNeedReconcile: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
@@ -1838,9 +1821,8 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			sinceTime:                   &now,
-			expected:                    false,
-			expectedAppsWithAnnotations: nil,
+			sinceTime: &now,
+			expected:  false,
 			expectedAppsNeedReconcile: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
@@ -1878,9 +1860,8 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			sinceTime:                   &now,
-			expected:                    false,
-			expectedAppsWithAnnotations: nil,
+			sinceTime: &now,
+			expected:  false,
 			expectedAppsNeedReconcile: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
@@ -1916,9 +1897,8 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			sinceTime:                   &now,
-			expected:                    false,
-			expectedAppsWithAnnotations: nil,
+			sinceTime: &now,
+			expected:  false,
 			expectedAppsNeedReconcile: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
@@ -1958,22 +1938,6 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			sinceTime:                 &now,
 			expected:                  false,
 			expectedAppsNeedReconcile: nil,
-			expectedAppsWithAnnotations: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-						Annotations: map[string]string{
-							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
-						},
-					},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &before,
-						Sync: v1alpha1.SyncStatus{
-							Revision: "abc123",
-						},
-					},
-				},
-			},
 			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -1985,9 +1949,8 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, appsWithAnnotation, appsNeedReconcile := checkAllApplicationsReconciled(tt.applications, log.NewEntry(log.StandardLogger()), tt.sinceTime, tt.updatedAppStatus)
+			result, appsNeedReconcile := checkAllApplicationsReconciled(tt.applications, log.NewEntry(log.StandardLogger()), tt.sinceTime, tt.updatedAppStatus)
 			assert.Equal(t, tt.expected, result)
-			assert.ElementsMatch(t, tt.expectedAppsWithAnnotations, appsWithAnnotation)
 			assert.ElementsMatch(t, tt.expectedAppsNeedReconcile, appsNeedReconcile)
 		})
 	}
