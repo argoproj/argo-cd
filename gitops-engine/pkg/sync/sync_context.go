@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apiserver/pkg/storage/names"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -950,6 +952,11 @@ func (sc *syncContext) containsResource(resource reconciledResource) bool {
 	return sc.resourcesFilter == nil || sc.resourcesFilter(resource.key(), resource.Target, resource.Live)
 }
 
+func generateHookName(generateName string) string {
+	baseName := strings.TrimSuffix(generateName, "-")
+	return names.SimpleNameGenerator.GenerateName(baseName)
+}
+
 // generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) getSyncTasks(ctx context.Context) (_ syncTasks, successful bool) {
 	resourceTasks := syncTasks{}
@@ -985,15 +992,7 @@ func (sc *syncContext) getSyncTasks(ctx context.Context) (_ syncTasks, successfu
 				// metadata.generateName, then we will generate a formulated metadata.name before submission.
 				targetObj := obj.DeepCopy()
 				if targetObj.GetName() == "" {
-					var syncRevision string
-					if len(sc.revision) >= 8 {
-						syncRevision = sc.revision[0:7]
-					} else {
-						syncRevision = sc.revision
-					}
-					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", syncRevision, phase, sc.startedAt.UTC().Unix()))
-					generateName := obj.GetGenerateName()
-					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
+					targetObj.SetName(generateHookName(targetObj.GetGenerateName()))
 				}
 				if !hook.HasHookFinalizer(targetObj) {
 					targetObj.SetFinalizers(append(targetObj.GetFinalizers(), hook.HookFinalizer))
