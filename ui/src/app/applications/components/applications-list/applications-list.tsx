@@ -457,7 +457,28 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                     sidebarTarget?.current
                                                                 )}
 
-                                                                {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
+                                                                {(pref.view === Summary && (
+                                                                    <ApplicationsSummary
+                                                                        applications={filteredApps}
+                                                                        syncFilter={pref.syncFilter}
+                                                                        healthFilter={pref.healthFilter}
+                                                                        onFilterClick={(type, value) => {
+                                                                            const newPref = {...pref};
+                                                                            if (type === 'Health') {
+                                                                                const current = newPref.healthFilter || [];
+                                                                                newPref.healthFilter = current.includes(value)
+                                                                                    ? current.filter(v => v !== value)
+                                                                                    : [...current, value];
+                                                                            } else if (type === 'Sync') {
+                                                                                const current = newPref.syncFilter || [];
+                                                                                newPref.syncFilter = current.includes(value)
+                                                                                    ? current.filter(v => v !== value)
+                                                                                    : [...current, value];
+                                                                            }
+                                                                            onAppFilterPrefChanged(ctx, newPref);
+                                                                        }}
+                                                                    />
+                                                                )) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <AppsStatusBar applications={filteredApps} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}

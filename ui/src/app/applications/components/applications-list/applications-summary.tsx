@@ -25,7 +25,19 @@ hydratorColors.set('Hydrated', COLORS.operation.success);
 hydratorColors.set('Failed', COLORS.operation.failed);
 hydratorColors.set('None', COLORS.sync.unknown);
 
-export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
+export const ApplicationsSummary = ({
+    applications,
+    syncFilter = [],
+    healthFilter = [],
+    onFilterClick
+}: {
+    applications: models.Application[];
+    syncFilter?: string[];
+    healthFilter?: string[];
+    onFilterClick?: (type: 'Health' | 'Sync', value: string) => void;
+}) => {
+    const [hoveredSector, setHoveredSector] = React.useState<{chartTitle: string; title: string} | null>(null);
+
     const sync = new Map<string, number>();
     applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
     const health = new Map<string, number>();
@@ -48,16 +60,21 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
     const charts = [
         {
             title: 'Sync',
+            filterType: 'Sync' as const,
+            activeFilter: syncFilter,
             data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
             legend: syncColors as Map<string, string>
         },
         {
             title: 'Health',
+            filterType: 'Health' as const,
+            activeFilter: healthFilter,
             data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
             legend: healthColors as Map<string, string>
         },
         {
             title: 'Hydrator',
+            activeFilter: [] as string[],
             data: Array.from(hydrator.keys()).map(key => ({title: key, value: hydrator.get(key), color: hydratorColors.get(key)})),
             legend: hydratorColors as Map<string, string>
         }
@@ -92,7 +109,24 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
                                         <div className='row chart'>
                                             <div className='large-8 small-6'>
                                                 <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
-                                                <PieChart data={chart.data} />
+                                                <div
+                                                    onClick={() => {
+                                                        if (chart.filterType && onFilterClick && hoveredSector && hoveredSector.chartTitle === chart.title) {
+                                                            onFilterClick(chart.filterType, hoveredSector.title);
+                                                        }
+                                                    }}
+                                                    style={{cursor: chart.filterType ? 'pointer' : 'default'}}>
+                                                    <PieChart
+                                                        data={chart.data}
+                                                        onSectorHover={
+                                                            chart.filterType
+                                                                ? (d: {title: string}) => setHoveredSector(d ? {chartTitle: chart.title, title: d.title} : null)
+                                                                : undefined
+                                                        }
+                                                        expandOnHover={!!chart.filterType}
+                                                        expandSize={1}
+                                                    />
+                                                </div>
                                             </div>
                                             <div className='large-3 small-1'>
                                                 <ul>
