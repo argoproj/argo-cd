@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -390,39 +391,60 @@ func TestImmutableChange(t *testing.T) {
 }
 
 func TestMultiSyncCRDClientSideSame(t *testing.T) {
-	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml", false)
 }
 
 func TestMultiSyncCRDClientSideChanged(t *testing.T) {
-	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml", false)
 }
 
 func TestMultiSyncCRDServerSideSame(t *testing.T) {
-	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", true)
 }
 
 func TestMultiSyncCRDServerSideChanged(t *testing.T) {
-	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", true)
 }
 
 func TestMultiSyncBuiltinClientSideSame(t *testing.T) {
-	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml", false)
 }
 
 func TestMultiSyncBuiltinClientSideChanged(t *testing.T) {
-	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml", false)
 }
 
 func TestMultiSyncBuiltinServerSideSame(t *testing.T) {
-	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", true)
 }
 
 func TestMultiSyncBuiltinServerSideChanged(t *testing.T) {
-	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", false)
 }
 
-// demostrate that Sync still works after initial Sync (create vs patch code paths)
-func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string) {
+func TestMultiSyncBuiltinServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", true)
+}
+
+// demostrate that Sync still works after initial Sync
+// several code paths are checked:
+// 1. serverSide vs Client side,
+// 2. second sync w/o change vs with change
+// 3. CRD vs builtin
+// 4  Small size vs Large size: manifests bigger than 256KiB won't fit into the last-applied-configuration annotation
+func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string, isBig bool) {
 	t.Helper()
 	args := []string{}
 	if serverSide {
@@ -431,8 +453,24 @@ func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string
 	ctx := Given(t)
 	acts := ctx.Path(dir).
 		When().
-		CreateApp().
-		Sync(args...).
+		CreateApp()
+	if isBig {
+		for i := range 16 {
+			// add some long fields so manifest size will be more that 256KiB: that would make it fail on a
+			// client-side kubectl operation because the entite manifest won't fit into the
+			// last-applied-configuration annotation
+			descr := strings.Repeat("A", 16*1024)
+			var patch string
+			if manifest == "cm.yaml" {
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/data/field%d", "value": %q }]`, i, descr)
+			} else {
+				// crd
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/field%d", "value": { "type" : "string", "description" : %q }}]`, i, descr)
+			}
+			acts = acts.PatchFile(manifest, patch)
+		}
+	}
+	acts.Sync(args...).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

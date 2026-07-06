@@ -78,7 +78,7 @@ fields for `api-version` and `kind`. Counting the number of refreshes triggered,
 reveal the high-churn resource kinds.
 
 > [!NOTE]
-> These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+> These logs are at the `info` level for GitOps managed resources and `debug` level for orphan and dependedant resources. Configure the application-controller's log level to `debug` to have the most details, and use `comparison-level` fields to know the importance of that resource update.
 
 Once you have identified some resources which change often, you can try to determine which fields are changing. Here is
 one approach:
