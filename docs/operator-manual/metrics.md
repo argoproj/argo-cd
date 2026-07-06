@@ -216,7 +216,7 @@ All the following `argocd_github_api_*` metrics can be enabled upon setting `app
 | host        | example.com   | Hostname of the Kubernetes API to which the request was made.                                                                                 |
 | method      | GET           | HTTP method used for the request. Possible values are: GET, DELETE, PATCH, POST, PUT.                                                         |
 | name        | my-app        | Name of an ApplicationSet.                                                                                                                 |
-| namespace   | default       | Namespace of an applicationset (namespace where the applicationset CR is located, not the destination namespace).                             |
+| namespace   | default       | Namespace of an ApplicationSet (namespace where the ApplicationSet CR is located, not the destination namespace).                             |
 | result      | hit           | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.            |
 | verb        | List          | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                |
 
