@@ -230,13 +230,13 @@ const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
     const firstTileRef = React.useRef<HTMLDivElement>(null);
     const appSetContainerRef = React.useRef(null);
     const appSetsPerRow = useItemsPerContainer(firstTileRef, appSetContainerRef);
-    const {useKeybinding} = React.useContext(KeybindingContext);
+    const {registerKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding({keys: Key.RIGHT, action: () => navAppSet(1)});
-    useKeybinding({keys: Key.LEFT, action: () => navAppSet(-1)});
-    useKeybinding({keys: Key.DOWN, action: () => navAppSet(appSetsPerRow)});
-    useKeybinding({keys: Key.UP, action: () => navAppSet(-1 * appSetsPerRow)});
-    useKeybinding({
+    registerKeybinding({keys: Key.RIGHT, action: () => navAppSet(1)});
+    registerKeybinding({keys: Key.LEFT, action: () => navAppSet(-1)});
+    registerKeybinding({keys: Key.DOWN, action: () => navAppSet(appSetsPerRow)});
+    registerKeybinding({keys: Key.UP, action: () => navAppSet(-1 * appSetsPerRow)});
+    registerKeybinding({
         keys: Key.ENTER,
         action: () => {
             if (selectedAppSet > -1) {
@@ -246,7 +246,7 @@ const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
             return false;
         }
     });
-    useKeybinding({
+    registerKeybinding({
         keys: Key.ESCAPE,
         action: () => {
             if (selectedAppSet > -1) {
@@ -256,14 +256,14 @@ const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
             return false;
         }
     });
-    useKeybinding({
+    registerKeybinding({
         keys: Object.values(NumKey) as NumKey[],
         action: n => {
             reset();
             return navAppSet(NumKeyToNumber(n));
         }
     });
-    useKeybinding({
+    registerKeybinding({
         keys: Object.values(NumPadKey) as NumPadKey[],
         action: n => {
             reset();
@@ -298,18 +298,18 @@ const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
 const ApplicationSetTable = ({appSets}: {appSets: models.ApplicationSet[]}) => {
     const [selectedAppSet, navAppSet, reset] = useNav(appSets.length);
     const ctxh = React.useContext(Context);
-    const {useKeybinding} = React.useContext(KeybindingContext);
+    const {registerKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding({keys: Key.DOWN, action: () => navAppSet(1)});
-    useKeybinding({keys: Key.UP, action: () => navAppSet(-1)});
-    useKeybinding({
+    registerKeybinding({keys: Key.DOWN, action: () => navAppSet(1)});
+    registerKeybinding({keys: Key.UP, action: () => navAppSet(-1)});
+    registerKeybinding({
         keys: Key.ESCAPE,
         action: () => {
             reset();
             return selectedAppSet > -1 ? true : false;
         }
     });
-    useKeybinding({
+    registerKeybinding({
         keys: Key.ENTER,
         action: () => {
             if (selectedAppSet > -1) {

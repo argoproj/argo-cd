@@ -29,8 +29,8 @@ importers:
         specifier: ^6.1.6
         version: 6.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       argo-ui:
-        specifier: git+https://github.com/argoproj/argo-ui.git#c089d1d2d84df87f3712ae661273a5ab0d1ef3b0
-        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/c089d1d2d84df87f3712ae661273a5ab0d1ef3b0(@types/react@19.2.14)(jquery@4.0.0)(react-dom@19.2.6(react@19.2.6))(react-router-dom@5.3.4(react@19.2.6))(react@19.2.6)(what-input@5.2.12)
+        specifier: git+https://github.com/argoproj/argo-ui.git#ad616de862f60d5348fe41ccaa72d7b74f9c3a13
+        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/ad616de862f60d5348fe41ccaa72d7b74f9c3a13(@types/react@19.2.14)(jquery@4.0.0)(react-dom@19.2.6(react@19.2.6))(react-router-dom@5.3.4(react@19.2.6))(react@19.2.6)(what-input@5.2.12)
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -179,6 +179,9 @@ importers:
       '@testing-library/user-event':
         specifier: ^14.5.0
         version: 14.6.1(@testing-library/dom@10.4.1)
+      '@tippy.js/react':
+        specifier: ^3.1.1
+        version: 3.1.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@types/classnames':
         specifier: ^2.2.3
         version: 2.3.4
@@ -254,6 +257,9 @@ importers:
       babel-loader:
         specifier: ^8.0.6
         version: 8.4.1(@babel/core@7.29.6)(webpack@5.106.2)
+      babel-plugin-react-compiler:
+        specifier: ^1.0.0
+        version: 1.0.0
       codecov:
         specifier: ^3.8.3
         version: 3.8.3
@@ -263,6 +269,9 @@ importers:
       css-loader:
         specifier: ^7.1.4
         version: 7.1.4(webpack@5.106.2)
+      downshift:
+        specifier: ^9.3.3
+        version: 9.3.3(react@19.2.6)
       esbuild-loader:
         specifier: ^4.3.0
         version: 4.4.3(webpack@5.106.2)
@@ -278,6 +287,9 @@ importers:
       eslint-plugin-react:
         specifier: ^7.37.2
         version: 7.37.5(eslint@9.39.4)
+      eslint-plugin-react-hooks:
+        specifier: ^7.1.1
+        version: 7.1.1(eslint@9.39.4)
       eslint-plugin-react-x:
         specifier: ^4.2.3
         version: 4.2.3(eslint@9.39.4)(typescript@5.9.3)
@@ -314,6 +326,9 @@ importers:
       raw-loader:
         specifier: ^0.5.1
         version: 0.5.1
+      react-toastify:
+        specifier: 9.0.3
+        version: 9.0.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       sass:
         specifier: ^1.100.0
         version: 1.100.0
@@ -338,6 +353,9 @@ importers:
       typescript-eslint:
         specifier: ^8.60.1
         version: 8.60.1(eslint@9.39.4)(typescript@5.9.3)
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
       webpack:
         specifier: ^5.105.4
         version: 5.106.2(postcss@8.5.14)(webpack-cli@5.1.4)
@@ -1762,42 +1780,36 @@ packages:
     engines: {node: '>= 10.0.0'}
     cpu: [arm]
     os: [linux]
-    libc: [glibc]
 
   '@parcel/watcher-linux-arm-musl@2.5.6':
     resolution: {integrity: sha512-Ve3gUCG57nuUUSyjBq/MAM0CzArtuIOxsBdQ+ftz6ho8n7s1i9E1Nmk/xmP323r2YL0SONs1EuwqBp2u1k5fxg==}
     engines: {node: '>= 10.0.0'}
     cpu: [arm]
     os: [linux]
-    libc: [musl]
 
   '@parcel/watcher-linux-arm64-glibc@2.5.6':
     resolution: {integrity: sha512-f2g/DT3NhGPdBmMWYoxixqYr3v/UXcmLOYy16Bx0TM20Tchduwr4EaCbmxh1321TABqPGDpS8D/ggOTaljijOA==}
     engines: {node: '>= 10.0.0'}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@parcel/watcher-linux-arm64-musl@2.5.6':
     resolution: {integrity: sha512-qb6naMDGlbCwdhLj6hgoVKJl2odL34z2sqkC7Z6kzir8b5W65WYDpLB6R06KabvZdgoHI/zxke4b3zR0wAbDTA==}
     engines: {node: '>= 10.0.0'}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@parcel/watcher-linux-x64-glibc@2.5.6':
     resolution: {integrity: sha512-kbT5wvNQlx7NaGjzPFu8nVIW1rWqV780O7ZtkjuWaPUgpv2NMFpjYERVi0UYj1msZNyCzGlaCWEtzc+exjMGbQ==}
     engines: {node: '>= 10.0.0'}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@parcel/watcher-linux-x64-musl@2.5.6':
     resolution: {integrity: sha512-1JRFeC+h7RdXwldHzTsmdtYR/Ku8SylLgTU/reMuqdVD7CtLwf0VR1FqeprZ0eHQkO0vqsbvFLXUmYm/uNKJBg==}
     engines: {node: '>= 10.0.0'}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@parcel/watcher-win32-arm64@2.5.6':
     resolution: {integrity: sha512-3ukyebjc6eGlw9yRt678DxVF7rjXatWiHvTXqphZLvo7aC5NdEgFufVwjFfY51ijYEWpXbqF5jtrK275z52D4Q==}
@@ -2441,8 +2453,8 @@ packages:
   arg@4.1.3:
     resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/c089d1d2d84df87f3712ae661273a5ab0d1ef3b0:
-    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/c089d1d2d84df87f3712ae661273a5ab0d1ef3b0}
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/ad616de862f60d5348fe41ccaa72d7b74f9c3a13:
+    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/ad616de862f60d5348fe41ccaa72d7b74f9c3a13}
     version: 1.0.0
     peerDependencies:
       '@types/react': ^19.0.0
@@ -2552,6 +2564,9 @@ packages:
     resolution: {integrity: sha512-M762rNHfSF1EV3SLtnCJXFoQbbIIz0OyRwnCmV0KPC7qosSfCO0QLTSuJX3ayAebubhE6oYBAYPrBA5ljowaZg==}
     peerDependencies:
       '@babel/core': ^7.4.0 || ^8.0.0-0 <8.0.0
+
+  babel-plugin-react-compiler@1.0.0:
+    resolution: {integrity: sha512-Ixm8tFfoKKIPYdCCKYTsqv+Fd4IJ0DQqMyEimo+pxUOMUR9cVPlwTrFt9Avu+3cb6Zp3mAzl+t1MrG2fxxKsxw==}
 
   babel-preset-current-node-syntax@1.2.0:
     resolution: {integrity: sha512-E/VlAEzRrsLEb2+dv8yp3bo4scof3l9nR4lrld+Iy5NyVqgVYUJnDAmunkhPMisRI32Qc4iRiz425d8vM++2fg==}
@@ -3241,6 +3256,12 @@ packages:
       eslint-config-prettier:
         optional: true
 
+  eslint-plugin-react-hooks@7.1.1:
+    resolution: {integrity: sha512-f2I7Gw6JbvCexzIInuSbZpfdQ44D7iqdWX01FKLvrPgqxoE7oMj8clOfto8U6vYiz4yd5oKu39rRSVOe1zRu0g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0 || ^10.0.0
+
   eslint-plugin-react-x@4.2.3:
     resolution: {integrity: sha512-kJZXa5QsGA4FzuTyKLKjFt9nm78CZcfHshfgfSXjVOshvlVGeg1RWyNZnXDW3hASdZ/REsPg2mGFYqwUPXnJ5Q==}
     engines: {node: '>=22.0.0'}
@@ -3630,6 +3651,12 @@ packages:
   he@1.2.0:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
+
+  hermes-estree@0.25.1:
+    resolution: {integrity: sha512-0wUoCcLp+5Ev5pDW2OriHC2MJCbwLwuRx+gAqMTOkGKJJiBCLjtrvy4PWUGn6MIVefecRpzoOZ/UV6iGdOr+Cw==}
+
+  hermes-parser@0.25.1:
+    resolution: {integrity: sha512-6pEjquH3rqaI6cYAXYPcz9MS4rY6R4ngRgrgfDshRptUZIc3lw0MCIJIGDj9++mfySOuPTHB4nrSW99BCvOPIA==}
 
   history@4.10.1:
     resolution: {integrity: sha512-36nwAD620w12kuzPAsyINPWJqlNbij+hpK1k9XRloDtym8mxzGYl2c17LnV6IAGB2Dmg4tEa7G7DlawS0+qjew==}
@@ -6078,6 +6105,12 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod-validation-error@4.0.2:
+    resolution: {integrity: sha512-Q6/nZLe6jxuU80qb/4uJ4t5v2VEZ44lzQjPDhYJNztRQ4wyWc6VF3D3Kb/fAuPetZQnhS3hnajCf9CsWesghLQ==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
@@ -8514,7 +8547,7 @@ snapshots:
 
   arg@4.1.3: {}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/c089d1d2d84df87f3712ae661273a5ab0d1ef3b0(@types/react@19.2.14)(jquery@4.0.0)(react-dom@19.2.6(react@19.2.6))(react-router-dom@5.3.4(react@19.2.6))(react@19.2.6)(what-input@5.2.12):
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/ad616de862f60d5348fe41ccaa72d7b74f9c3a13(@types/react@19.2.14)(jquery@4.0.0)(react-dom@19.2.6(react@19.2.6))(react-router-dom@5.3.4(react@19.2.6))(react@19.2.6)(what-input@5.2.12):
     dependencies:
       '@fortawesome/fontawesome-free': 6.7.2
       '@tippy.js/react': 3.1.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -8691,6 +8724,10 @@ snapshots:
       '@babel/helper-define-polyfill-provider': 0.6.8(@babel/core@7.29.6)
     transitivePeerDependencies:
       - supports-color
+
+  babel-plugin-react-compiler@1.0.0:
+    dependencies:
+      '@babel/types': 7.29.7
 
   babel-preset-current-node-syntax@1.2.0(@babel/core@7.29.6):
     dependencies:
@@ -9481,6 +9518,17 @@ snapshots:
       '@types/eslint': 9.6.1
       eslint-config-prettier: 9.1.2(eslint@9.39.4)
 
+  eslint-plugin-react-hooks@7.1.1(eslint@9.39.4):
+    dependencies:
+      '@babel/core': 7.29.6
+      '@babel/parser': 7.29.7
+      eslint: 9.39.4
+      hermes-parser: 0.25.1
+      zod: 4.4.3
+      zod-validation-error: 4.0.2(zod@4.4.3)
+    transitivePeerDependencies:
+      - supports-color
+
   eslint-plugin-react-x@4.2.3(eslint@9.39.4)(typescript@5.9.3):
     dependencies:
       '@eslint-react/ast': 4.2.3(eslint@9.39.4)(typescript@5.9.3)
@@ -9957,6 +10005,12 @@ snapshots:
       function-bind: 1.1.2
 
   he@1.2.0: {}
+
+  hermes-estree@0.25.1: {}
+
+  hermes-parser@0.25.1:
+    dependencies:
+      hermes-estree: 0.25.1
 
   history@4.10.1:
     dependencies:
@@ -12767,6 +12821,10 @@ snapshots:
   yn@3.1.1: {}
 
   yocto-queue@0.1.0: {}
+
+  zod-validation-error@4.0.2(zod@4.4.3):
+    dependencies:
+      zod: 4.4.3
 
   zod@3.25.76: {}
 
