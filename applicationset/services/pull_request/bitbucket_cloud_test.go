@@ -6,12 +6,24 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+const (
+	createdTime = "2015-10-15T16:38:55.491628+00:00"
+	updatedTime = "2015-10-15T17:38:55.491628+00:00"
+)
+
+func parseTimeFromString(t string) time.Time {
+	pt, _ := time.Parse(time.RFC3339, t)
+
+	return pt.UTC()
+}
 
 func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	t.Helper()
@@ -39,7 +51,9 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 							},
 							"author": {
 								"nickname": "testName"
-							}
+							},
+							"created_on": "2015-10-15T16:38:55.491628+00:00",
+							"updated_on": "2015-10-15T17:38:55.491628+00:00"
 						}
 					]
 				}`)
@@ -99,6 +113,8 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
 	assert.Equal(t, "testName", pullRequests[0].Author)
+	assert.Equal(t, parseTimeFromString(createdTime), pullRequests[0].CreatedAt)
+	assert.Equal(t, parseTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
 }
 
 func TestListPullRequestNoAuthCloud(t *testing.T) {
@@ -118,6 +134,8 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
 	assert.Equal(t, "testName", pullRequests[0].Author)
+	assert.Equal(t, parseTimeFromString(createdTime), pullRequests[0].CreatedAt)
+	assert.Equal(t, parseTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
 }
 
 func TestListPullRequestBasicAuthCloud(t *testing.T) {
@@ -137,6 +155,8 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
 	assert.Equal(t, "testName", pullRequests[0].Author)
+	assert.Equal(t, parseTimeFromString(createdTime), pullRequests[0].CreatedAt)
+	assert.Equal(t, parseTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
 }
 
 func TestListPullRequestPaginationCloud(t *testing.T) {
@@ -166,7 +186,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						},
 						"author": {
 							"nickname": "testName"
-						}
+						},
+						"created_on": "2015-10-15T16:38:55.491628+00:00",
+						"updated_on": "2015-10-15T17:38:55.491628+00:00"
 					},
 					{
 						"id": 102,
@@ -182,7 +204,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						},
 						"author": {
 							"nickname": "testName"
-						}
+						},
+						"created_on": "2015-10-15T16:38:55.491628+00:00",
+						"updated_on": "2015-10-15T17:38:55.491628+00:00"
 					}
 				]
 			}`, r.Host)
@@ -207,7 +231,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						},
 						"author": {
 							"nickname": "testName"
-						}
+						},
+						"created_on": "2015-10-15T16:38:55.491628+00:00",
+						"updated_on": "2015-10-15T17:38:55.491628+00:00"
 					}
 				]
 			}`, r.Host)
@@ -225,25 +251,31 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, PullRequest{
-		Number:  101,
-		Title:   "feat(101)",
-		Branch:  "feature-101",
-		HeadSHA: "1a8dd249c04a",
-		Author:  "testName",
+		Number:    101,
+		Title:     "feat(101)",
+		Branch:    "feature-101",
+		HeadSHA:   "1a8dd249c04a",
+		Author:    "testName",
+		CreatedAt: parseTimeFromString(createdTime),
+		UpdatedAt: parseTimeFromString(updatedTime),
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
-		Number:  102,
-		Title:   "feat(102)",
-		Branch:  "feature-102",
-		HeadSHA: "4cf807e67a6d",
-		Author:  "testName",
+		Number:    102,
+		Title:     "feat(102)",
+		Branch:    "feature-102",
+		HeadSHA:   "4cf807e67a6d",
+		Author:    "testName",
+		CreatedAt: parseTimeFromString(createdTime),
+		UpdatedAt: parseTimeFromString(updatedTime),
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
-		Number:  103,
-		Title:   "feat(103)",
-		Branch:  "feature-103",
-		HeadSHA: "6344d9623e3b",
-		Author:  "testName",
+		Number:    103,
+		Title:     "feat(103)",
+		Branch:    "feature-103",
+		HeadSHA:   "6344d9623e3b",
+		Author:    "testName",
+		CreatedAt: parseTimeFromString(createdTime),
+		UpdatedAt: parseTimeFromString(updatedTime),
 	}, *pullRequests[2])
 }
 
@@ -367,7 +399,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 							"branch": {
 								"name": "master"
 							}
-						}
+						},
+						"created_on": "2015-10-15T16:38:55.491628+00:00",
+						"updated_on": "2015-10-15T17:38:55.491628+00:00"
 					},
 					{
 						"id": 200,
@@ -388,7 +422,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 							"branch": {
 								"name": "branch-200"
 							}
-						}
+						},
+						"created_on": "2015-10-15T16:38:55.491628+00:00",
+						"updated_on": "2015-10-15T17:38:55.491628+00:00"
 					}
 				]
 			}`, r.Host)
@@ -418,7 +454,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 							"branch": {
 								"name": "master"
 							}
-						}
+						},
+						"created_on": "2015-10-15T16:38:55.491628+00:00",
+						"updated_on": "2015-10-15T17:38:55.491628+00:00"
 					}
 				]
 			}`, r.Host)
@@ -447,6 +485,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		HeadSHA:      "1a8dd249c04a",
 		Author:       "testName",
 		TargetBranch: "master",
+		CreatedAt:    parseTimeFromString(createdTime),
+		UpdatedAt:    parseTimeFromString(updatedTime),
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:       102,
@@ -455,6 +495,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		HeadSHA:      "6344d9623e3b",
 		Author:       "testName",
 		TargetBranch: "master",
+		CreatedAt:    parseTimeFromString(createdTime),
+		UpdatedAt:    parseTimeFromString(updatedTime),
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
@@ -474,6 +516,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		HeadSHA:      "6344d9623e3b",
 		Author:       "testName",
 		TargetBranch: "master",
+		CreatedAt:    parseTimeFromString(createdTime),
+		UpdatedAt:    parseTimeFromString(updatedTime),
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`
@@ -503,6 +547,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		HeadSHA:      "4cf807e67a6d",
 		Author:       "testName",
 		TargetBranch: "branch-200",
+		CreatedAt:    parseTimeFromString(createdTime),
+		UpdatedAt:    parseTimeFromString(updatedTime),
 	}, *pullRequests[0])
 }
 
