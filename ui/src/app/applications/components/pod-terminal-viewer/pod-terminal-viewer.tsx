@@ -270,8 +270,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
                                                 onClickContainer(group, i, 'exec');
                                             }
                                         }}
-                                        title={!running ? 'Container is not running' : container.name}
-                                    >
+                                        title={!running ? 'Container is not running' : container.name}>
                                         {container.name === containerName && <i className='pod-terminal-viewer__icon fa fa-angle-right negative-space-arrow' />}
                                         <span>{container.name}</span>
                                     </div>
