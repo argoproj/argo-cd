@@ -2,6 +2,7 @@ package kube
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/mocks"
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
@@ -545,5 +548,66 @@ func TestReplaceOptionsConfiguration(t *testing.T) {
 				assert.Equal(t, tc.expected, capturedOpts.DeleteOptions.ForceDeletion)
 			})
 		}
+	})
+}
+
+func TestCreateManifestFile(t *testing.T) {
+	t.Parallel()
+
+	// A server-side apply request that carries metadata.managedFields is
+	// rejected by the API server with "metadata.managedFields must be nil".
+	// managedFields is server-managed and must never reach the applied
+	// manifest, so createManifestFile must strip it from the serialized output
+	// while leaving the caller's object untouched.
+	t.Run("strips managedFields from the serialized manifest", func(t *testing.T) {
+		t.Parallel()
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Namespace",
+			"metadata":   map[string]any{"name": "test-ns"},
+		}}
+		obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{Manager: "before-first-apply", Operation: metav1.ManagedFieldsOperationUpdate, APIVersion: "v1"},
+			{Manager: "argocd-controller", Operation: metav1.ManagedFieldsOperationApply, APIVersion: "v1"},
+		})
+		require.NotEmpty(t, obj.GetManagedFields(), "precondition: object has managedFields")
+
+		f, err := createManifestFile(obj, logr.Discard())
+		require.NoError(t, err)
+		defer os.Remove(f.Name())
+
+		data, err := os.ReadFile(f.Name())
+		require.NoError(t, err)
+
+		var written unstructured.Unstructured
+		require.NoError(t, json.Unmarshal(data, &written))
+		assert.Empty(t, written.GetManagedFields(), "serialized manifest must not contain managedFields")
+		assert.Equal(t, "test-ns", written.GetName(), "the rest of the object must be preserved")
+
+		assert.NotEmpty(t, obj.GetManagedFields(), "caller's object must not be mutated")
+	})
+
+	t.Run("serializes an object without managedFields unchanged", func(t *testing.T) {
+		t.Parallel()
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata":   map[string]any{"name": "cm", "namespace": "default"},
+			"data":       map[string]any{"key": "value"},
+		}}
+
+		f, err := createManifestFile(obj, logr.Discard())
+		require.NoError(t, err)
+		defer os.Remove(f.Name())
+
+		data, err := os.ReadFile(f.Name())
+		require.NoError(t, err)
+
+		var written unstructured.Unstructured
+		require.NoError(t, json.Unmarshal(data, &written))
+		assert.Empty(t, written.GetManagedFields())
+		assert.Equal(t, "cm", written.GetName())
+		val, _, _ := unstructured.NestedString(written.Object, "data", "key")
+		assert.Equal(t, "value", val)
 	})
 }

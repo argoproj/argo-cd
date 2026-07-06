@@ -147,6 +147,18 @@ func maybeLogManifest(manifestBytes []byte, log logr.Logger) error {
 }
 
 func createManifestFile(obj *unstructured.Unstructured, log logr.Logger) (*os.File, error) {
+	// metadata.managedFields is server-managed and must never be part of a
+	// submitted manifest. A server-side apply request that carries it is
+	// rejected by the API server with "metadata.managedFields must be nil"
+	// (client-side apply tolerates it but does not use it). This can happen
+	// when the object handed to an apply path still has managedFields
+	// populated (e.g. sourced from live state), so strip it here — the single
+	// serialization point shared by every apply path. Copy first so the
+	// caller's object is left untouched.
+	if len(obj.GetManagedFields()) > 0 {
+		obj = obj.DeepCopy()
+		obj.SetManagedFields(nil)
+	}
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal object: %w", err)
