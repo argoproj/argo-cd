@@ -324,50 +324,192 @@ func (m *CommitHydratedManifestsResponse) GetHydratedSha() string {
 	return ""
 }
 
+// AdvanceHydratorNoteRequest is the request to advance the hydrator git note
+// without performing a full hydration.
+type AdvanceHydratorNoteRequest struct {
+	// Repo contains repository information including, at minimum, the URL of the repository.
+	Repo *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	// SyncBranch is the hydrated branch to read the HEAD from.
+	SyncBranch string `protobuf:"bytes,2,opt,name=syncBranch,proto3" json:"syncBranch,omitempty"`
+	// TargetBranch is the branch whose commit notes are associated with.
+	TargetBranch string `protobuf:"bytes,3,opt,name=targetBranch,proto3" json:"targetBranch,omitempty"`
+	// DrySha is the commit SHA from the dry branch.
+	DrySha               string   `protobuf:"bytes,4,opt,name=drySha,proto3" json:"drySha,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AdvanceHydratorNoteRequest) Reset()         { *m = AdvanceHydratorNoteRequest{} }
+func (m *AdvanceHydratorNoteRequest) String() string { return proto.CompactTextString(m) }
+func (*AdvanceHydratorNoteRequest) ProtoMessage()    {}
+func (*AdvanceHydratorNoteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cf3a3abbc35e3069, []int{4}
+}
+func (m *AdvanceHydratorNoteRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AdvanceHydratorNoteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AdvanceHydratorNoteRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AdvanceHydratorNoteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AdvanceHydratorNoteRequest.Merge(m, src)
+}
+func (m *AdvanceHydratorNoteRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *AdvanceHydratorNoteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AdvanceHydratorNoteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AdvanceHydratorNoteRequest proto.InternalMessageInfo
+
+func (m *AdvanceHydratorNoteRequest) GetRepo() *v1alpha1.Repository {
+	if m != nil {
+		return m.Repo
+	}
+	return nil
+}
+
+func (m *AdvanceHydratorNoteRequest) GetSyncBranch() string {
+	if m != nil {
+		return m.SyncBranch
+	}
+	return ""
+}
+
+func (m *AdvanceHydratorNoteRequest) GetTargetBranch() string {
+	if m != nil {
+		return m.TargetBranch
+	}
+	return ""
+}
+
+func (m *AdvanceHydratorNoteRequest) GetDrySha() string {
+	if m != nil {
+		return m.DrySha
+	}
+	return ""
+}
+
+// AdvanceHydratorNoteResponse is the response after attempting to advance the
+// hydrator git note.
+type AdvanceHydratorNoteResponse struct {
+	// HydratedSha is the existing HEAD commit SHA.
+	HydratedSha string `protobuf:"bytes,1,opt,name=hydratedSha,proto3" json:"hydratedSha,omitempty"`
+	// NoteAdvanced indicates whether a new git note was written.
+	NoteAdvanced         bool     `protobuf:"varint,2,opt,name=noteAdvanced,proto3" json:"noteAdvanced,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AdvanceHydratorNoteResponse) Reset()         { *m = AdvanceHydratorNoteResponse{} }
+func (m *AdvanceHydratorNoteResponse) String() string { return proto.CompactTextString(m) }
+func (*AdvanceHydratorNoteResponse) ProtoMessage()    {}
+func (*AdvanceHydratorNoteResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cf3a3abbc35e3069, []int{5}
+}
+func (m *AdvanceHydratorNoteResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AdvanceHydratorNoteResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AdvanceHydratorNoteResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AdvanceHydratorNoteResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AdvanceHydratorNoteResponse.Merge(m, src)
+}
+func (m *AdvanceHydratorNoteResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *AdvanceHydratorNoteResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_AdvanceHydratorNoteResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AdvanceHydratorNoteResponse proto.InternalMessageInfo
+
+func (m *AdvanceHydratorNoteResponse) GetHydratedSha() string {
+	if m != nil {
+		return m.HydratedSha
+	}
+	return ""
+}
+
+func (m *AdvanceHydratorNoteResponse) GetNoteAdvanced() bool {
+	if m != nil {
+		return m.NoteAdvanced
+	}
+	return false
+}
+
 func init() {
 	proto.RegisterType((*CommitHydratedManifestsRequest)(nil), "CommitHydratedManifestsRequest")
 	proto.RegisterType((*PathDetails)(nil), "PathDetails")
 	proto.RegisterType((*HydratedManifestDetails)(nil), "HydratedManifestDetails")
 	proto.RegisterType((*CommitHydratedManifestsResponse)(nil), "CommitHydratedManifestsResponse")
+	proto.RegisterType((*AdvanceHydratorNoteRequest)(nil), "AdvanceHydratorNoteRequest")
+	proto.RegisterType((*AdvanceHydratorNoteResponse)(nil), "AdvanceHydratorNoteResponse")
 }
 
 func init() { proto.RegisterFile("commitserver/commit/commit.proto", fileDescriptor_cf3a3abbc35e3069) }
 
 var fileDescriptor_cf3a3abbc35e3069 = []byte{
-	// 520 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x94, 0x41, 0x6f, 0xd3, 0x30,
-	0x14, 0xc7, 0x95, 0xb5, 0x2b, 0xab, 0xbb, 0x1d, 0xf0, 0x81, 0x59, 0x3d, 0x74, 0x51, 0xc4, 0xa1,
-	0x17, 0x1c, 0xad, 0x15, 0xdc, 0xb8, 0xac, 0x20, 0x4d, 0x88, 0x15, 0x94, 0xde, 0xd0, 0x24, 0xf4,
-	0x96, 0x3c, 0x12, 0xb3, 0x26, 0x36, 0xb6, 0x1b, 0xa9, 0x12, 0x9f, 0x80, 0x4f, 0xc6, 0x91, 0x8f,
-	0x80, 0xfa, 0x49, 0x50, 0x9c, 0x84, 0xb6, 0xa0, 0xb2, 0x03, 0xa7, 0xfa, 0xfd, 0xdf, 0xeb, 0xff,
-	0xd9, 0x3f, 0x3f, 0x87, 0xf8, 0xb1, 0xcc, 0x73, 0x61, 0x0d, 0xea, 0x12, 0x75, 0x58, 0x07, 0xcd,
-	0x0f, 0x57, 0x5a, 0x5a, 0x39, 0x7c, 0x9b, 0x0a, 0x9b, 0xad, 0xee, 0x78, 0x2c, 0xf3, 0x10, 0x74,
-	0x2a, 0x95, 0x96, 0x9f, 0xdd, 0xe2, 0x59, 0x9c, 0x84, 0xe5, 0x34, 0x54, 0xf7, 0x69, 0x08, 0x4a,
-	0x98, 0x10, 0x94, 0x5a, 0x8a, 0x18, 0xac, 0x90, 0x45, 0x58, 0x5e, 0xc2, 0x52, 0x65, 0x70, 0x19,
-	0xa6, 0x58, 0xa0, 0x06, 0x8b, 0x49, 0xed, 0x16, 0x7c, 0xeb, 0x92, 0xd1, 0xcc, 0xd9, 0x5f, 0xaf,
-	0x13, 0x97, 0xb8, 0x81, 0x42, 0x7c, 0x42, 0x63, 0x4d, 0x84, 0x5f, 0x56, 0x68, 0x2c, 0xbd, 0x25,
-	0x5d, 0x8d, 0x4a, 0x32, 0xcf, 0xf7, 0xc6, 0x83, 0xc9, 0x35, 0xdf, 0xf6, 0xe7, 0x6d, 0x7f, 0xb7,
-	0xf8, 0x18, 0x27, 0xbc, 0x9c, 0x72, 0x75, 0x9f, 0xf2, 0xaa, 0x3f, 0xdf, 0xe9, 0xcf, 0xdb, 0xfe,
-	0x3c, 0x42, 0x25, 0x8d, 0xb0, 0x52, 0xaf, 0x23, 0xe7, 0x4a, 0x47, 0x84, 0x98, 0x75, 0x11, 0x5f,
-	0x69, 0x28, 0xe2, 0x8c, 0x1d, 0xf9, 0xde, 0xb8, 0x1f, 0xed, 0x28, 0x34, 0x20, 0xa7, 0x16, 0x74,
-	0x8a, 0xb6, 0xa9, 0xe8, 0xb8, 0x8a, 0x3d, 0x8d, 0x3e, 0x21, 0xbd, 0x44, 0xaf, 0x17, 0x19, 0xb0,
-	0xae, 0xcb, 0x36, 0x11, 0x7d, 0x4a, 0xce, 0x6a, 0x74, 0x37, 0x68, 0x0c, 0xa4, 0xc8, 0x8e, 0x5d,
-	0x7a, 0x5f, 0xa4, 0x01, 0x39, 0x56, 0x60, 0x33, 0xc3, 0x7a, 0x7e, 0x67, 0x3c, 0x98, 0x9c, 0xf2,
-	0xf7, 0x60, 0xb3, 0x57, 0x68, 0x41, 0x2c, 0x4d, 0x54, 0xa7, 0xe8, 0x57, 0xf2, 0x38, 0xd1, 0xeb,
-	0x59, 0xf3, 0x3f, 0x0b, 0x09, 0x58, 0x60, 0x8f, 0x1c, 0x90, 0xf9, 0xff, 0x02, 0x29, 0x85, 0x11,
-	0xb2, 0x68, 0x5d, 0xa3, 0xbf, 0x1b, 0x55, 0x8c, 0x60, 0x65, 0x33, 0xa9, 0xe7, 0x90, 0x23, 0x3b,
-	0xa9, 0x19, 0x6d, 0x15, 0xea, 0x93, 0x41, 0x1d, 0xbd, 0xce, 0x41, 0x2c, 0x59, 0xdf, 0x15, 0xec,
-	0x4a, 0x15, 0x09, 0x8d, 0x90, 0xe4, 0xd8, 0x92, 0x20, 0x35, 0x89, 0x3d, 0x31, 0x58, 0x91, 0xc1,
-	0xce, 0xd9, 0x29, 0x25, 0xdd, 0xea, 0xf4, 0xee, 0xe2, 0xfb, 0x91, 0x5b, 0xd3, 0x17, 0xa4, 0x9f,
-	0xb7, 0x03, 0xc2, 0x8e, 0x1c, 0x30, 0xc6, 0xff, 0x1c, 0x9d, 0x16, 0xde, 0xb6, 0x94, 0x0e, 0xc9,
-	0x49, 0x45, 0x1d, 0x8a, 0xc4, 0xb0, 0x8e, 0xdf, 0x19, 0xf7, 0xa3, 0xdf, 0x71, 0xf0, 0x92, 0x9c,
-	0x1f, 0x70, 0xa8, 0x6e, 0xbf, 0xf5, 0x78, 0xb3, 0x78, 0x37, 0x6f, 0xb6, 0xb2, 0xa7, 0x05, 0x33,
-	0x72, 0x71, 0x70, 0x82, 0x8d, 0x92, 0x85, 0x71, 0x80, 0xb2, 0x26, 0x59, 0x4d, 0x49, 0xed, 0xb2,
-	0x2b, 0x4d, 0x72, 0x72, 0x56, 0x9b, 0x2c, 0x50, 0x97, 0x22, 0x46, 0x7a, 0x4b, 0xce, 0x0f, 0xb8,
-	0xd2, 0x0b, 0xfe, 0xef, 0x17, 0x33, 0xf4, 0xf9, 0x03, 0x1b, 0xba, 0x9a, 0x7d, 0xdf, 0x8c, 0xbc,
-	0x1f, 0x9b, 0x91, 0xf7, 0x73, 0x33, 0xf2, 0x3e, 0x3c, 0x7f, 0xe0, 0x49, 0xef, 0x7d, 0x13, 0x40,
-	0x89, 0x78, 0x29, 0xb0, 0xb0, 0x77, 0x3d, 0xf7, 0x84, 0xa7, 0xbf, 0x02, 0x00, 0x00, 0xff, 0xff,
-	0xde, 0xe2, 0xc1, 0x3d, 0x34, 0x04, 0x00, 0x00,
+	// 583 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x54, 0x41, 0x6f, 0xd3, 0x4c,
+	0x10, 0x95, 0x9b, 0xb4, 0x5f, 0xb3, 0x69, 0x0f, 0xdf, 0x22, 0x51, 0x2b, 0x45, 0xa9, 0x65, 0x71,
+	0xc8, 0x85, 0xb5, 0xda, 0x0a, 0x6e, 0x1c, 0x68, 0x40, 0xaa, 0x10, 0x0d, 0x95, 0x7b, 0x43, 0x95,
+	0xd0, 0xd4, 0x1e, 0xec, 0xa5, 0xb1, 0x77, 0xd9, 0xdd, 0x58, 0x8a, 0xc4, 0x2f, 0xe0, 0x4f, 0x71,
+	0xe5, 0xc8, 0x89, 0x33, 0xca, 0x2f, 0x41, 0x5e, 0xdb, 0x24, 0x86, 0xa6, 0x45, 0xe2, 0xc4, 0x29,
+	0xbb, 0x6f, 0x26, 0xef, 0xed, 0xbc, 0x19, 0x0f, 0xf1, 0x22, 0x91, 0x65, 0xdc, 0x68, 0x54, 0x05,
+	0xaa, 0xa0, 0xba, 0xd4, 0x3f, 0x4c, 0x2a, 0x61, 0xc4, 0xe0, 0x55, 0xc2, 0x4d, 0x3a, 0xbb, 0x62,
+	0x91, 0xc8, 0x02, 0x50, 0x89, 0x90, 0x4a, 0xbc, 0xb7, 0x87, 0x47, 0x51, 0x1c, 0x14, 0xc7, 0x81,
+	0xbc, 0x4e, 0x02, 0x90, 0x5c, 0x07, 0x20, 0xe5, 0x94, 0x47, 0x60, 0xb8, 0xc8, 0x83, 0xe2, 0x10,
+	0xa6, 0x32, 0x85, 0xc3, 0x20, 0xc1, 0x1c, 0x15, 0x18, 0x8c, 0x2b, 0x36, 0xff, 0x53, 0x97, 0x0c,
+	0xc7, 0x96, 0xfe, 0x74, 0x1e, 0xdb, 0xc0, 0x19, 0xe4, 0xfc, 0x1d, 0x6a, 0xa3, 0x43, 0xfc, 0x30,
+	0x43, 0x6d, 0xe8, 0x25, 0xe9, 0x2a, 0x94, 0xc2, 0x75, 0x3c, 0x67, 0xd4, 0x3f, 0x3a, 0x65, 0x4b,
+	0x7d, 0xd6, 0xe8, 0xdb, 0xc3, 0xdb, 0x28, 0x66, 0xc5, 0x31, 0x93, 0xd7, 0x09, 0x2b, 0xf5, 0xd9,
+	0x8a, 0x3e, 0x6b, 0xf4, 0x59, 0x88, 0x52, 0x68, 0x6e, 0x84, 0x9a, 0x87, 0x96, 0x95, 0x0e, 0x09,
+	0xd1, 0xf3, 0x3c, 0x3a, 0x51, 0x90, 0x47, 0xa9, 0xbb, 0xe1, 0x39, 0xa3, 0x5e, 0xb8, 0x82, 0x50,
+	0x9f, 0xec, 0x18, 0x50, 0x09, 0x9a, 0x3a, 0xa3, 0x63, 0x33, 0x5a, 0x18, 0xbd, 0x4f, 0xb6, 0x62,
+	0x35, 0xbf, 0x48, 0xc1, 0xed, 0xda, 0x68, 0x7d, 0xa3, 0x0f, 0xc9, 0x6e, 0x65, 0xdd, 0x19, 0x6a,
+	0x0d, 0x09, 0xba, 0x9b, 0x36, 0xdc, 0x06, 0xa9, 0x4f, 0x36, 0x25, 0x98, 0x54, 0xbb, 0x5b, 0x5e,
+	0x67, 0xd4, 0x3f, 0xda, 0x61, 0xe7, 0x60, 0xd2, 0xe7, 0x68, 0x80, 0x4f, 0x75, 0x58, 0x85, 0xe8,
+	0x47, 0xf2, 0x7f, 0xac, 0xe6, 0xe3, 0xfa, 0x7f, 0x06, 0x62, 0x30, 0xe0, 0xfe, 0x67, 0x0d, 0x99,
+	0xfc, 0xad, 0x21, 0x05, 0xd7, 0x5c, 0xe4, 0x0d, 0x6b, 0xf8, 0xbb, 0x50, 0xe9, 0x11, 0xcc, 0x4c,
+	0x2a, 0xd4, 0x04, 0x32, 0x74, 0xb7, 0x2b, 0x8f, 0x96, 0x08, 0xf5, 0x48, 0xbf, 0xba, 0xbd, 0xc8,
+	0x80, 0x4f, 0xdd, 0x9e, 0x4d, 0x58, 0x85, 0x4a, 0x27, 0x14, 0x42, 0x9c, 0x61, 0xe3, 0x04, 0xa9,
+	0x9c, 0x68, 0x81, 0xfe, 0x8c, 0xf4, 0x57, 0x6a, 0xa7, 0x94, 0x74, 0xcb, 0xea, 0x6d, 0xe3, 0x7b,
+	0xa1, 0x3d, 0xd3, 0x27, 0xa4, 0x97, 0x35, 0x03, 0xe2, 0x6e, 0x58, 0xc3, 0x5c, 0xf6, 0xeb, 0xe8,
+	0x34, 0xe6, 0x2d, 0x53, 0xe9, 0x80, 0x6c, 0x97, 0xae, 0x43, 0x1e, 0x6b, 0xb7, 0xe3, 0x75, 0x46,
+	0xbd, 0xf0, 0xe7, 0xdd, 0x7f, 0x4a, 0xf6, 0xd6, 0x30, 0x94, 0xdd, 0x6f, 0x38, 0x5e, 0x5e, 0xbc,
+	0x9e, 0xd4, 0x4f, 0x69, 0x61, 0xfe, 0x98, 0x1c, 0xac, 0x9d, 0x60, 0x2d, 0x45, 0xae, 0xad, 0x41,
+	0x69, 0x1d, 0x2c, 0xa7, 0xa4, 0x62, 0x59, 0x85, 0xfc, 0x6f, 0x0e, 0x19, 0x3c, 0x8b, 0x0b, 0xc8,
+	0x23, 0xac, 0x68, 0x84, 0x9a, 0x08, 0x83, 0xff, 0xfc, 0x37, 0xe0, 0x47, 0x64, 0xff, 0xc6, 0xba,
+	0xfe, 0xd4, 0x99, 0x52, 0x3c, 0x17, 0x06, 0x6b, 0x92, 0xd8, 0x3e, 0x6f, 0x3b, 0x6c, 0x61, 0x47,
+	0x9f, 0x1d, 0xb2, 0x5b, 0xf5, 0xe0, 0x02, 0x55, 0xc1, 0x23, 0xa4, 0x97, 0x64, 0x6f, 0x4d, 0x53,
+	0xe8, 0x01, 0xbb, 0x7d, 0xe1, 0x0c, 0x3c, 0x76, 0x57, 0x3f, 0xcf, 0xc9, 0xbd, 0x1b, 0x8a, 0xa2,
+	0xfb, 0x6c, 0x7d, 0x0b, 0x07, 0x0f, 0xd8, 0x2d, 0x3e, 0x9c, 0x8c, 0xbf, 0x2c, 0x86, 0xce, 0xd7,
+	0xc5, 0xd0, 0xf9, 0xbe, 0x18, 0x3a, 0x6f, 0x1e, 0xdf, 0xb1, 0x63, 0x5b, 0x4b, 0x1a, 0x24, 0x8f,
+	0xa6, 0x1c, 0x73, 0x73, 0xb5, 0x65, 0x77, 0xea, 0xf1, 0x8f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xa7,
+	0x56, 0x8b, 0x56, 0xc5, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -384,6 +526,8 @@ const _ = grpc.SupportPackageIsVersion4
 type CommitServiceClient interface {
 	// Commit commits hydrated manifests to a repository.
 	CommitHydratedManifests(ctx context.Context, in *CommitHydratedManifestsRequest, opts ...grpc.CallOption) (*CommitHydratedManifestsResponse, error)
+	// AdvanceHydratorNote advances the hydrator git note without performing full hydration.
+	AdvanceHydratorNote(ctx context.Context, in *AdvanceHydratorNoteRequest, opts ...grpc.CallOption) (*AdvanceHydratorNoteResponse, error)
 }
 
 type commitServiceClient struct {
@@ -403,10 +547,21 @@ func (c *commitServiceClient) CommitHydratedManifests(ctx context.Context, in *C
 	return out, nil
 }
 
+func (c *commitServiceClient) AdvanceHydratorNote(ctx context.Context, in *AdvanceHydratorNoteRequest, opts ...grpc.CallOption) (*AdvanceHydratorNoteResponse, error) {
+	out := new(AdvanceHydratorNoteResponse)
+	err := c.cc.Invoke(ctx, "/CommitService/AdvanceHydratorNote", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CommitServiceServer is the server API for CommitService service.
 type CommitServiceServer interface {
 	// Commit commits hydrated manifests to a repository.
 	CommitHydratedManifests(context.Context, *CommitHydratedManifestsRequest) (*CommitHydratedManifestsResponse, error)
+	// AdvanceHydratorNote advances the hydrator git note without performing full hydration.
+	AdvanceHydratorNote(context.Context, *AdvanceHydratorNoteRequest) (*AdvanceHydratorNoteResponse, error)
 }
 
 // UnimplementedCommitServiceServer can be embedded to have forward compatible implementations.
@@ -415,6 +570,9 @@ type UnimplementedCommitServiceServer struct {
 
 func (*UnimplementedCommitServiceServer) CommitHydratedManifests(ctx context.Context, req *CommitHydratedManifestsRequest) (*CommitHydratedManifestsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CommitHydratedManifests not implemented")
+}
+func (*UnimplementedCommitServiceServer) AdvanceHydratorNote(ctx context.Context, req *AdvanceHydratorNoteRequest) (*AdvanceHydratorNoteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AdvanceHydratorNote not implemented")
 }
 
 func RegisterCommitServiceServer(s *grpc.Server, srv CommitServiceServer) {
@@ -439,6 +597,24 @@ func _CommitService_CommitHydratedManifests_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CommitService_AdvanceHydratorNote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdvanceHydratorNoteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CommitServiceServer).AdvanceHydratorNote(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/CommitService/AdvanceHydratorNote",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CommitServiceServer).AdvanceHydratorNote(ctx, req.(*AdvanceHydratorNoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _CommitService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "CommitService",
 	HandlerType: (*CommitServiceServer)(nil),
@@ -446,6 +622,10 @@ var _CommitService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CommitHydratedManifests",
 			Handler:    _CommitService_CommitHydratedManifests_Handler,
+		},
+		{
+			MethodName: "AdvanceHydratorNote",
+			Handler:    _CommitService_AdvanceHydratorNote_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -691,6 +871,110 @@ func (m *CommitHydratedManifestsResponse) MarshalToSizedBuffer(dAtA []byte) (int
 	return len(dAtA) - i, nil
 }
 
+func (m *AdvanceHydratorNoteRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AdvanceHydratorNoteRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AdvanceHydratorNoteRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.DrySha) > 0 {
+		i -= len(m.DrySha)
+		copy(dAtA[i:], m.DrySha)
+		i = encodeVarintCommit(dAtA, i, uint64(len(m.DrySha)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.TargetBranch) > 0 {
+		i -= len(m.TargetBranch)
+		copy(dAtA[i:], m.TargetBranch)
+		i = encodeVarintCommit(dAtA, i, uint64(len(m.TargetBranch)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.SyncBranch) > 0 {
+		i -= len(m.SyncBranch)
+		copy(dAtA[i:], m.SyncBranch)
+		i = encodeVarintCommit(dAtA, i, uint64(len(m.SyncBranch)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.Repo != nil {
+		{
+			size, err := m.Repo.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintCommit(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *AdvanceHydratorNoteResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AdvanceHydratorNoteResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AdvanceHydratorNoteResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.NoteAdvanced {
+		i--
+		if m.NoteAdvanced {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.HydratedSha) > 0 {
+		i -= len(m.HydratedSha)
+		copy(dAtA[i:], m.HydratedSha)
+		i = encodeVarintCommit(dAtA, i, uint64(len(m.HydratedSha)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintCommit(dAtA []byte, offset int, v uint64) int {
 	offset -= sovCommit(v)
 	base := offset
@@ -809,6 +1093,53 @@ func (m *CommitHydratedManifestsResponse) Size() (n int) {
 	l = len(m.HydratedSha)
 	if l > 0 {
 		n += 1 + l + sovCommit(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *AdvanceHydratorNoteRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Repo != nil {
+		l = m.Repo.Size()
+		n += 1 + l + sovCommit(uint64(l))
+	}
+	l = len(m.SyncBranch)
+	if l > 0 {
+		n += 1 + l + sovCommit(uint64(l))
+	}
+	l = len(m.TargetBranch)
+	if l > 0 {
+		n += 1 + l + sovCommit(uint64(l))
+	}
+	l = len(m.DrySha)
+	if l > 0 {
+		n += 1 + l + sovCommit(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *AdvanceHydratorNoteResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.HydratedSha)
+	if l > 0 {
+		n += 1 + l + sovCommit(uint64(l))
+	}
+	if m.NoteAdvanced {
+		n += 2
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -1496,6 +1827,292 @@ func (m *CommitHydratedManifestsResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.HydratedSha = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCommit(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AdvanceHydratorNoteRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCommit
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AdvanceHydratorNoteRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AdvanceHydratorNoteRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Repo", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCommit
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthCommit
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Repo == nil {
+				m.Repo = &v1alpha1.Repository{}
+			}
+			if err := m.Repo.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SyncBranch", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCommit
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCommit
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SyncBranch = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TargetBranch", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCommit
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCommit
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TargetBranch = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DrySha", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCommit
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCommit
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DrySha = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCommit(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AdvanceHydratorNoteResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCommit
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AdvanceHydratorNoteResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AdvanceHydratorNoteResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HydratedSha", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCommit
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCommit
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.HydratedSha = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NoteAdvanced", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCommit
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.NoteAdvanced = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipCommit(dAtA[iNdEx:])
