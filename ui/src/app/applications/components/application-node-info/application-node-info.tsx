@@ -216,7 +216,8 @@ export const ApplicationNodeInfo = (props: {
                         const live =
                             merged?.metadata?.managedFields && pref.appDetails.hideManagedFields
                                 ? (() => {
-                                      const {managedFields, ...metadata} = merged.metadata;
+                                      const metadata = {...merged.metadata};
+                                      delete metadata.managedFields;
                                       return {...merged, metadata};
                                   })()
                                 : merged;

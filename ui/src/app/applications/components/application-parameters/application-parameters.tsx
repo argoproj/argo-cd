@@ -281,18 +281,7 @@ export const ApplicationParameters = (props: {
             return (
                 <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
-                        const attr = gatherDetails(
-                            0,
-                            details,
-                            [],
-                            source,
-                            app,
-                            setRemovedOverrides,
-                            removedOverrides,
-                            appParamsDeletedState,
-                            setAppParamsDeletedState,
-                            false
-                        );
+                        const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
                         return getEditablePanel(attr, details);
                     }}
                 </DataLoader>
