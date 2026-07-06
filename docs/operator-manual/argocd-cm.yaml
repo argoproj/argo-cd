@@ -110,6 +110,11 @@ data:
   # to resources are applied to the cluster cache. Default is true.
   resource.ignoreResourceUpdatesEnabled: "true"
 
+  # Enable manifest compression in the cluster cache. When enabled, cached resource manifests are serialized and
+  # compressed using the configured storage format and compression algorithm (set via environment variables).
+  # When disabled (default), manifests are stored as raw in-memory objects. Default is false.
+  resource.manifest.compression.enabled: "false"
+
   # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.
   resource.customizations.ignoreResourceUpdates.all: |
     jsonPointers:

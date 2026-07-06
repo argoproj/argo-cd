@@ -220,6 +220,8 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		listRetryLimit:          1,
 		listRetryUseBackoff:     false,
 		listRetryFunc:           ListRetryFuncNever,
+		manifestStorageType:     ManifestStorageJSON,
+		manifestCompressionType: ManifestCompressionGZipBestSpeed,
 		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
 	for i := range opts {
@@ -279,6 +281,13 @@ type clusterCache struct {
 	gvkParser                   *managedfields.GvkParser
 
 	respectRBAC int
+
+	// manifestCompressionEnabled controls whether manifests are stored compressed or as raw *unstructured.Unstructured
+	manifestCompressionEnabled bool
+	// manifestStorageType controls the serialization format for cached manifests
+	manifestStorageType ManifestStorageType
+	// manifestCompressionType controls the compression algorithm for cached manifests
+	manifestCompressionType ManifestCompressionType
 
 	// Parent-to-children index for O(1) child lookup during hierarchy traversal
 	// Maps any resource's UID to a set of its direct children's ResourceKeys
@@ -476,7 +485,13 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 		isInferredParentOf: isInferredParentOf,
 	}
 	if cacheManifest {
-		resource.Resource = un
+		if c.manifestCompressionEnabled {
+			if err := resource.SetManifestWithCodec(un, c.manifestStorageType, c.manifestCompressionType); err != nil {
+				c.log.Error(err, "Failed to compress manifest", "resource", kube.GetObjectRef(un))
+			}
+		} else {
+			resource.Resource = un
+		}
 	}
 
 	return resource
@@ -1551,8 +1566,12 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	// iterate all objects in live state cache to find ones associated with app
 	for key, o := range c.resources {
-		if isManaged(o) && o.Resource != nil && len(o.OwnerRefs) == 0 {
-			managedObjs[key] = o.Resource
+		if isManaged(o) && o.HasManifest() && len(o.OwnerRefs) == 0 {
+			if manifest, err := o.GetManifest(); err != nil {
+				c.log.Error(err, "Failed to decompress manifest", "resource", o.Ref)
+			} else {
+				managedObjs[key] = manifest
+			}
 		}
 	}
 	// but are simply missing our label
@@ -1566,8 +1585,12 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 
 		if managedObj == nil {
 			if existingObj, exists := c.resources[key]; exists {
-				if existingObj.Resource != nil {
-					managedObj = existingObj.Resource
+				if existingObj.HasManifest() {
+					if manifest, err := existingObj.GetManifest(); err != nil {
+						return fmt.Errorf("failed to decompress manifest: %w", err)
+					} else {
+						managedObj = manifest
+					}
 				} else {
 					var err error
 					managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), existingObj.Ref.Name, existingObj.Ref.Namespace)

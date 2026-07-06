@@ -212,6 +212,14 @@ stringData:
   `100ms`.
   The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
 
+* `ARGOCD_CLUSTER_CACHE_MANIFEST_STORAGE` - environment variable controlling the serialization format for cached
+  resource manifests when manifest compression is enabled (see `resource.manifest.compression.enabled` in `argocd-cm`).
+  Valid values: `json` (default), `jsoniter`, `msgpack`.
+
+* `ARGOCD_CLUSTER_CACHE_MANIFEST_COMPRESSION` - environment variable controlling the compression algorithm for cached
+  resource manifests when manifest compression is enabled. Valid values: `gzip-bestspeed` (default), `gzip-default`,
+  `s2-encode`, `s2-encodebetter`, `zlib`, `none`.
+
 * `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one
   Redis
   key. Splitting application tree into multiple keys helps to reduce the amount of traffic between the controller and
