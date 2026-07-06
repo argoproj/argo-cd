@@ -1541,17 +1541,21 @@ func getResolvedValueFiles(
 		}
 		if !isRemote {
 			_, err = os.Stat(string(resolvedPath))
-			if os.IsNotExist(err) {
-				if ignoreMissingValueFiles {
-					log.Debugf(" %s values file does not exist", resolvedPath)
-					continue
+			if err != nil {
+				if os.IsNotExist(err) {
+					if ignoreMissingValueFiles {
+						log.Debugf(" %s values file does not exist", resolvedPath)
+						continue
+					}
+					return nil, fmt.Errorf("value file %s does not exist", rawValueFile)
 				}
+				return nil, fmt.Errorf("error checking value file %s: %w", rawValueFile, err)
 			}
 		}
 
 		appendUnique(resolvedPath)
 	}
-	log.Infof("resolved value files: %v", resolvedValueFiles)
+	log.Debugf("resolved value files: %v", resolvedValueFiles)
 	return resolvedValueFiles, nil
 }
 
