@@ -1,4 +1,4 @@
-import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
+import {NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, FlexTopBar, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -780,7 +780,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         },
                                         nodeMenu: (node: ResourceTreeNode) =>
                                             AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged.current, () =>
-                                                getApplicationActionMenu(application as appModels.Application, false, true)
+                                                getApplicationActionMenu(application as appModels.Application, true)
                                             ),
                                         app: application as appModels.Application,
                                         showOrphanedResources: pref.orphanedResources,
@@ -908,86 +908,91 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
                                                 {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
-                                            ],
-                                            actionMenu: {
-                                                items: isApplication
-                                                    ? [
-                                                          ...getApplicationActionMenu(application as appModels.Application, true),
-                                                          ...(state.topBarActionMenuExts
-                                                              ?.filter(ext => ext.shouldDisplay?.(application as appModels.Application))
-                                                              .map(ext => renderActionMenuItem(ext, tree, application as appModels.Application, setExtensionPanelVisible)) || [])
-                                                      ]
-                                                    : [
-                                                          {
-                                                              title: 'AppSet Details',
-                                                              iconClassName: 'fa fa-info-circle',
-                                                              action: () => selectNode(appFullName)
-                                                          },
-                                                          {
-                                                              title: 'Preview Apps',
-                                                              iconClassName: 'fa fa-eye',
-                                                              action: () => selectNode(appFullName, 0, 'preview')
-                                                          }
-                                                      ]
-                                            },
-                                            tools: (
-                                                <React.Fragment key='app-list-tools'>
-                                                    <div className='application-details__view-type'>
-                                                        <i
-                                                            className={classNames('fa fa-sitemap', {selected: pref.view === Tree})}
-                                                            title='Tree'
-                                                            onClick={() => {
-                                                                appContext.navigation.goto('.', {view: Tree});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
-                                                            }}
-                                                        />
-                                                        {isApplication && (
-                                                            <>
-                                                                <i
-                                                                    className={classNames('fa fa-th', {selected: pref.view === Pods})}
-                                                                    title='Pods'
-                                                                    onClick={() => {
-                                                                        appContext.navigation.goto('.', {view: Pods});
-                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
-                                                                    }}
-                                                                />
-                                                                <i
-                                                                    className={classNames('fa fa-network-wired', {selected: pref.view === Network})}
-                                                                    title='Network'
-                                                                    onClick={() => {
-                                                                        appContext.navigation.goto('.', {view: Network});
-                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
-                                                                    }}
-                                                                />
-                                                            </>
-                                                        )}
-                                                        <i
-                                                            className={classNames('fa fa-th-list', {selected: pref.view === List})}
-                                                            title='List'
-                                                            onClick={() => {
-                                                                appContext.navigation.goto('.', {view: List});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
-                                                            }}
-                                                        />
-                                                        {isApplication &&
-                                                            state.extensions &&
-                                                            (state.extensions || [])
-                                                                .filter(ext => ext.shouldDisplay(application as appModels.Application))
-                                                                .map(ext => (
+                                            ]
+                                        }}>
+                                        <FlexTopBar
+                                            toolbar={{
+                                                actionMenu: {
+                                                    items: isApplication
+                                                        ? [
+                                                              ...getApplicationActionMenu(application as appModels.Application),
+                                                              ...(state.topBarActionMenuExts
+                                                                  ?.filter(ext => ext.shouldDisplay?.(application as appModels.Application))
+                                                                  .map(ext => renderActionMenuItem(ext, tree, application as appModels.Application, setExtensionPanelVisible)) ||
+                                                                  [])
+                                                          ]
+                                                        : [
+                                                              {
+                                                                  title: 'AppSet Details',
+                                                                  iconClassName: 'fa fa-info-circle',
+                                                                  action: () => selectNode(appFullName)
+                                                              },
+                                                              {
+                                                                  title: 'Preview Apps',
+                                                                  iconClassName: 'fa fa-eye',
+                                                                  action: () => selectNode(appFullName, 0, 'preview')
+                                                              }
+                                                          ]
+                                                },
+                                                tools: (
+                                                    <React.Fragment key='app-list-tools'>
+                                                        <div className='application-details__view-type'>
+                                                            <i
+                                                                className={classNames('fa fa-sitemap', {selected: pref.view === Tree})}
+                                                                title='Tree'
+                                                                onClick={() => {
+                                                                    appContext.navigation.goto('.', {view: Tree});
+                                                                    services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
+                                                                }}
+                                                            />
+                                                            {isApplication && (
+                                                                <>
                                                                     <i
-                                                                        key={ext.title}
-                                                                        className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
-                                                                        title={ext.title}
+                                                                        className={classNames('fa fa-th', {selected: pref.view === Pods})}
+                                                                        title='Pods'
                                                                         onClick={() => {
-                                                                            appContext.navigation.goto('.', {view: ext.title});
-                                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
+                                                                            appContext.navigation.goto('.', {view: Pods});
+                                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
                                                                         }}
                                                                     />
-                                                                ))}
-                                                    </div>
-                                                </React.Fragment>
-                                            )
-                                        }}>
+                                                                    <i
+                                                                        className={classNames('fa fa-network-wired', {selected: pref.view === Network})}
+                                                                        title='Network'
+                                                                        onClick={() => {
+                                                                            appContext.navigation.goto('.', {view: Network});
+                                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
+                                                                        }}
+                                                                    />
+                                                                </>
+                                                            )}
+                                                            <i
+                                                                className={classNames('fa fa-th-list', {selected: pref.view === List})}
+                                                                title='List'
+                                                                onClick={() => {
+                                                                    appContext.navigation.goto('.', {view: List});
+                                                                    services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
+                                                                }}
+                                                            />
+                                                            {isApplication &&
+                                                                state.extensions &&
+                                                                (state.extensions || [])
+                                                                    .filter(ext => ext.shouldDisplay(application as appModels.Application))
+                                                                    .map(ext => (
+                                                                        <i
+                                                                            key={ext.title}
+                                                                            className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
+                                                                            title={ext.title}
+                                                                            onClick={() => {
+                                                                                appContext.navigation.goto('.', {view: ext.title});
+                                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
+                                                                            }}
+                                                                        />
+                                                                    ))}
+                                                        </div>
+                                                    </React.Fragment>
+                                                )
+                                            }}
+                                        />
                                         <div className='application-details__wrapper'>
                                             <div className='application-details__status-panel'>
                                                 {isApplication ? (
@@ -1109,7 +1114,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                             onItemClick={fullName => selectNode(fullName)}
                                                             nodeMenu={node =>
                                                                 AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged.current, () =>
-                                                                    getApplicationActionMenu(application as appModels.Application, false, true)
+                                                                    getApplicationActionMenu(application as appModels.Application, true)
                                                                 )
                                                             }
                                                             quickStarts={node =>
@@ -1153,7 +1158,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                                               tree,
                                                                                               appContext,
                                                                                               appChanged.current,
-                                                                                              () => getApplicationActionMenu(application as appModels.Application, false, true)
+                                                                                              () => getApplicationActionMenu(application as appModels.Application, true)
                                                                                           )
                                                                                     : undefined
                                                                             }
@@ -1192,7 +1197,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         tree,
                                                                         appContext,
                                                                         appChanged.current,
-                                                                        () => getApplicationActionMenu(application as appModels.Application, false, true)
+                                                                        () => getApplicationActionMenu(application as appModels.Application, true)
                                                                     )
                                                                 }
                                                                 tree={tree}
@@ -1321,20 +1326,19 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
     );
 
     const getApplicationActionMenu = useCallback(
-        (app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean, includeToggleAutoSync = false) => {
+        (app: appModels.Application, includeToggleAutoSync = false) => {
             const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
             const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
-            const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
             return [
                 {
                     iconClassName: 'fa fa-info-circle',
-                    title: <ActionMenuItem actionLabel='Details' />,
+                    title: 'Details',
                     action: () => selectNode(fullName),
                     disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
                 },
                 {
                     iconClassName: 'fa fa-file-medical',
-                    title: <ActionMenuItem actionLabel='Diff' />,
+                    title: 'Diff',
                     action: () => selectNode(fullName, 0, 'diff'),
                     disabled:
                         app.status.sync.status === appModels.SyncStatuses.Synced ||
@@ -1342,7 +1346,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 },
                 {
                     iconClassName: 'fa fa-sync',
-                    title: <ActionMenuItem actionLabel='Sync' />,
+                    title: 'Sync',
                     action: () => AppUtils.showDeploy('all', null, appContext),
                     disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
                 },
@@ -1350,7 +1354,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     ? [
                           {
                               iconClassName: 'fa fa-toggle-on',
-                              title: <ActionMenuItem actionLabel='Toggle Auto-Sync' />,
+                              title: 'Toggle Auto-Sync',
                               action: async () => {
                                   const isEnabled = app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
                                   const confirmationTitle = isEnabled ? 'Disable Auto-Sync?' : 'Enable Auto-Sync?';
@@ -1389,20 +1393,20 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     ? [
                           {
                               iconClassName: 'fa fa-check',
-                              title: <ActionMenuItem actionLabel='Confirm Pruning' />,
+                              title: 'Confirm Pruning',
                               action: () => confirmDeletion(app, 'Confirm Prunning', 'Are you sure you want to confirm resources pruning?')
                           }
                       ]
                     : []),
                 {
                     iconClassName: 'fa fa-info-circle',
-                    title: <ActionMenuItem actionLabel='Sync Status' />,
+                    title: 'Sync Status',
                     action: () => setOperationStatusVisible(true),
                     disabled: !app.status.operationState
                 },
                 {
                     iconClassName: 'fa fa-history',
-                    title: <ActionMenuItem actionLabel='History and rollback' />,
+                    title: 'History and rollback',
                     action: () => {
                         setRollbackPanelVisible(0);
                     },
@@ -1413,18 +1417,18 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
                     ? {
                           iconClassName: 'fa fa-check',
-                          title: <ActionMenuItem actionLabel='Confirm Deletion' />,
+                          title: 'Confirm Deletion',
                           action: () => confirmDeletion(app, 'Confirm Deletion', 'Are you sure you want to delete this application?')
                       }
                     : {
                           iconClassName: 'fa fa-times-circle',
-                          title: <ActionMenuItem actionLabel='Delete' />,
+                          title: 'Delete',
                           action: () => deleteApplication(),
                           disabled: !!app.metadata.deletionTimestamp
                       },
                 {
                     iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
-                    title: <ActionMenuItem actionLabel='Refresh' />,
+                    title: 'Refresh',
                     disabled: !!refreshing,
                     action: () => {
                         if (!refreshing) {
@@ -1439,7 +1443,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, 'hard')
                         }
                     ]
-                } as SplitButtonAction
+                }
             ];
         },
         [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind]
