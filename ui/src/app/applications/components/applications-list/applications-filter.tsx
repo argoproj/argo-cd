@@ -560,11 +560,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
 };
 
 export const AppSetsFilter = (props: AppSetFilterProps) => {
-    const appliedFilter = [
-        ...(props.pref.healthFilter || []),
-        ...(props.pref.labelsFilter || []),
-        ...(props.pref.showFavorites ? ['favorites'] : [])
-    ];
+    const appliedFilter = [...(props.pref.healthFilter || []), ...(props.pref.labelsFilter || []), ...(props.pref.showFavorites ? ['favorites'] : [])];
 
     const onClearFilter = () => {
         const newPref: AppSetsListPreferences = {...props.pref};
