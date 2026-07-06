@@ -8,31 +8,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.6.1"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
 )
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
-//
-// sampleRatio controls head-based sampling: 1.0 samples every trace, 0.0 samples
-// none, and values in between sample that fraction of traces. Callers are expected to
-// pass a value in [0.0, 1.0] (the --otlp-sample-ratio flag is range-validated at parse
-// time via cli.BoundedFloat64Var). The sampler is parent-based, so a sampling decision
-// made upstream (e.g. the controller) is honored by every downstream service the trace
-// context propagates to (repo-server, commit-server, ...), keeping each trace whole
-// rather than partially sampled across process boundaries.
-//
-// Because the sampler is parent-based, an incoming request that already carries a
-// W3C traceparent marked "not sampled" is not recorded even when sampleRatio is 1.0:
-// the upstream sampling decision wins. This differs from the previous always-on
-// sampler, which recorded every request regardless of any inbound sampling flag.
-func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string, sampleRatio float64) (func(), error) {
+func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string) (func(), error) {
 	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
 	for i := range otlpAttrs {
 		attr := otlpAttrs[i]
@@ -76,7 +61,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(sampleRatio))),
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
@@ -90,17 +75,4 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 			log.Errorf("failed to stop exporter: %v", err)
 		}
 	}, nil
-}
-
-// EndSpan ends span, recording an error status when err is non-nil. Defer it inside a
-// closure so err is read at function exit rather than at defer-statement time (when a
-// named return is still nil):
-//
-//	defer func() { trace.EndSpan(span, retErr) }()
-func EndSpan(span oteltrace.Span, err error) {
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-		span.RecordError(err)
-	}
-	span.End()
 }

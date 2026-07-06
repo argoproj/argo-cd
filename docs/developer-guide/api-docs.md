@@ -4,14 +4,14 @@ You can find the Swagger docs by setting the path to `/swagger-ui` in your Argo 
 
 ## Authorization
 
-You'll need to authorize your API requests using a bearer token. To get a token:
+You'll need to authorize your API using a bearer token. To get a token:
 
 ```bash
 $ curl -H "Content-Type: application/json" $ARGOCD_SERVER/api/v1/session -d $'{"username":"admin","password":"password"}'
 {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1Njc4MTIzODcsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU2NzgxMjM4Nywic3ViIjoiYWRtaW4ifQ.ejyTgFxLhuY9mOBtKhcnvobg3QZXJ4_RusN_KIdVwao"} 
 ```
 
-Then pass using the HTTP `Authorization` header, prefixing it with `Bearer `:
+Then pass using the HTTP `Authorization` header, prefixing with `Bearer `:
 
 ```bash
 $ curl $ARGOCD_SERVER/api/v1/applications -H "Authorization: Bearer $ARGOCD_TOKEN" 

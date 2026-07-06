@@ -20,14 +20,14 @@ concurrency:
 jobs:
   validate:
     permissions:
-      contents: read # to check out the repo
-      pull-requests: read # to read PR title
+      contents: read
+      pull-requests: read
     name: Validate PR Title
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 

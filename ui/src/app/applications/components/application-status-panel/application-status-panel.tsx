@@ -197,9 +197,13 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
 };
 
 export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
-    // Only show Progressive Sync if the application has an ApplicationSet parent
-    // The actual strategy validation will be done inside ProgressiveSyncStatus component
-    const showProgressiveSync = !!getApplicationSetOwnerRef(application);
+    const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
+
+    React.useEffect(() => {
+        // Only show Progressive Sync if the application has an ApplicationSet parent
+        // The actual strategy validation will be done inside ProgressiveSyncStatus component
+        setShowProgressiveSync(!!getApplicationSetOwnerRef(application));
+    }, [application]);
 
     const today = new Date();
 

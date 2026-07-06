@@ -6,11 +6,13 @@ import {MapInputField} from '../../../shared/components';
 import {notificationSubscriptionsParser} from './edit-notification-subscriptions';
 
 export const EditAnnotations = (props: {formApi: FormApi; app: models.Application}) => {
+    const once = React.useRef(false);
+
     const removeNotificationSubscriptionRelatedAnnotations = () => {
         const notificationSubscriptions = notificationSubscriptionsParser.annotationsToSubscriptions(props.app.metadata.annotations);
 
         if (notificationSubscriptions.length > 0) {
-            const annotationsWithoutNotificationSubscriptions = {...(props.app.metadata.annotations || {})};
+            const annotationsWithoutNotificationSubscriptions = props.app.metadata.annotations || {};
 
             for (const notificationSubscriptionAnnotation of notificationSubscriptions) {
                 const key = notificationSubscriptionsParser.subscriptionToAnnotationKey(notificationSubscriptionAnnotation);
@@ -22,9 +24,10 @@ export const EditAnnotations = (props: {formApi: FormApi; app: models.Applicatio
         }
     };
 
-    React.useEffect(() => {
+    if (!once.current) {
+        once.current = true;
         removeNotificationSubscriptionRelatedAnnotations();
-    }, []);
+    }
 
     return <FormField formApi={props.formApi} field='metadata.annotations' component={MapInputField} />;
 };

@@ -1,13 +1,12 @@
-# The matrix generator can contain other combination-type generators (matrix and merge). But nested matrix and merge
-# generators cannot contain further-nested matrix or merge generators.
+# The matrix generator can contain other combination-type generators (matrix and union). But nested matrix and union
+# generators cannot contain further-nested matrix or union generators.
 #
 # The generators are evaluated from most-nested to least-nested. In this case:
-#  1. The merge generator merges two lists based on the 'cluster' merge key to make 2 parameter sets
-#     (engineering-dev and engineering-prod).
-#  2. The inner matrix generator takes the cartesian product of the two lists to make 4 parameter sets.
-#  3. The outer matrix generator takes the cartesian product of the 2 merge and the 4 inner matrix parameter sets to
-#     make 2*4=8 final parameter sets.
-#  4. The 8 final parameter sets are evaluated against the top-level template to generate 8 Applications.
+#  1. The union generator joins two lists to make 3 parameter sets.
+#  2. The inner matrix generator takes the cartesian product of the two lists to make 4 parameters sets.
+#  3. The outer matrix generator takes the cartesian product of the 3 union and the 4 inner matrix parameter sets to
+#     make 3*4=12 final parameter sets.
+#  4. The 12 final parameter sets are evaluated against the top-level template to generate 12 Applications.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -18,7 +17,7 @@ spec:
   generators:
     - matrix:
         generators:
-          - merge:
+          - union:
               mergeKeys:
                 - cluster
               generators:
@@ -64,7 +63,7 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: 'applicationset/examples/list-generator/guestbook/{{.cluster}}'
+        path: '{{.path.path}}'
       destination:
         server: '{{.url}}'
-        namespace: '{{.values.prefix}}-{{.cluster}}-{{.values.suffix}}'
+        namespace: '{{.path.basename}}'

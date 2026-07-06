@@ -24,56 +24,28 @@ actions["delete"] = {
   ["iconClass"] = "fa-solid fa-fw fa-trash"
 }
 
--- identifies if Pipeline is owned by a parent PipelineRollout
--- if it is, we disable the pause/unpause actions on the Pipeline
--- to avoid Numaplane self-healing over changes
-function isChild(obj)
-  if obj.metadata ~= nil and obj.metadata.ownerReferences ~= nil then
-    for i, ownerRef in ipairs(obj.metadata.ownerReferences) do
-      if ownerRef["kind"] == "PipelineRollout" then
-        return true
-      end
-    end
-  end
-  return false
-end
-
--- pause/unpause is allowed for standalone pipelines, and for Numaplane-owned pipelines
--- in recyclable-expired state where manual pause/unpause is needed
-function isPausingAllowed(obj)
-  if isChild(obj) == false then
-    return true
-  end
-  if obj.metadata ~= nil and obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "recyclable-expired" then
-    return true
-  end
-  return false
-end
-
 -- pause/unpause
-if isPausingAllowed(obj) then
-  local paused = false
-  if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.spec.lifecycle.desiredPhase == "Paused" then
-    paused = true
-  end
-  if paused then
-    if obj.spec.metadata ~= nil and  obj.spec.metadata.annotations ~= nil and obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
-      -- determine which unpausing strategies will be enabled
-      -- if annotation not found, default will be resume slow
-      if obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
-        actions["unpause-fast"]["disabled"] = false
-      elseif obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
-        actions["unpause-gradual"]["disabled"] = false
-        actions["unpause-fast"]["disabled"] = false
-      else
-        actions["unpause-gradual"]["disabled"] = false
-      end
+local paused = false
+if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.spec.lifecycle.desiredPhase == "Paused" then
+  paused = true
+end
+if paused then
+  if obj.spec.metadata ~= nil and  obj.spec.metadata.annotations ~= nil and obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
+    -- determine which unpausing strategies will be enabled
+    -- if annotation not found, default will be resume slow
+    if obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
+      actions["unpause-fast"]["disabled"] = false
+    elseif obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
+      actions["unpause-gradual"]["disabled"] = false
+      actions["unpause-fast"]["disabled"] = false
     else
       actions["unpause-gradual"]["disabled"] = false
     end
   else
-    actions["pause"]["disabled"] = false
+    actions["unpause-gradual"]["disabled"] = false
   end
+else
+  actions["pause"]["disabled"] = false
 end
 
 -- force-promote
@@ -94,7 +66,7 @@ end
 local recyclable = false
 if obj.metadata.labels ~= nil then
   local upgradeState = obj.metadata.labels["numaplane.numaproj.io/upgrade-state"]
-  if upgradeState == "recyclable" or upgradeState == "recyclable-expired" then
+  if upgradeState ~= nil and string.find(upgradeState, "^recyclable") then
     recyclable = true
   end
 end

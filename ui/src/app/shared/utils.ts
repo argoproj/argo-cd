@@ -1,4 +1,4 @@
-import {useCallback, useSyncExternalStore} from 'react';
+import {useEffect, useState} from 'react';
 import type {CSSProperties} from 'react';
 import {AuthSettings, Cluster, UserInfo} from './models';
 
@@ -96,7 +96,7 @@ export function getTheme(theme: string) {
  * @param cb callback for theme change
  * @returns destroy listener
  */
-const subscribeSystemTheme = (cb: (theme: string) => void) => {
+export const useSystemTheme = (cb: (theme: string) => void) => {
     const dark = window.matchMedia(colorSchemes.dark);
     const light = window.matchMedia(colorSchemes.light);
 
@@ -113,24 +113,28 @@ const subscribeSystemTheme = (cb: (theme: string) => void) => {
     };
 };
 
-export const createSystemThemeListener = (cb: (theme: string) => void) => subscribeSystemTheme(cb);
-
 export const useTheme = (props: {theme: string}) => {
-    // subscribe to system theme changes, but only register a listener when theme is auto
-    const subscribe = useCallback(
-        (onStoreChange: () => void) => {
-            if (props.theme !== 'auto') {
-                return () => undefined;
-            }
-            return subscribeSystemTheme(() => onStoreChange());
-        },
-        [props.theme]
-    );
+    const [theme, setTheme] = useState(getTheme(props.theme));
 
-    // derive the resolved theme during render so manual theme changes are reflected immediately
-    const getSnapshot = useCallback(() => getTheme(props.theme), [props.theme]);
+    useEffect(() => {
+        let destroyListener: (() => void) | undefined;
 
-    const theme = useSyncExternalStore(subscribe, getSnapshot);
+        // change theme by system, only register listener when theme is auto
+        if (props.theme === 'auto') {
+            destroyListener = useSystemTheme(systemTheme => {
+                setTheme(systemTheme);
+            });
+        }
+
+        // change theme manually
+        if (props.theme !== theme) {
+            setTheme(getTheme(props.theme));
+        }
+
+        return () => {
+            destroyListener?.();
+        };
+    }, [props.theme]);
 
     return [theme];
 };
@@ -140,18 +144,6 @@ export const formatClusterQueryParam = (cluster: Cluster) => {
         return cluster.name;
     }
     return `${cluster.name} (${cluster.server})`;
-};
-
-export const isInvalidRegex = (pattern: string): boolean => {
-    if (!pattern) {
-        return false;
-    }
-    try {
-        new RegExp(pattern);
-        return false;
-    } catch {
-        return true;
-    }
 };
 
 /**

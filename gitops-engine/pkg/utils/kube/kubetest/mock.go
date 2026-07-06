@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 type KubectlOutput struct {

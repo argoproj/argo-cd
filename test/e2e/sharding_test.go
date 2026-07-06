@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"

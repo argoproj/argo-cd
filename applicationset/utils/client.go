@@ -9,7 +9,6 @@ import (
 	"unsafe"
 
 	log "github.com/sirupsen/logrus"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8scache "k8s.io/client-go/tools/cache"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -87,25 +86,13 @@ func (c *cacheSyncingClient) retrieveStore(ctx context.Context, obj client.Objec
 }
 
 func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() error, obj client.Object, deleteObj bool) error {
-	// Execute the operation first; on success sync the informer cache. If it returns NotFound, also attempt to evict any stale entry from the cache.
-	var opErr error
+	// execute the operation first and only sync cache if it succeeds
 	if err := op(); err != nil {
-		// A NotFound means the object is already gone from the API server. Fall through to
-		// evict any stale entry from the informer cache below, otherwise a lingering
-		// (already-deleted) object keeps being read back and callers can never converge.
-		// Delete callers already expected deletion, so we swallow the error (idempotent).
-		// Update/Patch callers still need to know the object is gone, so we return NotFound.
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		if !deleteObj {
-			opErr = err
-		}
-		deleteObj = true
+		return err
 	}
 	// sync cache for applications only
 	if _, ok := obj.(*application.Application); !ok {
-		return opErr
+		return nil
 	}
 
 	logger := log.WithField("namespace", obj.GetNamespace()).WithField("name", obj.GetName())
@@ -122,7 +109,7 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 	if err != nil {
 		logger.Errorf("failed to sync cache for object: %v", err)
 	}
-	return opErr
+	return nil
 }
 
 func (c *cacheSyncingClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {

@@ -27,12 +27,10 @@ export interface CheckboxOption {
 
 export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) => void; option: CheckboxOption}) => {
     const [value, setValue] = React.useState(props.value);
-    const [prevPropValue, setPrevPropValue] = React.useState(props.value);
 
-    if (prevPropValue !== props.value) {
-        setPrevPropValue(props.value);
+    React.useEffect(() => {
         setValue(props.value);
-    }
+    }, [props.value]);
 
     const tooltipProps: Partial<React.ComponentProps<typeof Tooltip>> = {
         placement: 'top',
@@ -99,55 +97,53 @@ export const Filter = (props: FilterProps) => {
     props.selected.forEach(s => (init[s] = true));
 
     const [values, setValues] = React.useState(init);
+    const [tags, setTags] = React.useState([]);
     const [input, setInput] = React.useState('');
     const [collapsed, setCollapsed] = React.useState(props.collapsed || false);
-    const options = props.options;
+    const [options, setOptions] = React.useState(props.options);
+
+    React.useEffect(() => {
+        setOptions(props.options);
+    }, [props.options]);
 
     const labels = props.labels || options.map(o => o.label);
 
-    const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
-        (acc, [key, value]) => {
-            if (value !== undefined) {
-                acc.cleanedValues[key] = value;
-                if (value) {
-                    acc.selectedKeys.push(key);
-                }
-            }
-            return acc;
-        },
-        {cleanedValues: {} as {[label: string]: boolean}, selectedKeys: [] as string[]}
-    );
-
-    const valuesNeedCleaning = Object.keys(cleanedValues).length !== Object.keys(values).length;
-
-    // Drop undefined entries from values during render before deriving anything from them.
-    if (valuesNeedCleaning) {
-        setValues(cleanedValues);
-    }
-
-    const tags = props.field
-        ? Object.keys(cleanedValues).map(v => {
-              if (options?.find(x => x.label === v)) return {label: v, count: options?.find(x => x.label === v).count} as CheckboxOption;
-              else return {label: v} as CheckboxOption;
-          })
-        : [];
-
     React.useEffect(() => {
-        // Sync the selected keys up to the parent. Skip while values still
-        // contain undefined entries (a setValues is already queued this render).
-        if (!valuesNeedCleaning) {
-            props.setSelected(selectedKeys);
+        const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
+            (acc, [key, value]) => {
+                if (value !== undefined) {
+                    acc.cleanedValues[key] = value;
+                    if (value) {
+                        acc.selectedKeys.push(key);
+                    }
+                }
+                return acc;
+            },
+            {cleanedValues: {} as {[label: string]: boolean}, selectedKeys: [] as string[]}
+        );
+
+        if (Object.keys(cleanedValues).length !== Object.keys(values).length) {
+            setValues(cleanedValues);
+            return;
+        }
+
+        props.setSelected(selectedKeys);
+        if (props.field) {
+            setTags(
+                Object.keys(values).map(v => {
+                    if (options?.find(x => x.label === v)) return {label: v, count: options?.find(x => x.label === v).count} as CheckboxOption;
+                    else return {label: v} as CheckboxOption;
+                })
+            );
         }
     }, [values]);
 
-    const [prevSelectedLength, setPrevSelectedLength] = React.useState(props.selected.length);
-    if (prevSelectedLength !== props.selected.length) {
-        setPrevSelectedLength(props.selected.length);
+    React.useEffect(() => {
         if (props.selected.length === 0) {
             setValues({} as {[label: string]: boolean});
             setInput('');
         }
-    }
+    }, [props.selected.length]);
 
     return (
         <div className='filter'>

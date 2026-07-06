@@ -245,17 +245,15 @@ describe('EditablePanel – values sync', () => {
     });
 
     test('detects genuine value change and syncs in noReadonlyMode', async () => {
-        // Assert on the observable result of the sync (the form value the edit
-        // render-prop sees) rather than spying on a specific FormApi instance.
-        // The api handed to the render-prop and the api handed to getApi are
-        // distinct objects sharing the same stable methods, so spying on the
-        // render-prop's setAllValues never observes the call made through the
-        // getApi instance that EditablePanel actually uses.
+        let capturedFormApi: FormApi | null = null;
         const editItems: EditablePanelItem[] = [
             {
                 title: 'X',
                 view: <span />,
-                edit: (api: FormApi) => <span data-testid='form-value'>{api.values.name}</span>,
+                edit: (api: FormApi) => {
+                    capturedFormApi = api;
+                    return <span />;
+                },
             },
         ];
 
@@ -263,7 +261,7 @@ describe('EditablePanel – values sync', () => {
             <EditablePanel values={{name: 'v1'}} items={editItems} save={jest.fn().mockResolvedValue(undefined)} noReadonlyMode />
         );
 
-        expect(screen.getByTestId('form-value')).toHaveTextContent('v1');
+        const setAllValuesSpy = jest.spyOn(capturedFormApi!, 'setAllValues');
 
         act(() => {
             rerender(
@@ -273,7 +271,7 @@ describe('EditablePanel – values sync', () => {
             );
         });
 
-        expect(screen.getByTestId('form-value')).toHaveTextContent('v2');
+        expect(setAllValuesSpy).toHaveBeenCalledWith({name: 'v2'});
     });
 });
 

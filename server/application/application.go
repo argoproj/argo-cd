@@ -17,12 +17,12 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
-	kubecache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
+	kubecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -67,7 +67,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 
 	applicationType "github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -1418,31 +1418,16 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 		return config, nil
 	}
 
-	serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
+	user, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
 	if err != nil {
 		return nil, fmt.Errorf("error deriving service account to impersonate: %w", err)
 	}
-	if serviceAccountToImpersonate == "" {
-		// No matching service account found - check enforcement
-		impersonationEnforced, enforcedErr := s.settingsMgr.IsImpersonationEnforced()
-		if enforcedErr != nil {
-			return nil, fmt.Errorf("error getting impersonation enforcement setting: %w", enforcedErr)
-		}
-
-		if impersonationEnforced {
-			return nil, fmt.Errorf("no matching service account found for destination server %s and namespace %s", cluster.Server, a.Spec.Destination.Namespace)
-		}
-
-		// Service Account is not enforced
-		log.Infof("no matching service account found for impersonation for app %s/%s (project: %s, server: %s, namespace: %s), falling back to controller service account", a.Namespace, a.Name, p.Name, cluster.Server, a.Spec.Destination.Namespace)
-		return config, nil
-	}
 
 	config.Impersonate = rest.ImpersonationConfig{
-		UserName: serviceAccountToImpersonate,
+		UserName: user,
 	}
 
-	return config, nil
+	return config, err
 }
 
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing

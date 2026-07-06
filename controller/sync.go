@@ -14,13 +14,12 @@ import (
 
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	otel_codes "go.opentelemetry.io/otel/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -111,16 +110,6 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 }
 
 func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
-	ctx, span := tracer.Start(ctx, "controller.SyncAppState")
-	setAppTraceAttrs(span, app)
-	// SyncAppState is void; it signals failure through state.Phase rather than a return value, so
-	// map a terminal failed phase onto the span status at exit (mirroring traceutil.EndSpan).
-	defer func() {
-		if state.Phase.Failed() {
-			span.SetStatus(otel_codes.Error, state.Message)
-		}
-		span.End()
-	}()
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -294,37 +283,16 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(project, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("failed to derive service account to impersonate: %v", err)
+			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
 			return
 		}
-
-		if serviceAccountToImpersonate == "" {
-			// No matching service account found - check enforcement
-			impersonationEnforced, enforcedErr := m.settingsMgr.IsImpersonationEnforced()
-			if enforcedErr != nil {
-				log.Errorf("could not get impersonation enforcement flag: %v", enforcedErr)
-				state.Phase = common.OperationError
-				state.Message = fmt.Sprintf("failed to check impersonation enforcement setting: %v", enforcedErr)
-				return
-			}
-
-			if impersonationEnforced {
-				state.Phase = common.OperationError
-				state.Message = fmt.Sprintf("no matching service account found for destination server %s and namespace %s", destCluster.Server, app.Spec.Destination.Namespace)
-				return
-			}
-
-			// Non-enforced mode: log info and continue with controller SA
-			logEntry.Infof("no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
-		} else {
-			logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
-			// set the impersonation headers.
-			rawConfig.Impersonate = rest.ImpersonationConfig{
-				UserName: serviceAccountToImpersonate,
-			}
-			restConfig.Impersonate = rest.ImpersonationConfig{
-				UserName: serviceAccountToImpersonate,
-			}
+		logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
+		// set the impersonation headers.
+		rawConfig.Impersonate = rest.ImpersonationConfig{
+			UserName: serviceAccountToImpersonate,
+		}
+		restConfig.Impersonate = rest.ImpersonationConfig{
+			UserName: serviceAccountToImpersonate,
 		}
 	}
 

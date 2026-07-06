@@ -1,6 +1,7 @@
 import {Toolbar, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {AuthOption} from '../';
+import {Observable} from 'rxjs';
+import {AuthOption, DataLoader} from '../';
 
 import './flex-top-bar.scss';
 
@@ -11,14 +12,14 @@ export interface ToolbarWithOptions extends Toolbar {
 }
 
 interface FlexTopBarProps {
-    toolbar: ToolbarWithOptions;
+    toolbar: ToolbarWithOptions | Observable<ToolbarWithOptions>;
 }
 
 export const FlexTopBar = (props: FlexTopBarProps) => {
     return (
         <React.Fragment>
             <div className='top-bar row flex-top-bar' key='tool-bar'>
-                <FlexTopBarContent toolbar={props.toolbar} />
+                <DataLoader load={() => Promise.resolve(props.toolbar)}>{(toolbar: ToolbarWithOptions) => <FlexTopBarContent toolbar={toolbar} />}</DataLoader>
             </div>
             <div className='flex-top-bar__padder' />
         </React.Fragment>

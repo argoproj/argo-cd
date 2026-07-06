@@ -3,13 +3,12 @@ package controller
 import (
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,28 +59,24 @@ func TestSetApplicationHealth(t *testing.T) {
 	runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
 
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "Pod", Namespace: "default", Name: "running-pod", Live: &runningPod,
+		Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
 	}, {
-		Group: "batch", Version: "v1", Kind: "Job", Namespace: "default", Name: "failed-job", Live: &failedJob,
+		Group: "batch", Version: "v1", Kind: "Job", Live: &failedJob,
 	}}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus)
 	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
 	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
-	// The cause of the Degraded app health is the failed Job, not the healthy Pod.
-	assert.Equal(t, "Caused by batch/Job:default/failed-job", healthCauses)
 	app.Status.Health.Status = healthStatus
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
-	healthStatus, healthCauses, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
+	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-	// A Healthy app has no contributing causes.
-	assert.Empty(t, healthCauses)
 	app.Status.Health.Status = healthStatus
 
 	// now we set the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation on the job's target.
@@ -89,37 +84,33 @@ func TestSetApplicationHealth(t *testing.T) {
 	failedJob.SetAnnotations(nil)
 	failedJobIgnoreHealthcheck := resourceFromFile("./testdata/job-failed-ignore-healthcheck.yaml")
 	resources[1].Live = &failedJobIgnoreHealthcheck
-	healthStatus, healthCauses, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
+	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-	assert.Empty(t, healthCauses)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 	failedJob := resourceFromFile("./testdata/job-failed.yaml")
 
 	resources := []managedResource{{
-		Group: "batch", Version: "v1", Kind: "Job", Namespace: "default", Name: "failed-job", Live: &failedJob,
+		Group: "batch", Version: "v1", Kind: "Job", Live: &failedJob,
 	}}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus)
 
 	assert.Nil(t, resourceStatuses[0].Health)
-	// Causes must still be reported even though per-resource health is not persisted.
-	assert.Equal(t, "Caused by batch/Job:default/failed-job", healthCauses)
 }
 
 func TestSetApplicationHealth_NoResource(t *testing.T) {
 	resources := []managedResource{}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-	assert.Empty(t, healthCauses)
 }
 
 func TestSetApplicationHealth_OnlyHooks(t *testing.T) {
@@ -131,11 +122,9 @@ func TestSetApplicationHealth_OnlyHooks(t *testing.T) {
 	}}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-	// Hooks are skipped, so the Healthy app has no causes.
-	assert.Empty(t, healthCauses)
 }
 
 func TestSetApplicationHealth_MissingResource(t *testing.T) {
@@ -149,11 +138,9 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-	// The missing target-only resource does not degrade the app, so there are no causes.
-	assert.Empty(t, healthCauses)
 }
 
 func TestSetApplicationHealth_MissingResource_WithIgnoreHealthcheck(t *testing.T) {
@@ -168,11 +155,9 @@ func TestSetApplicationHealth_MissingResource_WithIgnoreHealthcheck(t *testing.T
 	}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-	// The ignored resource is not aggregated, so the Healthy app has no causes.
-	assert.Empty(t, healthCauses)
 }
 
 func TestSetApplicationHealth_MissingResource_WithChildApp(t *testing.T) {
@@ -184,11 +169,9 @@ func TestSetApplicationHealth_MissingResource_WithChildApp(t *testing.T) {
 	}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-	// An Unknown child app does not affect the parent, so the Healthy app has no causes.
-	assert.Empty(t, healthCauses)
 }
 
 func TestSetApplicationHealth_AllMissingResources(t *testing.T) {
@@ -197,16 +180,14 @@ func TestSetApplicationHealth_AllMissingResources(t *testing.T) {
 	pod2.SetName("pod2")
 
 	resources := []managedResource{
-		{Group: "", Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod", Target: &pod},
-		{Group: "", Version: "v1", Kind: "Pod", Namespace: "default", Name: "pod2", Target: pod2},
+		{Group: "", Version: "v1", Kind: "Pod", Target: &pod},
+		{Group: "", Version: "v1", Kind: "Pod", Target: pod2},
 	}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusMissing, healthStatus)
-	// The Missing app health from the all-missing fallback does not attribute individual causes.
-	assert.Empty(t, healthCauses)
 }
 
 func TestSetApplicationHealth_AllMissingResources_WithHooks(t *testing.T) {
@@ -222,61 +203,9 @@ func TestSetApplicationHealth_AllMissingResources_WithHooks(t *testing.T) {
 	}}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusMissing, healthStatus)
-	// The all-missing fallback does not attribute individual causes.
-	assert.Empty(t, healthCauses)
-}
-
-func TestSetApplicationHealth_MultipleCauses(t *testing.T) {
-	failedJob := resourceFromFile("./testdata/job-failed.yaml")
-	failedJob2 := failedJob.DeepCopy()
-	failedJob2.SetName("failed-job-2")
-	runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
-
-	resources := []managedResource{
-		{Group: "", Version: "v1", Kind: "Pod", Namespace: "default", Name: "running-pod", Live: &runningPod},
-		{Group: "batch", Version: "v1", Kind: "Job", Namespace: "default", Name: "failed-job", Live: &failedJob},
-		{Group: "batch", Version: "v1", Kind: "Job", Namespace: "default", Name: "failed-job-2", Live: failedJob2},
-	}
-	resourceStatuses := initStatuses(resources)
-
-	healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
-	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusDegraded, healthStatus)
-	// Both failed Jobs are causes; the healthy Pod is not.
-	assert.Equal(t, "Caused by batch/Job:default/failed-job, batch/Job:default/failed-job-2", healthCauses)
-}
-
-func TestFormatHealthCauses(t *testing.T) {
-	t.Run("empty", func(t *testing.T) {
-		assert.Empty(t, formatHealthCauses(nil))
-	})
-
-	t.Run("single namespaced resource", func(t *testing.T) {
-		out := formatHealthCauses([]managedResource{
-			{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "frontend"},
-		})
-		assert.Equal(t, "Caused by apps/Deployment:default/frontend", out)
-	})
-
-	t.Run("cluster-scoped resource omits namespace and empty group", func(t *testing.T) {
-		out := formatHealthCauses([]managedResource{
-			{Kind: "PersistentVolume", Name: "pv-1"},
-		})
-		assert.Equal(t, "Caused by PersistentVolume:pv-1", out)
-	})
-
-	t.Run("truncates after max with count", func(t *testing.T) {
-		var causes []managedResource
-		for i := range 8 {
-			causes = append(causes, managedResource{Kind: "Pod", Namespace: "default", Name: fmt.Sprintf("pod-%d", i)})
-		}
-		out := formatHealthCauses(causes)
-		assert.Contains(t, out, "and 5 more")
-		assert.Equal(t, maxHealthCausesShown, strings.Count(out, "Pod:default/"))
-	})
 }
 
 func TestSetApplicationHealth_HealthImproves(t *testing.T) {
@@ -300,20 +229,14 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 
 		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
 		resources := []managedResource{{
-			Group: "", Version: "v1", Kind: "Pod", Namespace: "default", Name: "running-pod", Live: &runningPod,
+			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
 		}}
 		resourceStatuses := initStatuses(resources)
 
 		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
-			healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+			healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 			require.NoError(t, err)
 			assert.Equal(t, tc.newStatus, healthStatus)
-			// A non-Healthy app attributes the offending Pod as its cause; a Healthy app has none.
-			if tc.newStatus == health.HealthStatusHealthy {
-				assert.Empty(t, healthCauses)
-			} else {
-				assert.Equal(t, "Caused by Pod:default/running-pod", healthCauses)
-			}
 		})
 	}
 }
@@ -359,42 +282,36 @@ return hs`,
 	t.Run("ChildAppDegraded", func(t *testing.T) {
 		childApp := newAppLiveObj(health.HealthStatusDegraded)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Namespace: "default", Name: "foo", Live: childApp,
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: childApp,
 		}, {}}
 		resourceStatuses := initStatuses(resources)
 
-		healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusDegraded, healthStatus)
-		// The Degraded child app is the cause of the parent's Degraded health.
-		assert.Equal(t, "Caused by argoproj.io/Application:default/foo", healthCauses)
 	})
 
 	t.Run("ChildAppMissing", func(t *testing.T) {
 		childApp := newAppLiveObj(health.HealthStatusMissing)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Namespace: "default", Name: "foo", Live: childApp,
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: childApp,
 		}, {}}
 		resourceStatuses := initStatuses(resources)
 
-		healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-		// A Missing child app does not affect the parent, so there are no causes.
-		assert.Empty(t, healthCauses)
 	})
 
 	t.Run("ChildAppUnknown", func(t *testing.T) {
 		childApp := newAppLiveObj(health.HealthStatusUnknown)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Namespace: "default", Name: "foo", Live: childApp,
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: childApp,
 		}, {}}
 		resourceStatuses := initStatuses(resources)
 
-		healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-		// An Unknown child app does not affect the parent, so there are no causes.
-		assert.Empty(t, healthCauses)
 	})
 }

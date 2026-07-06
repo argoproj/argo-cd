@@ -30,12 +30,12 @@ interface ProjectSyncWindowsEditPanelProps {
 }
 
 export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelProps) => {
-    const window =
-        props.defaultParams.window === undefined
-            ? ({
-                  schedule: '* * * * *'
-              } as models.SyncWindow)
-            : props.defaultParams.window;
+    if (props.defaultParams.window === undefined) {
+        const w = {
+            schedule: '* * * * *'
+        } as models.SyncWindow;
+        props.defaultParams.window = w;
+    }
     return (
         <div className='project-sync-windows-edit-panel'>
             <Form
@@ -43,7 +43,7 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                 getApi={props.getApi}
                 defaultValues={{
                     projName: props.defaultParams.projName,
-                    window
+                    window: props.defaultParams.window
                 }}
                 validateError={(params: ProjectSyncWindowsParams) => ({
                     projName: !params.projName && 'Project name is required',

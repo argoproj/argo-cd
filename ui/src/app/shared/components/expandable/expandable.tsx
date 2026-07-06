@@ -10,20 +10,12 @@ export interface Props {
 
 export const Expandable = (props: Props) => {
     const [expanded, setExpanded] = React.useState(false);
-    const [contentHeight, setContentHeight] = React.useState(0);
-    const contentEl = React.useRef<HTMLDivElement>(null);
-
-    React.useLayoutEffect(() => {
-        if (expanded && contentEl.current) {
-            setContentHeight(contentEl.current.clientHeight);
-        }
-    }, [expanded]);
-
+    const contentEl = React.useRef(null);
     const style: React.CSSProperties = {};
     if (!expanded) {
         style.maxHeight = props.height || 100;
     } else {
-        style.maxHeight = contentHeight || 10000;
+        style.maxHeight = (contentEl.current && contentEl.current.clientHeight) || 10000;
     }
 
     return (

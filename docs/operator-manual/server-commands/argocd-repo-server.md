@@ -38,7 +38,6 @@ argocd-repo-server [flags]
       --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                    List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                  OpenTelemetry collector insecure mode (default true)
-      --otlp-sample-ratio float                        Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision (default 1)
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
       --plugin-use-manifest-generate-paths             Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.

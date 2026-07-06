@@ -5,7 +5,6 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -77,9 +76,6 @@ const (
 
 	// Account for batch events processing (set to 1ms in e2e tests)
 	WhenThenSleepInterval = 5 * time.Millisecond
-
-	// maximum length of log line
-	defaultLogLineMaxLen = 4096
 )
 
 const (
@@ -90,7 +86,6 @@ const (
 	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
 	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
 	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
-	EnvLogLineMaxLen           = "ARGOCD_E2E_LOG_LINE_MAX_LEN"
 )
 
 var (
@@ -199,8 +194,6 @@ func IsLocal() bool {
 func init() {
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
-	// truncate eccessively long entries
-	log.SetFormatter(MakeTruncatingFormatter(env.ParseNumFromEnv(EnvLogLineMaxLen, defaultLogLineMaxLen, 0, math.MaxInt32)))
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
@@ -491,13 +484,6 @@ func SetTrackingLabel(trackingLabel string) error {
 func SetImpersonationEnabled(impersonationEnabledFlag string) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
-		return nil
-	})
-}
-
-func SetImpersonationEnforcement(value string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data["application.sync.impersonation.enforced"] = value
 		return nil
 	})
 }

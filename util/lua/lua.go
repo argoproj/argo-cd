@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	glob "github.com/bmatcuk/doublestar/v4"
 	"github.com/golang/groupcache/lru"
 	lua "github.com/yuin/gopher-lua"

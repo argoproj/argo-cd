@@ -54,7 +54,6 @@ func TestNonExistentPath(t *testing.T) {
 	t.Parallel()
 	_, err := Path("./testdata", "does-not-exist")
 	require.EqualError(t, err, "does-not-exist: app path does not exist")
-	require.ErrorIs(t, err, ErrAppPathDoesNotExist)
 }
 
 func TestPathNotDir(t *testing.T) {

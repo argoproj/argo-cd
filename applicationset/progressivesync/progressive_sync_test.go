@@ -1,19 +1,13 @@
 package progressivesync
 
 import (
-	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -1596,77 +1590,4 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-// TestPerformReverseDeletionStaleCache reproduces the "ApplicationSet stuck in Deleting" bug.
-//
-// When an ApplicationSet with deletionOrder: Reverse is deleted, the controller reads the child
-// Applications from its (cache-backed) client to decide when they are gone. If the informer cache
-// is stale — it still lists Applications that were already removed from the API server — then the
-// per-app Get returns the ghost object while the subsequent Delete hits the API and returns
-// NotFound. The old code treated that NotFound as a fatal error and returned it, so the reconcile
-// error-looped forever and the ResourcesFinalizer was never removed. The only known recovery was
-// restarting the controller (which rebuilds the cache from a fresh LIST).
-//
-// This test simulates the stale cache with an interceptor: Get succeeds (object present in the
-// fake store) but Delete returns NotFound. PerformReverseDeletion must treat that as
-// "already deleted" and converge to (0, nil) so the finalizer can be removed.
-func TestPerformReverseDeletionStaleCache(t *testing.T) {
-	t.Parallel()
-
-	scheme := runtime.NewScheme()
-	require.NoError(t, v1alpha1.AddToScheme(scheme))
-
-	appSet := v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "appset", Namespace: "argocd"},
-		Spec: v1alpha1.ApplicationSetSpec{
-			Strategy: &v1alpha1.ApplicationSetStrategy{
-				Type:          "RollingSync",
-				DeletionOrder: ReverseDeletionOrder,
-				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-					Steps: []v1alpha1.ApplicationSetRolloutStep{
-						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "stage", Operator: "In", Values: []string{"0"}}}},
-						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "stage", Operator: "In", Values: []string{"1"}}}},
-					},
-				},
-			},
-		},
-	}
-
-	newApp := func(name, stage string) v1alpha1.Application {
-		return v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "argocd", Labels: map[string]string{"stage": stage}},
-		}
-	}
-	// currentApps mirrors what getCurrentApplications() returns from the stale cache: both apps
-	// still appear to exist even though they have already been deleted from the API server.
-	app0 := newApp("appset-stage0", "0")
-	app1 := newApp("appset-stage1", "1")
-	currentApps := []v1alpha1.Application{app0, app1}
-
-	deleteAttempts := map[string]int{}
-	fakeClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(&app0, &app1). // Get returns the ghost objects (stale cache)
-		WithInterceptorFuncs(interceptor.Funcs{
-			// The objects are already gone on the API server: every Delete 404s.
-			Delete: func(_ context.Context, _ client.WithWatch, obj client.Object, _ ...client.DeleteOption) error {
-				deleteAttempts[obj.GetName()]++
-				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
-			},
-		}).
-		Build()
-
-	m := NewManager(fakeClient, nil)
-	logCtx := log.NewEntry(log.New())
-
-	requeue, err := m.PerformReverseDeletion(context.Background(), logCtx, appSet, currentApps)
-
-	// With the fix, an already-deleted Application is treated as success: reverse deletion
-	// converges in a single pass so the caller can remove the finalizer instead of looping.
-	require.NoError(t, err, "already-deleted Application must not surface as a hard error")
-	assert.Zero(t, requeue, "deletion should be complete, not requeued")
-	// Both steps should have been visited and their (already-gone) deletion attempted.
-	assert.Equal(t, 1, deleteAttempts["appset-stage0"])
-	assert.Equal(t, 1, deleteAttempts["appset-stage1"])
 }

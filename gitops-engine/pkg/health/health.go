@@ -6,8 +6,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 // Represents resource health status

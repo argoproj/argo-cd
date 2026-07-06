@@ -2382,8 +2382,10 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: Message is a human-readable informational message
-                      describing the health status
+                    description: |-
+                      Message is a human-readable informational message describing the health status
+
+                      Deprecated: this field is not used and will be removed in a future release.
                     type: string
                   status:
                     description: Status holds the status code of the application
@@ -33917,12 +33919,6 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.sample.ratio
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -34492,12 +34488,6 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_OTLP_SAMPLE_RATIO
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.sample.ratio
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -35025,12 +35015,6 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.sample.ratio
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -35210,7 +35194,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -35281,7 +35265,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -35356,7 +35340,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           exec:
@@ -35412,7 +35396,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

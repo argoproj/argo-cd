@@ -33,8 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1755,59 +1753,6 @@ func TestListApps(t *testing.T) {
 		"broken-schema-verification":        "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
-}
-
-func TestListRefs_InvalidRepoURL(t *testing.T) {
-	service := newService(t, ".")
-
-	_, err := service.ListRefs(t.Context(), &apiclient.ListRefsRequest{
-		Repo: &v1alpha1.Repository{Repo: "https://exa mple.com/repo.git"},
-	})
-
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err))
-}
-
-func TestListRefs_NilRepo(t *testing.T) {
-	service := newService(t, ".")
-
-	_, err := service.ListRefs(t.Context(), &apiclient.ListRefsRequest{})
-
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err))
-}
-
-func TestGetAppDetails_NonExistentPath(t *testing.T) {
-	service := newService(t, "../../util/kustomize/testdata/kustomization_yaml")
-
-	_, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
-		Repo: &v1alpha1.Repository{},
-		Source: &v1alpha1.ApplicationSource{
-			Path: "does-not-exist",
-		},
-	})
-
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err))
-}
-
-func TestGetAppDetails_NonExistentRevision(t *testing.T) {
-	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-		gitClient.EXPECT().LsRemote("does-not-exist").Return("", fmt.Errorf("unable to resolve 'does-not-exist' to a commit SHA: %w", git.ErrRevisionNotFound))
-		gitClient.EXPECT().Root().Return(".")
-		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
-	}, ".")
-
-	_, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
-		Repo: &v1alpha1.Repository{},
-		Source: &v1alpha1.ApplicationSource{
-			Path:           ".",
-			TargetRevision: "does-not-exist",
-		},
-	})
-
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
 func TestGetAppDetailsHelm(t *testing.T) {
