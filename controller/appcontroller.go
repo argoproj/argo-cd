@@ -2181,7 +2181,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
 		if newStatus.ResourceHealthSource != appv1.ResourceHealthLocationInline {
 			// Preserve the existing health message if the resource health is not inline to avoid
-			// updating the status. In that case, the health message is persisted and refects
+			// updating the status. In that case, the health message is persisted and reflects
 			// what caused the last health transition instead of the immediate state.
 			newStatus.Health.Message = orig.Status.Health.Message
 		}
