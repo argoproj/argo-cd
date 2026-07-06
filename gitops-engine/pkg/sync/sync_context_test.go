@@ -1349,7 +1349,7 @@ func TestSelectiveSyncOnly(t *testing.T) {
 }
 
 func TestUnnamedHooksGetUniqueNames(t *testing.T) {
-	t.Run("revision", func(t *testing.T) {
+	t.Run("generateName not set", func(t *testing.T) {
 		syncCtx := newTestSyncCtx(nil)
 
 		pod := testingutils.NewPod()
@@ -1366,7 +1366,7 @@ func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 		assert.Empty(t, pod.GetName())
 	})
 
-	t.Run("revision", func(t *testing.T) {
+	t.Run("generateName set", func(t *testing.T) {
 		syncCtx := newTestSyncCtx(nil)
 
 		pod := testingutils.NewPod()
