@@ -560,8 +560,20 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
 };
 
 export const AppSetsFilter = (props: AppSetFilterProps) => {
+    const appliedFilter = [
+        ...(props.pref.healthFilter || []),
+        ...(props.pref.labelsFilter || []),
+        ...(props.pref.showFavorites ? ['favorites'] : [])
+    ];
+
+    const onClearFilter = () => {
+        const newPref: AppSetsListPreferences = {...props.pref};
+        AppSetsListPreferences.clearFilters(newPref);
+        props.onChange(newPref);
+    };
+
     return (
-        <FiltersGroup title='ApplicationSet filters' content={props.children} collapsed={props.collapsed}>
+        <FiltersGroup title='ApplicationSet filters' content={props.children} appliedFilter={appliedFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             <FavoriteFilter value={!!props.pref.showFavorites} onChange={val => props.onChange({...props.pref, showFavorites: val})} />
             <AppSetHealthFilter {...props} />
             <LabelsFilter apps={props.apps} pref={props.pref} onChange={labelsFilter => props.onChange({...props.pref, labelsFilter})} />
