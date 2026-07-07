@@ -1,0 +1,17 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2025-01-17T19:09:11Z"
+    message: Ready
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  rulecount:
+    generate: 0
+    mutate: 0
+    validate: 1
+    verifyimages: 0
