@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: The hosted control plane is available
+  inputPath: testdata/healthy_available.yaml
+- healthStatus:
+    status: Healthy
+    message: HostedControlPlane is ready
+  inputPath: testdata/healthy_ready_no_conditions.yaml
+- healthStatus:
+    status: Progressing
+    message: "Deploying control plane components"
+  inputPath: testdata/progressing_deploying.yaml
+- healthStatus:
+    status: Degraded
+    message: "etcd cluster is unavailable"
+  inputPath: testdata/degraded_etcd_unavailable.yaml

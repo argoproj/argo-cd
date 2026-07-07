@@ -1,0 +1,16 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: HCPEtcdBackup
+metadata:
+  name: backup-20240101
+  namespace: clusters-example
+  generation: 1
+spec:
+  storageType: S3
+status:
+  snapshotURL: "s3://my-bucket/backup-20240101.db"
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Backup completed successfully"
+    reason: BackupSucceeded
+    status: "True"
+    type: BackupCompleted
