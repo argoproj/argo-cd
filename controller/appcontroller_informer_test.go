@@ -131,7 +131,7 @@ func TestApplicationEventHandlerFuncs(t *testing.T) {
 		assert.Contains(t, assertEnqueued(t, ctrl.appRefreshQueue), "my-app")
 	})
 
-	t.Run("update of a processable application requeues a refresh", func(t *testing.T) {
+	t.Run("update of a processable application requeues a refresh and an operation", func(t *testing.T) {
 		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
 		h := ctrl.applicationEventHandlerFuncs()
 
@@ -141,6 +141,7 @@ func TestApplicationEventHandlerFuncs(t *testing.T) {
 		h.OnUpdate(old, updated)
 
 		assert.Contains(t, assertEnqueued(t, ctrl.appRefreshQueue), "my-app")
+		assert.Contains(t, assertEnqueued(t, ctrl.appOperationQueue), "my-app")
 	})
 
 	t.Run("delete of a processable application requeues a refresh", func(t *testing.T) {
