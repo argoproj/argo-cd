@@ -4,7 +4,6 @@ module.exports = {
     allowPostUpgradeCommandTemplating: true,
     allowedPostUpgradeCommands: [
         "make mockgen",
-        "make manifests-local",
         "./hack/install.sh kustomize && make manifests-local",
         "hack/installers/checksums/add-helm-checksums.sh",
         "hack/installers/checksums/add-kustomize-checksums.sh",
