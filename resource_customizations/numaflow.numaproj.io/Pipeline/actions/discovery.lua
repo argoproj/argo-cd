@@ -94,7 +94,7 @@ end
 local recyclable = false
 if obj.metadata.labels ~= nil then
   local upgradeState = obj.metadata.labels["numaplane.numaproj.io/upgrade-state"]
-  if upgradeState ~= nil and string.find(upgradeState, "^recyclable") then
+  if upgradeState == "recyclable" or upgradeState == "recyclable-expired" then
     recyclable = true
   end
 end
