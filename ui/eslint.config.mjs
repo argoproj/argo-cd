@@ -2,6 +2,7 @@ import globals from 'globals';
 import pluginJs from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactX from 'eslint-plugin-react-x';
+import reactHooks from 'eslint-plugin-react-hooks';
 import pluginReactConfig from 'eslint-plugin-react/configs/recommended.js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 
@@ -41,6 +42,8 @@ export default [
         }
     },
     eslintPluginPrettierRecommended,
+    // React Compiler / Rules-of-React lint rules (eslint-plugin-react-hooks v7).
+    reactHooks.configs.flat['recommended-latest'],
     {
         files: ['./src/**/*.{ts,tsx}']
     },
