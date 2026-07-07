@@ -51,16 +51,16 @@ func VerifyGit(ctx context.Context, si *v1alpha1.SourceIntegrity, gitClient git.
 }
 
 func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
-	policies := findMatchingGitPolicies(si.Git, repoURL)
+	policies, normalizedRepoURL := findMatchingGitPolicies(si.Git, repoURL)
 	nPolicies := len(policies)
 	if nPolicies == 0 {
-		log.Infof("No git source integrity policies found for repo URL: %s", repoURL)
+		log.Infof("No git source integrity policies found for repo URL: %s", normalizedRepoURL)
 		return nil
 	}
 	if nPolicies > 1 {
 		// Multiple matching policies is an error. BUT, it has to return a check that fails for every repo.
 		// This is to make sure that a mistake in argo cd configuration does not disable verification until fixed.
-		msg := fmt.Sprintf("multiple (%d) git source integrity policies found for repo URL: %s", nPolicies, repoURL)
+		msg := fmt.Sprintf("multiple (%d) git source integrity policies found for repo URL: %s", nPolicies, normalizedRepoURL)
 		log.Warn(msg)
 		return func(_ context.Context, _ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 			return nil, "", errors.New(msg)
@@ -89,15 +89,16 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 	return nil
 }
 
-func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
+func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy, normalizedRepoUrl string) {
 	normalizedRepoURL := git.NormalizeGitURLAllowInvalid(repoURL)
 	for _, p := range si.Policies {
 		include := false
 		for _, r := range p.Repos {
-			m := repoMatches(normalizeRepoGlob(r.URL), normalizedRepoURL)
+			glob := strings.ToLower(strings.TrimSpace(r.URL))
+			m := repoMatches(glob, normalizedRepoURL)
 			if m == -1 {
 				include = false
-				break
+				break // Reject this policy even if previous/later patterns match
 			} else if m == 1 {
 				include = true
 			}
@@ -106,17 +107,7 @@ func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (p
 			policies = append(policies, p)
 		}
 	}
-	return policies
-}
-
-// normalizeRepoGlob normalizes the URL portion of a (possibly negated, "!"-prefixed)
-// source integrity repo glob using the same normalization applied to the repo URL
-// being checked, so that repoMatches compares like-for-like.
-func normalizeRepoGlob(urlGlob string) string {
-	if strings.HasPrefix(urlGlob, "!") {
-		return "!" + git.NormalizeGitURLAllowInvalid(urlGlob[1:])
-	}
-	return git.NormalizeGitURLAllowInvalid(urlGlob)
+	return policies, normalizedRepoURL
 }
 
 func repoMatches(urlGlob string, repoURL string) int {
