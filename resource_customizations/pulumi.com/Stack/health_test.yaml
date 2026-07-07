@@ -11,3 +11,7 @@ tests:
       status: Degraded
       message: up failed 5 times; not retrying until the spec or source changes
     inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for the operator to observe the latest spec change
+    inputPath: testdata/pending-generation.yaml
