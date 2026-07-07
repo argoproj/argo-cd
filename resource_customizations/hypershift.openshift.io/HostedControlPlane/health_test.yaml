@@ -12,6 +12,10 @@ tests:
     message: "Deploying control plane components"
   inputPath: testdata/progressing_deploying.yaml
 - healthStatus:
+    status: Progressing
+    message: "Upgrading the control plane to 4.17.0"
+  inputPath: testdata/progressing_upgrading.yaml
+- healthStatus:
     status: Degraded
     message: "etcd cluster is unavailable"
   inputPath: testdata/degraded_etcd_unavailable.yaml

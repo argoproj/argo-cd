@@ -11,3 +11,7 @@ tests:
     status: Degraded
     message: "Backup failed: unable to upload snapshot to S3"
   inputPath: testdata/degraded_failed.yaml
+- healthStatus:
+    status: Degraded
+    message: "Backup request was rejected: a backup already exists for this hour"
+  inputPath: testdata/degraded_rejected.yaml

@@ -13,15 +13,17 @@
 --     Reasons:
 --       BackupSucceeded  - backup snapshot uploaded successfully  => True
 --       BackupInProgress - snapshot upload is in progress         => False
---       BackupRejected   - backup request was rejected            => False
+--       BackupRejected   - backup request was rejected (terminal) => False
 --       EtcdUnhealthy    - etcd is unhealthy, cannot snapshot     => False
 --       BackupFailed     - upload or snapshot failed permanently  => False
 --
 -- ArgoCD health mapping:
---   BackupCompleted=True                   => Healthy
---   BackupCompleted=False, reason=BackupFailed => Degraded
---   BackupCompleted=False, other reasons   => Progressing
---   No conditions                          => Progressing
+--   BackupCompleted=True                              => Healthy
+--   BackupCompleted=False, reason=BackupFailed        => Degraded
+--   BackupCompleted=False, reason=BackupRejected      => Degraded (terminal, won't self-resolve)
+--   BackupCompleted=False, reason=BackupInProgress    => Progressing
+--   BackupCompleted=False, reason=EtcdUnhealthy       => Progressing (etcd may recover)
+--   No conditions                                     => Progressing
 local hs = {}
 
 if obj.status == nil or obj.status.conditions == nil then
@@ -37,12 +39,12 @@ for _, condition in ipairs(obj.status.conditions) do
       hs.message = condition.message
       return hs
     end
-    if condition.reason == "BackupFailed" then
+    if condition.reason == "BackupFailed" or condition.reason == "BackupRejected" then
       hs.status = "Degraded"
       hs.message = condition.message
       return hs
     end
-    -- BackupInProgress, BackupRejected, EtcdUnhealthy
+    -- BackupInProgress, EtcdUnhealthy
     hs.status = "Progressing"
     hs.message = condition.message
     return hs

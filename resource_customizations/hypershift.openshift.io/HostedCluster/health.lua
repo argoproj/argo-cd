@@ -14,9 +14,11 @@
 --   Degraded    (True)  - An error requiring user intervention has occurred
 --
 -- ArgoCD health mapping:
---   Degraded=True    => Degraded  (checked first — errors should always surface)
+--   Degraded=True    => Degraded    (checked first — errors must always surface)
+--   Progressing=True => Progressing (checked before Available to surface upgrades:
+--                                    during an upgrade both Available=True and
+--                                    Progressing=True are set simultaneously)
 --   Available=True   => Healthy
---   Progressing=True => Progressing
 --   No conditions    => Progressing (waiting for first reconcile)
 local hs = {}
 
@@ -35,19 +37,21 @@ for _, condition in ipairs(obj.status.conditions) do
   end
 end
 
--- Available=True means healthy
+-- Progressing is checked before Available: during an upgrade both
+-- Available=True and Progressing=True are set simultaneously; returning
+-- Progressing ensures ArgoCD surfaces the in-flight upgrade correctly.
 for _, condition in ipairs(obj.status.conditions) do
-  if condition.type == "Available" and condition.status == "True" then
-    hs.status = "Healthy"
+  if condition.type == "Progressing" and condition.status == "True" then
+    hs.status = "Progressing"
     hs.message = condition.message
     return hs
   end
 end
 
--- Progressing=True is an explicit in-flight signal
+-- Available=True with no active Progressing means the cluster is healthy
 for _, condition in ipairs(obj.status.conditions) do
-  if condition.type == "Progressing" and condition.status == "True" then
-    hs.status = "Progressing"
+  if condition.type == "Available" and condition.status == "True" then
+    hs.status = "Healthy"
     hs.message = condition.message
     return hs
   end

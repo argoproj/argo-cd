@@ -15,9 +15,11 @@
 -- In addition, status.ready (bool) is set to true when the API server is ready.
 --
 -- ArgoCD health mapping:
---   Degraded=True    => Degraded  (checked first)
+--   Degraded=True    => Degraded    (checked first)
+--   Progressing=True => Progressing (checked before Available: during an upgrade
+--                                    both Available=True and Progressing=True are
+--                                    set simultaneously)
 --   Available=True   => Healthy
---   Progressing=True => Progressing
 --   status.ready=true (no conditions) => Healthy (fallback)
 --   No status        => Progressing
 local hs = {}
@@ -38,19 +40,20 @@ if obj.status.conditions ~= nil then
     end
   end
 
-  -- Available=True means healthy
+  -- Progressing is checked before Available: during an upgrade both
+  -- Available=True and Progressing=True are set simultaneously.
   for _, condition in ipairs(obj.status.conditions) do
-    if condition.type == "Available" and condition.status == "True" then
-      hs.status = "Healthy"
+    if condition.type == "Progressing" and condition.status == "True" then
+      hs.status = "Progressing"
       hs.message = condition.message
       return hs
     end
   end
 
-  -- Progressing=True is an explicit in-flight signal
+  -- Available=True with no active Progressing means the control plane is healthy
   for _, condition in ipairs(obj.status.conditions) do
-    if condition.type == "Progressing" and condition.status == "True" then
-      hs.status = "Progressing"
+    if condition.type == "Available" and condition.status == "True" then
+      hs.status = "Healthy"
       hs.message = condition.message
       return hs
     end
