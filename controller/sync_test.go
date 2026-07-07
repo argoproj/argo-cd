@@ -1997,7 +1997,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		ctrl.appStateManager.SyncAppState(app, project, opState)
+		ctrl.appStateManager.SyncAppState(t.Context(), app, project, opState)
 
 		// then app sync should succeed with fallback to controller SA
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -2057,7 +2057,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		ctrl.appStateManager.SyncAppState(app, project, opState)
+		ctrl.appStateManager.SyncAppState(t.Context(), app, project, opState)
 
 		// then app sync should succeed using impersonation
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
