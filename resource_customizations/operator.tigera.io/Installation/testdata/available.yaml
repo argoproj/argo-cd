@@ -1,0 +1,24 @@
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork: {}
+status:
+  conditions:
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    message: All objects available
+    observedGeneration: 1
+    reason: AllObjectsAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    observedGeneration: 1
+    reason: NotProgressing
+    status: "False"
+    type: Progressing
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    observedGeneration: 1
+    reason: NotDegraded
+    status: "False"
+    type: Degraded
