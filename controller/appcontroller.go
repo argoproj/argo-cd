@@ -484,8 +484,8 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 
-		if isManagedResource {
-			// When a managed object is updated, we re-evaluate the ongoing operation, if any.
+		if isManagedResource && app.Operation != nil {
+			// When a managed object is updated, we re-evaluate the ongoing sync operation for progress.
 			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), appOperationRequeueDelay)
 		}
 	}
