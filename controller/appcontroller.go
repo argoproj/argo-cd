@@ -79,6 +79,13 @@ const (
 	defaultDeploymentInformerResyncDuration = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
+	// appOperationRequeueDelay is the batching window used when a managed resource changes.
+	// The burst of resource change events during a sync is batched by the delaying queue into a
+	// single operation processing per window, batching status and operationState writes.
+	appOperationRequeueDelay = 5 * time.Second
+	// appOperationMaxRequeueInterval is the backstop interval at which an in-progress operation
+	// re-enqueues itself. It bounds how long the controller can go without polling an ongoing sync.
+	appOperationMaxRequeueInterval = 30 * time.Second
 )
 
 type CompareWith int
@@ -476,6 +483,11 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		}
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
+
+		if isManagedResource {
+			// When a managed object is updated, we re-evaluate the ongoing operation, if any.
+			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), appOperationRequeueDelay)
+		}
 	}
 }
 
@@ -1451,8 +1463,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	// context, so context.Background() roots this operation's context tree.
 	ctx := context.Background()
 	var state *appv1.OperationState
-	// Recover from any unexpected panics and automatically set the status to be failed
 	defer func() {
+		// Recover from any unexpected panics and automatically set the status to be failed
 		if r := recover(); r != nil {
 			logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 			state.Phase = synccommon.OperationError
@@ -1472,6 +1484,19 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing requested app operation")
 	}()
+
+	requeueAfter := appOperationMaxRequeueInterval
+	defer func() {
+		// Re-enqueue the app onto the operation queue to keep polling the in-progress sync.
+		// Cap the delay by the remaining sync timeout so a timeout is enforced promptly.
+		if ctrl.syncTimeout > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
+			if remaining := time.Until(state.StartedAt.Add(ctrl.syncTimeout)); remaining < requeueAfter {
+				requeueAfter = remaining
+			}
+		}
+		ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), requeueAfter)
+	}()
+
 	terminatingCause := ""
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
@@ -1497,7 +1522,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
-				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
+				requeueAfter = retryAfter
 				return
 			}
 
@@ -1522,15 +1547,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	} else {
 		state = NewOperationState(*app.Operation)
 		ctrl.setOperationState(ctx, app, state)
-		if ctrl.syncTimeout != time.Duration(0) {
-			// Schedule a check during which the timeout would be checked.
-			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), ctrl.syncTimeout)
-		}
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
 	terminating := state.Phase == synccommon.OperationTerminating
+
 	project, err := ctrl.getAppProj(app)
 	if err == nil {
 		// Start or resume the sync
@@ -1724,9 +1746,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if r := recover(); r != nil {
 			log.WithField("appkey", appKey).Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
-		// We want to have app operation update happen after the sync, so there's no race condition
-		// and app updates not proceeding. See https://github.com/argoproj/argo-cd/issues/18500.
-		ctrl.appOperationQueue.AddRateLimited(appKey)
 		ctrl.appRefreshQueue.Done(appKey)
 	}()
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
@@ -2684,14 +2703,11 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 					delay = &jitter
 				}
 			}
-
 			ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-			if !newOK || (delay != nil && *delay != time.Duration(0)) {
-				ctrl.appOperationQueue.AddRateLimited(key)
-			}
-			if ctrl.hydrator != nil {
+			if ctrl.hydrator != nil && newOK {
 				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 			}
+			ctrl.appOperationQueue.AddRateLimited(key)
 			ctrl.clusterSharding.UpdateApp(newApp)
 		},
 		DeleteFunc: func(obj any) {
