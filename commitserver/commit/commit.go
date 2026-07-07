@@ -167,7 +167,7 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	if isHydrated {
 		// Check if all requested paths are present in the existing hydrated commit
 		// If a new app is created with a path that was not part of the previous hydration, we need to proceed to full WriteForPaths
-		allPresent, err := allHydratedManifestsUnchanged(gitClient, r.Paths)
+		allPresent, err := allHydratedManifestsUnchanged(ctx, gitClient, r.Paths)
 		if err != nil {
 			logCtx.WithError(err).Warn("Failed to perform path existence check; will proceed to full WriteForPaths")
 		} else if allPresent {
@@ -284,10 +284,10 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 // an unchanged `manifest.yaml` in the current working tree (i.e. the hydrated commit).
 // It returns true when all hydrated manifests exist and are unchanged, false if any
 // are missing or changed, or an error if the git client failed to query the tree.
-func allHydratedManifestsUnchanged(gitClient git.Client, paths []*apiclient.PathDetails) (bool, error) {
+func allHydratedManifestsUnchanged(ctx context.Context, gitClient git.Client, paths []*apiclient.PathDetails) (bool, error) {
 	for _, p := range paths {
 		manifestPath := filepath.Join(p.Path, ManifestYaml)
-		changed, err := gitClient.HasFileChanged(manifestPath)
+		changed, err := gitClient.HasFileChanged(ctx, manifestPath)
 		if err != nil {
 			return false, err
 		}

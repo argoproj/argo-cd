@@ -521,7 +521,7 @@ func Test_allHydratedManifestsUnchanged(t *testing.T) {
 		mockGitClient := gitmocks.NewClient(t)
 		paths := []*apiclient.PathDetails{}
 
-		result, err := allHydratedManifestsUnchanged(mockGitClient, paths)
+		result, err := allHydratedManifestsUnchanged(t.Context(), mockGitClient, paths)
 		require.NoError(t, err)
 		assert.True(t, result, "Should return true when paths list is empty")
 	})
