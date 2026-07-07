@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: 'myapp:policy/PodDisruptionBudget:default/myapp-pdb'
+  name: myapp-pdb
+  namespace: default
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: myapp-v2
+      version: v2

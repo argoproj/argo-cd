@@ -4,7 +4,7 @@ import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ActionMenuButton} from '../../../shared/components';
+import {ActionMenuButton, EditablePanel} from '../../../shared/components';
 import {
     ComparisonStatusIcon,
     HealthStatusIcon,
@@ -32,6 +32,44 @@ export interface ApplicationResourceListProps {
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     tree?: models.ApplicationTree;
 }
+
+export interface ApplicationResourceParentRefProps {
+    resources: models.ResourceStatus[];
+    tree?: models.ApplicationTree;
+}
+
+export const ApplicationResourceParentRef = (props: ApplicationResourceParentRefProps) => {
+    const nodeByKey = new Map<string, models.ResourceNode>();
+    props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
+
+    const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
+    const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)));
+
+    if (!isSameParent) {
+        return null;
+    }
+
+    return (
+        <EditablePanel
+            title='PARENT NODE'
+            values={firstParentNode}
+            items={[
+                {
+                    title: 'KIND',
+                    view: firstParentNode.kind
+                },
+                {
+                    title: 'NAME',
+                    view: firstParentNode.name
+                },
+                {
+                    title: 'NAMESPACE',
+                    view: firstParentNode.namespace
+                }
+            ]}
+        />
+    );
+};
 
 export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
     const nodeByKey = new Map<string, models.ResourceNode>();
@@ -120,37 +158,11 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
         return resourcesToSort;
     }, [props.resources, sortConfig]);
 
-    const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
-    const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)));
     const isSameKind = props.resources?.every(x => x.group === props.resources[0].group && x.kind === props.resources[0].kind);
-    const view = props.pref.view;
 
-    const ParentRefDetails = () => {
-        return isSameParent ? (
-            <div className='resource-parent-node-info-title'>
-                <div>Parent Node Info</div>
-                <div className='resource-parent-node-info-title__label'>
-                    <div>Name:</div>
-                    <div>{firstParentNode.name}</div>
-                </div>
-                <div className='resource-parent-node-info-title__label'>
-                    <div>Kind:</div>
-                    <div>{firstParentNode.kind}</div>
-                </div>
-            </div>
-        ) : (
-            <div />
-        );
-    };
     return (
         props.resources.length > 0 && (
             <div>
-                {/* Display only when the view is set to  or network */}
-                {(view === 'tree' || view === 'network') && (
-                    <div className='resource-details__header' style={{paddingTop: '20px'}}>
-                        <ParentRefDetails />
-                    </div>
-                )}
                 <div className='application-resource-list argo-table-list argo-table-list--clickable'>
                     <div className='argo-table-list__head'>
                         <div className='row'>
@@ -214,7 +226,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                                         e.stopPropagation();
                                                                     }}
                                                                     title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                                                    <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                                                    <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                                                 </span>
                                                             );
                                                         }
@@ -226,7 +238,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                                     rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
                                                                     onClick={e => e.stopPropagation()}
                                                                     title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                                                    <i className='fa fa-external-link-alt' />
+                                                                    <i className='fa fa-window-maximize' />
                                                                 </a>
                                                             </span>
                                                         );
