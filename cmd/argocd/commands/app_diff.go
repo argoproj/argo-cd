@@ -650,6 +650,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			ctx := c.Context()
 
 			if len(args) != 1 {
+				fmt.Fprintf(os.Stderr, "Error: Exactly one application name is required, but got %d argument(s): %v\n\n", len(args), args)
 				c.HelpFunc()(c, args)
 				os.Exit(2)
 			}
