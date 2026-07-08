@@ -2967,3 +2967,92 @@ func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildDexStorage(t *testing.T) {
+	testCases := []struct {
+		name             string
+		dexStorageType   string
+		dexStorageConfig map[string]any
+		expected         map[string]any
+	}{
+		{
+			name:           "default storage type when not set",
+			dexStorageType: "",
+			expected: map[string]any{
+				"type": "memory",
+			},
+		},
+		{
+			name:           "memory storage type ignores config",
+			dexStorageType: "memory",
+			dexStorageConfig: map[string]any{
+				"inCluster": true,
+			},
+			expected: map[string]any{
+				"type": "memory",
+			},
+		},
+		{
+			name:           "kubernetes storage type with config",
+			dexStorageType: "kubernetes",
+			dexStorageConfig: map[string]any{
+				"inCluster": true,
+			},
+			expected: map[string]any{
+				"type": "kubernetes",
+				"config": map[string]any{
+					"inCluster": true,
+				},
+			},
+		},
+		{
+			name:           "postgres storage type with config",
+			dexStorageType: "postgres",
+			dexStorageConfig: map[string]any{
+				"host":     "pg.internal",
+				"port":     5432,
+				"database": "dex",
+			},
+			expected: map[string]any{
+				"type": "postgres",
+				"config": map[string]any{
+					"host":     "pg.internal",
+					"port":     5432,
+					"database": "dex",
+				},
+			},
+		},
+		{
+			name:           "non-memory storage type with nil config",
+			dexStorageType: "sqlite3",
+			expected: map[string]any{
+				"type": "sqlite3",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := &ArgoCDSettings{
+				DexStorageType:   tc.dexStorageType,
+				DexStorageConfig: tc.dexStorageConfig,
+			}
+
+			storage := settings.BuildDexStorage()
+
+			assert.Equal(t, tc.expected, storage)
+		})
+	}
+}
+
+func TestDexStorageTypeSetting(t *testing.T) {
+	t.Run("defaults to memory when unset", func(t *testing.T) {
+		settings := &ArgoCDSettings{}
+		assert.Equal(t, "memory", settings.DexStorageTypeSetting())
+	})
+
+	t.Run("returns configured storage type", func(t *testing.T) {
+		settings := &ArgoCDSettings{DexStorageType: "kubernetes"}
+		assert.Equal(t, "kubernetes", settings.DexStorageTypeSetting())
+	})
+}

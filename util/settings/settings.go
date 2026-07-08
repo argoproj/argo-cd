@@ -2357,6 +2357,8 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
 }
 
+// DexStorageTypeSetting returns the storage type setting for Dex.
+// Defaults to memory.
 func (a *ArgoCDSettings) DexStorageTypeSetting() string {
 	if a.DexStorageType != "" {
 		return a.DexStorageType
@@ -2364,6 +2366,7 @@ func (a *ArgoCDSettings) DexStorageTypeSetting() string {
 	return "memory"
 }
 
+// BuildDexStorage builds the storage configuration for Dex based on the current settings.
 func (a *ArgoCDSettings) BuildDexStorage() map[string]any {
 	storageType := a.DexStorageTypeSetting()
 	storage := map[string]any{
