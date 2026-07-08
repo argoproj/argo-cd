@@ -12,7 +12,7 @@ on:
         required: true
         type: string
 
-permissions: { }
+permissions: {}
 
 env:
   # a workaround to disable harden runner
