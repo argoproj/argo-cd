@@ -6,9 +6,11 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -389,6 +391,84 @@ func Event(reason string, message string) Expectation {
 
 func NamespacedEvent(namespace string, reason string, message string) Expectation {
 	return event(namespace, reason, message)
+}
+
+func resourceEvent(resourceNamespace, resourceName, reason, message string) Expectation {
+	return func(_ *Consequences) (state, string) {
+		if err := AssertResourceEventExists(resourceNamespace, resourceName, reason, message); err != nil {
+			return failed, err.Error()
+		}
+		return succeeded, fmt.Sprintf("found event with reason=%s; message=%s on resource %s/%s", reason, message, resourceNamespace, resourceName)
+	}
+}
+
+// ResourceEvent asserts a Kubernetes Event exists for a managed workload resource.
+func ResourceEvent(resourceNamespace, resourceName, reason, message string) Expectation {
+	return resourceEvent(resourceNamespace, resourceName, reason, message)
+}
+
+// AssertResourceEventExists checks that an event exists for the given resource.
+func AssertResourceEventExists(resourceNamespace, resourceName, reason, message string) error {
+	fieldSelector := map[string]string{
+		"involvedObject.name": resourceName,
+	}
+	if resourceNamespace != "" {
+		fieldSelector["involvedObject.namespace"] = resourceNamespace
+	}
+	list, err := fixture.KubeClientset.CoreV1().Events(resourceNamespaceForEventList(resourceNamespace)).List(context.Background(), metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fieldSelector).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for i := range list.Items {
+		event := list.Items[i]
+		if event.Reason == reason && strings.Contains(event.Message, message) {
+			return nil
+		}
+	}
+	return fmt.Errorf("unable to find event with reason=%s; message=%s on resource %s/%s", reason, message, resourceNamespace, resourceName)
+}
+
+// AssertResourceEventNotExists checks that no event with the given reason exists for the resource.
+func AssertResourceEventNotExists(resourceNamespace, resourceName, reason string) error {
+	fieldSelector := map[string]string{
+		"involvedObject.name": resourceName,
+	}
+	if resourceNamespace != "" {
+		fieldSelector["involvedObject.namespace"] = resourceNamespace
+	}
+	list, err := fixture.KubeClientset.CoreV1().Events(resourceNamespaceForEventList(resourceNamespace)).List(context.Background(), metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fieldSelector).String(),
+	})
+	if err != nil {
+		return err
+	}
+	for i := range list.Items {
+		if list.Items[i].Reason == reason {
+			return fmt.Errorf("found unexpected event with reason=%s on resource %s/%s", reason, resourceNamespace, resourceName)
+		}
+	}
+	return nil
+}
+
+func resourceNamespaceForEventList(resourceNamespace string) string {
+	if resourceNamespace == "" {
+		return metav1.NamespaceDefault
+	}
+	return resourceNamespace
+}
+
+// AssertResourceEventExistsT is a test-friendly wrapper around AssertResourceEventExists.
+func AssertResourceEventExistsT(tb testing.TB, resourceNamespace, resourceName, reason, message string) {
+	tb.Helper()
+	require.NoError(tb, AssertResourceEventExists(resourceNamespace, resourceName, reason, message))
+}
+
+// AssertResourceEventNotExistsT is a test-friendly wrapper around AssertResourceEventNotExists.
+func AssertResourceEventNotExistsT(tb testing.TB, resourceNamespace, resourceName, reason string) {
+	tb.Helper()
+	require.NoError(tb, AssertResourceEventNotExists(resourceNamespace, resourceName, reason))
 }
 
 // Success asserts that the last command was successful and that the output contains the given message.

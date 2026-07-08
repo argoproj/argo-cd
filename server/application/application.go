@@ -155,7 +155,7 @@ func NewServer(
 		kubectl:                kubectl,
 		enf:                    enf,
 		projectLock:            projectLock,
-		auditLogger:            argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
+		auditLogger:            argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
 		settingsMgr:            settingsMgr,
 		projInformer:           projInformer,
 		enabledNamespaces:      enabledNamespaces,
@@ -2549,14 +2549,19 @@ func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reaso
 	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
 }
 
-func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason string, action string) {
+func (s *Server) logResourceEvent(ctx context.Context, config *rest.Config, res *v1alpha1.ResourceNode, reason string, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogResourceEvent(res, eventInfo, message, user)
+	kubeClientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.WithError(err).Warn("Unable to create kube client for resource audit event")
+		return
+	}
+	s.auditLogger.LogResourceEvent(kubeClientset, res, eventInfo, message, user)
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
@@ -2771,7 +2776,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		s.logAppEvent(ctx, a, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	} else {
 		s.logAppEvent(ctx, a, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
-		s.logResourceEvent(ctx, res, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
+		s.logResourceEvent(ctx, config, res, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	}
 	return &application.ApplicationResponse{}, nil
 }

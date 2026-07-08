@@ -20,7 +20,6 @@ import (
 type AuditLogger struct {
 	kIf            kubernetes.Interface
 	component      string
-	namespace      string
 	enableEventLog map[string]bool
 }
 
@@ -46,7 +45,26 @@ const (
 	EventReasonOperationCompleted = "OperationCompleted"
 )
 
-func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string, eventLabels map[string]string) {
+// eventNamespaceForInvolvedObject returns the namespace to store an Event in.
+// Events are namespaced API objects; cluster-scoped resources (ClusterRole, PV, etc.)
+// have no namespace on InvolvedObject, so Kubernetes convention is to record the
+// Event in "default". kubectl describe matches events by involvedObject ref, not event namespace.
+func eventNamespaceForInvolvedObject(objNamespace string) string {
+	if objNamespace == "" {
+		return metav1.NamespaceDefault
+	}
+	return objNamespace
+}
+
+// logEvent creates a Kubernetes Event for the given object. kIf selects which cluster
+// receives the Event: when nil, l.kIf is used (the Argo CD control-plane client, for
+// Application, AppProject, and ApplicationSet events). Callers pass a non-nil kIf when
+// recording events for managed workload resources on the application's destination cluster.
+func (l *AuditLogger) logEvent(kIf kubernetes.Interface, objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string, eventLabels map[string]string) {
+	if kIf == nil {
+		kIf = l.kIf
+	}
+
 	logCtx := log.WithFields(log.Fields{
 		"type":   info.Type,
 		"reason": info.Reason,
@@ -65,20 +83,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	}
 	t := metav1.Time{Time: time.Now()}
 
-	// Determine which namespace to create the event in
-	eventNamespace := objMeta.Namespace
-	// For resource events (non-Application, non-AppProject, non-ApplicationSet),
-	// create events in the ArgoCD namespace to support multi-cluster
-	if gvk.Kind != application.ApplicationKind &&
-		gvk.Kind != application.AppProjectKind &&
-		gvk.Kind != application.ApplicationSetKind {
-		eventNamespace = l.namespace
-		// Add the original namespace to annotations for reference
-		if logFields == nil {
-			logFields = make(map[string]string)
-		}
-		logFields["resource-namespace"] = objMeta.Namespace
-	}
+	eventNamespace := eventNamespaceForInvolvedObject(objMeta.Namespace)
 
 	event := corev1.Event{
 		ObjectMeta: metav1.ObjectMeta{
@@ -92,7 +97,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		InvolvedObject: corev1.ObjectReference{
 			Kind:            gvk.Kind,
 			Name:            objMeta.Name,
-			Namespace:       objMeta.Namespace, // Keep the original namespace in InvolvedObject
+			Namespace:       objMeta.Namespace,
 			ResourceVersion: objMeta.ResourceVersion,
 			APIVersion:      gvk.GroupVersion().String(),
 			UID:             objMeta.UID,
@@ -105,7 +110,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		Reason:         info.Reason,
 	}
 	logCtx.Info(message)
-	_, err := l.kIf.CoreV1().Events(eventNamespace).Create(context.Background(), &event, metav1.CreateOptions{})
+	_, err := kIf.CoreV1().Events(eventNamespace).Create(context.Background(), &event, metav1.CreateOptions{})
 	if err != nil {
 		logCtx.Errorf("Unable to create audit event: %v", err)
 		return
@@ -134,7 +139,7 @@ func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, mes
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields, eventLabels)
+	l.logEvent(nil, objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields, eventLabels)
 }
 
 func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInfo, message, user string) {
@@ -152,10 +157,12 @@ func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInf
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSetSchemaGroupVersionKind, info, message, fields, nil)
+	l.logEvent(nil, objectMeta, v1alpha1.ApplicationSetSchemaGroupVersionKind, info, message, fields, nil)
 }
 
-func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInfo, message, user string) {
+// LogResourceEvent records an audit event on the destination cluster where the resource lives.
+// kubeClient must be a client for the application's destination cluster.
+func (l *AuditLogger) LogResourceEvent(kubeClient kubernetes.Interface, res *v1alpha1.ResourceNode, info EventInfo, message, user string) {
 	if !l.enableK8SEventLog(info) {
 		return
 	}
@@ -170,7 +177,7 @@ func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInf
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, schema.GroupVersionKind{
+	l.logEvent(kubeClient, objectMeta, schema.GroupVersionKind{
 		Group:   res.Group,
 		Version: res.Version,
 		Kind:    res.Kind,
@@ -192,14 +199,13 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil, nil)
+	l.logEvent(nil, objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil, nil)
 }
 
-func NewAuditLogger(kIf kubernetes.Interface, namespace, component string, enableK8sEvent []string) *AuditLogger {
+func NewAuditLogger(kIf kubernetes.Interface, component string, enableK8sEvent []string) *AuditLogger {
 	return &AuditLogger{
 		kIf:            kIf,
 		component:      component,
-		namespace:      namespace,
 		enableEventLog: setK8sEventList(enableK8sEvent),
 	}
 }

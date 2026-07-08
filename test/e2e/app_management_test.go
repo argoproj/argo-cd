@@ -769,6 +769,35 @@ func TestOldStyleResourceAction(t *testing.T) {
 		})
 }
 
+func TestResourceActionCreatesAuditEvents(t *testing.T) {
+	ctx := Given(t)
+	deploymentNamespace := ctx.DeploymentNamespace()
+	ctx.Path(guestbookPath).
+		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			require.NoError(t, err)
+			defer utilio.Close(closer)
+
+			_, err = client.RunResourceActionV2(t.Context(), &applicationpkg.ResourceActionRunRequestV2{
+				Name:         &app.Name,
+				Group:        new("apps"),
+				Kind:         new("Deployment"),
+				Version:      new("v1"),
+				Namespace:    new(deploymentNamespace),
+				ResourceName: new("guestbook-ui"),
+				Action:       new("sample"),
+			})
+			require.NoError(t, err)
+		}).
+		Expect(ResourceEvent(deploymentNamespace, "guestbook-ui", argo.EventReasonResourceActionRan, "ran action sample")).
+		Expect(Event(argo.EventReasonResourceActionRan, "ran action sample on resource apps/Deployment/guestbook-ui"))
+}
+
 const newStyleActionsConfig = `discovery.lua: return { sample = {} }
 definitions:
 - name: sample

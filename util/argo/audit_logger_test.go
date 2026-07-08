@@ -2,6 +2,7 @@ package argo
 
 import (
 	"bytes"
+	"errors"
 	"sync"
 	"testing"
 
@@ -10,8 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -66,18 +72,49 @@ func captureLogEntries(run func()) string {
 	return output.String()
 }
 
+// newDestinationClusterClient returns a fake clientset that rejects Event creates when
+// involvedObject.namespace does not match the Event namespace, mirroring apiserver validation.
+func newDestinationClusterClient() *fake.Clientset {
+	c := fake.NewClientset()
+	c.PrependReactor("create", "events", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		createAction, ok := action.(k8stesting.CreateAction)
+		if !ok {
+			return false, nil, nil
+		}
+		ev, ok := createAction.GetObject().(*corev1.Event)
+		if !ok {
+			return false, nil, nil
+		}
+		eventNamespace := createAction.GetNamespace()
+		if ev.InvolvedObject.Namespace != "" && ev.InvolvedObject.Namespace != eventNamespace {
+			return true, nil, apierrors.NewInvalid(
+				schema.GroupKind{Group: "", Kind: "Event"},
+				ev.Name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("involvedObject", "namespace"),
+						ev.InvolvedObject.Namespace,
+						"does not match event.namespace",
+					),
+				},
+			)
+		}
+		return false, nil, nil
+	})
+	return c
+}
+
 func TestNewAuditLogger(t *testing.T) {
 	t.Parallel()
-	logger := NewAuditLogger(fake.NewClientset(), _argocdNs, _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
-	assert.Equal(t, _argocdNs, logger.namespace)
 	assert.Equal(t, _somecomponent, logger.component)
 }
 
 func TestLogAppProjEvent(t *testing.T) {
 	t.Parallel()
 	fakeClient := fake.NewClientset()
-	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fakeClient, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	proj := argoappv1.AppProject{
@@ -101,7 +138,6 @@ func TestLogAppProjEvent(t *testing.T) {
 		logger.LogAppProjEvent(&proj, ei, "This is a test message", "admin")
 	})
 
-	// Verify event was created in the AppProject's namespace (argocd)
 	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1)
@@ -109,7 +145,7 @@ func TestLogAppProjEvent(t *testing.T) {
 	event := events.Items[0]
 	assert.Equal(t, "default", event.InvolvedObject.Name)
 	assert.Equal(t, _argocdNs, event.InvolvedObject.Namespace)
-	assert.Equal(t, _argocdNs, event.Namespace) // Event created in argocd namespace
+	assert.Equal(t, _argocdNs, event.Namespace)
 	assert.Equal(t, "This is a test message", event.Message)
 	assert.Equal(t, "test", event.Reason)
 	assert.Equal(t, "info", event.Type)
@@ -118,7 +154,7 @@ func TestLogAppProjEvent(t *testing.T) {
 func TestLogAppEvent(t *testing.T) {
 	t.Parallel()
 	fakeClient := fake.NewClientset()
-	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fakeClient, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	app := argoappv1.Application{
@@ -144,7 +180,6 @@ func TestLogAppEvent(t *testing.T) {
 		logger.LogAppEvent(&app, ei, "This is a test message", "admin", nil)
 	})
 
-	// Verify event was created in the Application's namespace (argocd)
 	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1)
@@ -152,7 +187,7 @@ func TestLogAppEvent(t *testing.T) {
 	event := events.Items[0]
 	assert.Equal(t, "testapp", event.InvolvedObject.Name)
 	assert.Equal(t, _argocdNs, event.InvolvedObject.Namespace)
-	assert.Equal(t, _argocdNs, event.Namespace) // Event created in argocd namespace
+	assert.Equal(t, _argocdNs, event.Namespace)
 	assert.Equal(t, "This is a test message", event.Message)
 	assert.Equal(t, "test", event.Reason)
 	assert.Equal(t, "info", event.Type)
@@ -160,7 +195,6 @@ func TestLogAppEvent(t *testing.T) {
 	assert.Equal(t, "https://127.0.0.1:6443", event.Annotations["dest-server"])
 	assert.Equal(t, "testns", event.Annotations["dest-namespace"])
 
-	// If K8s Event Disable Log
 	ei.Reason = "Unknown"
 	output := captureLogEntries(func() {
 		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
@@ -171,7 +205,8 @@ func TestLogAppEvent(t *testing.T) {
 
 func TestLogResourceEvent(t *testing.T) {
 	t.Parallel()
-	logger := NewAuditLogger(fake.NewClientset(), _argocdNs, _somecomponent, testEnableEventLog)
+	destClient := newDestinationClusterClient()
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	res := argoappv1.ResourceNode{
@@ -191,7 +226,7 @@ func TestLogResourceEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogResourceEvent(&res, ei, "This is a test message", "")
+		logger.LogResourceEvent(destClient, &res, ei, "This is a test message", "")
 	})
 
 	assert.Contains(t, output, "level=info")
@@ -200,20 +235,22 @@ func TestLogResourceEvent(t *testing.T) {
 	assert.Contains(t, output, "type=info")
 	assert.Contains(t, output, "msg=\"This is a test message\"")
 
-	ei.Reason = "Unknown"
+	events, err := destClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, events.Items, 1)
 
-	// If K8s Event Disable Log
+	ei.Reason = "Unknown"
 	output = captureLogEntries(func() {
-		logger.LogResourceEvent(&res, ei, "This is a test message", "")
+		logger.LogResourceEvent(destClient, &res, ei, "This is a test message", "")
 	})
 
 	assert.Empty(t, output)
 }
 
-func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.T) {
+func TestLogResourceEvent_CreatesEventInResourceNamespace(t *testing.T) {
 	t.Parallel()
-	fakeClient := fake.NewClientset()
-	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
+	destClient := newDestinationClusterClient()
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, []string{EventReasonResourceActionRan})
 
 	res := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{
@@ -221,7 +258,7 @@ func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.
 			Version:   "v1",
 			Kind:      "Deployment",
 			Name:      "my-deployment",
-			Namespace: _targetNs, // Resource is in a different namespace/cluster
+			Namespace: _targetNs,
 			UID:       "deploy-uid-123",
 		},
 	}
@@ -231,30 +268,29 @@ func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.
 		Type:   corev1.EventTypeNormal,
 	}
 	captureLogEntries(func() {
-		logger.LogResourceEvent(&res, ei, "Resource action executed", "admin")
+		logger.LogResourceEvent(destClient, &res, ei, "Resource action executed", "admin")
 	})
 
-	events, err := fakeClient.CoreV1().Events(_targetNs).List(t.Context(), metav1.ListOptions{})
+	events, err := destClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
-	assert.Empty(t, events.Items, "No event should be created in target namespace")
+	assert.Empty(t, events.Items, "No event should be created in the control-plane namespace")
 
-	events, err = fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
+	events, err = destClient.CoreV1().Events(_targetNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, events.Items, 1, "Event should be created in ArgoCD namespace")
+	require.Len(t, events.Items, 1, "Event should be created in the resource namespace")
 
 	event := events.Items[0]
 	assert.Equal(t, "my-deployment", event.InvolvedObject.Name)
-	assert.Equal(t, _targetNs, event.InvolvedObject.Namespace, "InvolvedObject should preserve original namespace")
-	assert.Equal(t, _argocdNs, event.Namespace, "Event itself should be in ArgoCD namespace")
+	assert.Equal(t, _targetNs, event.InvolvedObject.Namespace)
+	assert.Equal(t, _targetNs, event.Namespace)
 	assert.Equal(t, "Resource action executed", event.Message)
-
-	assert.Equal(t, _targetNs, event.Annotations["resource-namespace"])
+	assert.Equal(t, "admin", event.Annotations["user"])
 }
 
 func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
 	t.Parallel()
 	fakeClient := fake.NewClientset()
-	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fakeClient, _somecomponent, testEnableEventLog)
 
 	appset := argoappv1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -273,7 +309,6 @@ func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
 		logger.LogAppSetEvent(&appset, ei, "ApplicationSet event test", "admin")
 	})
 
-	// Verify event was created in the ApplicationSet's namespace (argocd)
 	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1)
@@ -281,11 +316,11 @@ func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
 	event := events.Items[0]
 	assert.Equal(t, "my-appset", event.InvolvedObject.Name)
 	assert.Equal(t, _argocdNs, event.InvolvedObject.Namespace)
-	assert.Equal(t, _argocdNs, event.Namespace) // Event created in argocd namespace
+	assert.Equal(t, _argocdNs, event.Namespace)
 	assert.Equal(t, "ApplicationSet event test", event.Message)
 }
 
-func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
+func TestLogResourceEvent_DifferentKinds_InResourceNamespace(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name          string
@@ -322,8 +357,8 @@ func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			fakeClient := fake.NewClientset()
-			logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
+			destClient := newDestinationClusterClient()
+			logger := NewAuditLogger(fake.NewClientset(), _somecomponent, []string{EventReasonResourceActionRan})
 
 			res := argoappv1.ResourceNode{
 				ResourceRef: argoappv1.ResourceRef{
@@ -341,34 +376,32 @@ func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
 				Type:   corev1.EventTypeNormal,
 			}
 			captureLogEntries(func() {
-				logger.LogResourceEvent(&res, ei, "Action ran", "admin")
+				logger.LogResourceEvent(destClient, &res, ei, "Action ran", "admin")
 			})
 
-			events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
+			events, err := destClient.CoreV1().Events(tc.resourceNs).List(t.Context(), metav1.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, events.Items, 1)
 
 			event := events.Items[0]
-			assert.Equal(t, _argocdNs, event.Namespace, "Event should be in ArgoCD namespace for %s", tc.resourceKind)
-			assert.Equal(t, tc.resourceNs, event.InvolvedObject.Namespace, "InvolvedObject should preserve original namespace")
-			assert.Equal(t, tc.resourceNs, event.Annotations["resource-namespace"])
+			assert.Equal(t, tc.resourceNs, event.Namespace)
+			assert.Equal(t, tc.resourceNs, event.InvolvedObject.Namespace)
 		})
 	}
 }
 
 func TestLogResourceEvent_EmptyNamespace(t *testing.T) {
 	t.Parallel()
-	fakeClient := fake.NewClientset()
-	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
+	destClient := newDestinationClusterClient()
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, []string{EventReasonResourceActionRan})
 
-	// Cluster-scoped resource (no namespace)
 	res := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{
 			Group:     "rbac.authorization.k8s.io",
 			Version:   "v1",
 			Kind:      "ClusterRole",
 			Name:      "cluster-admin",
-			Namespace: "", // Cluster-scoped resource
+			Namespace: "",
 			UID:       "clusterrole-uid",
 		},
 	}
@@ -378,16 +411,71 @@ func TestLogResourceEvent_EmptyNamespace(t *testing.T) {
 		Type:   corev1.EventTypeNormal,
 	}
 	captureLogEntries(func() {
-		logger.LogResourceEvent(&res, ei, "Cluster role action", "admin")
+		logger.LogResourceEvent(destClient, &res, ei, "Cluster role action", "admin")
 	})
 
-	// Event should be created in ArgoCD namespace (not empty namespace)
-	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
+	events, err := destClient.CoreV1().Events(metav1.NamespaceDefault).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1)
 
 	event := events.Items[0]
-	assert.Equal(t, _argocdNs, event.Namespace)
-	assert.Empty(t, event.InvolvedObject.Namespace) // ClusterRole has no namespace
-	assert.Empty(t, event.Annotations["resource-namespace"])
+	assert.Equal(t, metav1.NamespaceDefault, event.Namespace)
+	assert.Empty(t, event.InvolvedObject.Namespace)
+}
+
+func TestEventNamespaceForInvolvedObject(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, metav1.NamespaceDefault, eventNamespaceForInvolvedObject(""))
+	assert.Equal(t, "production", eventNamespaceForInvolvedObject("production"))
+}
+
+func TestLogResourceEvent_DestinationClusterCreateError(t *testing.T) {
+	t.Parallel()
+	destClient := fake.NewClientset()
+	destClient.PrependReactor("create", "events", func(_ k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewForbidden(schema.GroupResource{Group: "", Resource: "events"}, _targetNs, errors.New("events is forbidden"))
+	})
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, []string{EventReasonResourceActionRan})
+
+	res := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "Deployment",
+			Name:      "my-deployment",
+			Namespace: _targetNs,
+			UID:       "deploy-uid-123",
+		},
+	}
+	ei := EventInfo{
+		Reason: EventReasonResourceActionRan,
+		Type:   corev1.EventTypeNormal,
+	}
+
+	output := captureLogEntries(func() {
+		logger.LogResourceEvent(destClient, &res, ei, "Resource action executed", "admin")
+	})
+
+	assert.Contains(t, output, "level=error")
+	assert.Contains(t, output, "Unable to create audit event:")
+	assert.Contains(t, output, "events is forbidden")
+}
+
+func TestDestinationClusterClient_RejectsNamespaceMismatch(t *testing.T) {
+	t.Parallel()
+	destClient := newDestinationClusterClient()
+
+	invalidEvent := &corev1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "invalid-event",
+		},
+		InvolvedObject: corev1.ObjectReference{
+			Kind:      "Deployment",
+			Name:      "my-deployment",
+			Namespace: _targetNs,
+		},
+	}
+	_, err := destClient.CoreV1().Events(_argocdNs).Create(t.Context(), invalidEvent, metav1.CreateOptions{})
+	require.Error(t, err)
+	assert.True(t, apierrors.IsInvalid(err))
 }
