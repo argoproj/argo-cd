@@ -1,0 +1,30 @@
+name: GitHub Actions Security Analysis
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["**"]
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # to upload SARIF results to code-scanning dashboard
+      contents: read # to check out the repo
+      actions: read # for upload-sarif to read workflow run info
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa # v0.5.7
+        with:
+          version: 1.26.1
+          persona: auditor
+          config: .github/zizmor.yml
