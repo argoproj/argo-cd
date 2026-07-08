@@ -33,6 +33,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1753,6 +1755,26 @@ func TestListApps(t *testing.T) {
 		"broken-schema-verification":        "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
+}
+
+func TestListRefs_InvalidRepoURL(t *testing.T) {
+	service := newService(t, ".")
+
+	_, err := service.ListRefs(t.Context(), &apiclient.ListRefsRequest{
+		Repo: &v1alpha1.Repository{Repo: "https://exa mple.com/repo.git"},
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestListRefs_NilRepo(t *testing.T) {
+	service := newService(t, ".")
+
+	_, err := service.ListRefs(t.Context(), &apiclient.ListRefsRequest{})
+
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
 func TestGetAppDetailsHelm(t *testing.T) {
