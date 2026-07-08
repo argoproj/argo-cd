@@ -27,9 +27,8 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %w", err)
 	}
 	dexCfg["issuer"] = argocdSettings.IssuerURL()
-	dexCfg["storage"] = map[string]any{
-		"type": "memory",
-	}
+
+	dexCfg["storage"] = argocdSettings.BuildDexStorage()
 	if disableTLS {
 		dexCfg["web"] = map[string]any{
 			"http": "0.0.0.0:5556",
