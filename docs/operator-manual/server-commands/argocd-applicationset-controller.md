@@ -71,6 +71,6 @@ argocd-applicationset-controller [flags]
       --wq-bucket-qps float                       Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter (default 1.7976931348623157e+308)
       --wq-bucket-size int                        Set Workqueue Rate Limiter Bucket Size, default 500 (default 500)
       --wq-cooldown duration                      Set Workqueue Per Item Rate Limiter Cooldown duration, default 0 (per item rate limiter disabled)
-      --wq-maxdelay duration                      Set Workqueue Per Item Rate Limiter Max Delay duration, default 1s (default 1s)
+      --wq-maxdelay duration                      Set Workqueue Per Item Rate Limiter Max Delay duration, default 16m40s (matches controller-runtime default) (default 16m40s)
 ```
 
