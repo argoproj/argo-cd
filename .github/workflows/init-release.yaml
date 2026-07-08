@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
@@ -59,6 +59,16 @@ jobs:
           set -ue
           echo "Bumping version from $(cat VERSION) to ${{ inputs.TARGET_VERSION }}"
           echo "${{ inputs.TARGET_VERSION }}" > VERSION
+
+      - name: Update go.mod gitops-engine version to release tag
+        run: |
+          set -xue
+          # Update the require line to reference the gitops-engine tag that will be created at release time.
+          # Derive the major version from TARGET_VERSION so this works across future major bumps.
+          GE_VERSION="v${{ inputs.TARGET_VERSION }}"
+          MAJOR=$(echo "${{ inputs.TARGET_VERSION }}" | cut -d. -f1)
+          GE_MODULE="github.com/argoproj/argo-cd/gitops-engine/v${MAJOR}"
+          sed -i "s|${GE_MODULE} v[^ ]*|${GE_MODULE} ${GE_VERSION}|" go.mod
 
         # We install kustomize in the dist directory
       - name: Add dist to PATH

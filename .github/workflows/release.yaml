@@ -11,7 +11,7 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.26.4' # Note: go-version must also be set in job argocd-image.with.go-version  
+  GOLANG_VERSION: '1.26.5' # Note: go-version must also be set in job argocd-image.with.go-version  
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
   
@@ -28,7 +28,7 @@ jobs:
       quay_image_name: ${{ needs.setup-variables.outputs.quay_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.26.4
+      go-version: 1.26.5
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -51,7 +51,7 @@ jobs:
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
       - name: Checkout code
@@ -166,7 +166,7 @@ jobs:
           tool-cache: false
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         id: run-goreleaser
         with:
           version: v2.16.0
@@ -313,7 +313,7 @@ jobs:
       - goreleaser
       - generate-sbom
     permissions:
-      contents: write # Needed to push commit to update stable tag
+      contents: write # Needed to push commit to update stable and gitops-engine tags
       pull-requests: write # Needed to create PR for VERSION update.
     if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     runs-on: ubuntu-24.04
@@ -337,6 +337,20 @@ jobs:
           git tag -f stable ${{ github.ref_name }}
           git push -f origin stable
         if: ${{ env.TAG_STABLE == 'true' }}
+
+      - name: Tag gitops-engine submodule
+        run: |
+          set -xue
+          # Create a path-prefixed tag for gitops-engine
+          # so downstream consumers can resolve github.com/argoproj/argo-cd/gitops-engine/v3
+          # https://go.dev/doc/modules/managing-source#multiple-module-source
+          GE_TAG="gitops-engine/${{ github.ref_name }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${GE_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${GE_TAG} already exists on origin; skipping"
+          else
+            git tag "${GE_TAG}" "${{ github.ref_name }}^{}"
+            git push origin "${GE_TAG}"
+          fi
 
       - name: Check to see if VERSION should be updated on master branch
         run: |
