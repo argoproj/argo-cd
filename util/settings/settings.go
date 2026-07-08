@@ -451,6 +451,8 @@ const (
 	settingDexStorageTypeKey = "dex.storage.type"
 	// settingDexStorageConfigKey designates the key for the dex storage config
 	settingDexStorageConfigKey = "dex.storage.config"
+	// defaultDexStorageType holds the default storage type for dex
+	defaultDexStorageType = "memory"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
@@ -2363,7 +2365,7 @@ func (a *ArgoCDSettings) DexStorageTypeSetting() string {
 	if a.DexStorageType != "" {
 		return a.DexStorageType
 	}
-	return "memory"
+	return defaultDexStorageType
 }
 
 // BuildDexStorage builds the storage configuration for Dex based on the current settings.
@@ -2373,7 +2375,7 @@ func (a *ArgoCDSettings) BuildDexStorage() map[string]any {
 		"type": storageType,
 	}
 	switch storageType {
-	case "memory":
+	case defaultDexStorageType:
 		// no config needed
 	default:
 		// sqlite3, postgres, etcd, etc — backend-specific config

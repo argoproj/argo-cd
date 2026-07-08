@@ -3029,6 +3029,27 @@ func TestBuildDexStorage(t *testing.T) {
 				"type": "sqlite3",
 			},
 		},
+		{
+			name:           "etcd storage type with nil config",
+			dexStorageType: "etcd",
+			expected: map[string]any{
+				"type": "etcd",
+			},
+		},
+		{
+			name:           "kubernetes storage type with nil config",
+			dexStorageType: "kubernetes",
+			expected: map[string]any{
+				"type": "kubernetes",
+			},
+		},
+		{
+			name:           "postgres storage type with nil config",
+			dexStorageType: "postgres",
+			expected: map[string]any{
+				"type": "postgres",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
