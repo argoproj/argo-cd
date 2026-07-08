@@ -484,7 +484,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 
-		if isManagedResource && app.Operation != nil {
+		if isManagedResource && ctrl.shouldProcessOperation(app) {
 			// When a managed object is updated, we re-evaluate the ongoing sync operation for progress.
 			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), appOperationRequeueDelay)
 		}
@@ -1053,6 +1053,10 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		return processNext
 	}
 	app := origApp.DeepCopy()
+	if !ctrl.shouldProcessOperation(app) {
+		return processNext
+	}
+
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	ts := stats.NewTimingStats()
 	defer func() {
@@ -1099,6 +1103,10 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		ts.AddCheckpoint("finalize_application_deletion_ms")
 	}
 	return processNext
+}
+
+func (ctrl *ApplicationController) shouldProcessOperation(app *appv1.Application) bool {
+	return app.Operation != nil || app.DeletionTimestamp != nil
 }
 
 func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processNext bool) {
@@ -2707,7 +2715,9 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			if ctrl.hydrator != nil && newOK {
 				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 			}
-			ctrl.appOperationQueue.AddRateLimited(key)
+			if newOK && ctrl.shouldProcessOperation(newApp) {
+				ctrl.appOperationQueue.AddRateLimited(key)
+			}
 			ctrl.clusterSharding.UpdateApp(newApp)
 		},
 		DeleteFunc: func(obj any) {
