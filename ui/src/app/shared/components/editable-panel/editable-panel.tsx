@@ -69,13 +69,17 @@ function EditablePanel<T extends {} = {}>({
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
+    const [prevCollapsedProp, setPrevCollapsedProp] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);
     const formApiRef = useRef<FormApi | null>(null);
     const initialValuesRef = useRef<T>(values);
 
-    useEffect(() => {
+    // Sync the collapsed state when the controlling prop changes, adjusting
+    // during render instead of in an effect to avoid a cascading re-render.
+    if (collapsedProp !== prevCollapsedProp) {
+        setPrevCollapsedProp(collapsedProp);
         setIsCollapsed(collapsedProp);
-    }, [collapsedProp]);
+    }
 
     useEffect(() => {
         const initialValuesString = JSON.stringify(initialValuesRef.current);

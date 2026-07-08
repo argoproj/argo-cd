@@ -24,31 +24,3 @@ updates:
     directory: "/ui/"
     schedule:
       interval: "daily"
-
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    ignore:
-      # We use consistent go and node versions across a lot of different files, and updating via dependabot would cause
-      # drift among those files, instead we let renovate bot handle them.
-      # golang and library/golang are synonyms for the same package. Same for node and library/node. Ignore them both.
-      - dependency-name: "golang"
-      - dependency-name: "library/golang"
-      - dependency-name: "node"
-      - dependency-name: "library/node"
-
-  - package-ecosystem: "docker"
-    directory: "/test/container/"
-    schedule:
-      interval: "daily"
-
-  - package-ecosystem: "docker"
-    directory: "/test/e2e/multiarch-container/"
-    schedule:
-      interval: "daily"
-
-  - package-ecosystem: "docker"
-    directory: "/test/remote/"
-    schedule:
-      interval: "daily"
