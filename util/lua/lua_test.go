@@ -186,6 +186,38 @@ func TestEmptyHealthStatusStatus(t *testing.T) {
 	assert.Equal(t, expectedStatus, status)
 }
 
+const verifyHealthObjectMetadataScript = `
+if obj.metadata.managedFields ~= nil then
+  return { status = "Degraded", message = "managedFields visible" }
+end
+if obj.metadata.annotations ~= nil and obj.metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"] ~= nil then
+  return { status = "Degraded", message = "last-applied visible" }
+end
+if obj.metadata.annotations == nil or obj.metadata.annotations["example.com/health-signal"] ~= "ok" then
+  return { status = "Degraded", message = "expected annotation missing" }
+end
+return { status = "Healthy", message = "ok" }
+`
+
+func TestExecuteHealthLuaOmitsServerMetadata(t *testing.T) {
+	t.Parallel()
+	testObj := StrToUnstructured(objJSON)
+	md := testObj.Object["metadata"].(map[string]any)
+	md["managedFields"] = []any{map[string]any{"manager": "kube-controller-manager"}}
+	annots, ok := md["annotations"].(map[string]any)
+	if !ok {
+		annots = map[string]any{}
+		md["annotations"] = annots
+	}
+	annots["kubectl.kubernetes.io/last-applied-configuration"] = `{"apiVersion":"v1","kind":"Rollout"}`
+	annots["example.com/health-signal"] = "ok"
+
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, verifyHealthObjectMetadataScript)
+	require.NoError(t, err)
+	assert.Equal(t, &health.HealthStatus{Status: "Healthy", Message: "ok"}, status)
+}
+
 const infiniteLoop = `while true do ; end`
 
 func TestHandleInfiniteLoop(t *testing.T) {

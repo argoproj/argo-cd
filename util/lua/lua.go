@@ -19,6 +19,7 @@ import (
 	glob "github.com/bmatcuk/doublestar/v4"
 	"github.com/golang/groupcache/lru"
 	lua "github.com/yuin/gopher-lua"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	luajson "layeh.com/gopher-json"
@@ -126,10 +127,14 @@ type VM struct {
 }
 
 func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
-	return vm.runLuaWithResourceActionParameters(obj, script, nil)
+	return vm.runLuaScript(obj, script, nil, true)
 }
 
 func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) (*lua.LState, error) {
+	return vm.runLuaScript(obj, script, resourceActionParameters, false)
+}
+
+func (vm VM) runLuaScript(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters, forHealth bool) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -168,7 +173,12 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	}
 	l.SetGlobal("actionParams", actionParams) // Set the actionParams table as a global variable
 
-	objectValue := decodeValue(l, obj.Object)
+	var objectValue lua.LValue
+	if forHealth {
+		objectValue = decodeHealthObject(l, obj.Object)
+	} else {
+		objectValue = decodeValue(l, obj.Object)
+	}
 	l.SetGlobal("obj", objectValue)
 
 	fn, err := loadCompiledFunction(l, script)
@@ -680,6 +690,50 @@ func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
 // Took logic from the link below and added the int, int32, and int64 types since the value would have type int64
 // while actually running in the controller and it was not reproducible through testing.
 // https://github.com/layeh/gopher-json/blob/97fed8db84274c421dbfffbb28ec859901556b97/json.go#L154
+// decodeHealthObject decodes obj for health scripts, omitting metadata fields that no health
+// script reads but that inflate live objects (managedFields, last-applied-configuration).
+func decodeHealthObject(l *lua.LState, obj map[string]any) lua.LValue {
+	tbl := l.CreateTable(0, len(obj))
+	for key, item := range obj {
+		if key == "metadata" {
+			if md, ok := item.(map[string]any); ok {
+				tbl.RawSetH(lua.LString(key), decodeHealthMetadata(l, md))
+				continue
+			}
+		}
+		tbl.RawSetH(lua.LString(key), decodeValue(l, item))
+	}
+	return tbl
+}
+
+func decodeHealthMetadata(l *lua.LState, md map[string]any) lua.LValue {
+	tbl := l.CreateTable(0, len(md))
+	for key, item := range md {
+		switch key {
+		case "managedFields":
+			continue
+		case "annotations":
+			if annots, ok := item.(map[string]any); ok {
+				tbl.RawSetH(lua.LString(key), decodeHealthAnnotations(l, annots))
+				continue
+			}
+		}
+		tbl.RawSetH(lua.LString(key), decodeValue(l, item))
+	}
+	return tbl
+}
+
+func decodeHealthAnnotations(l *lua.LState, annots map[string]any) lua.LValue {
+	tbl := l.CreateTable(0, len(annots))
+	for key, item := range annots {
+		if key == corev1.LastAppliedConfigAnnotation {
+			continue
+		}
+		tbl.RawSetH(lua.LString(key), decodeValue(l, item))
+	}
+	return tbl
+}
+
 func decodeValue(l *lua.LState, value any) lua.LValue {
 	switch converted := value.(type) {
 	case bool:
