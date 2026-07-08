@@ -521,7 +521,7 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error
 	return targetObjs, nil
 }
 
-func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
+func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error, ignoreDuplicateResources []v1alpha1.ResourceIgnoreDuplicate) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
@@ -559,13 +559,23 @@ func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured,
 	result := make([]*unstructured.Unstructured, 0)
 	for key, targets := range targetByKey {
 		if len(targets) > 1 {
-			// If an object is duplicated in the target, we add a condition to the application.
-			now := metav1.Now()
-			conditions = append(conditions, v1alpha1.ApplicationCondition{
-				Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
-				Message:            fmt.Sprintf("Resource %s appeared %d times among application resources.", key.String(), len(targets)),
-				LastTransitionTime: &now,
-			})
+			// Check if this resource matches any ignoreDuplicateResources selector.
+			ignoreWarning := false
+			for _, ignore := range ignoreDuplicateResources {
+				if ignore.Matches(key) {
+					ignoreWarning = true
+					break
+				}
+			}
+			if !ignoreWarning {
+				// If an object is duplicated in the target, we add a condition to the application.
+				now := metav1.Now()
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
+					Message:            fmt.Sprintf("Resource %s appeared %d times among application resources.", key.String(), len(targets)),
+					LastTransitionTime: &now,
+				})
+			}
 		}
 		// Only keep the last target object to avoid duplicate resources.
 		result = append(result, targets[len(targets)-1])
@@ -742,7 +752,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	targetObjs, dedupConditions, err := NormalizeTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
 		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
-	})
+	}, app.Spec.IgnoreDuplicateResources)
 	if err != nil {
 		msg := "Failed to normalize target state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
