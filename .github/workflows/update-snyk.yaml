@@ -14,8 +14,7 @@ env:
 jobs:
   snyk-report:
     permissions:
-      contents: write # to push the updated report branch
-      pull-requests: write # to create the update PR
+      contents: read
     if: github.repository == 'argoproj/argo-cd'
     name: Generate Snyk Report
     runs-on: ubuntu-24.04
