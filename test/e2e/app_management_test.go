@@ -45,10 +45,6 @@ const (
 	guestbookWithNamespace = "guestbook-with-namespace"
 	resourceActions        = "resource-actions"
 	appLogsRetryCount      = 5
-
-	// ConfigMap keys in argocd-cm mapping to ARGOCD_RECONCILIATION_TIMEOUT and ARGOCD_RECONCILIATION_JITTER.
-	reconciliationTimeoutConfigKey       = "timeout.reconciliation"
-	reconciliationTimeoutJitterConfigKey = "timeout.reconciliation.jitter"
 )
 
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
@@ -2872,63 +2868,124 @@ status:
 		})
 }
 
-// TestZeroReconciliationTimeoutNoExcessiveRefreshes verifies that when timeout.reconciliation=0s,
-// applications do not trigger excessive automatic refreshes from status-only updates.
-func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
-	ctx := t.Context()
-	namespace := fixture.TestNamespace()
+// TestStatusOnlyUpdatesDoNotTriggerRefresh verifies that status-only Application updates
+// do not trigger refreshes before the comparison window expires (or at all when reconciliation is disabled).
+func TestStatusOnlyUpdatesDoNotTriggerRefresh(t *testing.T) {
+	if !fixture.IsRemote() {
+		t.Skip("requires ARGOCD_E2E_REMOTE: reconciliation settings only take effect after a pod restart")
+	}
 
-	Given(t).
-		Path(guestbookPath).
-		When().
-		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "0s").
-		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s").
-		And(func() {
-			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-			require.NoError(t, err)
-			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
-			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
-			fixture.RestartApplicationController(t)
-		}).
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(a *Application) {
-			time.Sleep(5 * time.Second)
+	tests := []struct {
+		name                    string
+		reconciliationTimeout   string
+		reconciliationJitter    string
+		observationAfterPatches time.Duration
+	}{
+		{
+			name:                    "zero_reconciliation_timeout",
+			reconciliationTimeout:   "0s",
+			reconciliationJitter:    "0s",
+			observationAfterPatches: 5 * time.Second, // reconciliation disabled; status only patches should not trigger refresh
+		},
+		{
+			name:                    "default_reconciliation_timeout",
+			reconciliationTimeout:   "120s",
+			reconciliationJitter:    "60s",
+			observationAfterPatches: 90 * time.Second, // < 120s window: verify no refresh before comparison window expires
+		},
+	}
 
-			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), a.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-			initialReconciledAt := app.Status.ReconciledAt
-			require.NotNil(t, initialReconciledAt)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture.RegisterReconciliationSettingsCleanup(t)
 
-			const observationPeriod = 2 * time.Minute
-			const pollInterval = 2 * time.Second
-			refreshCount := 0
-			lastReconciledAt := initialReconciledAt.DeepCopy()
-			deadline := time.Now().Add(observationPeriod)
-			for time.Now().Before(deadline) {
-				time.Sleep(pollInterval)
-				observed, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
-				require.NoError(t, err)
-				reconciledAt := observed.Status.ReconciledAt
-				if reconciledAt == nil {
-					continue
-				}
-				if !lastReconciledAt.Equal(reconciledAt) {
-					refreshCount++
-					lastReconciledAt = reconciledAt.DeepCopy()
-				}
-			}
+			ctx := t.Context()
+			namespace := fixture.TestNamespace()
 
-			assert.Equal(t, 0, refreshCount, "application should not refresh with timeout.reconciliation=0s during observation window")
+			Given(t).
+				Path(guestbookPath).
+				When().
+				SetParamInSettingConfigMap(fixture.ReconciliationTimeoutConfigKey, tc.reconciliationTimeout).
+				SetParamInSettingConfigMap(fixture.ReconciliationTimeoutJitterConfigKey, tc.reconciliationJitter).
+				And(func() {
+					configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+					require.NoError(t, err)
+					require.Equal(t, tc.reconciliationTimeout, configMap.Data[fixture.ReconciliationTimeoutConfigKey])
+					require.Equal(t, tc.reconciliationJitter, configMap.Data[fixture.ReconciliationTimeoutJitterConfigKey])
+					fixture.RestartApplicationController(t)
+				}).
+				CreateApp().
+				Sync().
+				Then().
+				Expect(OperationPhaseIs(OperationSucceeded)).
+				Expect(SyncStatusIs(SyncStatusCodeSynced)).
+				And(func(a *Application) {
+					time.Sleep(5 * time.Second)
+
+					appNS := a.Namespace
+					app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
+					require.NoError(t, err)
+					initialReconciledAt := app.Status.ReconciledAt
+					require.NotNil(t, initialReconciledAt)
+
+					const pollInterval = 2 * time.Second
+					refreshCount := 0
+					lastReconciledAt := initialReconciledAt.DeepCopy()
+					deadline := time.Now().Add(tc.observationAfterPatches)
+
+					checkReconciledAt := func() {
+						observed, getErr := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
+						require.NoError(t, getErr)
+						reconciledAt := observed.Status.ReconciledAt
+						if reconciledAt == nil {
+							return
+						}
+						if !lastReconciledAt.Equal(reconciledAt) {
+							refreshCount++
+							lastReconciledAt = reconciledAt.DeepCopy()
+						}
+					}
+
+					// Trigger status-only informer updates to exercise the fast-path skip.
+					for i := range 10 {
+						time.Sleep(pollInterval)
+						patch := fmt.Sprintf(
+							`[{"op":"replace","path":"/status/summary/images","value":["test-image:v%d"]}]`,
+							i,
+						)
+						_, patchErr := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Patch(
+							ctx,
+							a.Name,
+							types.JSONPatchType,
+							[]byte(patch),
+							metav1.PatchOptions{},
+						)
+						require.NoError(t, patchErr)
+						checkReconciledAt()
+					}
+
+					for time.Now().Before(deadline) {
+						time.Sleep(pollInterval)
+						checkReconciledAt()
+					}
+
+					assert.Equal(t, 0, refreshCount,
+						"status-only updates should not trigger refresh (timeout=%s jitter=%s)",
+						tc.reconciliationTimeout, tc.reconciliationJitter)
+				})
 		})
+	}
 }
 
 // TestGitCommitEventuallyOutOfSyncWithoutManualRefresh checks that a Git-only change is
 // eventually reflected as OutOfSync without a manual refresh.
 func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
+	if !fixture.IsRemote() {
+		t.Skip("requires ARGOCD_E2E_REMOTE: reconciliation settings only take effect after a pod restart")
+	}
+
+	fixture.RegisterReconciliationSettingsCleanup(t)
+
 	ctx := t.Context()
 	namespace := fixture.TestNamespace()
 	const reconciliationTimeout = "60s"
@@ -2936,13 +2993,13 @@ func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 	Given(t).
 		Path("config-map").
 		When().
-		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, reconciliationTimeout).
-		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s").
+		SetParamInSettingConfigMap(fixture.ReconciliationTimeoutConfigKey, reconciliationTimeout).
+		SetParamInSettingConfigMap(fixture.ReconciliationTimeoutJitterConfigKey, "0s").
 		And(func() {
 			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
 			require.NoError(t, err)
-			require.Equal(t, reconciliationTimeout, configMap.Data[reconciliationTimeoutConfigKey])
-			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
+			require.Equal(t, reconciliationTimeout, configMap.Data[fixture.ReconciliationTimeoutConfigKey])
+			require.Equal(t, "0s", configMap.Data[fixture.ReconciliationTimeoutJitterConfigKey])
 			fixture.RestartApplicationController(t)
 		}).
 		CreateApp().
@@ -2963,165 +3020,28 @@ func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 		})
 }
 
-// TestDefaultReconciliationTimeoutNoExcessiveRefreshes verifies that with default
-// reconciliation settings (timeout.reconciliation=120s, timeout.reconciliation.jitter=60s),
-// status-only controller updates do not trigger refreshes before the comparison window expires.
-func TestDefaultReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
-	ctx := t.Context()
-	namespace := fixture.TestNamespace()
-	const (
-		reconciliationTimeout       = "120s"
-		reconciliationTimeoutJitter = "60s"
-	)
-
-	Given(t).
-		Path(guestbookPath).
-		When().
-		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, reconciliationTimeout).
-		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, reconciliationTimeoutJitter).
-		And(func() {
-			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-			require.NoError(t, err)
-			require.Equal(t, reconciliationTimeout, configMap.Data[reconciliationTimeoutConfigKey])
-			require.Equal(t, reconciliationTimeoutJitter, configMap.Data[reconciliationTimeoutJitterConfigKey])
-			fixture.RestartApplicationController(t)
-		}).
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(a *Application) {
-			time.Sleep(5 * time.Second)
-
-			appNS := a.Namespace
-			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-			initialReconciledAt := app.Status.ReconciledAt
-			require.NotNil(t, initialReconciledAt)
-
-			// Shorter than timeout.reconciliation (120s) so comparison must not expire yet.
-			const observationPeriod = 90 * time.Second
-			const pollInterval = 2 * time.Second
-			refreshCount := 0
-			lastReconciledAt := initialReconciledAt.DeepCopy()
-			deadline := time.Now().Add(observationPeriod)
-
-			checkReconciledAt := func() {
-				observed, getErr := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
-				require.NoError(t, getErr)
-				reconciledAt := observed.Status.ReconciledAt
-				if reconciledAt == nil {
-					return
-				}
-				if !lastReconciledAt.Equal(reconciledAt) {
-					refreshCount++
-					lastReconciledAt = reconciledAt.DeepCopy()
-				}
-			}
-
-			// Trigger status-only informer updates to exercise the fast-path skip.
-			for i := range 10 {
-				time.Sleep(2 * time.Second)
-				patch := fmt.Sprintf(
-					`[{"op":"replace","path":"/status/summary/images","value":["test-image:v%d"]}]`,
-					i,
-				)
-				_, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Patch(
-					ctx,
-					a.Name,
-					types.JSONPatchType,
-					[]byte(patch),
-					metav1.PatchOptions{},
-				)
-				require.NoError(t, err)
-				checkReconciledAt()
-			}
-
-			for time.Now().Before(deadline) {
-				time.Sleep(pollInterval)
-				checkReconciledAt()
-			}
-
-			assert.Equal(t, 0, refreshCount, "application should not refresh from status-only updates before comparison expires with default timeout settings")
-		})
-}
-
-// TestStatusUpdateDoesNotTriggerRefresh verifies that status-only updates
-// (without spec/operation/deletion changes) do not trigger refreshes.
-func TestStatusUpdateDoesNotTriggerRefresh(t *testing.T) {
-	ctx := t.Context()
-	namespace := fixture.TestNamespace()
-
-	Given(t).
-		Path(guestbookPath).
-		When().
-		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "0s").
-		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s").
-		And(func() {
-			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-			require.NoError(t, err)
-			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
-			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
-			fixture.RestartApplicationController(t)
-		}).
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(a *Application) {
-			time.Sleep(5 * time.Second)
-
-			appNS := a.Namespace
-			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-			initialReconciledAt := app.Status.ReconciledAt
-			require.NotNil(t, initialReconciledAt)
-
-			for i := range 10 {
-				time.Sleep(2 * time.Second)
-
-				patch := fmt.Sprintf(
-					`[{"op":"replace","path":"/status/summary/images","value":["test-image:v%d"]}]`,
-					i,
-				)
-				_, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Patch(
-					ctx,
-					a.Name,
-					types.JSONPatchType,
-					[]byte(patch),
-					metav1.PatchOptions{},
-				)
-				require.NoError(t, err)
-			}
-
-			time.Sleep(5 * time.Second)
-
-			finalApp, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appNS).Get(ctx, a.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-
-			assert.Equal(t, initialReconciledAt.Time, finalApp.Status.ReconciledAt.Time,
-				"Status-only updates should NOT trigger refresh")
-		})
-}
-
 // TestRefreshAnnotationTriggersRefresh verifies that explicitly adding a refresh
 // annotation DOES trigger a refresh, even when reconciliation is disabled.
 func TestRefreshAnnotationTriggersRefresh(t *testing.T) {
+	if !fixture.IsRemote() {
+		t.Skip("requires ARGOCD_E2E_REMOTE: reconciliation settings only take effect after a pod restart")
+	}
+
+	fixture.RegisterReconciliationSettingsCleanup(t)
+
 	ctx := t.Context()
 	namespace := fixture.TestNamespace()
 
 	Given(t).
 		Path(guestbookPath).
 		When().
-		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "0s").
-		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s").
+		SetParamInSettingConfigMap(fixture.ReconciliationTimeoutConfigKey, "0s").
+		SetParamInSettingConfigMap(fixture.ReconciliationTimeoutJitterConfigKey, "0s").
 		And(func() {
 			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
 			require.NoError(t, err)
-			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
-			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
+			require.Equal(t, "0s", configMap.Data[fixture.ReconciliationTimeoutConfigKey])
+			require.Equal(t, "0s", configMap.Data[fixture.ReconciliationTimeoutJitterConfigKey])
 			fixture.RestartApplicationController(t)
 		}).
 		CreateApp().

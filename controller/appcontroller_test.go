@@ -2222,39 +2222,29 @@ func assertInformerUpdateSideEffects(t *testing.T, ctrl *ApplicationController, 
 	assertInformerHydrateQueueSignal(t, ctrl, wantHydrate, msg+": hydrate queue")
 }
 
-// invokeApplicationInformerUpdateFromHandler mirrors UpdateFunc in newApplicationInformerAndLister.
+// invokeApplicationInformerUpdateFromHandler invokes applicationEventHandlerFuncs().UpdateFunc.
 // Returns false when canProcessApp rejects the update (e.g. skip-reconcile=true).
 func invokeApplicationInformerUpdateFromHandler(t *testing.T, ctrl *ApplicationController, oldApp, newApp *v1alpha1.Application) bool {
 	t.Helper()
 	if !ctrl.canProcessApp(newApp) {
 		return false
 	}
-	key, err := cache.MetaNamespaceKeyFunc(newApp)
-	require.NoError(t, err)
-	oldAppAny, oldOK := any(oldApp).(*v1alpha1.Application)
-	newAppAny, newOK := any(newApp).(*v1alpha1.Application)
-	ctrl.applicationInformerProcessUpdate(oldOK, oldAppAny, newOK, newAppAny, key)
+	ctrl.applicationEventHandlerFuncs().OnUpdate(oldApp, newApp)
 	return true
 }
 
-// invokeApplicationInformerAdd mirrors AddFunc in newApplicationInformerAndLister.
+// invokeApplicationInformerAdd invokes applicationEventHandlerFuncs().AddFunc.
 func invokeApplicationInformerAdd(t *testing.T, ctrl *ApplicationController, newApp *v1alpha1.Application) {
 	t.Helper()
 	require.True(t, ctrl.canProcessApp(newApp))
-	key, err := cache.MetaNamespaceKeyFunc(newApp)
-	require.NoError(t, err)
-	ctrl.appRefreshQueue.AddRateLimited(key)
-	ctrl.clusterSharding.AddApp(newApp)
+	ctrl.applicationEventHandlerFuncs().OnAdd(newApp, false)
 }
 
-// invokeApplicationInformerDelete mirrors DeleteFunc in newApplicationInformerAndLister.
+// invokeApplicationInformerDelete invokes applicationEventHandlerFuncs().DeleteFunc.
 func invokeApplicationInformerDelete(t *testing.T, ctrl *ApplicationController, delApp *v1alpha1.Application) {
 	t.Helper()
 	require.True(t, ctrl.canProcessApp(delApp))
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(delApp)
-	require.NoError(t, err)
-	ctrl.appRefreshQueue.Add(key)
-	ctrl.clusterSharding.DeleteApp(delApp)
+	ctrl.applicationEventHandlerFuncs().OnDelete(delApp)
 }
 
 func assertInformerRefreshSignal(t *testing.T, ctrl *ApplicationController, qualifiedName string, want bool, msg string) {
@@ -2286,46 +2276,37 @@ func assertInformerRefreshSignal(t *testing.T, ctrl *ApplicationController, qual
 	require.Never(t, refreshPresent, 100*time.Millisecond, 5*time.Millisecond, "%s (key=%s inMap/queue should remain empty)", msg, key)
 }
 
-func TestApplicationComparisonExpired(t *testing.T) {
+func TestComparisonExpiry(t *testing.T) {
 	t.Run("soft expired", func(t *testing.T) {
 		app := newFakeApp()
 		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
 		app.Status.ReconciledAt = &past
-		ctrl := &ApplicationController{statusRefreshTimeout: time.Hour}
-		assert.True(t, ctrl.applicationComparisonExpired(app))
+		softExpired, hardExpired := comparisonExpiry(app.Status, time.Hour, 0)
+		assert.True(t, softExpired || hardExpired)
 	})
 
 	t.Run("hard expired when hard timeout configured and shorter than soft window", func(t *testing.T) {
 		app := newFakeApp()
 		past := metav1.NewTime(time.Now().UTC().Add(-10 * time.Minute))
 		app.Status.ReconciledAt = &past
-		ctrl := &ApplicationController{
-			statusRefreshTimeout:     2 * time.Hour,
-			statusHardRefreshTimeout: time.Minute,
-		}
-		assert.True(t, ctrl.applicationComparisonExpired(app))
+		softExpired, hardExpired := comparisonExpiry(app.Status, 2*time.Hour, time.Minute)
+		assert.True(t, softExpired || hardExpired)
 	})
 
 	t.Run("neither soft nor hard expired", func(t *testing.T) {
 		app := newFakeApp()
 		recent := metav1.NewTime(time.Now().UTC().Add(-30 * time.Second))
 		app.Status.ReconciledAt = &recent
-		ctrl := &ApplicationController{
-			statusRefreshTimeout:     2 * time.Hour,
-			statusHardRefreshTimeout: time.Minute,
-		}
-		assert.False(t, ctrl.applicationComparisonExpired(app))
+		softExpired, hardExpired := comparisonExpiry(app.Status, 2*time.Hour, time.Minute)
+		assert.False(t, softExpired || hardExpired)
 	})
 
 	t.Run("soft timeout zero disables expiry check", func(t *testing.T) {
 		app := newFakeApp()
 		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
 		app.Status.ReconciledAt = &past
-		ctrl := &ApplicationController{
-			statusRefreshTimeout:     0,
-			statusHardRefreshTimeout: 0,
-		}
-		assert.False(t, ctrl.applicationComparisonExpired(app))
+		softExpired, hardExpired := comparisonExpiry(app.Status, 0, 0)
+		assert.False(t, softExpired || hardExpired)
 	})
 }
 

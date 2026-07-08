@@ -2053,8 +2053,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 
-	softExpired := statusRefreshTimeout > 0 && app.Status.Expired(statusRefreshTimeout)
-	hardExpired := statusHardRefreshTimeout > 0 && app.Status.Expired(statusHardRefreshTimeout)
+	softExpired, hardExpired := comparisonExpiry(app.Status, statusRefreshTimeout, statusHardRefreshTimeout)
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		compareWith = CompareWithLatestForceResolve
@@ -2100,17 +2099,10 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-// applicationComparisonExpired returns true if the app's last reconciliation has exceeded
-// the configured soft or hard refresh timeout. Used by the informer to skip unnecessary refreshes on
-// status-only updates while still applying periodic reconciliation.
-func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Application) bool {
-	if ctrl.statusRefreshTimeout > 0 && app.Status.Expired(ctrl.statusRefreshTimeout) {
-		return true
-	}
-	if ctrl.statusHardRefreshTimeout > 0 && app.Status.Expired(ctrl.statusHardRefreshTimeout) {
-		return true
-	}
-	return false
+func comparisonExpiry(status appv1.ApplicationStatus, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (softExpired, hardExpired bool) {
+	softExpired = statusRefreshTimeout > 0 && status.Expired(statusRefreshTimeout)
+	hardExpired = statusHardRefreshTimeout > 0 && status.Expired(statusHardRefreshTimeout)
+	return softExpired, hardExpired
 }
 
 // resyncRefreshAfter returns a random delay up to appResyncJitter to spread out refresh
@@ -2120,9 +2112,6 @@ func (ctrl *ApplicationController) resyncRefreshAfter() *time.Duration {
 		return nil
 	}
 	nanos := ctrl.appResyncJitter.Nanoseconds()
-	if nanos <= 0 {
-		return nil
-	}
 	d := time.Duration(rand.Int63n(nanos + 1))
 	return &d
 }
@@ -2547,40 +2536,47 @@ func onlyStatusChanged(oldApp, newApp *appv1.Application) bool {
 	if newApp.DeletionTimestamp != nil {
 		return false
 	}
+	if oldApp.TypeMeta != newApp.TypeMeta {
+		return false
+	}
+	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) ||
+		!equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation) {
+		return false
+	}
 
-	oldCopy := oldApp.DeepCopy()
-	newCopy := newApp.DeepCopy()
-
-	oldCopy.Status = appv1.ApplicationStatus{}
-	newCopy.Status = appv1.ApplicationStatus{}
-	oldCopy.ResourceVersion = ""
-	newCopy.ResourceVersion = ""
-	oldCopy.ManagedFields = nil
-	newCopy.ManagedFields = nil
-
-	return equality.Semantic.DeepEqual(oldCopy, newCopy)
+	oldMeta := oldApp.ObjectMeta.DeepCopy()
+	newMeta := newApp.ObjectMeta.DeepCopy()
+	oldMeta.ResourceVersion, newMeta.ResourceVersion = "", ""
+	oldMeta.ManagedFields, newMeta.ManagedFields = nil, nil
+	return equality.Semantic.DeepEqual(oldMeta, newMeta)
 }
 
 // applicationInformerProcessUpdate handles Application informer updates and decides whether to
 // enqueue a refresh or skip it. It avoids unnecessary refreshes for status-only updates, while still
 // handling metadata/spec/operation changes, comparison expiry, and automated sync.
-func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, oldApp *appv1.Application, newOK bool, newApp *appv1.Application, key string) {
+func (ctrl *ApplicationController) applicationInformerProcessUpdate(old, new any, key string) {
+	oldApp, oldOK := old.(*appv1.Application)
+	newApp, newOK := new.(*appv1.Application)
+
 	var compareWith *CompareWith
 	var delay *time.Duration
 
 	// Enqueue before any early return so status-only fast-path cannot skip operation processing.
-	if !newOK || (newOK && (newApp.Operation != nil || isOperationInProgress(newApp))) {
+	if !newOK || newApp.Operation != nil || isOperationInProgress(newApp) {
 		ctrl.appOperationQueue.AddRateLimited(key)
 	}
 
 	if oldOK && newOK {
+		softExpired, hardExpired := comparisonExpiry(newApp.Status, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
+		comparisonExpired := softExpired || hardExpired
+
 		if oldApp.ResourceVersion == newApp.ResourceVersion {
 			if ctrl.hydrator != nil {
 				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 			}
 			ctrl.clusterSharding.UpdateApp(newApp)
 
-			if ctrl.applicationComparisonExpired(newApp) {
+			if comparisonExpired {
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, ctrl.resyncRefreshAfter())
 			}
 			return
@@ -2589,8 +2585,8 @@ func (ctrl *ApplicationController) applicationInformerProcessUpdate(oldOK bool, 
 		// Fast-path for status-only updates: skip refresh unless comparison has expired.
 		// Do not fast-path while a sync operation is active; status updates during sync
 		// must still refresh and enqueue the operation queue.
-		if onlyStatusChanged(oldApp, newApp) && newApp.Operation == nil && !isOperationInProgress(newApp) {
-			if !ctrl.applicationComparisonExpired(newApp) {
+		if newApp.Operation == nil && !isOperationInProgress(newApp) && onlyStatusChanged(oldApp, newApp) {
+			if !comparisonExpired {
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
@@ -2771,10 +2767,7 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 				return
 			}
 
-			oldApp, oldOK := old.(*appv1.Application)
-			newApp, newOK := new.(*appv1.Application)
-
-			ctrl.applicationInformerProcessUpdate(oldOK, oldApp, newOK, newApp, key)
+			ctrl.applicationInformerProcessUpdate(old, new, key)
 		},
 		DeleteFunc: func(obj any) {
 			// Unwrap DeletedFinalStateUnknown tombstones
