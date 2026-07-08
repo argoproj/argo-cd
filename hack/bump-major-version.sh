@@ -31,6 +31,7 @@ echo "Incrementing the major version in go.mod..."
 sed -i.bak \
   -e "s~github\.com/argoproj/argo-cd/v${CURRENT_VERSION}~github\.com/argoproj/argo-cd/v${NEXT_VERSION}~g" \
   -e "s~github\.com/argoproj/argo-cd/gitops-engine/v${CURRENT_VERSION}~github\.com/argoproj/argo-cd/gitops-engine/v${NEXT_VERSION}~g" \
+  -e "s~\(github\.com/argoproj/argo-cd/gitops-engine/v${NEXT_VERSION}\) v${CURRENT_VERSION}\.~\1 v${NEXT_VERSION}.~" \
   go.mod && echo "  Updated go.mod" && rm go.mod.bak
 
 for file in .mockery.yaml gitops-engine/go.mod gitops-engine/README.md; do
