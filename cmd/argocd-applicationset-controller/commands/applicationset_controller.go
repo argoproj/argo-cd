@@ -8,6 +8,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -65,6 +67,7 @@ func NewCommand() *cobra.Command {
 		debugLog                     bool
 		dryRun                       bool
 		enableProgressiveSyncs       bool
+		refreshGracePeriodSeconds    int
 		enableNewGitFileGlobbing     bool
 		repoServerPlaintext          bool
 		repoServerStrictTLS          bool
@@ -266,6 +269,7 @@ func NewCommand() *cobra.Command {
 				ArgoCDNamespace:              namespace,
 				ApplicationSetNamespaces:     applicationSetNamespaces,
 				EnableProgressiveSyncs:       enableProgressiveSyncs,
+				RefreshGracePeriodSeconds:    refreshGracePeriodSeconds,
 				SCMRootCAPath:                scmRootCAPath,
 				GlobalPreservedAnnotations:   globalPreservedAnnotations,
 				GlobalPreservedLabels:        globalPreservedLabels,
@@ -274,7 +278,15 @@ func NewCommand() *cobra.Command {
 				ClusterInformer:              clusterInformer,
 				ConcurrentApplicationUpdates: concurrentApplicationUpdates,
 			}
-			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, appsetReconciler)
+			appClientset, err := appclientset.NewForConfig(mgr.GetConfig())
+			if err != nil {
+				log.Error(err, "failed to create app clientset")
+			}
+			if appClientset == nil && enableProgressiveSyncs {
+				log.Error(err, "appClientset is nil, progressive sync when enabled expects to have app clientset")
+				os.Exit(1)
+			}
+			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, appClientset, appsetReconciler)
 
 			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
@@ -309,6 +321,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&tokenRefStrictMode, "token-ref-strict-mode", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE", false), fmt.Sprintf("Set to true to require secrets referenced by SCM providers to have the %s=%s label set (Default: false)", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds))
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
+	command.Flags().IntVar(&refreshGracePeriodSeconds, "refresh-grace-period-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REFRESH_GRACE_PERIOD_SECONDS", 30, 0, math.MaxInt64), "The minimum grace period before a progressive sync may start refreshing outdated applications")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")

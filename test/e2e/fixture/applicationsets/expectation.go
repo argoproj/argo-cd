@@ -151,6 +151,94 @@ func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 	}
 }
 
+// ApplicationsLastTransitionTime sorts the application in appset's ApplicationSetApplicationStatus by LastTransitionTime and compares it to be in expectedOrder
+func ApplicationsLastTransitionTime(expectedOrderApps []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		foundAppsetStatus := c.applicationSet(c.context.GetName()).Status.ApplicationStatus
+		slices.SortFunc(foundAppsetStatus, func(a, b v1alpha1.ApplicationSetApplicationStatus) int {
+			//-1 if a less than b
+			if a.LastTransitionTime.Before(b.LastTransitionTime) {
+				return -1
+			}
+			if a.LastTransitionTime.Equal(b.LastTransitionTime) {
+				return 0
+			}
+			// note the parameters are reversed here, this checks if a is after b ; After() has a different syntax, does not expect a pointer
+			if b.LastTransitionTime.Before(a.LastTransitionTime) {
+				return 1
+			}
+			// SortFunc requires to return zero for incomparable items
+			return 0
+		})
+		for i, expectedappName := range expectedOrderApps {
+			appName := foundAppsetStatus[i].Application
+			if appName != expectedappName {
+				return failed, fmt.Sprintf("app %v transitioned before app %v", appName, expectedappName)
+			}
+		}
+		return succeeded, "all apps lastTransitionTime is in expected order"
+	}
+}
+
+// CheckApplicationsReconciledAfter expects all apps in expectedApps to have reconciled after changeTime
+func CheckApplicationsReconciledAfter(expectedApps []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, expectedApp := range expectedApps {
+			foundApp := c.app(expectedApp)
+			if foundApp == nil {
+				return pending, fmt.Sprintf("application '%s' not found", expectedApp)
+			}
+			if foundApp.Status.ReconciledAt != nil && foundApp.Status.ReconciledAt.Before(changeTime) {
+				return pending, fmt.Sprintf("application '%s' has not reconciled yet", foundApp.Name)
+			}
+		}
+		return succeeded, "all applications have reconciled after changeTime"
+	}
+}
+
+// CheckApplicationsNotReconciledAfter expects all apps in appNames to have ReconciledAt before changeTime
+func CheckApplicationsNotReconciledAfter(appNames []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			foundApp := c.app(appName)
+			if foundApp == nil {
+				return pending, fmt.Sprintf("application '%s' not found", appName)
+			}
+			if foundApp.Status.ReconciledAt != nil && !foundApp.Status.ReconciledAt.Before(changeTime) {
+				return failed, fmt.Sprintf("application '%s' reconciled after changeTime at %s", appName, foundApp.Status.ReconciledAt)
+			}
+		}
+		return succeeded, "all applications have not reconciled after changeTime"
+	}
+}
+
+// AppsTransitionedAfter expects all apps in appNames to have transitioned after changeTime
+// compares app's LastTransitionTime from appset's ApplicationSetApplicationStatus for provided appNames
+func AppsTransitionedAfter(appNames []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		retrievedAppset := c.applicationSet(c.context.GetName())
+
+		// Build a map for O(1) lookup instead
+		statusMap := make(map[string]v1alpha1.ApplicationSetApplicationStatus, len(retrievedAppset.Status.ApplicationStatus))
+		for _, appStatus := range retrievedAppset.Status.ApplicationStatus {
+			statusMap[appStatus.Application] = appStatus
+		}
+
+		for _, appName := range appNames {
+			appStatus, found := statusMap[appName]
+			if !found {
+				return failed, fmt.Sprintf("application '%s' not found in ApplicationSet status", appName)
+			}
+
+			lastTransitionTime := appStatus.LastTransitionTime
+			if lastTransitionTime == nil || lastTransitionTime.Before(changeTime) {
+				return failed, fmt.Sprintf("application '%s' did not transition after expected change at time '%s'", appName, changeTime)
+			}
+		}
+		return succeeded, "all applications have transitioned after change"
+	}
+}
+
 // Pod checks whether a specified condition is true for any of the pods in the namespace
 func Pod(t *testing.T, predicate func(p corev1.Pod) bool) Expectation {
 	t.Helper()
