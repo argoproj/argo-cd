@@ -600,3 +600,59 @@ Disabling certificate verification might make sense if:
 
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
 `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
+
+## Dex Storage Backend
+
+By default, Dex stores session state (auth requests, refresh tokens, signingkeys) in memory. This means state does not persist across `argocd-dex-server` pod restarts, and it is not safe to run multiple Dex replicas since each replica would have its own independent state.
+
+To persist state and support HA deployments, configure a durable storage backend via `dex.storage.type` in `argocd-cm`:
+
+```yaml
+data:
+  dex.storage.type: kubernetes
+  dex.storage.config: |
+    inCluster: true
+```
+
+Supported values for `dex.storage.type`:
+
+| Type         | Persists across restarts | HA support | Notes                                    |
+|--------------|---------------------------|------------|-------------------------------------------|
+| `memory`     | No                        | No         | Default. Simplest, no extra setup.        |
+| `kubernetes` | Yes                       | Yes        | Stores state as custom resources in-cluster. Requires additional RBAC for `argocd-dex-server`. |
+| `postgres`   | Yes                       | Yes        | Requires a reachable Postgres instance.   |
+| `sqlite3`    | Yes                       | No         | File-based; not suitable for multiple replicas. |
+| `etcd`       | Yes                       | Yes        | Requires a reachable etcd cluster.        |
+
+#### Kubernetes storage RBAC
+
+When using `dex.storage.type: kubernetes`, the `argocd-dex-server` ServiceAccount needs permission to manage Dex's custom resources:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+rules:
+- apiGroups:
+  - dex.coreos.com
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-dex-server
+subjects:
+- kind: ServiceAccount
+  name: argocd-dex-server
+  namespace: argocd
+```
