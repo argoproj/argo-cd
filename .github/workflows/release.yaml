@@ -313,7 +313,7 @@ jobs:
       - goreleaser
       - generate-sbom
     permissions:
-      contents: write # Needed to push commit to update stable tag
+      contents: write # Needed to push commit to update stable and gitops-engine tags
       pull-requests: write # Needed to create PR for VERSION update.
     if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     runs-on: ubuntu-24.04
@@ -337,6 +337,20 @@ jobs:
           git tag -f stable ${{ github.ref_name }}
           git push -f origin stable
         if: ${{ env.TAG_STABLE == 'true' }}
+
+      - name: Tag gitops-engine submodule
+        run: |
+          set -xue
+          # Create a path-prefixed tag for gitops-engine
+          # so downstream consumers can resolve github.com/argoproj/argo-cd/gitops-engine/v3
+          # https://go.dev/doc/modules/managing-source#multiple-module-source
+          GE_TAG="gitops-engine/${{ github.ref_name }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${GE_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${GE_TAG} already exists on origin; skipping"
+          else
+            git tag "${GE_TAG}" "${{ github.ref_name }}^{}"
+            git push origin "${GE_TAG}"
+          fi
 
       - name: Check to see if VERSION should be updated on master branch
         run: |

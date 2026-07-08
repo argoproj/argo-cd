@@ -23,6 +23,6 @@ module.exports = {
         "github>argoproj/argo-cd//renovate-presets/fix/ignore-paths.json5"
     ],
     ignoreDeps: [
-        'github.com/argoproj/argo-cd/gitops-engine'
+        'github.com/argoproj/argo-cd/gitops-engine/v3'
     ]
 }
