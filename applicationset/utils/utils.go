@@ -46,7 +46,6 @@ func init() {
 	sprigFuncMap["toYaml"] = toYAML
 	sprigFuncMap["fromYaml"] = fromYAML
 	sprigFuncMap["fromYamlArray"] = fromYAMLArray
-	sprigFuncMap["tpl"] = tplFun(baseTemplate)
 
 	// Initialize the base template with sprig functions once at startup.
 	// This must be done after modifying sprigFuncMap above.
@@ -412,6 +411,7 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate b
 		for _, option := range goTemplateOptions {
 			cloned = cloned.Option(option)
 		}
+		cloned = withTplFunc(cloned)
 		parsed, err := cloned.Parse(tmpl)
 		if err != nil {
 			return "", fmt.Errorf("failed to parse template %s: %w", tmpl, err)

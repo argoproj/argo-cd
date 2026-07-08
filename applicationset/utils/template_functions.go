@@ -100,3 +100,11 @@ func tplFun(parent *template.Template) func(string, any) (string, error) {
 		return strings.ReplaceAll(buf.String(), "<no value>", ""), nil
 	}
 }
+
+// withTplFunc registers the "tpl" function on t, bound to t itself rather than
+// to a fixed parent. This must happen after per-call settings (e.g. Option())
+// are applied, so nested "tpl" calls inherit the same options and functions
+// instead of falling back to a statically bound template.
+func withTplFunc(t *template.Template) *template.Template {
+	return t.Funcs(template.FuncMap{"tpl": tplFun(t)})
+}
