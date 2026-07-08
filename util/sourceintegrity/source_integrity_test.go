@@ -141,14 +141,14 @@ func TestRepoURLCaseInsensitivePolicyMatching(t *testing.T) {
 		"https://GitHub.com/myorg/myrepo",
 	)
 	assert.Len(t, caseInsensitive, 1)
-	assert.Equal(t, normalizedRepoURL, "https://github.com/myorg/myrepo")
+	assert.Equal(t, "https://github.com/myorg/myrepo", normalizedRepoURL)
 
 	negative, normalizedRepoURL := findMatchingGitPolicies(
 		si("https://github.com/myorg/foo.git"),
 		"https://github.com/other-org/repo.git",
 	)
 	assert.Empty(t, negative)
-	assert.Equal(t, normalizedRepoURL, "https://github.com/other-org/repo")
+	assert.Equal(t, "https://github.com/other-org/repo", normalizedRepoURL)
 
 	matchAll, _ := findMatchingGitPolicies(
 		si("*"),
