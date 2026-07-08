@@ -1876,6 +1876,8 @@ func TestProcessAppRefresh(t *testing.T) {
 
 		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' hydration")
 	})
+}
+
 func NewMockHandlerForBitbucketServerCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	mockDB := &mocks.ArgoDB{}
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
