@@ -263,7 +263,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, commitSHA, s.initConstants.SubmoduleEnabled, derefDepth(q.Repo.Depth), clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -469,7 +469,7 @@ func (s *Service) runRepoOperation(
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, revision, s.initConstants.SubmoduleEnabled, derefDepth(repo.Depth), clean)
 	})
 	if err != nil {
 		return err
@@ -891,9 +891,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
 							// Use the referenced source's own depth instead of the primary source's depth.
 							// For multi-source Applications where the primary source is a Helm/OCI artifact,
-							// q.Repo.Depth is unset (0), which would otherwise force a full fetch of the
+							// q.Repo.Depth is unset (nil), which would otherwise force a full fetch of the
 							// referenced git repository regardless of its configured depth.
-							return s.checkoutRevision(ctx, gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, refSourceMapping.Repo.Depth, clean)
+							return s.checkoutRevision(ctx, gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, derefDepth(refSourceMapping.Repo.Depth), clean)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -2529,7 +2529,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 				}
 			}
 			closer, err := s.repoLock.Lock(gitClient.Root(), refSHA, true, func(clean bool) (goio.Closer, error) {
-				return s.checkoutRevision(ctx, gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth, clean)
+				return s.checkoutRevision(ctx, gitClient, refSHA, s.initConstants.SubmoduleEnabled, derefDepth(refSource.Repo.Depth), clean)
 			})
 			if err != nil {
 				return fmt.Errorf("failed to acquire lock for referenced repo %q: %w", refSource.Repo.Repo, err)
@@ -2713,7 +2713,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, q.Revision, s.initConstants.SubmoduleEnabled, derefDepth(q.Repo.Depth), clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2944,6 +2944,14 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 		}
 		return nil
 	})
+}
+
+// derefDepth returns the depth value for git operations. nil means "not set, use full clone (0)".
+func derefDepth(d *int64) int64 {
+	if d == nil {
+		return 0
+	}
+	return *d
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
@@ -3189,7 +3197,7 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), derefDepth(repo.Depth), clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -3261,7 +3269,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), derefDepth(repo.Depth), clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3356,14 +3364,14 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-			return s.checkoutRevision(ctx, gitClient, revision, false, repo.Depth, clean)
+			return s.checkoutRevision(ctx, gitClient, revision, false, derefDepth(repo.Depth), clean)
 		})
 		if err != nil {
 			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth); err != nil {
+		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, derefDepth(repo.Depth)); err != nil {
 			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
 		}
 

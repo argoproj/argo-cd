@@ -456,7 +456,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 
 	keyManifestGenerateAnnotationVal := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
-	if syncedRevision != "" && repo.Depth == 0 && keyManifestGenerateAnnotationVal != "" {
+	if syncedRevision != "" && (repo.Depth == nil || *repo.Depth == 0) && keyManifestGenerateAnnotationVal != "" {
 		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 			Repo:               repo,
 			Revision:           revision,
