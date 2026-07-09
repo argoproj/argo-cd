@@ -149,6 +149,13 @@ spec:
         tokenRef:
           secretName: gitea-token
           key: token
+        # Labels is used to filter the PRs that you want to target. (optional)
+        labels:
+        - preview
+        # ExcludedLabels is used to exclude PRs with these labels. (optional)
+        excludedLabels:
+        - stale
+        - wip
         # many gitea deployments use TLS, but many are self-hosted and self-signed certificates
         insecure: true
       requeueAfterSeconds: 1800
@@ -160,6 +167,8 @@ spec:
 * `repo`: Required name of the Gitea repository.
 * `api`: The url of the Gitea instance.
 * `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
+* `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 * `insecure`: `Allow for self-signed certificates, primarily for testing.`
 
 ## Bitbucket Server
@@ -372,7 +381,7 @@ spec:
 * `targetBranchMatch`: A regexp matched against target branch names.
 * `titleMatch`: A regexp matched against Pull Request title. 
 
-[GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
+[GitHub](#github), [GitLab](#gitlab), [Gitea](#gitea) and [Azure DevOps](#azure-devops) also support `labels` and `excludedLabels` filters.
 
 ## Template
 

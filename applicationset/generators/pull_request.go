@@ -161,7 +161,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
 
-		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels, providerConfig.Insecure, g.scmProxyURL, g.scmNoProxy)
+		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels, providerConfig.ExcludedLabels, providerConfig.Insecure, g.scmProxyURL, g.scmNoProxy)
 	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
