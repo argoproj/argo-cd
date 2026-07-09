@@ -508,6 +508,22 @@ func (c *Cmd) Freestyle(args ...string) (string, error) {
 	return out, nil
 }
 
+// Environ returns the environment variables needed so that a child process
+// invoking Helm indirectly (e.g. kustomize build --enable-helm) picks up
+// registry credentials from prior helm registry login calls.
+//
+// We use HELM_REGISTRY_CONFIG rather than HELM_CONFIG_HOME because kustomize
+// creates its own temporary helm home and overrides HELM_CONFIG_HOME,
+// HELM_CACHE_HOME, and HELM_DATA_HOME when spawning the child helm process.
+// HELM_REGISTRY_CONFIG is not overridden by kustomize and takes precedence
+// in helm's credential resolution, so the child process will find the
+// registry credentials from our prior helm registry login calls.
+func (c *Cmd) Environ() []string {
+	return []string{
+		fmt.Sprintf("HELM_REGISTRY_CONFIG=%s/config/registry/config.json", c.helmHome),
+	}
+}
+
 func (c *Cmd) Close() {
 	_ = os.RemoveAll(c.helmHome)
 }
