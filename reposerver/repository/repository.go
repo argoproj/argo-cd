@@ -3651,19 +3651,14 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 
 	res := make(map[string][]byte)
 	for _, filePath := range matchedFiles {
-		relativePath, err := filepath.Rel(extractedPath, filePath)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "unable to get relative path for %s: %v", filePath, err)
-		}
-
-		fileInfo, err := root.Stat(relativePath)
+		fileInfo, err := root.Stat(filePath)
 		if err != nil {
 			if _, ok := errors.AsType[*fs.PathError](err); ok {
 				log.WithFields(log.Fields{
 					common.SecurityField: common.SecurityHigh,
 					"repo":               repo.Repo,
 					"digest":             digest,
-					"path":               relativePath,
+					"path":               filePath,
 				}).Warnf("skipping OCI file that does not resolve within the artifact root: %v", err)
 				continue
 			}
@@ -3673,12 +3668,12 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 			continue
 		}
 
-		fileContents, err := root.ReadFile(relativePath)
+		fileContents, err := root.ReadFile(filePath)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "unable to read file. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
 		}
 
-		res[relativePath] = fileContents
+		res[filePath] = fileContents
 	}
 
 	err = s.cache.SetOciFiles(repo.Repo, digest, ociPath, res)
