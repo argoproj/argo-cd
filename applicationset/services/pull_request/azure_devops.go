@@ -107,7 +107,7 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 		if !containAzureDevOpsLabels(a.labels, azureDevOpsLabels) {
 			continue
 		}
-		if containsAnyExcludedAzureDevOpsLabels(a.excludedLabels, azureDevOpsLabels) {
+		if containsAnyExcludedLabels(a.excludedLabels, azureDevOpsLabels) {
 			continue
 		}
 
@@ -148,18 +148,6 @@ func containAzureDevOpsLabels(expectedLabels []string, gotLabels []string) bool 
 		}
 	}
 	return true
-}
-
-// containsAnyExcludedAzureDevOpsLabels returns true if gotLabels contains any of the excludedLabels
-func containsAnyExcludedAzureDevOpsLabels(excludedLabels []string, gotLabels []string) bool {
-	for _, excluded := range excludedLabels {
-		for _, got := range gotLabels {
-			if excluded == got {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func buildURL(url, organization string) string {
