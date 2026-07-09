@@ -669,6 +669,8 @@ type PullRequestGeneratorGitea struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// ExcludedLabels is used to exclude PRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
