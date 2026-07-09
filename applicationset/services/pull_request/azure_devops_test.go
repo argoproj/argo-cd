@@ -73,6 +73,69 @@ func TestListPullRequest(t *testing.T) {
 	assert.Equal(t, uniqueName, list[0].Author)
 }
 
+func TestListPullRequestExcludedLabels(t *testing.T) {
+	t.Parallel()
+	teamProject := "myorg_project"
+	repoName := "myorg_project_repo"
+	prID := 123
+	prTitle := "feat(123)"
+	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
+	ctx := t.Context()
+	uniqueName := "testName"
+
+	// The PR matches the repo and has no required-label restriction, so only the
+	// excluded "stale" label should cause it to be filtered out.
+	pullRequestMock := []git.GitPullRequest{
+		{
+			PullRequestId: new(prID),
+			Title:         new(prTitle),
+			SourceRefName: new("refs/heads/feature-branch"),
+			TargetRefName: new("refs/heads/main"),
+			LastMergeSourceCommit: &git.GitCommitRef{
+				CommitId: new(prHeadSha),
+			},
+			Labels: &[]core.WebApiTagDefinition{
+				{Name: new("stale"), Active: new(true)},
+			},
+			Repository: &git.GitRepository{
+				Name: new(repoName),
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: new(uniqueName + "@example.com"),
+			},
+		},
+	}
+
+	args := git.GetPullRequestsByProjectArgs{
+		Project:        &teamProject,
+		SearchCriteria: &git.GitPullRequestSearchCriteria{},
+	}
+
+	gitClientMock := &azureMock.Client{}
+	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
+	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
+	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock, nil)
+
+	provider := AzureDevOpsService{
+		clientFactory:  clientFactoryMock,
+		project:        teamProject,
+		repo:           repoName,
+		labels:         nil,
+		excludedLabels: []string{"stale"},
+	}
+
+	list, err := provider.List(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, list)
+}
+
+func TestNewAzureDevOpsService(t *testing.T) {
+	t.Parallel()
+	svc, err := NewAzureDevOpsService("", "https://dev.azure.com/", "myorg", "myproject", "myrepo", nil, []string{"stale"})
+	require.NoError(t, err)
+	assert.NotNil(t, svc)
+}
+
 func TestConvertLabes(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
