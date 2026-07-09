@@ -3467,6 +3467,11 @@ func (in *PullRequestGeneratorGitea) DeepCopyInto(out *PullRequestGeneratorGitea
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ExcludedLabels != nil {
+		in, out := &in.ExcludedLabels, &out.ExcludedLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -3490,6 +3495,11 @@ func (in *PullRequestGeneratorGithub) DeepCopyInto(out *PullRequestGeneratorGith
 	}
 	if in.Labels != nil {
 		in, out := &in.Labels, &out.Labels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ExcludedLabels != nil {
+		in, out := &in.ExcludedLabels, &out.ExcludedLabels
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
