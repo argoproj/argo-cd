@@ -400,6 +400,27 @@ func TestGetGitReferences(t *testing.T) {
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
 	})
 
+	t.Run("Valid args, empty value in cache", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+		err := cache.cache.SetItem(
+			"git-refs|test-repo",
+			[][2]string{},
+			&cacheutil.CacheActionOpts{
+				Expiration: 30 * time.Second,
+			})
+		require.NoError(t, err)
+		var references []*plumbing.Reference
+		lockOwner, err := cache.GetGitReferences("test-repo", &references)
+		require.NoError(t, err)
+		assert.Empty(t, lockOwner, "Lock owner should be empty")
+		assert.NotNil(t, references)
+		assert.Empty(t, references)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
+	})
+
 	t.Run("cache error", func(t *testing.T) {
 		t.Parallel()
 		fixtures := newFixtures()
@@ -532,6 +553,22 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		assert.Empty(t, lockId, "Lock id should not be set")
 		assert.Equal(t, "test-repo", references[0].Name().String())
 		assert.Equal(t, "test", references[0].Target().String())
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
+	})
+
+	t.Run("Test cache lock, empty cache hit", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+		err := cache.SetGitReferences("test-repo", nil)
+		require.NoError(t, err)
+		var references []*plumbing.Reference
+		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
+		require.NoError(t, err)
+		assert.Empty(t, lockId, "Lock id should not be set")
+		assert.NotNil(t, references)
+		assert.Empty(t, references)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
 	})
 
