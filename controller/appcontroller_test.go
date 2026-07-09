@@ -16,7 +16,10 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -4134,5 +4137,34 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		otherValue, hasOther := patchedApp.Annotations["other-annotation"]
 		assert.True(t, hasOther, "other annotations should be preserved")
 		assert.Equal(t, "other-value", otherValue)
+	})
+}
+
+func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
+	// "etcdserver: request is too large" — carried by rpctypes.ErrGRPCRequestTooLarge
+	t.Run("etcdserver: request is too large", func(t *testing.T) {
+		assert.True(t, isOperationStatePayloadTooLargeError(rpctypes.ErrGRPCRequestTooLarge))
+	})
+
+	// "rpc error: code = ResourceExhausted desc = trying to send message larger than max" —
+	// arrives as a plain string after being unwrapped through the REST layer
+	t.Run("rpc error: code = ResourceExhausted desc = trying to send message larger than max", func(t *testing.T) {
+		err := errors.New("rpc error: code = ResourceExhausted desc = trying to send message larger than max")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	// "Request entity too large: limit is 3145728" — HTTP 413 from kube-apiserver
+	t.Run("Request entity too large: limit is 3145728", func(t *testing.T) {
+		err := apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	t.Run("gRPC ResourceExhausted status error", func(t *testing.T) {
+		err := grpcstatus.Error(codes.ResourceExhausted, "trying to send message larger than max")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	t.Run("unrelated error returns false", func(t *testing.T) {
+		assert.False(t, isOperationStatePayloadTooLargeError(errors.New("some other error")))
 	})
 }

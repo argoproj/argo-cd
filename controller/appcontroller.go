@@ -72,6 +72,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
+
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 )
 
 const (
@@ -1641,11 +1643,17 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		}
 	}
 
+	var nonRetryableError error
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
+				return nil
+			}
+
+			if isOperationStatePayloadTooLargeError(err) {
+				nonRetryableError = err
 				return nil
 			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
@@ -1655,6 +1663,36 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		}
 		return nil
 	})
+
+	if isOperationStatePayloadTooLargeError(nonRetryableError) {
+		logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
+		fallbackStatus := app.Status.DeepCopy()
+
+		fallbackStatus.SetConditions([]appv1.ApplicationCondition{
+			{
+				Type:    appv1.ApplicationConditionUnknownError,
+				Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
+			},
+		},
+			map[appv1.ApplicationConditionType]bool{
+				appv1.ApplicationConditionUnknownError: true,
+			})
+
+		fallbackPatch := map[string]any{
+			"status": map[string]any{
+				"operationState": state,
+			},
+		}
+
+		fallbackPatchJSON, err := json.Marshal(fallbackPatch)
+		if err != nil {
+			logCtx.WithError(err).Error("Error marshaling fallback patch")
+		}
+		if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
+			logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+		}
+		return
+	}
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 	if state.Phase.Completed() {
@@ -1688,6 +1726,30 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		ctrl.metricsServer.IncSync(app, destServer, state)
 		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
 	}
+}
+
+// isOperationStatePayloadTooLargeError returns true when the patch was rejected because the
+// payload exceeds the allowed size. This covers two paths:
+//   - HTTP 413 from the kube-apiserver (StatusReasonRequestEntityTooLarge)
+//   - gRPC ResourceExhausted from etcd, forwarded as a 500 whose message contains the gRPC
+//     error string (e.g. "rpc error: code = ResourceExhausted desc = trying to send message
+//     larger than max"). status.FromError won't decode it because the error was already
+//     unwrapped through the REST layer, so we fall back to string matching.
+//   - etcdserver: request is too large
+func isOperationStatePayloadTooLargeError(err error) bool {
+	if apierrors.IsRequestEntityTooLargeError(err) {
+		return true
+	}
+
+	if strings.Contains(err.Error(), "rpc error: code = ResourceExhausted desc = trying to send message larger than max") {
+		return true
+	}
+
+	if stderrors.Is(err, rpctypes.ErrGRPCRequestTooLarge) {
+		return true
+	}
+
+	return false
 }
 
 // writeBackToInformer writes a just recently updated App back into the informer cache.
