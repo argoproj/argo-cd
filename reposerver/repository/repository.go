@@ -1846,11 +1846,38 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if err != nil {
 			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
-		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
-		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
+
+		buildOpts := &kustomize.BuildOpts{
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
-		})
+		}
+
+		// If kustomize is configured with --enable-helm, prepare Helm OCI
+		// registry credentials so that kustomize can pull charts from private
+		// OCI registries. This mirrors the auth setup done for direct Helm
+		// rendering in helmTemplate / helm.DependencyBuild.
+		if q.KustomizeOptions != nil && kustomize.IsHelmEnabled(q.KustomizeOptions.BuildOptions) {
+			var helmRepos []helm.HelmRepository
+			helmRepos, err = getKustomizeHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
+			if err != nil {
+				return nil, fmt.Errorf("error getting kustomize helm repos: %w", err)
+			}
+			if len(helmRepos) > 0 {
+				var h helm.Helm
+				h, err = helm.NewHelmApp(appPath, helmRepos, false, "", q.Repo.Proxy, q.Repo.NoProxy, false, false)
+				if err != nil {
+					return nil, fmt.Errorf("error initializing helm app for kustomize OCI auth: %w", err)
+				}
+				defer h.Dispose()
+				if err = h.RegistryLoginOCI(); err != nil {
+					return nil, fmt.Errorf("error logging into OCI registries: %w", err)
+				}
+				buildOpts.HelmEnvVars = h.Environ()
+			}
+		}
+
+		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
+		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, buildOpts)
 		if err != nil {
 			return nil, err
 		}

@@ -39,6 +39,11 @@ type Helm interface {
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild(ctx context.Context) error
+	// RegistryLoginOCI logs into OCI registries for repos that have credentials configured.
+	RegistryLoginOCI() error
+	// Environ returns the environment variables needed for a child process to use
+	// the Helm configuration home managed by this instance (e.g. for registry auth).
+	Environ() []string
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -127,6 +132,30 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		return fmt.Errorf("failed to build helm dependencies: %w", err)
 	}
 	return nil
+}
+
+func (h *helm) RegistryLoginOCI() error {
+	for i := range h.repos {
+		repo := h.repos[i]
+		if !repo.EnableOci {
+			continue
+		}
+		helmPassword, err := repo.GetPassword()
+		if err != nil {
+			return fmt.Errorf("failed to get password for helm registry: %w", err)
+		}
+		if repo.GetUsername() != "" && helmPassword != "" {
+			_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds, repo.InsecureOCIForceHttp)
+			if err != nil {
+				return fmt.Errorf("failed to login to registry %s: %w", repo.Repo, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (h *helm) Environ() []string {
+	return h.cmd.Environ()
 }
 
 func (h *helm) Dispose() {
