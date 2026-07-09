@@ -161,6 +161,22 @@ func AddHelmOCIRepo(t *testing.T, name string) {
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
+func AddHelmAuthenticatedOCIRepo(t *testing.T, name string) {
+	t.Helper()
+	args := []string{
+		"repo",
+		"add",
+		fixture.HelmAuthenticatedOCIRegistryURL,
+		"--type", "helm",
+		"--name", name,
+		"--enable-oci",
+		"--insecure-oci-force-http",
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+	}
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+}
+
 // AddHTTPSRepoCredentialsUserPass adds E2E username/password credentials for HTTPS repos to context
 func AddHTTPSCredentialsUserPass(t *testing.T) {
 	t.Helper()
