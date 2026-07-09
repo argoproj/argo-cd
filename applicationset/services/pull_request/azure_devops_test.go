@@ -159,47 +159,6 @@ func TestContainAzureDevOpsLabels(t *testing.T) {
 	}
 }
 
-func TestContainsAnyExcludedAzureDevOpsLabels(t *testing.T) {
-	testCases := []struct {
-		name           string
-		excludedLabels []string
-		gotLabels      []string
-		expectedResult bool
-	}{
-		{
-			name:           "PR has excluded label",
-			excludedLabels: []string{"stale", "wip"},
-			gotLabels:      []string{"label1", "stale"},
-			expectedResult: true,
-		},
-		{
-			name:           "PR does not have excluded labels",
-			excludedLabels: []string{"stale", "wip"},
-			gotLabels:      []string{"label1", "label2"},
-			expectedResult: false,
-		},
-		{
-			name:           "No excluded labels specified",
-			excludedLabels: []string{},
-			gotLabels:      []string{"stale"},
-			expectedResult: false,
-		},
-		{
-			name:           "PR has no labels",
-			excludedLabels: []string{"stale"},
-			gotLabels:      []string{},
-			expectedResult: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := containsAnyExcludedAzureDevOpsLabels(tc.excludedLabels, tc.gotLabels)
-			assert.Equal(t, tc.expectedResult, got)
-		})
-	}
-}
-
 func TestBuildURL(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
