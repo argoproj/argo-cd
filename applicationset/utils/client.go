@@ -92,7 +92,7 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 		// A NotFound on Delete means the object is already gone from the API server. We still
 		// want to evict any stale entry from the informer cache below, otherwise a lingering
 		// (already-deleted) object keeps being read back and callers can never converge.
-		if !(deleteObj && apierrors.IsNotFound(err)) {
+		if !deleteObj || !apierrors.IsNotFound(err) {
 			return err
 		}
 	}
