@@ -1,12 +1,20 @@
 package utils
 
 import (
+	"context"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
@@ -235,4 +243,61 @@ spec:
 			assert.YAMLEq(t, string(yamlExpected), string(yamlFound))
 		})
 	}
+}
+
+type staleCacheClient struct {
+	client.Client
+	stale *v1alpha1.Application
+}
+
+func (c *staleCacheClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if app, ok := obj.(*v1alpha1.Application); ok && key.Name == c.stale.Name && key.Namespace == c.stale.Namespace {
+		c.stale.DeepCopyInto(app)
+		return nil
+	}
+	return c.Client.Get(ctx, key, obj, opts...)
+}
+
+func (c *staleCacheClient) Patch(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+	return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+}
+
+func TestCreateOrUpdate_PatchNotFoundFallsBackToCreate(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	stale := &v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+			Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test",
+			Namespace:       "argocd",
+			ResourceVersion: "42",
+		},
+		Spec: v1alpha1.ApplicationSpec{Project: "old-project"},
+	}
+
+	underlying := fake.NewClientBuilder().WithScheme(scheme).Build()
+	c := &staleCacheClient{Client: underlying, stale: stale}
+
+	obj := &v1alpha1.Application{
+		TypeMeta:   stale.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{Name: stale.Name, Namespace: stale.Namespace},
+	}
+	desiredSpec := v1alpha1.ApplicationSpec{Project: "new-project"}
+	action, err := CreateOrUpdate(context.Background(), log.NewEntry(log.New()), c, nil, obj, func() error {
+		obj.Spec = desiredSpec
+		return nil
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultCreated, action)
+
+	var created v1alpha1.Application
+	require.NoError(t, underlying.Get(context.Background(), client.ObjectKey{Name: stale.Name, Namespace: stale.Namespace}, &created))
+	assert.Equal(t, "new-project", created.Spec.Project)
 }
