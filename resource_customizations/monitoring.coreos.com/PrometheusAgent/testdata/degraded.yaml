@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: PrometheusAgent
+metadata:
+  name: agent
+  namespace: monitoring
+spec:
+  replicas: 1
+status:
+  availableReplicas: 0
+  conditions:
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    message: "pod prometheus-agent-0: 0/5 nodes are available"
+    reason: NoPodReady
+    status: "False"
+    type: Available
+  paused: false
+  replicas: 1
+  unavailableReplicas: 1
+  updatedReplicas: 1
