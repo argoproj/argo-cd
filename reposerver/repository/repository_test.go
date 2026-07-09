@@ -1753,6 +1753,7 @@ func TestListApps(t *testing.T) {
 		"helm-with-local-dependency":        "Helm",
 		"simple-chart":                      "Helm",
 		"broken-schema-verification":        "Helm",
+		"kustomize-helm-oci":                "Kustomize",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -6044,6 +6045,96 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 	}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestGetKustomizeHelmRepos_OCIHelmChartsWithHelmRepoCreds(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
+		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
+	}}
+
+	helmRepos, err := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+}
+
+func TestGetKustomizeHelmRepos_OCIHelmChartsWithRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+}
+
+func TestGetKustomizeHelmRepos_OCIHelmChartsWithOCITypedHelmRepoCreds(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
+		{URL: "oci://example.com", Username: "test", Password: "test", Type: "oci"},
+	}}
+
+	helmRepos, err := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+}
+
+func TestGetKustomizeHelmRepos_OCIHelmChartsWithOCITypedRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "oci://example.com", Username: "test", Password: "test", Type: "oci"}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+}
+
+func TestGetKustomizeHelmRepos_InsecureOCIForceHttpPropagatedFromRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{{
+			Repo:                 "oci://example.com",
+			Username:             "test",
+			Password:             "test",
+			Type:                 "oci",
+			InsecureOCIForceHttp: true,
+		}},
+		HelmRepoCreds: []*v1alpha1.RepoCreds{},
+	}
+
+	helmRepos, err := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestGetKustomizeHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) {
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{},
+		HelmRepoCreds: []*v1alpha1.RepoCreds{{
+			URL:                  "oci://example.com",
+			Username:             "test",
+			Password:             "test",
+			Type:                 "oci",
+			InsecureOCIForceHttp: true,
+		}},
+	}
+
+	helmRepos, err := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
 
 	require.Len(t, helmRepos, 1)

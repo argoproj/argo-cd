@@ -1244,6 +1244,14 @@ func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
 }
 
+// getKustomizeHelmRepos parses a kustomization.yaml for helmCharts entries and resolves
+// their repository credentials. This is the Kustomize equivalent of getHelmRepos, which
+// does the same for Chart.yaml dependencies.
+func getKustomizeHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) ([]helm.HelmRepository, error) {
+	// TODO: implement
+	return nil, nil
+}
+
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
