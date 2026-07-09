@@ -224,3 +224,25 @@ func TestGitLabListReturnsRepositoryNotFoundError(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }
+
+func TestListWithExcludedLabels(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/api/v4/projects/278964/merge_requests"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, path+"?per_page=100", r.URL.RequestURI())
+		writeMRListResponse(t, w)
+	})
+
+	// The single MR in the fixture carries the "backend" label, so excluding it yields no MRs.
+	svc, err := NewGitLabService("", server.URL, "278964", nil, []string{"backend"}, "", "", false, nil, "", "")
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, prs)
+}
