@@ -132,8 +132,27 @@ func (c *cacheSyncingClient) Update(ctx context.Context, obj client.Object, opts
 
 func (c *cacheSyncingClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	return c.execAndSyncCache(ctx, func() error {
-		return c.Client.Patch(ctx, obj, patch, opts...)
+		err := c.Client.Patch(ctx, obj, patch, opts...)
+		if err != nil && apierrors.IsNotFound(err) {
+			c.evictFromCache(ctx, obj)
+		}
+		return err
 	}, obj, false)
+}
+
+func (c *cacheSyncingClient) evictFromCache(ctx context.Context, obj client.Object) {
+	if _, ok := obj.(*application.Application); !ok {
+		return
+	}
+	logger := log.WithField("namespace", obj.GetNamespace()).WithField("name", obj.GetName())
+	store, err := c.getStore(ctx, obj)
+	if err != nil {
+		logger.Errorf("failed to get cache store to evict stale object: %v", err)
+		return
+	}
+	if err := store.Delete(obj); err != nil {
+		logger.Errorf("failed to evict stale object from cache: %v", err)
+	}
 }
 
 func (c *cacheSyncingClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {

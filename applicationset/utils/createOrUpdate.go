@@ -121,20 +121,7 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 		LogPatch(logCtx, patch, obj)
 	}
 	if err := c.Patch(ctx, obj, patch); err != nil {
-		if !errors.IsNotFound(err) {
-			return controllerutil.OperationResultNone, err
-		}
-		*obj = argov1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: key.Name, Namespace: key.Namespace},
-			TypeMeta:   obj.TypeMeta,
-		}
-		if err := mutate(f, key, obj); err != nil {
-			return controllerutil.OperationResultNone, err
-		}
-		if err := c.Create(ctx, obj); err != nil {
-			return controllerutil.OperationResultNone, err
-		}
-		return controllerutil.OperationResultCreated, nil
+		return controllerutil.OperationResultNone, err
 	}
 	return controllerutil.OperationResultUpdated, nil
 }

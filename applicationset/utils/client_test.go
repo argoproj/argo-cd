@@ -2,9 +2,12 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -134,4 +137,64 @@ func TestDeleteEvictsStaleCacheOnNotFound(t *testing.T) {
 
 func TestNewClientDoesNotCrashWithMultiNamespaceCache(_ *testing.T) {
 	_ = NewCacheSyncingClient(nil, &fakeMultiNamespaceCache{})
+}
+
+func TestPatchNotFoundEvictsFromCache(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+	}
+	c, store, err := newClient(app)
+	require.NoError(t, err)
+
+	require.NoError(t, c.Client.Delete(t.Context(), app))
+	require.Contains(t, store.List(), app)
+
+	patchErr := c.Patch(t.Context(), app.DeepCopy(), client.MergeFrom(app))
+	require.Error(t, patchErr)
+	require.True(t, apierrors.IsNotFound(patchErr))
+	require.Empty(t, store.List())
+}
+
+func TestEvictFromCacheSkipsNonApplication(t *testing.T) {
+	t.Parallel()
+	c, store, err := newClient()
+	require.NoError(t, err)
+	c.evictFromCache(t.Context(), &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "x", Namespace: "argocd"}})
+	require.Empty(t, store.List())
+}
+
+func TestEvictFromCacheHandlesGetStoreError(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, application.AddToScheme(scheme))
+	c := &cacheSyncingClient{
+		Client:     fake.NewClientBuilder().WithScheme(scheme).Build(),
+		storesByNs: map[string]k8scache.Store{},
+		getNSCache: func(_ context.Context, _ client.Object) (ctrlcache.Cache, error) {
+			return nil, errors.New("no cache")
+		},
+	}
+	app := &application.Application{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"}}
+	require.NotPanics(t, func() { c.evictFromCache(t.Context(), app) })
+}
+
+type errDeleteStore struct {
+	k8scache.Store
+}
+
+func (e *errDeleteStore) Delete(_ any) error {
+	return errors.New("delete failed")
+}
+
+func TestEvictFromCacheHandlesDeleteError(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, application.AddToScheme(scheme))
+	c := &cacheSyncingClient{
+		Client:     fake.NewClientBuilder().WithScheme(scheme).Build(),
+		storesByNs: map[string]k8scache.Store{"argocd": &errDeleteStore{}},
+	}
+	app := &application.Application{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"}}
+	require.NotPanics(t, func() { c.evictFromCache(t.Context(), app) })
 }
