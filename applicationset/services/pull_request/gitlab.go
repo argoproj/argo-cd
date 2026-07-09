@@ -112,15 +112,3 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	}
 	return pullRequests, nil
 }
-
-// containsAnyExcludedLabels returns true if gotLabels contains any of the excludedLabels
-func containsAnyExcludedLabels(excludedLabels []string, gotLabels []string) bool {
-	for _, excluded := range excludedLabels {
-		for _, got := range gotLabels {
-			if excluded == got {
-				return true
-			}
-		}
-	}
-	return false
-}
