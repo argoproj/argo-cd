@@ -234,7 +234,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
                         }>
-                        {managedResources => <ApplicationResourcesDiff states={managedResources} />}
+                        {managedResources => (
+                            <ApplicationResourcesDiff states={managedResources} onSync={resourceKeys => AppUtils.showDeploy(resourceKeys.join(','), null, props.appCxt.apis)} />
+                        )}
                     </DataLoader>
                 )
             });
