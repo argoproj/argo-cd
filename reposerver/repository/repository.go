@@ -3636,19 +3636,18 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 	if globPattern == "." {
 		globPattern = "**"
 	}
-	fullPattern := filepath.Join(extractedPath, globPattern)
-	matchedFiles, err := doublestar.FilepathGlob(fullPattern)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to match files. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
-	}
-
-	log.Debugf("matched %d OCI files from %s under %s", len(matchedFiles), repo.Repo, ociPath)
-
 	root, err := os.OpenRoot(extractedPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to open extracted path %s: %v", extractedPath, err)
 	}
 	defer root.Close()
+
+	matchedFiles, err := doublestar.Glob(root.FS(), globPattern)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to match files. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+	}
+
+	log.Infof("matched %d OCI files from %s under %s", len(matchedFiles), repo.Repo, ociPath)
 
 	res := make(map[string][]byte)
 	for _, filePath := range matchedFiles {

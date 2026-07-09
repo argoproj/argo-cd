@@ -174,7 +174,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case h.ghcr.CanHandle(r):
 		payload, err = h.ghcr.Parse(r)
-	case r.Header.Get("X-GitHub-Event") != "":
+	case r.Header.Get("X-GitHub-Event") != "" && r.Header.Get("X-GitHub-Event") != "package":
 		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
@@ -601,7 +601,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 				shouldRefreshPluginGenerator(interpolatedGenerator.Plugin) ||
 				shouldRefreshOciGenerator(interpolatedGenerator.Oci, ociGenInfo) ||
 				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo, ociGenInfo) ||
-				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo, ociGenInfo) {
+				h.shouldRefreshMergeGenerator(interpolatedGenerator.Merge, appSet, gitGenInfo, prGenInfo, ociGenInfo) {
 				return true
 			}
 		}
