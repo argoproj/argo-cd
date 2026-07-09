@@ -1144,6 +1144,13 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving helm dependency repos: %w", err)
 	}
+	return resolveHelmRepoCredentials(dependencies, repositories, helmRepoCreds), nil
+}
+
+// resolveHelmRepoCredentials matches dependency repositories against configured credentials.
+// This is the shared credential resolution logic used by both getHelmRepos (for Chart.yaml
+// dependencies) and getKustomizeHelmRepos (for kustomization.yaml helmCharts).
+func resolveHelmRepoCredentials(dependencies []*v1alpha1.Repository, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) []helm.HelmRepository {
 	reposByName := make(map[string]*v1alpha1.Repository)
 	reposByURL := make(map[string]*v1alpha1.Repository)
 	for _, repo := range repositories {
@@ -1176,7 +1183,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
 				for _, cred := range repositories {
-					if _, err = url.Parse("oci://" + dep.Repo); err != nil {
+					if _, err := url.Parse("oci://" + dep.Repo); err != nil {
 						continue
 					}
 					// if the repo is OCI, don't match the repository URL exactly, but only as a dependent repository prefix just like in the getRepoCredential function
@@ -1194,7 +1201,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 		}
 		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI || repo.Type == "oci", InsecureOCIForceHttp: repo.InsecureOCIForceHttp})
 	}
-	return repos, nil
+	return repos
 }
 
 type dependencies struct {
