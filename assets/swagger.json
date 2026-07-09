@@ -9559,6 +9559,13 @@
           "type": "string",
           "title": "The Gitea API URL to talk to. Required"
         },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
+        },
         "insecure": {
           "description": "Allow insecure tls, for self-signed certificates; default: false.",
           "type": "boolean"
@@ -9594,6 +9601,13 @@
         "appSecretName": {
           "description": "AppSecretName is a reference to a GitHub App repo-creds secret with permission to access pull requests.",
           "type": "string"
+        },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
         },
         "labels": {
           "type": "array",
