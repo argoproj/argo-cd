@@ -1251,12 +1251,60 @@ func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
 }
 
+type kustomizationFile struct {
+	HelmCharts []kustomizeHelmChart `yaml:"helmCharts"`
+}
+
+type kustomizeHelmChart struct {
+	Name string `yaml:"name"`
+	Repo string `yaml:"repo"`
+}
+
 // getKustomizeHelmRepos parses a kustomization.yaml for helmCharts entries and resolves
 // their repository credentials. This is the Kustomize equivalent of getHelmRepos, which
 // does the same for Chart.yaml dependencies.
 func getKustomizeHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) ([]helm.HelmRepository, error) {
-	// TODO: implement
-	return nil, nil
+	dependencies, err := getKustomizeHelmChartRepos(appPath)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving kustomize helm chart repos: %w", err)
+	}
+	return resolveHelmRepoCredentials(dependencies, repositories, helmRepoCreds), nil
+}
+
+// getKustomizeHelmChartRepos parses a kustomization.yaml and returns Repository entries
+// for any helmCharts that reference OCI registries. This is analogous to getHelmDependencyRepos
+// which does the same for Chart.yaml dependencies.
+func getKustomizeHelmChartRepos(appPath string) ([]*v1alpha1.Repository, error) {
+	var f []byte
+	var err error
+	for _, name := range kustomize.KustomizationNames {
+		f, err = os.ReadFile(filepath.Join(appPath, name))
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error reading kustomization file from %s: %w", appPath, err)
+	}
+
+	k := &kustomizationFile{}
+	if err = yaml.Unmarshal(f, k); err != nil {
+		return nil, fmt.Errorf("error unmarshalling kustomization file: %w", err)
+	}
+
+	repos := make([]*v1alpha1.Repository, 0)
+	for _, chart := range k.HelmCharts {
+		u, err := url.Parse(chart.Repo)
+		if err != nil || u.Scheme != "oci" {
+			continue
+		}
+		repos = append(repos, &v1alpha1.Repository{
+			Repo:      strings.TrimPrefix(chart.Repo, ociPrefix),
+			Name:      sanitizeRepoName(chart.Repo),
+			EnableOCI: true,
+		})
+	}
+	return repos, nil
 }
 
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
