@@ -38,6 +38,12 @@ the appropriate tool.
   and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed
   requests.
 
+* For repositories with very large ref advertisements, enable `--git-ls-remote-optimized` to use native Git protocol v2
+  ref-prefix narrowing for branch and tag resolution. The default optimized prefixes are `refs/heads/` and `refs/tags/`;
+  override them with `--git-ls-remote-optimized-ref-prefixes` or
+  `ARGOCD_GIT_LS_REMOTE_OPTIMIZED_REF_PREFIXES`. Unsupported refs, such as `refs/pull/`, continue to use the default
+  resolver.
+
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
   Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected
