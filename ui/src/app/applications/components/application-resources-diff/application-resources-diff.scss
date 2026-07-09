@@ -12,6 +12,22 @@
             }
         }
     }
+    &__sync {
+        float: left;
+    }
+    &__entry {
+        display: flex;
+        align-items: flex-start;
+        input[type='checkbox'] {
+            margin-top: 0.6em;
+            margin-right: 0.5em;
+            flex-shrink: 0;
+        }
+    }
+    &__entry-diff {
+        flex: 1;
+        min-width: 0;
+    }
     &__diff {
         font-size: 10pt;
         &__title {
