@@ -292,6 +292,65 @@ func TestSkipTests(t *testing.T) {
 	require.Empty(t, objs)
 }
 
+func TestRegistryLoginOCI(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name           string
+		repos          []HelmRepository
+		expectedLogins []string // registry hosts that should be logged into
+	}{
+		{
+			name: "OCI repo with credentials is logged in",
+			repos: []HelmRepository{
+				{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{Username: "user", Password: "pass"}},
+			},
+			expectedLogins: []string{"example.com"},
+		},
+		{
+			name: "non-OCI repo is skipped",
+			repos: []HelmRepository{
+				{Repo: "https://charts.example.com", EnableOci: false, Creds: HelmCreds{Username: "user", Password: "pass"}},
+			},
+			expectedLogins: nil,
+		},
+		{
+			name: "OCI repo without credentials is skipped",
+			repos: []HelmRepository{
+				{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{}},
+			},
+			expectedLogins: nil,
+		},
+		{
+			name: "mixed repos — only OCI with credentials",
+			repos: []HelmRepository{
+				{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{Username: "user", Password: "pass"}},
+				{Repo: "https://charts.example.com", EnableOci: false, Creds: HelmCreds{Username: "user", Password: "pass"}},
+				{Repo: "other.io/repo", EnableOci: true, Creds: HelmCreds{}},
+			},
+			expectedLogins: []string{"example.com"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var loggedInRegistries []string
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+				// capture the registry host from the login command args
+				if len(cmd.Args) >= 3 && cmd.Args[1] == "registry" && cmd.Args[2] == "login" {
+					loggedInRegistries = append(loggedInRegistries, cmd.Args[3])
+				}
+				return "", nil
+			})
+			require.NoError(t, err)
+
+			h := &helm{cmd: *c, repos: tc.repos}
+			err = h.RegistryLoginOCI()
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedLogins, loggedInRegistries)
+		})
+	}
+}
+
 func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 	// dependency build has no per-repo --plain-http; if ANY dependency repo is
 	// plain-http, the whole build must use --plain-http (see helm.DependencyBuild).
