@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -247,7 +248,9 @@ spec:
 
 type staleCacheClient struct {
 	client.Client
-	stale *v1alpha1.Application
+	stale    *v1alpha1.Application
+	patchErr error
+	createFn func(context.Context, client.Object, ...client.CreateOption) error
 }
 
 func (c *staleCacheClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
@@ -258,17 +261,22 @@ func (c *staleCacheClient) Get(ctx context.Context, key client.ObjectKey, obj cl
 	return c.Client.Get(ctx, key, obj, opts...)
 }
 
-func (c *staleCacheClient) Patch(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
-	return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+func (c *staleCacheClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if c.patchErr != nil {
+		return c.patchErr
+	}
+	return c.Client.Patch(ctx, obj, patch, opts...)
 }
 
-func TestCreateOrUpdate_PatchNotFoundFallsBackToCreate(t *testing.T) {
-	t.Parallel()
+func (c *staleCacheClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if c.createFn != nil {
+		return c.createFn(ctx, obj, opts...)
+	}
+	return c.Client.Create(ctx, obj, opts...)
+}
 
-	scheme := runtime.NewScheme()
-	require.NoError(t, v1alpha1.AddToScheme(scheme))
-
-	stale := &v1alpha1.Application{
+func newStaleApp() *v1alpha1.Application {
+	return &v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
 			Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
@@ -280,14 +288,34 @@ func TestCreateOrUpdate_PatchNotFoundFallsBackToCreate(t *testing.T) {
 		},
 		Spec: v1alpha1.ApplicationSpec{Project: "old-project"},
 	}
+}
 
-	underlying := fake.NewClientBuilder().WithScheme(scheme).Build()
-	c := &staleCacheClient{Client: underlying, stale: stale}
-
-	obj := &v1alpha1.Application{
+func newObjForKey(stale *v1alpha1.Application) *v1alpha1.Application {
+	return &v1alpha1.Application{
 		TypeMeta:   stale.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{Name: stale.Name, Namespace: stale.Namespace},
 	}
+}
+
+func newScheme(t *testing.T) *runtime.Scheme {
+	t.Helper()
+	s := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(s))
+	return s
+}
+
+func TestCreateOrUpdate_PatchNotFoundFallsBackToCreate(t *testing.T) {
+	t.Parallel()
+
+	stale := newStaleApp()
+	underlying := fake.NewClientBuilder().WithScheme(newScheme(t)).Build()
+	c := &staleCacheClient{
+		Client:   underlying,
+		stale:    stale,
+		patchErr: apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, stale.Name),
+	}
+
+	obj := newObjForKey(stale)
 	desiredSpec := v1alpha1.ApplicationSpec{Project: "new-project"}
 	action, err := CreateOrUpdate(context.Background(), log.NewEntry(log.New()), c, nil, obj, func() error {
 		obj.Spec = desiredSpec
@@ -300,4 +328,107 @@ func TestCreateOrUpdate_PatchNotFoundFallsBackToCreate(t *testing.T) {
 	var created v1alpha1.Application
 	require.NoError(t, underlying.Get(context.Background(), client.ObjectKey{Name: stale.Name, Namespace: stale.Namespace}, &created))
 	assert.Equal(t, "new-project", created.Spec.Project)
+}
+
+func TestCreateOrUpdate_PatchNonNotFoundErrorPropagates(t *testing.T) {
+	t.Parallel()
+
+	stale := newStaleApp()
+	patchErr := apierrors.NewInternalError(errors.New("boom"))
+	c := &staleCacheClient{
+		Client:   fake.NewClientBuilder().WithScheme(newScheme(t)).Build(),
+		stale:    stale,
+		patchErr: patchErr,
+	}
+
+	obj := newObjForKey(stale)
+	action, err := CreateOrUpdate(context.Background(), log.NewEntry(log.New()), c, nil, obj, func() error {
+		obj.Spec = v1alpha1.ApplicationSpec{Project: "new-project"}
+		return nil
+	})
+
+	require.Error(t, err)
+	assert.False(t, apierrors.IsNotFound(err))
+	assert.Equal(t, controllerutil.OperationResultNone, action)
+}
+
+func TestCreateOrUpdate_PatchNotFoundCreateFailsPropagates(t *testing.T) {
+	t.Parallel()
+
+	stale := newStaleApp()
+	createErr := errors.New("create exploded")
+	c := &staleCacheClient{
+		Client:   fake.NewClientBuilder().WithScheme(newScheme(t)).Build(),
+		stale:    stale,
+		patchErr: apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, stale.Name),
+		createFn: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
+			return createErr
+		},
+	}
+
+	obj := newObjForKey(stale)
+	action, err := CreateOrUpdate(context.Background(), log.NewEntry(log.New()), c, nil, obj, func() error {
+		obj.Spec = v1alpha1.ApplicationSpec{Project: "new-project"}
+		return nil
+	})
+
+	require.ErrorIs(t, err, createErr)
+	assert.Equal(t, controllerutil.OperationResultNone, action)
+}
+
+func TestCreateOrUpdate_PatchNotFoundMutateErrorPropagates(t *testing.T) {
+	t.Parallel()
+
+	stale := newStaleApp()
+	c := &staleCacheClient{
+		Client:   fake.NewClientBuilder().WithScheme(newScheme(t)).Build(),
+		stale:    stale,
+		patchErr: apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, stale.Name),
+	}
+
+	obj := newObjForKey(stale)
+	mutateErr := errors.New("mutate exploded")
+	calls := 0
+	action, err := CreateOrUpdate(context.Background(), log.NewEntry(log.New()), c, nil, obj, func() error {
+		calls++
+		if calls == 1 {
+			obj.Spec = v1alpha1.ApplicationSpec{Project: "new-project"}
+			return nil
+		}
+		return mutateErr
+	})
+
+	require.ErrorIs(t, err, mutateErr)
+	assert.Equal(t, controllerutil.OperationResultNone, action)
+}
+
+func TestCreateOrUpdate_PatchSucceedsReturnsUpdated(t *testing.T) {
+	t.Parallel()
+
+	scheme := newScheme(t)
+	existing := &v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+			Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+		Spec:       v1alpha1.ApplicationSpec{Project: "old-project"},
+	}
+	underlying := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+
+	obj := &v1alpha1.Application{
+		TypeMeta:   existing.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{Name: existing.Name, Namespace: existing.Namespace},
+	}
+	action, err := CreateOrUpdate(context.Background(), log.NewEntry(log.New()), underlying, nil, obj, func() error {
+		obj.Spec = v1alpha1.ApplicationSpec{Project: "new-project"}
+		return nil
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, controllerutil.OperationResultUpdated, action)
+
+	var updated v1alpha1.Application
+	require.NoError(t, underlying.Get(context.Background(), client.ObjectKey{Name: existing.Name, Namespace: existing.Namespace}, &updated))
+	assert.Equal(t, "new-project", updated.Spec.Project)
 }
