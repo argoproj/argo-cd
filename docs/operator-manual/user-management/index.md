@@ -642,9 +642,22 @@ rules:
 - apiGroups:
   - dex.coreos.com
   resources:
-  - "*"
+  - authcodes
+  - authrequests
+  - oauth2clients
+  - offlinesessions
+  - passwords
+  - refreshtokens
+  - signingkeys
+  - connectors
   verbs:
-  - "*"
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
