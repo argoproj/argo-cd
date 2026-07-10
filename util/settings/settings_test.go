@@ -2967,3 +2967,21 @@ func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAppSourceNamespaceKey(t *testing.T) {
+	t.Run("Should get custom sourceNamespaceKey", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			settingsApplicationSourceNamespaceKey: "customLabel",
+		})
+		label, err := settingsManager.GetAppSourceNamespaceKey()
+		require.NoError(t, err)
+		assert.Equal(t, "customLabel", label)
+	})
+
+	t.Run("Should get default sourceNamespaceKey if not defined", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{})
+		label, err := settingsManager.GetAppSourceNamespaceKey()
+		require.NoError(t, err)
+		assert.Equal(t, common.LabelKeySourceNamespace, label)
+	})
+}

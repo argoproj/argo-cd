@@ -252,6 +252,9 @@ const (
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
 	// LabelValueComponentRepoServer is the label value for the repo-server component
 	LabelValueComponentRepoServer = "repo-server"
+
+	// LabelKeySourceNamespace is a label for namespaces that indicates that it is a source namespace for applications
+	LabelKeySourceNamespace = "argocd.argoproj.io/source-namespace"
 )
 
 // Environment variables for tuning and debugging Argo CD

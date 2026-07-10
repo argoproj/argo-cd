@@ -259,6 +259,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
 		false,
+		false,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
@@ -2655,7 +2656,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
 	)
 	require.NoError(t, err)
 
@@ -2720,7 +2721,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
 	)
 	require.NoError(t, err)
 
@@ -4147,4 +4148,18 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		assert.True(t, hasOther, "other annotations should be preserved")
 		assert.Equal(t, "other-value", otherValue)
 	})
+}
+
+func Test_addApplicationNamespace(t *testing.T) {
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+	ctrl.applicationNamespaces = []string{}
+	ctrl.applicationNamespacesMu = sync.RWMutex{}
+
+	ctrl.addApplicationNamespace("test-ns1")
+	ctrl.addApplicationNamespace("test-ns2")
+	ctrl.addApplicationNamespace("test-ns1")
+
+	assert.Len(t, ctrl.applicationNamespaces, 2)
+	assert.Equal(t, "test-ns1", ctrl.applicationNamespaces[0])
+	assert.Equal(t, "test-ns2", ctrl.applicationNamespaces[1])
 }
