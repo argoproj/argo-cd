@@ -915,6 +915,13 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		}
 	}
 
+	// Start the sharding cache's debounce worker before the app informer so
+	// per-application changes coalesce into batched distribution recomputes.
+	// Every shard now maintains the full application set (#24515), so without
+	// this an unbatched recompute would run on every add/update/delete on every
+	// replica.
+	ctrl.clusterSharding.Run(ctx)
+
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
 

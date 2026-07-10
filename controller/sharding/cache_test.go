@@ -3,9 +3,12 @@ package sharding
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -633,7 +636,7 @@ func TestClusterSharding_GetAppDistribution_ConcurrentWithWrites(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		defer close(done)
-		for i := 0; i < 5000; i++ {
+		for i := range 5000 {
 			app := createApp(fmt.Sprintf("app-%d", i), "https://serverA")
 			sharding.AddApp(&app)
 		}
@@ -679,7 +682,7 @@ func TestClusterSharding_UpdateShard_ConcurrentWithReads(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		defer close(done)
-		for i := 0; i < 5000; i++ {
+		for i := range 5000 {
 			sharding.UpdateShard(i % 2)
 		}
 	}()
@@ -699,4 +702,54 @@ func TestClusterSharding_UpdateShard_ConcurrentWithReads(t *testing.T) {
 	}()
 
 	wg.Wait()
+}
+
+// TestClusterSharding_Run_DebouncesRecomputes verifies that once the background
+// worker is started, a burst of application changes collapses into a small
+// number of distribution recomputes (instead of one per app), while still
+// eventually reflecting every app.
+func TestClusterSharding_Run_DebouncesRecomputes(t *testing.T) {
+	sharding := setupTestSharding(0, 2)
+
+	// Spy on the distribution function: one recompute calls it once per cluster
+	// (here a single cluster), so the call count is the recompute count.
+	var shardCalls atomic.Int32
+	sharding.getClusterShard = func(_ *v1alpha1.Cluster) int {
+		shardCalls.Add(1)
+		return 0
+	}
+
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{ID: "1", Server: "https://serverA"},
+			},
+		},
+		&v1alpha1.ApplicationList{},
+	)
+
+	// t.Context() is cancelled when the test ends, stopping the worker.
+	sharding.Run(t.Context())
+
+	// Add a burst of apps. In async mode each AddApp only signals the worker.
+	shardCalls.Store(0)
+	const n = 200
+	for i := range n {
+		app := createApp(fmt.Sprintf("app-%d", i), "https://serverA")
+		sharding.AddApp(&app)
+	}
+
+	// Every app is recorded immediately, independent of the recompute.
+	assert.Len(t, sharding.Apps, n)
+
+	// The worker recomputes after the debounce window; wait for it to run.
+	require.Eventually(t, func() bool {
+		return shardCalls.Load() > 0
+	}, 5*time.Second, 10*time.Millisecond, "worker should recompute after the debounce window")
+
+	// The burst of n adds collapsed into just a handful of recomputes, not one
+	// per app (which would be n). A synchronous recompute per AddApp would make
+	// shardCalls == n.
+	assert.Less(t, int(shardCalls.Load()), n/2,
+		"debounced worker should coalesce the burst into far fewer recomputes than apps")
 }
