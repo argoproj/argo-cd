@@ -1081,7 +1081,7 @@ func TestOptimizedLsRemoteUsesSeparateCacheKey(t *testing.T) {
 
 	assert.Equal(t, 2, lsRemoteCalls, "second optimized lookup should use the optimized cache")
 	assert.NotContains(t, cache.setKeys, repoURL, "optimized lookups must not populate the full-ref cache key")
-	assert.Contains(t, cache.setKeys, repoURL+"|ls-remote-optimized|HEAD,heads,tags")
+	assert.Contains(t, cache.setKeys, "ls-remote-optimized|"+repoURL+"|HEAD,heads,tags")
 }
 
 func TestOptimizedLsRemoteIgnoresExistingFullRefCache(t *testing.T) {
@@ -1123,7 +1123,7 @@ func TestOptimizedLsRemoteIgnoresExistingFullRefCache(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, newSHA, sha)
 	assert.Equal(t, 2, lsRemoteCalls, "optimized lookup must fetch when only the full-ref cache key exists")
-	assert.Contains(t, cache.setKeys, repoURL+"|ls-remote-optimized|HEAD,heads,tags")
+	assert.Contains(t, cache.setKeys, "ls-remote-optimized|"+repoURL+"|HEAD,heads,tags")
 }
 
 func TestOptimizedLsRemoteHardRefreshUpdatesOptimizedCache(t *testing.T) {
@@ -1158,7 +1158,7 @@ func TestOptimizedLsRemoteHardRefreshUpdatesOptimizedCache(t *testing.T) {
 	sha, err = cachedClient.LsRemote("main")
 	require.NoError(t, err)
 	assert.Equal(t, newSHA, sha)
-	assert.Contains(t, cache.setKeys, repoURL+"|ls-remote-optimized|HEAD,heads,tags")
+	assert.Contains(t, cache.setKeys, "ls-remote-optimized|"+repoURL+"|HEAD,heads,tags")
 }
 
 func Test_nativeGitClient_Submodule(t *testing.T) {

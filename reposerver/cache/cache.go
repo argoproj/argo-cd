@@ -29,8 +29,6 @@ var (
 	ErrCacheKeyLocked = cacheutil.ErrCacheKeyLocked
 )
 
-const gitRefsEmptyValue = "__argo_cd_empty_git_refs__"
-
 type Cache struct {
 	cache                    *cacheutil.Cache
 	repoCacheExpiration      time.Duration
@@ -234,9 +232,6 @@ func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) 
 	for i := range references {
 		input = append(input, references[i].Strings())
 	}
-	if len(input) == 0 {
-		input = [][2]string{{gitRefsEmptyValue, gitRefsEmptyValue}}
-	}
 	return c.cache.SetItem(gitRefsKey(repo), input, &cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
 }
 
@@ -244,9 +239,6 @@ func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) 
 func GitRefCacheItemToReferences(cacheItem [][2]string) *[]*plumbing.Reference {
 	res := make([]*plumbing.Reference, 0, len(cacheItem))
 	for i := range cacheItem {
-		if cacheItem[i][0] == gitRefsEmptyValue && cacheItem[i][1] == gitRefsEmptyValue {
-			continue
-		}
 		// Skip empty data
 		if cacheItem[i][0] != "" || cacheItem[i][1] != "" {
 			res = append(res, plumbing.NewReferenceFromStrings(cacheItem[i][0], cacheItem[i][1]))
@@ -289,7 +281,7 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 	// Key is locked
 	case valueExists:
 		return input[0][1], nil
-	// Empty key exists
+	// An empty value is a valid cached ref result.
 	case err == nil:
 		*references = *GitRefCacheItemToReferences(input)
 		return "", nil
@@ -306,6 +298,8 @@ func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[
 	waitUntil := time.Now().Add(c.revisionCacheLockTimeout)
 	// Wait only the maximum amount of time configured for the lock
 	// if the configured time is zero then the for loop will never run and instead act as the owner immediately
+	// GetGitReferences leaves references nil for a cache miss or lock. It initializes
+	// references for a valid cache hit, including an empty ref list.
 	for time.Now().Before(waitUntil) {
 		// Get current cache state
 		if foundLockId, err := c.GetGitReferences(repo, references); foundLockId == lockId || err != nil || (references != nil && *references != nil) {
