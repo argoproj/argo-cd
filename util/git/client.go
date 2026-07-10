@@ -2058,9 +2058,8 @@ func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, args ...
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
-	if _, err := os.Stat(m.root); err != nil {
-		cmd.Dir = os.TempDir()
-	}
+	// ls-remote does not need the checkout, which may be protected with mode 000 between operations.
+	cmd.Dir = os.TempDir()
 	return m.runCmdOutput(cmd, runOpts{})
 }
 
