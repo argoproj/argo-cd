@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -223,5 +224,28 @@ func TestApplicationEventHandlerFuncs(t *testing.T) {
 			h.OnDelete("not-an-app")
 		})
 		assertNotEnqueued(t, ctrl.appRefreshQueue)
+	})
+}
+
+func TestNamespaceEventHandlerFuncs(t *testing.T) {
+	createNamespace := func(name string) *corev1.Namespace {
+		return &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+		}
+	}
+
+	t.Run("delete event removes namespace", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+		ctrl.applicationNamespaces = []string{"some-namespace", "to-remove-namespace"}
+		h := ctrl.namespaceEventHandlerFuncs()
+
+		ns := createNamespace("to-remove-namespace")
+		h.DeleteFunc(ns)
+
+		assert.Len(t, ctrl.applicationNamespaces, 1)
+		assert.NotContains(t, ctrl.applicationNamespaces, "to-remove-namespace")
+		assert.Contains(t, ctrl.applicationNamespaces, "some-namespace")
 	})
 }
