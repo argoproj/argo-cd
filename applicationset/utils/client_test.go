@@ -109,6 +109,29 @@ func TestDeleteSyncsCache(t *testing.T) {
 	require.Empty(t, store.List())
 }
 
+// TestDeleteEvictsStaleCacheOnNotFound covers the "ApplicationSet stuck in Deleting" root cause.
+// The informer store still holds an Application that has already been removed from the API server
+// (a missed delete watch event). Deleting it returns NotFound. The stale entry must still be
+// evicted from the store, otherwise cache-backed reads keep returning the ghost object forever and
+// callers such as reverse deletion never converge — only a controller restart clears it.
+func TestDeleteEvictsStaleCacheOnNotFound(t *testing.T) {
+	t.Parallel()
+
+	// Seed the store with a ghost app, but leave the fake API client empty so Delete 404s.
+	app := &application.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+	}
+	c, store, err := newClient()
+	require.NoError(t, err)
+	require.NoError(t, store.Add(app))
+	require.NotEmpty(t, store.List(), "precondition: store holds the stale entry")
+
+	err = c.Delete(t.Context(), app)
+	require.NoError(t, err, "a NotFound delete must be swallowed, not surfaced")
+
+	require.Empty(t, store.List(), "stale cache entry should be evicted even though the API returned NotFound")
+}
+
 func TestNewClientDoesNotCrashWithMultiNamespaceCache(_ *testing.T) {
 	_ = NewCacheSyncingClient(nil, &fakeMultiNamespaceCache{})
 }
