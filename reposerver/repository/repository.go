@@ -28,8 +28,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	textutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	textutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
@@ -227,6 +227,13 @@ func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest)
 
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
+	if q.Repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+	if git.NormalizeGitURL(q.Repo.Repo) == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "repository URL %q is invalid", q.Repo.Repo)
+	}
+
 	gitClient, err := s.newClient(q.Repo)
 	if err != nil {
 		return nil, fmt.Errorf("error creating git client: %w", err)

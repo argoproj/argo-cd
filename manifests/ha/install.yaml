@@ -33908,6 +33908,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -34447,6 +34459,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -34980,6 +35004,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -35207,7 +35243,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -35278,7 +35314,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -35353,7 +35389,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           exec:
@@ -35409,7 +35445,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
