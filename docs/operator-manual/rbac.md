@@ -280,6 +280,55 @@ p, example-user, applications, get, default/*, allow
 p, example-user, extensions, invoke, httpbin, allow
 ```
 
+### The `clusters` resource
+
+The `clusters` resource governs which cluster credentials a user can list, create,
+update, or delete via the Argo CD API/UI/CLI. Cluster credentials are stored as
+Kubernetes `Secret`s in the Argo CD namespace with the
+`argocd.argoproj.io/secret-type: cluster` label. Each such Secret may optionally
+carry a `project` field, which scopes the cluster to a single AppProject.
+
+The `<object>` value in a `clusters` policy is derived from the cluster Secret's
+`server` (its API URL, e.g. `https://kubernetes.default.svc`) and its optional
+`project` field, following [`CreateClusterRBACObject`](https://github.com/argoproj/argo-cd/blob/master/server/cluster/cluster.go):
+
+- **Unscoped cluster** (Secret's `project` is empty): the object is the cluster
+  server URL, e.g. `https://kubernetes.default.svc`.
+- **Project-scoped cluster** (Secret's `project` is set): the object is
+  `<project>/<server-url>`, e.g. `my-project/https://api.example.com:6443`.
+
+Examples:
+
+```csv
+# Grant every authenticated user visibility of the shared in-cluster Secret
+# (which is unscoped).
+p, role:defaultrole, clusters, get, https://kubernetes.default.svc, allow
+
+# Grant a role full access to a project-scoped external cluster.
+p, role:my-role, clusters, *, my-project/https://api.example.com:6443, allow
+```
+
+Because `policy.matchMode` defaults to `glob`, wildcards are supported:
+
+```csv
+# Any authenticated user can get every cluster Secret owned by "my-project".
+p, role:defaultrole, clusters, get, my-project/*, allow
+```
+
+> [!NOTE]
+> **The cluster Secret's `name` is not accepted as an object**
+>
+> The `<object>` for a `clusters` policy must be the server URL (optionally
+> project-prefixed); the cluster Secret's `name` field is **not** an accepted
+> object shape. A policy such as `p, ..., clusters, get, my-cluster, allow`
+> will silently match nothing when `my-cluster` is not a URL. See
+> [issue #13244](https://github.com/argoproj/argo-cd/issues/13244) for tracking
+> of a feature request to also accept cluster names.
+
+For the setup side of project-scoped clusters (how to attach a `project` to a
+cluster Secret and let developers self-register clusters into a project) see
+[Project scoped Repositories and Clusters](../user-guide/projects.md#project-scoped-repositories-and-clusters).
+
 ### The `deny` effect
 
 When `deny` is used as an effect in a policy, it will be effective if the policy matches.
