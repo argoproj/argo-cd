@@ -28,6 +28,7 @@ import './application-status-panel.scss';
 
 interface Props {
     application: models.Application;
+    hasDebugContainer?: boolean;
     showDiff?: () => any;
     showOperation?: () => any;
     showHydrateOperation?: () => any;
@@ -143,7 +144,8 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
 
                 return {appSet};
-            }}>
+            }}
+        >
             {({appSet}: {appSet: models.ApplicationSet}) => {
                 // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
                 if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
@@ -196,7 +198,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, hasDebugContainer, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
     // Only show Progressive Sync if the application has an ApplicationSet parent
     // The actual strategy validation will be done inside ProgressiveSyncStatus component
     const showProgressiveSync = !!getApplicationSetOwnerRef(application);
@@ -288,6 +290,11 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             </a>
                         ) : (
                             <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                        )}
+                        {hasDebugContainer && (
+                            <span className='application-status-panel__item-name' style={{marginLeft: '5px'}}>
+                                (Debug Container Attached)
+                            </span>
                         )}
                     </div>
                     <div className='application-status-panel__item-value__revision show-for-large'>{renderSyncStatusRevision(application)}</div>
@@ -386,7 +393,8 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 input={application}
                 load={async app => {
                     return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
-                }}>
+                }}
+            >
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
                         {data?.assignedWindows && (

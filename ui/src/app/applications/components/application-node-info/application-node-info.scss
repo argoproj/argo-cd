@@ -72,6 +72,11 @@
                 text-decoration: none;
             }
         }
+
+        &--debug-attached {
+            font-size: 0.8em;
+            opacity: 0.85;
+        }
         &:last-child {
             border-bottom: none;
         }

@@ -18,6 +18,7 @@ import {ApplicationResourcesDiff} from '../application-resources-diff/applicatio
 import {ApplicationSummary} from '../application-summary/application-summary';
 import {AppSetResourceNodePreview} from './appset-resource-node-preview';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {PodDebugViewer} from '../pod-debug-viewer/pod-debug-viewer';
 import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
@@ -70,7 +71,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         execEnabled: boolean,
         execAllowed: boolean,
         logsAllowed: boolean,
-        controlledState: {summary: models.ResourceStatus; state: models.ResourceDiff} | null
+        debugEnabled?: boolean,
+        debugAllowed?: boolean,
+        debugImages?: string[]
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -156,6 +159,25 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     }
                 ]);
             }
+            if (selectedNode?.kind === 'Pod' && debugEnabled && debugAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'debug',
+                        icon: 'fa fa-bug',
+                        title: 'Debug',
+                        content: (
+                            <PodDebugViewer
+                                applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                debugImages={debugImages || []}
+                            />
+                        )
+                    }
+                ]);
+            }
         }
         if (node?.kind === 'ApplicationSet' && node?.group === 'argoproj.io') {
             const appSetSyncStatus = controlledState?.summary?.status || SyncStatuses.Unknown;
@@ -233,7 +255,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
                                 fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
-                        }>
+                        }
+                    >
                         {managedResources => <ApplicationResourcesDiff states={managedResources} />}
                     </DataLoader>
                 )
@@ -303,12 +326,35 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
-                        const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
-                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
-                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
+                        const debugEnabled = settings.debugEnabled;
+                        const appRBACName = application.spec.project + '/' + application.metadata.name;
+                        const logsAllowed = await services.accounts.canI('logs', 'get', appRBACName);
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', appRBACName));
+                        // Dropdown = allowlist ∩ RBAC, computed server-side. Per-image canI can't work
+                        // here: the CanI REST path splits the '/' in a debug/<image> action.
+                        const debugImages: string[] = debugEnabled
+                            ? await services.applications.getDebugImages(application.spec.project, application.metadata.name, application.metadata.namespace)
+                            : [];
+                        const debugAllowed = debugEnabled && debugImages.length > 0;
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
-                    }}>
+                        return {
+                            controlledState,
+                            liveState,
+                            events,
+                            podState,
+                            execEnabled,
+                            execAllowed,
+                            logsAllowed,
+                            debugEnabled,
+                            debugAllowed,
+                            debugImages,
+                            links,
+                            childResources,
+                            resourceActionsMenuItems
+                        };
+                    }}
+                >
                     {data => (
                         <React.Fragment>
                             <div className='resource-details__header'>
@@ -326,13 +372,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 <button
                                     onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
-                                    className='argo-button argo-button--base'>
+                                    className='argo-button argo-button--base'
+                                >
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
                                     onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)}
                                     style={{marginRight: '5px'}}
-                                    className='argo-button argo-button--base'>
+                                    className='argo-button argo-button--base'
+                                >
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
                                 {data.resourceActionsMenuItems?.length > 0 && (
@@ -342,7 +390,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                                 <i className='fa fa-ellipsis-v' />
                                             </button>
-                                        )}>
+                                        )}
+                                    >
                                         {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
                                     </DropDown>
                                 )}
@@ -374,7 +423,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.execEnabled,
                                     data.execAllowed,
                                     data.logsAllowed,
-                                    data.controlledState
+                                    data.debugEnabled,
+                                    data.debugAllowed,
+                                    data.debugImages
                                 )}
                                 selectedTabKey={tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}

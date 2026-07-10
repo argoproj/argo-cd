@@ -47,6 +47,10 @@ const (
 	DefaultRedisAddr = "argocd-redis:6379"
 )
 
+// DebugContainerNamePrefix names ephemeral debug containers Argo CD attaches, so
+// Argo-attached ones can be told apart from out-of-band ones (e.g. `kubectl debug`).
+const DebugContainerNamePrefix = "argocd-debug-"
+
 // Kubernetes ConfigMap and Secret resource names which hold Argo CD settings
 const (
 	ArgoCDConfigMapName              = "argocd-cm"
