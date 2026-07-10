@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	log "github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8scache "k8s.io/client-go/tools/cache"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -88,7 +89,12 @@ func (c *cacheSyncingClient) retrieveStore(ctx context.Context, obj client.Objec
 func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() error, obj client.Object, deleteObj bool) error {
 	// execute the operation first and only sync cache if it succeeds
 	if err := op(); err != nil {
-		return err
+		// A NotFound on Delete means the object is already gone from the API server. We still
+		// want to evict any stale entry from the informer cache below, otherwise a lingering
+		// (already-deleted) object keeps being read back and callers can never converge.
+		if !deleteObj || !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 	// sync cache for applications only
 	if _, ok := obj.(*application.Application); !ok {
