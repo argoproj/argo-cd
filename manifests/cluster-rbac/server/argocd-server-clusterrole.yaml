@@ -39,9 +39,7 @@ rules:
   resources:
   - pods/attach
   verbs:
-  - create  # supports web-based debug: streaming stdin/stdout to the attached ephemeral container
-            # (the ephemeral container itself is added via `patch` on pods/ephemeralcontainers,
-            # already covered by the cluster-wide '*'/'*' patch rule above)
+  - create
 - apiGroups:
   - "argoproj.io"
   resources:
