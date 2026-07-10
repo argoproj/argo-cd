@@ -30,7 +30,8 @@ data:
   # Enable the web-based debug feature (disabled by default)
   exec.debug.enabled: "true"
 
-  # Comma-separated list of allowed debug images (optional, defaults shown)
+  # Comma-separated allowlist of debug images. Required when the feature is enabled:
+  # there is no default, and the feature is unavailable until this is set (example values below).
   exec.debug.images: "busybox:latest,alpine:latest,nicolaka/netshoot:latest"
 ```
 
