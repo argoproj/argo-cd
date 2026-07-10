@@ -1955,8 +1955,6 @@ type AppHealthStatus struct {
 	// Status holds the status code of the application
 	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
 	// Message is a human-readable informational message describing the health status
-	//
-	// Deprecated: this field is not used and will be removed in a future release.
 	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 	// LastTransitionTime is the time the HealthStatus was set or updated
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
