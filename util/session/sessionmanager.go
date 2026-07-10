@@ -629,8 +629,8 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 // the equivalent, so fall back to it. Returns an empty string when neither claim
 // is present.
 func tokenUniqueID(claims jwt.MapClaims) string {
-	if id := jwutil.StringField(claims, "jti"); id != "' {
-	          return id
+	if id := jwtutil.StringField(claims, "jti"); id != "" {
+		return id
 	}
 	return jwtutil.StringField(claims, "uti")
 }
