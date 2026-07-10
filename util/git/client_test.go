@@ -945,6 +945,25 @@ func TestOptimizedLsRemote(t *testing.T) {
 	}
 }
 
+func TestOptimizedLsRemoteIgnoresUnusableClientRoot(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	expectedSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+
+	clientRoot := filepath.Join(t.TempDir(), "not-a-directory")
+	require.NoError(t, os.WriteFile(clientRoot, nil, 0o600))
+	client, err := NewClientExt("file://"+sourceRepoPath, clientRoot, NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true, []string{"refs/heads/", "refs/tags/"}))
+	require.NoError(t, err)
+
+	sha, handled, err := client.(*nativeGitClient).lsRemoteOptimized("HEAD")
+	require.NoError(t, err)
+	assert.True(t, handled)
+	assert.Equal(t, strings.TrimSpace(string(expectedSHABytes)), sha)
+}
+
 func TestOptimizedLsRemoteUnsupportedPrefixesFallback(t *testing.T) {
 	setupGitEnv(t)
 	ctx := t.Context()
