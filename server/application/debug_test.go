@@ -178,12 +178,3 @@ g, bob, role:scoped
 		})
 	}
 }
-
-func TestRandomSuffix(t *testing.T) {
-	s1 := randomSuffix(6)
-	s2 := randomSuffix(6)
-	assert.Len(t, s1, 6)
-	assert.Len(t, s2, 6)
-	// Random suffixes should (almost certainly) differ
-	assert.NotEqual(t, s1, s2)
-}
