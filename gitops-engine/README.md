@@ -19,5 +19,5 @@ features.
 To use the library, add it as a dependency in your Go module:
 
 ```bash
-go get github.com/argoproj/argo-cd/gitops-engine
+go get github.com/argoproj/argo-cd/gitops-engine/v3
 ```
